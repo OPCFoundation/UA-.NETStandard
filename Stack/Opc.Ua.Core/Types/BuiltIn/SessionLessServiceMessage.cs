@@ -22,7 +22,7 @@ namespace Opc.Ua
         /// <summary>
         /// The VersionTime of the namespaces URIs on the server.
         /// </summary>
-        public UInt32 UrisVersion;
+        public UInt32 UriVersion;
 
         /// <summary>
         /// The namespaces URIs referenced by the message.
@@ -40,11 +40,6 @@ namespace Opc.Ua
         public StringTable LocaleIds;
 
         /// <summary>
-        /// The service id for the message.
-        /// </summary>
-        public uint? ServiceId;
-
-        /// <summary>
         /// The message to encode or the decoded message.
         /// </summary>
         public IEncodeable Message;
@@ -52,7 +47,7 @@ namespace Opc.Ua
         /// <inheritdoc cref="IEncodeable.Encode(IEncoder)" />
         public void Encode(IEncoder encoder)
         {
-            encoder.WriteUInt32("UrisVersion", UrisVersion);
+            encoder.WriteUInt32("UriVersion", UriVersion);
             if (NamespaceUris != null && NamespaceUris.Count > 1)
             {
                 string[] uris = new string[NamespaceUris.Count - 1];
@@ -115,7 +110,7 @@ namespace Opc.Ua
         /// <inheritdoc cref="IEncodeable.Decode(IDecoder)" />
         public void Decode(IDecoder decoder)
         {
-            UrisVersion = decoder.ReadUInt32("UrisVersion");
+            UriVersion = decoder.ReadUInt32("UriVersion");
 
             NamespaceUris = new NamespaceTable();
             var uris = decoder.ReadStringArray("NamespaceUris");

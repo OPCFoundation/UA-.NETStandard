@@ -253,40 +253,7 @@ namespace Opc.Ua
         public const uint TrustListDataType = 12554;
 
         /// <remarks />
-        public const uint BaseConfigurationDataType = 15434;
-
-        /// <remarks />
-        public const uint BaseConfigurationRecordDataType = 15435;
-
-        /// <remarks />
-        public const uint CertificateGroupDataType = 15436;
-
-        /// <remarks />
-        public const uint ConfigurationUpdateTargetType = 15538;
-
-        /// <remarks />
-        public const uint ConfigurationUpdateType = 15539;
-
-        /// <remarks />
         public const uint TransactionErrorType = 32285;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationDataType = 15549;
-
-        /// <remarks />
-        public const uint ApplicationIdentityDataType = 15556;
-
-        /// <remarks />
-        public const uint EndpointDataType = 15557;
-
-        /// <remarks />
-        public const uint ServerEndpointDataType = 15558;
-
-        /// <remarks />
-        public const uint SecuritySettingsDataType = 15559;
-
-        /// <remarks />
-        public const uint UserTokenSettingsDataType = 15560;
 
         /// <remarks />
         public const uint DecimalDataType = 17861;
@@ -350,21 +317,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint PublishedDataSetCustomSourceDataType = 25269;
-
-        /// <remarks />
-        public const uint ActionTargetDataType = 18593;
-
-        /// <remarks />
-        public const uint PublishedActionDataType = 18594;
-
-        /// <remarks />
-        public const uint ActionState = 18595;
-
-        /// <remarks />
-        public const uint ActionMethodDataType = 18597;
-
-        /// <remarks />
-        public const uint PublishedActionMethodDataType = 18793;
 
         /// <remarks />
         public const uint DataSetFieldContentMask = 15583;
@@ -517,9 +469,6 @@ namespace Opc.Ua
         public const uint DatagramDataSetReaderTransportDataType = 23614;
 
         /// <remarks />
-        public const uint DtlsPubSubConnectionDataType = 18794;
-
-        /// <remarks />
         public const uint BrokerConnectionTransportDataType = 15007;
 
         /// <remarks />
@@ -589,28 +538,7 @@ namespace Opc.Ua
         public const uint TsnListenerStatus = 24224;
 
         /// <remarks />
-        public const uint ChassisIdSubtype = 18947;
-
-        /// <remarks />
-        public const uint PortIdSubtype = 18949;
-
-        /// <remarks />
-        public const uint ManAddrIfSubtype = 18951;
-
-        /// <remarks />
         public const uint PriorityMappingEntryType = 25220;
-
-        /// <remarks />
-        public const uint LldpManagementAddressTxPortType = 18953;
-
-        /// <remarks />
-        public const uint LldpManagementAddressType = 18954;
-
-        /// <remarks />
-        public const uint LldpTlvType = 18955;
-
-        /// <remarks />
-        public const uint LldpSystemCapabilitiesMap = 18956;
 
         /// <remarks />
         public const uint ReferenceDescriptionDataType = 32659;
@@ -1129,15 +1057,6 @@ namespace Opc.Ua
         public const uint ReadEventDetails2 = 32799;
 
         /// <remarks />
-        public const uint SortOrderType = 18646;
-
-        /// <remarks />
-        public const uint SortRuleElement = 18648;
-
-        /// <remarks />
-        public const uint ReadEventDetailsSorted = 18649;
-
-        /// <remarks />
         public const uint ReadRawModifiedDetails = 647;
 
         /// <remarks />
@@ -1460,24 +1379,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint ExceptionDeviationFormat = 890;
-
-        /// <remarks />
-        public const uint TestAbstractStructure = 15399;
-
-        /// <remarks />
-        public const uint TestConcreteStructure = 15400;
-
-        /// <remarks />
-        public const uint TestEnumeration = 15432;
-
-        /// <remarks />
-        public const uint TestScalarStructure = 15015;
-
-        /// <remarks />
-        public const uint TestArrayStructure = 15016;
-
-        /// <remarks />
-        public const uint TestStructure = 15017;
     }
     #endregion
 
@@ -1699,6 +1600,42 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint RoleType_RemoveEndpoint = 16182;
+
+        /// <remarks />
+        public const uint WellKnownRole_Anonymous_AddIdentity = 15648;
+
+        /// <remarks />
+        public const uint WellKnownRole_Anonymous_RemoveIdentity = 15650;
+
+        /// <remarks />
+        public const uint WellKnownRole_Anonymous_AddApplication = 16195;
+
+        /// <remarks />
+        public const uint WellKnownRole_Anonymous_RemoveApplication = 16197;
+
+        /// <remarks />
+        public const uint WellKnownRole_Anonymous_AddEndpoint = 16199;
+
+        /// <remarks />
+        public const uint WellKnownRole_Anonymous_RemoveEndpoint = 16201;
+
+        /// <remarks />
+        public const uint WellKnownRole_AuthenticatedUser_AddIdentity = 15660;
+
+        /// <remarks />
+        public const uint WellKnownRole_AuthenticatedUser_RemoveIdentity = 15662;
+
+        /// <remarks />
+        public const uint WellKnownRole_AuthenticatedUser_AddApplication = 16206;
+
+        /// <remarks />
+        public const uint WellKnownRole_AuthenticatedUser_RemoveApplication = 16208;
+
+        /// <remarks />
+        public const uint WellKnownRole_AuthenticatedUser_AddEndpoint = 16210;
+
+        /// <remarks />
+        public const uint WellKnownRole_AuthenticatedUser_RemoveEndpoint = 16212;
 
         /// <remarks />
         public const uint WellKnownRole_Observer_AddIdentity = 15672;
@@ -2367,264 +2304,6 @@ namespace Opc.Ua
         public const uint CertificateGroupFolderType_AdditionalGroup_Placeholder_TrustListOutOfDate_ShelvingState_OneShotShelve = 21637;
 
         /// <remarks />
-        public const uint ConfigurationFileType_ConfirmUpdate = 15508;
-
-        /// <remarks />
-        public const uint ConfigurationFileType_CloseAndUpdate = 15505;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustList_Open = 16717;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustList_Close = 16724;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustList_Read = 16726;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustList_Write = 16729;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustList_GetPosition = 16732;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustList_SetPosition = 16735;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustList_OpenWithMasks = 16741;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustList_CloseAndUpdate = 16744;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustList_AddCertificate = 16747;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustList_RemoveCertificate = 16749;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Disable = 16790;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Enable = 16791;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_AddComment = 16792;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Acknowledge = 16812;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_TimedShelve = 16864;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_Unshelve = 16868;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_OneShotShelve = 16871;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Disable = 16977;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Enable = 16978;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_AddComment = 16979;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Acknowledge = 17003;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_TimedShelve = 17056;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_Unshelve = 17060;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_OneShotShelve = 17063;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustList_Open = 17134;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustList_Close = 17137;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustList_Read = 17139;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustList_Write = 17142;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustList_GetPosition = 17144;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustList_SetPosition = 17147;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustList_OpenWithMasks = 17153;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustList_CloseAndUpdate = 17156;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustList_AddCertificate = 17159;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustList_RemoveCertificate = 17161;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Disable = 17199;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Enable = 17200;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_AddComment = 17205;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Acknowledge = 17237;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_TimedShelve = 17340;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_Unshelve = 17344;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_OneShotShelve = 17347;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Disable = 17678;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Enable = 17679;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_AddComment = 17680;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Acknowledge = 17700;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_TimedShelve = 17917;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_Unshelve = 17922;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_OneShotShelve = 17925;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustList_Open = 18024;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustList_Close = 18027;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustList_Read = 18031;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustList_Write = 18034;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustList_GetPosition = 18036;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustList_SetPosition = 18039;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustList_OpenWithMasks = 18045;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustList_CloseAndUpdate = 18049;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustList_AddCertificate = 18052;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustList_RemoveCertificate = 18054;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Disable = 18225;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Enable = 18226;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_AddComment = 18227;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Acknowledge = 18247;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_TimedShelve = 18294;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_Unshelve = 18298;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_OneShotShelve = 18301;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Disable = 18392;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Enable = 18393;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_AddComment = 18394;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Acknowledge = 18414;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_TimedShelve = 18461;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_Unshelve = 18465;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_OneShotShelve = 18468;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_UpdateCertificate = 18533;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ApplyChanges = 18539;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CreateSigningRequest = 18541;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_GetRejectedList = 18544;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_Open = 18562;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_Close = 18565;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_Read = 18567;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_Write = 18570;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_GetPosition = 18572;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_SetPosition = 18575;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_ConfirmUpdate = 18584;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_CloseAndUpdate = 18581;
-
-        /// <remarks />
         public const uint ServerConfigurationType_CertificateGroups_DefaultApplicationGroup_TrustList_Open = 13958;
 
         /// <remarks />
@@ -2862,30 +2541,6 @@ namespace Opc.Ua
         public const uint ServerConfigurationType_ResetToServerDefaults = 25699;
 
         /// <remarks />
-        public const uint ServerConfigurationType_ConfigurationFile_Open = 15572;
-
-        /// <remarks />
-        public const uint ServerConfigurationType_ConfigurationFile_Close = 15575;
-
-        /// <remarks />
-        public const uint ServerConfigurationType_ConfigurationFile_Read = 15791;
-
-        /// <remarks />
-        public const uint ServerConfigurationType_ConfigurationFile_Write = 15805;
-
-        /// <remarks />
-        public const uint ServerConfigurationType_ConfigurationFile_GetPosition = 15807;
-
-        /// <remarks />
-        public const uint ServerConfigurationType_ConfigurationFile_SetPosition = 15810;
-
-        /// <remarks />
-        public const uint ServerConfigurationType_ConfigurationFile_ConfirmUpdate = 15863;
-
-        /// <remarks />
-        public const uint ServerConfigurationType_ConfigurationFile_CloseAndUpdate = 15849;
-
-        /// <remarks />
         public const uint ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList_Open = 12647;
 
         /// <remarks />
@@ -3120,34 +2775,7 @@ namespace Opc.Ua
         public const uint ServerConfiguration_ResetToServerDefaults = 25709;
 
         /// <remarks />
-        public const uint ServerConfiguration_ConfigurationFile_Open = 16013;
-
-        /// <remarks />
-        public const uint ServerConfiguration_ConfigurationFile_Close = 16060;
-
-        /// <remarks />
-        public const uint ServerConfiguration_ConfigurationFile_Read = 16074;
-
-        /// <remarks />
-        public const uint ServerConfiguration_ConfigurationFile_Write = 16101;
-
-        /// <remarks />
-        public const uint ServerConfiguration_ConfigurationFile_GetPosition = 16103;
-
-        /// <remarks />
-        public const uint ServerConfiguration_ConfigurationFile_SetPosition = 16124;
-
-        /// <remarks />
-        public const uint ServerConfiguration_ConfigurationFile_ConfirmUpdate = 16320;
-
-        /// <remarks />
-        public const uint ServerConfiguration_ConfigurationFile_CloseAndUpdate = 16317;
-
-        /// <remarks />
         public const uint KeyCredentialConfigurationFolderType_CreateCredential = 17522;
-
-        /// <remarks />
-        public const uint KeyCredentialConfiguration_CreateCredential = 17528;
 
         /// <remarks />
         public const uint KeyCredentialConfigurationType_GetEncryptingKey = 17534;
@@ -3786,30 +3414,6 @@ namespace Opc.Ua
         public const uint ProvisionableDeviceType_ApplicationName_Placeholder_GetRejectedList = 28013;
 
         /// <remarks />
-        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_Open = 16332;
-
-        /// <remarks />
-        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_Close = 16335;
-
-        /// <remarks />
-        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_Read = 16337;
-
-        /// <remarks />
-        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_Write = 16340;
-
-        /// <remarks />
-        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_GetPosition = 16342;
-
-        /// <remarks />
-        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_SetPosition = 16345;
-
-        /// <remarks />
-        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_ConfirmUpdate = 16523;
-
-        /// <remarks />
-        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_CloseAndUpdate = 16368;
-
-        /// <remarks />
         public const uint ProvisionableDevice_RequestTickets = 29880;
 
         /// <remarks />
@@ -4035,9 +3639,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint WellKnownRole_AuthenticatedUser = 15656;
-
-        /// <remarks />
-        public const uint WellKnownRole_TrustedApplication = 18625;
 
         /// <remarks />
         public const uint WellKnownRole_Observer = 15668;
@@ -4283,27 +3884,6 @@ namespace Opc.Ua
         public const uint CertificateGroupFolderType_AdditionalGroup_Placeholder_TrustList = 13917;
 
         /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder = 16663;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups = 16707;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup = 16708;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustList = 16709;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustList = 17126;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustList = 18016;
-
-        /// <remarks />
-        public const uint ManagedApplications = 16706;
-
-        /// <remarks />
         public const uint ServerConfigurationType_CertificateGroups = 13950;
 
         /// <remarks />
@@ -4320,9 +3900,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint ServerConfigurationType_TransactionDiagnostics = 32299;
-
-        /// <remarks />
-        public const uint ServerConfigurationType_ConfigurationFile = 15564;
 
         /// <remarks />
         public const uint ServerConfiguration = 12637;
@@ -4850,34 +4427,7 @@ namespace Opc.Ua
         public const uint ListenerStreams = 24232;
 
         /// <remarks />
-        public const uint LLDP = 18958;
-
-        /// <remarks />
-        public const uint LLDP_LocalSystemData = 18965;
-
-        /// <remarks />
-        public const uint LLDP_Ports = 18972;
-
-        /// <remarks />
         public const uint IetfBaseNetworkInterfaceType_InterfaceName_Placeholder = 25226;
-
-        /// <remarks />
-        public const uint LldpInformationType_RemoteStatistics = 18974;
-
-        /// <remarks />
-        public const uint LldpInformationType_LocalSystemData = 18980;
-
-        /// <remarks />
-        public const uint LldpInformationType_Ports = 18987;
-
-        /// <remarks />
-        public const uint LldpInformationType_Ports_LldpPortInformation_Placeholder = 18988;
-
-        /// <remarks />
-        public const uint LldpPortInformationType_RemoteSystemsData = 19016;
-
-        /// <remarks />
-        public const uint LldpPortInformationType_RemoteSystemsData_LldpRemoteSystem_Placeholder = 19017;
 
         /// <remarks />
         public const uint Union_Encoding_DefaultBinary = 12766;
@@ -4943,37 +4493,7 @@ namespace Opc.Ua
         public const uint TrustListDataType_Encoding_DefaultBinary = 12680;
 
         /// <remarks />
-        public const uint BaseConfigurationDataType_Encoding_DefaultBinary = 16538;
-
-        /// <remarks />
-        public const uint BaseConfigurationRecordDataType_Encoding_DefaultBinary = 16539;
-
-        /// <remarks />
-        public const uint CertificateGroupDataType_Encoding_DefaultBinary = 16540;
-
-        /// <remarks />
-        public const uint ConfigurationUpdateTargetType_Encoding_DefaultBinary = 16541;
-
-        /// <remarks />
         public const uint TransactionErrorType_Encoding_DefaultBinary = 32382;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationDataType_Encoding_DefaultBinary = 16542;
-
-        /// <remarks />
-        public const uint ApplicationIdentityDataType_Encoding_DefaultBinary = 16543;
-
-        /// <remarks />
-        public const uint EndpointDataType_Encoding_DefaultBinary = 16544;
-
-        /// <remarks />
-        public const uint ServerEndpointDataType_Encoding_DefaultBinary = 16545;
-
-        /// <remarks />
-        public const uint SecuritySettingsDataType_Encoding_DefaultBinary = 16546;
-
-        /// <remarks />
-        public const uint UserTokenSettingsDataType_Encoding_DefaultBinary = 16547;
 
         /// <remarks />
         public const uint DecimalDataType_Encoding_DefaultBinary = 17863;
@@ -5031,18 +4551,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint PublishedDataSetCustomSourceDataType_Encoding_DefaultBinary = 25529;
-
-        /// <remarks />
-        public const uint ActionTargetDataType_Encoding_DefaultBinary = 18598;
-
-        /// <remarks />
-        public const uint PublishedActionDataType_Encoding_DefaultBinary = 18599;
-
-        /// <remarks />
-        public const uint ActionMethodDataType_Encoding_DefaultBinary = 18600;
-
-        /// <remarks />
-        public const uint PublishedActionMethodDataType_Encoding_DefaultBinary = 18795;
 
         /// <remarks />
         public const uint DataSetWriterDataType_Encoding_DefaultBinary = 15682;
@@ -5174,9 +4682,6 @@ namespace Opc.Ua
         public const uint DatagramDataSetReaderTransportDataType_Encoding_DefaultBinary = 23866;
 
         /// <remarks />
-        public const uint DtlsPubSubConnectionDataType_Encoding_DefaultBinary = 18930;
-
-        /// <remarks />
         public const uint BrokerConnectionTransportDataType_Encoding_DefaultBinary = 15479;
 
         /// <remarks />
@@ -5202,15 +4707,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint PriorityMappingEntryType_Encoding_DefaultBinary = 25239;
-
-        /// <remarks />
-        public const uint LldpManagementAddressTxPortType_Encoding_DefaultBinary = 19079;
-
-        /// <remarks />
-        public const uint LldpManagementAddressType_Encoding_DefaultBinary = 19080;
-
-        /// <remarks />
-        public const uint LldpTlvType_Encoding_DefaultBinary = 19081;
 
         /// <remarks />
         public const uint ReferenceDescriptionDataType_Encoding_DefaultBinary = 32661;
@@ -5621,12 +5117,6 @@ namespace Opc.Ua
         public const uint ReadEventDetails2_Encoding_DefaultBinary = 32800;
 
         /// <remarks />
-        public const uint SortRuleElement_Encoding_DefaultBinary = 18650;
-
-        /// <remarks />
-        public const uint ReadEventDetailsSorted_Encoding_DefaultBinary = 18651;
-
-        /// <remarks />
         public const uint ReadRawModifiedDetails_Encoding_DefaultBinary = 649;
 
         /// <remarks />
@@ -5921,21 +5411,6 @@ namespace Opc.Ua
         public const uint Annotation_Encoding_DefaultBinary = 893;
 
         /// <remarks />
-        public const uint TestAbstractStructure_Encoding_DefaultBinary = 15401;
-
-        /// <remarks />
-        public const uint TestConcreteStructure_Encoding_DefaultBinary = 15402;
-
-        /// <remarks />
-        public const uint TestScalarStructure_Encoding_DefaultBinary = 15024;
-
-        /// <remarks />
-        public const uint TestArrayStructure_Encoding_DefaultBinary = 15025;
-
-        /// <remarks />
-        public const uint TestStructure_Encoding_DefaultBinary = 15026;
-
-        /// <remarks />
         public const uint Union_Encoding_DefaultXml = 12758;
 
         /// <remarks />
@@ -5999,37 +5474,7 @@ namespace Opc.Ua
         public const uint TrustListDataType_Encoding_DefaultXml = 12676;
 
         /// <remarks />
-        public const uint BaseConfigurationDataType_Encoding_DefaultXml = 16587;
-
-        /// <remarks />
-        public const uint BaseConfigurationRecordDataType_Encoding_DefaultXml = 16588;
-
-        /// <remarks />
-        public const uint CertificateGroupDataType_Encoding_DefaultXml = 16589;
-
-        /// <remarks />
-        public const uint ConfigurationUpdateTargetType_Encoding_DefaultXml = 16590;
-
-        /// <remarks />
         public const uint TransactionErrorType_Encoding_DefaultXml = 32386;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationDataType_Encoding_DefaultXml = 16591;
-
-        /// <remarks />
-        public const uint ApplicationIdentityDataType_Encoding_DefaultXml = 16592;
-
-        /// <remarks />
-        public const uint EndpointDataType_Encoding_DefaultXml = 16593;
-
-        /// <remarks />
-        public const uint ServerEndpointDataType_Encoding_DefaultXml = 16594;
-
-        /// <remarks />
-        public const uint SecuritySettingsDataType_Encoding_DefaultXml = 16595;
-
-        /// <remarks />
-        public const uint UserTokenSettingsDataType_Encoding_DefaultXml = 16596;
 
         /// <remarks />
         public const uint DecimalDataType_Encoding_DefaultXml = 17862;
@@ -6087,18 +5532,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint PublishedDataSetCustomSourceDataType_Encoding_DefaultXml = 25545;
-
-        /// <remarks />
-        public const uint ActionTargetDataType_Encoding_DefaultXml = 18610;
-
-        /// <remarks />
-        public const uint PublishedActionDataType_Encoding_DefaultXml = 18611;
-
-        /// <remarks />
-        public const uint ActionMethodDataType_Encoding_DefaultXml = 18612;
-
-        /// <remarks />
-        public const uint PublishedActionMethodDataType_Encoding_DefaultXml = 18937;
 
         /// <remarks />
         public const uint DataSetWriterDataType_Encoding_DefaultXml = 15955;
@@ -6230,9 +5663,6 @@ namespace Opc.Ua
         public const uint DatagramDataSetReaderTransportDataType_Encoding_DefaultXml = 23934;
 
         /// <remarks />
-        public const uint DtlsPubSubConnectionDataType_Encoding_DefaultXml = 18938;
-
-        /// <remarks />
         public const uint BrokerConnectionTransportDataType_Encoding_DefaultXml = 15579;
 
         /// <remarks />
@@ -6258,15 +5688,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint PriorityMappingEntryType_Encoding_DefaultXml = 25243;
-
-        /// <remarks />
-        public const uint LldpManagementAddressTxPortType_Encoding_DefaultXml = 19100;
-
-        /// <remarks />
-        public const uint LldpManagementAddressType_Encoding_DefaultXml = 19101;
-
-        /// <remarks />
-        public const uint LldpTlvType_Encoding_DefaultXml = 19102;
 
         /// <remarks />
         public const uint ReferenceDescriptionDataType_Encoding_DefaultXml = 32669;
@@ -6677,12 +6098,6 @@ namespace Opc.Ua
         public const uint ReadEventDetails2_Encoding_DefaultXml = 32801;
 
         /// <remarks />
-        public const uint SortRuleElement_Encoding_DefaultXml = 18652;
-
-        /// <remarks />
-        public const uint ReadEventDetailsSorted_Encoding_DefaultXml = 18653;
-
-        /// <remarks />
         public const uint ReadRawModifiedDetails_Encoding_DefaultXml = 648;
 
         /// <remarks />
@@ -6977,21 +6392,6 @@ namespace Opc.Ua
         public const uint Annotation_Encoding_DefaultXml = 892;
 
         /// <remarks />
-        public const uint TestAbstractStructure_Encoding_DefaultXml = 15403;
-
-        /// <remarks />
-        public const uint TestConcreteStructure_Encoding_DefaultXml = 15404;
-
-        /// <remarks />
-        public const uint TestScalarStructure_Encoding_DefaultXml = 15232;
-
-        /// <remarks />
-        public const uint TestArrayStructure_Encoding_DefaultXml = 15233;
-
-        /// <remarks />
-        public const uint TestStructure_Encoding_DefaultXml = 15234;
-
-        /// <remarks />
         public const uint Union_Encoding_DefaultJson = 15085;
 
         /// <remarks />
@@ -7055,37 +6455,7 @@ namespace Opc.Ua
         public const uint TrustListDataType_Encoding_DefaultJson = 15044;
 
         /// <remarks />
-        public const uint BaseConfigurationDataType_Encoding_DefaultJson = 16632;
-
-        /// <remarks />
-        public const uint BaseConfigurationRecordDataType_Encoding_DefaultJson = 16633;
-
-        /// <remarks />
-        public const uint CertificateGroupDataType_Encoding_DefaultJson = 16634;
-
-        /// <remarks />
-        public const uint ConfigurationUpdateTargetType_Encoding_DefaultJson = 16635;
-
-        /// <remarks />
         public const uint TransactionErrorType_Encoding_DefaultJson = 32390;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationDataType_Encoding_DefaultJson = 16636;
-
-        /// <remarks />
-        public const uint ApplicationIdentityDataType_Encoding_DefaultJson = 16637;
-
-        /// <remarks />
-        public const uint EndpointDataType_Encoding_DefaultJson = 16642;
-
-        /// <remarks />
-        public const uint ServerEndpointDataType_Encoding_DefaultJson = 16643;
-
-        /// <remarks />
-        public const uint SecuritySettingsDataType_Encoding_DefaultJson = 16644;
-
-        /// <remarks />
-        public const uint UserTokenSettingsDataType_Encoding_DefaultJson = 16645;
 
         /// <remarks />
         public const uint DecimalDataType_Encoding_DefaultJson = 15045;
@@ -7143,18 +6513,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint PublishedDataSetCustomSourceDataType_Encoding_DefaultJson = 25561;
-
-        /// <remarks />
-        public const uint ActionTargetDataType_Encoding_DefaultJson = 18622;
-
-        /// <remarks />
-        public const uint PublishedActionDataType_Encoding_DefaultJson = 18623;
-
-        /// <remarks />
-        public const uint ActionMethodDataType_Encoding_DefaultJson = 18624;
-
-        /// <remarks />
-        public const uint PublishedActionMethodDataType_Encoding_DefaultJson = 18945;
 
         /// <remarks />
         public const uint DataSetWriterDataType_Encoding_DefaultJson = 16156;
@@ -7286,9 +6644,6 @@ namespace Opc.Ua
         public const uint DatagramDataSetReaderTransportDataType_Encoding_DefaultJson = 24002;
 
         /// <remarks />
-        public const uint DtlsPubSubConnectionDataType_Encoding_DefaultJson = 18946;
-
-        /// <remarks />
         public const uint BrokerConnectionTransportDataType_Encoding_DefaultJson = 15726;
 
         /// <remarks />
@@ -7314,15 +6669,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint PriorityMappingEntryType_Encoding_DefaultJson = 25247;
-
-        /// <remarks />
-        public const uint LldpManagementAddressTxPortType_Encoding_DefaultJson = 19299;
-
-        /// <remarks />
-        public const uint LldpManagementAddressType_Encoding_DefaultJson = 19300;
-
-        /// <remarks />
-        public const uint LldpTlvType_Encoding_DefaultJson = 19301;
 
         /// <remarks />
         public const uint ReferenceDescriptionDataType_Encoding_DefaultJson = 32677;
@@ -7733,12 +7079,6 @@ namespace Opc.Ua
         public const uint ReadEventDetails2_Encoding_DefaultJson = 32802;
 
         /// <remarks />
-        public const uint SortRuleElement_Encoding_DefaultJson = 18654;
-
-        /// <remarks />
-        public const uint ReadEventDetailsSorted_Encoding_DefaultJson = 18655;
-
-        /// <remarks />
         public const uint ReadRawModifiedDetails_Encoding_DefaultJson = 15263;
 
         /// <remarks />
@@ -8031,21 +7371,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint Annotation_Encoding_DefaultJson = 15382;
-
-        /// <remarks />
-        public const uint TestAbstractStructure_Encoding_DefaultJson = 15405;
-
-        /// <remarks />
-        public const uint TestConcreteStructure_Encoding_DefaultJson = 15431;
-
-        /// <remarks />
-        public const uint TestScalarStructure_Encoding_DefaultJson = 15396;
-
-        /// <remarks />
-        public const uint TestArrayStructure_Encoding_DefaultJson = 15397;
-
-        /// <remarks />
-        public const uint TestStructure_Encoding_DefaultJson = 15398;
     }
     #endregion
 
@@ -8560,12 +7885,6 @@ namespace Opc.Ua
         public const uint EccCurve448ApplicationCertificateType = 23543;
 
         /// <remarks />
-        public const uint ConfigurationFileType = 15437;
-
-        /// <remarks />
-        public const uint ConfigurationUpdatedAuditEventType = 15541;
-
-        /// <remarks />
         public const uint TrustListUpdateRequestedAuditEventType = 32260;
 
         /// <remarks />
@@ -8573,12 +7892,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint TransactionDiagnosticsType = 32286;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType = 16662;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFileType = 15550;
 
         /// <remarks />
         public const uint ServerConfigurationType = 12581;
@@ -8855,21 +8168,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint PriorityMappingTableType = 25227;
-
-        /// <remarks />
-        public const uint LldpInformationType = 18973;
-
-        /// <remarks />
-        public const uint LldpRemoteStatisticsType = 18996;
-
-        /// <remarks />
-        public const uint LldpLocalSystemType = 19002;
-
-        /// <remarks />
-        public const uint LldpPortInformationType = 19009;
-
-        /// <remarks />
-        public const uint LldpRemoteSystemType = 19033;
     }
     #endregion
 
@@ -11165,9 +10463,6 @@ namespace Opc.Ua
         public const uint Server_ServerRedundancy_RedundancySupport = 3709;
 
         /// <remarks />
-        public const uint Server_ServerRedundancy_RedundantServerArray = 11313;
-
-        /// <remarks />
         public const uint Server_GetMonitoredItems_InputArguments = 11493;
 
         /// <remarks />
@@ -11675,6 +10970,18 @@ namespace Opc.Ua
         public const uint WellKnownRole_Anonymous_Identities = 16192;
 
         /// <remarks />
+        public const uint WellKnownRole_Anonymous_ApplicationsExclude = 15412;
+
+        /// <remarks />
+        public const uint WellKnownRole_Anonymous_Applications = 16193;
+
+        /// <remarks />
+        public const uint WellKnownRole_Anonymous_EndpointsExclude = 15413;
+
+        /// <remarks />
+        public const uint WellKnownRole_Anonymous_Endpoints = 16194;
+
+        /// <remarks />
         public const uint WellKnownRole_Anonymous_AddIdentity_InputArguments = 15649;
 
         /// <remarks />
@@ -11696,6 +11003,21 @@ namespace Opc.Ua
         public const uint WellKnownRole_AuthenticatedUser_Identities = 16203;
 
         /// <remarks />
+        public const uint WellKnownRole_AuthenticatedUser_ApplicationsExclude = 15414;
+
+        /// <remarks />
+        public const uint WellKnownRole_AuthenticatedUser_Applications = 16204;
+
+        /// <remarks />
+        public const uint WellKnownRole_AuthenticatedUser_EndpointsExclude = 15415;
+
+        /// <remarks />
+        public const uint WellKnownRole_AuthenticatedUser_Endpoints = 16205;
+
+        /// <remarks />
+        public const uint WellKnownRole_AuthenticatedUser_CustomConfiguration = 24141;
+
+        /// <remarks />
         public const uint WellKnownRole_AuthenticatedUser_AddIdentity_InputArguments = 15661;
 
         /// <remarks />
@@ -11712,27 +11034,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint WellKnownRole_AuthenticatedUser_RemoveEndpoint_InputArguments = 16213;
-
-        /// <remarks />
-        public const uint WellKnownRole_TrustedApplication_Identities = 18626;
-
-        /// <remarks />
-        public const uint WellKnownRole_TrustedApplication_AddIdentity_InputArguments = 18633;
-
-        /// <remarks />
-        public const uint WellKnownRole_TrustedApplication_RemoveIdentity_InputArguments = 18635;
-
-        /// <remarks />
-        public const uint WellKnownRole_TrustedApplication_AddApplication_InputArguments = 18637;
-
-        /// <remarks />
-        public const uint WellKnownRole_TrustedApplication_RemoveApplication_InputArguments = 18639;
-
-        /// <remarks />
-        public const uint WellKnownRole_TrustedApplication_AddEndpoint_InputArguments = 18641;
-
-        /// <remarks />
-        public const uint WellKnownRole_TrustedApplication_RemoveEndpoint_InputArguments = 18643;
 
         /// <remarks />
         public const uint WellKnownRole_Observer_Identities = 16214;
@@ -12158,6 +11459,9 @@ namespace Opc.Ua
         public const uint UnitType_Symbol = 32443;
 
         /// <remarks />
+        public const uint UnitType_Description = 32444;
+
+        /// <remarks />
         public const uint UnitType_UnitSystem = 32445;
 
         /// <remarks />
@@ -12189,6 +11493,9 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint QuantityType_Symbol = 32476;
+
+        /// <remarks />
+        public const uint QuantityType_Description = 32477;
 
         /// <remarks />
         public const uint QuantityType_Annotation = 32478;
@@ -13296,9 +12603,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint HistoricalEventConfigurationType_StartOfOnlineArchive = 32624;
-
-        /// <remarks />
-        public const uint HistoricalEventConfigurationType_SortByEventFields = 18644;
 
         /// <remarks />
         public const uint HistoricalExternalEventSourceType_Server = 32626;
@@ -15563,39 +14867,6 @@ namespace Opc.Ua
         public const uint CertificateGroupFolderType_AdditionalGroup_Placeholder_TrustListOutOfDate_UpdateFrequency = 21678;
 
         /// <remarks />
-        public const uint ConfigurationFileType_LastUpdateTime = 15438;
-
-        /// <remarks />
-        public const uint ConfigurationFileType_CurrentVersion = 15439;
-
-        /// <remarks />
-        public const uint ConfigurationFileType_ActivityTimeout = 15503;
-
-        /// <remarks />
-        public const uint ConfigurationFileType_SupportedDataType = 15504;
-
-        /// <remarks />
-        public const uint ConfigurationFileType_ConfirmUpdate_InputArguments = 15511;
-
-        /// <remarks />
-        public const uint ConfigurationFileType_ConfirmUpdate_OutputArguments = 15512;
-
-        /// <remarks />
-        public const uint ConfigurationFileType_CloseAndUpdate_InputArguments = 15506;
-
-        /// <remarks />
-        public const uint ConfigurationFileType_CloseAndUpdate_OutputArguments = 15507;
-
-        /// <remarks />
-        public const uint ConfigurationUpdateType_EnumValues = 15540;
-
-        /// <remarks />
-        public const uint ConfigurationUpdatedAuditEventType_OldVersion = 15542;
-
-        /// <remarks />
-        public const uint ConfigurationUpdatedAuditEventType_NewVersion = 15543;
-
-        /// <remarks />
         public const uint TrustListUpdatedAuditEventType_TrustListId = 32281;
 
         /// <remarks />
@@ -15615,1368 +14886,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint TransactionDiagnosticsType_Errors = 32292;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustList_Size = 16710;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustList_Writable = 16711;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustList_UserWritable = 16712;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustList_OpenCount = 16713;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustList_Open_InputArguments = 16722;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustList_Open_OutputArguments = 16723;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustList_Close_InputArguments = 16725;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustList_Read_InputArguments = 16727;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustList_Read_OutputArguments = 16728;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustList_Write_InputArguments = 16730;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustList_GetPosition_InputArguments = 16733;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustList_GetPosition_OutputArguments = 16734;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustList_SetPosition_InputArguments = 16736;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustList_LastUpdateTime = 16737;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustList_OpenWithMasks_InputArguments = 16742;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustList_OpenWithMasks_OutputArguments = 16743;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustList_CloseAndUpdate_InputArguments = 16745;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustList_CloseAndUpdate_OutputArguments = 16746;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustList_AddCertificate_InputArguments = 16748;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustList_RemoveCertificate_InputArguments = 16750;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateTypes = 16751;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_GetRejectedList_OutputArguments = 16753;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_EventId = 16755;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_EventType = 16756;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_SourceNode = 16757;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_SourceName = 16760;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Time = 16761;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ReceiveTime = 16762;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Message = 16764;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Severity = 16765;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionClassId = 16766;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionClassName = 16767;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionSubClassId = 16768;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionSubClassName = 16769;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionName = 16770;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_BranchId = 16771;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Retain = 16772;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_EnabledState = 16773;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_EnabledState_Id = 16774;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Quality = 16783;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Quality_SourceTimestamp = 16784;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_LastSeverity = 16785;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_LastSeverity_SourceTimestamp = 16786;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Comment = 16787;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Comment_SourceTimestamp = 16788;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ClientUserId = 16789;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_AddComment_InputArguments = 16793;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_AckedState = 16794;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_AckedState_Id = 16795;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConfirmedState_Id = 16804;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Acknowledge_InputArguments = 16813;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Confirm_InputArguments = 16815;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ActiveState = 16816;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ActiveState_Id = 16818;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_InputNode = 16826;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_SuppressedState_Id = 16828;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_OutOfServiceState_Id = 16837;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_CurrentState = 16848;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_CurrentState_Id = 16849;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_LastTransition_Id = 16855;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_UnshelveTime = 16863;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_TimedShelve_InputArguments = 16865;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_TimedShelve2_InputArguments = 16867;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_Unshelve2_InputArguments = 16870;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_OneShotShelve2_InputArguments = 16873;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_SuppressedOrShelved = 16874;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_SilenceState_Id = 16886;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_LatchedState_Id = 16901;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Suppress2_InputArguments = 16914;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Unsuppress2_InputArguments = 16917;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_RemoveFromService2_InputArguments = 16920;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_PlaceInService2_InputArguments = 16927;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Reset2_InputArguments = 16930;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_GetGroupMemberships_OutputArguments = 16932;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_NormalState = 16933;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ExpirationDate = 16934;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_CertificateType = 16937;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Certificate = 16938;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_EventId = 16940;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_EventType = 16941;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_SourceNode = 16942;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_SourceName = 16943;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Time = 16944;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ReceiveTime = 16945;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Message = 16947;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Severity = 16948;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionClassId = 16949;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionClassName = 16950;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionSubClassId = 16951;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionSubClassName = 16952;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionName = 16953;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_BranchId = 16954;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Retain = 16955;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_EnabledState = 16956;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_EnabledState_Id = 16957;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Quality = 16969;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Quality_SourceTimestamp = 16970;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_LastSeverity = 16972;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_LastSeverity_SourceTimestamp = 16973;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Comment = 16974;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Comment_SourceTimestamp = 16975;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ClientUserId = 16976;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_AddComment_InputArguments = 16980;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_AckedState = 16981;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_AckedState_Id = 16982;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConfirmedState_Id = 16991;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Acknowledge_InputArguments = 17004;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Confirm_InputArguments = 17006;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ActiveState = 17008;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ActiveState_Id = 17009;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_InputNode = 17017;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_SuppressedState_Id = 17019;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_OutOfServiceState_Id = 17028;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_CurrentState = 17041;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_CurrentState_Id = 17042;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_LastTransition_Id = 17048;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_UnshelveTime = 17055;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_TimedShelve_InputArguments = 17057;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_TimedShelve2_InputArguments = 17059;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_Unshelve2_InputArguments = 17062;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_OneShotShelve2_InputArguments = 17065;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_SuppressedOrShelved = 17070;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_SilenceState_Id = 17078;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_LatchedState_Id = 17093;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Suppress2_InputArguments = 17106;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Unsuppress2_InputArguments = 17109;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_RemoveFromService2_InputArguments = 17112;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_PlaceInService2_InputArguments = 17115;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Reset2_InputArguments = 17118;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_GetGroupMemberships_OutputArguments = 17120;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_NormalState = 17121;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_TrustListId = 17122;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_LastUpdateTime = 17123;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_UpdateFrequency = 17124;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustList_Size = 17127;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustList_Writable = 17128;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustList_UserWritable = 17129;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustList_OpenCount = 17130;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustList_Open_InputArguments = 17135;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustList_Open_OutputArguments = 17136;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustList_Close_InputArguments = 17138;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustList_Read_InputArguments = 17140;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustList_Read_OutputArguments = 17141;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustList_Write_InputArguments = 17143;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustList_GetPosition_InputArguments = 17145;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustList_GetPosition_OutputArguments = 17146;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustList_SetPosition_InputArguments = 17148;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustList_LastUpdateTime = 17149;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustList_OpenWithMasks_InputArguments = 17154;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustList_OpenWithMasks_OutputArguments = 17155;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustList_CloseAndUpdate_InputArguments = 17157;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustList_CloseAndUpdate_OutputArguments = 17158;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustList_AddCertificate_InputArguments = 17160;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustList_RemoveCertificate_InputArguments = 17162;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateTypes = 17163;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_GetRejectedList_OutputArguments = 17165;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_EventId = 17167;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_EventType = 17168;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_SourceNode = 17169;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_SourceName = 17170;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Time = 17171;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ReceiveTime = 17172;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Message = 17174;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Severity = 17175;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionClassId = 17176;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionClassName = 17177;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionSubClassId = 17178;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionSubClassName = 17179;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionName = 17180;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_BranchId = 17181;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Retain = 17182;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_EnabledState = 17183;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_EnabledState_Id = 17184;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Quality = 17192;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Quality_SourceTimestamp = 17193;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_LastSeverity = 17194;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_LastSeverity_SourceTimestamp = 17195;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Comment = 17196;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Comment_SourceTimestamp = 17197;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ClientUserId = 17198;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_AddComment_InputArguments = 17206;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_AckedState = 17207;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_AckedState_Id = 17208;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConfirmedState_Id = 17229;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Acknowledge_InputArguments = 17238;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Confirm_InputArguments = 17240;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ActiveState = 17241;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ActiveState_Id = 17243;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_InputNode = 17251;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_SuppressedState_Id = 17253;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_OutOfServiceState_Id = 17263;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_CurrentState = 17272;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_CurrentState_Id = 17273;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_LastTransition_Id = 17304;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_UnshelveTime = 17339;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_TimedShelve_InputArguments = 17341;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_TimedShelve2_InputArguments = 17343;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_Unshelve2_InputArguments = 17346;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_OneShotShelve2_InputArguments = 17349;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_SuppressedOrShelved = 17350;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_SilenceState_Id = 17359;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_LatchedState_Id = 17501;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Suppress2_InputArguments = 17585;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Unsuppress2_InputArguments = 17595;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_RemoveFromService2_InputArguments = 17601;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_PlaceInService2_InputArguments = 17618;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Reset2_InputArguments = 17621;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_GetGroupMemberships_OutputArguments = 17623;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_NormalState = 17624;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ExpirationDate = 17625;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_CertificateType = 17627;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Certificate = 17628;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_EventId = 17639;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_EventType = 17640;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_SourceNode = 17642;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_SourceName = 17643;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Time = 17644;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ReceiveTime = 17645;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Message = 17647;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Severity = 17648;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionClassId = 17649;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionClassName = 17650;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionSubClassId = 17651;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionSubClassName = 17652;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionName = 17653;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_BranchId = 17654;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Retain = 17655;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_EnabledState = 17656;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_EnabledState_Id = 17657;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Quality = 17669;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Quality_SourceTimestamp = 17672;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_LastSeverity = 17673;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_LastSeverity_SourceTimestamp = 17674;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Comment = 17675;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Comment_SourceTimestamp = 17676;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ClientUserId = 17677;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_AddComment_InputArguments = 17681;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_AckedState = 17682;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_AckedState_Id = 17683;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConfirmedState_Id = 17692;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Acknowledge_InputArguments = 17701;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Confirm_InputArguments = 17703;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ActiveState = 17704;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ActiveState_Id = 17705;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_InputNode = 17730;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_SuppressedState_Id = 17733;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_OutOfServiceState_Id = 17886;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_CurrentState = 17896;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_CurrentState_Id = 17897;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_LastTransition_Id = 17908;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_UnshelveTime = 17916;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_TimedShelve_InputArguments = 17918;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_TimedShelve2_InputArguments = 17921;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_Unshelve2_InputArguments = 17924;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_OneShotShelve2_InputArguments = 17928;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_SuppressedOrShelved = 17929;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_SilenceState_Id = 17938;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_LatchedState_Id = 17953;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Suppress2_InputArguments = 17968;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Unsuppress2_InputArguments = 17972;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_RemoveFromService2_InputArguments = 17975;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_PlaceInService2_InputArguments = 17979;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Reset2_InputArguments = 17982;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_GetGroupMemberships_OutputArguments = 18002;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_NormalState = 18003;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_TrustListId = 18012;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_LastUpdateTime = 18013;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_UpdateFrequency = 18014;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustList_Size = 18017;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustList_Writable = 18018;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustList_UserWritable = 18019;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustList_OpenCount = 18020;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustList_Open_InputArguments = 18025;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustList_Open_OutputArguments = 18026;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustList_Close_InputArguments = 18030;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustList_Read_InputArguments = 18032;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustList_Read_OutputArguments = 18033;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustList_Write_InputArguments = 18035;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustList_GetPosition_InputArguments = 18037;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustList_GetPosition_OutputArguments = 18038;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustList_SetPosition_InputArguments = 18040;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustList_LastUpdateTime = 18041;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustList_OpenWithMasks_InputArguments = 18046;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustList_OpenWithMasks_OutputArguments = 18048;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustList_CloseAndUpdate_InputArguments = 18050;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustList_CloseAndUpdate_OutputArguments = 18051;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustList_AddCertificate_InputArguments = 18053;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustList_RemoveCertificate_InputArguments = 18055;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateTypes = 18056;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_GetRejectedList_OutputArguments = 18058;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_EventId = 18060;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_EventType = 18061;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_SourceNode = 18062;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_SourceName = 18063;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Time = 18065;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ReceiveTime = 18066;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Message = 18068;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Severity = 18070;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionClassId = 18071;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionClassName = 18074;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionSubClassId = 18075;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionSubClassName = 18156;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionName = 18157;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_BranchId = 18159;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Retain = 18160;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_EnabledState = 18161;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_EnabledState_Id = 18162;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Quality = 18218;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Quality_SourceTimestamp = 18219;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_LastSeverity = 18220;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_LastSeverity_SourceTimestamp = 18221;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Comment = 18222;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Comment_SourceTimestamp = 18223;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ClientUserId = 18224;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_AddComment_InputArguments = 18228;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_AckedState = 18229;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_AckedState_Id = 18230;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConfirmedState_Id = 18239;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Acknowledge_InputArguments = 18248;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Confirm_InputArguments = 18250;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ActiveState = 18251;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ActiveState_Id = 18252;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_InputNode = 18260;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_SuppressedState_Id = 18262;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_OutOfServiceState_Id = 18271;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_CurrentState = 18280;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_CurrentState_Id = 18281;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_LastTransition_Id = 18286;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_UnshelveTime = 18293;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_TimedShelve_InputArguments = 18295;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_TimedShelve2_InputArguments = 18297;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_Unshelve2_InputArguments = 18300;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_OneShotShelve2_InputArguments = 18303;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_SuppressedOrShelved = 18304;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_SilenceState_Id = 18312;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_LatchedState_Id = 18325;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Suppress2_InputArguments = 18338;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Unsuppress2_InputArguments = 18341;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_RemoveFromService2_InputArguments = 18344;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_PlaceInService2_InputArguments = 18348;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Reset2_InputArguments = 18351;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_GetGroupMemberships_OutputArguments = 18353;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_NormalState = 18354;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ExpirationDate = 18355;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_CertificateType = 18357;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Certificate = 18358;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_EventId = 18360;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_EventType = 18361;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_SourceNode = 18362;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_SourceName = 18363;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Time = 18364;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ReceiveTime = 18365;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Message = 18367;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Severity = 18368;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionClassId = 18369;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionClassName = 18370;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionSubClassId = 18371;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionSubClassName = 18372;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionName = 18373;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_BranchId = 18374;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Retain = 18375;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_EnabledState = 18376;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_EnabledState_Id = 18377;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Quality = 18385;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Quality_SourceTimestamp = 18386;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_LastSeverity = 18387;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_LastSeverity_SourceTimestamp = 18388;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Comment = 18389;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Comment_SourceTimestamp = 18390;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ClientUserId = 18391;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_AddComment_InputArguments = 18395;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_AckedState = 18396;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_AckedState_Id = 18397;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConfirmedState_Id = 18406;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Acknowledge_InputArguments = 18415;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Confirm_InputArguments = 18417;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ActiveState = 18418;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ActiveState_Id = 18419;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_InputNode = 18427;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_SuppressedState_Id = 18429;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_OutOfServiceState_Id = 18438;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_CurrentState = 18447;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_CurrentState_Id = 18448;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_LastTransition_Id = 18453;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_UnshelveTime = 18460;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_TimedShelve_InputArguments = 18462;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_TimedShelve2_InputArguments = 18464;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_Unshelve2_InputArguments = 18467;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_OneShotShelve2_InputArguments = 18470;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_SuppressedOrShelved = 18471;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_SilenceState_Id = 18479;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_LatchedState_Id = 18492;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Suppress2_InputArguments = 18506;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Unsuppress2_InputArguments = 18509;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_RemoveFromService2_InputArguments = 18512;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_PlaceInService2_InputArguments = 18515;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Reset2_InputArguments = 18518;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_GetGroupMemberships_OutputArguments = 18520;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_NormalState = 18521;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_TrustListId = 18522;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_LastUpdateTime = 18523;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_UpdateFrequency = 18524;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ApplicationUri = 18525;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ProductUri = 18526;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ApplicationType = 18527;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ServerCapabilities = 18528;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_SupportedPrivateKeyFormats = 18529;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_MaxTrustListSize = 18530;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_MulticastDnsEnabled = 18531;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_UpdateCertificate_InputArguments = 18534;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_UpdateCertificate_OutputArguments = 18535;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_GetCertificates_InputArguments = 18537;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_GetCertificates_OutputArguments = 18538;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CreateSigningRequest_InputArguments = 18542;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CreateSigningRequest_OutputArguments = 18543;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_GetRejectedList_OutputArguments = 18545;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_TransactionDiagnostics_StartTime = 18548;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_TransactionDiagnostics_EndTime = 18549;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_TransactionDiagnostics_Result = 18550;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_TransactionDiagnostics_AffectedTrustLists = 18551;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_TransactionDiagnostics_AffectedCertificateGroups = 18552;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_TransactionDiagnostics_Errors = 18553;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_Size = 18555;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_Writable = 18556;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_UserWritable = 18557;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_OpenCount = 18558;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_Open_InputArguments = 18563;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_Open_OutputArguments = 18564;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_Close_InputArguments = 18566;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_Read_InputArguments = 18568;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_Read_OutputArguments = 18569;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_Write_InputArguments = 18571;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_GetPosition_InputArguments = 18573;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_GetPosition_OutputArguments = 18574;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_SetPosition_InputArguments = 18576;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_LastUpdateTime = 18577;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_CurrentVersion = 18578;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_ActivityTimeout = 18579;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_SupportedDataType = 18580;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_ConfirmUpdate_InputArguments = 18585;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_ConfirmUpdate_OutputArguments = 18586;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_CloseAndUpdate_InputArguments = 18582;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_CloseAndUpdate_OutputArguments = 18583;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_AvailableNetworks = 18587;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_AvailablePorts = 18588;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_SecurityPolicyUris = 18589;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_UserTokenTypes = 18590;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_CertificateTypes = 18591;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_Enabled = 18592;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFileType_AvailableNetworks = 15551;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFileType_AvailablePorts = 15552;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFileType_SecurityPolicyUris = 15553;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFileType_UserTokenTypes = 15554;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFileType_CertificateTypes = 15555;
 
         /// <remarks />
         public const uint ServerConfigurationType_CertificateGroups_DefaultApplicationGroup_TrustList_Size = 13953;
@@ -18194,9 +16103,6 @@ namespace Opc.Ua
         public const uint ServerConfigurationType_ApplicationType = 25697;
 
         /// <remarks />
-        public const uint ServerConfigurationType_ApplicationNames = 18660;
-
-        /// <remarks />
         public const uint ServerConfigurationType_ServerCapabilities = 12708;
 
         /// <remarks />
@@ -18210,9 +16116,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint ServerConfigurationType_HasSecureElement = 23593;
-
-        /// <remarks />
-        public const uint ServerConfigurationType_SupportsTransactions = 18661;
 
         /// <remarks />
         public const uint ServerConfigurationType_UpdateCertificate_InputArguments = 12617;
@@ -18252,84 +16155,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint ServerConfigurationType_TransactionDiagnostics_Errors = 32305;
-
-        /// <remarks />
-        public const uint ServerConfigurationType_ConfigurationFile_Size = 15565;
-
-        /// <remarks />
-        public const uint ServerConfigurationType_ConfigurationFile_Writable = 15566;
-
-        /// <remarks />
-        public const uint ServerConfigurationType_ConfigurationFile_UserWritable = 15567;
-
-        /// <remarks />
-        public const uint ServerConfigurationType_ConfigurationFile_OpenCount = 15568;
-
-        /// <remarks />
-        public const uint ServerConfigurationType_ConfigurationFile_Open_InputArguments = 15573;
-
-        /// <remarks />
-        public const uint ServerConfigurationType_ConfigurationFile_Open_OutputArguments = 15574;
-
-        /// <remarks />
-        public const uint ServerConfigurationType_ConfigurationFile_Close_InputArguments = 15790;
-
-        /// <remarks />
-        public const uint ServerConfigurationType_ConfigurationFile_Read_InputArguments = 15792;
-
-        /// <remarks />
-        public const uint ServerConfigurationType_ConfigurationFile_Read_OutputArguments = 15804;
-
-        /// <remarks />
-        public const uint ServerConfigurationType_ConfigurationFile_Write_InputArguments = 15806;
-
-        /// <remarks />
-        public const uint ServerConfigurationType_ConfigurationFile_GetPosition_InputArguments = 15808;
-
-        /// <remarks />
-        public const uint ServerConfigurationType_ConfigurationFile_GetPosition_OutputArguments = 15809;
-
-        /// <remarks />
-        public const uint ServerConfigurationType_ConfigurationFile_SetPosition_InputArguments = 15811;
-
-        /// <remarks />
-        public const uint ServerConfigurationType_ConfigurationFile_LastUpdateTime = 15812;
-
-        /// <remarks />
-        public const uint ServerConfigurationType_ConfigurationFile_CurrentVersion = 15813;
-
-        /// <remarks />
-        public const uint ServerConfigurationType_ConfigurationFile_ActivityTimeout = 15814;
-
-        /// <remarks />
-        public const uint ServerConfigurationType_ConfigurationFile_SupportedDataType = 15848;
-
-        /// <remarks />
-        public const uint ServerConfigurationType_ConfigurationFile_ConfirmUpdate_InputArguments = 15864;
-
-        /// <remarks />
-        public const uint ServerConfigurationType_ConfigurationFile_ConfirmUpdate_OutputArguments = 15865;
-
-        /// <remarks />
-        public const uint ServerConfigurationType_ConfigurationFile_CloseAndUpdate_InputArguments = 15850;
-
-        /// <remarks />
-        public const uint ServerConfigurationType_ConfigurationFile_CloseAndUpdate_OutputArguments = 15851;
-
-        /// <remarks />
-        public const uint ServerConfigurationType_ConfigurationFile_AvailableNetworks = 16646;
-
-        /// <remarks />
-        public const uint ServerConfigurationType_ConfigurationFile_AvailablePorts = 16647;
-
-        /// <remarks />
-        public const uint ServerConfigurationType_ConfigurationFile_SecurityPolicyUris = 16648;
-
-        /// <remarks />
-        public const uint ServerConfigurationType_ConfigurationFile_UserTokenTypes = 16649;
-
-        /// <remarks />
-        public const uint ServerConfigurationType_ConfigurationFile_CertificateTypes = 16650;
 
         /// <remarks />
         public const uint CertificateUpdatedAuditEventType_CertificateGroup = 13735;
@@ -19607,84 +17432,6 @@ namespace Opc.Ua
         public const uint ServerConfiguration_TransactionDiagnostics_Errors = 32342;
 
         /// <remarks />
-        public const uint ServerConfiguration_ConfigurationFile_Size = 15893;
-
-        /// <remarks />
-        public const uint ServerConfiguration_ConfigurationFile_Writable = 15894;
-
-        /// <remarks />
-        public const uint ServerConfiguration_ConfigurationFile_UserWritable = 15937;
-
-        /// <remarks />
-        public const uint ServerConfiguration_ConfigurationFile_OpenCount = 15938;
-
-        /// <remarks />
-        public const uint ServerConfiguration_ConfigurationFile_Open_InputArguments = 16020;
-
-        /// <remarks />
-        public const uint ServerConfiguration_ConfigurationFile_Open_OutputArguments = 16059;
-
-        /// <remarks />
-        public const uint ServerConfiguration_ConfigurationFile_Close_InputArguments = 16061;
-
-        /// <remarks />
-        public const uint ServerConfiguration_ConfigurationFile_Read_InputArguments = 16075;
-
-        /// <remarks />
-        public const uint ServerConfiguration_ConfigurationFile_Read_OutputArguments = 16076;
-
-        /// <remarks />
-        public const uint ServerConfiguration_ConfigurationFile_Write_InputArguments = 16102;
-
-        /// <remarks />
-        public const uint ServerConfiguration_ConfigurationFile_GetPosition_InputArguments = 16122;
-
-        /// <remarks />
-        public const uint ServerConfiguration_ConfigurationFile_GetPosition_OutputArguments = 16123;
-
-        /// <remarks />
-        public const uint ServerConfiguration_ConfigurationFile_SetPosition_InputArguments = 16160;
-
-        /// <remarks />
-        public const uint ServerConfiguration_ConfigurationFile_LastUpdateTime = 16283;
-
-        /// <remarks />
-        public const uint ServerConfiguration_ConfigurationFile_CurrentVersion = 16306;
-
-        /// <remarks />
-        public const uint ServerConfiguration_ConfigurationFile_ActivityTimeout = 16315;
-
-        /// <remarks />
-        public const uint ServerConfiguration_ConfigurationFile_SupportedDataType = 16316;
-
-        /// <remarks />
-        public const uint ServerConfiguration_ConfigurationFile_ConfirmUpdate_InputArguments = 16321;
-
-        /// <remarks />
-        public const uint ServerConfiguration_ConfigurationFile_ConfirmUpdate_OutputArguments = 16322;
-
-        /// <remarks />
-        public const uint ServerConfiguration_ConfigurationFile_CloseAndUpdate_InputArguments = 16318;
-
-        /// <remarks />
-        public const uint ServerConfiguration_ConfigurationFile_CloseAndUpdate_OutputArguments = 16319;
-
-        /// <remarks />
-        public const uint ServerConfiguration_ConfigurationFile_AvailableNetworks = 16652;
-
-        /// <remarks />
-        public const uint ServerConfiguration_ConfigurationFile_AvailablePorts = 16653;
-
-        /// <remarks />
-        public const uint ServerConfiguration_ConfigurationFile_SecurityPolicyUris = 16654;
-
-        /// <remarks />
-        public const uint ServerConfiguration_ConfigurationFile_UserTokenTypes = 16655;
-
-        /// <remarks />
-        public const uint ServerConfiguration_ConfigurationFile_CertificateTypes = 16656;
-
-        /// <remarks />
         public const uint KeyCredentialConfigurationFolderType_ServiceName_Placeholder_ResourceUri = 17512;
 
         /// <remarks />
@@ -19719,9 +17466,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint KeyCredentialConfigurationType_EndpointUrls = 18004;
-
-        /// <remarks />
-        public const uint KeyCredentialConfigurationType_CredentialId = 18657;
 
         /// <remarks />
         public const uint KeyCredentialConfigurationType_ServiceStatus = 18005;
@@ -19776,9 +17520,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint DataSetFieldFlags_OptionSetValues = 15577;
-
-        /// <remarks />
-        public const uint ActionState_EnumStrings = 18596;
 
         /// <remarks />
         public const uint DataSetFieldContentMask_OptionSetValues = 15584;
@@ -24992,84 +22733,6 @@ namespace Opc.Ua
         public const uint ProvisionableDeviceType_ApplicationName_Placeholder_TransactionDiagnostics_Errors = 32368;
 
         /// <remarks />
-        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_Size = 16325;
-
-        /// <remarks />
-        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_Writable = 16326;
-
-        /// <remarks />
-        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_UserWritable = 16327;
-
-        /// <remarks />
-        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_OpenCount = 16328;
-
-        /// <remarks />
-        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_Open_InputArguments = 16333;
-
-        /// <remarks />
-        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_Open_OutputArguments = 16334;
-
-        /// <remarks />
-        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_Close_InputArguments = 16336;
-
-        /// <remarks />
-        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_Read_InputArguments = 16338;
-
-        /// <remarks />
-        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_Read_OutputArguments = 16339;
-
-        /// <remarks />
-        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_Write_InputArguments = 16341;
-
-        /// <remarks />
-        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_GetPosition_InputArguments = 16343;
-
-        /// <remarks />
-        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_GetPosition_OutputArguments = 16344;
-
-        /// <remarks />
-        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_SetPosition_InputArguments = 16346;
-
-        /// <remarks />
-        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_LastUpdateTime = 16347;
-
-        /// <remarks />
-        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_CurrentVersion = 16365;
-
-        /// <remarks />
-        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_ActivityTimeout = 16366;
-
-        /// <remarks />
-        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_SupportedDataType = 16367;
-
-        /// <remarks />
-        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_ConfirmUpdate_InputArguments = 16536;
-
-        /// <remarks />
-        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_ConfirmUpdate_OutputArguments = 16537;
-
-        /// <remarks />
-        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_CloseAndUpdate_InputArguments = 16369;
-
-        /// <remarks />
-        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_CloseAndUpdate_OutputArguments = 16370;
-
-        /// <remarks />
-        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_AvailableNetworks = 16657;
-
-        /// <remarks />
-        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_AvailablePorts = 16658;
-
-        /// <remarks />
-        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_SecurityPolicyUris = 16659;
-
-        /// <remarks />
-        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_UserTokenTypes = 16660;
-
-        /// <remarks />
-        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_CertificateTypes = 16661;
-
-        /// <remarks />
         public const uint ProvisionableDeviceType_ApplicationName_Placeholder_Enabled = 27996;
 
         /// <remarks />
@@ -25223,45 +22886,6 @@ namespace Opc.Ua
         public const uint TsnListenerStatus_EnumValues = 24242;
 
         /// <remarks />
-        public const uint ChassisIdSubtype_EnumValues = 18948;
-
-        /// <remarks />
-        public const uint PortIdSubtype_EnumValues = 18950;
-
-        /// <remarks />
-        public const uint ManAddrIfSubtype_EnumValues = 18952;
-
-        /// <remarks />
-        public const uint LldpSystemCapabilitiesMap_OptionSetValues = 18957;
-
-        /// <remarks />
-        public const uint LLDP_RemoteStatistics_LastChangeTime = 18960;
-
-        /// <remarks />
-        public const uint LLDP_RemoteStatistics_RemoteInserts = 18961;
-
-        /// <remarks />
-        public const uint LLDP_RemoteStatistics_RemoteDeletes = 18962;
-
-        /// <remarks />
-        public const uint LLDP_RemoteStatistics_RemoteDrops = 18963;
-
-        /// <remarks />
-        public const uint LLDP_RemoteStatistics_RemoteAgeouts = 18964;
-
-        /// <remarks />
-        public const uint LLDP_LocalSystemData_ChassisIdSubtype = 18966;
-
-        /// <remarks />
-        public const uint LLDP_LocalSystemData_ChassisId = 18967;
-
-        /// <remarks />
-        public const uint LLDP_LocalSystemData_SystemName = 18968;
-
-        /// <remarks />
-        public const uint LLDP_LocalSystemData_SystemDescription = 18969;
-
-        /// <remarks />
         public const uint IetfBaseNetworkInterfaceType_AdminStatus = 25222;
 
         /// <remarks />
@@ -25284,159 +22908,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint PriorityMappingTableType_DeletePriorityMappingEntry_InputArguments = 25232;
-
-        /// <remarks />
-        public const uint LldpInformationType_RemoteStatistics_LastChangeTime = 18975;
-
-        /// <remarks />
-        public const uint LldpInformationType_RemoteStatistics_RemoteInserts = 18976;
-
-        /// <remarks />
-        public const uint LldpInformationType_RemoteStatistics_RemoteDeletes = 18977;
-
-        /// <remarks />
-        public const uint LldpInformationType_RemoteStatistics_RemoteDrops = 18978;
-
-        /// <remarks />
-        public const uint LldpInformationType_RemoteStatistics_RemoteAgeouts = 18979;
-
-        /// <remarks />
-        public const uint LldpInformationType_LocalSystemData_ChassisIdSubtype = 18981;
-
-        /// <remarks />
-        public const uint LldpInformationType_LocalSystemData_ChassisId = 18982;
-
-        /// <remarks />
-        public const uint LldpInformationType_LocalSystemData_SystemName = 18983;
-
-        /// <remarks />
-        public const uint LldpInformationType_LocalSystemData_SystemDescription = 18984;
-
-        /// <remarks />
-        public const uint LldpInformationType_Ports_LldpPortInformation_Placeholder_IetfBaseNetworkInterfaceName = 18989;
-
-        /// <remarks />
-        public const uint LldpInformationType_Ports_LldpPortInformation_Placeholder_DestMacAddress = 18990;
-
-        /// <remarks />
-        public const uint LldpInformationType_Ports_LldpPortInformation_Placeholder_PortIdSubtype = 18991;
-
-        /// <remarks />
-        public const uint LldpInformationType_Ports_LldpPortInformation_Placeholder_PortId = 18992;
-
-        /// <remarks />
-        public const uint LldpRemoteStatisticsType_LastChangeTime = 18997;
-
-        /// <remarks />
-        public const uint LldpRemoteStatisticsType_RemoteInserts = 18998;
-
-        /// <remarks />
-        public const uint LldpRemoteStatisticsType_RemoteDeletes = 18999;
-
-        /// <remarks />
-        public const uint LldpRemoteStatisticsType_RemoteDrops = 19000;
-
-        /// <remarks />
-        public const uint LldpRemoteStatisticsType_RemoteAgeouts = 19001;
-
-        /// <remarks />
-        public const uint LldpLocalSystemType_ChassisIdSubtype = 19003;
-
-        /// <remarks />
-        public const uint LldpLocalSystemType_ChassisId = 19004;
-
-        /// <remarks />
-        public const uint LldpLocalSystemType_SystemName = 19005;
-
-        /// <remarks />
-        public const uint LldpLocalSystemType_SystemDescription = 19006;
-
-        /// <remarks />
-        public const uint LldpLocalSystemType_SystemCapabilitiesSupported = 19007;
-
-        /// <remarks />
-        public const uint LldpLocalSystemType_SystemCapabilitiesEnabled = 19008;
-
-        /// <remarks />
-        public const uint LldpPortInformationType_IetfBaseNetworkInterfaceName = 19010;
-
-        /// <remarks />
-        public const uint LldpPortInformationType_DestMacAddress = 19011;
-
-        /// <remarks />
-        public const uint LldpPortInformationType_PortIdSubtype = 19012;
-
-        /// <remarks />
-        public const uint LldpPortInformationType_PortId = 19013;
-
-        /// <remarks />
-        public const uint LldpPortInformationType_PortDescription = 19014;
-
-        /// <remarks />
-        public const uint LldpPortInformationType_ManagementAddressTxPort = 19015;
-
-        /// <remarks />
-        public const uint LldpPortInformationType_RemoteSystemsData_LldpRemoteSystem_Placeholder_TimeMark = 19018;
-
-        /// <remarks />
-        public const uint LldpPortInformationType_RemoteSystemsData_LldpRemoteSystem_Placeholder_RemoteIndex = 19019;
-
-        /// <remarks />
-        public const uint LldpPortInformationType_RemoteSystemsData_LldpRemoteSystem_Placeholder_ChassisIdSubtype = 19020;
-
-        /// <remarks />
-        public const uint LldpPortInformationType_RemoteSystemsData_LldpRemoteSystem_Placeholder_ChassisId = 19021;
-
-        /// <remarks />
-        public const uint LldpPortInformationType_RemoteSystemsData_LldpRemoteSystem_Placeholder_PortIdSubtype = 19022;
-
-        /// <remarks />
-        public const uint LldpPortInformationType_RemoteSystemsData_LldpRemoteSystem_Placeholder_PortId = 19023;
-
-        /// <remarks />
-        public const uint LldpRemoteSystemType_TimeMark = 19034;
-
-        /// <remarks />
-        public const uint LldpRemoteSystemType_RemoteIndex = 19035;
-
-        /// <remarks />
-        public const uint LldpRemoteSystemType_ChassisIdSubtype = 19036;
-
-        /// <remarks />
-        public const uint LldpRemoteSystemType_ChassisId = 19037;
-
-        /// <remarks />
-        public const uint LldpRemoteSystemType_PortIdSubtype = 19038;
-
-        /// <remarks />
-        public const uint LldpRemoteSystemType_PortId = 19039;
-
-        /// <remarks />
-        public const uint LldpRemoteSystemType_PortDescription = 19040;
-
-        /// <remarks />
-        public const uint LldpRemoteSystemType_SystemName = 19041;
-
-        /// <remarks />
-        public const uint LldpRemoteSystemType_SystemDescription = 19042;
-
-        /// <remarks />
-        public const uint LldpRemoteSystemType_SystemCapabilitiesSupported = 19043;
-
-        /// <remarks />
-        public const uint LldpRemoteSystemType_SystemCapabilitiesEnabled = 19044;
-
-        /// <remarks />
-        public const uint LldpRemoteSystemType_RemoteChanges = 19045;
-
-        /// <remarks />
-        public const uint LldpRemoteSystemType_RemoteTooManyNeighbors = 19046;
-
-        /// <remarks />
-        public const uint LldpRemoteSystemType_ManagementAddress = 19047;
-
-        /// <remarks />
-        public const uint LldpRemoteSystemType_RemoteUnknownTlv = 19078;
 
         /// <remarks />
         public const uint ReferenceDescriptionVariableType_ReferenceRefinement = 32658;
@@ -25496,9 +22967,6 @@ namespace Opc.Ua
         public const uint TimestampsToReturn_EnumStrings = 7606;
 
         /// <remarks />
-        public const uint SortOrderType_EnumStrings = 18647;
-
-        /// <remarks />
         public const uint HistoryUpdateType_EnumValues = 11884;
 
         /// <remarks />
@@ -25527,9 +22995,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint ExceptionDeviationFormat_EnumStrings = 7614;
-
-        /// <remarks />
-        public const uint TestEnumeration_EnumValues = 15433;
 
         /// <remarks />
         public const uint OpcUa_BinarySchema = 7617;
@@ -25604,37 +23069,7 @@ namespace Opc.Ua
         public const uint OpcUa_BinarySchema_TrustListDataType = 12681;
 
         /// <remarks />
-        public const uint OpcUa_BinarySchema_BaseConfigurationDataType = 16548;
-
-        /// <remarks />
-        public const uint OpcUa_BinarySchema_BaseConfigurationRecordDataType = 16551;
-
-        /// <remarks />
-        public const uint OpcUa_BinarySchema_CertificateGroupDataType = 16554;
-
-        /// <remarks />
-        public const uint OpcUa_BinarySchema_ConfigurationUpdateTargetType = 16557;
-
-        /// <remarks />
         public const uint OpcUa_BinarySchema_TransactionErrorType = 32383;
-
-        /// <remarks />
-        public const uint OpcUa_BinarySchema_ApplicationConfigurationDataType = 16564;
-
-        /// <remarks />
-        public const uint OpcUa_BinarySchema_ApplicationIdentityDataType = 16567;
-
-        /// <remarks />
-        public const uint OpcUa_BinarySchema_EndpointDataType = 16570;
-
-        /// <remarks />
-        public const uint OpcUa_BinarySchema_ServerEndpointDataType = 16578;
-
-        /// <remarks />
-        public const uint OpcUa_BinarySchema_SecuritySettingsDataType = 16581;
-
-        /// <remarks />
-        public const uint OpcUa_BinarySchema_UserTokenSettingsDataType = 16584;
 
         /// <remarks />
         public const uint OpcUa_BinarySchema_DataTypeSchemaHeader = 15741;
@@ -25689,18 +23124,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint OpcUa_BinarySchema_PublishedDataSetCustomSourceDataType = 25533;
-
-        /// <remarks />
-        public const uint OpcUa_BinarySchema_ActionTargetDataType = 18601;
-
-        /// <remarks />
-        public const uint OpcUa_BinarySchema_PublishedActionDataType = 18604;
-
-        /// <remarks />
-        public const uint OpcUa_BinarySchema_ActionMethodDataType = 18607;
-
-        /// <remarks />
-        public const uint OpcUa_BinarySchema_PublishedActionMethodDataType = 18931;
 
         /// <remarks />
         public const uint OpcUa_BinarySchema_DataSetWriterDataType = 15778;
@@ -25832,9 +23255,6 @@ namespace Opc.Ua
         public const uint OpcUa_BinarySchema_DatagramDataSetReaderTransportDataType = 23915;
 
         /// <remarks />
-        public const uint OpcUa_BinarySchema_DtlsPubSubConnectionDataType = 18934;
-
-        /// <remarks />
         public const uint OpcUa_BinarySchema_BrokerConnectionTransportDataType = 15524;
 
         /// <remarks />
@@ -25860,15 +23280,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint OpcUa_BinarySchema_PriorityMappingEntryType = 25240;
-
-        /// <remarks />
-        public const uint OpcUa_BinarySchema_LldpManagementAddressTxPortType = 19085;
-
-        /// <remarks />
-        public const uint OpcUa_BinarySchema_LldpManagementAddressType = 19088;
-
-        /// <remarks />
-        public const uint OpcUa_BinarySchema_LldpTlvType = 19097;
 
         /// <remarks />
         public const uint OpcUa_BinarySchema_ReferenceDescriptionDataType = 32663;
@@ -26150,37 +23561,7 @@ namespace Opc.Ua
         public const uint OpcUa_XmlSchema_TrustListDataType = 12677;
 
         /// <remarks />
-        public const uint OpcUa_XmlSchema_BaseConfigurationDataType = 16597;
-
-        /// <remarks />
-        public const uint OpcUa_XmlSchema_BaseConfigurationRecordDataType = 16604;
-
-        /// <remarks />
-        public const uint OpcUa_XmlSchema_CertificateGroupDataType = 16607;
-
-        /// <remarks />
-        public const uint OpcUa_XmlSchema_ConfigurationUpdateTargetType = 16610;
-
-        /// <remarks />
         public const uint OpcUa_XmlSchema_TransactionErrorType = 32387;
-
-        /// <remarks />
-        public const uint OpcUa_XmlSchema_ApplicationConfigurationDataType = 16614;
-
-        /// <remarks />
-        public const uint OpcUa_XmlSchema_ApplicationIdentityDataType = 16617;
-
-        /// <remarks />
-        public const uint OpcUa_XmlSchema_EndpointDataType = 16620;
-
-        /// <remarks />
-        public const uint OpcUa_XmlSchema_ServerEndpointDataType = 16623;
-
-        /// <remarks />
-        public const uint OpcUa_XmlSchema_SecuritySettingsDataType = 16626;
-
-        /// <remarks />
-        public const uint OpcUa_XmlSchema_UserTokenSettingsDataType = 16629;
 
         /// <remarks />
         public const uint OpcUa_XmlSchema_DataTypeSchemaHeader = 16027;
@@ -26235,18 +23616,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint OpcUa_XmlSchema_PublishedDataSetCustomSourceDataType = 25549;
-
-        /// <remarks />
-        public const uint OpcUa_XmlSchema_ActionTargetDataType = 18613;
-
-        /// <remarks />
-        public const uint OpcUa_XmlSchema_PublishedActionDataType = 18616;
-
-        /// <remarks />
-        public const uint OpcUa_XmlSchema_ActionMethodDataType = 18619;
-
-        /// <remarks />
-        public const uint OpcUa_XmlSchema_PublishedActionMethodDataType = 18939;
 
         /// <remarks />
         public const uint OpcUa_XmlSchema_DataSetWriterDataType = 16047;
@@ -26378,9 +23747,6 @@ namespace Opc.Ua
         public const uint OpcUa_XmlSchema_DatagramDataSetReaderTransportDataType = 23983;
 
         /// <remarks />
-        public const uint OpcUa_XmlSchema_DtlsPubSubConnectionDataType = 18942;
-
-        /// <remarks />
         public const uint OpcUa_XmlSchema_BrokerConnectionTransportDataType = 15640;
 
         /// <remarks />
@@ -26406,15 +23772,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint OpcUa_XmlSchema_PriorityMappingEntryType = 25244;
-
-        /// <remarks />
-        public const uint OpcUa_XmlSchema_LldpManagementAddressTxPortType = 19103;
-
-        /// <remarks />
-        public const uint OpcUa_XmlSchema_LldpManagementAddressType = 19106;
-
-        /// <remarks />
-        public const uint OpcUa_XmlSchema_LldpTlvType = 19291;
 
         /// <remarks />
         public const uint OpcUa_XmlSchema_ReferenceDescriptionDataType = 32671;
@@ -27036,40 +24393,7 @@ namespace Opc.Ua
         public static readonly NodeId TrustListDataType = new NodeId(Opc.Ua.DataTypes.TrustListDataType);
 
         /// <remarks />
-        public static readonly NodeId BaseConfigurationDataType = new NodeId(Opc.Ua.DataTypes.BaseConfigurationDataType);
-
-        /// <remarks />
-        public static readonly NodeId BaseConfigurationRecordDataType = new NodeId(Opc.Ua.DataTypes.BaseConfigurationRecordDataType);
-
-        /// <remarks />
-        public static readonly NodeId CertificateGroupDataType = new NodeId(Opc.Ua.DataTypes.CertificateGroupDataType);
-
-        /// <remarks />
-        public static readonly NodeId ConfigurationUpdateTargetType = new NodeId(Opc.Ua.DataTypes.ConfigurationUpdateTargetType);
-
-        /// <remarks />
-        public static readonly NodeId ConfigurationUpdateType = new NodeId(Opc.Ua.DataTypes.ConfigurationUpdateType);
-
-        /// <remarks />
         public static readonly NodeId TransactionErrorType = new NodeId(Opc.Ua.DataTypes.TransactionErrorType);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationDataType = new NodeId(Opc.Ua.DataTypes.ApplicationConfigurationDataType);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationIdentityDataType = new NodeId(Opc.Ua.DataTypes.ApplicationIdentityDataType);
-
-        /// <remarks />
-        public static readonly NodeId EndpointDataType = new NodeId(Opc.Ua.DataTypes.EndpointDataType);
-
-        /// <remarks />
-        public static readonly NodeId ServerEndpointDataType = new NodeId(Opc.Ua.DataTypes.ServerEndpointDataType);
-
-        /// <remarks />
-        public static readonly NodeId SecuritySettingsDataType = new NodeId(Opc.Ua.DataTypes.SecuritySettingsDataType);
-
-        /// <remarks />
-        public static readonly NodeId UserTokenSettingsDataType = new NodeId(Opc.Ua.DataTypes.UserTokenSettingsDataType);
 
         /// <remarks />
         public static readonly NodeId DecimalDataType = new NodeId(Opc.Ua.DataTypes.DecimalDataType);
@@ -27133,21 +24457,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId PublishedDataSetCustomSourceDataType = new NodeId(Opc.Ua.DataTypes.PublishedDataSetCustomSourceDataType);
-
-        /// <remarks />
-        public static readonly NodeId ActionTargetDataType = new NodeId(Opc.Ua.DataTypes.ActionTargetDataType);
-
-        /// <remarks />
-        public static readonly NodeId PublishedActionDataType = new NodeId(Opc.Ua.DataTypes.PublishedActionDataType);
-
-        /// <remarks />
-        public static readonly NodeId ActionState = new NodeId(Opc.Ua.DataTypes.ActionState);
-
-        /// <remarks />
-        public static readonly NodeId ActionMethodDataType = new NodeId(Opc.Ua.DataTypes.ActionMethodDataType);
-
-        /// <remarks />
-        public static readonly NodeId PublishedActionMethodDataType = new NodeId(Opc.Ua.DataTypes.PublishedActionMethodDataType);
 
         /// <remarks />
         public static readonly NodeId DataSetFieldContentMask = new NodeId(Opc.Ua.DataTypes.DataSetFieldContentMask);
@@ -27300,9 +24609,6 @@ namespace Opc.Ua
         public static readonly NodeId DatagramDataSetReaderTransportDataType = new NodeId(Opc.Ua.DataTypes.DatagramDataSetReaderTransportDataType);
 
         /// <remarks />
-        public static readonly NodeId DtlsPubSubConnectionDataType = new NodeId(Opc.Ua.DataTypes.DtlsPubSubConnectionDataType);
-
-        /// <remarks />
         public static readonly NodeId BrokerConnectionTransportDataType = new NodeId(Opc.Ua.DataTypes.BrokerConnectionTransportDataType);
 
         /// <remarks />
@@ -27372,28 +24678,7 @@ namespace Opc.Ua
         public static readonly NodeId TsnListenerStatus = new NodeId(Opc.Ua.DataTypes.TsnListenerStatus);
 
         /// <remarks />
-        public static readonly NodeId ChassisIdSubtype = new NodeId(Opc.Ua.DataTypes.ChassisIdSubtype);
-
-        /// <remarks />
-        public static readonly NodeId PortIdSubtype = new NodeId(Opc.Ua.DataTypes.PortIdSubtype);
-
-        /// <remarks />
-        public static readonly NodeId ManAddrIfSubtype = new NodeId(Opc.Ua.DataTypes.ManAddrIfSubtype);
-
-        /// <remarks />
         public static readonly NodeId PriorityMappingEntryType = new NodeId(Opc.Ua.DataTypes.PriorityMappingEntryType);
-
-        /// <remarks />
-        public static readonly NodeId LldpManagementAddressTxPortType = new NodeId(Opc.Ua.DataTypes.LldpManagementAddressTxPortType);
-
-        /// <remarks />
-        public static readonly NodeId LldpManagementAddressType = new NodeId(Opc.Ua.DataTypes.LldpManagementAddressType);
-
-        /// <remarks />
-        public static readonly NodeId LldpTlvType = new NodeId(Opc.Ua.DataTypes.LldpTlvType);
-
-        /// <remarks />
-        public static readonly NodeId LldpSystemCapabilitiesMap = new NodeId(Opc.Ua.DataTypes.LldpSystemCapabilitiesMap);
 
         /// <remarks />
         public static readonly NodeId ReferenceDescriptionDataType = new NodeId(Opc.Ua.DataTypes.ReferenceDescriptionDataType);
@@ -27912,15 +25197,6 @@ namespace Opc.Ua
         public static readonly NodeId ReadEventDetails2 = new NodeId(Opc.Ua.DataTypes.ReadEventDetails2);
 
         /// <remarks />
-        public static readonly NodeId SortOrderType = new NodeId(Opc.Ua.DataTypes.SortOrderType);
-
-        /// <remarks />
-        public static readonly NodeId SortRuleElement = new NodeId(Opc.Ua.DataTypes.SortRuleElement);
-
-        /// <remarks />
-        public static readonly NodeId ReadEventDetailsSorted = new NodeId(Opc.Ua.DataTypes.ReadEventDetailsSorted);
-
-        /// <remarks />
         public static readonly NodeId ReadRawModifiedDetails = new NodeId(Opc.Ua.DataTypes.ReadRawModifiedDetails);
 
         /// <remarks />
@@ -28243,24 +25519,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId ExceptionDeviationFormat = new NodeId(Opc.Ua.DataTypes.ExceptionDeviationFormat);
-
-        /// <remarks />
-        public static readonly NodeId TestAbstractStructure = new NodeId(Opc.Ua.DataTypes.TestAbstractStructure);
-
-        /// <remarks />
-        public static readonly NodeId TestConcreteStructure = new NodeId(Opc.Ua.DataTypes.TestConcreteStructure);
-
-        /// <remarks />
-        public static readonly NodeId TestEnumeration = new NodeId(Opc.Ua.DataTypes.TestEnumeration);
-
-        /// <remarks />
-        public static readonly NodeId TestScalarStructure = new NodeId(Opc.Ua.DataTypes.TestScalarStructure);
-
-        /// <remarks />
-        public static readonly NodeId TestArrayStructure = new NodeId(Opc.Ua.DataTypes.TestArrayStructure);
-
-        /// <remarks />
-        public static readonly NodeId TestStructure = new NodeId(Opc.Ua.DataTypes.TestStructure);
     }
     #endregion
 
@@ -28482,6 +25740,42 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId RoleType_RemoveEndpoint = new NodeId(Opc.Ua.Methods.RoleType_RemoveEndpoint);
+
+        /// <remarks />
+        public static readonly NodeId WellKnownRole_Anonymous_AddIdentity = new NodeId(Opc.Ua.Methods.WellKnownRole_Anonymous_AddIdentity);
+
+        /// <remarks />
+        public static readonly NodeId WellKnownRole_Anonymous_RemoveIdentity = new NodeId(Opc.Ua.Methods.WellKnownRole_Anonymous_RemoveIdentity);
+
+        /// <remarks />
+        public static readonly NodeId WellKnownRole_Anonymous_AddApplication = new NodeId(Opc.Ua.Methods.WellKnownRole_Anonymous_AddApplication);
+
+        /// <remarks />
+        public static readonly NodeId WellKnownRole_Anonymous_RemoveApplication = new NodeId(Opc.Ua.Methods.WellKnownRole_Anonymous_RemoveApplication);
+
+        /// <remarks />
+        public static readonly NodeId WellKnownRole_Anonymous_AddEndpoint = new NodeId(Opc.Ua.Methods.WellKnownRole_Anonymous_AddEndpoint);
+
+        /// <remarks />
+        public static readonly NodeId WellKnownRole_Anonymous_RemoveEndpoint = new NodeId(Opc.Ua.Methods.WellKnownRole_Anonymous_RemoveEndpoint);
+
+        /// <remarks />
+        public static readonly NodeId WellKnownRole_AuthenticatedUser_AddIdentity = new NodeId(Opc.Ua.Methods.WellKnownRole_AuthenticatedUser_AddIdentity);
+
+        /// <remarks />
+        public static readonly NodeId WellKnownRole_AuthenticatedUser_RemoveIdentity = new NodeId(Opc.Ua.Methods.WellKnownRole_AuthenticatedUser_RemoveIdentity);
+
+        /// <remarks />
+        public static readonly NodeId WellKnownRole_AuthenticatedUser_AddApplication = new NodeId(Opc.Ua.Methods.WellKnownRole_AuthenticatedUser_AddApplication);
+
+        /// <remarks />
+        public static readonly NodeId WellKnownRole_AuthenticatedUser_RemoveApplication = new NodeId(Opc.Ua.Methods.WellKnownRole_AuthenticatedUser_RemoveApplication);
+
+        /// <remarks />
+        public static readonly NodeId WellKnownRole_AuthenticatedUser_AddEndpoint = new NodeId(Opc.Ua.Methods.WellKnownRole_AuthenticatedUser_AddEndpoint);
+
+        /// <remarks />
+        public static readonly NodeId WellKnownRole_AuthenticatedUser_RemoveEndpoint = new NodeId(Opc.Ua.Methods.WellKnownRole_AuthenticatedUser_RemoveEndpoint);
 
         /// <remarks />
         public static readonly NodeId WellKnownRole_Observer_AddIdentity = new NodeId(Opc.Ua.Methods.WellKnownRole_Observer_AddIdentity);
@@ -29150,264 +26444,6 @@ namespace Opc.Ua
         public static readonly NodeId CertificateGroupFolderType_AdditionalGroup_Placeholder_TrustListOutOfDate_ShelvingState_OneShotShelve = new NodeId(Opc.Ua.Methods.CertificateGroupFolderType_AdditionalGroup_Placeholder_TrustListOutOfDate_ShelvingState_OneShotShelve);
 
         /// <remarks />
-        public static readonly NodeId ConfigurationFileType_ConfirmUpdate = new NodeId(Opc.Ua.Methods.ConfigurationFileType_ConfirmUpdate);
-
-        /// <remarks />
-        public static readonly NodeId ConfigurationFileType_CloseAndUpdate = new NodeId(Opc.Ua.Methods.ConfigurationFileType_CloseAndUpdate);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustList_Open = new NodeId(Opc.Ua.Methods.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustList_Open);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustList_Close = new NodeId(Opc.Ua.Methods.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustList_Close);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustList_Read = new NodeId(Opc.Ua.Methods.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustList_Read);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustList_Write = new NodeId(Opc.Ua.Methods.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustList_Write);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustList_GetPosition = new NodeId(Opc.Ua.Methods.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustList_GetPosition);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustList_SetPosition = new NodeId(Opc.Ua.Methods.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustList_SetPosition);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustList_OpenWithMasks = new NodeId(Opc.Ua.Methods.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustList_OpenWithMasks);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustList_CloseAndUpdate = new NodeId(Opc.Ua.Methods.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustList_CloseAndUpdate);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustList_AddCertificate = new NodeId(Opc.Ua.Methods.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustList_AddCertificate);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustList_RemoveCertificate = new NodeId(Opc.Ua.Methods.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustList_RemoveCertificate);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Disable = new NodeId(Opc.Ua.Methods.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Disable);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Enable = new NodeId(Opc.Ua.Methods.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Enable);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_AddComment = new NodeId(Opc.Ua.Methods.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_AddComment);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Acknowledge = new NodeId(Opc.Ua.Methods.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Acknowledge);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_TimedShelve = new NodeId(Opc.Ua.Methods.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_TimedShelve);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_Unshelve = new NodeId(Opc.Ua.Methods.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_Unshelve);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_OneShotShelve = new NodeId(Opc.Ua.Methods.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_OneShotShelve);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Disable = new NodeId(Opc.Ua.Methods.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Disable);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Enable = new NodeId(Opc.Ua.Methods.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Enable);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_AddComment = new NodeId(Opc.Ua.Methods.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_AddComment);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Acknowledge = new NodeId(Opc.Ua.Methods.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Acknowledge);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_TimedShelve = new NodeId(Opc.Ua.Methods.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_TimedShelve);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_Unshelve = new NodeId(Opc.Ua.Methods.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_Unshelve);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_OneShotShelve = new NodeId(Opc.Ua.Methods.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_OneShotShelve);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustList_Open = new NodeId(Opc.Ua.Methods.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustList_Open);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustList_Close = new NodeId(Opc.Ua.Methods.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustList_Close);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustList_Read = new NodeId(Opc.Ua.Methods.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustList_Read);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustList_Write = new NodeId(Opc.Ua.Methods.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustList_Write);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustList_GetPosition = new NodeId(Opc.Ua.Methods.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustList_GetPosition);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustList_SetPosition = new NodeId(Opc.Ua.Methods.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustList_SetPosition);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustList_OpenWithMasks = new NodeId(Opc.Ua.Methods.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustList_OpenWithMasks);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustList_CloseAndUpdate = new NodeId(Opc.Ua.Methods.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustList_CloseAndUpdate);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustList_AddCertificate = new NodeId(Opc.Ua.Methods.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustList_AddCertificate);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustList_RemoveCertificate = new NodeId(Opc.Ua.Methods.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustList_RemoveCertificate);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Disable = new NodeId(Opc.Ua.Methods.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Disable);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Enable = new NodeId(Opc.Ua.Methods.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Enable);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_AddComment = new NodeId(Opc.Ua.Methods.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_AddComment);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Acknowledge = new NodeId(Opc.Ua.Methods.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Acknowledge);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_TimedShelve = new NodeId(Opc.Ua.Methods.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_TimedShelve);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_Unshelve = new NodeId(Opc.Ua.Methods.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_Unshelve);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_OneShotShelve = new NodeId(Opc.Ua.Methods.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_OneShotShelve);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Disable = new NodeId(Opc.Ua.Methods.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Disable);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Enable = new NodeId(Opc.Ua.Methods.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Enable);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_AddComment = new NodeId(Opc.Ua.Methods.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_AddComment);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Acknowledge = new NodeId(Opc.Ua.Methods.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Acknowledge);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_TimedShelve = new NodeId(Opc.Ua.Methods.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_TimedShelve);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_Unshelve = new NodeId(Opc.Ua.Methods.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_Unshelve);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_OneShotShelve = new NodeId(Opc.Ua.Methods.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_OneShotShelve);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustList_Open = new NodeId(Opc.Ua.Methods.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustList_Open);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustList_Close = new NodeId(Opc.Ua.Methods.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustList_Close);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustList_Read = new NodeId(Opc.Ua.Methods.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustList_Read);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustList_Write = new NodeId(Opc.Ua.Methods.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustList_Write);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustList_GetPosition = new NodeId(Opc.Ua.Methods.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustList_GetPosition);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustList_SetPosition = new NodeId(Opc.Ua.Methods.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustList_SetPosition);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustList_OpenWithMasks = new NodeId(Opc.Ua.Methods.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustList_OpenWithMasks);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustList_CloseAndUpdate = new NodeId(Opc.Ua.Methods.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustList_CloseAndUpdate);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustList_AddCertificate = new NodeId(Opc.Ua.Methods.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustList_AddCertificate);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustList_RemoveCertificate = new NodeId(Opc.Ua.Methods.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustList_RemoveCertificate);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Disable = new NodeId(Opc.Ua.Methods.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Disable);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Enable = new NodeId(Opc.Ua.Methods.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Enable);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_AddComment = new NodeId(Opc.Ua.Methods.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_AddComment);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Acknowledge = new NodeId(Opc.Ua.Methods.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Acknowledge);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_TimedShelve = new NodeId(Opc.Ua.Methods.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_TimedShelve);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_Unshelve = new NodeId(Opc.Ua.Methods.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_Unshelve);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_OneShotShelve = new NodeId(Opc.Ua.Methods.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_OneShotShelve);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Disable = new NodeId(Opc.Ua.Methods.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Disable);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Enable = new NodeId(Opc.Ua.Methods.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Enable);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_AddComment = new NodeId(Opc.Ua.Methods.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_AddComment);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Acknowledge = new NodeId(Opc.Ua.Methods.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Acknowledge);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_TimedShelve = new NodeId(Opc.Ua.Methods.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_TimedShelve);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_Unshelve = new NodeId(Opc.Ua.Methods.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_Unshelve);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_OneShotShelve = new NodeId(Opc.Ua.Methods.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_OneShotShelve);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_UpdateCertificate = new NodeId(Opc.Ua.Methods.ApplicationConfigurationFolderType_ApplicationName_Placeholder_UpdateCertificate);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ApplyChanges = new NodeId(Opc.Ua.Methods.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ApplyChanges);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CreateSigningRequest = new NodeId(Opc.Ua.Methods.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CreateSigningRequest);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_GetRejectedList = new NodeId(Opc.Ua.Methods.ApplicationConfigurationFolderType_ApplicationName_Placeholder_GetRejectedList);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_Open = new NodeId(Opc.Ua.Methods.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_Open);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_Close = new NodeId(Opc.Ua.Methods.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_Close);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_Read = new NodeId(Opc.Ua.Methods.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_Read);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_Write = new NodeId(Opc.Ua.Methods.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_Write);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_GetPosition = new NodeId(Opc.Ua.Methods.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_GetPosition);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_SetPosition = new NodeId(Opc.Ua.Methods.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_SetPosition);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_ConfirmUpdate = new NodeId(Opc.Ua.Methods.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_ConfirmUpdate);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_CloseAndUpdate = new NodeId(Opc.Ua.Methods.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_CloseAndUpdate);
-
-        /// <remarks />
         public static readonly NodeId ServerConfigurationType_CertificateGroups_DefaultApplicationGroup_TrustList_Open = new NodeId(Opc.Ua.Methods.ServerConfigurationType_CertificateGroups_DefaultApplicationGroup_TrustList_Open);
 
         /// <remarks />
@@ -29645,30 +26681,6 @@ namespace Opc.Ua
         public static readonly NodeId ServerConfigurationType_ResetToServerDefaults = new NodeId(Opc.Ua.Methods.ServerConfigurationType_ResetToServerDefaults);
 
         /// <remarks />
-        public static readonly NodeId ServerConfigurationType_ConfigurationFile_Open = new NodeId(Opc.Ua.Methods.ServerConfigurationType_ConfigurationFile_Open);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfigurationType_ConfigurationFile_Close = new NodeId(Opc.Ua.Methods.ServerConfigurationType_ConfigurationFile_Close);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfigurationType_ConfigurationFile_Read = new NodeId(Opc.Ua.Methods.ServerConfigurationType_ConfigurationFile_Read);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfigurationType_ConfigurationFile_Write = new NodeId(Opc.Ua.Methods.ServerConfigurationType_ConfigurationFile_Write);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfigurationType_ConfigurationFile_GetPosition = new NodeId(Opc.Ua.Methods.ServerConfigurationType_ConfigurationFile_GetPosition);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfigurationType_ConfigurationFile_SetPosition = new NodeId(Opc.Ua.Methods.ServerConfigurationType_ConfigurationFile_SetPosition);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfigurationType_ConfigurationFile_ConfirmUpdate = new NodeId(Opc.Ua.Methods.ServerConfigurationType_ConfigurationFile_ConfirmUpdate);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfigurationType_ConfigurationFile_CloseAndUpdate = new NodeId(Opc.Ua.Methods.ServerConfigurationType_ConfigurationFile_CloseAndUpdate);
-
-        /// <remarks />
         public static readonly NodeId ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList_Open = new NodeId(Opc.Ua.Methods.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList_Open);
 
         /// <remarks />
@@ -29903,34 +26915,7 @@ namespace Opc.Ua
         public static readonly NodeId ServerConfiguration_ResetToServerDefaults = new NodeId(Opc.Ua.Methods.ServerConfiguration_ResetToServerDefaults);
 
         /// <remarks />
-        public static readonly NodeId ServerConfiguration_ConfigurationFile_Open = new NodeId(Opc.Ua.Methods.ServerConfiguration_ConfigurationFile_Open);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfiguration_ConfigurationFile_Close = new NodeId(Opc.Ua.Methods.ServerConfiguration_ConfigurationFile_Close);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfiguration_ConfigurationFile_Read = new NodeId(Opc.Ua.Methods.ServerConfiguration_ConfigurationFile_Read);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfiguration_ConfigurationFile_Write = new NodeId(Opc.Ua.Methods.ServerConfiguration_ConfigurationFile_Write);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfiguration_ConfigurationFile_GetPosition = new NodeId(Opc.Ua.Methods.ServerConfiguration_ConfigurationFile_GetPosition);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfiguration_ConfigurationFile_SetPosition = new NodeId(Opc.Ua.Methods.ServerConfiguration_ConfigurationFile_SetPosition);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfiguration_ConfigurationFile_ConfirmUpdate = new NodeId(Opc.Ua.Methods.ServerConfiguration_ConfigurationFile_ConfirmUpdate);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfiguration_ConfigurationFile_CloseAndUpdate = new NodeId(Opc.Ua.Methods.ServerConfiguration_ConfigurationFile_CloseAndUpdate);
-
-        /// <remarks />
         public static readonly NodeId KeyCredentialConfigurationFolderType_CreateCredential = new NodeId(Opc.Ua.Methods.KeyCredentialConfigurationFolderType_CreateCredential);
-
-        /// <remarks />
-        public static readonly NodeId KeyCredentialConfiguration_CreateCredential = new NodeId(Opc.Ua.Methods.KeyCredentialConfiguration_CreateCredential);
 
         /// <remarks />
         public static readonly NodeId KeyCredentialConfigurationType_GetEncryptingKey = new NodeId(Opc.Ua.Methods.KeyCredentialConfigurationType_GetEncryptingKey);
@@ -30569,30 +27554,6 @@ namespace Opc.Ua
         public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_GetRejectedList = new NodeId(Opc.Ua.Methods.ProvisionableDeviceType_ApplicationName_Placeholder_GetRejectedList);
 
         /// <remarks />
-        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_Open = new NodeId(Opc.Ua.Methods.ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_Open);
-
-        /// <remarks />
-        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_Close = new NodeId(Opc.Ua.Methods.ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_Close);
-
-        /// <remarks />
-        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_Read = new NodeId(Opc.Ua.Methods.ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_Read);
-
-        /// <remarks />
-        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_Write = new NodeId(Opc.Ua.Methods.ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_Write);
-
-        /// <remarks />
-        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_GetPosition = new NodeId(Opc.Ua.Methods.ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_GetPosition);
-
-        /// <remarks />
-        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_SetPosition = new NodeId(Opc.Ua.Methods.ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_SetPosition);
-
-        /// <remarks />
-        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_ConfirmUpdate = new NodeId(Opc.Ua.Methods.ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_ConfirmUpdate);
-
-        /// <remarks />
-        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_CloseAndUpdate = new NodeId(Opc.Ua.Methods.ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_CloseAndUpdate);
-
-        /// <remarks />
         public static readonly NodeId ProvisionableDevice_RequestTickets = new NodeId(Opc.Ua.Methods.ProvisionableDevice_RequestTickets);
 
         /// <remarks />
@@ -30818,9 +27779,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId WellKnownRole_AuthenticatedUser = new NodeId(Opc.Ua.Objects.WellKnownRole_AuthenticatedUser);
-
-        /// <remarks />
-        public static readonly NodeId WellKnownRole_TrustedApplication = new NodeId(Opc.Ua.Objects.WellKnownRole_TrustedApplication);
 
         /// <remarks />
         public static readonly NodeId WellKnownRole_Observer = new NodeId(Opc.Ua.Objects.WellKnownRole_Observer);
@@ -31066,27 +28024,6 @@ namespace Opc.Ua
         public static readonly NodeId CertificateGroupFolderType_AdditionalGroup_Placeholder_TrustList = new NodeId(Opc.Ua.Objects.CertificateGroupFolderType_AdditionalGroup_Placeholder_TrustList);
 
         /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder = new NodeId(Opc.Ua.Objects.ApplicationConfigurationFolderType_ApplicationName_Placeholder);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups = new NodeId(Opc.Ua.Objects.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup = new NodeId(Opc.Ua.Objects.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustList = new NodeId(Opc.Ua.Objects.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustList);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustList = new NodeId(Opc.Ua.Objects.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustList);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustList = new NodeId(Opc.Ua.Objects.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustList);
-
-        /// <remarks />
-        public static readonly NodeId ManagedApplications = new NodeId(Opc.Ua.Objects.ManagedApplications);
-
-        /// <remarks />
         public static readonly NodeId ServerConfigurationType_CertificateGroups = new NodeId(Opc.Ua.Objects.ServerConfigurationType_CertificateGroups);
 
         /// <remarks />
@@ -31103,9 +28040,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId ServerConfigurationType_TransactionDiagnostics = new NodeId(Opc.Ua.Objects.ServerConfigurationType_TransactionDiagnostics);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfigurationType_ConfigurationFile = new NodeId(Opc.Ua.Objects.ServerConfigurationType_ConfigurationFile);
 
         /// <remarks />
         public static readonly NodeId ServerConfiguration = new NodeId(Opc.Ua.Objects.ServerConfiguration);
@@ -31633,34 +28567,7 @@ namespace Opc.Ua
         public static readonly NodeId ListenerStreams = new NodeId(Opc.Ua.Objects.ListenerStreams);
 
         /// <remarks />
-        public static readonly NodeId LLDP = new NodeId(Opc.Ua.Objects.LLDP);
-
-        /// <remarks />
-        public static readonly NodeId LLDP_LocalSystemData = new NodeId(Opc.Ua.Objects.LLDP_LocalSystemData);
-
-        /// <remarks />
-        public static readonly NodeId LLDP_Ports = new NodeId(Opc.Ua.Objects.LLDP_Ports);
-
-        /// <remarks />
         public static readonly NodeId IetfBaseNetworkInterfaceType_InterfaceName_Placeholder = new NodeId(Opc.Ua.Objects.IetfBaseNetworkInterfaceType_InterfaceName_Placeholder);
-
-        /// <remarks />
-        public static readonly NodeId LldpInformationType_RemoteStatistics = new NodeId(Opc.Ua.Objects.LldpInformationType_RemoteStatistics);
-
-        /// <remarks />
-        public static readonly NodeId LldpInformationType_LocalSystemData = new NodeId(Opc.Ua.Objects.LldpInformationType_LocalSystemData);
-
-        /// <remarks />
-        public static readonly NodeId LldpInformationType_Ports = new NodeId(Opc.Ua.Objects.LldpInformationType_Ports);
-
-        /// <remarks />
-        public static readonly NodeId LldpInformationType_Ports_LldpPortInformation_Placeholder = new NodeId(Opc.Ua.Objects.LldpInformationType_Ports_LldpPortInformation_Placeholder);
-
-        /// <remarks />
-        public static readonly NodeId LldpPortInformationType_RemoteSystemsData = new NodeId(Opc.Ua.Objects.LldpPortInformationType_RemoteSystemsData);
-
-        /// <remarks />
-        public static readonly NodeId LldpPortInformationType_RemoteSystemsData_LldpRemoteSystem_Placeholder = new NodeId(Opc.Ua.Objects.LldpPortInformationType_RemoteSystemsData_LldpRemoteSystem_Placeholder);
 
         /// <remarks />
         public static readonly NodeId Union_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.Union_Encoding_DefaultBinary);
@@ -31726,37 +28633,7 @@ namespace Opc.Ua
         public static readonly NodeId TrustListDataType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.TrustListDataType_Encoding_DefaultBinary);
 
         /// <remarks />
-        public static readonly NodeId BaseConfigurationDataType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.BaseConfigurationDataType_Encoding_DefaultBinary);
-
-        /// <remarks />
-        public static readonly NodeId BaseConfigurationRecordDataType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.BaseConfigurationRecordDataType_Encoding_DefaultBinary);
-
-        /// <remarks />
-        public static readonly NodeId CertificateGroupDataType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.CertificateGroupDataType_Encoding_DefaultBinary);
-
-        /// <remarks />
-        public static readonly NodeId ConfigurationUpdateTargetType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.ConfigurationUpdateTargetType_Encoding_DefaultBinary);
-
-        /// <remarks />
         public static readonly NodeId TransactionErrorType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.TransactionErrorType_Encoding_DefaultBinary);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationDataType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.ApplicationConfigurationDataType_Encoding_DefaultBinary);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationIdentityDataType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.ApplicationIdentityDataType_Encoding_DefaultBinary);
-
-        /// <remarks />
-        public static readonly NodeId EndpointDataType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.EndpointDataType_Encoding_DefaultBinary);
-
-        /// <remarks />
-        public static readonly NodeId ServerEndpointDataType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.ServerEndpointDataType_Encoding_DefaultBinary);
-
-        /// <remarks />
-        public static readonly NodeId SecuritySettingsDataType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.SecuritySettingsDataType_Encoding_DefaultBinary);
-
-        /// <remarks />
-        public static readonly NodeId UserTokenSettingsDataType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.UserTokenSettingsDataType_Encoding_DefaultBinary);
 
         /// <remarks />
         public static readonly NodeId DecimalDataType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.DecimalDataType_Encoding_DefaultBinary);
@@ -31814,18 +28691,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId PublishedDataSetCustomSourceDataType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.PublishedDataSetCustomSourceDataType_Encoding_DefaultBinary);
-
-        /// <remarks />
-        public static readonly NodeId ActionTargetDataType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.ActionTargetDataType_Encoding_DefaultBinary);
-
-        /// <remarks />
-        public static readonly NodeId PublishedActionDataType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.PublishedActionDataType_Encoding_DefaultBinary);
-
-        /// <remarks />
-        public static readonly NodeId ActionMethodDataType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.ActionMethodDataType_Encoding_DefaultBinary);
-
-        /// <remarks />
-        public static readonly NodeId PublishedActionMethodDataType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.PublishedActionMethodDataType_Encoding_DefaultBinary);
 
         /// <remarks />
         public static readonly NodeId DataSetWriterDataType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.DataSetWriterDataType_Encoding_DefaultBinary);
@@ -31957,9 +28822,6 @@ namespace Opc.Ua
         public static readonly NodeId DatagramDataSetReaderTransportDataType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.DatagramDataSetReaderTransportDataType_Encoding_DefaultBinary);
 
         /// <remarks />
-        public static readonly NodeId DtlsPubSubConnectionDataType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.DtlsPubSubConnectionDataType_Encoding_DefaultBinary);
-
-        /// <remarks />
         public static readonly NodeId BrokerConnectionTransportDataType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.BrokerConnectionTransportDataType_Encoding_DefaultBinary);
 
         /// <remarks />
@@ -31985,15 +28847,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId PriorityMappingEntryType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.PriorityMappingEntryType_Encoding_DefaultBinary);
-
-        /// <remarks />
-        public static readonly NodeId LldpManagementAddressTxPortType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.LldpManagementAddressTxPortType_Encoding_DefaultBinary);
-
-        /// <remarks />
-        public static readonly NodeId LldpManagementAddressType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.LldpManagementAddressType_Encoding_DefaultBinary);
-
-        /// <remarks />
-        public static readonly NodeId LldpTlvType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.LldpTlvType_Encoding_DefaultBinary);
 
         /// <remarks />
         public static readonly NodeId ReferenceDescriptionDataType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.ReferenceDescriptionDataType_Encoding_DefaultBinary);
@@ -32404,12 +29257,6 @@ namespace Opc.Ua
         public static readonly NodeId ReadEventDetails2_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.ReadEventDetails2_Encoding_DefaultBinary);
 
         /// <remarks />
-        public static readonly NodeId SortRuleElement_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.SortRuleElement_Encoding_DefaultBinary);
-
-        /// <remarks />
-        public static readonly NodeId ReadEventDetailsSorted_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.ReadEventDetailsSorted_Encoding_DefaultBinary);
-
-        /// <remarks />
         public static readonly NodeId ReadRawModifiedDetails_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.ReadRawModifiedDetails_Encoding_DefaultBinary);
 
         /// <remarks />
@@ -32704,21 +29551,6 @@ namespace Opc.Ua
         public static readonly NodeId Annotation_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.Annotation_Encoding_DefaultBinary);
 
         /// <remarks />
-        public static readonly NodeId TestAbstractStructure_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.TestAbstractStructure_Encoding_DefaultBinary);
-
-        /// <remarks />
-        public static readonly NodeId TestConcreteStructure_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.TestConcreteStructure_Encoding_DefaultBinary);
-
-        /// <remarks />
-        public static readonly NodeId TestScalarStructure_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.TestScalarStructure_Encoding_DefaultBinary);
-
-        /// <remarks />
-        public static readonly NodeId TestArrayStructure_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.TestArrayStructure_Encoding_DefaultBinary);
-
-        /// <remarks />
-        public static readonly NodeId TestStructure_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.TestStructure_Encoding_DefaultBinary);
-
-        /// <remarks />
         public static readonly NodeId Union_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.Union_Encoding_DefaultXml);
 
         /// <remarks />
@@ -32782,37 +29614,7 @@ namespace Opc.Ua
         public static readonly NodeId TrustListDataType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.TrustListDataType_Encoding_DefaultXml);
 
         /// <remarks />
-        public static readonly NodeId BaseConfigurationDataType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.BaseConfigurationDataType_Encoding_DefaultXml);
-
-        /// <remarks />
-        public static readonly NodeId BaseConfigurationRecordDataType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.BaseConfigurationRecordDataType_Encoding_DefaultXml);
-
-        /// <remarks />
-        public static readonly NodeId CertificateGroupDataType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.CertificateGroupDataType_Encoding_DefaultXml);
-
-        /// <remarks />
-        public static readonly NodeId ConfigurationUpdateTargetType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.ConfigurationUpdateTargetType_Encoding_DefaultXml);
-
-        /// <remarks />
         public static readonly NodeId TransactionErrorType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.TransactionErrorType_Encoding_DefaultXml);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationDataType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.ApplicationConfigurationDataType_Encoding_DefaultXml);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationIdentityDataType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.ApplicationIdentityDataType_Encoding_DefaultXml);
-
-        /// <remarks />
-        public static readonly NodeId EndpointDataType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.EndpointDataType_Encoding_DefaultXml);
-
-        /// <remarks />
-        public static readonly NodeId ServerEndpointDataType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.ServerEndpointDataType_Encoding_DefaultXml);
-
-        /// <remarks />
-        public static readonly NodeId SecuritySettingsDataType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.SecuritySettingsDataType_Encoding_DefaultXml);
-
-        /// <remarks />
-        public static readonly NodeId UserTokenSettingsDataType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.UserTokenSettingsDataType_Encoding_DefaultXml);
 
         /// <remarks />
         public static readonly NodeId DecimalDataType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.DecimalDataType_Encoding_DefaultXml);
@@ -32870,18 +29672,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId PublishedDataSetCustomSourceDataType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.PublishedDataSetCustomSourceDataType_Encoding_DefaultXml);
-
-        /// <remarks />
-        public static readonly NodeId ActionTargetDataType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.ActionTargetDataType_Encoding_DefaultXml);
-
-        /// <remarks />
-        public static readonly NodeId PublishedActionDataType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.PublishedActionDataType_Encoding_DefaultXml);
-
-        /// <remarks />
-        public static readonly NodeId ActionMethodDataType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.ActionMethodDataType_Encoding_DefaultXml);
-
-        /// <remarks />
-        public static readonly NodeId PublishedActionMethodDataType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.PublishedActionMethodDataType_Encoding_DefaultXml);
 
         /// <remarks />
         public static readonly NodeId DataSetWriterDataType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.DataSetWriterDataType_Encoding_DefaultXml);
@@ -33013,9 +29803,6 @@ namespace Opc.Ua
         public static readonly NodeId DatagramDataSetReaderTransportDataType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.DatagramDataSetReaderTransportDataType_Encoding_DefaultXml);
 
         /// <remarks />
-        public static readonly NodeId DtlsPubSubConnectionDataType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.DtlsPubSubConnectionDataType_Encoding_DefaultXml);
-
-        /// <remarks />
         public static readonly NodeId BrokerConnectionTransportDataType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.BrokerConnectionTransportDataType_Encoding_DefaultXml);
 
         /// <remarks />
@@ -33041,15 +29828,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId PriorityMappingEntryType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.PriorityMappingEntryType_Encoding_DefaultXml);
-
-        /// <remarks />
-        public static readonly NodeId LldpManagementAddressTxPortType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.LldpManagementAddressTxPortType_Encoding_DefaultXml);
-
-        /// <remarks />
-        public static readonly NodeId LldpManagementAddressType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.LldpManagementAddressType_Encoding_DefaultXml);
-
-        /// <remarks />
-        public static readonly NodeId LldpTlvType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.LldpTlvType_Encoding_DefaultXml);
 
         /// <remarks />
         public static readonly NodeId ReferenceDescriptionDataType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.ReferenceDescriptionDataType_Encoding_DefaultXml);
@@ -33460,12 +30238,6 @@ namespace Opc.Ua
         public static readonly NodeId ReadEventDetails2_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.ReadEventDetails2_Encoding_DefaultXml);
 
         /// <remarks />
-        public static readonly NodeId SortRuleElement_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.SortRuleElement_Encoding_DefaultXml);
-
-        /// <remarks />
-        public static readonly NodeId ReadEventDetailsSorted_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.ReadEventDetailsSorted_Encoding_DefaultXml);
-
-        /// <remarks />
         public static readonly NodeId ReadRawModifiedDetails_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.ReadRawModifiedDetails_Encoding_DefaultXml);
 
         /// <remarks />
@@ -33760,21 +30532,6 @@ namespace Opc.Ua
         public static readonly NodeId Annotation_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.Annotation_Encoding_DefaultXml);
 
         /// <remarks />
-        public static readonly NodeId TestAbstractStructure_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.TestAbstractStructure_Encoding_DefaultXml);
-
-        /// <remarks />
-        public static readonly NodeId TestConcreteStructure_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.TestConcreteStructure_Encoding_DefaultXml);
-
-        /// <remarks />
-        public static readonly NodeId TestScalarStructure_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.TestScalarStructure_Encoding_DefaultXml);
-
-        /// <remarks />
-        public static readonly NodeId TestArrayStructure_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.TestArrayStructure_Encoding_DefaultXml);
-
-        /// <remarks />
-        public static readonly NodeId TestStructure_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.TestStructure_Encoding_DefaultXml);
-
-        /// <remarks />
         public static readonly NodeId Union_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.Union_Encoding_DefaultJson);
 
         /// <remarks />
@@ -33838,37 +30595,7 @@ namespace Opc.Ua
         public static readonly NodeId TrustListDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.TrustListDataType_Encoding_DefaultJson);
 
         /// <remarks />
-        public static readonly NodeId BaseConfigurationDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.BaseConfigurationDataType_Encoding_DefaultJson);
-
-        /// <remarks />
-        public static readonly NodeId BaseConfigurationRecordDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.BaseConfigurationRecordDataType_Encoding_DefaultJson);
-
-        /// <remarks />
-        public static readonly NodeId CertificateGroupDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.CertificateGroupDataType_Encoding_DefaultJson);
-
-        /// <remarks />
-        public static readonly NodeId ConfigurationUpdateTargetType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.ConfigurationUpdateTargetType_Encoding_DefaultJson);
-
-        /// <remarks />
         public static readonly NodeId TransactionErrorType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.TransactionErrorType_Encoding_DefaultJson);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.ApplicationConfigurationDataType_Encoding_DefaultJson);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationIdentityDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.ApplicationIdentityDataType_Encoding_DefaultJson);
-
-        /// <remarks />
-        public static readonly NodeId EndpointDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.EndpointDataType_Encoding_DefaultJson);
-
-        /// <remarks />
-        public static readonly NodeId ServerEndpointDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.ServerEndpointDataType_Encoding_DefaultJson);
-
-        /// <remarks />
-        public static readonly NodeId SecuritySettingsDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.SecuritySettingsDataType_Encoding_DefaultJson);
-
-        /// <remarks />
-        public static readonly NodeId UserTokenSettingsDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.UserTokenSettingsDataType_Encoding_DefaultJson);
 
         /// <remarks />
         public static readonly NodeId DecimalDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.DecimalDataType_Encoding_DefaultJson);
@@ -33926,18 +30653,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId PublishedDataSetCustomSourceDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.PublishedDataSetCustomSourceDataType_Encoding_DefaultJson);
-
-        /// <remarks />
-        public static readonly NodeId ActionTargetDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.ActionTargetDataType_Encoding_DefaultJson);
-
-        /// <remarks />
-        public static readonly NodeId PublishedActionDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.PublishedActionDataType_Encoding_DefaultJson);
-
-        /// <remarks />
-        public static readonly NodeId ActionMethodDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.ActionMethodDataType_Encoding_DefaultJson);
-
-        /// <remarks />
-        public static readonly NodeId PublishedActionMethodDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.PublishedActionMethodDataType_Encoding_DefaultJson);
 
         /// <remarks />
         public static readonly NodeId DataSetWriterDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.DataSetWriterDataType_Encoding_DefaultJson);
@@ -34069,9 +30784,6 @@ namespace Opc.Ua
         public static readonly NodeId DatagramDataSetReaderTransportDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.DatagramDataSetReaderTransportDataType_Encoding_DefaultJson);
 
         /// <remarks />
-        public static readonly NodeId DtlsPubSubConnectionDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.DtlsPubSubConnectionDataType_Encoding_DefaultJson);
-
-        /// <remarks />
         public static readonly NodeId BrokerConnectionTransportDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.BrokerConnectionTransportDataType_Encoding_DefaultJson);
 
         /// <remarks />
@@ -34097,15 +30809,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId PriorityMappingEntryType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.PriorityMappingEntryType_Encoding_DefaultJson);
-
-        /// <remarks />
-        public static readonly NodeId LldpManagementAddressTxPortType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.LldpManagementAddressTxPortType_Encoding_DefaultJson);
-
-        /// <remarks />
-        public static readonly NodeId LldpManagementAddressType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.LldpManagementAddressType_Encoding_DefaultJson);
-
-        /// <remarks />
-        public static readonly NodeId LldpTlvType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.LldpTlvType_Encoding_DefaultJson);
 
         /// <remarks />
         public static readonly NodeId ReferenceDescriptionDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.ReferenceDescriptionDataType_Encoding_DefaultJson);
@@ -34516,12 +31219,6 @@ namespace Opc.Ua
         public static readonly NodeId ReadEventDetails2_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.ReadEventDetails2_Encoding_DefaultJson);
 
         /// <remarks />
-        public static readonly NodeId SortRuleElement_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.SortRuleElement_Encoding_DefaultJson);
-
-        /// <remarks />
-        public static readonly NodeId ReadEventDetailsSorted_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.ReadEventDetailsSorted_Encoding_DefaultJson);
-
-        /// <remarks />
         public static readonly NodeId ReadRawModifiedDetails_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.ReadRawModifiedDetails_Encoding_DefaultJson);
 
         /// <remarks />
@@ -34814,21 +31511,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId Annotation_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.Annotation_Encoding_DefaultJson);
-
-        /// <remarks />
-        public static readonly NodeId TestAbstractStructure_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.TestAbstractStructure_Encoding_DefaultJson);
-
-        /// <remarks />
-        public static readonly NodeId TestConcreteStructure_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.TestConcreteStructure_Encoding_DefaultJson);
-
-        /// <remarks />
-        public static readonly NodeId TestScalarStructure_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.TestScalarStructure_Encoding_DefaultJson);
-
-        /// <remarks />
-        public static readonly NodeId TestArrayStructure_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.TestArrayStructure_Encoding_DefaultJson);
-
-        /// <remarks />
-        public static readonly NodeId TestStructure_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.TestStructure_Encoding_DefaultJson);
     }
     #endregion
 
@@ -35343,12 +32025,6 @@ namespace Opc.Ua
         public static readonly NodeId EccCurve448ApplicationCertificateType = new NodeId(Opc.Ua.ObjectTypes.EccCurve448ApplicationCertificateType);
 
         /// <remarks />
-        public static readonly NodeId ConfigurationFileType = new NodeId(Opc.Ua.ObjectTypes.ConfigurationFileType);
-
-        /// <remarks />
-        public static readonly NodeId ConfigurationUpdatedAuditEventType = new NodeId(Opc.Ua.ObjectTypes.ConfigurationUpdatedAuditEventType);
-
-        /// <remarks />
         public static readonly NodeId TrustListUpdateRequestedAuditEventType = new NodeId(Opc.Ua.ObjectTypes.TrustListUpdateRequestedAuditEventType);
 
         /// <remarks />
@@ -35356,12 +32032,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId TransactionDiagnosticsType = new NodeId(Opc.Ua.ObjectTypes.TransactionDiagnosticsType);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType = new NodeId(Opc.Ua.ObjectTypes.ApplicationConfigurationFolderType);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFileType = new NodeId(Opc.Ua.ObjectTypes.ApplicationConfigurationFileType);
 
         /// <remarks />
         public static readonly NodeId ServerConfigurationType = new NodeId(Opc.Ua.ObjectTypes.ServerConfigurationType);
@@ -35638,21 +32308,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId PriorityMappingTableType = new NodeId(Opc.Ua.ObjectTypes.PriorityMappingTableType);
-
-        /// <remarks />
-        public static readonly NodeId LldpInformationType = new NodeId(Opc.Ua.ObjectTypes.LldpInformationType);
-
-        /// <remarks />
-        public static readonly NodeId LldpRemoteStatisticsType = new NodeId(Opc.Ua.ObjectTypes.LldpRemoteStatisticsType);
-
-        /// <remarks />
-        public static readonly NodeId LldpLocalSystemType = new NodeId(Opc.Ua.ObjectTypes.LldpLocalSystemType);
-
-        /// <remarks />
-        public static readonly NodeId LldpPortInformationType = new NodeId(Opc.Ua.ObjectTypes.LldpPortInformationType);
-
-        /// <remarks />
-        public static readonly NodeId LldpRemoteSystemType = new NodeId(Opc.Ua.ObjectTypes.LldpRemoteSystemType);
     }
     #endregion
 
@@ -37948,9 +34603,6 @@ namespace Opc.Ua
         public static readonly NodeId Server_ServerRedundancy_RedundancySupport = new NodeId(Opc.Ua.Variables.Server_ServerRedundancy_RedundancySupport);
 
         /// <remarks />
-        public static readonly NodeId Server_ServerRedundancy_RedundantServerArray = new NodeId(Opc.Ua.Variables.Server_ServerRedundancy_RedundantServerArray);
-
-        /// <remarks />
         public static readonly NodeId Server_GetMonitoredItems_InputArguments = new NodeId(Opc.Ua.Variables.Server_GetMonitoredItems_InputArguments);
 
         /// <remarks />
@@ -38458,6 +35110,18 @@ namespace Opc.Ua
         public static readonly NodeId WellKnownRole_Anonymous_Identities = new NodeId(Opc.Ua.Variables.WellKnownRole_Anonymous_Identities);
 
         /// <remarks />
+        public static readonly NodeId WellKnownRole_Anonymous_ApplicationsExclude = new NodeId(Opc.Ua.Variables.WellKnownRole_Anonymous_ApplicationsExclude);
+
+        /// <remarks />
+        public static readonly NodeId WellKnownRole_Anonymous_Applications = new NodeId(Opc.Ua.Variables.WellKnownRole_Anonymous_Applications);
+
+        /// <remarks />
+        public static readonly NodeId WellKnownRole_Anonymous_EndpointsExclude = new NodeId(Opc.Ua.Variables.WellKnownRole_Anonymous_EndpointsExclude);
+
+        /// <remarks />
+        public static readonly NodeId WellKnownRole_Anonymous_Endpoints = new NodeId(Opc.Ua.Variables.WellKnownRole_Anonymous_Endpoints);
+
+        /// <remarks />
         public static readonly NodeId WellKnownRole_Anonymous_AddIdentity_InputArguments = new NodeId(Opc.Ua.Variables.WellKnownRole_Anonymous_AddIdentity_InputArguments);
 
         /// <remarks />
@@ -38479,6 +35143,21 @@ namespace Opc.Ua
         public static readonly NodeId WellKnownRole_AuthenticatedUser_Identities = new NodeId(Opc.Ua.Variables.WellKnownRole_AuthenticatedUser_Identities);
 
         /// <remarks />
+        public static readonly NodeId WellKnownRole_AuthenticatedUser_ApplicationsExclude = new NodeId(Opc.Ua.Variables.WellKnownRole_AuthenticatedUser_ApplicationsExclude);
+
+        /// <remarks />
+        public static readonly NodeId WellKnownRole_AuthenticatedUser_Applications = new NodeId(Opc.Ua.Variables.WellKnownRole_AuthenticatedUser_Applications);
+
+        /// <remarks />
+        public static readonly NodeId WellKnownRole_AuthenticatedUser_EndpointsExclude = new NodeId(Opc.Ua.Variables.WellKnownRole_AuthenticatedUser_EndpointsExclude);
+
+        /// <remarks />
+        public static readonly NodeId WellKnownRole_AuthenticatedUser_Endpoints = new NodeId(Opc.Ua.Variables.WellKnownRole_AuthenticatedUser_Endpoints);
+
+        /// <remarks />
+        public static readonly NodeId WellKnownRole_AuthenticatedUser_CustomConfiguration = new NodeId(Opc.Ua.Variables.WellKnownRole_AuthenticatedUser_CustomConfiguration);
+
+        /// <remarks />
         public static readonly NodeId WellKnownRole_AuthenticatedUser_AddIdentity_InputArguments = new NodeId(Opc.Ua.Variables.WellKnownRole_AuthenticatedUser_AddIdentity_InputArguments);
 
         /// <remarks />
@@ -38495,27 +35174,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId WellKnownRole_AuthenticatedUser_RemoveEndpoint_InputArguments = new NodeId(Opc.Ua.Variables.WellKnownRole_AuthenticatedUser_RemoveEndpoint_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId WellKnownRole_TrustedApplication_Identities = new NodeId(Opc.Ua.Variables.WellKnownRole_TrustedApplication_Identities);
-
-        /// <remarks />
-        public static readonly NodeId WellKnownRole_TrustedApplication_AddIdentity_InputArguments = new NodeId(Opc.Ua.Variables.WellKnownRole_TrustedApplication_AddIdentity_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId WellKnownRole_TrustedApplication_RemoveIdentity_InputArguments = new NodeId(Opc.Ua.Variables.WellKnownRole_TrustedApplication_RemoveIdentity_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId WellKnownRole_TrustedApplication_AddApplication_InputArguments = new NodeId(Opc.Ua.Variables.WellKnownRole_TrustedApplication_AddApplication_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId WellKnownRole_TrustedApplication_RemoveApplication_InputArguments = new NodeId(Opc.Ua.Variables.WellKnownRole_TrustedApplication_RemoveApplication_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId WellKnownRole_TrustedApplication_AddEndpoint_InputArguments = new NodeId(Opc.Ua.Variables.WellKnownRole_TrustedApplication_AddEndpoint_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId WellKnownRole_TrustedApplication_RemoveEndpoint_InputArguments = new NodeId(Opc.Ua.Variables.WellKnownRole_TrustedApplication_RemoveEndpoint_InputArguments);
 
         /// <remarks />
         public static readonly NodeId WellKnownRole_Observer_Identities = new NodeId(Opc.Ua.Variables.WellKnownRole_Observer_Identities);
@@ -38941,6 +35599,9 @@ namespace Opc.Ua
         public static readonly NodeId UnitType_Symbol = new NodeId(Opc.Ua.Variables.UnitType_Symbol);
 
         /// <remarks />
+        public static readonly NodeId UnitType_Description = new NodeId(Opc.Ua.Variables.UnitType_Description);
+
+        /// <remarks />
         public static readonly NodeId UnitType_UnitSystem = new NodeId(Opc.Ua.Variables.UnitType_UnitSystem);
 
         /// <remarks />
@@ -38972,6 +35633,9 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId QuantityType_Symbol = new NodeId(Opc.Ua.Variables.QuantityType_Symbol);
+
+        /// <remarks />
+        public static readonly NodeId QuantityType_Description = new NodeId(Opc.Ua.Variables.QuantityType_Description);
 
         /// <remarks />
         public static readonly NodeId QuantityType_Annotation = new NodeId(Opc.Ua.Variables.QuantityType_Annotation);
@@ -40079,9 +36743,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId HistoricalEventConfigurationType_StartOfOnlineArchive = new NodeId(Opc.Ua.Variables.HistoricalEventConfigurationType_StartOfOnlineArchive);
-
-        /// <remarks />
-        public static readonly NodeId HistoricalEventConfigurationType_SortByEventFields = new NodeId(Opc.Ua.Variables.HistoricalEventConfigurationType_SortByEventFields);
 
         /// <remarks />
         public static readonly NodeId HistoricalExternalEventSourceType_Server = new NodeId(Opc.Ua.Variables.HistoricalExternalEventSourceType_Server);
@@ -42346,39 +39007,6 @@ namespace Opc.Ua
         public static readonly NodeId CertificateGroupFolderType_AdditionalGroup_Placeholder_TrustListOutOfDate_UpdateFrequency = new NodeId(Opc.Ua.Variables.CertificateGroupFolderType_AdditionalGroup_Placeholder_TrustListOutOfDate_UpdateFrequency);
 
         /// <remarks />
-        public static readonly NodeId ConfigurationFileType_LastUpdateTime = new NodeId(Opc.Ua.Variables.ConfigurationFileType_LastUpdateTime);
-
-        /// <remarks />
-        public static readonly NodeId ConfigurationFileType_CurrentVersion = new NodeId(Opc.Ua.Variables.ConfigurationFileType_CurrentVersion);
-
-        /// <remarks />
-        public static readonly NodeId ConfigurationFileType_ActivityTimeout = new NodeId(Opc.Ua.Variables.ConfigurationFileType_ActivityTimeout);
-
-        /// <remarks />
-        public static readonly NodeId ConfigurationFileType_SupportedDataType = new NodeId(Opc.Ua.Variables.ConfigurationFileType_SupportedDataType);
-
-        /// <remarks />
-        public static readonly NodeId ConfigurationFileType_ConfirmUpdate_InputArguments = new NodeId(Opc.Ua.Variables.ConfigurationFileType_ConfirmUpdate_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ConfigurationFileType_ConfirmUpdate_OutputArguments = new NodeId(Opc.Ua.Variables.ConfigurationFileType_ConfirmUpdate_OutputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ConfigurationFileType_CloseAndUpdate_InputArguments = new NodeId(Opc.Ua.Variables.ConfigurationFileType_CloseAndUpdate_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ConfigurationFileType_CloseAndUpdate_OutputArguments = new NodeId(Opc.Ua.Variables.ConfigurationFileType_CloseAndUpdate_OutputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ConfigurationUpdateType_EnumValues = new NodeId(Opc.Ua.Variables.ConfigurationUpdateType_EnumValues);
-
-        /// <remarks />
-        public static readonly NodeId ConfigurationUpdatedAuditEventType_OldVersion = new NodeId(Opc.Ua.Variables.ConfigurationUpdatedAuditEventType_OldVersion);
-
-        /// <remarks />
-        public static readonly NodeId ConfigurationUpdatedAuditEventType_NewVersion = new NodeId(Opc.Ua.Variables.ConfigurationUpdatedAuditEventType_NewVersion);
-
-        /// <remarks />
         public static readonly NodeId TrustListUpdatedAuditEventType_TrustListId = new NodeId(Opc.Ua.Variables.TrustListUpdatedAuditEventType_TrustListId);
 
         /// <remarks />
@@ -42398,1368 +39026,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId TransactionDiagnosticsType_Errors = new NodeId(Opc.Ua.Variables.TransactionDiagnosticsType_Errors);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustList_Size = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustList_Size);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustList_Writable = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustList_Writable);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustList_UserWritable = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustList_UserWritable);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustList_OpenCount = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustList_OpenCount);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustList_Open_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustList_Open_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustList_Open_OutputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustList_Open_OutputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustList_Close_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustList_Close_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustList_Read_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustList_Read_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustList_Read_OutputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustList_Read_OutputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustList_Write_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustList_Write_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustList_GetPosition_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustList_GetPosition_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustList_GetPosition_OutputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustList_GetPosition_OutputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustList_SetPosition_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustList_SetPosition_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustList_LastUpdateTime = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustList_LastUpdateTime);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustList_OpenWithMasks_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustList_OpenWithMasks_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustList_OpenWithMasks_OutputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustList_OpenWithMasks_OutputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustList_CloseAndUpdate_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustList_CloseAndUpdate_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustList_CloseAndUpdate_OutputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustList_CloseAndUpdate_OutputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustList_AddCertificate_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustList_AddCertificate_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustList_RemoveCertificate_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustList_RemoveCertificate_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateTypes = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateTypes);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_GetRejectedList_OutputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_GetRejectedList_OutputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_EventId = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_EventId);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_EventType = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_EventType);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_SourceNode = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_SourceNode);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_SourceName = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_SourceName);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Time = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Time);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ReceiveTime = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ReceiveTime);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Message = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Message);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Severity = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Severity);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionClassId = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionClassId);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionClassName = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionClassName);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionSubClassId = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionSubClassId);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionSubClassName = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionSubClassName);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionName = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionName);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_BranchId = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_BranchId);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Retain = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Retain);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_EnabledState = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_EnabledState);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_EnabledState_Id = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_EnabledState_Id);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Quality = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Quality);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Quality_SourceTimestamp = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Quality_SourceTimestamp);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_LastSeverity = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_LastSeverity);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_LastSeverity_SourceTimestamp = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_LastSeverity_SourceTimestamp);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Comment = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Comment);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Comment_SourceTimestamp = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Comment_SourceTimestamp);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ClientUserId = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ClientUserId);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_AddComment_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_AddComment_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_AckedState = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_AckedState);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_AckedState_Id = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_AckedState_Id);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConfirmedState_Id = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConfirmedState_Id);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Acknowledge_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Acknowledge_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Confirm_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Confirm_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ActiveState = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ActiveState);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ActiveState_Id = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ActiveState_Id);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_InputNode = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_InputNode);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_SuppressedState_Id = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_SuppressedState_Id);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_OutOfServiceState_Id = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_OutOfServiceState_Id);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_CurrentState = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_CurrentState);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_CurrentState_Id = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_CurrentState_Id);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_LastTransition_Id = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_LastTransition_Id);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_UnshelveTime = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_UnshelveTime);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_TimedShelve_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_TimedShelve_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_TimedShelve2_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_TimedShelve2_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_Unshelve2_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_Unshelve2_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_OneShotShelve2_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ShelvingState_OneShotShelve2_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_SuppressedOrShelved = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_SuppressedOrShelved);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_SilenceState_Id = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_SilenceState_Id);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_LatchedState_Id = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_LatchedState_Id);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Suppress2_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Suppress2_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Unsuppress2_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Unsuppress2_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_RemoveFromService2_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_RemoveFromService2_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_PlaceInService2_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_PlaceInService2_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Reset2_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Reset2_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_GetGroupMemberships_OutputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_GetGroupMemberships_OutputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_NormalState = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_NormalState);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ExpirationDate = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ExpirationDate);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_CertificateType = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_CertificateType);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Certificate = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Certificate);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_EventId = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_EventId);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_EventType = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_EventType);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_SourceNode = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_SourceNode);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_SourceName = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_SourceName);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Time = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Time);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ReceiveTime = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ReceiveTime);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Message = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Message);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Severity = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Severity);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionClassId = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionClassId);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionClassName = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionClassName);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionSubClassId = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionSubClassId);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionSubClassName = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionSubClassName);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionName = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionName);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_BranchId = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_BranchId);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Retain = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Retain);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_EnabledState = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_EnabledState);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_EnabledState_Id = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_EnabledState_Id);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Quality = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Quality);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Quality_SourceTimestamp = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Quality_SourceTimestamp);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_LastSeverity = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_LastSeverity);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_LastSeverity_SourceTimestamp = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_LastSeverity_SourceTimestamp);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Comment = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Comment);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Comment_SourceTimestamp = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Comment_SourceTimestamp);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ClientUserId = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ClientUserId);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_AddComment_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_AddComment_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_AckedState = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_AckedState);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_AckedState_Id = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_AckedState_Id);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConfirmedState_Id = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConfirmedState_Id);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Acknowledge_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Acknowledge_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Confirm_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Confirm_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ActiveState = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ActiveState);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ActiveState_Id = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ActiveState_Id);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_InputNode = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_InputNode);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_SuppressedState_Id = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_SuppressedState_Id);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_OutOfServiceState_Id = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_OutOfServiceState_Id);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_CurrentState = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_CurrentState);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_CurrentState_Id = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_CurrentState_Id);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_LastTransition_Id = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_LastTransition_Id);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_UnshelveTime = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_UnshelveTime);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_TimedShelve_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_TimedShelve_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_TimedShelve2_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_TimedShelve2_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_Unshelve2_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_Unshelve2_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_OneShotShelve2_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ShelvingState_OneShotShelve2_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_SuppressedOrShelved = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_SuppressedOrShelved);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_SilenceState_Id = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_SilenceState_Id);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_LatchedState_Id = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_LatchedState_Id);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Suppress2_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Suppress2_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Unsuppress2_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Unsuppress2_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_RemoveFromService2_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_RemoveFromService2_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_PlaceInService2_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_PlaceInService2_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Reset2_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Reset2_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_GetGroupMemberships_OutputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_GetGroupMemberships_OutputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_NormalState = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_NormalState);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_TrustListId = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_TrustListId);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_LastUpdateTime = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_LastUpdateTime);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_UpdateFrequency = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_UpdateFrequency);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustList_Size = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustList_Size);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustList_Writable = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustList_Writable);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustList_UserWritable = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustList_UserWritable);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustList_OpenCount = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustList_OpenCount);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustList_Open_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustList_Open_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustList_Open_OutputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustList_Open_OutputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustList_Close_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustList_Close_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustList_Read_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustList_Read_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustList_Read_OutputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustList_Read_OutputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustList_Write_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustList_Write_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustList_GetPosition_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustList_GetPosition_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustList_GetPosition_OutputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustList_GetPosition_OutputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustList_SetPosition_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustList_SetPosition_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustList_LastUpdateTime = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustList_LastUpdateTime);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustList_OpenWithMasks_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustList_OpenWithMasks_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustList_OpenWithMasks_OutputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustList_OpenWithMasks_OutputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustList_CloseAndUpdate_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustList_CloseAndUpdate_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustList_CloseAndUpdate_OutputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustList_CloseAndUpdate_OutputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustList_AddCertificate_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustList_AddCertificate_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustList_RemoveCertificate_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustList_RemoveCertificate_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateTypes = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateTypes);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_GetRejectedList_OutputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_GetRejectedList_OutputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_EventId = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_EventId);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_EventType = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_EventType);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_SourceNode = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_SourceNode);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_SourceName = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_SourceName);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Time = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Time);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ReceiveTime = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ReceiveTime);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Message = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Message);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Severity = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Severity);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionClassId = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionClassId);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionClassName = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionClassName);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionSubClassId = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionSubClassId);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionSubClassName = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionSubClassName);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionName = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionName);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_BranchId = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_BranchId);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Retain = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Retain);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_EnabledState = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_EnabledState);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_EnabledState_Id = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_EnabledState_Id);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Quality = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Quality);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Quality_SourceTimestamp = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Quality_SourceTimestamp);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_LastSeverity = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_LastSeverity);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_LastSeverity_SourceTimestamp = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_LastSeverity_SourceTimestamp);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Comment = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Comment);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Comment_SourceTimestamp = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Comment_SourceTimestamp);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ClientUserId = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ClientUserId);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_AddComment_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_AddComment_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_AckedState = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_AckedState);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_AckedState_Id = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_AckedState_Id);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConfirmedState_Id = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConfirmedState_Id);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Acknowledge_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Acknowledge_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Confirm_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Confirm_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ActiveState = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ActiveState);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ActiveState_Id = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ActiveState_Id);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_InputNode = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_InputNode);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_SuppressedState_Id = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_SuppressedState_Id);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_OutOfServiceState_Id = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_OutOfServiceState_Id);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_CurrentState = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_CurrentState);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_CurrentState_Id = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_CurrentState_Id);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_LastTransition_Id = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_LastTransition_Id);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_UnshelveTime = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_UnshelveTime);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_TimedShelve_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_TimedShelve_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_TimedShelve2_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_TimedShelve2_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_Unshelve2_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_Unshelve2_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_OneShotShelve2_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ShelvingState_OneShotShelve2_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_SuppressedOrShelved = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_SuppressedOrShelved);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_SilenceState_Id = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_SilenceState_Id);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_LatchedState_Id = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_LatchedState_Id);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Suppress2_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Suppress2_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Unsuppress2_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Unsuppress2_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_RemoveFromService2_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_RemoveFromService2_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_PlaceInService2_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_PlaceInService2_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Reset2_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Reset2_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_GetGroupMemberships_OutputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_GetGroupMemberships_OutputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_NormalState = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_NormalState);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ExpirationDate = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ExpirationDate);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_CertificateType = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_CertificateType);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Certificate = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Certificate);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_EventId = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_EventId);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_EventType = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_EventType);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_SourceNode = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_SourceNode);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_SourceName = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_SourceName);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Time = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Time);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ReceiveTime = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ReceiveTime);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Message = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Message);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Severity = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Severity);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionClassId = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionClassId);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionClassName = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionClassName);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionSubClassId = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionSubClassId);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionSubClassName = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionSubClassName);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionName = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionName);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_BranchId = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_BranchId);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Retain = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Retain);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_EnabledState = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_EnabledState);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_EnabledState_Id = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_EnabledState_Id);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Quality = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Quality);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Quality_SourceTimestamp = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Quality_SourceTimestamp);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_LastSeverity = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_LastSeverity);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_LastSeverity_SourceTimestamp = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_LastSeverity_SourceTimestamp);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Comment = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Comment);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Comment_SourceTimestamp = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Comment_SourceTimestamp);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ClientUserId = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ClientUserId);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_AddComment_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_AddComment_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_AckedState = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_AckedState);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_AckedState_Id = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_AckedState_Id);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConfirmedState_Id = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConfirmedState_Id);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Acknowledge_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Acknowledge_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Confirm_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Confirm_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ActiveState = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ActiveState);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ActiveState_Id = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ActiveState_Id);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_InputNode = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_InputNode);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_SuppressedState_Id = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_SuppressedState_Id);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_OutOfServiceState_Id = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_OutOfServiceState_Id);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_CurrentState = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_CurrentState);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_CurrentState_Id = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_CurrentState_Id);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_LastTransition_Id = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_LastTransition_Id);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_UnshelveTime = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_UnshelveTime);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_TimedShelve_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_TimedShelve_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_TimedShelve2_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_TimedShelve2_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_Unshelve2_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_Unshelve2_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_OneShotShelve2_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ShelvingState_OneShotShelve2_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_SuppressedOrShelved = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_SuppressedOrShelved);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_SilenceState_Id = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_SilenceState_Id);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_LatchedState_Id = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_LatchedState_Id);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Suppress2_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Suppress2_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Unsuppress2_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Unsuppress2_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_RemoveFromService2_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_RemoveFromService2_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_PlaceInService2_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_PlaceInService2_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Reset2_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Reset2_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_GetGroupMemberships_OutputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_GetGroupMemberships_OutputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_NormalState = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_NormalState);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_TrustListId = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_TrustListId);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_LastUpdateTime = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_LastUpdateTime);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_UpdateFrequency = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_UpdateFrequency);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustList_Size = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustList_Size);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustList_Writable = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustList_Writable);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustList_UserWritable = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustList_UserWritable);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustList_OpenCount = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustList_OpenCount);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustList_Open_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustList_Open_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustList_Open_OutputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustList_Open_OutputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustList_Close_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustList_Close_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustList_Read_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustList_Read_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustList_Read_OutputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustList_Read_OutputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustList_Write_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustList_Write_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustList_GetPosition_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustList_GetPosition_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustList_GetPosition_OutputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustList_GetPosition_OutputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustList_SetPosition_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustList_SetPosition_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustList_LastUpdateTime = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustList_LastUpdateTime);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustList_OpenWithMasks_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustList_OpenWithMasks_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustList_OpenWithMasks_OutputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustList_OpenWithMasks_OutputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustList_CloseAndUpdate_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustList_CloseAndUpdate_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustList_CloseAndUpdate_OutputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustList_CloseAndUpdate_OutputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustList_AddCertificate_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustList_AddCertificate_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustList_RemoveCertificate_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustList_RemoveCertificate_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateTypes = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateTypes);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_GetRejectedList_OutputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_GetRejectedList_OutputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_EventId = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_EventId);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_EventType = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_EventType);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_SourceNode = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_SourceNode);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_SourceName = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_SourceName);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Time = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Time);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ReceiveTime = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ReceiveTime);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Message = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Message);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Severity = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Severity);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionClassId = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionClassId);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionClassName = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionClassName);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionSubClassId = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionSubClassId);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionSubClassName = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionSubClassName);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionName = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionName);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_BranchId = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_BranchId);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Retain = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Retain);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_EnabledState = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_EnabledState);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_EnabledState_Id = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_EnabledState_Id);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Quality = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Quality);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Quality_SourceTimestamp = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Quality_SourceTimestamp);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_LastSeverity = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_LastSeverity);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_LastSeverity_SourceTimestamp = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_LastSeverity_SourceTimestamp);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Comment = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Comment);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Comment_SourceTimestamp = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Comment_SourceTimestamp);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ClientUserId = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ClientUserId);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_AddComment_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_AddComment_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_AckedState = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_AckedState);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_AckedState_Id = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_AckedState_Id);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConfirmedState_Id = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConfirmedState_Id);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Acknowledge_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Acknowledge_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Confirm_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Confirm_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ActiveState = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ActiveState);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ActiveState_Id = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ActiveState_Id);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_InputNode = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_InputNode);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_SuppressedState_Id = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_SuppressedState_Id);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_OutOfServiceState_Id = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_OutOfServiceState_Id);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_CurrentState = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_CurrentState);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_CurrentState_Id = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_CurrentState_Id);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_LastTransition_Id = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_LastTransition_Id);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_UnshelveTime = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_UnshelveTime);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_TimedShelve_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_TimedShelve_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_TimedShelve2_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_TimedShelve2_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_Unshelve2_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_Unshelve2_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_OneShotShelve2_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ShelvingState_OneShotShelve2_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_SuppressedOrShelved = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_SuppressedOrShelved);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_SilenceState_Id = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_SilenceState_Id);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_LatchedState_Id = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_LatchedState_Id);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Suppress2_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Suppress2_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Unsuppress2_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Unsuppress2_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_RemoveFromService2_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_RemoveFromService2_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_PlaceInService2_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_PlaceInService2_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Reset2_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Reset2_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_GetGroupMemberships_OutputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_GetGroupMemberships_OutputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_NormalState = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_NormalState);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ExpirationDate = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ExpirationDate);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_CertificateType = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_CertificateType);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Certificate = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Certificate);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_EventId = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_EventId);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_EventType = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_EventType);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_SourceNode = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_SourceNode);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_SourceName = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_SourceName);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Time = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Time);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ReceiveTime = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ReceiveTime);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Message = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Message);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Severity = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Severity);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionClassId = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionClassId);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionClassName = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionClassName);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionSubClassId = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionSubClassId);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionSubClassName = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionSubClassName);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionName = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionName);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_BranchId = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_BranchId);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Retain = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Retain);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_EnabledState = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_EnabledState);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_EnabledState_Id = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_EnabledState_Id);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Quality = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Quality);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Quality_SourceTimestamp = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Quality_SourceTimestamp);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_LastSeverity = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_LastSeverity);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_LastSeverity_SourceTimestamp = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_LastSeverity_SourceTimestamp);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Comment = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Comment);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Comment_SourceTimestamp = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Comment_SourceTimestamp);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ClientUserId = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ClientUserId);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_AddComment_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_AddComment_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_AckedState = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_AckedState);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_AckedState_Id = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_AckedState_Id);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConfirmedState_Id = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConfirmedState_Id);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Acknowledge_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Acknowledge_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Confirm_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Confirm_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ActiveState = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ActiveState);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ActiveState_Id = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ActiveState_Id);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_InputNode = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_InputNode);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_SuppressedState_Id = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_SuppressedState_Id);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_OutOfServiceState_Id = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_OutOfServiceState_Id);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_CurrentState = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_CurrentState);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_CurrentState_Id = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_CurrentState_Id);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_LastTransition_Id = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_LastTransition_Id);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_UnshelveTime = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_UnshelveTime);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_TimedShelve_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_TimedShelve_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_TimedShelve2_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_TimedShelve2_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_Unshelve2_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_Unshelve2_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_OneShotShelve2_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_OneShotShelve2_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_SuppressedOrShelved = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_SuppressedOrShelved);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_SilenceState_Id = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_SilenceState_Id);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_LatchedState_Id = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_LatchedState_Id);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Suppress2_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Suppress2_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Unsuppress2_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Unsuppress2_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_RemoveFromService2_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_RemoveFromService2_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_PlaceInService2_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_PlaceInService2_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Reset2_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Reset2_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_GetGroupMemberships_OutputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_GetGroupMemberships_OutputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_NormalState = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_NormalState);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_TrustListId = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_TrustListId);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_LastUpdateTime = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_LastUpdateTime);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_UpdateFrequency = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_UpdateFrequency);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ApplicationUri = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ApplicationUri);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ProductUri = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ProductUri);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ApplicationType = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ApplicationType);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ServerCapabilities = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ServerCapabilities);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_SupportedPrivateKeyFormats = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_SupportedPrivateKeyFormats);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_MaxTrustListSize = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_MaxTrustListSize);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_MulticastDnsEnabled = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_MulticastDnsEnabled);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_UpdateCertificate_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_UpdateCertificate_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_UpdateCertificate_OutputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_UpdateCertificate_OutputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_GetCertificates_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_GetCertificates_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_GetCertificates_OutputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_GetCertificates_OutputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CreateSigningRequest_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CreateSigningRequest_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CreateSigningRequest_OutputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CreateSigningRequest_OutputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_GetRejectedList_OutputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_GetRejectedList_OutputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_TransactionDiagnostics_StartTime = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_TransactionDiagnostics_StartTime);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_TransactionDiagnostics_EndTime = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_TransactionDiagnostics_EndTime);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_TransactionDiagnostics_Result = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_TransactionDiagnostics_Result);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_TransactionDiagnostics_AffectedTrustLists = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_TransactionDiagnostics_AffectedTrustLists);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_TransactionDiagnostics_AffectedCertificateGroups = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_TransactionDiagnostics_AffectedCertificateGroups);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_TransactionDiagnostics_Errors = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_TransactionDiagnostics_Errors);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_Size = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_Size);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_Writable = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_Writable);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_UserWritable = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_UserWritable);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_OpenCount = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_OpenCount);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_Open_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_Open_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_Open_OutputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_Open_OutputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_Close_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_Close_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_Read_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_Read_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_Read_OutputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_Read_OutputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_Write_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_Write_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_GetPosition_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_GetPosition_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_GetPosition_OutputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_GetPosition_OutputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_SetPosition_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_SetPosition_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_LastUpdateTime = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_LastUpdateTime);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_CurrentVersion = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_CurrentVersion);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_ActivityTimeout = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_ActivityTimeout);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_SupportedDataType = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_SupportedDataType);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_ConfirmUpdate_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_ConfirmUpdate_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_ConfirmUpdate_OutputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_ConfirmUpdate_OutputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_CloseAndUpdate_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_CloseAndUpdate_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_CloseAndUpdate_OutputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_CloseAndUpdate_OutputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_AvailableNetworks = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_AvailableNetworks);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_AvailablePorts = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_AvailablePorts);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_SecurityPolicyUris = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_SecurityPolicyUris);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_UserTokenTypes = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_UserTokenTypes);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_CertificateTypes = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_CertificateTypes);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_Enabled = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_Enabled);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFileType_AvailableNetworks = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFileType_AvailableNetworks);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFileType_AvailablePorts = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFileType_AvailablePorts);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFileType_SecurityPolicyUris = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFileType_SecurityPolicyUris);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFileType_UserTokenTypes = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFileType_UserTokenTypes);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFileType_CertificateTypes = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFileType_CertificateTypes);
 
         /// <remarks />
         public static readonly NodeId ServerConfigurationType_CertificateGroups_DefaultApplicationGroup_TrustList_Size = new NodeId(Opc.Ua.Variables.ServerConfigurationType_CertificateGroups_DefaultApplicationGroup_TrustList_Size);
@@ -44977,9 +40243,6 @@ namespace Opc.Ua
         public static readonly NodeId ServerConfigurationType_ApplicationType = new NodeId(Opc.Ua.Variables.ServerConfigurationType_ApplicationType);
 
         /// <remarks />
-        public static readonly NodeId ServerConfigurationType_ApplicationNames = new NodeId(Opc.Ua.Variables.ServerConfigurationType_ApplicationNames);
-
-        /// <remarks />
         public static readonly NodeId ServerConfigurationType_ServerCapabilities = new NodeId(Opc.Ua.Variables.ServerConfigurationType_ServerCapabilities);
 
         /// <remarks />
@@ -44993,9 +40256,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId ServerConfigurationType_HasSecureElement = new NodeId(Opc.Ua.Variables.ServerConfigurationType_HasSecureElement);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfigurationType_SupportsTransactions = new NodeId(Opc.Ua.Variables.ServerConfigurationType_SupportsTransactions);
 
         /// <remarks />
         public static readonly NodeId ServerConfigurationType_UpdateCertificate_InputArguments = new NodeId(Opc.Ua.Variables.ServerConfigurationType_UpdateCertificate_InputArguments);
@@ -45035,84 +40295,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId ServerConfigurationType_TransactionDiagnostics_Errors = new NodeId(Opc.Ua.Variables.ServerConfigurationType_TransactionDiagnostics_Errors);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfigurationType_ConfigurationFile_Size = new NodeId(Opc.Ua.Variables.ServerConfigurationType_ConfigurationFile_Size);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfigurationType_ConfigurationFile_Writable = new NodeId(Opc.Ua.Variables.ServerConfigurationType_ConfigurationFile_Writable);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfigurationType_ConfigurationFile_UserWritable = new NodeId(Opc.Ua.Variables.ServerConfigurationType_ConfigurationFile_UserWritable);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfigurationType_ConfigurationFile_OpenCount = new NodeId(Opc.Ua.Variables.ServerConfigurationType_ConfigurationFile_OpenCount);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfigurationType_ConfigurationFile_Open_InputArguments = new NodeId(Opc.Ua.Variables.ServerConfigurationType_ConfigurationFile_Open_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfigurationType_ConfigurationFile_Open_OutputArguments = new NodeId(Opc.Ua.Variables.ServerConfigurationType_ConfigurationFile_Open_OutputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfigurationType_ConfigurationFile_Close_InputArguments = new NodeId(Opc.Ua.Variables.ServerConfigurationType_ConfigurationFile_Close_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfigurationType_ConfigurationFile_Read_InputArguments = new NodeId(Opc.Ua.Variables.ServerConfigurationType_ConfigurationFile_Read_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfigurationType_ConfigurationFile_Read_OutputArguments = new NodeId(Opc.Ua.Variables.ServerConfigurationType_ConfigurationFile_Read_OutputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfigurationType_ConfigurationFile_Write_InputArguments = new NodeId(Opc.Ua.Variables.ServerConfigurationType_ConfigurationFile_Write_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfigurationType_ConfigurationFile_GetPosition_InputArguments = new NodeId(Opc.Ua.Variables.ServerConfigurationType_ConfigurationFile_GetPosition_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfigurationType_ConfigurationFile_GetPosition_OutputArguments = new NodeId(Opc.Ua.Variables.ServerConfigurationType_ConfigurationFile_GetPosition_OutputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfigurationType_ConfigurationFile_SetPosition_InputArguments = new NodeId(Opc.Ua.Variables.ServerConfigurationType_ConfigurationFile_SetPosition_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfigurationType_ConfigurationFile_LastUpdateTime = new NodeId(Opc.Ua.Variables.ServerConfigurationType_ConfigurationFile_LastUpdateTime);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfigurationType_ConfigurationFile_CurrentVersion = new NodeId(Opc.Ua.Variables.ServerConfigurationType_ConfigurationFile_CurrentVersion);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfigurationType_ConfigurationFile_ActivityTimeout = new NodeId(Opc.Ua.Variables.ServerConfigurationType_ConfigurationFile_ActivityTimeout);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfigurationType_ConfigurationFile_SupportedDataType = new NodeId(Opc.Ua.Variables.ServerConfigurationType_ConfigurationFile_SupportedDataType);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfigurationType_ConfigurationFile_ConfirmUpdate_InputArguments = new NodeId(Opc.Ua.Variables.ServerConfigurationType_ConfigurationFile_ConfirmUpdate_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfigurationType_ConfigurationFile_ConfirmUpdate_OutputArguments = new NodeId(Opc.Ua.Variables.ServerConfigurationType_ConfigurationFile_ConfirmUpdate_OutputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfigurationType_ConfigurationFile_CloseAndUpdate_InputArguments = new NodeId(Opc.Ua.Variables.ServerConfigurationType_ConfigurationFile_CloseAndUpdate_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfigurationType_ConfigurationFile_CloseAndUpdate_OutputArguments = new NodeId(Opc.Ua.Variables.ServerConfigurationType_ConfigurationFile_CloseAndUpdate_OutputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfigurationType_ConfigurationFile_AvailableNetworks = new NodeId(Opc.Ua.Variables.ServerConfigurationType_ConfigurationFile_AvailableNetworks);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfigurationType_ConfigurationFile_AvailablePorts = new NodeId(Opc.Ua.Variables.ServerConfigurationType_ConfigurationFile_AvailablePorts);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfigurationType_ConfigurationFile_SecurityPolicyUris = new NodeId(Opc.Ua.Variables.ServerConfigurationType_ConfigurationFile_SecurityPolicyUris);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfigurationType_ConfigurationFile_UserTokenTypes = new NodeId(Opc.Ua.Variables.ServerConfigurationType_ConfigurationFile_UserTokenTypes);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfigurationType_ConfigurationFile_CertificateTypes = new NodeId(Opc.Ua.Variables.ServerConfigurationType_ConfigurationFile_CertificateTypes);
 
         /// <remarks />
         public static readonly NodeId CertificateUpdatedAuditEventType_CertificateGroup = new NodeId(Opc.Ua.Variables.CertificateUpdatedAuditEventType_CertificateGroup);
@@ -46390,84 +41572,6 @@ namespace Opc.Ua
         public static readonly NodeId ServerConfiguration_TransactionDiagnostics_Errors = new NodeId(Opc.Ua.Variables.ServerConfiguration_TransactionDiagnostics_Errors);
 
         /// <remarks />
-        public static readonly NodeId ServerConfiguration_ConfigurationFile_Size = new NodeId(Opc.Ua.Variables.ServerConfiguration_ConfigurationFile_Size);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfiguration_ConfigurationFile_Writable = new NodeId(Opc.Ua.Variables.ServerConfiguration_ConfigurationFile_Writable);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfiguration_ConfigurationFile_UserWritable = new NodeId(Opc.Ua.Variables.ServerConfiguration_ConfigurationFile_UserWritable);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfiguration_ConfigurationFile_OpenCount = new NodeId(Opc.Ua.Variables.ServerConfiguration_ConfigurationFile_OpenCount);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfiguration_ConfigurationFile_Open_InputArguments = new NodeId(Opc.Ua.Variables.ServerConfiguration_ConfigurationFile_Open_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfiguration_ConfigurationFile_Open_OutputArguments = new NodeId(Opc.Ua.Variables.ServerConfiguration_ConfigurationFile_Open_OutputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfiguration_ConfigurationFile_Close_InputArguments = new NodeId(Opc.Ua.Variables.ServerConfiguration_ConfigurationFile_Close_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfiguration_ConfigurationFile_Read_InputArguments = new NodeId(Opc.Ua.Variables.ServerConfiguration_ConfigurationFile_Read_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfiguration_ConfigurationFile_Read_OutputArguments = new NodeId(Opc.Ua.Variables.ServerConfiguration_ConfigurationFile_Read_OutputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfiguration_ConfigurationFile_Write_InputArguments = new NodeId(Opc.Ua.Variables.ServerConfiguration_ConfigurationFile_Write_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfiguration_ConfigurationFile_GetPosition_InputArguments = new NodeId(Opc.Ua.Variables.ServerConfiguration_ConfigurationFile_GetPosition_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfiguration_ConfigurationFile_GetPosition_OutputArguments = new NodeId(Opc.Ua.Variables.ServerConfiguration_ConfigurationFile_GetPosition_OutputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfiguration_ConfigurationFile_SetPosition_InputArguments = new NodeId(Opc.Ua.Variables.ServerConfiguration_ConfigurationFile_SetPosition_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfiguration_ConfigurationFile_LastUpdateTime = new NodeId(Opc.Ua.Variables.ServerConfiguration_ConfigurationFile_LastUpdateTime);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfiguration_ConfigurationFile_CurrentVersion = new NodeId(Opc.Ua.Variables.ServerConfiguration_ConfigurationFile_CurrentVersion);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfiguration_ConfigurationFile_ActivityTimeout = new NodeId(Opc.Ua.Variables.ServerConfiguration_ConfigurationFile_ActivityTimeout);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfiguration_ConfigurationFile_SupportedDataType = new NodeId(Opc.Ua.Variables.ServerConfiguration_ConfigurationFile_SupportedDataType);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfiguration_ConfigurationFile_ConfirmUpdate_InputArguments = new NodeId(Opc.Ua.Variables.ServerConfiguration_ConfigurationFile_ConfirmUpdate_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfiguration_ConfigurationFile_ConfirmUpdate_OutputArguments = new NodeId(Opc.Ua.Variables.ServerConfiguration_ConfigurationFile_ConfirmUpdate_OutputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfiguration_ConfigurationFile_CloseAndUpdate_InputArguments = new NodeId(Opc.Ua.Variables.ServerConfiguration_ConfigurationFile_CloseAndUpdate_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfiguration_ConfigurationFile_CloseAndUpdate_OutputArguments = new NodeId(Opc.Ua.Variables.ServerConfiguration_ConfigurationFile_CloseAndUpdate_OutputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfiguration_ConfigurationFile_AvailableNetworks = new NodeId(Opc.Ua.Variables.ServerConfiguration_ConfigurationFile_AvailableNetworks);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfiguration_ConfigurationFile_AvailablePorts = new NodeId(Opc.Ua.Variables.ServerConfiguration_ConfigurationFile_AvailablePorts);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfiguration_ConfigurationFile_SecurityPolicyUris = new NodeId(Opc.Ua.Variables.ServerConfiguration_ConfigurationFile_SecurityPolicyUris);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfiguration_ConfigurationFile_UserTokenTypes = new NodeId(Opc.Ua.Variables.ServerConfiguration_ConfigurationFile_UserTokenTypes);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfiguration_ConfigurationFile_CertificateTypes = new NodeId(Opc.Ua.Variables.ServerConfiguration_ConfigurationFile_CertificateTypes);
-
-        /// <remarks />
         public static readonly NodeId KeyCredentialConfigurationFolderType_ServiceName_Placeholder_ResourceUri = new NodeId(Opc.Ua.Variables.KeyCredentialConfigurationFolderType_ServiceName_Placeholder_ResourceUri);
 
         /// <remarks />
@@ -46502,9 +41606,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId KeyCredentialConfigurationType_EndpointUrls = new NodeId(Opc.Ua.Variables.KeyCredentialConfigurationType_EndpointUrls);
-
-        /// <remarks />
-        public static readonly NodeId KeyCredentialConfigurationType_CredentialId = new NodeId(Opc.Ua.Variables.KeyCredentialConfigurationType_CredentialId);
 
         /// <remarks />
         public static readonly NodeId KeyCredentialConfigurationType_ServiceStatus = new NodeId(Opc.Ua.Variables.KeyCredentialConfigurationType_ServiceStatus);
@@ -46559,9 +41660,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId DataSetFieldFlags_OptionSetValues = new NodeId(Opc.Ua.Variables.DataSetFieldFlags_OptionSetValues);
-
-        /// <remarks />
-        public static readonly NodeId ActionState_EnumStrings = new NodeId(Opc.Ua.Variables.ActionState_EnumStrings);
 
         /// <remarks />
         public static readonly NodeId DataSetFieldContentMask_OptionSetValues = new NodeId(Opc.Ua.Variables.DataSetFieldContentMask_OptionSetValues);
@@ -51775,84 +46873,6 @@ namespace Opc.Ua
         public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_TransactionDiagnostics_Errors = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_TransactionDiagnostics_Errors);
 
         /// <remarks />
-        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_Size = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_Size);
-
-        /// <remarks />
-        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_Writable = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_Writable);
-
-        /// <remarks />
-        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_UserWritable = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_UserWritable);
-
-        /// <remarks />
-        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_OpenCount = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_OpenCount);
-
-        /// <remarks />
-        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_Open_InputArguments = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_Open_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_Open_OutputArguments = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_Open_OutputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_Close_InputArguments = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_Close_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_Read_InputArguments = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_Read_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_Read_OutputArguments = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_Read_OutputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_Write_InputArguments = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_Write_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_GetPosition_InputArguments = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_GetPosition_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_GetPosition_OutputArguments = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_GetPosition_OutputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_SetPosition_InputArguments = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_SetPosition_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_LastUpdateTime = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_LastUpdateTime);
-
-        /// <remarks />
-        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_CurrentVersion = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_CurrentVersion);
-
-        /// <remarks />
-        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_ActivityTimeout = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_ActivityTimeout);
-
-        /// <remarks />
-        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_SupportedDataType = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_SupportedDataType);
-
-        /// <remarks />
-        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_ConfirmUpdate_InputArguments = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_ConfirmUpdate_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_ConfirmUpdate_OutputArguments = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_ConfirmUpdate_OutputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_CloseAndUpdate_InputArguments = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_CloseAndUpdate_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_CloseAndUpdate_OutputArguments = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_CloseAndUpdate_OutputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_AvailableNetworks = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_AvailableNetworks);
-
-        /// <remarks />
-        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_AvailablePorts = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_AvailablePorts);
-
-        /// <remarks />
-        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_SecurityPolicyUris = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_SecurityPolicyUris);
-
-        /// <remarks />
-        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_UserTokenTypes = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_UserTokenTypes);
-
-        /// <remarks />
-        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_CertificateTypes = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_CertificateTypes);
-
-        /// <remarks />
         public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_Enabled = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_Enabled);
 
         /// <remarks />
@@ -52006,45 +47026,6 @@ namespace Opc.Ua
         public static readonly NodeId TsnListenerStatus_EnumValues = new NodeId(Opc.Ua.Variables.TsnListenerStatus_EnumValues);
 
         /// <remarks />
-        public static readonly NodeId ChassisIdSubtype_EnumValues = new NodeId(Opc.Ua.Variables.ChassisIdSubtype_EnumValues);
-
-        /// <remarks />
-        public static readonly NodeId PortIdSubtype_EnumValues = new NodeId(Opc.Ua.Variables.PortIdSubtype_EnumValues);
-
-        /// <remarks />
-        public static readonly NodeId ManAddrIfSubtype_EnumValues = new NodeId(Opc.Ua.Variables.ManAddrIfSubtype_EnumValues);
-
-        /// <remarks />
-        public static readonly NodeId LldpSystemCapabilitiesMap_OptionSetValues = new NodeId(Opc.Ua.Variables.LldpSystemCapabilitiesMap_OptionSetValues);
-
-        /// <remarks />
-        public static readonly NodeId LLDP_RemoteStatistics_LastChangeTime = new NodeId(Opc.Ua.Variables.LLDP_RemoteStatistics_LastChangeTime);
-
-        /// <remarks />
-        public static readonly NodeId LLDP_RemoteStatistics_RemoteInserts = new NodeId(Opc.Ua.Variables.LLDP_RemoteStatistics_RemoteInserts);
-
-        /// <remarks />
-        public static readonly NodeId LLDP_RemoteStatistics_RemoteDeletes = new NodeId(Opc.Ua.Variables.LLDP_RemoteStatistics_RemoteDeletes);
-
-        /// <remarks />
-        public static readonly NodeId LLDP_RemoteStatistics_RemoteDrops = new NodeId(Opc.Ua.Variables.LLDP_RemoteStatistics_RemoteDrops);
-
-        /// <remarks />
-        public static readonly NodeId LLDP_RemoteStatistics_RemoteAgeouts = new NodeId(Opc.Ua.Variables.LLDP_RemoteStatistics_RemoteAgeouts);
-
-        /// <remarks />
-        public static readonly NodeId LLDP_LocalSystemData_ChassisIdSubtype = new NodeId(Opc.Ua.Variables.LLDP_LocalSystemData_ChassisIdSubtype);
-
-        /// <remarks />
-        public static readonly NodeId LLDP_LocalSystemData_ChassisId = new NodeId(Opc.Ua.Variables.LLDP_LocalSystemData_ChassisId);
-
-        /// <remarks />
-        public static readonly NodeId LLDP_LocalSystemData_SystemName = new NodeId(Opc.Ua.Variables.LLDP_LocalSystemData_SystemName);
-
-        /// <remarks />
-        public static readonly NodeId LLDP_LocalSystemData_SystemDescription = new NodeId(Opc.Ua.Variables.LLDP_LocalSystemData_SystemDescription);
-
-        /// <remarks />
         public static readonly NodeId IetfBaseNetworkInterfaceType_AdminStatus = new NodeId(Opc.Ua.Variables.IetfBaseNetworkInterfaceType_AdminStatus);
 
         /// <remarks />
@@ -52067,159 +47048,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId PriorityMappingTableType_DeletePriorityMappingEntry_InputArguments = new NodeId(Opc.Ua.Variables.PriorityMappingTableType_DeletePriorityMappingEntry_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId LldpInformationType_RemoteStatistics_LastChangeTime = new NodeId(Opc.Ua.Variables.LldpInformationType_RemoteStatistics_LastChangeTime);
-
-        /// <remarks />
-        public static readonly NodeId LldpInformationType_RemoteStatistics_RemoteInserts = new NodeId(Opc.Ua.Variables.LldpInformationType_RemoteStatistics_RemoteInserts);
-
-        /// <remarks />
-        public static readonly NodeId LldpInformationType_RemoteStatistics_RemoteDeletes = new NodeId(Opc.Ua.Variables.LldpInformationType_RemoteStatistics_RemoteDeletes);
-
-        /// <remarks />
-        public static readonly NodeId LldpInformationType_RemoteStatistics_RemoteDrops = new NodeId(Opc.Ua.Variables.LldpInformationType_RemoteStatistics_RemoteDrops);
-
-        /// <remarks />
-        public static readonly NodeId LldpInformationType_RemoteStatistics_RemoteAgeouts = new NodeId(Opc.Ua.Variables.LldpInformationType_RemoteStatistics_RemoteAgeouts);
-
-        /// <remarks />
-        public static readonly NodeId LldpInformationType_LocalSystemData_ChassisIdSubtype = new NodeId(Opc.Ua.Variables.LldpInformationType_LocalSystemData_ChassisIdSubtype);
-
-        /// <remarks />
-        public static readonly NodeId LldpInformationType_LocalSystemData_ChassisId = new NodeId(Opc.Ua.Variables.LldpInformationType_LocalSystemData_ChassisId);
-
-        /// <remarks />
-        public static readonly NodeId LldpInformationType_LocalSystemData_SystemName = new NodeId(Opc.Ua.Variables.LldpInformationType_LocalSystemData_SystemName);
-
-        /// <remarks />
-        public static readonly NodeId LldpInformationType_LocalSystemData_SystemDescription = new NodeId(Opc.Ua.Variables.LldpInformationType_LocalSystemData_SystemDescription);
-
-        /// <remarks />
-        public static readonly NodeId LldpInformationType_Ports_LldpPortInformation_Placeholder_IetfBaseNetworkInterfaceName = new NodeId(Opc.Ua.Variables.LldpInformationType_Ports_LldpPortInformation_Placeholder_IetfBaseNetworkInterfaceName);
-
-        /// <remarks />
-        public static readonly NodeId LldpInformationType_Ports_LldpPortInformation_Placeholder_DestMacAddress = new NodeId(Opc.Ua.Variables.LldpInformationType_Ports_LldpPortInformation_Placeholder_DestMacAddress);
-
-        /// <remarks />
-        public static readonly NodeId LldpInformationType_Ports_LldpPortInformation_Placeholder_PortIdSubtype = new NodeId(Opc.Ua.Variables.LldpInformationType_Ports_LldpPortInformation_Placeholder_PortIdSubtype);
-
-        /// <remarks />
-        public static readonly NodeId LldpInformationType_Ports_LldpPortInformation_Placeholder_PortId = new NodeId(Opc.Ua.Variables.LldpInformationType_Ports_LldpPortInformation_Placeholder_PortId);
-
-        /// <remarks />
-        public static readonly NodeId LldpRemoteStatisticsType_LastChangeTime = new NodeId(Opc.Ua.Variables.LldpRemoteStatisticsType_LastChangeTime);
-
-        /// <remarks />
-        public static readonly NodeId LldpRemoteStatisticsType_RemoteInserts = new NodeId(Opc.Ua.Variables.LldpRemoteStatisticsType_RemoteInserts);
-
-        /// <remarks />
-        public static readonly NodeId LldpRemoteStatisticsType_RemoteDeletes = new NodeId(Opc.Ua.Variables.LldpRemoteStatisticsType_RemoteDeletes);
-
-        /// <remarks />
-        public static readonly NodeId LldpRemoteStatisticsType_RemoteDrops = new NodeId(Opc.Ua.Variables.LldpRemoteStatisticsType_RemoteDrops);
-
-        /// <remarks />
-        public static readonly NodeId LldpRemoteStatisticsType_RemoteAgeouts = new NodeId(Opc.Ua.Variables.LldpRemoteStatisticsType_RemoteAgeouts);
-
-        /// <remarks />
-        public static readonly NodeId LldpLocalSystemType_ChassisIdSubtype = new NodeId(Opc.Ua.Variables.LldpLocalSystemType_ChassisIdSubtype);
-
-        /// <remarks />
-        public static readonly NodeId LldpLocalSystemType_ChassisId = new NodeId(Opc.Ua.Variables.LldpLocalSystemType_ChassisId);
-
-        /// <remarks />
-        public static readonly NodeId LldpLocalSystemType_SystemName = new NodeId(Opc.Ua.Variables.LldpLocalSystemType_SystemName);
-
-        /// <remarks />
-        public static readonly NodeId LldpLocalSystemType_SystemDescription = new NodeId(Opc.Ua.Variables.LldpLocalSystemType_SystemDescription);
-
-        /// <remarks />
-        public static readonly NodeId LldpLocalSystemType_SystemCapabilitiesSupported = new NodeId(Opc.Ua.Variables.LldpLocalSystemType_SystemCapabilitiesSupported);
-
-        /// <remarks />
-        public static readonly NodeId LldpLocalSystemType_SystemCapabilitiesEnabled = new NodeId(Opc.Ua.Variables.LldpLocalSystemType_SystemCapabilitiesEnabled);
-
-        /// <remarks />
-        public static readonly NodeId LldpPortInformationType_IetfBaseNetworkInterfaceName = new NodeId(Opc.Ua.Variables.LldpPortInformationType_IetfBaseNetworkInterfaceName);
-
-        /// <remarks />
-        public static readonly NodeId LldpPortInformationType_DestMacAddress = new NodeId(Opc.Ua.Variables.LldpPortInformationType_DestMacAddress);
-
-        /// <remarks />
-        public static readonly NodeId LldpPortInformationType_PortIdSubtype = new NodeId(Opc.Ua.Variables.LldpPortInformationType_PortIdSubtype);
-
-        /// <remarks />
-        public static readonly NodeId LldpPortInformationType_PortId = new NodeId(Opc.Ua.Variables.LldpPortInformationType_PortId);
-
-        /// <remarks />
-        public static readonly NodeId LldpPortInformationType_PortDescription = new NodeId(Opc.Ua.Variables.LldpPortInformationType_PortDescription);
-
-        /// <remarks />
-        public static readonly NodeId LldpPortInformationType_ManagementAddressTxPort = new NodeId(Opc.Ua.Variables.LldpPortInformationType_ManagementAddressTxPort);
-
-        /// <remarks />
-        public static readonly NodeId LldpPortInformationType_RemoteSystemsData_LldpRemoteSystem_Placeholder_TimeMark = new NodeId(Opc.Ua.Variables.LldpPortInformationType_RemoteSystemsData_LldpRemoteSystem_Placeholder_TimeMark);
-
-        /// <remarks />
-        public static readonly NodeId LldpPortInformationType_RemoteSystemsData_LldpRemoteSystem_Placeholder_RemoteIndex = new NodeId(Opc.Ua.Variables.LldpPortInformationType_RemoteSystemsData_LldpRemoteSystem_Placeholder_RemoteIndex);
-
-        /// <remarks />
-        public static readonly NodeId LldpPortInformationType_RemoteSystemsData_LldpRemoteSystem_Placeholder_ChassisIdSubtype = new NodeId(Opc.Ua.Variables.LldpPortInformationType_RemoteSystemsData_LldpRemoteSystem_Placeholder_ChassisIdSubtype);
-
-        /// <remarks />
-        public static readonly NodeId LldpPortInformationType_RemoteSystemsData_LldpRemoteSystem_Placeholder_ChassisId = new NodeId(Opc.Ua.Variables.LldpPortInformationType_RemoteSystemsData_LldpRemoteSystem_Placeholder_ChassisId);
-
-        /// <remarks />
-        public static readonly NodeId LldpPortInformationType_RemoteSystemsData_LldpRemoteSystem_Placeholder_PortIdSubtype = new NodeId(Opc.Ua.Variables.LldpPortInformationType_RemoteSystemsData_LldpRemoteSystem_Placeholder_PortIdSubtype);
-
-        /// <remarks />
-        public static readonly NodeId LldpPortInformationType_RemoteSystemsData_LldpRemoteSystem_Placeholder_PortId = new NodeId(Opc.Ua.Variables.LldpPortInformationType_RemoteSystemsData_LldpRemoteSystem_Placeholder_PortId);
-
-        /// <remarks />
-        public static readonly NodeId LldpRemoteSystemType_TimeMark = new NodeId(Opc.Ua.Variables.LldpRemoteSystemType_TimeMark);
-
-        /// <remarks />
-        public static readonly NodeId LldpRemoteSystemType_RemoteIndex = new NodeId(Opc.Ua.Variables.LldpRemoteSystemType_RemoteIndex);
-
-        /// <remarks />
-        public static readonly NodeId LldpRemoteSystemType_ChassisIdSubtype = new NodeId(Opc.Ua.Variables.LldpRemoteSystemType_ChassisIdSubtype);
-
-        /// <remarks />
-        public static readonly NodeId LldpRemoteSystemType_ChassisId = new NodeId(Opc.Ua.Variables.LldpRemoteSystemType_ChassisId);
-
-        /// <remarks />
-        public static readonly NodeId LldpRemoteSystemType_PortIdSubtype = new NodeId(Opc.Ua.Variables.LldpRemoteSystemType_PortIdSubtype);
-
-        /// <remarks />
-        public static readonly NodeId LldpRemoteSystemType_PortId = new NodeId(Opc.Ua.Variables.LldpRemoteSystemType_PortId);
-
-        /// <remarks />
-        public static readonly NodeId LldpRemoteSystemType_PortDescription = new NodeId(Opc.Ua.Variables.LldpRemoteSystemType_PortDescription);
-
-        /// <remarks />
-        public static readonly NodeId LldpRemoteSystemType_SystemName = new NodeId(Opc.Ua.Variables.LldpRemoteSystemType_SystemName);
-
-        /// <remarks />
-        public static readonly NodeId LldpRemoteSystemType_SystemDescription = new NodeId(Opc.Ua.Variables.LldpRemoteSystemType_SystemDescription);
-
-        /// <remarks />
-        public static readonly NodeId LldpRemoteSystemType_SystemCapabilitiesSupported = new NodeId(Opc.Ua.Variables.LldpRemoteSystemType_SystemCapabilitiesSupported);
-
-        /// <remarks />
-        public static readonly NodeId LldpRemoteSystemType_SystemCapabilitiesEnabled = new NodeId(Opc.Ua.Variables.LldpRemoteSystemType_SystemCapabilitiesEnabled);
-
-        /// <remarks />
-        public static readonly NodeId LldpRemoteSystemType_RemoteChanges = new NodeId(Opc.Ua.Variables.LldpRemoteSystemType_RemoteChanges);
-
-        /// <remarks />
-        public static readonly NodeId LldpRemoteSystemType_RemoteTooManyNeighbors = new NodeId(Opc.Ua.Variables.LldpRemoteSystemType_RemoteTooManyNeighbors);
-
-        /// <remarks />
-        public static readonly NodeId LldpRemoteSystemType_ManagementAddress = new NodeId(Opc.Ua.Variables.LldpRemoteSystemType_ManagementAddress);
-
-        /// <remarks />
-        public static readonly NodeId LldpRemoteSystemType_RemoteUnknownTlv = new NodeId(Opc.Ua.Variables.LldpRemoteSystemType_RemoteUnknownTlv);
 
         /// <remarks />
         public static readonly NodeId ReferenceDescriptionVariableType_ReferenceRefinement = new NodeId(Opc.Ua.Variables.ReferenceDescriptionVariableType_ReferenceRefinement);
@@ -52279,9 +47107,6 @@ namespace Opc.Ua
         public static readonly NodeId TimestampsToReturn_EnumStrings = new NodeId(Opc.Ua.Variables.TimestampsToReturn_EnumStrings);
 
         /// <remarks />
-        public static readonly NodeId SortOrderType_EnumStrings = new NodeId(Opc.Ua.Variables.SortOrderType_EnumStrings);
-
-        /// <remarks />
         public static readonly NodeId HistoryUpdateType_EnumValues = new NodeId(Opc.Ua.Variables.HistoryUpdateType_EnumValues);
 
         /// <remarks />
@@ -52310,9 +47135,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId ExceptionDeviationFormat_EnumStrings = new NodeId(Opc.Ua.Variables.ExceptionDeviationFormat_EnumStrings);
-
-        /// <remarks />
-        public static readonly NodeId TestEnumeration_EnumValues = new NodeId(Opc.Ua.Variables.TestEnumeration_EnumValues);
 
         /// <remarks />
         public static readonly NodeId OpcUa_BinarySchema = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema);
@@ -52387,37 +47209,7 @@ namespace Opc.Ua
         public static readonly NodeId OpcUa_BinarySchema_TrustListDataType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_TrustListDataType);
 
         /// <remarks />
-        public static readonly NodeId OpcUa_BinarySchema_BaseConfigurationDataType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_BaseConfigurationDataType);
-
-        /// <remarks />
-        public static readonly NodeId OpcUa_BinarySchema_BaseConfigurationRecordDataType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_BaseConfigurationRecordDataType);
-
-        /// <remarks />
-        public static readonly NodeId OpcUa_BinarySchema_CertificateGroupDataType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_CertificateGroupDataType);
-
-        /// <remarks />
-        public static readonly NodeId OpcUa_BinarySchema_ConfigurationUpdateTargetType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_ConfigurationUpdateTargetType);
-
-        /// <remarks />
         public static readonly NodeId OpcUa_BinarySchema_TransactionErrorType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_TransactionErrorType);
-
-        /// <remarks />
-        public static readonly NodeId OpcUa_BinarySchema_ApplicationConfigurationDataType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_ApplicationConfigurationDataType);
-
-        /// <remarks />
-        public static readonly NodeId OpcUa_BinarySchema_ApplicationIdentityDataType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_ApplicationIdentityDataType);
-
-        /// <remarks />
-        public static readonly NodeId OpcUa_BinarySchema_EndpointDataType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_EndpointDataType);
-
-        /// <remarks />
-        public static readonly NodeId OpcUa_BinarySchema_ServerEndpointDataType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_ServerEndpointDataType);
-
-        /// <remarks />
-        public static readonly NodeId OpcUa_BinarySchema_SecuritySettingsDataType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_SecuritySettingsDataType);
-
-        /// <remarks />
-        public static readonly NodeId OpcUa_BinarySchema_UserTokenSettingsDataType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_UserTokenSettingsDataType);
 
         /// <remarks />
         public static readonly NodeId OpcUa_BinarySchema_DataTypeSchemaHeader = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_DataTypeSchemaHeader);
@@ -52472,18 +47264,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId OpcUa_BinarySchema_PublishedDataSetCustomSourceDataType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_PublishedDataSetCustomSourceDataType);
-
-        /// <remarks />
-        public static readonly NodeId OpcUa_BinarySchema_ActionTargetDataType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_ActionTargetDataType);
-
-        /// <remarks />
-        public static readonly NodeId OpcUa_BinarySchema_PublishedActionDataType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_PublishedActionDataType);
-
-        /// <remarks />
-        public static readonly NodeId OpcUa_BinarySchema_ActionMethodDataType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_ActionMethodDataType);
-
-        /// <remarks />
-        public static readonly NodeId OpcUa_BinarySchema_PublishedActionMethodDataType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_PublishedActionMethodDataType);
 
         /// <remarks />
         public static readonly NodeId OpcUa_BinarySchema_DataSetWriterDataType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_DataSetWriterDataType);
@@ -52615,9 +47395,6 @@ namespace Opc.Ua
         public static readonly NodeId OpcUa_BinarySchema_DatagramDataSetReaderTransportDataType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_DatagramDataSetReaderTransportDataType);
 
         /// <remarks />
-        public static readonly NodeId OpcUa_BinarySchema_DtlsPubSubConnectionDataType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_DtlsPubSubConnectionDataType);
-
-        /// <remarks />
         public static readonly NodeId OpcUa_BinarySchema_BrokerConnectionTransportDataType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_BrokerConnectionTransportDataType);
 
         /// <remarks />
@@ -52643,15 +47420,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId OpcUa_BinarySchema_PriorityMappingEntryType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_PriorityMappingEntryType);
-
-        /// <remarks />
-        public static readonly NodeId OpcUa_BinarySchema_LldpManagementAddressTxPortType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_LldpManagementAddressTxPortType);
-
-        /// <remarks />
-        public static readonly NodeId OpcUa_BinarySchema_LldpManagementAddressType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_LldpManagementAddressType);
-
-        /// <remarks />
-        public static readonly NodeId OpcUa_BinarySchema_LldpTlvType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_LldpTlvType);
 
         /// <remarks />
         public static readonly NodeId OpcUa_BinarySchema_ReferenceDescriptionDataType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_ReferenceDescriptionDataType);
@@ -52933,37 +47701,7 @@ namespace Opc.Ua
         public static readonly NodeId OpcUa_XmlSchema_TrustListDataType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_TrustListDataType);
 
         /// <remarks />
-        public static readonly NodeId OpcUa_XmlSchema_BaseConfigurationDataType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_BaseConfigurationDataType);
-
-        /// <remarks />
-        public static readonly NodeId OpcUa_XmlSchema_BaseConfigurationRecordDataType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_BaseConfigurationRecordDataType);
-
-        /// <remarks />
-        public static readonly NodeId OpcUa_XmlSchema_CertificateGroupDataType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_CertificateGroupDataType);
-
-        /// <remarks />
-        public static readonly NodeId OpcUa_XmlSchema_ConfigurationUpdateTargetType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_ConfigurationUpdateTargetType);
-
-        /// <remarks />
         public static readonly NodeId OpcUa_XmlSchema_TransactionErrorType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_TransactionErrorType);
-
-        /// <remarks />
-        public static readonly NodeId OpcUa_XmlSchema_ApplicationConfigurationDataType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_ApplicationConfigurationDataType);
-
-        /// <remarks />
-        public static readonly NodeId OpcUa_XmlSchema_ApplicationIdentityDataType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_ApplicationIdentityDataType);
-
-        /// <remarks />
-        public static readonly NodeId OpcUa_XmlSchema_EndpointDataType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_EndpointDataType);
-
-        /// <remarks />
-        public static readonly NodeId OpcUa_XmlSchema_ServerEndpointDataType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_ServerEndpointDataType);
-
-        /// <remarks />
-        public static readonly NodeId OpcUa_XmlSchema_SecuritySettingsDataType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_SecuritySettingsDataType);
-
-        /// <remarks />
-        public static readonly NodeId OpcUa_XmlSchema_UserTokenSettingsDataType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_UserTokenSettingsDataType);
 
         /// <remarks />
         public static readonly NodeId OpcUa_XmlSchema_DataTypeSchemaHeader = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_DataTypeSchemaHeader);
@@ -53018,18 +47756,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId OpcUa_XmlSchema_PublishedDataSetCustomSourceDataType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_PublishedDataSetCustomSourceDataType);
-
-        /// <remarks />
-        public static readonly NodeId OpcUa_XmlSchema_ActionTargetDataType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_ActionTargetDataType);
-
-        /// <remarks />
-        public static readonly NodeId OpcUa_XmlSchema_PublishedActionDataType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_PublishedActionDataType);
-
-        /// <remarks />
-        public static readonly NodeId OpcUa_XmlSchema_ActionMethodDataType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_ActionMethodDataType);
-
-        /// <remarks />
-        public static readonly NodeId OpcUa_XmlSchema_PublishedActionMethodDataType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_PublishedActionMethodDataType);
 
         /// <remarks />
         public static readonly NodeId OpcUa_XmlSchema_DataSetWriterDataType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_DataSetWriterDataType);
@@ -53161,9 +47887,6 @@ namespace Opc.Ua
         public static readonly NodeId OpcUa_XmlSchema_DatagramDataSetReaderTransportDataType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_DatagramDataSetReaderTransportDataType);
 
         /// <remarks />
-        public static readonly NodeId OpcUa_XmlSchema_DtlsPubSubConnectionDataType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_DtlsPubSubConnectionDataType);
-
-        /// <remarks />
         public static readonly NodeId OpcUa_XmlSchema_BrokerConnectionTransportDataType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_BrokerConnectionTransportDataType);
 
         /// <remarks />
@@ -53189,15 +47912,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId OpcUa_XmlSchema_PriorityMappingEntryType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_PriorityMappingEntryType);
-
-        /// <remarks />
-        public static readonly NodeId OpcUa_XmlSchema_LldpManagementAddressTxPortType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_LldpManagementAddressTxPortType);
-
-        /// <remarks />
-        public static readonly NodeId OpcUa_XmlSchema_LldpManagementAddressType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_LldpManagementAddressType);
-
-        /// <remarks />
-        public static readonly NodeId OpcUa_XmlSchema_LldpTlvType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_LldpTlvType);
 
         /// <remarks />
         public static readonly NodeId OpcUa_XmlSchema_ReferenceDescriptionDataType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_ReferenceDescriptionDataType);
@@ -53638,15 +48352,6 @@ namespace Opc.Ua
         public const string AcknowledgeableConditionType = "AcknowledgeableConditionType";
 
         /// <remarks />
-        public const string ActionMethodDataType = "ActionMethodDataType";
-
-        /// <remarks />
-        public const string ActionState = "ActionState";
-
-        /// <remarks />
-        public const string ActionTargetDataType = "ActionTargetDataType";
-
-        /// <remarks />
         public const string ActionTimeStamp = "ActionTimeStamp";
 
         /// <remarks />
@@ -54028,31 +48733,16 @@ namespace Opc.Ua
         public const string ApplicationCertificateType = "ApplicationCertificateType";
 
         /// <remarks />
-        public const string ApplicationConfigurationDataType = "ApplicationConfigurationDataType";
-
-        /// <remarks />
-        public const string ApplicationConfigurationFileType = "ApplicationConfigurationFileType";
-
-        /// <remarks />
-        public const string ApplicationConfigurationFolderType = "ApplicationConfigurationFolderType";
-
-        /// <remarks />
         public const string ApplicationConfigurationType = "ApplicationConfigurationType";
 
         /// <remarks />
         public const string ApplicationDescription = "ApplicationDescription";
 
         /// <remarks />
-        public const string ApplicationIdentityDataType = "ApplicationIdentityDataType";
-
-        /// <remarks />
         public const string ApplicationInstanceCertificate = "ApplicationInstanceCertificate";
 
         /// <remarks />
         public const string ApplicationName_Placeholder = "<ApplicationName>";
-
-        /// <remarks />
-        public const string ApplicationNames = "ApplicationNames";
 
         /// <remarks />
         public const string Applications = "Applications";
@@ -54277,12 +48967,6 @@ namespace Opc.Ua
         public const string AutoDelete = "AutoDelete";
 
         /// <remarks />
-        public const string AvailableNetworks = "AvailableNetworks";
-
-        /// <remarks />
-        public const string AvailablePorts = "AvailablePorts";
-
-        /// <remarks />
         public const string AvailableStates = "AvailableStates";
 
         /// <remarks />
@@ -54311,12 +48995,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public const string BaseConditionClassType = "BaseConditionClassType";
-
-        /// <remarks />
-        public const string BaseConfigurationDataType = "BaseConfigurationDataType";
-
-        /// <remarks />
-        public const string BaseConfigurationRecordDataType = "BaseConfigurationRecordDataType";
 
         /// <remarks />
         public const string BaseDataType = "BaseDataType";
@@ -54511,9 +49189,6 @@ namespace Opc.Ua
         public const string CertificateGroup = "CertificateGroup";
 
         /// <remarks />
-        public const string CertificateGroupDataType = "CertificateGroupDataType";
-
-        /// <remarks />
         public const string CertificateGroupFolderType = "CertificateGroupFolderType";
 
         /// <remarks />
@@ -54542,12 +49217,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public const string ChannelSecurityToken = "ChannelSecurityToken";
-
-        /// <remarks />
-        public const string ChassisId = "ChassisId";
-
-        /// <remarks />
-        public const string ChassisIdSubtype = "ChassisIdSubtype";
 
         /// <remarks />
         public const string ChoiceStateType = "ChoiceStateType";
@@ -54658,22 +49327,7 @@ namespace Opc.Ua
         public const string ConditionVariableType = "ConditionVariableType";
 
         /// <remarks />
-        public const string ConfigurationFile = "ConfigurationFile";
-
-        /// <remarks />
-        public const string ConfigurationFileType = "ConfigurationFileType";
-
-        /// <remarks />
         public const string ConfigurationProperties = "ConfigurationProperties";
-
-        /// <remarks />
-        public const string ConfigurationUpdatedAuditEventType = "ConfigurationUpdatedAuditEventType";
-
-        /// <remarks />
-        public const string ConfigurationUpdateTargetType = "ConfigurationUpdateTargetType";
-
-        /// <remarks />
-        public const string ConfigurationUpdateType = "ConfigurationUpdateType";
 
         /// <remarks />
         public const string ConfigurationVersion = "ConfigurationVersion";
@@ -54689,9 +49343,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public const string ConfirmedState = "ConfirmedState";
-
-        /// <remarks />
-        public const string ConfirmUpdate = "ConfirmUpdate";
 
         /// <remarks />
         public const string ConformanceUnits = "ConformanceUnits";
@@ -54805,9 +49456,6 @@ namespace Opc.Ua
         public const string CreateTargetVariables = "CreateTargetVariables";
 
         /// <remarks />
-        public const string CredentialId = "CredentialId";
-
-        /// <remarks />
         public const string CubeItemType = "CubeItemType";
 
         /// <remarks />
@@ -54854,9 +49502,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public const string CurrentTime = "CurrentTime";
-
-        /// <remarks />
-        public const string CurrentVersion = "CurrentVersion";
 
         /// <remarks />
         public const string CustomConfiguration = "CustomConfiguration";
@@ -55180,10 +49825,10 @@ namespace Opc.Ua
         public const string Deprecated = "Deprecated";
 
         /// <remarks />
-        public const string DestinationAddress = "DestinationAddress";
+        public const string Description = "Description";
 
         /// <remarks />
-        public const string DestMacAddress = "DestMacAddress";
+        public const string DestinationAddress = "DestinationAddress";
 
         /// <remarks />
         public const string DeviceFailureEventType = "DeviceFailureEventType";
@@ -55276,9 +49921,6 @@ namespace Opc.Ua
         public const string DoubleComplexNumberType = "DoubleComplexNumberType";
 
         /// <remarks />
-        public const string DtlsPubSubConnectionDataType = "DtlsPubSubConnectionDataType";
-
-        /// <remarks />
         public const string Duplex = "Duplex";
 
         /// <remarks />
@@ -55346,9 +49988,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public const string EndpointConfiguration = "EndpointConfiguration";
-
-        /// <remarks />
-        public const string EndpointDataType = "EndpointDataType";
 
         /// <remarks />
         public const string EndpointDescription = "EndpointDescription";
@@ -55984,9 +50623,6 @@ namespace Opc.Ua
         public const string IdType = "IdType";
 
         /// <remarks />
-        public const string IetfBaseNetworkInterfaceName = "IetfBaseNetworkInterfaceName";
-
-        /// <remarks />
         public const string IetfBaseNetworkInterfaceType = "IetfBaseNetworkInterfaceType";
 
         /// <remarks />
@@ -56233,9 +50869,6 @@ namespace Opc.Ua
         public const string LastChange = "LastChange";
 
         /// <remarks />
-        public const string LastChangeTime = "LastChangeTime";
-
-        /// <remarks />
         public const string LastMethodCall = "LastMethodCall";
 
         /// <remarks />
@@ -56320,36 +50953,6 @@ namespace Opc.Ua
         public const string LiveValues = "LiveValues";
 
         /// <remarks />
-        public const string LLDP = "LLDP";
-
-        /// <remarks />
-        public const string LldpInformationType = "LldpInformationType";
-
-        /// <remarks />
-        public const string LldpLocalSystemType = "LldpLocalSystemType";
-
-        /// <remarks />
-        public const string LldpManagementAddressTxPortType = "LldpManagementAddressTxPortType";
-
-        /// <remarks />
-        public const string LldpManagementAddressType = "LldpManagementAddressType";
-
-        /// <remarks />
-        public const string LldpPortInformationType = "LldpPortInformationType";
-
-        /// <remarks />
-        public const string LldpRemoteStatisticsType = "LldpRemoteStatisticsType";
-
-        /// <remarks />
-        public const string LldpRemoteSystemType = "LldpRemoteSystemType";
-
-        /// <remarks />
-        public const string LldpSystemCapabilitiesMap = "LldpSystemCapabilitiesMap";
-
-        /// <remarks />
-        public const string LldpTlvType = "LldpTlvType";
-
-        /// <remarks />
         public const string LocaleId = "LocaleId";
 
         /// <remarks />
@@ -56360,9 +50963,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public const string LocalizedText = "LocalizedText";
-
-        /// <remarks />
-        public const string LocalSystemData = "LocalSystemData";
 
         /// <remarks />
         public const string LocalTime = "LocalTime";
@@ -56405,18 +51005,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public const string MaintenanceConditionClassType = "MaintenanceConditionClassType";
-
-        /// <remarks />
-        public const string ManAddrIfSubtype = "ManAddrIfSubtype";
-
-        /// <remarks />
-        public const string ManagedApplications = "ManagedApplications";
-
-        /// <remarks />
-        public const string ManagementAddress = "ManagementAddress";
-
-        /// <remarks />
-        public const string ManagementAddressTxPort = "ManagementAddressTxPort";
 
         /// <remarks />
         public const string ManufacturerName = "ManufacturerName";
@@ -56863,9 +51451,6 @@ namespace Opc.Ua
         public const string NewValues = "NewValues";
 
         /// <remarks />
-        public const string NewVersion = "NewVersion";
-
-        /// <remarks />
         public const string NextSequenceNumber = "NextSequenceNumber";
 
         /// <remarks />
@@ -56987,9 +51572,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public const string OldValues = "OldValues";
-
-        /// <remarks />
-        public const string OldVersion = "OldVersion";
 
         /// <remarks />
         public const string OnDelay = "OnDelay";
@@ -57136,18 +51718,6 @@ namespace Opc.Ua
         public const string PortableQualifiedName = "PortableQualifiedName";
 
         /// <remarks />
-        public const string PortDescription = "PortDescription";
-
-        /// <remarks />
-        public const string PortId = "PortId";
-
-        /// <remarks />
-        public const string PortIdSubtype = "PortIdSubtype";
-
-        /// <remarks />
-        public const string Ports = "Ports";
-
-        /// <remarks />
         public const string Priority = "Priority";
 
         /// <remarks />
@@ -57230,12 +51800,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public const string PublishCount = "PublishCount";
-
-        /// <remarks />
-        public const string PublishedActionDataType = "PublishedActionDataType";
-
-        /// <remarks />
-        public const string PublishedActionMethodDataType = "PublishedActionMethodDataType";
 
         /// <remarks />
         public const string PublishedData = "PublishedData";
@@ -57511,9 +52075,6 @@ namespace Opc.Ua
         public const string ReadEventDetails2 = "ReadEventDetails2";
 
         /// <remarks />
-        public const string ReadEventDetailsSorted = "ReadEventDetailsSorted";
-
-        /// <remarks />
         public const string ReadPrepare = "ReadPrepare";
 
         /// <remarks />
@@ -57668,36 +52229,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public const string RelativePathElement = "RelativePathElement";
-
-        /// <remarks />
-        public const string RemoteAgeouts = "RemoteAgeouts";
-
-        /// <remarks />
-        public const string RemoteChanges = "RemoteChanges";
-
-        /// <remarks />
-        public const string RemoteDeletes = "RemoteDeletes";
-
-        /// <remarks />
-        public const string RemoteDrops = "RemoteDrops";
-
-        /// <remarks />
-        public const string RemoteIndex = "RemoteIndex";
-
-        /// <remarks />
-        public const string RemoteInserts = "RemoteInserts";
-
-        /// <remarks />
-        public const string RemoteStatistics = "RemoteStatistics";
-
-        /// <remarks />
-        public const string RemoteSystemsData = "RemoteSystemsData";
-
-        /// <remarks />
-        public const string RemoteTooManyNeighbors = "RemoteTooManyNeighbors";
-
-        /// <remarks />
-        public const string RemoteUnknownTlv = "RemoteUnknownTlv";
 
         /// <remarks />
         public const string RemoveApplication = "RemoveApplication";
@@ -57988,16 +52519,10 @@ namespace Opc.Ua
         public const string SecurityPolicyUri = "SecurityPolicyUri";
 
         /// <remarks />
-        public const string SecurityPolicyUris = "SecurityPolicyUris";
-
-        /// <remarks />
         public const string SecurityRejectedRequestsCount = "SecurityRejectedRequestsCount";
 
         /// <remarks />
         public const string SecurityRejectedSessionCount = "SecurityRejectedSessionCount";
-
-        /// <remarks />
-        public const string SecuritySettingsDataType = "SecuritySettingsDataType";
 
         /// <remarks />
         public const string SecurityTokenRequestType = "SecurityTokenRequestType";
@@ -58067,9 +52592,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public const string ServerDiagnosticsType = "ServerDiagnosticsType";
-
-        /// <remarks />
-        public const string ServerEndpointDataType = "ServerEndpointDataType";
 
         /// <remarks />
         public const string ServerId = "ServerId";
@@ -58303,15 +52825,6 @@ namespace Opc.Ua
         public const string SoftwareVersion = "SoftwareVersion";
 
         /// <remarks />
-        public const string SortByEventFields = "SortByEventFields";
-
-        /// <remarks />
-        public const string SortOrderType = "SortOrderType";
-
-        /// <remarks />
-        public const string SortRuleElement = "SortRuleElement";
-
-        /// <remarks />
         public const string SourceAddress = "SourceAddress";
 
         /// <remarks />
@@ -58477,9 +52990,6 @@ namespace Opc.Ua
         public const string SubscriptionId = "SubscriptionId";
 
         /// <remarks />
-        public const string SupportedDataType = "SupportedDataType";
-
-        /// <remarks />
         public const string SupportedPrivateKeyFormats = "SupportedPrivateKeyFormats";
 
         /// <remarks />
@@ -58499,9 +53009,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public const string SupportsFilteredRetain = "SupportsFilteredRetain";
-
-        /// <remarks />
-        public const string SupportsTransactions = "SupportsTransactions";
 
         /// <remarks />
         public const string Suppress = "Suppress";
@@ -58537,25 +53044,13 @@ namespace Opc.Ua
         public const string SyntaxReferenceEntryType = "SyntaxReferenceEntryType";
 
         /// <remarks />
-        public const string SystemCapabilitiesEnabled = "SystemCapabilitiesEnabled";
-
-        /// <remarks />
-        public const string SystemCapabilitiesSupported = "SystemCapabilitiesSupported";
-
-        /// <remarks />
         public const string SystemConditionClassType = "SystemConditionClassType";
-
-        /// <remarks />
-        public const string SystemDescription = "SystemDescription";
 
         /// <remarks />
         public const string SystemDiagnosticAlarmType = "SystemDiagnosticAlarmType";
 
         /// <remarks />
         public const string SystemEventType = "SystemEventType";
-
-        /// <remarks />
-        public const string SystemName = "SystemName";
 
         /// <remarks />
         public const string SystemOffNormalAlarmType = "SystemOffNormalAlarmType";
@@ -58591,25 +53086,7 @@ namespace Opc.Ua
         public const string TemporaryFileTransferType = "TemporaryFileTransferType";
 
         /// <remarks />
-        public const string TestAbstractStructure = "TestAbstractStructure";
-
-        /// <remarks />
-        public const string TestArrayStructure = "TestArrayStructure";
-
-        /// <remarks />
-        public const string TestConcreteStructure = "TestConcreteStructure";
-
-        /// <remarks />
-        public const string TestEnumeration = "TestEnumeration";
-
-        /// <remarks />
         public const string TestingConditionClassType = "TestingConditionClassType";
-
-        /// <remarks />
-        public const string TestScalarStructure = "TestScalarStructure";
-
-        /// <remarks />
-        public const string TestStructure = "TestStructure";
 
         /// <remarks />
         public const string ThreeDCartesianCoordinates = "3DCartesianCoordinates";
@@ -58658,9 +53135,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public const string TimeFirstChange = "TimeFirstChange";
-
-        /// <remarks />
-        public const string TimeMark = "TimeMark";
 
         /// <remarks />
         public const string TimestampsToReturn = "TimestampsToReturn";
@@ -59008,13 +53482,7 @@ namespace Opc.Ua
         public const string UserTokenPolicy = "UserTokenPolicy";
 
         /// <remarks />
-        public const string UserTokenSettingsDataType = "UserTokenSettingsDataType";
-
-        /// <remarks />
         public const string UserTokenType = "UserTokenType";
-
-        /// <remarks />
-        public const string UserTokenTypes = "UserTokenTypes";
 
         /// <remarks />
         public const string UserWritable = "UserWritable";
@@ -59135,9 +53603,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public const string WellKnownRole_Supervisor = "Supervisor";
-
-        /// <remarks />
-        public const string WellKnownRole_TrustedApplication = "TrustedApplication";
 
         /// <remarks />
         public const string Writable = "Writable";

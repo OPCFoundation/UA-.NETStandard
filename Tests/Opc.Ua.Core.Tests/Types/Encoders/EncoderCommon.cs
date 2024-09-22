@@ -148,36 +148,36 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         public static readonly EncodingType[] EncoderTypes = (EncodingType[])Enum.GetValues(typeof(EncodingType));
 
         public static readonly EncodingTypeGroup[] EncodingTypesJson = new EncodingTypeGroup[] {
-            new EncodingTypeGroup(EncodingType.Json, JsonEncodingType.Reversible_Deprecated),
+            new EncodingTypeGroup(EncodingType.Json, JsonEncodingType.Reversible),
             new EncodingTypeGroup(EncodingType.Json, JsonEncodingType.Compact),
-            new EncodingTypeGroup(EncodingType.Json, JsonEncodingType.NonReversible_Deprecated),
+            new EncodingTypeGroup(EncodingType.Json, JsonEncodingType.NonReversible),
             new EncodingTypeGroup(EncodingType.Json, JsonEncodingType.Verbose)
         };
 
         public static readonly EncodingTypeGroup[] EncodingTypesJsonNonReversibleVerbose = new EncodingTypeGroup[] {
-            new EncodingTypeGroup(EncodingType.Json, JsonEncodingType.Reversible_Deprecated),
+            new EncodingTypeGroup(EncodingType.Json, JsonEncodingType.Reversible),
             new EncodingTypeGroup(EncodingType.Json, JsonEncodingType.Compact)
         };
 
         public static readonly EncodingTypeGroup[] EncodingTypesReversibleCompact = new EncodingTypeGroup[] {
             new EncodingTypeGroup(EncodingType.Binary),
             new EncodingTypeGroup(EncodingType.Xml),
-            new EncodingTypeGroup(EncodingType.Json, JsonEncodingType.Reversible_Deprecated),
+            new EncodingTypeGroup(EncodingType.Json, JsonEncodingType.Reversible),
             new EncodingTypeGroup(EncodingType.Json, JsonEncodingType.Compact)
         };
 
         public static readonly EncodingTypeGroup[] EncodingTypesNonReversibleVerbose = new EncodingTypeGroup[] {
             new EncodingTypeGroup(EncodingType.Binary),
             new EncodingTypeGroup(EncodingType.Xml),
-            new EncodingTypeGroup(EncodingType.Json, JsonEncodingType.NonReversible_Deprecated),
+            new EncodingTypeGroup(EncodingType.Json, JsonEncodingType.NonReversible),
             new EncodingTypeGroup(EncodingType.Json, JsonEncodingType.Verbose)
         };
 
         public static readonly EncodingTypeGroup[] EncodingTypesAll = new EncodingTypeGroup[] {
             new EncodingTypeGroup(EncodingType.Binary),
             new EncodingTypeGroup(EncodingType.Xml),
-            new EncodingTypeGroup(EncodingType.Json, JsonEncodingType.NonReversible_Deprecated),
-            new EncodingTypeGroup(EncodingType.Json, JsonEncodingType.Reversible_Deprecated),
+            new EncodingTypeGroup(EncodingType.Json, JsonEncodingType.NonReversible),
+            new EncodingTypeGroup(EncodingType.Json, JsonEncodingType.Reversible),
             new EncodingTypeGroup(EncodingType.Json, JsonEncodingType.Compact),
             new EncodingTypeGroup(EncodingType.Json, JsonEncodingType.Verbose)
         };
@@ -185,7 +185,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         public static readonly EncodingTypeGroup[] EncodingTypesAllButJsonNonReversible = new EncodingTypeGroup[] {
             new EncodingTypeGroup(EncodingType.Binary),
             new EncodingTypeGroup(EncodingType.Xml),
-            new EncodingTypeGroup(EncodingType.Json, JsonEncodingType.Reversible_Deprecated),
+            new EncodingTypeGroup(EncodingType.Json, JsonEncodingType.Reversible),
             new EncodingTypeGroup(EncodingType.Json, JsonEncodingType.Compact),
             new EncodingTypeGroup(EncodingType.Json, JsonEncodingType.Verbose)
         };
@@ -400,7 +400,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                     using (IEncoder encoder = CreateEncoder(EncodingType.Json, Context, encoderStream, typeof(DataValue),
                         jsonEncoding, topLevelIsArray, includeDefaultValues, includeDefaultNumbers))
                     {
-                        if (jsonEncoding == JsonEncodingType.Reversible_Deprecated || jsonEncoding == JsonEncodingType.NonReversible_Deprecated)
+                        if (jsonEncoding == JsonEncodingType.Reversible || jsonEncoding == JsonEncodingType.NonReversible)
                         {
                             // encoder.SetMappingTables(nameSpaceUris, serverUris);
                         }
@@ -553,7 +553,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             IServiceMessageContext context,
             Stream stream,
             Type systemType,
-            JsonEncodingType jsonEncoding = JsonEncodingType.Reversible_Deprecated,
+            JsonEncodingType jsonEncoding = JsonEncodingType.Reversible,
             bool topLevelIsArray = false,
             bool includeDefaultValues = false,
             bool includeDefaultNumbers = true
@@ -562,16 +562,16 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             switch (encoderType)
             {
                 case EncodingType.Binary:
-                    Assume.That(jsonEncoding == JsonEncodingType.Reversible_Deprecated, "Binary encoding doesn't allow to set the JsonEncodingType.");
+                    Assume.That(jsonEncoding == JsonEncodingType.Reversible, "Binary encoding doesn't allow to set the JsonEncodingType.");
                     return new BinaryEncoder(stream, context, true);
                 case EncodingType.Xml:
-                    Assume.That(jsonEncoding == JsonEncodingType.Reversible_Deprecated, "Xml encoding only supports reversible option.");
+                    Assume.That(jsonEncoding == JsonEncodingType.Reversible, "Xml encoding only supports reversible option.");
                     var xmlWriter = XmlWriter.Create(stream, Utils.DefaultXmlWriterSettings());
                     return new XmlEncoder(systemType, xmlWriter, context);
                 case EncodingType.Json:
                     var encoder = new JsonEncoder(context, jsonEncoding, topLevelIsArray, stream, true);
                     // only deprecated encodings allow to set the default value
-                    if (jsonEncoding == JsonEncodingType.Reversible_Deprecated || jsonEncoding == JsonEncodingType.NonReversible_Deprecated)
+                    if (jsonEncoding == JsonEncodingType.Reversible || jsonEncoding == JsonEncodingType.NonReversible)
                     {
                         encoder.IncludeDefaultValues = includeDefaultValues;
                         encoder.IncludeDefaultNumberValues = includeDefaultNumbers;

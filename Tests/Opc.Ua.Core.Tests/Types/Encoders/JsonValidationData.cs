@@ -50,9 +50,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             {
                 case JsonEncodingType.Verbose:
                     return ExpectedVerbose ?? ExpectedCompact;
-                case JsonEncodingType.NonReversible_Deprecated:
+                case JsonEncodingType.NonReversible:
                     return ExpectedNonReversible ?? ExpectedReversible;
-                case JsonEncodingType.Reversible_Deprecated:
+                case JsonEncodingType.Reversible:
                     return ExpectedReversible;
                 default:
                 case JsonEncodingType.Compact:

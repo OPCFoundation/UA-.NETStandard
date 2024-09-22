@@ -15,12 +15,10 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
     public class SessionLessServiceMessageTests
     {
         [Test]
-        [TestCase(JsonEncodingType.Compact)]
-        [TestCase(JsonEncodingType.Reversible_Deprecated)]
-        public void WhenServerUrisAreLessThanNamespacesShouldNotThrowAndMustReturnCorrectServerUris(JsonEncodingType encoding)
+        public void WhenServerUrisAreLessThanNamespacesShouldNotThrowAndMustReturnCorrectServerUris()
         {
             //arrange
-            UInt32 urisVersion = 1234;
+            UInt32 uriVersion = 1234;
             var namespaceTable = new NamespaceTable(new List<string> { Namespaces.OpcUa, "http://bar", "http://foo" });
             var expectedServerUri = "http://foobar";
             var serverUris = new StringTable(new[] { Namespaces.OpcUa, expectedServerUri });
@@ -29,7 +27,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             using (var jsonEncoder = new JsonEncoder(context, true))
             {
                 var envelope = new SessionLessServiceMessage {
-                    UrisVersion = urisVersion,
+                    UriVersion = uriVersion,
                     NamespaceUris = context.NamespaceUris,
                     ServerUris = context.ServerUris,
                     Message = null
@@ -45,8 +43,8 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
 
             var jObject = JObject.Parse(result);
             Assert.IsNotNull(jObject);
-            UInt32 version = jObject["UrisVersion"].ToObject<UInt32>();
-            Assert.AreEqual(urisVersion, version);
+            UInt32 version = jObject["UriVersion"].ToObject<UInt32>();
+            Assert.AreEqual(uriVersion, version);
             var serverUrisToken = jObject["ServerUris"];
             Assert.IsNotNull(serverUrisToken);
             var serverUrisEncoded = serverUrisToken.ToObject<string[]>();

@@ -77,7 +77,7 @@ namespace Opc.Ua
         public JsonEncoder(
             IServiceMessageContext context,
             bool useReversibleEncoding) :
-            this(context, useReversibleEncoding ? JsonEncodingType.Reversible_Deprecated : JsonEncodingType.NonReversible_Deprecated, false, null, false)
+            this(context, useReversibleEncoding ? JsonEncodingType.Reversible : JsonEncodingType.NonReversible, false, null, false)
         {
         }
 
@@ -92,7 +92,7 @@ namespace Opc.Ua
             Stream stream = null,
             bool leaveOpen = false,
             int streamSize = kStreamWriterBufferSize) :
-            this(context, useReversibleEncoding ? JsonEncodingType.Reversible_Deprecated : JsonEncodingType.NonReversible_Deprecated, topLevelIsArray, stream, leaveOpen, streamSize)
+            this(context, useReversibleEncoding ? JsonEncodingType.Reversible : JsonEncodingType.NonReversible, topLevelIsArray, stream, leaveOpen, streamSize)
         {
         }
 
@@ -105,7 +105,7 @@ namespace Opc.Ua
             bool useReversibleEncoding,
             StreamWriter streamWriter,
             bool topLevelIsArray = false) :
-            this(context, useReversibleEncoding ? JsonEncodingType.Reversible_Deprecated : JsonEncodingType.NonReversible_Deprecated, streamWriter, topLevelIsArray)
+            this(context, useReversibleEncoding ? JsonEncodingType.Reversible : JsonEncodingType.NonReversible, streamWriter, topLevelIsArray)
         {
         }
 
@@ -180,7 +180,7 @@ namespace Opc.Ua
 
             // defaults for JSON encoding
             EncodingToUse = encoding;
-            if (encoding == JsonEncodingType.Reversible_Deprecated || encoding == JsonEncodingType.NonReversible_Deprecated)
+            if (encoding == JsonEncodingType.Reversible || encoding == JsonEncodingType.NonReversible)
             {
                 // defaults for reversible and non reversible JSON encoding
                 // -- encode namespace index for reversible encoding / uri for non reversible
@@ -188,7 +188,7 @@ namespace Opc.Ua
                 // -- include default values for non reversible encoding
                 m_forceNamespaceUri =
                 m_forceNamespaceUriForIndex1 =
-                m_includeDefaultValues = encoding == JsonEncodingType.NonReversible_Deprecated;
+                m_includeDefaultValues = encoding == JsonEncodingType.NonReversible;
                 m_includeDefaultNumberValues = true;
                 m_encodeNodeIdAsString = false;
             }
@@ -486,7 +486,7 @@ namespace Opc.Ua
             JsonEncodingType currentValue = EncodingToUse;
             try
             {
-                EncodingToUse = useReversibleEncoding ? JsonEncodingType.Reversible_Deprecated : JsonEncodingType.NonReversible_Deprecated;
+                EncodingToUse = useReversibleEncoding ? JsonEncodingType.Reversible : JsonEncodingType.NonReversible;
                 action(fieldName, value);
             }
             finally
@@ -516,7 +516,7 @@ namespace Opc.Ua
         public EncodingType EncodingType => EncodingType.Json;
 
         /// <inheritdoc/>
-        public bool UseReversibleEncoding => EncodingToUse != JsonEncodingType.NonReversible_Deprecated;
+        public bool UseReversibleEncoding => EncodingToUse != JsonEncodingType.NonReversible;
 
         /// <summary>
         /// The message context associated with the encoder.
@@ -1300,7 +1300,7 @@ namespace Opc.Ua
 
             if (serverIndex >= 1)
             {
-                if (EncodingToUse == JsonEncodingType.NonReversible_Deprecated)
+                if (EncodingToUse == JsonEncodingType.NonReversible)
                 {
                     var uri = m_context.ServerUris.GetString(serverIndex);
 
@@ -1339,7 +1339,7 @@ namespace Opc.Ua
                 return;
             }
 
-            if (EncodingToUse == JsonEncodingType.Reversible_Deprecated || EncodingToUse == JsonEncodingType.Compact)
+            if (EncodingToUse == JsonEncodingType.Reversible || EncodingToUse == JsonEncodingType.Compact)
             {
                 WriteUInt32(fieldName, value.Code);
                 return;
@@ -1402,7 +1402,7 @@ namespace Opc.Ua
                 return;
             }
 
-            if (EncodingToUse != JsonEncodingType.NonReversible_Deprecated)
+            if (EncodingToUse != JsonEncodingType.NonReversible)
             {
                 PushStructure(fieldName);
 
@@ -1438,7 +1438,7 @@ namespace Opc.Ua
             {
                 bool isNull = (value.TypeInfo == null || value.TypeInfo.BuiltInType == BuiltInType.Null || value.Value == null);
 
-                if (!isNull && EncodingToUse != JsonEncodingType.NonReversible_Deprecated)
+                if (!isNull && EncodingToUse != JsonEncodingType.NonReversible)
                 {
                     PushStructure(fieldName);
                     // encode enums as int32.
@@ -1467,7 +1467,7 @@ namespace Opc.Ua
 
                 WriteVariantContents(value.Value, value.TypeInfo);
 
-                if (!isNull && EncodingToUse != JsonEncodingType.NonReversible_Deprecated)
+                if (!isNull && EncodingToUse != JsonEncodingType.NonReversible)
                 {
                     if (value.Value is Matrix matrix)
                     {
@@ -1545,7 +1545,7 @@ namespace Opc.Ua
 
             var encodeable = value.Body as IEncodeable;
 
-            if (encodeable != null && EncodingToUse == JsonEncodingType.NonReversible_Deprecated)
+            if (encodeable != null && EncodingToUse == JsonEncodingType.NonReversible)
             {
                 // non reversible encoding, only the content of the Body field is encoded
                 // TODO: value.Body is Union?
@@ -1668,7 +1668,7 @@ namespace Opc.Ua
             int numeric = Convert.ToInt32(value, CultureInfo.InvariantCulture);
             var numericString = numeric.ToString(CultureInfo.InvariantCulture);
 
-            if (EncodingToUse == JsonEncodingType.Reversible_Deprecated ||
+            if (EncodingToUse == JsonEncodingType.Reversible ||
                 EncodingToUse == JsonEncodingType.Compact)
             {
                 WriteSimpleField(fieldName, numericString);
@@ -1692,7 +1692,7 @@ namespace Opc.Ua
         /// </summary>
         public void WriteEnumerated(string fieldName, int numeric)
         {
-            bool writeNumber = EncodingToUse == JsonEncodingType.Reversible_Deprecated || EncodingToUse == JsonEncodingType.Compact;
+            bool writeNumber = EncodingToUse == JsonEncodingType.Reversible || EncodingToUse == JsonEncodingType.Compact;
             var numericString = numeric.ToString(CultureInfo.InvariantCulture);
             WriteSimpleField(fieldName, numericString, writeNumber ? EscapeOptions.None : EscapeOptions.Quotes);
         }
@@ -2550,7 +2550,7 @@ namespace Opc.Ua
                 else if (typeInfo.ValueRank >= ValueRanks.OneDimension)
                 {
                     int valueRank = typeInfo.ValueRank;
-                    if (EncodingToUse != JsonEncodingType.NonReversible_Deprecated && value is Matrix matrix)
+                    if (EncodingToUse != JsonEncodingType.NonReversible && value is Matrix matrix)
                     {
                         // linearize the matrix
                         value = matrix.Elements;

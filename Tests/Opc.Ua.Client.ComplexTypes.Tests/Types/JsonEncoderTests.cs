@@ -215,7 +215,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                     EncodingType.Json, EncoderContext, encoderStream,
                     typeof(ExtensionObject), jsonEncoding, topLevelIsArray))
                 {
-                    var builtInTypeString = (jsonEncoding != JsonEncodingType.NonReversible_Deprecated) ? builtInType.ToString() : null;
+                    var builtInTypeString = (jsonEncoding != JsonEncodingType.NonReversible) ? builtInType.ToString() : null;
                     Encode(encoder, BuiltInType.ExtensionObject, builtInTypeString, data);
                 }
                 buffer = encoderStream.ToArray();
@@ -226,7 +226,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             try
             {
                 result = Encoding.UTF8.GetString(buffer);
-                if (data.Body is UnionComplexType && (jsonEncoding == JsonEncodingType.NonReversible_Deprecated))
+                if (data.Body is UnionComplexType && (jsonEncoding == JsonEncodingType.NonReversible))
                 {
                     // helper to create testable JSON output for Unions
                     result = result.Replace("{", "{\"Union\" :");
@@ -276,7 +276,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             if (!data.TypeId.IsNull)
             {
                 var nodeId = ExpandedNodeId.ToNodeId(data.TypeId, EncoderContext.NamespaceUris);
-                if (jsonEncoding == JsonEncodingType.NonReversible_Deprecated || jsonEncoding == JsonEncodingType.Reversible_Deprecated)
+                if (jsonEncoding == JsonEncodingType.NonReversible || jsonEncoding == JsonEncodingType.Reversible)
                 {
                     typeId = $"\"TypeId\":{{\"Id\":{nodeId.Identifier},\"Namespace\":{nodeId.NamespaceIndex}}},";
                 }
@@ -297,7 +297,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             {
                 if (data.Body is UnionComplexType)
                 {
-                    if (jsonEncoding != JsonEncodingType.NonReversible_Deprecated)
+                    if (jsonEncoding != JsonEncodingType.NonReversible)
                     {
                         var union = data.Body as UnionComplexType;
                         var json = $"{{\"{builtInType}\" :{{";
@@ -320,7 +320,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 }
                 else if (data.Body is OptionalFieldsComplexType)
                 {
-                    if (jsonEncoding != JsonEncodingType.NonReversible_Deprecated)
+                    if (jsonEncoding != JsonEncodingType.NonReversible)
                     {
                         var optional = data.Body as OptionalFieldsComplexType;
                         var json = $"{{\"{builtInType}\" :{{";
@@ -364,14 +364,14 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                             if (property.Name == "DateTime")
                             {
                                 oText = "\"0001-01-01T00:00:00Z\"";
-                                if (jsonEncoding == JsonEncodingType.Reversible_Deprecated || jsonEncoding == JsonEncodingType.NonReversible_Deprecated)
+                                if (jsonEncoding == JsonEncodingType.Reversible || jsonEncoding == JsonEncodingType.NonReversible)
                                 {
                                     continue;
                                 }
                             }
                             else if (property.Name == "StatusCode")
                             {
-                                if (jsonEncoding == JsonEncodingType.Compact || jsonEncoding == JsonEncodingType.Reversible_Deprecated)
+                                if (jsonEncoding == JsonEncodingType.Compact || jsonEncoding == JsonEncodingType.Reversible)
                                 {
                                     oText = "0";
                                 }
@@ -385,7 +385,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                             else if (property.Name == "Guid")
                             {
                                 oText = "\"00000000-0000-0000-0000-000000000000\"";
-                                if (jsonEncoding == JsonEncodingType.Reversible_Deprecated || jsonEncoding == JsonEncodingType.NonReversible_Deprecated)
+                                if (jsonEncoding == JsonEncodingType.Reversible || jsonEncoding == JsonEncodingType.NonReversible)
                                 {
                                     continue;
                                 }
@@ -403,7 +403,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                             }
                         }
                     }
-                    if (jsonEncoding != JsonEncodingType.NonReversible_Deprecated)
+                    if (jsonEncoding != JsonEncodingType.NonReversible)
                     {
                         var json = $"{{\"{builtInType}\" :{{";
                         if (!data.TypeId.IsNull)

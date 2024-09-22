@@ -453,7 +453,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             context2.NamespaceUris.Append(NamespaceUris[0]);
             context2.NamespaceUris.Append(NamespaceUris[1]);
 
-            using (var encoder = new JsonEncoder(context2, JsonEncodingType.Reversible_Deprecated))
+            using (var encoder = new JsonEncoder(context2, JsonEncodingType.Reversible))
             {
                 encoder.SetMappingTables(context1.NamespaceUris, context1.ServerUris);
 
@@ -557,7 +557,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             context2.ServerUris.Append(ServerUris[0]);
             context2.ServerUris.Append(ServerUris[1]);
 
-            using (var encoder = new JsonEncoder(context2, JsonEncodingType.Reversible_Deprecated))
+            using (var encoder = new JsonEncoder(context2, JsonEncodingType.Reversible))
             {
                 encoder.SetMappingTables(context1.NamespaceUris, context1.ServerUris);
 
@@ -632,7 +632,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             context2.NamespaceUris.Append(NamespaceUris[0]);
             context2.NamespaceUris.Append(NamespaceUris[1]);
 
-            using (var encoder = new JsonEncoder(context2, JsonEncodingType.NonReversible_Deprecated))
+            using (var encoder = new JsonEncoder(context2, JsonEncodingType.NonReversible))
             {
                 //encoder.ForceNamespaceUri = true;
                 //encoder.ForceNamespaceUriForIndex1 = true;
@@ -731,7 +731,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             context2.ServerUris.Append(ServerUris[0]);
             context2.ServerUris.Append(ServerUris[1]);
 
-            using (var encoder = new JsonEncoder(context2, JsonEncodingType.NonReversible_Deprecated))
+            using (var encoder = new JsonEncoder(context2, JsonEncodingType.NonReversible))
             {
                 // encoder.ForceNamespaceUri = true;
                 // encoder.ForceNamespaceUriForIndex1 = true;
@@ -879,7 +879,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             context2.NamespaceUris.Append(NamespaceUris[0]);
             context2.NamespaceUris.Append(NamespaceUris[1]);
 
-            using (var encoder = new JsonEncoder(context2, JsonEncodingType.Reversible_Deprecated))
+            using (var encoder = new JsonEncoder(context2, JsonEncodingType.Reversible))
             {
                 encoder.SetMappingTables(context1.NamespaceUris, context1.ServerUris);
 
@@ -953,7 +953,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             context2.NamespaceUris.Append(NamespaceUris[0]);
             context2.NamespaceUris.Append(NamespaceUris[1]);
 
-            using (var encoder = new JsonEncoder(context2, JsonEncodingType.NonReversible_Deprecated))
+            using (var encoder = new JsonEncoder(context2, JsonEncodingType.NonReversible))
             {
                 // encoder.ForceNamespaceUri = true;
                 // encoder.ForceNamespaceUriForIndex1 = true;
@@ -1060,8 +1060,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         }
 
         [Test]
-        [TestCase(JsonEncodingType.Reversible_Deprecated)]
-        [TestCase(JsonEncodingType.NonReversible_Deprecated)]
+        [TestCase(JsonEncodingType.Reversible)]
+        [TestCase(JsonEncodingType.NonReversible)]
         public void EncodeReversibleAndNonReversibleMatrix(JsonEncodingType jsonEncoding)
         {
             var data = $@"
@@ -1410,7 +1410,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             context.NamespaceUris.Append("urn:localhost:server");
             context.NamespaceUris.Append(Opc.Ua.Gds.Namespaces.OpcUaGds);
 
-            using (var encoder = new JsonEncoder(context, JsonEncodingType.Reversible_Deprecated))
+            using (var encoder = new JsonEncoder(context, JsonEncodingType.Reversible))
             {
                 encoder.WriteExtensionObject(
                     "D0",
@@ -1500,7 +1500,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             var context = new ServiceMessageContext();
             context.NamespaceUris.Append("urn:localhost:server");
 
-            using (var encoder = new JsonEncoder(context, JsonEncodingType.NonReversible_Deprecated))
+            using (var encoder = new JsonEncoder(context, JsonEncodingType.NonReversible))
             {
                 encoder.WriteExtensionObject(
                     "D0",

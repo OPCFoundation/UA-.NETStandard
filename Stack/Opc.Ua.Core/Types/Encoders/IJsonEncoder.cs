@@ -82,13 +82,13 @@ namespace Opc.Ua
         Verbose,
 
         /// <summary>
-        /// The deprecated version of the reversible encoding supported for backward compatibitility.
+        /// The reversible encoding supported for backward compatibitility.
         /// </summary>
-        Reversible_Deprecated,
+        Reversible,
 
         /// <summary>
-        /// The deprecated version of the non reversible encoding supported for backward compatibitility.
+        /// The non reversible encoding supported for backward compatibitility.
         /// </summary>
-        NonReversible_Deprecated
+        NonReversible
     }
 }
