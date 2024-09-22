@@ -341,7 +341,7 @@ namespace Opc.Ua
         {
             token = null;
 
-            if (String.IsNullOrEmpty(fieldName))
+            if (string.IsNullOrEmpty(fieldName))
             {
                 token = m_stack.Peek();
                 return true;
@@ -501,7 +501,7 @@ namespace Opc.Ua
 
             if (value == null)
             {
-                return 0;
+                return ReadEnumeratedString<Int32>(token, Int32.TryParse);
             }
 
             if (value < Int32.MinValue || value > Int32.MaxValue)
@@ -528,14 +528,7 @@ namespace Opc.Ua
 
             if (value == null)
             {
-                uint number = 0;
-
-                if (!(token is string text) || !UInt32.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out number))
-                {
-                    return 0;
-                }
-
-                return number;
+                return ReadEnumeratedString<UInt32>(token, UInt32.TryParse);
             }
 
             if (value < UInt32.MinValue || value > UInt32.MaxValue)
@@ -598,9 +591,7 @@ namespace Opc.Ua
             {
                 ulong number = 0;
 
-                if (!(token is string text) || !UInt64.TryParse(text,
-                    NumberStyles.Integer,
-                    CultureInfo.InvariantCulture, out number))
+                if (!(token is string text) || !UInt64.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out number))
                 {
                     return 0;
                 }
@@ -638,15 +629,15 @@ namespace Opc.Ua
                 {
                     if (text != null)
                     {
-                        if (String.Equals(text, "Infinity", StringComparison.OrdinalIgnoreCase))
+                        if (string.Equals(text, "Infinity", StringComparison.OrdinalIgnoreCase))
                         {
                             return Single.PositiveInfinity;
                         }
-                        else if (String.Equals(text, "-Infinity", StringComparison.OrdinalIgnoreCase))
+                        else if (string.Equals(text, "-Infinity", StringComparison.OrdinalIgnoreCase))
                         {
                             return Single.NegativeInfinity;
                         }
-                        else if (String.Equals(text, "NaN", StringComparison.OrdinalIgnoreCase))
+                        else if (string.Equals(text, "NaN", StringComparison.OrdinalIgnoreCase))
                         {
                             return Single.NaN;
                         }
@@ -696,15 +687,15 @@ namespace Opc.Ua
                 {
                     if (text != null)
                     {
-                        if (String.Equals(text, "Infinity", StringComparison.OrdinalIgnoreCase))
+                        if (string.Equals(text, "Infinity", StringComparison.OrdinalIgnoreCase))
                         {
                             return Double.PositiveInfinity;
                         }
-                        else if (String.Equals(text, "-Infinity", StringComparison.OrdinalIgnoreCase))
+                        else if (string.Equals(text, "-Infinity", StringComparison.OrdinalIgnoreCase))
                         {
                             return Double.NegativeInfinity;
                         }
-                        else if (String.Equals(text, "NaN", StringComparison.OrdinalIgnoreCase))
+                        else if (string.Equals(text, "NaN", StringComparison.OrdinalIgnoreCase))
                         {
                             return Double.NaN;
                         }
@@ -1458,7 +1449,7 @@ namespace Opc.Ua
                 if (encoding == (byte)ExtensionObjectEncoding.Json)
                 {
                     var json = ReadString("Body");
-                    if (String.IsNullOrEmpty(json))
+                    if (string.IsNullOrEmpty(json))
                     {
                         return extension;
                     }
@@ -2831,6 +2822,41 @@ namespace Opc.Ua
             }
 
             return m_serverMappings[index];
+        }
+
+        /// <summary>
+        /// Helper to provide the TryParse method when reading an enumerated string.
+        /// </summary>
+        private delegate bool TryParseHandler<T>(string s, NumberStyles numberStyles, CultureInfo cultureInfo, out T result);
+
+        /// <summary>
+        /// Helper to read an enumerated string in an extension object.
+        /// </summary>
+        /// <typeparam name="T">The number type which was encoded.</typeparam>
+        /// <param name="token"></param>
+        /// <param name="handler"></param>
+        /// <returns>The parsed number or 0.</returns>
+        private T ReadEnumeratedString<T>(object token, TryParseHandler<T> handler) where T : struct
+        {
+            T number = default;
+            if (token is string text)
+            {
+                bool retry = false;
+                do
+                {
+                    if (handler?.Invoke(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out number) == false)
+                    {
+                        int lastIndex = text.LastIndexOf('_');
+                        if (lastIndex == -1)
+                        {
+                            text = text.Substring(lastIndex + 1);
+                            retry = true;
+                        }
+                    }
+                } while (retry);
+            }
+
+            return number;
         }
 
         /// <summary>

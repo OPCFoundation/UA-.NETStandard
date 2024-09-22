@@ -1668,9 +1668,7 @@ namespace Opc.Ua
             int numeric = Convert.ToInt32(value, CultureInfo.InvariantCulture);
             var numericString = numeric.ToString(CultureInfo.InvariantCulture);
 
-            // encode as Int32 in a Variant 
-            if (m_inVariantWithEncoding ||
-                EncodingToUse == JsonEncodingType.Reversible_Deprecated ||
+            if (EncodingToUse == JsonEncodingType.Reversible_Deprecated ||
                 EncodingToUse == JsonEncodingType.Compact)
             {
                 WriteSimpleField(fieldName, numericString);
@@ -1694,7 +1692,7 @@ namespace Opc.Ua
         /// </summary>
         public void WriteEnumerated(string fieldName, int numeric)
         {
-            bool writeNumber = m_inVariantWithEncoding || EncodingToUse == JsonEncodingType.Reversible_Deprecated || EncodingToUse == JsonEncodingType.Compact;
+            bool writeNumber = EncodingToUse == JsonEncodingType.Reversible_Deprecated || EncodingToUse == JsonEncodingType.Compact;
             var numericString = numeric.ToString(CultureInfo.InvariantCulture);
             WriteSimpleField(fieldName, numericString, writeNumber ? EscapeOptions.None : EscapeOptions.Quotes);
         }
