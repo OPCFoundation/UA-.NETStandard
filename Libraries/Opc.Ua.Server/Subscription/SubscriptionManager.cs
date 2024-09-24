@@ -1136,20 +1136,60 @@ namespace Opc.Ua.Server
                 return StatusCodes.BadInvalidState;
             }
 
-            //use max server lifetime is requested lifetime is 0
-            if (lifetimeInHours == 0 || lifetimeInHours > m_maxDurableSubscriptionLifetimeInHours)
+            bool useArchiesModification = true;
+
+            ServiceResult result;
+
+            if (useArchiesModification)
             {
-                //seconds->hours
-                lifetimeInHours = m_maxDurableSubscriptionLifetimeInHours;
+                // Archie's Modification
+                revisedLifetimeInHours = lifetimeInHours;
+                if (revisedLifetimeInHours == 0 || revisedLifetimeInHours > m_maxDurableSubscriptionLifetimeInHours)
+                {
+                    revisedLifetimeInHours = m_maxDurableSubscriptionLifetimeInHours;
+                }
+
+                uint hoursInSeconds = 3_600_000;
+                long lifetimeInSeconds = revisedLifetimeInHours * hoursInSeconds;
+                uint requestedLifeTimeCount = (uint)(lifetimeInSeconds / subscription.PublishingInterval);
+                subscription.Diagnostics.MaxLifetimeCount = requestedLifeTimeCount;
+
+                result = subscription.SetSubscriptionDurable(requestedLifeTimeCount);
+
+                // Archie - Pretty sure this is not needed.  Spec does not say anything about recalculating
+                // based off the keepalive, and specifies that if the client wants something different,
+                // client should do the calculations.
+                // Demo server follows the above logic.
+
+                //uint minimimumLifetimeCount = subscription.Diagnostics.MaxKeepAliveCount * 3;
+
+                //if ( requestedLifeTimeCount < minimimumLifetimeCount)
+                //{
+                //    requestedLifeTimeCount = minimimumLifetimeCount;
+
+                //    // This is a rediculout case.
+                //    long revisedSeconds = (long)requestedLifeTimeCount * (long)subscription.PublishingInterval;
+                //    revisedLifetimeInHours = (uint)(revisedSeconds / hoursInSeconds);
+                //}
             }
-            uint requestedLifeTimeCount = (uint)(lifetimeInHours * subscription.PublishingInterval / 3_600_000);
-            
-            // calculate the revised lifetime count.
-            uint revisedLifetimeCount = CalculateLifetimeCount(subscription.PublishingInterval, subscription.Diagnostics.MaxKeepAliveCount, requestedLifeTimeCount, true);
+            else
+            {
+                // use max server lifetime is requested lifetime is 0
+                if (lifetimeInHours == 0 || lifetimeInHours > m_maxDurableSubscriptionLifetimeInHours)
+                {
+                    //seconds->hours
+                    lifetimeInHours = m_maxDurableSubscriptionLifetimeInHours;
+                }
 
-            ServiceResult result = subscription.SetSubscriptionDurable(revisedLifetimeCount);
+                uint requestedLifeTimeCount = (uint)(lifetimeInHours * subscription.PublishingInterval / 3_600_000);
 
-            revisedLifetimeInHours = (uint)(revisedLifetimeCount * subscription.PublishingInterval / 3_600_000);
+                // calculate the revised lifetime count.
+                uint revisedLifetimeCount = CalculateLifetimeCount(subscription.PublishingInterval, subscription.Diagnostics.MaxKeepAliveCount, requestedLifeTimeCount, true);
+
+                result = subscription.SetSubscriptionDurable(requestedLifeTimeCount);
+
+                revisedLifetimeInHours = (uint)(revisedLifetimeCount * subscription.PublishingInterval / 3_600_000);
+            }
 
             return result;
         }
