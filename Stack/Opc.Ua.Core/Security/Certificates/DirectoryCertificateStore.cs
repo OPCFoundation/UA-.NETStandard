@@ -792,7 +792,7 @@ namespace Opc.Ua
                 DateTime now = DateTime.UtcNow;
 
                 // refresh the directories.
-                m_certificateSubdir.Refresh();
+                m_certificateSubdir?.Refresh();
 
                 if (!NoPrivateKeys)
                 {
@@ -800,9 +800,8 @@ namespace Opc.Ua
                 }
 
                 // check if store exists.
-                if (!m_certificateSubdir.Exists)
+                if (m_certificateSubdir?.Exists != true)
                 {
-                    m_certificateSubdir.Create();
                     ClearCertificates();
                     return m_certificates;
                 }
