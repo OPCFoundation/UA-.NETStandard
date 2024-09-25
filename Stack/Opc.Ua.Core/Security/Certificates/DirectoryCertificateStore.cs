@@ -494,7 +494,7 @@ namespace Opc.Ua
 #if NETSTANDARD2_1_OR_GREATER || NET472_OR_GREATER || NET5_0_OR_GREATER
                         if (!RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
                         {
-                            // defaultStorageSet |= X509KeyStorageFlags.EphemeralKeySet;
+                            defaultStorageSet |= X509KeyStorageFlags.EphemeralKeySet;
                         }
 #endif
 
