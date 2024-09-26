@@ -28,8 +28,12 @@ namespace Opc.Ua
         EncodingType EncodingType { get; }
 
         /// <summary>
-        /// Selects the reversible encoding type.
+        /// If the encoder is configured to produce a reversible encoding.
         /// </summary>
+        /// <remarks>
+        /// The BinaryEncoder and XmlEncoder in this library are reversible encoders.
+        /// For a JsonEncoder, reversability depends on the encoding type.
+        /// </remarks>
         bool UseReversibleEncoding { get; }
 
         /// <summary>
