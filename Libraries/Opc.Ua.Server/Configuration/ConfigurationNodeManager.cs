@@ -32,7 +32,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
-using System.Xml;
 
 namespace Opc.Ua.Server
 {
@@ -446,8 +445,22 @@ namespace Opc.Ua.Server
                         case null:
                         case "":
                         {
-                            X509Certificate2 certWithPrivateKey = certificateGroup.ApplicationCertificate.LoadPrivateKeyEx(passwordProvider).Result;
-                            var exportableKey = X509Utils.CreateCopyWithPrivateKey(certWithPrivateKey, false);
+                            X509Certificate2 exportableKey;
+                            //use new generated private key if one exists and matches new certificate
+                            if (certificateGroup.TemporaryApplicationCertificate != null && X509Utils.VerifyRSAKeyPair(newCert, certificateGroup.TemporaryApplicationCertificate))
+                            {
+                                exportableKey = X509Utils.CreateCopyWithPrivateKey(certificateGroup.TemporaryApplicationCertificate, false);
+
+                                certificateGroup.TemporaryApplicationCertificate.Dispose();
+                                certificateGroup.TemporaryApplicationCertificate = null;
+
+                            }
+                            else
+                            {
+                                X509Certificate2 certWithPrivateKey = certificateGroup.ApplicationCertificate.LoadPrivateKeyEx(passwordProvider).Result;
+                                exportableKey = X509Utils.CreateCopyWithPrivateKey(certWithPrivateKey, false);
+                            }
+
                             updateCertificate.CertificateWithPrivateKey = CertificateFactory.CreateCertificateWithPrivateKey(newCert, exportableKey);
                             break;
                         }
@@ -553,8 +566,24 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(subjectName));
             }
 
-            // TODO: implement regeneratePrivateKey
-            // TODO: use nonce for generating the private key
+
+            certificateGroup.TemporaryApplicationCertificate?.Dispose();
+            certificateGroup.TemporaryApplicationCertificate = null;
+
+            if (regeneratePrivateKey)
+            {
+                X509Certificate2 newCert = CertificateFactory.CreateCertificate(
+                m_configuration.ApplicationUri,
+                m_configuration.ApplicationName,
+                certificateGroup.ApplicationCertificate.SubjectName,
+                X509Utils.GetDomainsFromCertificate(certificateGroup.ApplicationCertificate.Certificate))
+                .CreateForRSA();
+
+                certificateRequest = CertificateFactory.CreateSigningRequest(newCert, X509Utils.GetDomainsFromCertificate(newCert));
+
+                certificateGroup.TemporaryApplicationCertificate = newCert;
+                return ServiceResult.Good;
+            }
 
             var passwordProvider = m_configuration.SecurityConfiguration.CertificatePasswordProvider;
             X509Certificate2 certWithPrivateKey = certificateGroup.ApplicationCertificate.LoadPrivateKeyEx(passwordProvider).Result;
@@ -622,7 +651,8 @@ namespace Opc.Ua.Server
             }
 
             ICertificateStore store = m_rejectedStore.OpenStore();
-            try {
+            try
+            {
                 X509Certificate2Collection collection = store.Enumerate().Result;
                 List<byte[]> rawList = new List<byte[]>();
                 foreach (var cert in collection)
@@ -819,6 +849,7 @@ namespace Opc.Ua.Server
             public CertificateStoreIdentifier IssuerStore;
             public CertificateStoreIdentifier TrustedStore;
             public UpdateCertificateData UpdateCertificate;
+            public X509Certificate2 TemporaryApplicationCertificate;
         }
 
         private ServerConfigurationState m_serverConfigurationNode;
