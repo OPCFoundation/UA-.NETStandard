@@ -253,7 +253,22 @@ namespace Opc.Ua.Server
                 lock (NodeManager.Lock)
                 {
                     // enqueue event
-                    monitoredItem?.QueueEvent(e);
+                    if (context?.SessionId != null && monitoredItem?.Session?.Id?.Identifier != null)
+                    {
+                        if (monitoredItem.Session.Id.Identifier.Equals(context.SessionId.Identifier))
+                        {
+                            monitoredItem?.QueueEvent(e);
+                        }
+                        else
+                        {
+                            continue;
+                        }
+                    }
+                    else
+                    {
+                        monitoredItem?.QueueEvent(e);
+                    }
+
                 }
             }
         }        
