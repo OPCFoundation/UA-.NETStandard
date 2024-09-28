@@ -446,14 +446,10 @@ namespace Opc.Ua.Server
                         case "":
                         {
                             X509Certificate2 exportableKey;
-                            //use new generated private key if one exists and matches new certificate
+                            //use the new generated private key if one exists and matches the provided public key
                             if (certificateGroup.TemporaryApplicationCertificate != null && X509Utils.VerifyRSAKeyPair(newCert, certificateGroup.TemporaryApplicationCertificate))
                             {
                                 exportableKey = X509Utils.CreateCopyWithPrivateKey(certificateGroup.TemporaryApplicationCertificate, false);
-
-                                certificateGroup.TemporaryApplicationCertificate.Dispose();
-                                certificateGroup.TemporaryApplicationCertificate = null;
-
                             }
                             else
                             {
@@ -476,6 +472,10 @@ namespace Opc.Ua.Server
                             break;
                         }
                     }
+                    //dispose temporary new private key as it is no longer needed
+                    certificateGroup.TemporaryApplicationCertificate?.Dispose();
+                    certificateGroup.TemporaryApplicationCertificate = null;
+
                     updateCertificate.IssuerCollection = newIssuerCollection;
                     updateCertificate.SessionId = context.SessionId;
                 }
