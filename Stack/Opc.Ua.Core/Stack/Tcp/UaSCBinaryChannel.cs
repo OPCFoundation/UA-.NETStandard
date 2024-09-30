@@ -248,7 +248,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Returns a new sequence number.
         /// </summary>
-        protected uint GetNewSequenceNumber()
+	    protected uint GetNewSequenceNumber()
         {
             long origValue = 0;
             long updatedSeqNumber = 0;
@@ -260,23 +260,26 @@ namespace Opc.Ua.Bindings
                 if (!EccUtils.IsEccPolicy(SecurityPolicyUri))
                 {
                     // First number after wrap around shall be less than 1024
-                    if (origValue == kMaxValueLegacyTrue)
+                    // 1 for legaccy reasons
+                    if ((origValue == kMaxValueLegacyTrue) || (origValue == -1))
                     {
-                        updatedSeqNumber = -1;
+                        updatedSeqNumber = 0;
                     }
                     updatedSeqNumber++;
-                    m_localSequenceNumber = (uint)(origValue == kMaxValueLegacyTrue ? kMaxValueLegacyTrue : updatedSeqNumber - 1);
                 }
                 else
                 {
-                    // First number after wrap around shall be 0
-                    if (origValue == kMaxValueLegacyFalse)
+                    // First number after wrap around and as initial value shall be 0
+                    if ((origValue == kMaxValueLegacyFalse) || (origValue == -1))
                     {
-                        updatedSeqNumber = -1;
+                        updatedSeqNumber = 0;
+                        m_localSequenceNumber = 0;
                     }
-                    updatedSeqNumber++;
-                    m_localSequenceNumber = (uint)(origValue == kMaxValueLegacyTrue ? kMaxValueLegacyTrue : updatedSeqNumber - 1);
-
+                    else
+                    {
+                        updatedSeqNumber++;
+                        m_localSequenceNumber = (uint)updatedSeqNumber;
+                    }
                 }
                 if (Interlocked.CompareExchange(ref m_sequenceNumber, updatedSeqNumber, origValue) == origValue)
                 {
@@ -298,6 +301,17 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected bool VerifySequenceNumber(uint sequenceNumber, string context)
         {
+
+            // Accept the first sequence number depending on security policy
+            if (m_firstReceivedSequenceNumber &&
+                (!EccUtils.IsEccPolicy(SecurityPolicyUri) ||
+                (EccUtils.IsEccPolicy(SecurityPolicyUri) && (sequenceNumber == 0) )))
+            {
+                m_remoteSequenceNumber = sequenceNumber;
+                m_firstReceivedSequenceNumber = false;
+                return true;
+            }
+
             // everything ok if new number is greater.
             if (sequenceNumber > m_remoteSequenceNumber)
             {
@@ -308,8 +322,10 @@ namespace Opc.Ua.Bindings
             // check for a valid rollover.
             if (m_remoteSequenceNumber > TcpMessageLimits.MinSequenceNumber && sequenceNumber < TcpMessageLimits.MaxRolloverSequenceNumber)
             {
-                // only one rollover per token is allowed.
-                if (!m_sequenceRollover)
+                // only one rollover per token is allowed and with valid values depending on security policy
+                if (!m_sequenceRollover &&
+                    (!EccUtils.IsEccPolicy(SecurityPolicyUri) ||
+                    (EccUtils.IsEccPolicy(SecurityPolicyUri) && (sequenceNumber == 0) )))
                 {
                     m_sequenceRollover = true;
                     m_remoteSequenceNumber = sequenceNumber;
@@ -942,10 +958,11 @@ namespace Opc.Ua.Bindings
         private int m_state;
         private uint m_channelId;
         private string m_globalChannelId;
-        private long m_sequenceNumber;
+        private long m_sequenceNumber = -1;
         private uint m_localSequenceNumber;
         private uint m_remoteSequenceNumber;
         private bool m_sequenceRollover;
+        private bool m_firstReceivedSequenceNumber = true;
         private uint m_partialRequestId;
         private BufferCollection m_partialMessageChunks;
 
