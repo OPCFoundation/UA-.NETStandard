@@ -42,6 +42,7 @@ using System.Collections.ObjectModel;
 using Opc.Ua;
 using Opc.Ua.Test;
 using System.Collections.Concurrent;
+using BenchmarkDotNet.Configs;
 #if NET8_0_OR_GREATER
 using System.Collections.Frozen;
 #endif
@@ -56,6 +57,9 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
     [Parallelizable]
     [MemoryDiagnoser]
     [Orderer(SummaryOrderPolicy.FastestToSlowest)]
+    [GroupBenchmarksBy(BenchmarkLogicalGroupRule.ByCategory)]
+    [BenchmarkCategory("uint")]
+    [CategoriesColumn]
     public class DictionaryUIntKeyBenchmark : DictionaryKeyBenchmark<uint>
     {
     }
@@ -68,6 +72,9 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
     [Parallelizable]
     [MemoryDiagnoser]
     [Orderer(SummaryOrderPolicy.FastestToSlowest)]
+    [GroupBenchmarksBy(BenchmarkLogicalGroupRule.ByCategory)]
+    [BenchmarkCategory(nameof(NodeId))]
+    [CategoriesColumn]
     public class DictionaryNodeIdKeyBenchmark : DictionaryKeyBenchmark<NodeId>
     {
         [Params(IdType.Numeric, IdType.String, IdType.Guid, IdType.Opaque, IdType.Opaque + 1)]
@@ -79,7 +86,8 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         /// Tests performance and memory usage of ImmutableDictionary.
         /// </summary>
         [Test]
-        [Benchmark]
+        [BenchmarkCategory("TryGet")]
+        [Benchmark()]
         public void TestNodeIdDictionary()
         {
             foreach (NodeId key in m_lookup)
@@ -125,18 +133,6 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
     }
 
     /// <summary>
-    /// Performance tests for ExpandedNodeId key dictionaries.
-    /// </summary>
-    [TestFixture, Category("Dictionary")]
-    [SetCulture("en-us"), SetUICulture("en-us")]
-    [Parallelizable]
-    [MemoryDiagnoser]
-    [Orderer(SummaryOrderPolicy.FastestToSlowest)]
-    public class DictionaryExpandedNodeIdKeyBenchmark : DictionaryKeyBenchmark<ExpandedNodeId>
-    {
-    }
-
-    /// <summary>
     /// Performance tests for T key dictionaries. Abstract to exclude from tests.
     /// </summary>
     public abstract class DictionaryKeyBenchmark<T>
@@ -157,6 +153,14 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
 #if NET8_0_OR_GREATER
         private FrozenDictionary<T, DataValue> m_frozenDictionary = null;
 #endif
+
+        // worker dictionaries for add/remove
+        private Dictionary<T, DataValue> m_regularWorker = null;
+        private ConcurrentDictionary<T, DataValue> m_concurrentWorker = null;
+        private SortedDictionary<T, DataValue> m_sortedWorker = null;
+
+        // synchronization
+        private object m_lock;
 
         #region Test Setup
         [OneTimeSetUp]
@@ -190,11 +194,13 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         }
         #endregion
 
+        #region TryGetValue
         /// <summary>
         /// Tests performance and memory usage of ImmutableDictionary.
         /// </summary>
         [Test]
-        [Benchmark]
+        [Benchmark(Description = "Immutable")]
+        [BenchmarkCategory("TryGet")]
         public void TestImmutableDictionary()
         {
             foreach (T key in m_lookup)
@@ -207,7 +213,8 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         /// Tests performance and memory usage of SortedDictionary.
         /// </summary>
         [Test]
-        [Benchmark]
+        [Benchmark(Description = "Concurrent")]
+        [BenchmarkCategory("TryGet")]
         public void TestConcurrentDictionary()
         {
             foreach (T key in m_lookup)
@@ -221,6 +228,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         /// </summary>
         [Test]
         [Benchmark]
+        [BenchmarkCategory("TryGet")]
         public void TestSortedDictionary()
         {
             foreach (T key in m_lookup)
@@ -233,7 +241,8 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         /// Tests performance and memory usage of ReadonlyDictionary.
         /// </summary>
         [Test]
-        [Benchmark]
+        [Benchmark(Description = "Readonly")]
+        [BenchmarkCategory("TryGet")]
         public void TestReadonlyDictionary()
         {
             foreach (T key in m_lookup)
@@ -246,7 +255,8 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         /// Tests performance and memory usage of Dictionary.
         /// </summary>
         [Test]
-        [Benchmark(Baseline = true)]
+        [Benchmark(Description = "Regular", Baseline = true)]
+        [BenchmarkCategory("TryGet")]
         public void TestRegularDictionary()
         {
             foreach (T key in m_lookup)
@@ -259,7 +269,8 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         /// Tests performance and memory usage of FrozenDictionary.
         /// </summary>
         [Test]
-        [Benchmark]
+        [Benchmark(Description = "Frozen")]
+        [BenchmarkCategory("TryGet")]
         public void TestFrozenDictionary()
         {
 #if NET8_0_OR_GREATER
@@ -271,7 +282,271 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             TestRegularDictionary();
 #endif
         }
+        #endregion
 
+        #region RemoveValue
+        [IterationSetup(Target = nameof(TryRemoveConcurrentDictionary))]
+        public void PrepareTryRemoveConcurrentDictionary()
+        {
+            m_concurrentWorker = new ConcurrentDictionary<T, DataValue>(m_regularDictionary);
+        }
+
+        [Test]
+        [Benchmark(Description = "Concurrent")]
+        [BenchmarkCategory("Remove")]
+        public void TryRemoveConcurrentDictionary()
+        {
+            foreach (T key in m_lookup)
+            {
+                _ = m_concurrentWorker.TryRemove(key, out _);
+            }
+        }
+
+        [IterationSetup(Target = nameof(TryRemoveSortedDictionary))]
+        public void PrepareTryRemoveSortedDictionary()
+        {
+            m_sortedWorker = new SortedDictionary<T, DataValue>(m_regularDictionary);
+        }
+
+        [Test]
+        [Benchmark]
+        [BenchmarkCategory("Remove")]
+        public void TryRemoveSortedDictionary()
+        {
+            foreach (T key in m_lookup)
+            {
+                lock (m_lock)
+                {
+                    _ = m_sortedWorker.Remove(key);
+                }
+            }
+        }
+
+        [IterationSetup(Target = nameof(TryRemoveRegularDictionary))]
+        public void PrepareTryRemoveDictionary()
+        {
+            m_regularWorker = new Dictionary<T, DataValue>(m_regularDictionary);
+        }
+
+        /// <summary>
+        /// Tests performance and memory usage of Dictionary.
+        /// </summary>
+        [Test]
+        [Benchmark(Description = "Regular", Baseline = true)]
+        [BenchmarkCategory("Remove")]
+        public void TryRemoveRegularDictionary()
+        {
+            foreach (T key in m_lookup)
+            {
+                lock (m_lock)
+                {
+                    _ = m_regularWorker.Remove(key);
+                }
+            }
+        }
+        #endregion
+
+        #region Iterate
+        /// <summary>
+        /// Tests performance and memory usage of ImmutableDictionary.
+        /// </summary>
+        [Test]
+        [Benchmark(Description = "Immutable")]
+        [BenchmarkCategory("Iterate")]
+        public void IterateImmutableDictionary()
+        {
+            foreach (var keyPair in m_immutableDictionary)
+            {
+                _ = keyPair.Key;
+                _ = keyPair.Value;
+            }
+        }
+
+        /// <summary>
+        /// Tests performance and memory usage of SortedDictionary.
+        /// </summary>
+        [Test]
+        [Benchmark(Description = "Concurrent")]
+        [BenchmarkCategory("Iterate")]
+        public void IterateConcurrentDictionary()
+        {
+            foreach (var keyPair in m_concurrentDictionary)
+            {
+                _ = keyPair.Key;
+                _ = keyPair.Value;
+            }
+        }
+
+        /// <summary>
+        /// Tests performance and memory usage of SortedDictionary.
+        /// </summary>
+        [Test]
+        [Benchmark(Description = "ConcurrentToArray")]
+        [BenchmarkCategory("Iterate")]
+        public void IterateToArrayConcurrentDictionary()
+        {
+            foreach (var keyPair in m_concurrentDictionary.ToArray())
+            {
+                _ = keyPair.Key;
+                _ = keyPair.Value;
+            }
+        }
+
+        /// <summary>
+        /// Tests performance and memory usage of SortedDictionary.
+        /// </summary>
+        [Test]
+        [Benchmark]
+        [BenchmarkCategory("Iterate")]
+        public void IterateSortedDictionary()
+        {
+            foreach (var keyPair in m_sortedDictionary)
+            {
+                _ = keyPair.Key;
+                _ = keyPair.Value;
+            }
+        }
+
+        /// <summary>
+        /// Tests performance and memory usage of ReadonlyDictionary.
+        /// </summary>
+        [Test]
+        [Benchmark(Description = "Readonly")]
+        [BenchmarkCategory("Iterate")]
+        public void IterateReadonlyDictionary()
+        {
+            foreach (var keyPair in m_readonlyDictionary)
+            {
+                _ = keyPair.Key;
+                _ = keyPair.Value;
+            }
+        }
+
+        /// <summary>
+        /// Tests performance and memory usage of Dictionary.
+        /// </summary>
+        [Test]
+        [Benchmark(Description = "Regular", Baseline = true)]
+        [BenchmarkCategory("Iterate")]
+        public void IterateRegularDictionary()
+        {
+            foreach (var keyPair in m_regularDictionary)
+            {
+                _ = keyPair.Key;
+                _ = keyPair.Value;
+            }
+        }
+
+        /// <summary>
+        /// Tests performance and memory usage of FrozenDictionary.
+        /// </summary>
+        [Test]
+        [Benchmark(Description = "Frozen")]
+        [BenchmarkCategory("Iterate")]
+        public void IterateFrozenDictionary()
+        {
+#if NET8_0_OR_GREATER
+            foreach (var keyPair in m_frozenDictionary)
+            {
+                _ = keyPair.Key;
+                _ = keyPair.Value;
+            }
+#else
+            IterateRegularDictionary();
+#endif
+        }
+        #endregion
+
+        #region Count
+        public const int CountRepeats = 1000;
+        /// <summary>
+        /// Tests performance and memory usage of ImmutableDictionary.
+        /// </summary>
+        [Test]
+        [Benchmark(Description = "Immutable")]
+        [BenchmarkCategory("Count")]
+        public void CountImmutableDictionary()
+        {
+            for (int i = 0; i < CountRepeats; i++)
+            {
+                _ = m_immutableDictionary.Count;
+            }
+        }
+
+        /// <summary>
+        /// Tests performance and memory usage of ConcurrentDictionary.
+        /// </summary>
+        [Test]
+        [Benchmark(Description = "Concurrent")]
+        [BenchmarkCategory("Count")]
+        public void CountConcurrentDictionary()
+        {
+            for (int i = 0; i < CountRepeats; i++)
+            {
+                _ = m_concurrentDictionary.Count;
+            }
+        }
+
+        /// <summary>
+        /// Tests performance and memory usage of SortedDictionary.
+        /// </summary>
+        [Test]
+        [Benchmark(Description = "Sorted")]
+        [BenchmarkCategory("Count")]
+        public void CountSortedDictionary()
+        {
+            for (int i = 0; i < CountRepeats; i++)
+            {
+                _ = m_sortedDictionary.Count;
+            }
+        }
+
+        /// <summary>
+        /// Tests performance and memory usage of ReadonlyDictionary.
+        /// </summary>
+        [Test]
+        [Benchmark(Description = "Readonly")]
+        [BenchmarkCategory("Count")]
+        public void CountReadonlyDictionary()
+        {
+            for (int i = 0; i < CountRepeats; i++)
+            {
+                _ = m_readonlyDictionary.Count;
+            }
+        }
+
+        /// <summary>
+        /// Tests performance and memory usage of Dictionary.
+        /// </summary>
+        [Test]
+        [Benchmark(Description = "Regular", Baseline = true)]
+        [BenchmarkCategory("Count")]
+        public void CountRegularDictionary()
+        {
+            for (int i = 0; i < CountRepeats; i++)
+            {
+                _ = m_regularDictionary.Count;
+            }
+        }
+
+        /// <summary>
+        /// Tests performance and memory usage of FrozenDictionary.
+        /// </summary>
+        [Test]
+        [Benchmark(Description = "Frozen")]
+        [BenchmarkCategory("Count")]
+        public void CountFrozenDictionary()
+        {
+#if NET8_0_OR_GREATER
+            for (int i = 0; i < CountRepeats; i++)
+            {
+                _ = m_frozenDictionary.Count;
+            }
+#endif
+        }
+        #endregion
+
+        #region Helper Methods
         protected virtual T GetRandomKey(Random random, DataGenerator generator)
         {
             if (typeof(T) == typeof(uint))
@@ -319,6 +594,8 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
 #if NET8_0_OR_GREATER
             m_frozenDictionary = m_regularDictionary.ToFrozenDictionary();
 #endif
+            m_lock = new object();
         }
+        #endregion
     }
 }
