@@ -570,23 +570,26 @@ namespace Opc.Ua.Server
             certificateGroup.TemporaryApplicationCertificate?.Dispose();
             certificateGroup.TemporaryApplicationCertificate = null;
 
+            ICertificatePasswordProvider passwordProvider = m_configuration.SecurityConfiguration.CertificatePasswordProvider;
+            X509Certificate2 certWithPrivateKey = certificateGroup.ApplicationCertificate.LoadPrivateKeyEx(passwordProvider).Result;
+
             if (regeneratePrivateKey)
             {
-                X509Certificate2 newCert = CertificateFactory.CreateCertificate(
+                TimeSpan lifetime = certWithPrivateKey.NotAfter - certWithPrivateKey.NotBefore;
+                ushort keySize = (ushort)(certWithPrivateKey.GetRSAPrivateKey()?.KeySize ?? 0);
+
+                certWithPrivateKey = CertificateFactory.CreateCertificate(
                 m_configuration.ApplicationUri,
                 m_configuration.ApplicationName,
                 certificateGroup.ApplicationCertificate.SubjectName,
                 X509Utils.GetDomainsFromCertificate(certificateGroup.ApplicationCertificate.Certificate))
+                .SetLifeTime(lifetime)
+                .SetRSAKeySize(keySize)
                 .CreateForRSA();
 
-                certificateRequest = CertificateFactory.CreateSigningRequest(newCert, X509Utils.GetDomainsFromCertificate(newCert));
-
-                certificateGroup.TemporaryApplicationCertificate = newCert;
-                return ServiceResult.Good;
+                certificateGroup.TemporaryApplicationCertificate = certWithPrivateKey;
             }
 
-            var passwordProvider = m_configuration.SecurityConfiguration.CertificatePasswordProvider;
-            X509Certificate2 certWithPrivateKey = certificateGroup.ApplicationCertificate.LoadPrivateKeyEx(passwordProvider).Result;
             Utils.LogCertificate(Utils.TraceMasks.Security, "Create signing request: ", certWithPrivateKey);
             certificateRequest = CertificateFactory.CreateSigningRequest(certWithPrivateKey, X509Utils.GetDomainsFromCertificate(certWithPrivateKey));
             return ServiceResult.Good;
