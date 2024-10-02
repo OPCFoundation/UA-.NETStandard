@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Runtime.ExceptionServices;
 using System.Runtime.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
@@ -313,27 +314,53 @@ namespace Opc.Ua.Client
             // read value.
             DataValueCollection values;
             DiagnosticInfoCollection diagnosticInfos;
-
-            ResponseHeader responseHeader = m_session.Read(
-                null,
-                0,
-                TimestampsToReturn.Neither,
-                itemsToRead,
-                out values,
-                out diagnosticInfos);
-
-            ClientBase.ValidateResponse(values, itemsToRead);
-            ClientBase.ValidateDiagnosticInfos(diagnosticInfos, itemsToRead);
-
-            // check for error.
-            if (StatusCode.IsBad(values[0].StatusCode))
+            try
             {
-                ServiceResult result = ClientBase.GetResult(values[0].StatusCode, 0, diagnosticInfos, responseHeader);
-                throw new ServiceResultException(result);
+                ResponseHeader responseHeader = m_session.Read(
+                    null,
+                    0,
+                    TimestampsToReturn.Neither,
+                    itemsToRead,
+                    out values,
+                    out diagnosticInfos);
+
+                ClientBase.ValidateResponse(values, itemsToRead);
+                ClientBase.ValidateDiagnosticInfos(diagnosticInfos, itemsToRead);
+
+                // check for error.
+                if (StatusCode.IsBad(values[0].StatusCode))
+                {
+                    ServiceResult result = ClientBase.GetResult(values[0].StatusCode, 0, diagnosticInfos, responseHeader);
+                    throw new ServiceResultException(result);
+                }
+
+                // return as a byte array.
+                return values[0].Value as byte[];
+                
+            }
+            catch (ServiceResultException ex)
+            {
+                if (ex.StatusCode != StatusCodes.BadEncodingLimitsExceeded)
+                {
+                    throw;
+                }
+                else
+                {
+                    try
+                    {
+                        byte[] dictionary = m_session.ReadByteStringInChunks(dictionaryId);
+                        return dictionary;
+                    }
+                    catch
+                    {
+                        ExceptionDispatchInfo.Capture(ex).Throw();
+                        throw;
+                    }
+
+                }
             }
 
-            // return as a byte array.
-            return values[0].Value as byte[];
+            
         }
 
         /// <summary>

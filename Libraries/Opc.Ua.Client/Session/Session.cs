@@ -914,6 +914,16 @@ namespace Opc.Ua.Client
             set => m_serverMaxContinuationPointsPerBrowse = value;
         }
 
+        /// <summary>
+        /// Read from the Server capability MaxByteStringLength when the Operation Limits are fetched
+        /// </summary>
+        public uint ServerMaxByteStringLength
+        {
+            get => m_serverMaxByteStringLength;
+            set => m_serverMaxByteStringLength = value;
+        }
+
+
         /// <inheritdoc/>
         public ContinuationPointPolicy ContinuationPointPolicy
         {
@@ -1651,6 +1661,10 @@ namespace Opc.Ua.Client
                 nodeIds.Add(VariableIds.Server_ServerCapabilities_MaxBrowseContinuationPoints);
                 int maxBrowseContinuationPointIndex = nodeIds.Count - 1;
 
+                // add the server transport quota MaxByteStringLength.
+                nodeIds.Add(VariableIds.Server_ServerCapabilities_MaxByteStringLength);
+                int maxByteStringLengthIndex = nodeIds.Count - 1;
+
                 ReadValues(nodeIds, Enumerable.Repeat(typeof(uint), nodeIds.Count).ToList(), out var values, out var errors);
 
                 var configOperationLimits = m_configuration?.ClientConfiguration?.OperationLimits ?? new OperationLimits();
@@ -1678,6 +1692,11 @@ namespace Opc.Ua.Client
                     && ServiceResult.IsNotBad(errors[maxBrowseContinuationPointIndex]))
                 {
                     ServerMaxContinuationPointsPerBrowse = (UInt16)values[maxBrowseContinuationPointIndex];
+                }
+                if (values[maxByteStringLengthIndex] != null
+                    && ServiceResult.IsNotBad(errors[maxByteStringLengthIndex]))
+                {
+                    ServerMaxByteStringLength = (UInt32)values[maxByteStringLengthIndex];
                 }
 
             }
@@ -2890,6 +2909,76 @@ namespace Opc.Ua.Client
                 // suitable value found.
                 values[ii] = value;
             }
+        }
+
+        /// <inheritdoc/>
+        public byte[] ReadByteStringInChunks(NodeId nodeId)
+        {
+            if(ServerMaxByteStringLength <= 1)
+            {
+                throw new ServiceResultException(StatusCodes.BadIndexRangeNoData, "Server side MaxByteStringLength is not known or too small for reading data in chunks.");
+            }
+            int offset = 0;
+            List<byte[]> bytes = new List<byte[]>();
+
+            while(true)
+            {
+                ReadValueId valueToRead = new ReadValueId {
+                    NodeId = nodeId,
+                    AttributeId = Attributes.Value,
+                    IndexRange = new NumericRange(offset, offset + (int)ServerMaxByteStringLength - 1).ToString(),
+                    DataEncoding = null
+                };
+                ReadValueIdCollection readValueIds = new ReadValueIdCollection { valueToRead };
+
+                ResponseHeader responseHeader = Read(
+                    null,
+                    0,
+                    TimestampsToReturn.Neither,
+                    readValueIds,
+                    out DataValueCollection results,
+                    out DiagnosticInfoCollection diagnosticInfos);
+
+                ClientBase.ValidateResponse(results, readValueIds);
+                ClientBase.ValidateDiagnosticInfos(diagnosticInfos, readValueIds);
+
+                if(offset == 0)
+                {
+                    Variant wrappedValue = results[0].WrappedValue;
+                    if(wrappedValue.TypeInfo.BuiltInType != BuiltInType.ByteString ||
+                        wrappedValue.TypeInfo.ValueRank != ValueRanks.Scalar)
+                    {
+                        throw new ServiceResultException(StatusCodes.BadTypeMismatch, "Value is not a ByteString scalar.");
+                    }
+                }
+
+                if (StatusCode.IsBad(results[0].StatusCode))
+                {
+                    if (results[0].StatusCode == StatusCodes.BadIndexRangeNoData)
+                    {
+                        // this happens when the previous read has fetched all remaining data
+                        break;
+                    }
+                    ServiceResult serviceResult = ClientBase.GetResult(results[0].StatusCode, 0, diagnosticInfos, responseHeader);
+                    throw new ServiceResultException(serviceResult);
+                }
+
+                byte[] chunk = results[0].Value as byte[];
+                if(chunk.Length == 0)
+                {                    
+                    break;
+                }
+
+                bytes.Add(chunk);
+
+                if(chunk.Length < ServerMaxByteStringLength)
+                {
+                    break;
+                }
+                offset += (int) ServerMaxByteStringLength;
+            }
+
+            return bytes.SelectMany(a => a).ToArray();
         }
 
         /// <inheritdoc/>
@@ -6455,6 +6544,7 @@ namespace Opc.Ua.Client
         private readonly EndpointDescriptionCollection m_discoveryServerEndpoints;
         private readonly StringCollection m_discoveryProfileUris;
         private uint m_serverMaxContinuationPointsPerBrowse = 0;
+        private uint m_serverMaxByteStringLength = 0;
         private ContinuationPointPolicy m_continuationPointPolicy
             = ContinuationPointPolicy.Default;
 
