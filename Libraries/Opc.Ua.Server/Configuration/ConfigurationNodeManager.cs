@@ -575,17 +575,17 @@ namespace Opc.Ua.Server
 
             if (regeneratePrivateKey)
             {
-                TimeSpan lifetime = certWithPrivateKey.NotAfter - certWithPrivateKey.NotBefore;
-                ushort keySize = (ushort)(certWithPrivateKey.GetRSAPrivateKey()?.KeySize ?? 0);
+                ushort keySize = (ushort)(certWithPrivateKey.GetRSAPublicKey()?.KeySize ?? 0);
 
                 certWithPrivateKey = CertificateFactory.CreateCertificate(
-                m_configuration.ApplicationUri,
-                m_configuration.ApplicationName,
-                certificateGroup.ApplicationCertificate.SubjectName,
-                X509Utils.GetDomainsFromCertificate(certificateGroup.ApplicationCertificate.Certificate))
-                .SetLifeTime(lifetime)
-                .SetRSAKeySize(keySize)
-                .CreateForRSA();
+                    m_configuration.ApplicationUri,
+                    null,
+                    certificateGroup.ApplicationCertificate.SubjectName,
+                    null)
+                    .SetNotBefore(DateTime.Today.AddDays(-1))
+                    .SetNotAfter(DateTime.Today.AddDays(14))
+                    .SetRSAKeySize(keySize)
+                    .CreateForRSA();
 
                 certificateGroup.TemporaryApplicationCertificate = certWithPrivateKey;
             }
