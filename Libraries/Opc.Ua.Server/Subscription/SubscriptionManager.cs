@@ -1156,10 +1156,9 @@ namespace Opc.Ua.Server
 
                 result = subscription.SetSubscriptionDurable(requestedLifeTimeCount);
 
-                // Archie - Pretty sure this is not needed.  Spec does not say anything about recalculating
-                // based off the keepalive, and specifies that if the client wants something different,
-                // client should do the calculations.
-                // Demo server follows the above logic.
+                // Archie - This is not needed.  After discussion with Paul Hunkar, the spec is deliberately quiet
+                // on this.  It is not expected to respect the KeepAlive * 3, nor to recalculate the
+                // revisedLifetimeInHours, as this is an extreme edge case.
 
                 //uint minimimumLifetimeCount = subscription.Diagnostics.MaxKeepAliveCount * 3;
 
