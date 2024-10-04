@@ -122,12 +122,13 @@ namespace Opc.Ua.Client.Tests
             X509Certificate2 serverCertificate,
             NodeId authenticationToken,
             byte[] clientNonce,
-            byte[] serverNonce,
+            Nonce serverNonce,
             string sessionName,
             ApplicationDescription
             clientDescription,
             string endpointUrl,
             X509Certificate2 clientCertificate,
+            X509Certificate2Collection clientCertificateChain,
             double sessionTimeout,
             uint maxResponseMessageSize,
             double maxRequestAge,
@@ -144,6 +145,7 @@ namespace Opc.Ua.Client.Tests
                     clientDescription,
                     endpointUrl,
                     clientCertificate,
+                    clientCertificateChain,
                     sessionTimeout,
                     maxResponseMessageSize,
                     maxRequestAge,
@@ -179,15 +181,14 @@ namespace Opc.Ua.Client.Tests
             X509Certificate2 serverCertificate,
             NodeId sessionCookie,
             byte[] clientNonce,
-            byte[] serverNonce,
+            Nonce serverNonce,
             string sessionName,
             ApplicationDescription clientDescription,
             string endpointUrl,
             X509Certificate2 clientCertificate,
+            X509Certificate2Collection clientCertificateChain,
             double sessionTimeout,
-            uint maxResponseMessageSize,
-            int maxRequestAge, // TBD - Remove unused parameter.
-            int maxContinuationPoints) // TBD - Remove unused parameter.
+            uint maxResponseMessageSize)
         {
             ServerSessionForTest session = new ServerSessionForTest(
                 context,
@@ -200,6 +201,7 @@ namespace Opc.Ua.Client.Tests
                 clientDescription,
                 endpointUrl,
                 clientCertificate,
+                clientCertificateChain,
                 sessionTimeout,
                 maxResponseMessageSize,
                 m_4TestMaxRequestAge,

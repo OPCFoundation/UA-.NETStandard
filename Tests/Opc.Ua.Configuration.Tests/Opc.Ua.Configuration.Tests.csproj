@@ -5,8 +5,21 @@
     <TargetFrameworks>$(TestsTargetFrameworks)</TargetFrameworks>
     <RootNamespace>Opc.Ua.Configuration.Tests</RootNamespace>
     <GenerateProgramFile>false</GenerateProgramFile>
+    <NoWarn>CS0618</NoWarn>
   </PropertyGroup>
 
+  <Choose>
+    <When Condition="'$(TargetFramework)' == 'net462'">
+    </When>
+    <When Condition="'$(TargetFramework)' == 'netcoreapp2.1'">
+    </When>
+    <Otherwise>
+      <PropertyGroup Condition="'$(DisableECCTests)' != 'true'">
+        <DefineConstants>$(DefineConstants);ECC_SUPPORT</DefineConstants>
+      </PropertyGroup>
+    </Otherwise>
+  </Choose>
+  
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />

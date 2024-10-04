@@ -101,6 +101,16 @@ namespace Opc.Ua.Client.Tests
         }
         #endregion
 
+        /// <summary>
+        /// GetEndpoints on the discovery channel,
+        /// the oversized message can pass because security None is enabled.
+        /// </summary>
+        [Test, Order(105)]
+        public void GetEndpointsOnDiscoveryChannel()
+        {
+            _clientTest.GetEndpointsOnDiscoveryChannel(true);
+        }
+
         [Test, Order(230)]
         public Task ReconnectJWTSecurityNone()
         {

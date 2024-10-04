@@ -122,6 +122,31 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Returns the size of the public key of a given certificate
+        /// </summary>
+        /// <param name="certificate">The certificate</param>
+        public static int GetPublicKeySize(X509Certificate2 certificate)
+        {
+            using (RSA rsaPublicKey = certificate.GetRSAPublicKey())
+            {
+                if (rsaPublicKey != null)
+                {
+                    return rsaPublicKey.KeySize;
+                }
+            }
+
+            using (ECDsa ecdsaPublicKey = certificate.GetECDsaPublicKey())
+            {
+                if (ecdsaPublicKey != null)
+                {
+                    return ecdsaPublicKey.KeySize;
+                }
+            }
+
+            return -1;
+        }
+
+        /// <summary>
         /// Extracts the application URI specified in the certificate.
         /// </summary>
         /// <param name="certificate">The certificate.</param>
@@ -467,6 +492,50 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Return if a certificate has a ECDsa signature.
+        /// </summary>
+        /// <param name="cert">The certificate to test.</param>
+        public static bool IsECDsaSignature(X509Certificate2 cert)
+        {
+            return X509PfxUtils.IsECDsaSignature(cert);
+        }
+
+        /// <summary>
+        /// Return a qualifier string if a ECDsa signature algorithm used.
+        /// </summary>
+        /// <param name="certificate">The certificate.</param>
+        public static string GetECDsaQualifier(X509Certificate2 certificate)
+        {
+            return EccUtils.GetECDsaQualifier(certificate);
+        }
+
+        /// <summary>
+        /// Verify RSA key pair of two certificates.
+        /// </summary>
+        public static bool VerifyKeyPair(
+            X509Certificate2 certWithPublicKey,
+            X509Certificate2 certWithPrivateKey,
+            bool throwOnError = false)
+        {
+            return X509PfxUtils.VerifyKeyPair(certWithPublicKey, certWithPrivateKey, throwOnError);
+        }
+
+        /// <summary>
+        /// Verify ECDsa key pair of two certificates.
+        /// </summary>
+        public static bool VerifyECDsaKeyPair(
+            X509Certificate2 certWithPublicKey,
+            X509Certificate2 certWithPrivateKey,
+            bool throwOnError = false)
+        {
+#if ECC_SUPPORT  
+            return X509PfxUtils.VerifyECDsaKeyPair(certWithPublicKey, certWithPrivateKey, throwOnError);
+#else
+            throw new NotSupportedException();
+#endif
+        }
+
+        /// <summary>
         /// Verify RSA key pair of two certificates.
         /// </summary>
         public static bool VerifyRSAKeyPair(
@@ -733,7 +802,7 @@ namespace Opc.Ua
         internal static string GeneratePasscode()
         {
             const int kLength = 18;
-            byte[] tokenBuffer = Utils.Nonce.CreateNonce(kLength);
+            byte[] tokenBuffer = Nonce.CreateRandomNonceData(kLength);
             return Convert.ToBase64String(tokenBuffer);
         }
 

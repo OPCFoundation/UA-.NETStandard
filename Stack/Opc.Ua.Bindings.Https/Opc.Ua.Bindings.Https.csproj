@@ -20,6 +20,17 @@
   </PropertyGroup>
 
   <Choose>
+    <!-- select ECC support -->
+    <When Condition="'$(TargetFramework)' == 'net462' OR '$(TargetFramework)' == 'netstandard2.0' OR '$(TargetFramework)' == 'netcoreapp2.1'">
+    </When>
+    <Otherwise>
+      <PropertyGroup>
+        <DefineConstants>$(DefineConstants);ECC_SUPPORT</DefineConstants>
+      </PropertyGroup>
+    </Otherwise>
+  </Choose>
+
+  <Choose>
     <When Condition="'$(TargetFramework)' == 'net462' OR '$(TargetFramework)' == 'net472' OR '$(TargetFramework)' == 'net48' OR '$(TargetFramework)' == 'netstandard2.0' OR '$(TargetFramework)' == 'netstandard2.1'">
       <ItemGroup>
         <PackageReference Include="Microsoft.AspNetCore.Server.Kestrel" Version="2.1.3" />
