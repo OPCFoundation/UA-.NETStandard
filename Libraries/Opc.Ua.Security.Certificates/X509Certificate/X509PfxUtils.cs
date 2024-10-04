@@ -64,7 +64,7 @@ namespace Opc.Ua.Security.Certificates
         }
 
         /// <summary>
-        /// Verify RSA key pair of two certificates.
+        /// Verify key pair of two certificates.
         /// </summary>
         public static bool VerifyKeyPair(
             X509Certificate2 certWithPublicKey,

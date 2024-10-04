@@ -901,11 +901,12 @@ namespace Opc.Ua.Bindings
                 {
                     if (SecurityMode == MessageSecurityMode.SignAndEncrypt)
                     {
-                        SymmetricEncryptWithChaCha20Poly1305(token, m_localSequenceNumber, dataToEncrypt, useClientKeys);
+                        // narowing conversion can safely be done on m_localSequenceNumber
+                        SymmetricEncryptWithChaCha20Poly1305(token, (uint)m_localSequenceNumber, dataToEncrypt, useClientKeys);
                         break;
                     }
-
-                    SymmetricSignWithPoly1305(token, m_localSequenceNumber, dataToEncrypt, useClientKeys);
+                    // narowing conversion can safely be done on m_localSequenceNumber
+                    SymmetricSignWithPoly1305(token, (uint)m_localSequenceNumber, dataToEncrypt, useClientKeys);
                     break;
                 }
 #endif

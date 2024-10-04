@@ -250,44 +250,40 @@ namespace Opc.Ua.Bindings
         /// </summary>
 	    protected uint GetNewSequenceNumber()
         {
-            long origValue = 0;
-            long updatedSeqNumber = 0;
-            do
+            bool isLegacy = !EccUtils.IsEccPolicy(SecurityPolicyUri);
+
+            long newSeqNumber = Interlocked.Increment(ref m_sequenceNumber);
+            bool maxValueOverflow = isLegacy ? newSeqNumber > kMaxValueLegacyTrue : newSeqNumber > kMaxValueLegacyFalse;
+
+            // LegacySequenceNumbers are TRUE for non ECC profiles
+            // https://reference.opcfoundation.org/Core/Part6/v105/docs/6.7.2.4
+            if (isLegacy)
             {
-                origValue = updatedSeqNumber = Interlocked.Read(ref m_sequenceNumber);
-                // LegacySequenceNumbers are TRUE for non ECC profiles
-                // https://reference.opcfoundation.org/Core/Part6/v105/docs/6.7.2.4
-                if (!EccUtils.IsEccPolicy(SecurityPolicyUri))
+                if (maxValueOverflow)
                 {
                     // First number after wrap around shall be less than 1024
                     // 1 for legaccy reasons
-                    if ((origValue == kMaxValueLegacyTrue) || (origValue == -1))
-                    {
-                        updatedSeqNumber = 0;
-                    }
-                    updatedSeqNumber++;
+                    Interlocked.Exchange(ref m_sequenceNumber, 1);
+                    return 1;
                 }
-                else
+                return (uint)newSeqNumber;
+            }
+            else
+            {
+                uint retVal = (uint)newSeqNumber - 1;
+                if (maxValueOverflow)
                 {
                     // First number after wrap around and as initial value shall be 0
-                    if ((origValue == kMaxValueLegacyFalse) || (origValue == -1))
-                    {
-                        updatedSeqNumber = 0;
-                        m_localSequenceNumber = 0;
-                    }
-                    else
-                    {
-                        updatedSeqNumber++;
-                        m_localSequenceNumber = (uint)updatedSeqNumber;
-                    }
+                    Interlocked.Exchange(ref m_sequenceNumber, 0);
+                    Interlocked.Exchange(ref m_localSequenceNumber, 0);
+                    return retVal;
                 }
-                if (Interlocked.CompareExchange(ref m_sequenceNumber, updatedSeqNumber, origValue) == origValue)
-                {
-                    return (uint)updatedSeqNumber;
-                }
-            }while (true);
+                Interlocked.Exchange(ref m_localSequenceNumber, retVal);
+                return retVal;
+            }
         }
-
+    
+    
         /// <summary>
         /// Resets the sequence number after a connect.
         /// </summary>
@@ -958,8 +954,8 @@ namespace Opc.Ua.Bindings
         private int m_state;
         private uint m_channelId;
         private string m_globalChannelId;
-        private long m_sequenceNumber = -1;
-        private uint m_localSequenceNumber;
+        private long m_sequenceNumber;
+        private long m_localSequenceNumber;
         private uint m_remoteSequenceNumber;
         private bool m_sequenceRollover;
         private bool m_firstReceivedSequenceNumber = true;
