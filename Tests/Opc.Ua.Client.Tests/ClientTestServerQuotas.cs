@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading;
@@ -59,13 +60,6 @@ namespace Opc.Ua.Client.Tests
         {
         }
 
-        #region DataPointSources
-        public static readonly NodeId[] DataDictionaries = {
-            new NodeId("i=7617"),
-            new NodeId("ns=3;i=3518")
-        };
-        #endregion
-
         #region Test Setup
         /// <summary>
         /// Set up a Server and a Client instance.
@@ -74,7 +68,7 @@ namespace Opc.Ua.Client.Tests
         public new Task OneTimeSetUp()
         {
             SupportsExternalServerUrl = true;
-            return base.OneTimeSetUpAsync(null, true, false, false, false);
+            return base.OneTimeSetUpAsync();
         }
 
         /// <summary>
@@ -159,51 +153,58 @@ namespace Opc.Ua.Client.Tests
 
         #region Test Methods
 
-        [Test, Order(100)]
-        [TestCaseSource(nameof(DataDictionaries))]
-        public void ReadDictionaryByteString(NodeId dataDictionaryId)
+        [Test, Order(100)]        
+        public void ReadDictionaryByteString()
         {
+            List<NodeId> dictionaryIds = new List<NodeId>();
+            dictionaryIds.Add(VariableIds.OpcUa_BinarySchema);
+            dictionaryIds.Add(GetTestDataDictionaryNodeId());
+
             Session theSession = ((Session)(((TraceableSession)Session).Session));
-            ReferenceDescription referenceDescription = new ReferenceDescription();
 
-            referenceDescription.NodeId = NodeId.ToExpandedNodeId(dataDictionaryId, theSession.NodeCache.NamespaceUris);
+            foreach (NodeId dataDictionaryId in dictionaryIds)
+            {
+                ReferenceDescription referenceDescription = new ReferenceDescription();
 
-            // make sure the dictionary is too large to fit in a single message
-            ReadValueId readValueId = new ReadValueId {
-                NodeId = dataDictionaryId,
-                AttributeId = Attributes.Value,
-                IndexRange = null,
-                DataEncoding = null
-            };
+                referenceDescription.NodeId = NodeId.ToExpandedNodeId(dataDictionaryId, theSession.NodeCache.NamespaceUris);
 
-            ReadValueIdCollection nodesToRead = new ReadValueIdCollection {
+                // make sure the dictionary is too large to fit in a single message
+                ReadValueId readValueId = new ReadValueId {
+                    NodeId = dataDictionaryId,
+                    AttributeId = Attributes.Value,
+                    IndexRange = null,
+                    DataEncoding = null
+                };
+
+                ReadValueIdCollection nodesToRead = new ReadValueIdCollection {
                 readValueId
             };
 
-            var x = Assert.Throws<ServiceResultException>(() => {
-                theSession.Read(null, 0, TimestampsToReturn.Neither, nodesToRead, out DataValueCollection results, out DiagnosticInfoCollection diagnosticInfos);
-            });
+                var x = Assert.Throws<ServiceResultException>(() => {
+                    theSession.Read(null, 0, TimestampsToReturn.Neither, nodesToRead, out DataValueCollection results, out DiagnosticInfoCollection diagnosticInfos);
+                });
 
-            Assert.AreEqual(StatusCodes.BadEncodingLimitsExceeded, x.StatusCode);
+                Assert.AreEqual(StatusCodes.BadEncodingLimitsExceeded, x.StatusCode);
 
-            // now ensure we get the dictionary in chunks
-            DataDictionary dictionary = theSession.LoadDataDictionary(referenceDescription);
-            Assert.IsNotNull(dictionary);
+                // now ensure we get the dictionary in chunks
+                DataDictionary dictionary = theSession.LoadDataDictionary(referenceDescription);
+                Assert.IsNotNull(dictionary);
 
-            // Sanity checks: verify that some well-known information is present
-            Assert.AreEqual(dictionary.TypeSystemName, "OPC Binary");
+                // Sanity checks: verify that some well-known information is present
+                Assert.AreEqual(dictionary.TypeSystemName, "OPC Binary");
 
-            if (dataDictionaryId == DataDictionaries[0])
-            {
-                Assert.IsTrue(dictionary.DataTypes.Count > 160);
-                Assert.IsTrue(dictionary.DataTypes.ContainsKey(VariableIds.OpcUa_BinarySchema_Union));
-                Assert.IsTrue(dictionary.DataTypes.ContainsKey(VariableIds.OpcUa_BinarySchema_OptionSet));
-                Assert.AreEqual("http://opcfoundation.org/UA/", dictionary.TypeDictionary.TargetNamespace);
-            }
-            else if (dataDictionaryId == DataDictionaries[1])
-            {
-                Assert.IsTrue(dictionary.DataTypes.Count >= 10);
-                Assert.AreEqual("http://test.org/UA/Data/", dictionary.TypeDictionary.TargetNamespace);
+                if (dataDictionaryId == dictionaryIds[0])
+                {
+                    Assert.IsTrue(dictionary.DataTypes.Count > 160);
+                    Assert.IsTrue(dictionary.DataTypes.ContainsKey(VariableIds.OpcUa_BinarySchema_Union));
+                    Assert.IsTrue(dictionary.DataTypes.ContainsKey(VariableIds.OpcUa_BinarySchema_OptionSet));
+                    Assert.AreEqual("http://opcfoundation.org/UA/", dictionary.TypeDictionary.TargetNamespace);
+                }
+                else if (dataDictionaryId == dictionaryIds[1])
+                {
+                    Assert.IsTrue(dictionary.DataTypes.Count >= 10);
+                    Assert.AreEqual("http://test.org/UA/Data/", dictionary.TypeDictionary.TargetNamespace);
+                }
             }
         }
 
@@ -211,9 +212,11 @@ namespace Opc.Ua.Client.Tests
         [Test, Order(200)]
         public void TestBoundaryCaseForReadingChunks()
         {
-            NodeId NodeId = new NodeId("ns=2;s=Scalar_Static_ByteString");
 
             Session theSession = ((Session)(((TraceableSession)Session).Session));
+
+            int NamespaceIndex = theSession.NamespaceUris.GetIndex("http://opcfoundation.org/Quickstarts/ReferenceServer");
+            NodeId NodeId = new NodeId($"ns={NamespaceIndex};s=Scalar_Static_ByteString");
 
             Random random = new Random();
 
@@ -240,7 +243,39 @@ namespace Opc.Ua.Client.Tests
 
             Assert.IsTrue(Utils.IsEqual(chunk, readData));
         }
-        #endregion // Test Methods 
+        #endregion // Test Methods
+        #region // helper methods
+
+        /// <summary>
+        /// retrieve the node id of the test data dictionary without relying on
+        /// hard coded identifiers
+        /// </summary>
+        /// <returns></returns>
+        public NodeId GetTestDataDictionaryNodeId()
+        {
+            BrowseDescription browseDescription = new BrowseDescription() {
+                NodeId = ObjectIds.OPCBinarySchema_TypeSystem,
+                BrowseDirection = BrowseDirection.Forward,
+                ReferenceTypeId = ReferenceTypeIds.HasComponent,
+                IncludeSubtypes = true,
+                NodeClassMask = (uint)NodeClass.Variable,
+                ResultMask = (uint) BrowseResultMask.All
+            };
+            BrowseDescriptionCollection browseDescriptions = new BrowseDescriptionCollection() { browseDescription };
+
+            Session.Browse(null, null, 0, browseDescriptions, out BrowseResultCollection results, out DiagnosticInfoCollection diagnosticInfos);
+
+            if (results[0] == null || results[0].StatusCode != StatusCodes.Good)
+            {
+                throw new Exception("cannot read the id of the test dictionary");
+            }
+            ReferenceDescription referenceDescription = results[0].References.FirstOrDefault(a => a.BrowseName.Name == "TestData");
+            NodeId result = ExpandedNodeId.ToNodeId(referenceDescription.NodeId,Session.NamespaceUris);
+            return result;
+
+
+        }
+        #endregion // helper methods
 
     }
 }

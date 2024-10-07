@@ -2914,19 +2914,30 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public byte[] ReadByteStringInChunks(NodeId nodeId)
         {
-            if(ServerMaxByteStringLength <= 1)
+
+            int count = (int)ServerMaxByteStringLength; ;
+
+            int my_MaxByteStringLength = m_configuration.TransportQuotas.MaxByteStringLength;
+            if (my_MaxByteStringLength > 0)
             {
-                throw new ServiceResultException(StatusCodes.BadIndexRangeNoData, "Server side MaxByteStringLength is not known or too small for reading data in chunks.");
+                count = ServerMaxByteStringLength > my_MaxByteStringLength ?
+                    my_MaxByteStringLength : (int)ServerMaxByteStringLength;
             }
+
+            if (count <= 1)
+            {
+                throw new ServiceResultException(StatusCodes.BadIndexRangeNoData, "The MaxByteStringLength is not known or too small for reading data in chunks.");
+            }
+
             int offset = 0;
             List<byte[]> bytes = new List<byte[]>();
 
-            while(true)
+            while (true)
             {
                 ReadValueId valueToRead = new ReadValueId {
                     NodeId = nodeId,
                     AttributeId = Attributes.Value,
-                    IndexRange = new NumericRange(offset, offset + (int)ServerMaxByteStringLength - 1).ToString(),
+                    IndexRange = new NumericRange(offset, offset + count - 1).ToString(),
                     DataEncoding = null
                 };
                 ReadValueIdCollection readValueIds = new ReadValueIdCollection { valueToRead };
@@ -2942,10 +2953,10 @@ namespace Opc.Ua.Client
                 ClientBase.ValidateResponse(results, readValueIds);
                 ClientBase.ValidateDiagnosticInfos(diagnosticInfos, readValueIds);
 
-                if(offset == 0)
+                if (offset == 0)
                 {
                     Variant wrappedValue = results[0].WrappedValue;
-                    if(wrappedValue.TypeInfo.BuiltInType != BuiltInType.ByteString ||
+                    if (wrappedValue.TypeInfo.BuiltInType != BuiltInType.ByteString ||
                         wrappedValue.TypeInfo.ValueRank != ValueRanks.Scalar)
                     {
                         throw new ServiceResultException(StatusCodes.BadTypeMismatch, "Value is not a ByteString scalar.");
@@ -2964,18 +2975,18 @@ namespace Opc.Ua.Client
                 }
 
                 byte[] chunk = results[0].Value as byte[];
-                if(chunk.Length == 0)
-                {                    
+                if (chunk == null || chunk.Length == 0)
+                {
                     break;
                 }
 
                 bytes.Add(chunk);
 
-                if(chunk.Length < ServerMaxByteStringLength)
+                if (chunk.Length < count)
                 {
                     break;
                 }
-                offset += (int) ServerMaxByteStringLength;
+                offset += count;
             }
 
             return bytes.SelectMany(a => a).ToArray();
