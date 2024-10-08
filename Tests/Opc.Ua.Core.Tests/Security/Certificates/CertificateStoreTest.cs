@@ -154,13 +154,13 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.True(appCertificate.HasPrivateKey);
 
             string password = Guid.NewGuid().ToString();
-
             // pki directory root for app cert
             var pkiRoot = Path.GetTempPath() + Path.GetRandomFileName() + Path.DirectorySeparatorChar;
             var storePath = pkiRoot + "own";
+            var certificateStoreIdentifier = new CertificateStoreIdentifier(storePath, false);
             const string storeType = CertificateStoreType.Directory;
             appCertificate.AddToStore(
-                storeType, storePath, password
+                certificateStoreIdentifier, password
                 );
 
             using (var publicKey = new X509Certificate2(appCertificate.RawData))
@@ -201,7 +201,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
                 using (ICertificateStore store = Opc.Ua.CertificateStoreIdentifier.CreateStore(storeType))
                 {
-                    store.Open(storePath);
+                    store.Open(storePath, false);
                     await store.Delete(publicKey.Thumbprint).ConfigureAwait(false);
                 }
             }

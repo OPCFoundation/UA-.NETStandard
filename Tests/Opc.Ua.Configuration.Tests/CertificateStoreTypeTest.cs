@@ -109,8 +109,11 @@ namespace Opc.Ua.Configuration.Tests
 
             int instancesCreatedWhileOpeningAuthRootStore = TestCertStore.InstancesCreated;
             Assert.IsTrue(instancesCreatedWhileLoadingConfig < instancesCreatedWhileOpeningAuthRootStore);
-            CertificateStoreIdentifier.OpenStore(TestCertStore.StoreTypePrefix + trustedUserStorePath);
-            Assert.IsTrue(instancesCreatedWhileOpeningAuthRootStore < TestCertStore.InstancesCreated);
+            var certificateStoreIdentifier = new CertificateStoreIdentifier(TestCertStore.StoreTypePrefix + trustedUserStorePath);
+            using (var store = certificateStoreIdentifier.OpenStore())
+            {
+                Assert.IsTrue(instancesCreatedWhileOpeningAuthRootStore < TestCertStore.InstancesCreated);
+            }
         }
         #endregion Test Methods
 
@@ -187,6 +190,9 @@ namespace Opc.Ua.Configuration.Tests
         public string StorePath => m_innerStore.StorePath;
 
         /// <inheritdoc/>
+        public bool NoPrivateKeys => m_innerStore.NoPrivateKeys;
+
+        /// <inheritdoc/>
         public Task Add(X509Certificate2 certificate, string password = null)
         {
             return m_innerStore.Add(certificate, password);
@@ -240,6 +246,10 @@ namespace Opc.Ua.Configuration.Tests
         /// <inheritdoc/>
         public Task<X509Certificate2> LoadPrivateKey(string thumbprint, string subjectName, string password)
             => m_innerStore.LoadPrivateKey(thumbprint, subjectName, password);
+
+        /// <inheritdoc/>
+        public Task AddRejected(X509Certificate2Collection certificates, int maxCertificates)
+            => m_innerStore.AddRejected(certificates, maxCertificates);
 
         public static int InstancesCreated => s_instancesCreated;
 

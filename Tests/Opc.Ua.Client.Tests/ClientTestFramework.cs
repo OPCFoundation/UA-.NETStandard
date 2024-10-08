@@ -250,12 +250,10 @@ namespace Opc.Ua.Client.Tests
             if (ServerFixture == null)
             {
                 ClientFixture.SetTraceOutput(TestContext.Out);
-                ClientFixture.SetTraceOutputLevel(LogLevel.Trace);
             }
             else
             {
                 ServerFixture.SetTraceOutput(TestContext.Out);
-                ServerFixture.SetTraceOutputLevel(LogLevel.Trace);
             }
         }
 

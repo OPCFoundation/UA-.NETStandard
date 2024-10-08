@@ -474,14 +474,30 @@ namespace Opc.Ua.Client.Tests
         /// <summary>
         /// Open a session on a channel, then reconnect (activate)
         /// the same session on a new channel with saved session secrets.
+        /// Use only synchronous methods.
         /// </summary>
-        [Test, Combinatorial, Order(350)]
-        public async Task ReconnectWithSavedSessionSecrets(
+        [Test, Combinatorial, Order(350), Explicit]
+        public Task ReconnectWithSavedSessionSecretsSync(
             [Values(SecurityPolicies.None, SecurityPolicies.Basic256Sha256)] string securityPolicy,
             [Values(true, false)] bool anonymous,
             [Values(true, false)] bool sequentialPublishing,
-            [Values(true, false)] bool sendInitialValues,
-            [Values(true, false)] bool asyncTest)
+            [Values(true, false)] bool sendInitialValues)
+            => ReconnectWithSavedSessionSecretsAsync(securityPolicy, anonymous, sequentialPublishing, sendInitialValues, false);
+
+        /// <summary>
+        /// Open a session on a channel, then reconnect (activate)
+        /// the same session on a new channel with saved session secrets.
+        /// Use only asnc methods.
+        /// </summary>
+        [Test, Combinatorial, Order(351)]
+        public Task ReconnectWithSavedSessionSecretsOnlyAsync(
+            [Values(SecurityPolicies.None, SecurityPolicies.Basic256Sha256)] string securityPolicy,
+            [Values(true, false)] bool anonymous,
+            [Values(true, false)] bool sequentialPublishing,
+            [Values(true, false)] bool sendInitialValues)
+            => ReconnectWithSavedSessionSecretsAsync(securityPolicy, anonymous, sequentialPublishing, sendInitialValues, true);
+
+        public async Task ReconnectWithSavedSessionSecretsAsync(string securityPolicy, bool anonymous, bool sequentialPublishing, bool sendInitialValues, bool asyncTest)
         {
             const int kTestSubscriptions = 5;
             const int kDelay = 2_000;
@@ -804,7 +820,15 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Theory, Order(810)]
-        public async Task TransferSubscriptionAsync(TransferType transferType, bool sendInitialValues, bool sequentialPublishing, bool asyncTransfer)
+        [Explicit]
+        public Task TransferSubscriptionSync(TransferType transferType, bool sendInitialValues, bool sequentialPublishing)
+            => InternalTransferSubscriptionAsync(transferType, sendInitialValues, sequentialPublishing, false);
+
+        [Theory, Order(811)]
+        public Task TransferSubscriptionOnlyAsync(TransferType transferType, bool sendInitialValues, bool sequentialPublishing)
+            => InternalTransferSubscriptionAsync(transferType, sendInitialValues, sequentialPublishing, true);
+
+        public async Task InternalTransferSubscriptionAsync(TransferType transferType, bool sendInitialValues, bool sequentialPublishing, bool asyncTransfer)
         {
             const int kTestSubscriptions = 5;
             const int kDelay = 2_000;

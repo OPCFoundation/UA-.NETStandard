@@ -108,9 +108,9 @@
         <HttpsTargetFrameworks>net8.0</HttpsTargetFrameworks>
       </PropertyGroup>
     </When>
-    <!-- Note: .NET Core 2.x and 3.x is end of life, removed netcoreapp2.1/3.1 from any target except https. -->
-    <!-- Note: .NET Framework 4.6.2 deprecated for 1.4.372, removed net462 from any target. -->
-    <!-- Visual Studio 2022, supports .NET Framework 4.7.2/4.8, .NET Standard2.1, .NET 6 and .NET 8-->
+    <!-- Note: .NET Core 2.x and 3.x is end of life, removed netcoreapp2.1/3.1 from any target. -->
+    <!-- Note: .NET Framework 4.6.2 deprecated for 1.4.372, removed net462 from any target except complex types. -->
+    <!-- Visual Studio 2022, supports .NET Framework 4.7.2/4.8, .NET Standard2.0/2.1, .NET 6 and .NET 8-->
     <When  Condition="'$(VisualStudioVersion)' == '17.0'">
       <PropertyGroup>
         <AnalysisLevel>preview-all</AnalysisLevel>
@@ -119,8 +119,8 @@
         <TestsTargetFrameworks>net48;net8.0</TestsTargetFrameworks>
         <LibTargetFrameworks>net472;net48;netstandard2.0;netstandard2.1;net6.0;net8.0</LibTargetFrameworks>
         <LibCoreTargetFrameworks>net472;net48;netstandard2.0;netstandard2.1;net6.0;net8.0</LibCoreTargetFrameworks>
-        <LibxTargetFrameworks>net472;net48;netstandard2.1;net6.0;net8.0</LibxTargetFrameworks>
-        <HttpsTargetFrameworks>net472;net48;netcoreapp3.1;net6.0;net8.0</HttpsTargetFrameworks>
+        <LibxTargetFrameworks>net462;net472;net48;netstandard2.1;net6.0;net8.0</LibxTargetFrameworks>
+        <HttpsTargetFrameworks>net472;net48;netstandard2.0;netstandard2.1;net6.0;net8.0</HttpsTargetFrameworks>
       </PropertyGroup>
     </When>
     <!-- Visual Studio 2019, supports .NET Framework 4.8 and .NET Core 3.1 -->

@@ -1261,6 +1261,33 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Escapes a URI string using the percent encoding.
+        /// </summary>
+        public static string EscapeUri(string uri)
+        {
+            if (!String.IsNullOrWhiteSpace(uri))
+            {
+                var builder = new UriBuilder(uri.Replace(";", "%3b"));
+                return builder.Uri.AbsoluteUri;
+            }
+
+            return String.Empty;
+        }
+
+        /// <summary>
+        /// Unescapes a URI string using the percent encoding.
+        /// </summary>
+        public static string UnescapeUri(string uri)
+        {
+            if (!string.IsNullOrWhiteSpace(uri))
+            {
+                return Uri.UnescapeDataString(uri);
+            }
+
+            return String.Empty;
+        }
+
+        /// <summary>
         /// Parses a URI string. Returns null if it is invalid.
         /// </summary>
         public static Uri ParseUri(string uri)
@@ -1504,24 +1531,35 @@ namespace Opc.Ua
                 return String.Empty;
             }
 
-            StringBuilder builder = new StringBuilder(buffer.Length * 2);
-
-            if (invertEndian)
+#if NET6_0_OR_GREATER
+            if (!invertEndian)
             {
-                for (int ii = buffer.Length - 1; ii >= 0; ii--)
-                {
-                    builder.AppendFormat(CultureInfo.InvariantCulture, "{0:X2}", buffer[ii]);
-                }
+                return Convert.ToHexString(buffer);
             }
             else
+#endif
             {
-                for (int ii = 0; ii < buffer.Length; ii++)
-                {
-                    builder.AppendFormat(CultureInfo.InvariantCulture, "{0:X2}", buffer[ii]);
-                }
-            }
+                StringBuilder builder = new StringBuilder(buffer.Length * 2);
 
-            return builder.ToString();
+#if !NET6_0_OR_GREATER
+                if (!invertEndian)
+                {
+                    for (int ii = 0; ii < buffer.Length; ii++)
+                    {
+                        builder.AppendFormat(CultureInfo.InvariantCulture, "{0:X2}", buffer[ii]);
+                    }
+                }
+                else
+#endif
+                {
+                    for (int ii = buffer.Length - 1; ii >= 0; ii--)
+                    {
+                        builder.AppendFormat(CultureInfo.InvariantCulture, "{0:X2}", buffer[ii]);
+                    }
+                }
+
+                return builder.ToString();
+            }
         }
 
         /// <summary>
@@ -1529,6 +1567,9 @@ namespace Opc.Ua
         /// </summary>
         public static byte[] FromHexString(string buffer)
         {
+#if NET6_0_OR_GREATER
+            return Convert.FromHexString(buffer);
+#else
             if (buffer == null)
             {
                 return null;
@@ -1575,6 +1616,7 @@ namespace Opc.Ua
             }
 
             return bytes;
+#endif
         }
 
         /// <summary>
@@ -1724,6 +1766,12 @@ namespace Opc.Ua
 
             // strings are special a reference type that does not need to be copied.
             if (type == typeof(string))
+            {
+                return value;
+            }
+
+            // Guid are special a reference type that does not need to be copied.
+            if (type == typeof(Guid))
             {
                 return value;
             }
@@ -2595,6 +2643,18 @@ namespace Opc.Ua
             return 0;
         }
 
+        private static readonly DateTime kBaseDateTime = new DateTime(2000, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+
+        /// <summary>
+        /// Return the current time in milliseconds since 1/1/2000.
+        /// </summary>
+        /// <returns>The current time in milliseconds since 1/1/2000.</returns>
+        public static uint GetVersionTime()
+        {
+            var ticks = (DateTime.UtcNow - kBaseDateTime).TotalMilliseconds;
+            return (uint)ticks;
+        }
+
         /// <summary>
         /// Returns the linker timestamp for an assembly.
         /// </summary>
@@ -2712,24 +2772,23 @@ namespace Opc.Ua
         /// <summary>
         /// Creates a X509 certificate object from the DER encoded bytes.
         /// </summary>
-        public static X509Certificate2 ParseCertificateBlob(byte[] certificateData)
+        public static X509Certificate2 ParseCertificateBlob(ReadOnlyMemory<byte> certificateData)
         {
-
             // macOS X509Certificate2 constructor throws exception if a certchain is encoded
             // use AsnParser on macOS to parse for byteblobs,
 #if !NETFRAMEWORK
             bool useAsnParser = RuntimeInformation.IsOSPlatform(OSPlatform.OSX);
-#else
-            bool useAsnParser = false;
 #endif
             try
             {
+#if !NETFRAMEWORK
                 if (useAsnParser)
                 {
                     var certBlob = AsnUtils.ParseX509Blob(certificateData);
                     return CertificateFactory.Create(certBlob, true);
                 }
                 else
+#endif
                 {
                     return CertificateFactory.Create(certificateData, true);
                 }
@@ -2748,30 +2807,32 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="certificateData">The certificate data.</param>
         /// <returns></returns>
-        public static X509Certificate2Collection ParseCertificateChainBlob(byte[] certificateData)
+        public static X509Certificate2Collection ParseCertificateChainBlob(ReadOnlyMemory<byte> certificateData)
         {
             X509Certificate2Collection certificateChain = new X509Certificate2Collection();
-            List<byte> certificatesBytes = new List<byte>(certificateData);
+
             // macOS X509Certificate2 constructor throws exception if a certchain is encoded
             // use AsnParser on macOS to parse for byteblobs,
 #if !NETFRAMEWORK
             bool useAsnParser = RuntimeInformation.IsOSPlatform(OSPlatform.OSX);
-#else
-            bool useAsnParser = false;
 #endif
-            while (certificatesBytes.Count > 0)
+            int offset = 0;
+            int length = certificateData.Length;
+            while (offset < length)
             {
                 X509Certificate2 certificate;
                 try
                 {
+#if !NETFRAMEWORK
                     if (useAsnParser)
                     {
-                        var certBlob = AsnUtils.ParseX509Blob(certificatesBytes.ToArray());
+                        var certBlob = AsnUtils.ParseX509Blob(certificateData.Slice(offset));
                         certificate = CertificateFactory.Create(certBlob, true);
                     }
                     else
+#endif
                     {
-                        certificate = CertificateFactory.Create(certificatesBytes.ToArray(), true);
+                        certificate = CertificateFactory.Create(certificateData.Slice(offset), true);
                     }
                 }
                 catch (Exception e)
@@ -2783,7 +2844,7 @@ namespace Opc.Ua
                 }
 
                 certificateChain.Add(certificate);
-                certificatesBytes.RemoveRange(0, certificate.RawData.Length);
+                offset += certificate.RawData.Length;
             }
 
             return certificateChain;

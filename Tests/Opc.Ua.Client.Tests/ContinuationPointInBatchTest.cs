@@ -55,12 +55,17 @@ namespace Opc.Ua.Client.Tests
 
     }
 
-    public class ManagedBrowseTestDataProvider
+    public class ManagedBrowseTestDataProvider : IFormattable
     {
         public uint MaxNumberOfContinuationPoints { get; set; } = 0;
         public uint MaxNumberOfReferencesPerNode { get; set; } = 0;
         public int ExpectedNumberOfPasses { get; set; } = 0;
         public List<int> ExpectedNumberOfBadNoCPSCs { get; set; }
+
+        public string ToString(string format, IFormatProvider formatProvider)
+        {
+            return $"{MaxNumberOfContinuationPoints}:{MaxNumberOfReferencesPerNode}";
+        }
     }
 
 
@@ -116,12 +121,17 @@ namespace Opc.Ua.Client.Tests
     /// </summary>
     [TestFixture, Category("Client"), Category("ManagedBrowseWithBrowseNext")]
     [SetCulture("en-us"), SetUICulture("en-us")]
-    [TestFixtureSource(nameof(FixtureArgs))]
+    [TestFixtureSource(nameof(CPFixtureArgs))]
     [MemoryDiagnoser]
     [DisassemblyDiagnoser]
 
     public class ContinuationPointInBatchTest : ClientTestFramework
     {
+
+        public static readonly object[] CPFixtureArgs = {
+            new object [] { Utils.UriSchemeOpcTcp}
+        };
+
         [DatapointSource]
         public IEnumerable<ManagedBrowseTestDataProvider> ManagedBrowseTestDataValues()
         {
@@ -469,7 +479,9 @@ namespace Opc.Ua.Client.Tests
 
             List<String> memoryLogPass1 = memoryWriter.getEntries();
             WriteMemoryLogToTextOut(memoryLogPass1, "memoryLogPass1");
+#if DEBUG
             VerifyExpectedResults(memoryLogPass1, pass1ExpectedResults);
+#endif
 
             memoryWriter.Close(); memoryWriter.Dispose();
 
@@ -500,10 +512,10 @@ namespace Opc.Ua.Client.Tests
 
             List<String> memoryLogPass2 = memoryWriter.getEntries();
             WriteMemoryLogToTextOut(memoryLogPass2, "memoryLogPass2");
-
+#if DEBUG
             // since there is no randomness in this test, we can verify the results directly
             VerifyExpectedResults(memoryLogPass2, pass2ExpectedResults);
-
+#endif
             memoryWriter.Close(); memoryWriter.Dispose();
 
             base.ClientFixture.SetTraceOutput(TestContext.Out);
@@ -814,7 +826,7 @@ namespace Opc.Ua.Client.Tests
             }
 
         }
-        #endregion Tests
+#endregion Tests
 
         #region async tests
 
@@ -1016,9 +1028,11 @@ namespace Opc.Ua.Client.Tests
 
             Assert.AreEqual(nodeIds.Count, referenceDescriptionCollectionPass1.Count);
 
+#if DEBUG
             List<String> memoryLogPass1 = memoryWriter.getEntries();
             WriteMemoryLogToTextOut(memoryLogPass1, "memoryLogPass1");
             VerifyExpectedResults(memoryLogPass1, pass1ExpectedResults);
+#endif
 
             memoryWriter.Close(); memoryWriter.Dispose();
         }

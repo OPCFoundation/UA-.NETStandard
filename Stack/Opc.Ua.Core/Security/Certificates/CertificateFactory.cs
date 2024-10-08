@@ -55,13 +55,18 @@ namespace Opc.Ua
         /// <param name="encodedData">The encoded data.</param>
         /// <param name="useCache">if set to <c>true</c> the copy of the certificate in the cache is used.</param>
         /// <returns>The certificate.</returns>
-        public static X509Certificate2 Create(byte[] encodedData, bool useCache)
+        public static X509Certificate2 Create(ReadOnlyMemory<byte> encodedData, bool useCache)
         {
+#if NET6_0_OR_GREATER
+            var certificate = new X509Certificate2(encodedData.Span);
+#else
+            var certificate = new X509Certificate2(encodedData.ToArray());
+#endif
             if (useCache)
             {
-                return Load(new X509Certificate2(encodedData), false);
+                return Load(certificate, false);
             }
-            return new X509Certificate2(encodedData);
+            return certificate;
         }
 
         /// <summary>
@@ -114,7 +119,6 @@ namespace Opc.Ua
                 {
                     Utils.LogWarning("Certificate cache has {0} certificates in it.", m_certificates.Count);
                 }
-
             }
             return certificate;
         }
