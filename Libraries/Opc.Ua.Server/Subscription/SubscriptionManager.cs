@@ -1136,61 +1136,21 @@ namespace Opc.Ua.Server
                 return StatusCodes.BadInvalidState;
             }
 
-            bool useArchiesModification = true;
-
-            ServiceResult result;
-
-            if (useArchiesModification)
+            revisedLifetimeInHours = lifetimeInHours;
+            if (revisedLifetimeInHours == 0 || revisedLifetimeInHours > m_maxDurableSubscriptionLifetimeInHours)
             {
-                // Archie's Modification
-                revisedLifetimeInHours = lifetimeInHours;
-                if (revisedLifetimeInHours == 0 || revisedLifetimeInHours > m_maxDurableSubscriptionLifetimeInHours)
-                {
-                    revisedLifetimeInHours = m_maxDurableSubscriptionLifetimeInHours;
-                }
-
-                uint hoursInSeconds = 3_600_000;
-                long lifetimeInSeconds = revisedLifetimeInHours * hoursInSeconds;
-                uint requestedLifeTimeCount = (uint)(lifetimeInSeconds / subscription.PublishingInterval);
-                subscription.Diagnostics.MaxLifetimeCount = requestedLifeTimeCount;
-
-                result = subscription.SetSubscriptionDurable(requestedLifeTimeCount);
-
-                // Archie - This is not needed.  After discussion with Paul Hunkar, the spec is deliberately quiet
-                // on this.  It is not expected to respect the KeepAlive * 3, nor to recalculate the
-                // revisedLifetimeInHours, as this is an extreme edge case.
-
-                //uint minimimumLifetimeCount = subscription.Diagnostics.MaxKeepAliveCount * 3;
-
-                //if ( requestedLifeTimeCount < minimimumLifetimeCount)
-                //{
-                //    requestedLifeTimeCount = minimimumLifetimeCount;
-
-                //    // This is a rediculout case.
-                //    long revisedSeconds = (long)requestedLifeTimeCount * (long)subscription.PublishingInterval;
-                //    revisedLifetimeInHours = (uint)(revisedSeconds / hoursInSeconds);
-                //}
-            }
-            else
-            {
-                // use max server lifetime is requested lifetime is 0
-                if (lifetimeInHours == 0 || lifetimeInHours > m_maxDurableSubscriptionLifetimeInHours)
-                {
-                    //seconds->hours
-                    lifetimeInHours = m_maxDurableSubscriptionLifetimeInHours;
-                }
-
-                uint requestedLifeTimeCount = (uint)(lifetimeInHours * subscription.PublishingInterval / 3_600_000);
-
-                // calculate the revised lifetime count.
-                uint revisedLifetimeCount = CalculateLifetimeCount(subscription.PublishingInterval, subscription.Diagnostics.MaxKeepAliveCount, requestedLifeTimeCount, true);
-
-                result = subscription.SetSubscriptionDurable(requestedLifeTimeCount);
-
-                revisedLifetimeInHours = (uint)(revisedLifetimeCount * subscription.PublishingInterval / 3_600_000);
+                revisedLifetimeInHours = m_maxDurableSubscriptionLifetimeInHours;
             }
 
-            return result;
+            uint hoursInSeconds = 3_600_000;
+            long lifetimeInSeconds = revisedLifetimeInHours * hoursInSeconds;
+            uint requestedLifeTimeCount = (uint)(lifetimeInSeconds / subscription.PublishingInterval);
+
+            return subscription.SetSubscriptionDurable(requestedLifeTimeCount);
+
+            // According Paul Hunkar, the spec is deliberately quiet
+            // on this. It is not expected to respect the KeepAlive * 3, nor to recalculate the
+            // revisedLifetimeInHours, as this is an extreme edge case
         }
 
         /// <summary>
