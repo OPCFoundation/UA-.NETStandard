@@ -865,7 +865,10 @@ namespace Opc.Ua.Server
                         hasMoreValuesToPublish = ((IEventMonitoredItem)monitoredItem).Publish(context, events, maxNotificationsPerMonitoredItem);
                     }
 
-                    // add back to list to check.
+                    // if item has more values to publish leave it at the front of the list
+                    // to execute publish in next cycle, no checking needed
+                    // if no more values to publish are left add it to m_itemsToCheck
+                    // to check status on next publish cylce
                     if (!hasMoreValuesToPublish)
                     {
                         m_itemsToPublish.Remove(current);

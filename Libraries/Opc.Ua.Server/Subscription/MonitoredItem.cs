@@ -1218,7 +1218,7 @@ namespace Opc.Ua.Server
 
                         notifications.Enqueue(m_events[ii]);
 
-                        m_events.RemoveAt(ii);
+                        m_events.RemoveAt(ii--);
                     }
 
                     // place event at the end of the queue.
