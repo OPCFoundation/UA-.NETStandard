@@ -1200,7 +1200,6 @@ namespace Opc.Ua.Server
                             break;
                         }
 
-
                         EventFieldList fields = (EventFieldList)m_events[ii];
 
                         // apply any diagnostic masks.
@@ -1217,7 +1216,7 @@ namespace Opc.Ua.Server
                         }
 
                         notifications.Enqueue(m_events[ii]);
-
+                        notificationCount++;
                         m_events.RemoveAt(ii--);
                     }
 
