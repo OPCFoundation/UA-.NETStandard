@@ -1200,7 +1200,7 @@ namespace Opc.Ua.Server
                             break;
                         }
 
-                        EventFieldList fields = (EventFieldList)m_events[ii];
+                        EventFieldList fields = m_events[ii];
 
                         // apply any diagnostic masks.
                         for (int jj = 0; jj < fields.EventFields.Count; jj++)
@@ -1209,15 +1209,12 @@ namespace Opc.Ua.Server
 
                             StatusResult result = value as StatusResult;
 
-                            if (result != null)
-                            {
-                                result.ApplyDiagnosticMasks(context.DiagnosticsMask, context.StringTable);
-                            }
+                            result?.ApplyDiagnosticMasks(context.DiagnosticsMask, context.StringTable);
                         }
 
                         notifications.Enqueue(m_events[ii]);
+                        m_events.Remove(m_events[ii]);
                         notificationCount++;
-                        m_events.RemoveAt(ii--);
                     }
 
                     // place event at the end of the queue.
