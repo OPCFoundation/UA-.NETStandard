@@ -44,14 +44,40 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             BuiltInType = builtInType;
         }
 
+        public string GetExpected(JsonEncodingType jsonEncodingType)
+        {
+            switch (jsonEncodingType)
+            {
+                case JsonEncodingType.Verbose:
+                    return ExpectedVerbose ?? ExpectedCompact;
+                case JsonEncodingType.NonReversible:
+                    return ExpectedNonReversible ?? ExpectedReversible;
+                case JsonEncodingType.Reversible:
+                    return ExpectedReversible;
+                default:
+                case JsonEncodingType.Compact:
+                    return ExpectedCompact;
+            }
+        }
+
         public BuiltInType BuiltInType;
         public object Instance;
+        public string ExpectedCompact;
+        public string ExpectedVerbose;
         public string ExpectedReversible;
         public string ExpectedNonReversible;
         public bool IncludeDefaultValue;
 
         public string ToString(string format, IFormatProvider formatProvider)
         {
+            if (BuiltInType == BuiltInType.Variant && Instance is Variant variant)
+            {
+                BuiltInType? builtInType = variant.TypeInfo?.BuiltInType;
+                if (builtInType != null)
+                {
+                    return $"Variant:{builtInType}:{Instance}" + (IncludeDefaultValue ? ":Default" : "");
+                }
+            }
             return $"{BuiltInType}:{Instance}" + (IncludeDefaultValue ? ":Default" : "");
         }
     };
@@ -76,7 +102,28 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 BuiltInType = builtInType,
                 Instance = instance,
                 ExpectedReversible = expectedReversible,
-                ExpectedNonReversible = expectedNonReversible
+                ExpectedNonReversible = expectedNonReversible,
+                ExpectedCompact = expectedReversible,
+                ExpectedVerbose = expectedNonReversible
+            });
+        }
+
+        public void Add(
+            BuiltInType builtInType,
+            object instance,
+            string expectedReversible,
+            string expectedNonReversible,
+            string expectedCompact,
+            string expectedVerbose
+            )
+        {
+            Add(new JsonValidationData() {
+                BuiltInType = builtInType,
+                Instance = instance,
+                ExpectedReversible = expectedReversible,
+                ExpectedNonReversible = expectedNonReversible,
+                ExpectedCompact = expectedCompact,
+                ExpectedVerbose = expectedVerbose
             });
         }
 
@@ -92,8 +139,41 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 Instance = instance,
                 ExpectedReversible = expectedReversible,
                 ExpectedNonReversible = expectedNonReversible,
+                ExpectedCompact = expectedReversible,
+                ExpectedVerbose = expectedNonReversible,
                 IncludeDefaultValue = includeDefaultValue
             });
+        }
+
+        public void Add(
+            BuiltInType builtInType,
+            object instance,
+            string expectedReversible,
+            string expectedNonReversible,
+            string expectedCompact,
+            string expectedVerbose,
+            bool includeDefaultValue)
+        {
+            Add(new JsonValidationData() {
+                BuiltInType = builtInType,
+                Instance = instance,
+                ExpectedReversible = expectedReversible,
+                ExpectedNonReversible = expectedNonReversible,
+                ExpectedCompact = expectedCompact,
+                ExpectedVerbose = expectedVerbose,
+                IncludeDefaultValue = includeDefaultValue
+            });
+        }
+    }
+
+    /// <summary>
+    /// Helper as value source for tests.
+    /// </summary>
+    public class JsonEncodingTypeCollection : List<JsonEncodingType>
+    {
+        public JsonEncodingTypeCollection(JsonEncodingType[] values)
+        {
+            AddRange(values);
         }
     }
 }

@@ -379,8 +379,19 @@ namespace Opc.Ua.Gds.Tests
             }
         }
 
+        [Test, Order(509)]
+        public void UpdateCertificateCASignedRegeneratePrivateKey()
+        {
+            UpdateCertificateCASigned(true);
+        }
+
         [Test, Order(510)]
         public void UpdateCertificateCASigned()
+        {
+            UpdateCertificateCASigned(false);
+        }
+
+        public void UpdateCertificateCASigned(bool regeneratePrivateKey = false)
         {
 #if NETCOREAPP3_1_OR_GREATER
             // this test fails on macOS, ignore
@@ -396,7 +407,7 @@ namespace Opc.Ua.Gds.Tests
                 null,
                 m_pushClient.PushClient.ApplicationCertificateType,
                 null,
-                false,
+                regeneratePrivateKey,
                 null);
             Assert.IsNotNull(csr);
             TestContext.Out.WriteLine("Start Signing Request");
@@ -613,7 +624,7 @@ namespace Opc.Ua.Gds.Tests
             }, Throws.Exception);
 
             m_pushClient.PushClient.GetCertificates(m_pushClient.PushClient.DefaultApplicationGroup, out NodeId[] certificateTypeIds, out byte[][] certificates);
-            
+
             Assert.That(certificateTypeIds.Length == 1);
             Assert.NotNull(certificates[0]);
             using (var x509 = new X509Certificate2(certificates[0]))
