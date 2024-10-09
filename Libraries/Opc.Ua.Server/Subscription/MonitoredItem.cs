@@ -1178,7 +1178,7 @@ namespace Opc.Ua.Server
 
                         // fetch the event fields.
                         overflowEvent = GetEventFields(
-                            new FilterContext(m_server.NamespaceUris, m_server.TypeTree, Session.PreferredLocales),
+                            new FilterContext(m_server.NamespaceUris, m_server.TypeTree, Session?.PreferredLocales),
                             m_filterToUse as EventFilter,
                             e);
                     }
@@ -1191,17 +1191,14 @@ namespace Opc.Ua.Server
 
 
                     int notificationCount = overflowEvent != null ? 1 : 0;
-
-                    for (int ii = 0; ii < m_events.Count; ii++)
+                    int eventsToRemove = 0;
+                    foreach (EventFieldList fields in m_events)
                     {
                         //stop publishing if maxNotificationsPerPublish is reached
                         if (notificationCount >= maxNotificationsPerPublish)
                         {
                             break;
                         }
-
-                        EventFieldList fields = m_events[ii];
-
                         // apply any diagnostic masks.
                         for (int jj = 0; jj < fields.EventFields.Count; jj++)
                         {
@@ -1212,10 +1209,12 @@ namespace Opc.Ua.Server
                             result?.ApplyDiagnosticMasks(context.DiagnosticsMask, context.StringTable);
                         }
 
-                        notifications.Enqueue(m_events[ii]);
-                        m_events.Remove(m_events[ii]);
+                        notifications.Enqueue(fields);
                         notificationCount++;
+                        eventsToRemove++;
                     }
+
+                    m_events.RemoveRange(0, eventsToRemove);
 
                     // place event at the end of the queue.
                     if (overflowEvent != null && !m_discardOldest && !(m_events.Count > 0))
