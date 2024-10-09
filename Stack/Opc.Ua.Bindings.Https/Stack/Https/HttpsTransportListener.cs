@@ -468,7 +468,6 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public void CertificateUpdate(
             ICertificateValidator validator,
-            bool sendCertificateChain,
             X509Certificate2 serverCertificate,
             X509Certificate2Collection serverCertificateChain)
         {
@@ -483,7 +482,7 @@ namespace Opc.Ua.Bindings
             foreach (EndpointDescription description in m_descriptions)
             {
                 ServerBase.SetServerCertificateInEndpointDescription(description,
-                                                                     sendCertificateChain,
+                                                                     serverCertificateChain != null,
                                                                      serverCertificate,
                                                                      serverCertificateChainBlob,
                                                                      false);

@@ -817,7 +817,6 @@ namespace Opc.Ua
             InstanceCertificate = e.SecurityConfiguration.ApplicationCertificate.Certificate;
             InstanceCertificateChain = new X509Certificate2Collection(InstanceCertificate);
 
-            InstanceCertificateChain = new X509Certificate2Collection(InstanceCertificate);
             var issuers = new List<CertificateIdentifier>();
             var validationErrors = new Dictionary<X509Certificate2, ServiceResultException>();
             Configuration.CertificateValidator.GetIssuersNoExceptionsOnGetIssuer(InstanceCertificateChain, issuers, validationErrors).GetAwaiter().GetResult();
@@ -848,7 +847,6 @@ namespace Opc.Ua
             foreach (var listener in TransportListeners)
             {
                 listener.CertificateUpdate(e.CertificateValidator,
-                                           Configuration.SecurityConfiguration.SendCertificateChain,
                                            InstanceCertificate,
                                            InstanceCertificateChain);
             }
