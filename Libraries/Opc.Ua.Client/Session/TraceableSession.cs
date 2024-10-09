@@ -661,9 +661,18 @@ namespace Opc.Ua.Client
                 m_session.ReadValues(variableIds, expectedTypes, out values, out errors);
             }
         }
-
+        
         /// <inheritdoc/>
-        public void ReadDisplayName(IList<NodeId> nodeIds, out IList<string> displayNames, out IList<ServiceResult> errors)
+        public byte[] ReadByteStringInChunks(NodeId nodeId)
+        {
+            using (Activity activity = ActivitySource.StartActivity())
+            {
+                return m_session.ReadByteStringInChunks(nodeId);
+            }
+        }
+
+            /// <inheritdoc/>
+            public void ReadDisplayName(IList<NodeId> nodeIds, out IList<string> displayNames, out IList<ServiceResult> errors)
         {
             using (Activity activity = ActivitySource.StartActivity())
             {
