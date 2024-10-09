@@ -544,6 +544,13 @@ namespace Opc.Ua.Client
         void ReadValues(IList<NodeId> nodeIds, out DataValueCollection values, out IList<ServiceResult> errors);
 
         /// <summary>
+        /// Reads a byte string which is too large for the (server side) encoder to handle.
+        /// </summary>
+        /// <param name="nodeId">The node id of a byte string variable</param>
+        /// <returns></returns>
+        byte[] ReadByteStringInChunks(NodeId nodeId);
+
+        /// <summary>
         /// Fetches all references for the specified node.
         /// </summary>
         /// <param name="nodeId">The node id.</param>

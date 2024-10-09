@@ -58,11 +58,14 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Theory]
         [Category("EncodeableTypes")]
         public void ActivateEncodeableType(
-            EncodingType encoderType,
+            [ValueSource(nameof(EncodingTypesReversibleCompact))]
+            EncodingTypeGroup encoderTypeGroup,
             MemoryStreamType memoryStreamType,
             Type systemType
             )
         {
+            EncodingType encoderType = encoderTypeGroup.EncoderType;
+            JsonEncodingType jsonEncodingType = encoderTypeGroup.JsonEncodingType;
             IEncodeable testObject = CreateDefaultEncodeableType(systemType) as IEncodeable;
             Assert.NotNull(testObject);
             Assert.False(testObject.BinaryEncodingId.IsNull);
@@ -71,17 +74,20 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             Assert.AreNotEqual(testObject.TypeId, testObject.BinaryEncodingId);
             Assert.AreNotEqual(testObject.TypeId, testObject.XmlEncodingId);
             Assert.AreNotEqual(testObject.BinaryEncodingId, testObject.XmlEncodingId);
-            EncodeDecode(encoderType, BuiltInType.ExtensionObject, memoryStreamType, new ExtensionObject(testObject.TypeId, testObject));
+            EncodeDecode(encoderType, jsonEncodingType, BuiltInType.ExtensionObject, memoryStreamType, new ExtensionObject(testObject.TypeId, testObject));
         }
 
         [Theory]
         [Category("EncodeableTypes")]
         public void ActivateEncodeableTypeArray(
-            EncodingType encoderType,
+            [ValueSource(nameof(EncodingTypesReversibleCompact))]
+            EncodingTypeGroup encoderTypeGroup,
             MemoryStreamType memoryStreamType,
             Type systemType
             )
         {
+            EncodingType encoderType = encoderTypeGroup.EncoderType;
+            JsonEncodingType jsonEncodingType = encoderTypeGroup.JsonEncodingType;
             int arrayLength = DataGenerator.GetRandomByte();
             Array array = Array.CreateInstance(systemType, arrayLength);
             ExpandedNodeId dataTypeId = NodeId.Null;
@@ -101,7 +107,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             byte[] buffer;
             using (var encoderStream = CreateEncoderMemoryStream(memoryStreamType))
             {
-                using (IEncoder encoder = CreateEncoder(encoderType, Context, encoderStream, systemType))
+                using (IEncoder encoder = CreateEncoder(encoderType, Context, encoderStream, systemType, jsonEncodingType))
                 {
                     encoder.PushNamespace("urn:This:is:another:namespace");
                     encoder.WriteArray(objectName, array, ValueRanks.OneDimension, builtInType);
@@ -143,12 +149,15 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Theory]
         [Category("EncodeableTypes")]
         public void ActivateEncodeableTypeMatrix(
-            EncodingType encoderType,
+            [ValueSource(nameof(EncodingTypesReversibleCompact))]
+            EncodingTypeGroup encoderTypeGroup,
             MemoryStreamType memoryStreamType,
             bool encodeAsMatrix,
             Type systemType
             )
         {
+            EncodingType encoderType = encoderTypeGroup.EncoderType;
+            JsonEncodingType jsonEncodingType = encoderTypeGroup.JsonEncodingType;
             int matrixDimension = RandomSource.NextInt32(2) + 2;
             int[] dimensions = new int[matrixDimension];
             SetMatrixDimensions(dimensions);
@@ -174,7 +183,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             byte[] buffer;
             using (var encoderStream = CreateEncoderMemoryStream(memoryStreamType))
             {
-                using (IEncoder encoder = CreateEncoder(encoderType, Context, encoderStream, systemType))
+                using (IEncoder encoder = CreateEncoder(encoderType, Context, encoderStream, systemType, jsonEncodingType))
                 {
                     if (encodeAsMatrix)
                     {

@@ -967,7 +967,7 @@ namespace Quickstarts
 
                                 if (ServiceResult.IsNotBad(value.StatusCode))
                                 {
-                                    var valueString = ClientSamples.FormatValueAsJson(uaClient.Session.MessageContext, variableId.ToString(), value, true);
+                                    var valueString = ClientSamples.FormatValueAsJson(uaClient.Session.MessageContext, variableId.ToString(), value, JsonEncodingType.Compact);
                                     m_output.WriteLine(valueString);
                                 }
                                 else
@@ -992,7 +992,7 @@ namespace Quickstarts
                         {
                             if (ServiceResult.IsNotBad(errors[ii]))
                             {
-                                var valueString = ClientSamples.FormatValueAsJson(uaClient.Session.MessageContext, variableIds[ii].ToString(), value, true);
+                                var valueString = ClientSamples.FormatValueAsJson(uaClient.Session.MessageContext, variableIds[ii].ToString(), value, JsonEncodingType.Compact);
                                 m_output.WriteLine(valueString);
                             }
                             else
@@ -1102,15 +1102,15 @@ namespace Quickstarts
         /// </summary>
         /// <param name="name">The key of the Json value.</param>
         /// <param name="value">The DataValue.</param>
-        /// <param name="jsonReversible">Use reversible encoding.</param>
+        /// <param name="jsonEncodingType">Use reversible encoding.</param>
         public static string FormatValueAsJson(
             IServiceMessageContext messageContext,
             string name,
             DataValue value,
-            bool jsonReversible)
+            JsonEncodingType jsonEncodingType)
         {
             string textbuffer;
-            using (var jsonEncoder = new JsonEncoder(messageContext, jsonReversible))
+            using (var jsonEncoder = new JsonEncoder(messageContext, jsonEncodingType))
             {
                 jsonEncoder.WriteDataValue(name, value);
                 textbuffer = jsonEncoder.CloseAndReturnText();
