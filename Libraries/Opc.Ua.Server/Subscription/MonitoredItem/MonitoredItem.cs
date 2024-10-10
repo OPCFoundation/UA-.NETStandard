@@ -1147,7 +1147,6 @@ namespace Opc.Ua.Server
                 bool moreValuesToPublish = m_eventQueueHandler?.ItemsInQueue > 0;
 
                 // reset state variables.
-                m_overflow = m_overflow && moreValuesToPublish && !m_discardOldest;
                 m_readyToPublish = moreValuesToPublish;
                 m_readyToTrigger = moreValuesToPublish;
                 m_triggered = false;
