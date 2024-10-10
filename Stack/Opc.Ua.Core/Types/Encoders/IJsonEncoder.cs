@@ -84,11 +84,11 @@ namespace Opc.Ua
         /// <summary>
         /// The reversible encoding supported for backward compatibitility.
         /// </summary>
-        Reversible,
+        Reversible_Deprecated,
 
         /// <summary>
         /// The non reversible encoding supported for backward compatibitility.
         /// </summary>
-        NonReversible
+        NonReversible_Deprecated
     }
 }

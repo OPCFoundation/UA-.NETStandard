@@ -40,6 +40,22 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 {
     public static class MessagesHelper
     {
+        class WriterGroupMessageData : WriterGroupMessageDataType
+        {
+        }
+        class WriterGroupTransportData : WriterGroupTransportDataType
+        {
+        }
+        class ReaderGroupTransportData : ReaderGroupTransportDataType
+        {
+        }
+        class DataSetReaderTransportData : DataSetReaderTransportDataType
+        {
+        }
+        class ReaderGroupMessageData : ReaderGroupMessageDataType
+        {
+        }
+        
         /// <summary>
         /// Ua data message type
         /// </summary>
@@ -122,8 +138,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             writerGroup.KeepAliveTime = 5000;
             writerGroup.MaxNetworkMessageSize = 1500;
 
-            writerGroup.MessageSettings = new ExtensionObject(new WriterGroupMessageDataType());
-            writerGroup.TransportSettings = new ExtensionObject(new WriterGroupTransportDataType());
+            writerGroup.MessageSettings = new ExtensionObject(new WriterGroupMessageData());
+            writerGroup.TransportSettings = new ExtensionObject(new WriterGroupTransportData());
 
             return writerGroup;
         }
@@ -888,8 +904,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             readerGroup1.Name = "ReaderGroup 1";
             readerGroup1.Enabled = true;
             readerGroup1.MaxNetworkMessageSize = 1500;
-            readerGroup1.MessageSettings = new ExtensionObject(new ReaderGroupMessageDataType());
-            readerGroup1.TransportSettings = new ExtensionObject(new ReaderGroupTransportDataType());
+            readerGroup1.MessageSettings = new ExtensionObject(new ReaderGroupMessageData());
+            readerGroup1.TransportSettings = new ExtensionObject(new ReaderGroupTransportData());
             #endregion
 
             for (ushort dataSetWriterId = 1; dataSetWriterId <= dataSetMetaDataArray.Length; dataSetWriterId++)
@@ -921,7 +937,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                             NetworkMessageContentMask = (uint)networkMessageContentMask,
                             DataSetMessageContentMask = (uint)dataSetMessageContentMask,
                         };
-                        dataSetReaderTransportSettings = new DataSetReaderTransportDataType();
+                        dataSetReaderTransportSettings = new DataSetReaderTransportData();
                         break;
                     case Profiles.PubSubMqttUadpTransport:
                         dataSetReaderMessageSettings = new UadpDataSetReaderMessageDataType() {
