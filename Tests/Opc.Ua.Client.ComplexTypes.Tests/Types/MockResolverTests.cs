@@ -150,9 +150,14 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         /// Test the functionality to create a custom complex type.
         /// </summary>
         [Theory]
-        public async Task CreateMockTypeAsync(EncodingType encodingType, MemoryStreamType memoryStreamType)
+        public async Task CreateMockTypeAsync(
+            [ValueSource(nameof(EncodingTypesReversibleCompact))]
+            EncodingTypeGroup encoderTypeGroup,
+            MemoryStreamType memoryStreamType)
         {
             var mockResolver = new MockResolver();
+            EncodingType encoderType = encoderTypeGroup.EncoderType;
+            JsonEncodingType jsonEncodingType = encoderTypeGroup.JsonEncodingType;
 
             var nameSpaceIndex = mockResolver.NamespaceUris.GetIndexOrAppend(Namespaces.MockResolverUrl);
             uint nodeId = 100;
@@ -269,7 +274,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             _ = PrettifyAndValidateJson(Encoding.UTF8.GetString(buffer));
 
             // test encoder/decoder
-            EncodeDecodeComplexType(encoderContext, memoryStreamType, encodingType, StructureType.Structure, nodeId, car);
+            EncodeDecodeComplexType(encoderContext, memoryStreamType, encoderType, jsonEncodingType, StructureType.Structure, nodeId, car);
 
             // Test extracting type definition
 
@@ -283,8 +288,13 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         /// Test the functionality to create a custom complex type.
         /// </summary>
         [Theory]
-        public async Task CreateMockArrayTypeAsync(EncodingType encodingType, MemoryStreamType memoryStreamType)
+        public async Task CreateMockArrayTypeAsync(
+            [ValueSource(nameof(EncodingTypesReversibleCompact))]
+            EncodingTypeGroup encoderTypeGroup,
+            MemoryStreamType memoryStreamType)
         {
+            EncodingType encoderType = encoderTypeGroup.EncoderType;
+            JsonEncodingType jsonEncodingType = encoderTypeGroup.JsonEncodingType;
             var mockResolver = new MockResolver();
 
             // only enumerable types in the encodeable factory are stored as Enum in a structure.
@@ -434,7 +444,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             byte[] buffer;
             using (var encoderStream = CreateEncoderMemoryStream(memoryStreamType))
             {
-                using (IEncoder encoder = CreateEncoder(EncodingType.Json, encoderContext, encoderStream, arraysTypes, false))
+                using (IEncoder encoder = CreateEncoder(EncodingType.Json, encoderContext, encoderStream, arraysTypes))
                 {
                     encoder.WriteEncodeable("Arrays", arrays, arraysTypes);
                 }
@@ -444,7 +454,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             _ = PrettifyAndValidateJson(Encoding.UTF8.GetString(buffer));
 
             // test encoder/decoder
-            EncodeDecodeComplexType(encoderContext, memoryStreamType, encodingType, StructureType.Structure, dataTypeNode.NodeId, arrays);
+            EncodeDecodeComplexType(encoderContext, memoryStreamType, encoderType, jsonEncodingType, StructureType.Structure, dataTypeNode.NodeId, arrays);
 
             // Test extracting type definition
 
@@ -455,11 +465,16 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         }
 
         /// <summary>
-        /// Create a complex type with a single scalar or array type, with default and random values .
+        /// Create a complex type with a single scalar or array type, with default and random values.
         /// </summary>
         [Theory]
-        public async Task CreateMockSingleTypeAsync(EncodingType encodingType, MemoryStreamType memoryStreamType, TestType typeDescription, bool randomValues, TestRanks testRank)
+        public async Task CreateMockSingleTypeAsync(
+            [ValueSource(nameof(EncodingTypesReversibleCompact))]
+            EncodingTypeGroup encoderTypeGroup,
+            MemoryStreamType memoryStreamType, TestType typeDescription, bool randomValues, TestRanks testRank)
         {
+            EncodingType encoderType = encoderTypeGroup.EncoderType;
+            JsonEncodingType jsonEncodingType = encoderTypeGroup.JsonEncodingType;
             SetRepeatedRandomSeed();
 
             var mockResolver = new MockResolver();
@@ -615,7 +630,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             byte [] buffer;
             using (var encoderStream = CreateEncoderMemoryStream(memoryStreamType))
             {
-                using (IEncoder encoder = CreateEncoder(EncodingType.Json, encoderContext, encoderStream, arraysTypes, false))
+                using (IEncoder encoder = CreateEncoder(EncodingType.Json, encoderContext, encoderStream, arraysTypes))
                 {
                     encoder.WriteEncodeable("TestType", testType, arraysTypes);
                 }
@@ -625,7 +640,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             _ = PrettifyAndValidateJson(Encoding.UTF8.GetString(buffer));
 
             // test encoder/decoder
-            EncodeDecodeComplexType(encoderContext, memoryStreamType, encodingType, StructureType.Structure, dataTypeNode.NodeId, testType);
+            EncodeDecodeComplexType(encoderContext, memoryStreamType, encoderType, jsonEncodingType, StructureType.Structure, dataTypeNode.NodeId, testType);
 
             // Test extracting type definition
 

@@ -383,7 +383,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     certValidator.MaxRejectedCertificates = 3;
                     await Task.Delay(1000).ConfigureAwait(false);
                     certificates = await validator.RejectedStore.Enumerate().ConfigureAwait(false);
-                    Assert.LessOrEqual(3, certificates.Count);
+                    Assert.GreaterOrEqual(3, certificates.Count);
 
                     // test setter if allcerts are deleted
                     certValidator.MaxRejectedCertificates = -1;

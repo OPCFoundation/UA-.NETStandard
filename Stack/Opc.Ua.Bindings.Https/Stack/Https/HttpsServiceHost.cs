@@ -73,6 +73,11 @@ namespace Opc.Ua.Bindings
                     continue;
                 }
 
+                if (!baseAddresses[ii].StartsWith(UriScheme, StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
                 UriBuilder uri = new UriBuilder(baseAddresses[ii]);
 
                 if (uri.Path[uri.Path.Length - 1] != '/')

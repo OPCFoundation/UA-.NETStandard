@@ -31,6 +31,11 @@ namespace Opc.Ua
         /// The name of the Root array if the json is defined as an array 
         /// </summary>
         public const string RootArrayName = "___root_array___";
+
+        /// <summary>
+        /// If TRUE then the NamespaceUris and ServerUris tables are updated with new URIs read from the JSON stream.
+        /// </summary>
+        public bool UpdateNamespaceTable { get; set; }
         #endregion
 
         #region Private Fields
@@ -63,6 +68,7 @@ namespace Opc.Ua
             {
                 throw new ArgumentNullException(nameof(context));
             }
+
             Initialize();
 
             m_context = context;
@@ -200,14 +206,48 @@ namespace Opc.Ua
 
             if (namespaceUris != null && m_context.NamespaceUris != null)
             {
-                m_namespaceMappings = m_context.NamespaceUris.CreateMapping(namespaceUris, false);
+                ushort[] namespaceMappings = new ushort[namespaceUris.Count];
+
+                for (uint ii = 0; ii < namespaceUris.Count; ii++)
+                {
+                    var uri = namespaceUris.GetString(ii);
+
+                    if (UpdateNamespaceTable)
+                    {
+                        namespaceMappings[ii] = m_context.NamespaceUris.GetIndexOrAppend(uri);
+                    }
+                    else
+                    {
+                        var index = m_context.NamespaceUris.GetIndex(namespaceUris.GetString(ii));
+                        namespaceMappings[ii] = (index >= 0) ? (UInt16)index : UInt16.MaxValue;
+                    }
+                }
+
+                m_namespaceMappings = namespaceMappings;
             }
 
             m_serverMappings = null;
 
             if (serverUris != null && m_context.ServerUris != null)
             {
-                m_serverMappings = m_context.ServerUris.CreateMapping(serverUris, false);
+                ushort[] serverMappings = new ushort[serverUris.Count];
+
+                for (uint ii = 0; ii < serverUris.Count; ii++)
+                {
+                    var uri = serverUris.GetString(ii);
+
+                    if (UpdateNamespaceTable)
+                    {
+                        serverMappings[ii] = m_context.ServerUris.GetIndexOrAppend(uri);
+                    }
+                    else
+                    {
+                        var index = m_context.ServerUris.GetIndex(serverUris.GetString(ii));
+                        serverMappings[ii] = (index >= 0) ? (UInt16)index : UInt16.MaxValue;
+                    }
+                }
+
+                m_serverMappings = serverMappings;
             }
         }
 
@@ -301,12 +341,11 @@ namespace Opc.Ua
         {
             token = null;
 
-            if (String.IsNullOrEmpty(fieldName))
+            if (string.IsNullOrEmpty(fieldName))
             {
                 token = m_stack.Peek();
                 return true;
             }
-
 
             if (!(m_stack.Peek() is Dictionary<string, object> context) || !context.TryGetValue(fieldName, out token))
             {
@@ -462,7 +501,7 @@ namespace Opc.Ua
 
             if (value == null)
             {
-                return 0;
+                return ReadEnumeratedString<Int32>(token, Int32.TryParse);
             }
 
             if (value < Int32.MinValue || value > Int32.MaxValue)
@@ -489,14 +528,7 @@ namespace Opc.Ua
 
             if (value == null)
             {
-                uint number = 0;
-
-                if (!(token is string text) || !UInt32.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out number))
-                {
-                    return 0;
-                }
-
-                return number;
+                return ReadEnumeratedString<UInt32>(token, UInt32.TryParse);
             }
 
             if (value < UInt32.MinValue || value > UInt32.MaxValue)
@@ -559,9 +591,7 @@ namespace Opc.Ua
             {
                 ulong number = 0;
 
-                if (!(token is string text) || !UInt64.TryParse(text,
-                    NumberStyles.Integer,
-                    CultureInfo.InvariantCulture, out number))
+                if (!(token is string text) || !UInt64.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out number))
                 {
                     return 0;
                 }
@@ -599,15 +629,15 @@ namespace Opc.Ua
                 {
                     if (text != null)
                     {
-                        if (String.Equals(text, "Infinity", StringComparison.OrdinalIgnoreCase))
+                        if (string.Equals(text, "Infinity", StringComparison.OrdinalIgnoreCase))
                         {
                             return Single.PositiveInfinity;
                         }
-                        else if (String.Equals(text, "-Infinity", StringComparison.OrdinalIgnoreCase))
+                        else if (string.Equals(text, "-Infinity", StringComparison.OrdinalIgnoreCase))
                         {
                             return Single.NegativeInfinity;
                         }
-                        else if (String.Equals(text, "NaN", StringComparison.OrdinalIgnoreCase))
+                        else if (string.Equals(text, "NaN", StringComparison.OrdinalIgnoreCase))
                         {
                             return Single.NaN;
                         }
@@ -657,15 +687,15 @@ namespace Opc.Ua
                 {
                     if (text != null)
                     {
-                        if (String.Equals(text, "Infinity", StringComparison.OrdinalIgnoreCase))
+                        if (string.Equals(text, "Infinity", StringComparison.OrdinalIgnoreCase))
                         {
                             return Double.PositiveInfinity;
                         }
-                        else if (String.Equals(text, "-Infinity", StringComparison.OrdinalIgnoreCase))
+                        else if (string.Equals(text, "-Infinity", StringComparison.OrdinalIgnoreCase))
                         {
                             return Double.NegativeInfinity;
                         }
-                        else if (String.Equals(text, "NaN", StringComparison.OrdinalIgnoreCase))
+                        else if (string.Equals(text, "NaN", StringComparison.OrdinalIgnoreCase))
                         {
                             return Double.NaN;
                         }
@@ -861,6 +891,19 @@ namespace Opc.Ua
                 return NodeId.Null;
             }
 
+            if (token is string text)
+            {
+                var nodeId = NodeId.Parse(
+                    m_context,
+                    text,
+                    new NodeIdParsingOptions() {
+                        UpdateTables = UpdateNamespaceTable,
+                        NamespaceMappings = m_namespaceMappings,
+                        ServerMappings = m_serverMappings
+                    });
+
+                return nodeId;
+            }
 
             if (!(token is Dictionary<string, object> value))
             {
@@ -889,14 +932,14 @@ namespace Opc.Ua
                     {
                         if (namespaceToken is string namespaceUri)
                         {
-                            namespaceIndex = m_context.NamespaceUris.GetIndexOrAppend(namespaceUri);
+                            namespaceIndex = ToNamespaceIndex(namespaceUri);
                         }
                     }
                     else
                     {
                         if (index.Value >= 0 || index.Value < UInt16.MaxValue)
                         {
-                            namespaceIndex = (ushort)index.Value;
+                            namespaceIndex = ToNamespaceIndex(index.Value);
                         }
                     }
                 }
@@ -947,6 +990,19 @@ namespace Opc.Ua
                 return ExpandedNodeId.Null;
             }
 
+            if (token is string text)
+            {
+                var nodeId = ExpandedNodeId.Parse(
+                    m_context,
+                    text,
+                    new NodeIdParsingOptions() {
+                        UpdateTables = UpdateNamespaceTable,
+                        NamespaceMappings = m_namespaceMappings,
+                        ServerMappings = m_serverMappings
+                    });
+
+                return nodeId;
+            }
 
             if (!(token is Dictionary<string, object> value))
             {
@@ -981,14 +1037,38 @@ namespace Opc.Ua
                     {
                         if (index.Value >= 0 || index.Value < UInt16.MaxValue)
                         {
-                            namespaceIndex = (ushort)index.Value;
+                            namespaceIndex = ToNamespaceIndex(index.Value);
                         }
                     }
                 }
 
-                if (value.ContainsKey("ServerUri"))
+                object serverUriToken = null;
+
+                if (ReadField("ServerUri", out serverUriToken))
                 {
-                    serverIndex = ReadUInt32("ServerUri");
+                    var index = serverUriToken as long?;
+
+                    if (index == null)
+                    {
+                        serverIndex = ToServerIndex(serverUriToken as string);
+                    }
+                    else
+                    {
+                        if (index.Value >= 0 || index.Value < UInt32.MaxValue)
+                        {
+                            serverIndex = ToServerIndex(index.Value);
+                        }
+                    }
+                }
+
+                if (namespaceUri != null)
+                {
+                    namespaceIndex = ToNamespaceIndex(namespaceUri);
+
+                    if (UInt16.MaxValue != namespaceIndex)
+                    {
+                        namespaceUri = null;
+                    }
                 }
 
                 if (value.ContainsKey("Id"))
@@ -1032,13 +1112,20 @@ namespace Opc.Ua
         public StatusCode ReadStatusCode(string fieldName)
         {
             object token;
+
             if (!ReadField(fieldName, out token))
             {
                 // the status code was not found
                 return StatusCodes.Good;
             }
 
+            if (token is long code)
+            {
+                return (StatusCode)code;
+            }
+
             bool wasPush = PushStructure(fieldName);
+
             try
             {
                 // try to read the non reversible Code
@@ -1079,6 +1166,22 @@ namespace Opc.Ua
                 return QualifiedName.Null;
             }
 
+            if (token is string text)
+            {
+                var qn = QualifiedName.Parse(m_context, text, UpdateNamespaceTable);
+
+                if (qn.NamespaceIndex != 0)
+                {
+                    var ns = ToNamespaceIndex(qn.NamespaceIndex);
+
+                    if (ns != qn.NamespaceIndex)
+                    {
+                        qn = new QualifiedName(qn.Name, ns);
+                    }
+                }
+
+                return qn;
+            }
 
             if (!(token is Dictionary<string, object> value))
             {
@@ -1104,17 +1207,16 @@ namespace Opc.Ua
 
                     if (index == null)
                     {
-                        // handle non reversible encoding
                         if (namespaceToken is string namespaceUri)
                         {
-                            namespaceIndex = m_context.NamespaceUris.GetIndexOrAppend(namespaceUri);
+                            namespaceIndex = ToNamespaceIndex(namespaceUri);
                         }
                     }
                     else
                     {
                         if (index.Value >= 0 || index.Value < UInt16.MaxValue)
                         {
-                            namespaceIndex = (ushort)index.Value;
+                            namespaceIndex = ToNamespaceIndex(index.Value);
                         }
                     }
                 }
@@ -1302,7 +1404,6 @@ namespace Opc.Ua
                 return extension;
             }
 
-
             if (!(token is Dictionary<string, object> value))
             {
                 return extension;
@@ -1348,7 +1449,7 @@ namespace Opc.Ua
                 if (encoding == (byte)ExtensionObjectEncoding.Json)
                 {
                     var json = ReadString("Body");
-                    if (String.IsNullOrEmpty(json))
+                    if (string.IsNullOrEmpty(json))
                     {
                         return extension;
                     }
@@ -1449,7 +1550,29 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(enumType));
             }
 
-            return (Enum)Enum.ToObject(enumType, ReadInt32(fieldName));
+            object token;
+
+            if (!ReadField(fieldName, out token))
+            {
+                return (Enum)Enum.ToObject(enumType, 0);
+            }
+
+            if (token is long code)
+            {
+                return (Enum)Enum.ToObject(enumType, code);
+            }
+
+            if (token is string text)
+            {
+                int index = text.LastIndexOf('_');
+
+                if (index > 0 && long.TryParse(text.Substring(index + 1), out code))
+                {
+                    return (Enum)Enum.ToObject(enumType, code);
+                }
+            }
+
+            return (Enum)Enum.ToObject(enumType, 0);
         }
 
         /// <summary>
@@ -2389,11 +2512,39 @@ namespace Opc.Ua
             }
             else if (valueRank >= ValueRanks.TwoDimensions)
             {
-                List<object> array;
-                if (!ReadArrayField(fieldName, out array))
+                object token = null;
+
+                if (!ReadField(fieldName, out token))
                 {
                     return null;
                 }
+
+                if (token is Dictionary<string, object> value)
+                {
+                    m_stack.Push(value);
+                    Int32Collection dimensions2 = null;
+
+                    if (value.ContainsKey("Dimensions"))
+                    {
+                        dimensions2 = ReadInt32Array("Dimensions");
+                    }
+                    else
+                    {
+                        dimensions2 = new Int32Collection(valueRank);
+                    }
+
+                    var array2 = ReadArray("Array", 1, builtInType, systemType, encodeableTypeId);
+                    m_stack.Pop();
+
+                    var matrix2 = new Matrix(array2, builtInType, dimensions2.ToArray());
+                    return matrix2.ToArray();
+                }
+
+                if (!(token is List<object> array))
+                {
+                    return null;
+                }
+
                 List<object> elements = new List<object>();
                 List<int> dimensions = new List<int>();
                 if (builtInType == BuiltInType.Enumeration || builtInType == BuiltInType.Variant || builtInType == BuiltInType.Null)
@@ -2605,6 +2756,109 @@ namespace Opc.Ua
         #endregion
 
         #region Private Methods
+        private ushort ToNamespaceIndex(string uri)
+        {
+            var index = m_context.NamespaceUris.GetIndex(uri);
+
+            if (index < 0)
+            {
+                if (!UpdateNamespaceTable)
+                {
+                    return UInt16.MaxValue;
+                }
+                else
+                {
+                    index = m_context.NamespaceUris.GetIndexOrAppend(uri);
+                }
+            }
+
+            return (ushort)index;
+        }
+
+        private ushort ToNamespaceIndex(long index)
+        {
+            if (m_namespaceMappings == null || index <= 0)
+            {
+                return (ushort)index;
+            }
+
+            if (index < 0 || index >= m_namespaceMappings.Length)
+            {
+                throw new ServiceResultException(StatusCodes.BadDecodingError, $"No mapping for NamespaceIndex={index}.");
+            }
+
+            return m_namespaceMappings[index];
+        }
+
+        private ushort ToServerIndex(string uri)
+        {
+            var index = m_context.ServerUris.GetIndex(uri);
+
+            if (index < 0)
+            {
+                if (!UpdateNamespaceTable)
+                {
+                    return UInt16.MaxValue;
+                }
+                else
+                {
+                    index = m_context.ServerUris.GetIndexOrAppend(uri);
+                }
+            }
+
+            return (ushort)index;
+        }
+
+        private ushort ToServerIndex(long index)
+        {
+            if (m_serverMappings == null || index <= 0)
+            {
+                return (ushort)index;
+            }
+
+            if (index < 0 || index >= m_serverMappings.Length)
+            {
+                throw new ServiceResultException(StatusCodes.BadDecodingError, $"No mapping for ServerIndex(={index}.");
+            }
+
+            return m_serverMappings[index];
+        }
+
+        /// <summary>
+        /// Helper to provide the TryParse method when reading an enumerated string.
+        /// </summary>
+        private delegate bool TryParseHandler<T>(string s, NumberStyles numberStyles, CultureInfo cultureInfo, out T result);
+
+        /// <summary>
+        /// Helper to read an enumerated string in an extension object.
+        /// </summary>
+        /// <typeparam name="T">The number type which was encoded.</typeparam>
+        /// <param name="token"></param>
+        /// <param name="handler"></param>
+        /// <returns>The parsed number or 0.</returns>
+        private T ReadEnumeratedString<T>(object token, TryParseHandler<T> handler) where T : struct
+        {
+            T number = default;
+            if (token is string text)
+            {
+                bool retry = false;
+                do
+                {
+                    if (handler?.Invoke(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out number) == false)
+                    {
+                        int lastIndex = text.LastIndexOf('_');
+                        if (lastIndex == -1)
+                        {
+                            text = text.Substring(lastIndex + 1);
+                            retry = true;
+                        }
+                    }
+                } while (retry);
+            }
+
+            return number;
+        }
+
         /// <summary>
         /// Reads a DiagnosticInfo from the stream.
         /// Limits the InnerDiagnosticInfos to the specified depth.
