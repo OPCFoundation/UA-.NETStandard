@@ -89,6 +89,7 @@ namespace Quickstarts.ConsoleReferenceClient
             string reverseConnectUrlString = null;
             bool leakChannels = false;
             bool forever = false;
+            bool enableDurableSubscriptions = false;
 
             Mono.Options.OptionSet options = new Mono.Options.OptionSet {
                 usage,
@@ -115,6 +116,7 @@ namespace Quickstarts.ConsoleReferenceClient
                 { "rc|reverseconnect=", "Connect using the reverse connect endpoint. (e.g. rc=opc.tcp://localhost:65300)", (string url) => reverseConnectUrlString = url},
                 { "forever", "run inner connect/disconnect loop forever", f => { if (f != null) forever = true; } },
                 { "leakchannels", "Leave a channel leak open when disconnecting a session.", l => { if (l != null) leakChannels = true; } },
+                { "ds|durablesubscription", "SetDurableSubscription example", ds => { if (ds != null) enableDurableSubscriptions = true; } },
             };
 
             ReverseConnectManager reverseConnectManager = null;
@@ -379,17 +381,60 @@ namespace Quickstarts.ConsoleReferenceClient
                             }
                             else
                             {
+                                int quitTimeout = 65_000;
+                                if (enableDurableSubscriptions)
+                                {
+                                    quitTimeout = 150_000;
+                                }
+
+                                NodeId sessionNodeId = uaClient.Session.SessionId;
                                 // Run tests for available methods on reference server.
                                 samples.ReadNodes(uaClient.Session);
                                 samples.WriteNodes(uaClient.Session);
                                 samples.Browse(uaClient.Session);
                                 samples.CallMethod(uaClient.Session);
-                                samples.SubscribeToDataChanges(uaClient.Session, 120_000);
+                                samples.EnableEvents(uaClient.Session, (uint)quitTimeout);
+                                bool isDurable = samples.SubscribeToDataChanges(
+                                    uaClient.Session, 60_000, enableDurableSubscriptions);
+                                if ( isDurable )
+                                {
+                                    // Need to control the reconnect
+                                    uaClient.ReconnectPeriod = 200_000;
+                                }
 
                                 output.WriteLine("Waiting...");
 
                                 // Wait for some DataChange notifications from MonitoredItems
-                                quit = quitEvent.WaitOne(timeout > 0 ? waitTime : 30_000);
+                                int waitCounters = 0;
+                                int checkForWaitTime = 1000;
+                                int closeSessionTime = checkForWaitTime * 35;
+                                int restartSessionTime = checkForWaitTime * 65;
+                                bool stopNotQuit = false;
+                                while (!quit && !stopNotQuit && waitCounters < quitTimeout)
+                                {
+                                    quit = quitEvent.WaitOne(checkForWaitTime);
+                                    waitCounters += checkForWaitTime;
+                                    if (isDurable)
+                                    {
+                                        if (waitCounters == closeSessionTime)
+                                        {
+                                            if (uaClient.Session.SubscriptionCount == 1)
+                                            {
+                                                output.WriteLine("Closing Session at " + DateTime.Now.ToLongTimeString());
+                                                uaClient.Session.Close(closeChannel: false);
+                                            }
+                                        }
+
+                                        if (waitCounters == restartSessionTime)
+                                        {
+                                            output.WriteLine("Restarting Session at " + DateTime.Now.ToLongTimeString());
+                                            await uaClient.DurableSubscriptionTransfer(
+                                                serverUrl.ToString(),
+                                                useSecurity: !noSecurity,
+                                                quitCTS.Token);
+                                        }
+                                    }
+                                }
                             }
 
                             output.WriteLine("Client disconnected.");
