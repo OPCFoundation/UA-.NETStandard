@@ -111,7 +111,6 @@ namespace Opc.Ua.Server
             m_errors = null;
             m_start = -1;
             m_end = -1;
-            IsDurable = createDurable;
         }
 
         #region Public Methods
@@ -153,7 +152,7 @@ namespace Opc.Ua.Server
             }
         }
         /// <inheritdoc/>
-        public virtual bool IsDurable { get; }
+        public virtual bool IsDurable => false;
 
 
         /// <summary>
@@ -171,7 +170,7 @@ namespace Opc.Ua.Server
             //check for full queue
             if (ItemsInQueue == m_values.Length)
             {
-                _ = Dequeue(out _, out _);
+                Dequeue(out _, out _);
             }
 
             // check for empty queue.

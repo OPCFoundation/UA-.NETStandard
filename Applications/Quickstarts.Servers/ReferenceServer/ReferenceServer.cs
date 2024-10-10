@@ -84,7 +84,7 @@ namespace Quickstarts.ReferenceServer
         {
             if (configuration?.ServerConfiguration?.DurableSubscriptionsEnabled == true)
             {
-                return new DurableMonitoredItemQueueFactory();
+                return new Servers.DurableMonitoredItemQueueFactory();
             }
             return new MonitoredItemQueueFactory();
         }

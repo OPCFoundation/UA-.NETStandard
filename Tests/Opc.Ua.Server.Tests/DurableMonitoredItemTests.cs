@@ -6,6 +6,7 @@ using BenchmarkDotNet.Attributes;
 using Microsoft.AspNetCore.Hosting.Server;
 using Moq;
 using NUnit.Framework;
+using Quickstarts.Servers;
 
 namespace Opc.Ua.Server.Tests
 {
@@ -17,7 +18,7 @@ namespace Opc.Ua.Server.Tests
     [SetCulture("en-us"), SetUICulture("en-us")]
     [Parallelizable]
     [MemoryDiagnoser]
-    public class MonitoreItemTests
+    public class DurableMonitoredItemTests
     {
         #region Setup
         /// <summary>
@@ -27,7 +28,7 @@ namespace Opc.Ua.Server.Tests
             new object [] { new MonitoredItemQueueFactory()},
             new object [] { new DurableMonitoredItemQueueFactory() }
         };
-        public MonitoreItemTests(IMonitoredItemQueueFactory factory)
+        public DurableMonitoredItemTests(IMonitoredItemQueueFactory factory)
         {
             m_factory = factory;
         }

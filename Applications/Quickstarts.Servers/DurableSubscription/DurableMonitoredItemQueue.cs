@@ -28,7 +28,9 @@
  * ======================================================================*/
 
 
-namespace Opc.Ua.Server
+using Opc.Ua.Server;
+
+namespace Quickstarts.Servers
 {
     /// <summary>
     /// A factory for <see cref="IDataChangeMonitoredItemQueue"> and </see> <see cref="IEventMonitoredItemQueue"/>
@@ -40,14 +42,32 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public IDataChangeMonitoredItemQueue CreateDataChangeQueue(bool createDurable)
         {
-            //return new DurableDataChangeMonitoredItemQueue(createDurable);
-            return new DurableDataChangeMonitoredItemQueue(createDurable);
+            //use durable queue only if MI is durable
+            if (createDurable)
+            {
+
+                return new DurableDataChangeMonitoredItemQueue(createDurable);
+            }
+            else
+            {
+                return new DataChangeMonitoredItemQueue(createDurable);
+            }
+            
         }
 
         /// <inheritdoc/>
         public IEventMonitoredItemQueue CreateEventQueue(bool createDurable)
         {
-            return new DurableEventMonitoredItemQueue(createDurable);
+            //use durable queue only if MI is durable
+            if (createDurable)
+            {
+
+                return new DurableEventMonitoredItemQueue(createDurable);
+            }
+            else
+            {
+                return new EventMonitoredItemQueue(createDurable);
+            }
         }
 
         /// <inheritdoc/>

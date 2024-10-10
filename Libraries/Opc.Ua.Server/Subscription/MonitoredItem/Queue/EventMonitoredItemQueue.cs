@@ -98,13 +98,12 @@ namespace Opc.Ua.Server
                 throw new ArgumentException("DataChangeMonitoredItemQueue does not support durable Queues", nameof(createDurable));
             }
             m_events = new List<EventFieldList>();
-            IsDurable = createDurable;
             QueueSize = 0;
         }
 
         #region Public Methods
         /// <inheritdoc/>
-        public virtual bool IsDurable { get; }
+        public virtual bool IsDurable => false;
 
         /// <inheritdoc/>
         public uint QueueSize { get; private set; }
