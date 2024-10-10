@@ -29,11 +29,7 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
-using System.Xml;
 using System.Threading;
-using System.Runtime.Serialization;
-using System.Text;
 using Microsoft.Extensions.Logging;
 using System.Linq;
 
@@ -109,6 +105,8 @@ namespace Opc.Ua.Server
             m_waitingForPublish = false;
             m_maxMessageCount = maxMessageCount;
             m_sentMessages = new List<NotificationMessage>();
+            m_supportsDurable = m_server.MonitoredItemQueueFactory.SupportsDurableQueues;
+            m_isDurable = false;
 
             m_monitoredItems = new Dictionary<uint, LinkedListNode<IMonitoredItem>>();
             m_itemsToCheck = new LinkedList<IMonitoredItem>();
@@ -182,6 +180,11 @@ namespace Opc.Ua.Server
             {
                 lock (m_lock)
                 {
+                    foreach (KeyValuePair<uint, LinkedListNode<IMonitoredItem>> monitoredItemKVP in m_monitoredItems)
+                    {
+                        Utils.SilentDispose(monitoredItemKVP.Value?.Value);
+                    }
+
                     m_monitoredItems.Clear();
                     m_sentMessages.Clear();
                     m_itemsToCheck.Clear();
@@ -262,6 +265,11 @@ namespace Opc.Ua.Server
         {
             get { return (m_session != null) ? m_session.IdentityToken : m_savedOwnerIdentity; }
         }
+
+        /// <summary>
+        /// True if the subscription is set to durable and supports long lifetime and queue size
+        /// </summary>
+        public bool IsDurable => m_isDurable;
 
         /// <summary>
         /// Gets the lock that must be acquired before accessing the contents of the Diagnostics property.
@@ -847,23 +855,33 @@ namespace Opc.Ua.Server
                 // check for monitored items that are ready to publish.
                 LinkedListNode<IMonitoredItem> current = m_itemsToPublish.First;
 
+                //Limit the amount of values a monitored item publishes at once
+                uint maxNotificationsPerMonitoredItem = m_maxNotificationsPerPublish == 0 ? uint.MaxValue : m_maxNotificationsPerPublish * 3;
+
                 while (current != null)
                 {
                     LinkedListNode<IMonitoredItem> next = current.Next;
                     IMonitoredItem monitoredItem = current.Value;
+                    bool hasMoreValuesToPublish;
 
                     if ((monitoredItem.MonitoredItemType & MonitoredItemTypeMask.DataChange) != 0)
                     {
-                        ((IDataChangeMonitoredItem)monitoredItem).Publish(context, datachanges, datachangeDiagnostics);
+                        hasMoreValuesToPublish = ((IDataChangeMonitoredItem)monitoredItem).Publish(context, datachanges, datachangeDiagnostics, maxNotificationsPerMonitoredItem);
                     }
                     else
                     {
-                        ((IEventMonitoredItem)monitoredItem).Publish(context, events);
+                        hasMoreValuesToPublish = ((IEventMonitoredItem)monitoredItem).Publish(context, events, maxNotificationsPerMonitoredItem);
                     }
 
-                    // add back to list to check.
-                    m_itemsToPublish.Remove(current);
-                    m_itemsToCheck.AddLast(current);
+                    // if item has more values to publish leave it at the front of the list
+                    // to execute publish in next cycle, no checking needed
+                    // if no more values to publish are left add it to m_itemsToCheck
+                    // to check status on next publish cylce
+                    if (!hasMoreValuesToPublish)
+                    {
+                        m_itemsToPublish.Remove(current);
+                        m_itemsToCheck.AddLast(current);
+                    }
 
                     // check there are enough notifications for a message.
                     if (m_maxNotificationsPerPublish > 0 && events.Count + datachanges.Count > m_maxNotificationsPerPublish)
@@ -887,6 +905,13 @@ namespace Opc.Ua.Server
                             m_diagnostics.DataChangeNotificationsCount += (uint)dataChangeCount;
                             m_diagnostics.EventNotificationsCount += (uint)(eventCount - events.Count);
                             m_diagnostics.NotificationsCount += (uint)notificationCount;
+                        }
+
+                        //stop fetching messages from MIs when message queue is full to avoid discards
+                        // use m_maxMessageCount - 2 to put remaining values into the last allowed message (each MI is allowed to publish 3 up to messages at once)
+                        if (messages.Count >= m_maxMessageCount - 2)
+                        {
+                            break;
                         }
                     }
 
@@ -1446,14 +1471,15 @@ namespace Opc.Ua.Server
             }
 
             m_server.NodeManager.CreateMonitoredItems(
-                context,
-                this.m_id,
-                m_publishingInterval,
-                timestampsToReturn,
-                itemsToCreate,
-                errors,
-                filterResults,
-                monitoredItems);
+            context,
+            this.m_id,
+            m_publishingInterval,
+            timestampsToReturn,
+            itemsToCreate,
+            errors,
+            filterResults,
+            monitoredItems,
+            m_isDurable);
 
             // allocate results.
             bool diagnosticsExist = false;
@@ -1879,6 +1905,12 @@ namespace Opc.Ua.Server
                     errors);
             }
 
+            //dispose monitored Items
+            foreach (IMonitoredItem monitoredItem in monitoredItems)
+            {
+                monitoredItem?.Dispose();
+            }
+
             lock (m_lock)
             {
                 // update diagnostics.
@@ -2268,19 +2300,34 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Sets the subscription to durable mode.
         /// </summary>
-        public ServiceResult SetSubscriptionDurable(uint lifeTimeInHours, out uint revisedLifeTimeInHours)
+        public ServiceResult SetSubscriptionDurable(uint maxLifetimeCount)
         {
             lock (m_lock)
             {
-                // set default
-                revisedLifeTimeInHours = 0;
-
-                if (m_monitoredItems.Count > 0)
+                if (!m_supportsDurable)
                 {
-                    return StatusCodes.BadInvalidState;
+                    Utils.LogError("SetSubscriptionDurable requested for subscription with id {0}, but no IMonitoredItemQueueFactory that supports durable queues was registered", m_id);
+                    TraceState(LogLevel.Information, TraceStateId.Config, "SetSubscriptionDurable Failed");
+                    return StatusCodes.BadNotSupported;
+                }   
+
+                m_isDurable = true;
+
+                // clear lifetime counter.
+                ResetLifetimeCount();
+
+                m_maxLifetimeCount = maxLifetimeCount;
+
+
+                // update diagnostics
+                lock (DiagnosticsWriteLock)
+                {
+                    m_diagnostics.ModifyCount++;
+                    m_diagnostics.MaxLifetimeCount = m_maxLifetimeCount;
+
                 }
 
-                // TODO: enable the durable subscription support here
+                TraceState(LogLevel.Information, TraceStateId.Config, "MODIFIED");
 
                 return StatusCodes.Good;
             }
@@ -2437,6 +2484,8 @@ namespace Opc.Ua.Server
         private bool m_refreshInProgress;
         private bool m_expired;
         private Dictionary<uint, List<ITriggeredMonitoredItem>> m_itemsToTrigger;
+        private bool m_supportsDurable;
+        private bool m_isDurable;
         #endregion
     }
 }
