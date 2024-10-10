@@ -1148,6 +1148,7 @@ namespace Opc.Ua.Server
                 // go to the next sampling interval.
                 IncrementSampleTime();
 
+                bool moreValuesToPublish = false;
                 // publish events.
                 if (m_events != null)
                 {
@@ -1183,14 +1184,16 @@ namespace Opc.Ua.Server
                             e);
                     }
 
+
+                    int notificationCount = 0;
+
                     // place event at the beginning of the queue.
                     if (overflowEvent != null && m_discardOldest)
                     {
                         notifications.Enqueue(overflowEvent);
+                        notificationCount++;
                     }
 
-
-                    int notificationCount = overflowEvent != null ? 1 : 0;
                     int eventsToRemove = 0;
                     foreach (EventFieldList fields in m_events)
                     {
@@ -1202,11 +1205,7 @@ namespace Opc.Ua.Server
                         // apply any diagnostic masks.
                         for (int jj = 0; jj < fields.EventFields.Count; jj++)
                         {
-                            object value = fields.EventFields[jj].Value;
-
-                            StatusResult result = value as StatusResult;
-
-                            result?.ApplyDiagnosticMasks(context.DiagnosticsMask, context.StringTable);
+                            (fields.EventFields[jj].Value as StatusResult)?.ApplyDiagnosticMasks(context.DiagnosticsMask, context.StringTable);
                         }
 
                         notifications.Enqueue(fields);
@@ -1216,16 +1215,23 @@ namespace Opc.Ua.Server
 
                     m_events.RemoveRange(0, eventsToRemove);
 
-                    // place event at the end of the queue.
-                    if (overflowEvent != null && !m_discardOldest && !(m_events.Count > 0))
+                    moreValuesToPublish = m_events?.Count > 0;
+
+                    // place overflow event at the end of the queue if there is still space in the publish.
+                    if (overflowEvent != null && !m_discardOldest)
                     {
-                        notifications.Enqueue(overflowEvent);
+                        if (notificationCount < maxNotificationsPerPublish)
+                        {
+                            notifications.Enqueue(overflowEvent);
+                        }
+                        else
+                        {
+                            moreValuesToPublish = true;
+                        }
                     }
 
                     Utils.LogTrace(Utils.TraceMasks.OperationDetail, "MONITORED ITEM: Publish(QueueSize={0})", notifications.Count);
                 }
-
-                bool moreValuesToPublish = m_events?.Count > 0;
 
                 // reset state variables.
                 m_overflow = m_overflow && moreValuesToPublish && !m_discardOldest;
