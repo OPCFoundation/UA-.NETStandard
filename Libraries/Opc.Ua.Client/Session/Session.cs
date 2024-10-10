@@ -914,6 +914,16 @@ namespace Opc.Ua.Client
             set => m_serverMaxContinuationPointsPerBrowse = value;
         }
 
+        /// <summary>
+        /// Read from the Server capability MaxByteStringLength when the Operation Limits are fetched
+        /// </summary>
+        public uint ServerMaxByteStringLength
+        {
+            get => m_serverMaxByteStringLength;
+            set => m_serverMaxByteStringLength = value;
+        }
+
+
         /// <inheritdoc/>
         public ContinuationPointPolicy ContinuationPointPolicy
         {
@@ -1651,6 +1661,10 @@ namespace Opc.Ua.Client
                 nodeIds.Add(VariableIds.Server_ServerCapabilities_MaxBrowseContinuationPoints);
                 int maxBrowseContinuationPointIndex = nodeIds.Count - 1;
 
+                // add the server transport quota MaxByteStringLength.
+                nodeIds.Add(VariableIds.Server_ServerCapabilities_MaxByteStringLength);
+                int maxByteStringLengthIndex = nodeIds.Count - 1;
+
                 ReadValues(nodeIds, Enumerable.Repeat(typeof(uint), nodeIds.Count).ToList(), out var values, out var errors);
 
                 var configOperationLimits = m_configuration?.ClientConfiguration?.OperationLimits ?? new OperationLimits();
@@ -1679,6 +1693,11 @@ namespace Opc.Ua.Client
                 {
                     ServerMaxContinuationPointsPerBrowse = (UInt16)values[maxBrowseContinuationPointIndex];
                 }
+                if (values[maxByteStringLengthIndex] != null
+                    && ServiceResult.IsNotBad(errors[maxByteStringLengthIndex]))
+                {
+                    ServerMaxByteStringLength = (UInt32)values[maxByteStringLengthIndex];
+                }
 
             }
             catch (Exception ex)
@@ -1691,9 +1710,6 @@ namespace Opc.Ua.Client
                 }
             }
         }
-
-
-
 
         /// <inheritdoc/>
         public void FetchTypeTree(ExpandedNodeId typeId)
@@ -2890,6 +2906,87 @@ namespace Opc.Ua.Client
                 // suitable value found.
                 values[ii] = value;
             }
+        }
+
+        /// <inheritdoc/>
+        public byte[] ReadByteStringInChunks(NodeId nodeId)
+        {
+
+            int count = (int)ServerMaxByteStringLength; ;
+
+            int my_MaxByteStringLength = m_configuration.TransportQuotas.MaxByteStringLength;
+            if (my_MaxByteStringLength > 0)
+            {
+                count = ServerMaxByteStringLength > my_MaxByteStringLength ?
+                    my_MaxByteStringLength : (int)ServerMaxByteStringLength;
+            }
+
+            if (count <= 1)
+            {
+                throw new ServiceResultException(StatusCodes.BadIndexRangeNoData, "The MaxByteStringLength is not known or too small for reading data in chunks.");
+            }
+
+            int offset = 0;
+            List<byte[]> bytes = new List<byte[]>();
+
+            while (true)
+            {
+                ReadValueId valueToRead = new ReadValueId {
+                    NodeId = nodeId,
+                    AttributeId = Attributes.Value,
+                    IndexRange = new NumericRange(offset, offset + count - 1).ToString(),
+                    DataEncoding = null
+                };
+                ReadValueIdCollection readValueIds = new ReadValueIdCollection { valueToRead };
+
+                ResponseHeader responseHeader = Read(
+                    null,
+                    0,
+                    TimestampsToReturn.Neither,
+                    readValueIds,
+                    out DataValueCollection results,
+                    out DiagnosticInfoCollection diagnosticInfos);
+
+                ClientBase.ValidateResponse(results, readValueIds);
+                ClientBase.ValidateDiagnosticInfos(diagnosticInfos, readValueIds);
+
+                if (offset == 0)
+                {
+                    Variant wrappedValue = results[0].WrappedValue;
+                    if (wrappedValue.TypeInfo.BuiltInType != BuiltInType.ByteString ||
+                        wrappedValue.TypeInfo.ValueRank != ValueRanks.Scalar)
+                    {
+                        throw new ServiceResultException(StatusCodes.BadTypeMismatch, "Value is not a ByteString scalar.");
+                    }
+                }
+
+                if (StatusCode.IsBad(results[0].StatusCode))
+                {
+                    if (results[0].StatusCode == StatusCodes.BadIndexRangeNoData)
+                    {
+                        // this happens when the previous read has fetched all remaining data
+                        break;
+                    }
+                    ServiceResult serviceResult = ClientBase.GetResult(results[0].StatusCode, 0, diagnosticInfos, responseHeader);
+                    throw new ServiceResultException(serviceResult);
+                }
+
+                byte[] chunk = results[0].Value as byte[];
+                if (chunk == null || chunk.Length == 0)
+                {
+                    break;
+                }
+
+                bytes.Add(chunk);
+
+                if (chunk.Length < count)
+                {
+                    break;
+                }
+                offset += count;
+            }
+
+            return bytes.SelectMany(a => a).ToArray();
         }
 
         /// <inheritdoc/>
@@ -4404,12 +4501,12 @@ namespace Opc.Ua.Client
 
                     value = attributes[Attributes.EventNotifier];
 
-                    if (value == null || value.Value is null)
+                    if (value == null)
                     {
                         throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "Object does not support the EventNotifier attribute.");
                     }
 
-                    objectNode.EventNotifier = (byte)value.GetValue(typeof(byte));
+                    objectNode.EventNotifier = value.GetValueOrDefault<byte>();
                     node = objectNode;
                     break;
                 }
@@ -4425,7 +4522,7 @@ namespace Opc.Ua.Client
                         throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "ObjectType does not support the IsAbstract attribute.");
                     }
 
-                    objectTypeNode.IsAbstract = (bool)value.GetValue(typeof(bool));
+                    objectTypeNode.IsAbstract = value.GetValueOrDefault<bool>();
                     node = objectTypeNode;
                     break;
                 }
@@ -4452,7 +4549,7 @@ namespace Opc.Ua.Client
                         throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "Variable does not support the ValueRank attribute.");
                     }
 
-                    variableNode.ValueRank = (int)value.GetValue(typeof(int));
+                    variableNode.ValueRank = value.GetValueOrDefault<int>();
 
                     // ArrayDimensions Attribute
                     value = attributes[Attributes.ArrayDimensions];
@@ -4477,7 +4574,7 @@ namespace Opc.Ua.Client
                         throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "Variable does not support the AccessLevel attribute.");
                     }
 
-                    variableNode.AccessLevel = (byte)value.GetValue(typeof(byte));
+                    variableNode.AccessLevel = value.GetValueOrDefault<byte>();
 
                     // UserAccessLevel Attribute
                     value = attributes[Attributes.UserAccessLevel];
@@ -4487,7 +4584,7 @@ namespace Opc.Ua.Client
                         throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "Variable does not support the UserAccessLevel attribute.");
                     }
 
-                    variableNode.UserAccessLevel = (byte)value.GetValue(typeof(byte));
+                    variableNode.UserAccessLevel = value.GetValueOrDefault<byte>();
 
                     // Historizing Attribute
                     value = attributes[Attributes.Historizing];
@@ -4497,7 +4594,7 @@ namespace Opc.Ua.Client
                         throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "Variable does not support the Historizing attribute.");
                     }
 
-                    variableNode.Historizing = (bool)value.GetValue(typeof(bool));
+                    variableNode.Historizing = value.GetValueOrDefault<bool>();
 
                     // MinimumSamplingInterval Attribute
                     value = attributes[Attributes.MinimumSamplingInterval];
@@ -4512,7 +4609,7 @@ namespace Opc.Ua.Client
 
                     if (value != null)
                     {
-                        variableNode.AccessLevelEx = (uint)value.GetValue(typeof(uint));
+                        variableNode.AccessLevelEx = value.GetValueOrDefault<uint>();
                     }
 
                     node = variableNode;
@@ -4531,7 +4628,7 @@ namespace Opc.Ua.Client
                         throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "VariableType does not support the IsAbstract attribute.");
                     }
 
-                    variableTypeNode.IsAbstract = (bool)value.GetValue(typeof(bool));
+                    variableTypeNode.IsAbstract = value.GetValueOrDefault<bool>();
 
                     // DataType Attribute
                     value = attributes[Attributes.DataType];
@@ -4551,7 +4648,7 @@ namespace Opc.Ua.Client
                         throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "VariableType does not support the ValueRank attribute.");
                     }
 
-                    variableTypeNode.ValueRank = (int)value.GetValue(typeof(int));
+                    variableTypeNode.ValueRank = value.GetValueOrDefault<int>();
 
                     // ArrayDimensions Attribute
                     value = attributes[Attributes.ArrayDimensions];
@@ -4577,7 +4674,7 @@ namespace Opc.Ua.Client
                         throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "Method does not support the Executable attribute.");
                     }
 
-                    methodNode.Executable = (bool)value.GetValue(typeof(bool));
+                    methodNode.Executable = value.GetValueOrDefault<bool>();
 
                     // UserExecutable Attribute
                     value = attributes[Attributes.UserExecutable];
@@ -4587,7 +4684,7 @@ namespace Opc.Ua.Client
                         throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "Method does not support the UserExecutable attribute.");
                     }
 
-                    methodNode.UserExecutable = (bool)value.GetValue(typeof(bool));
+                    methodNode.UserExecutable = value.GetValueOrDefault<bool>();
 
                     node = methodNode;
                     break;
@@ -4605,7 +4702,7 @@ namespace Opc.Ua.Client
                         throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "DataType does not support the IsAbstract attribute.");
                     }
 
-                    dataTypeNode.IsAbstract = (bool)value.GetValue(typeof(bool));
+                    dataTypeNode.IsAbstract = value.GetValueOrDefault<bool>();
 
                     // DataTypeDefinition Attribute
                     value = attributes[Attributes.DataTypeDefinition];
@@ -4631,7 +4728,7 @@ namespace Opc.Ua.Client
                         throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "ReferenceType does not support the IsAbstract attribute.");
                     }
 
-                    referenceTypeNode.IsAbstract = (bool)value.GetValue(typeof(bool));
+                    referenceTypeNode.IsAbstract = value.GetValueOrDefault<bool>();
 
                     // Symmetric Attribute
                     value = attributes[Attributes.Symmetric];
@@ -4641,7 +4738,7 @@ namespace Opc.Ua.Client
                         throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "ReferenceType does not support the Symmetric attribute.");
                     }
 
-                    referenceTypeNode.Symmetric = (bool)value.GetValue(typeof(bool));
+                    referenceTypeNode.Symmetric = value.GetValueOrDefault<bool>();
 
                     // InverseName Attribute
                     value = attributes[Attributes.InverseName];
@@ -4667,7 +4764,7 @@ namespace Opc.Ua.Client
                         throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "View does not support the EventNotifier attribute.");
                     }
 
-                    viewNode.EventNotifier = (byte)value.GetValue(typeof(byte));
+                    viewNode.EventNotifier = value.GetValueOrDefault<byte>();
 
                     // ContainsNoLoops Attribute
                     value = attributes[Attributes.ContainsNoLoops];
@@ -4677,7 +4774,7 @@ namespace Opc.Ua.Client
                         throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "View does not support the ContainsNoLoops attribute.");
                     }
 
-                    viewNode.ContainsNoLoops = (bool)value.GetValue(typeof(bool));
+                    viewNode.ContainsNoLoops = value.GetValueOrDefault<bool>();
 
                     node = viewNode;
                     break;
@@ -4728,14 +4825,14 @@ namespace Opc.Ua.Client
             if (attributes.TryGetValue(Attributes.WriteMask, out value) &&
                 value != null)
             {
-                node.WriteMask = (uint)value.GetValue(typeof(uint));
+                node.WriteMask = value.GetValueOrDefault<uint>();
             }
 
             // UserWriteMask Attribute
             if (attributes.TryGetValue(Attributes.UserWriteMask, out value) &&
                 value != null)
             {
-                node.UserWriteMask = (uint)value.GetValue(typeof(uint));
+                node.UserWriteMask = value.GetValueOrDefault<uint>();
             }
 
             // RolePermissions Attribute
@@ -4776,7 +4873,7 @@ namespace Opc.Ua.Client
             if (attributes.TryGetValue(Attributes.AccessRestrictions, out value) &&
                 value != null)
             {
-                node.AccessRestrictions = (ushort)value.GetValue(typeof(ushort));
+                node.AccessRestrictions = value.GetValueOrDefault<ushort>();
             }
 
             return node;
@@ -6455,6 +6552,7 @@ namespace Opc.Ua.Client
         private readonly EndpointDescriptionCollection m_discoveryServerEndpoints;
         private readonly StringCollection m_discoveryProfileUris;
         private uint m_serverMaxContinuationPointsPerBrowse = 0;
+        private uint m_serverMaxByteStringLength = 0;
         private ContinuationPointPolicy m_continuationPointPolicy
             = ContinuationPointPolicy.Default;
 

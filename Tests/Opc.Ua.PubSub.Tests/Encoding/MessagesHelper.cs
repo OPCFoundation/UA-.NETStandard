@@ -44,6 +44,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         /// Ua data message type
         /// </summary>
         private const string UaDataMessageType = "ua-data";
+
         /// <summary>
         ///  Ua metadata message type
         /// </summary>

@@ -1,4 +1,4 @@
-/* Copyright (c) 1996-2022 The OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2024 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
      - RCL: for OPC Foundation Corporate Members in good-standing
      - GPL V2: everybody else
@@ -19,6 +19,11 @@ namespace Opc.Ua
     /// </summary>
     public interface IJsonEncoder : IEncoder
     {
+        /// <summary>
+        /// The type of JSON encoding being used.
+        /// </summary>
+        JsonEncodingType EncodingToUse { get; }
+
         /// <summary>
         /// Force the Json encoder to encode namespace URI instead of
         /// namespace Index in NodeIds.
@@ -51,6 +56,39 @@ namespace Opc.Ua
         /// Call an IEncoder action where the reversible encoding is applied
         /// before the call to the Action and restored before return.
         /// </summary>
+        [Obsolete("Non/Reversible encoding is deprecated. Use UsingAlternateEncoding instead to support new encoding types.")]
         void UsingReversibleEncoding<T>(Action<string, T> action, string fieldName, T value, bool useReversibleEncoding);
+
+        /// <summary>
+        /// Call an IEncoder action where the alternate encoding type is applied
+        /// before the call to the Action and restored before return.
+        /// </summary>
+        void UsingAlternateEncoding<T>(Action<string, T> action, string fieldName, T value, JsonEncodingType useEncodingType);
+    }
+
+    /// <summary>
+    /// The type of JSON encoding to use.
+    /// </summary>
+    public enum JsonEncodingType
+    {
+        /// <summary>
+        /// The compact encoding that may require a schema to interpret.
+        /// </summary>
+        Compact,
+
+        /// <summary>
+        /// A verbose encoding that is more useable even without a schema.
+        /// </summary>
+        Verbose,
+
+        /// <summary>
+        /// The reversible encoding supported for backward compatibitility.
+        /// </summary>
+        Reversible,
+
+        /// <summary>
+        /// The non reversible encoding supported for backward compatibitility.
+        /// </summary>
+        NonReversible
     }
 }
