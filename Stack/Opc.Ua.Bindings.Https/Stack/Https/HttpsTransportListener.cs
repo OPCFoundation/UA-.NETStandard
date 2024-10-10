@@ -476,25 +476,16 @@ namespace Opc.Ua.Bindings
             m_quotas.CertificateValidator = validator;
             m_serverCertificate = serverCertificate;
             m_serverCertificateChain = serverCertificateChain;
-            foreach (var description in m_descriptions)
+
+            byte[] serverCertificateChainBlob = Utils.CreateCertificateChainBlob(serverCertificateChain);
+
+            foreach (EndpointDescription description in m_descriptions)
             {
-                // check if complete chain should be sent.
-                if (m_serverCertificateChain != null &&
-                    m_serverCertificateChain.Count > 1)
-                {
-                    var byteServerCertificateChain = new List<byte>();
-
-                    for (int i = 0; i < m_serverCertificateChain.Count; i++)
-                    {
-                        byteServerCertificateChain.AddRange(m_serverCertificateChain[i].RawData);
-                    }
-
-                    description.ServerCertificate = byteServerCertificateChain.ToArray();
-                }
-                else if (description.ServerCertificate != null)
-                {
-                    description.ServerCertificate = serverCertificate.RawData;
-                }
+                ServerBase.SetServerCertificateInEndpointDescription(description,
+                                                                     serverCertificateChain != null,
+                                                                     serverCertificate,
+                                                                     serverCertificateChainBlob,
+                                                                     false);
             }
 
             Start();
