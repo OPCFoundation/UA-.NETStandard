@@ -1265,10 +1265,37 @@ namespace Opc.Ua
         /// </summary>
         public static string EscapeUri(string uri)
         {
-            if (!String.IsNullOrWhiteSpace(uri))
+            if (!string.IsNullOrWhiteSpace(uri))
             {
-                var builder = new UriBuilder(uri.Replace(";", "%3b"));
-                return builder.Uri.AbsoluteUri;
+                // back compat: for not well formed Uri, fall back to legacy formatting behavior - see #2793
+                if (!Uri.IsWellFormedUriString(uri, UriKind.Absolute) ||
+                    !Uri.TryCreate(uri.Replace(";", "%3b"), UriKind.Absolute, out Uri validUri))
+                {
+                    var buffer = new StringBuilder();
+                    foreach (char ch in uri)
+                    {
+                        switch (ch)
+                        {
+                            case ';':
+                            case '%':
+                            {
+                                buffer.AppendFormat(CultureInfo.InvariantCulture, "%{0:X2}", Convert.ToInt16(ch));
+                                break;
+                            }
+
+                            default:
+                            {
+                                buffer.Append(ch);
+                                break;
+                            }
+                        }
+                    }
+                    return buffer.ToString();
+                }
+                else
+                {
+                    return validUri.AbsoluteUri;
+                }
             }
 
             return String.Empty;
