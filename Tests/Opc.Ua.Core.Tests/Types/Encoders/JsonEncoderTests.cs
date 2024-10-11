@@ -286,8 +286,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                     $"{{\"IdType\":3,\"Id\":\"{s_byteString64}\",\"Namespace\":88}}", null,
                     $"\"ns=88;b={s_byteString64}\"", null},
 
-            {   BuiltInType.StatusCode, new StatusCode(StatusCodes.Good), null, null, null, null},
-            {   BuiltInType.StatusCode, new StatusCode(StatusCodes.Good), $"{StatusCodes.Good}", "", null, null, true},
+            {   BuiltInType.StatusCode, new StatusCode(StatusCodes.Good), null, null, null, "{}"},
+            {   BuiltInType.StatusCode, new StatusCode(StatusCodes.Good), $"{StatusCodes.Good}", "", null, "{}", true},
             {   BuiltInType.StatusCode, new StatusCode(StatusCodes.BadBoundNotFound), $"{StatusCodes.BadBoundNotFound}",
                     $"{{\"Code\":{StatusCodes.BadBoundNotFound}, \"Symbol\":\"{nameof(StatusCodes.BadBoundNotFound)}\"}}"},
             {   BuiltInType.StatusCode, new StatusCode(StatusCodes.BadCertificateInvalid),
@@ -352,6 +352,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             {   BuiltInType.DataValue, new DataValue(), "{}", null},
             {   BuiltInType.DataValue, new DataValue(StatusCodes.Good), "{}", null},
+            {   BuiltInType.DataValue, new DataValue(StatusCodes.BadNotWritable),
+                    $"{StatusCodes.BadNotWritable}",
+                    $"{{\"Code\":{StatusCodes.BadNotWritable}, \"Symbol\":\"{nameof(StatusCodes.BadNotWritable)}\"}}"},
 
             {   BuiltInType.Enumeration, (TestEnumType) 0, "0", "\"0\""},
             {   BuiltInType.Enumeration, TestEnumType.Three, TestEnumType.Three.ToString("d"), $"\"{TestEnumType.Three}_{TestEnumType.Three.ToString("d")}\""},
@@ -372,6 +375,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 "{\"Body\":{\"Foo\":\"bar_999\"}}", "{\"Foo\":\"bar_999\"}",
                 "{\"Body\":{\"Foo\":\"bar_999\"}}", null}
         }.ToArray();
+
+        [DatapointSource]
+        public static StatusCode[] GoodAndBadStatusCodes = { StatusCodes.Good, StatusCodes.BadAlreadyExists };
         #endregion
 
         #region Test Setup
@@ -1178,6 +1184,27 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             string stringifiedExpandedNodId = expandedNodeId.ToString();
             TestContext.Out.WriteLine(stringifiedExpandedNodId);
             Assert.AreEqual(expectedNodeIdString, stringifiedExpandedNodId);
+        }
+
+        /// <summary>
+        /// Validate that a statuscode in a DataValue produces valid JSON.
+        /// </summary>
+        [Theory]
+        public void DataValueWithStatusCodes(
+            JsonEncodingType jsonEncodingType,
+            [ValueSource(nameof(GoodAndBadStatusCodes))] StatusCode statusCode)
+        {
+            var dataValue = new DataValue() {
+                Value = new Variant(12345),
+                ServerTimestamp = DateTime.UtcNow,
+                StatusCode = statusCode
+            };
+            using (var jsonEncoder = new JsonEncoder(m_context, jsonEncodingType))
+            {
+                jsonEncoder.WriteDataValue("Data", dataValue);
+                var result = jsonEncoder.CloseAndReturnText();
+                PrettifyAndValidateJson(result, true);
+            }
         }
 
         /// <summary>
