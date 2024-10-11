@@ -287,7 +287,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                     $"\"ns=88;b={s_byteString64}\"", null},
 
             {   BuiltInType.StatusCode, new StatusCode(StatusCodes.Good), null, null, null, "{}"},
-            {   BuiltInType.StatusCode, new StatusCode(StatusCodes.Good), $"{StatusCodes.Good}", "", null, "{}", true},
+            {   BuiltInType.StatusCode, new StatusCode(StatusCodes.Good), $"{StatusCodes.Good}", "{}", null, "{}", true},
             {   BuiltInType.StatusCode, new StatusCode(StatusCodes.BadBoundNotFound), $"{StatusCodes.BadBoundNotFound}",
                     $"{{\"Code\":{StatusCodes.BadBoundNotFound}, \"Symbol\":\"{nameof(StatusCodes.BadBoundNotFound)}\"}}"},
             {   BuiltInType.StatusCode, new StatusCode(StatusCodes.BadCertificateInvalid),
@@ -353,8 +353,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             {   BuiltInType.DataValue, new DataValue(), "{}", null},
             {   BuiltInType.DataValue, new DataValue(StatusCodes.Good), "{}", null},
             {   BuiltInType.DataValue, new DataValue(StatusCodes.BadNotWritable),
-                    $"{StatusCodes.BadNotWritable}",
-                    $"{{\"Code\":{StatusCodes.BadNotWritable}, \"Symbol\":\"{nameof(StatusCodes.BadNotWritable)}\"}}"},
+                    $"{{\"StatusCode\":{StatusCodes.BadNotWritable}}}",
+                    $"{{\"StatusCode\":{{\"Code\":{StatusCodes.BadNotWritable}, \"Symbol\":\"{nameof(StatusCodes.BadNotWritable)}\"}}}}"},
 
             {   BuiltInType.Enumeration, (TestEnumType) 0, "0", "\"0\""},
             {   BuiltInType.Enumeration, TestEnumType.Three, TestEnumType.Three.ToString("d"), $"\"{TestEnumType.Three}_{TestEnumType.Three.ToString("d")}\""},
@@ -1192,10 +1192,11 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Theory]
         public void DataValueWithStatusCodes(
             JsonEncodingType jsonEncodingType,
+            [ValueSource(nameof(GoodAndBadStatusCodes))] StatusCode statusCodeVariant,
             [ValueSource(nameof(GoodAndBadStatusCodes))] StatusCode statusCode)
         {
             var dataValue = new DataValue() {
-                Value = new Variant(12345),
+                Value = new Variant(statusCodeVariant),
                 ServerTimestamp = DateTime.UtcNow,
                 StatusCode = statusCode
             };

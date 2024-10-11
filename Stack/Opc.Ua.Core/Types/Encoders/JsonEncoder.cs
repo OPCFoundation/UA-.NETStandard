@@ -1346,25 +1346,17 @@ namespace Opc.Ua
             }
 
             // Verbose and NonReversible
+            PushStructure(fieldName);
             if (value != StatusCodes.Good)
             {
-                PushStructure(fieldName);
                 WriteSimpleField("Code", value.Code.ToString(CultureInfo.InvariantCulture), EscapeOptions.NoFieldNameEscape);
                 string symbolicId = StatusCode.LookupSymbolicId(value.CodeBits);
                 if (!string.IsNullOrEmpty(symbolicId))
                 {
                     WriteSimpleField("Symbol", symbolicId, EscapeOptions.Quotes | EscapeOptions.NoFieldNameEscape);
                 }
-                PopStructure();
-                return;
             }
-
-            // Verbose needs empty object
-            if (EncodingToUse == JsonEncodingType.Verbose)
-            {
-                PushStructure(fieldName);
-                PopStructure();
-            }
+            PopStructure();
         }
 
         /// <summary>
