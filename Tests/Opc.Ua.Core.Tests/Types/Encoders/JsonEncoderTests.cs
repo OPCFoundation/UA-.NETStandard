@@ -1164,6 +1164,23 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         }
 
         /// <summary>
+        /// Validate that a ExpandedNodeId returns the expected
+        /// result for a not well formed Uri.
+        /// </summary>
+        [Test]
+        public void NotWellFormedUriInExpandedNodeId2String()
+        {
+            string namespaceUri = "KEPServerEX";
+            string nodeName = "Data Type Examples.16 Bit Device.K Registers.Double3";
+            String expectedNodeIdString = $"nsu={namespaceUri};s={nodeName}";
+            ExpandedNodeId expandedNodeId = new ExpandedNodeId(expectedNodeIdString);
+
+            string stringifiedExpandedNodId = expandedNodeId.ToString();
+            TestContext.Out.WriteLine(stringifiedExpandedNodId);
+            Assert.AreEqual(expectedNodeIdString, stringifiedExpandedNodId);
+        }
+
+        /// <summary>
         /// Validate that the DateTime format strings return an equal result.
         /// </summary>
         public void DateTimeEncodeStringTest(DateTime testDateTime)
