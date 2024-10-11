@@ -1345,6 +1345,7 @@ namespace Opc.Ua
                 return;
             }
 
+            // Verbose and NonReversible
             if (value != StatusCodes.Good)
             {
                 PushStructure(fieldName);
@@ -1354,6 +1355,14 @@ namespace Opc.Ua
                 {
                     WriteSimpleField("Symbol", symbolicId, EscapeOptions.Quotes | EscapeOptions.NoFieldNameEscape);
                 }
+                PopStructure();
+                return;
+            }
+
+            // Verbose needs empty object
+            if (EncodingToUse == JsonEncodingType.Verbose)
+            {
+                PushStructure(fieldName);
                 PopStructure();
             }
         }

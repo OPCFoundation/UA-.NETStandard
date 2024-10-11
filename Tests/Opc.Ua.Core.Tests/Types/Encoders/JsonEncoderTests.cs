@@ -438,6 +438,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 Assert.Throws<NotSupportedException>(() => encoder.ForceNamespaceUriForIndex1 = true);
                 Assert.Throws<NotSupportedException>(() => encoder.IncludeDefaultNumberValues = true);
                 Assert.Throws<NotSupportedException>(() => encoder.IncludeDefaultValues = true);
+                Assert.Throws<NotSupportedException>(() => encoder.EncodeNodeIdAsString = false);
             }
         }
 
