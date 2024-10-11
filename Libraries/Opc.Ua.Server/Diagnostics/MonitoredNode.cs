@@ -294,31 +294,13 @@ namespace Opc.Ua.Server
 
                     if (monitoredItem.AttributeId == Attributes.Value && (changes & NodeStateChangeMasks.Value) != 0)
                     {
-                        ServerSystemContext serverSystemContext;
-                        if ((serverSystemContext = (context as ServerSystemContext)) != null)
-                        {
-                            ServerSystemContext context2 = serverSystemContext.Copy(new OperationContext(monitoredItem.Session, monitoredItem.DiagnosticsMasks));
-                            QueueValue(context2, node, monitoredItem);
-                        }
-                        else
-                        {
-                            QueueValue(context, node, monitoredItem);
-                        }
+                        QueueValue(context, node, monitoredItem);
                         continue;
                     }
 
                     if (monitoredItem.AttributeId != Attributes.Value && (changes & NodeStateChangeMasks.NonValue) != 0)
                     {
-                        ServerSystemContext serverSystemContext2;
-                        if ((serverSystemContext2 = (context as ServerSystemContext)) != null)
-                        {
-                            ServerSystemContext context3 = serverSystemContext2.Copy(new OperationContext(monitoredItem.Session, monitoredItem.DiagnosticsMasks));
-                            QueueValue(context3, node, monitoredItem);
-                        }
-                        else
-                        {
-                            QueueValue(context, node, monitoredItem);
-                        }
+                        QueueValue(context, node, monitoredItem);
                         continue;
                     }
                 }
