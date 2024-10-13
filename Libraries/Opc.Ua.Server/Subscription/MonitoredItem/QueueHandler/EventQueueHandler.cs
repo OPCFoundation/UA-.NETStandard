@@ -77,7 +77,8 @@ namespace Opc.Ua.Server
         /// <param name="context"></param>
         /// <param name="notifications"></param>
         /// <param name="maxNotificationsPerPublish">the maximum number of notifications to enqueue per call</param>
-        void Publish(OperationContext context, Queue<EventFieldList> notifications, uint maxNotificationsPerPublish);
+        /// <returns>the number of events that were added to the notification queue</returns>
+        uint Publish(OperationContext context, Queue<EventFieldList> notifications, uint maxNotificationsPerPublish);
     }
     /// <summary>
     /// Mangages an event queue for usage by a MonitoredItem
@@ -175,7 +176,7 @@ namespace Opc.Ua.Server
         /// <param name="context"></param>
         /// <param name="notifications"></param>
         /// <param name="maxNotificationsPerPublish">the maximum number of notifications to enqueue per call</param>
-        public void Publish(OperationContext context, Queue<EventFieldList> notifications, uint maxNotificationsPerPublish)
+        public uint Publish(OperationContext context, Queue<EventFieldList> notifications, uint maxNotificationsPerPublish)
         {
             uint notificationCount = 0;
             while (notificationCount < maxNotificationsPerPublish && m_eventQueue.Dequeue(out EventFieldList fields))
@@ -193,6 +194,8 @@ namespace Opc.Ua.Server
             }
             //if overflow event is placed at the end of the queue only set overflow to false once the queue is empty
             m_overflow = m_overflow && m_eventQueue.ItemsInQueue > 0 && !m_discardOldest;
+
+            return notificationCount;
         }
 
         private bool m_overflow;

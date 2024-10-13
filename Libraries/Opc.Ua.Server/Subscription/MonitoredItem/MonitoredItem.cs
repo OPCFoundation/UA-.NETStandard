@@ -1092,6 +1092,7 @@ namespace Opc.Ua.Server
                 // go to the next sampling interval.
                 IncrementSampleTime();
 
+                bool moreValuesToPublish = false;
                 // publish events.
                 if (m_eventQueueHandler != null)
                 {
@@ -1131,20 +1132,28 @@ namespace Opc.Ua.Server
                     if (overflowEvent != null && m_discardOldest)
                     {
                         notifications.Enqueue(overflowEvent);
+                        maxNotificationsPerPublish--;
                     }
-                    uint overflowEventCount = overflowEvent == null ? (uint)0 : 1;
-                    m_eventQueueHandler.Publish(context, notifications, maxNotificationsPerPublish - overflowEventCount);
+                    uint notificationCount = m_eventQueueHandler.Publish(context, notifications, maxNotificationsPerPublish);
+
+                    moreValuesToPublish = m_eventQueueHandler?.ItemsInQueue > 0;
 
                     // place overflow event at the end of the queue if queue is empty.
-                    if (overflowEvent != null && !m_discardOldest && m_eventQueueHandler?.ItemsInQueue == 0)
+                    if (overflowEvent != null && !m_discardOldest)
                     {
+                        if (notificationCount < maxNotificationsPerPublish)
+                        {
+                            notifications.Enqueue(overflowEvent);
+                        }
+                        else
+                        {
+                            moreValuesToPublish = true;
+                        }
                         notifications.Enqueue(overflowEvent);
                     }
 
                     Utils.LogTrace(Utils.TraceMasks.OperationDetail, "MONITORED ITEM: Publish(QueueSize={0})", notifications.Count);
                 }
-
-                bool moreValuesToPublish = m_eventQueueHandler?.ItemsInQueue > 0;
 
                 // reset state variables.
                 m_readyToPublish = moreValuesToPublish;
