@@ -57,6 +57,7 @@ namespace Opc.Ua.Server
             m_maxPublishingInterval = configuration.ServerConfiguration.MaxPublishingInterval;
             m_publishingResolution = configuration.ServerConfiguration.PublishingResolution;
             m_maxSubscriptionLifetime = (uint)configuration.ServerConfiguration.MaxSubscriptionLifetime;
+            m_maxDurableSubscriptionLifetimeInHours = (uint)configuration.ServerConfiguration.MaxDurableSubscriptionLifetimeInHours;
             m_minSubscriptionLifetime = (uint)configuration.ServerConfiguration.MinSubscriptionLifetime;
             m_maxMessageCount = (uint)configuration.ServerConfiguration.MaxMessageQueueSize;
             m_maxNotificationsPerPublish = (uint)configuration.ServerConfiguration.MaxNotificationsPerPublish;
@@ -1073,10 +1074,10 @@ namespace Opc.Ua.Server
             revisedPublishingInterval = CalculatePublishingInterval(requestedPublishingInterval);
 
             // calculate the keep alive count.
-            revisedMaxKeepAliveCount = CalculateKeepAliveCount(revisedPublishingInterval, requestedMaxKeepAliveCount);
+            revisedMaxKeepAliveCount = CalculateKeepAliveCount(revisedPublishingInterval, requestedMaxKeepAliveCount, subscription.IsDurable);
 
             // calculate the lifetime count.
-            revisedLifetimeCount = CalculateLifetimeCount(revisedPublishingInterval, revisedMaxKeepAliveCount, requestedLifetimeCount);
+            revisedLifetimeCount = CalculateLifetimeCount(revisedPublishingInterval, revisedMaxKeepAliveCount, requestedLifetimeCount, subscription.IsDurable);
 
             // calculate the max notification count.
             maxNotificationsPerPublish = CalculateMaxNotificationsPerPublish(maxNotificationsPerPublish);
@@ -1099,16 +1100,68 @@ namespace Opc.Ua.Server
                 diagnostics.PublishingIntervalCount = publishingIntervalCount;
             }
         }
+        /// <summary>
+        /// Sets a subscription into durable mode
+        /// </summary>
+        /// <param name="context">the system context.</param>
+        /// <param name="subscriptionId">Identifier of the Subscription.</param>
+        /// <param name="lifetimeInHours">The requested lifetime in hours for the durable Subscription.</param>
+        /// <param name="revisedLifetimeInHours">The revised lifetime in hours the Server applied to the durable Subscription.</param>
+        /// <returns></returns>
+        public ServiceResult SetSubscriptionDurable(
+            ISystemContext context,
+            uint subscriptionId,
+            uint lifetimeInHours,
+            out uint revisedLifetimeInHours)
+        {
+            revisedLifetimeInHours = 0;
+            Subscription subscription = null;
+            lock (m_lock)
+            {
+                if (!m_subscriptions.TryGetValue(subscriptionId, out subscription))
+                {
+                    throw new ServiceResultException(StatusCodes.BadSubscriptionIdInvalid);
+                }
+            }
+
+            if (subscription.SessionId != context.SessionId)
+            {
+                // user tries to access subscription of different session
+                return StatusCodes.BadUserAccessDenied;
+            }
+
+            if (subscription.MonitoredItemCount > 0)
+            {
+                // durable subscription can only be created before monitored items are created
+                return StatusCodes.BadInvalidState;
+            }
+
+            revisedLifetimeInHours = lifetimeInHours;
+            if (revisedLifetimeInHours == 0 || revisedLifetimeInHours > m_maxDurableSubscriptionLifetimeInHours)
+            {
+                revisedLifetimeInHours = m_maxDurableSubscriptionLifetimeInHours;
+            }
+
+            uint hoursInSeconds = 3_600_000;
+            long lifetimeInSeconds = revisedLifetimeInHours * hoursInSeconds;
+            uint requestedLifeTimeCount = (uint)(lifetimeInSeconds / subscription.PublishingInterval);
+
+            return subscription.SetSubscriptionDurable(requestedLifeTimeCount);
+
+            // According Paul Hunkar, the spec is deliberately quiet
+            // on this. It is not expected to respect the KeepAlive * 3, nor to recalculate the
+            // revisedLifetimeInHours, as this is an extreme edge case
+        }
 
         /// <summary>
         /// Sets the publishing mode for a set of subscriptions.
         /// </summary>
         public void SetPublishingMode(
-            OperationContext context,
-            bool publishingEnabled,
-            UInt32Collection subscriptionIds,
-            out StatusCodeCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
+        OperationContext context,
+        bool publishingEnabled,
+        UInt32Collection subscriptionIds,
+        out StatusCodeCollection results,
+        out DiagnosticInfoCollection diagnosticInfos)
         {
             bool diagnosticsExist = false;
 
@@ -1640,7 +1693,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Calculates the keep alive count.
         /// </summary>
-        protected virtual uint CalculateKeepAliveCount(double publishingInterval, uint keepAliveCount)
+        protected virtual uint CalculateKeepAliveCount(double publishingInterval, uint keepAliveCount, bool isDurableSubscription = false)
         {
             // set default.
             if (keepAliveCount == 0)
@@ -1648,16 +1701,18 @@ namespace Opc.Ua.Server
                 keepAliveCount = 3;
             }
 
+            ulong maxSubscriptionLifetime = isDurableSubscription ? m_maxDurableSubscriptionLifetimeInHours : m_maxSubscriptionLifetime;
+
             double keepAliveInterval = keepAliveCount * publishingInterval;
 
             // keep alive interval cannot be longer than the max subscription lifetime.
-            if (keepAliveInterval > m_maxSubscriptionLifetime)
+            if (keepAliveInterval > maxSubscriptionLifetime)
             {
-                keepAliveCount = (uint)(m_maxSubscriptionLifetime / publishingInterval);
+                keepAliveCount = (uint)(maxSubscriptionLifetime / publishingInterval);
 
                 if (keepAliveCount < UInt32.MaxValue)
                 {
-                    if (m_maxSubscriptionLifetime % publishingInterval != 0)
+                    if (maxSubscriptionLifetime % publishingInterval != 0)
                     {
                         keepAliveCount++;
                     }
@@ -1686,18 +1741,20 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Calculates the lifetime count.
         /// </summary>
-        protected virtual uint CalculateLifetimeCount(double publishingInterval, uint keepAliveCount, uint lifetimeCount)
+        protected virtual uint CalculateLifetimeCount(double publishingInterval, uint keepAliveCount, uint lifetimeCount, bool isDurableSubscription = false)
         {
+            ulong maxSubscriptionLifetime = isDurableSubscription ? m_maxDurableSubscriptionLifetimeInHours * 3_600_600 : m_maxSubscriptionLifetime;
+
             double lifetimeInterval = lifetimeCount * publishingInterval;
 
             // lifetime cannot be longer than the max subscription lifetime.
-            if (lifetimeInterval > m_maxSubscriptionLifetime)
+            if (lifetimeInterval > maxSubscriptionLifetime)
             {
-                lifetimeCount = (uint)(m_maxSubscriptionLifetime / publishingInterval);
+                lifetimeCount = (uint)(maxSubscriptionLifetime / publishingInterval);
 
                 if (lifetimeCount < UInt32.MaxValue)
                 {
-                    if (m_maxSubscriptionLifetime % publishingInterval != 0)
+                    if (maxSubscriptionLifetime % publishingInterval != 0)
                     {
                         lifetimeCount++;
                     }
@@ -2056,6 +2113,7 @@ namespace Opc.Ua.Server
         private double m_maxPublishingInterval;
         private int m_publishingResolution;
         private uint m_maxSubscriptionLifetime;
+        private uint m_maxDurableSubscriptionLifetimeInHours;
         private uint m_minSubscriptionLifetime;
         private uint m_maxMessageCount;
         private uint m_maxNotificationsPerPublish;
@@ -2100,8 +2158,16 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <returns>A list of the subscriptions.</returns>
         IList<Subscription> GetSubscriptions();
-    }
 
+        /// <summary>
+        /// Set a subscription into durable mode
+        /// </summary>
+        ServiceResult SetSubscriptionDurable(
+            ISystemContext context,
+            uint subscriptionId,
+            uint lifetimeInHours,
+            out uint revisedLifetimeInHours);
+    }
     /// <summary>
     /// The delegate for functions used to receive subscription related events.
     /// </summary>
