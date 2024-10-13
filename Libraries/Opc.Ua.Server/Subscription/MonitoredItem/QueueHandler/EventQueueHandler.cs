@@ -192,8 +192,8 @@ namespace Opc.Ua.Server
                 notifications.Enqueue(fields);
                 notificationCount++;
             }
-            //if overflow event is placed at the end of the queue only set overflow to false once the queue is empty
-            m_overflow = m_overflow && m_eventQueue.ItemsInQueue > 0 && !m_discardOldest;
+            //if overflow event is placed at the end of the queue only set overflow to false if the overflow event still fits into the publish
+            m_overflow = m_overflow && notificationCount == maxNotificationsPerPublish && !m_discardOldest;
 
             return notificationCount;
         }

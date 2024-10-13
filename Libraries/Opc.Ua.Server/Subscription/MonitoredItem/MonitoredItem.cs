@@ -1149,7 +1149,6 @@ namespace Opc.Ua.Server
                         {
                             moreValuesToPublish = true;
                         }
-                        notifications.Enqueue(overflowEvent);
                     }
 
                     Utils.LogTrace(Utils.TraceMasks.OperationDetail, "MONITORED ITEM: Publish(QueueSize={0})", notifications.Count);
