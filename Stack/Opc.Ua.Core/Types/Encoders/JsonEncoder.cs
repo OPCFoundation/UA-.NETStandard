@@ -1345,17 +1345,18 @@ namespace Opc.Ua
                 return;
             }
 
+            // Verbose and NonReversible
+            PushStructure(fieldName);
             if (value != StatusCodes.Good)
             {
-                PushStructure(fieldName);
                 WriteSimpleField("Code", value.Code.ToString(CultureInfo.InvariantCulture), EscapeOptions.NoFieldNameEscape);
                 string symbolicId = StatusCode.LookupSymbolicId(value.CodeBits);
                 if (!string.IsNullOrEmpty(symbolicId))
                 {
                     WriteSimpleField("Symbol", symbolicId, EscapeOptions.Quotes | EscapeOptions.NoFieldNameEscape);
                 }
-                PopStructure();
             }
+            PopStructure();
         }
 
         /// <summary>
