@@ -149,7 +149,7 @@ namespace Opc.Ua.Server.Tests
             if (DurableSubscriptionsEnabled)
             {
                 serverConfig.SetDurableSubscriptionsEnabled(true)
-                    .SetMaxDurableEventQueueSize(1000)
+                    .SetMaxDurableEventQueueSize(10000)
                     .SetMaxDurableNotificationQueueSize(1000)
                     .SetMaxDurableSubscriptionLifetime(3600);
             }

@@ -36,6 +36,7 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using CommandLine;
 using NUnit.Framework;
 using Opc.Ua.Server.Tests;
 using Quickstarts.ReferenceServer;
@@ -165,7 +166,7 @@ namespace Opc.Ua.Client.Tests
         #region Tests
 
         [Test, Order(99)]
-        [TestCase(900, 100u, 100u, 10000u, 3600u, 83442u, TestName="Test Lifetime Over Maximum")]
+        [TestCase(900, 100u, 100u, 10000u, 3600u, 83442u, TestName = "Test Lifetime Over Maximum")]
         [TestCase(900, 100u, 100u, 0u, 3600u, 83442u, TestName = "Test Lifetime Zero")]
         [TestCase(1200, 100u, 100u, 1u, 1u, 3000u, TestName = "Test Lifetime One")]
         [TestCase(60000, 183u, 61u, 1u, 1u, 60u, TestName = "Test Lifetime Reduce Count",
@@ -206,10 +207,136 @@ namespace Opc.Ua.Client.Tests
             Assert.True(Session.RemoveSubscription(subscription));
         }
 
+        [Test, Order(110)]
+        [TestCase(0u, 1u, 1u, false, TestName = "QueueSize 0")]
+        [TestCase(101u, 101u, 102u, false, TestName = "QueueSize over standard subscripion limit")]
+        [TestCase(9999u, 1000u, 1000u, false, TestName = "QueueSize over durable limit")]
+        [TestCase(0u, 1000u, 1u, true, TestName = "QueueSize 0 Event MI")]
+        [TestCase(1001u, 1001u, 1002u, true, TestName = "QueueSize over standard subscripion limit Event MI")]
+        [TestCase(99999u, 10000u, 10000u, true, TestName = "QueueSize over durable limit, Event MI")]
+        public async Task TestRevisedQueueSizeAsync(
+            uint queueSize,
+            uint expectedRevisedQueueSize,
+            uint expectedModifiedQueueSize,
+            bool useEventMI)
+        {
+            var subscription = await CreateDurableSubscriptionAsync();
+
+            MonitoredItem mi;
+            if (useEventMI)
+            {
+                mi = CreateEventMonitoredItem(queueSize);
+            }
+            else
+            {
+                mi = new MonitoredItem {
+                    AttributeId = Attributes.Value,
+                    StartNodeId = VariableIds.Server_ServerStatus_CurrentTime,
+                    MonitoringMode = MonitoringMode.Reporting,
+                    Handle = 1,
+                    SamplingInterval = 500,
+                    Filter = null,
+                    DiscardOldest = true,
+                    QueueSize = queueSize,
+                };
+            }
+
+
+            subscription.AddItem(mi);
+
+            var result = await subscription.CreateItemsAsync();
+            Assert.That(ServiceResult.IsGood(result.First().Status.Error), Is.True);
+            Assert.That(result.First().Status.QueueSize, Is.EqualTo(expectedRevisedQueueSize));
+
+            mi.QueueSize = queueSize + 1;
+
+            var resultModify = await subscription.ModifyItemsAsync();
+            Assert.That(ServiceResult.IsGood(resultModify.First().Status.Error), Is.True);
+            Assert.That(resultModify.First().Status.QueueSize, Is.EqualTo(expectedModifiedQueueSize));
+
+
+            Assert.True(subscription.GetMonitoredItems(out _, out _));
+
+            Assert.True(await Session.RemoveSubscriptionAsync(subscription));
+        }
+
+        [Test]
+        public void SetSubscriptionDurableFailsWhenMIExists()
+        {
+            var subscription = new TestableSubscription(Session.DefaultSubscription) {
+                KeepAliveCount = 100u,
+                LifetimeCount = 100u,
+                PublishingInterval = 900
+            };
+
+            Assert.True(Session.AddSubscription(subscription));
+            subscription.Create();
+
+            uint id = subscription.Id;
+
+            var mi = new MonitoredItem {
+                AttributeId = Attributes.Value,
+                StartNodeId = VariableIds.Server_ServerStatus_CurrentTime,
+                MonitoringMode = MonitoringMode.Reporting,
+                Handle = 1,
+                SamplingInterval = 500,
+                Filter = null,
+                DiscardOldest = true,
+                QueueSize = 1,
+            };
+
+            subscription.AddItem(mi);
+
+            var result = subscription.CreateItems();
+            Assert.That(ServiceResult.IsGood(result.First().Status.Error), Is.True);
+
+            Assert.Throws<ServiceResultException>(() => Session.Call(ObjectIds.Server,
+                    MethodIds.Server_SetSubscriptionDurable,
+                    id, 1));
+
+            Assert.True(Session.RemoveSubscription(subscription));
+        }
+
+        [Test]
+        public void SetSubscriptionDurableFailsWhenSubscriptionDoesNotExist()
+        {
+            var subscription = new TestableSubscription(Session.DefaultSubscription) {
+                KeepAliveCount = 100u,
+                LifetimeCount = 100u,
+                PublishingInterval = 900
+            };
+
+            Assert.True(Session.AddSubscription(subscription));
+            subscription.Create();
+
+            uint id = subscription.Id;
+
+            Assert.True(Session.RemoveSubscription(subscription));
+
+            Assert.Throws<ServiceResultException>(() => Session.Call(ObjectIds.Server,
+                    MethodIds.Server_SetSubscriptionDurable,
+                    id, 1));
+        }
+
         #endregion
 
         #region Helpers
+        private async Task<TestableSubscription> CreateDurableSubscriptionAsync()
+        {
+            var subscription = new TestableSubscription(Session.DefaultSubscription) {
+                KeepAliveCount = 100u,
+                LifetimeCount = 100u,
+                PublishingInterval = 900
+            };
 
+            Assert.True(Session.AddSubscription(subscription));
+            subscription.Create();
+
+            (bool success, _) = await subscription.SetSubscriptionDurableAsync(1);
+            Assert.True(success);
+
+            return subscription;
+        }
         private Dictionary<string, NodeId> GetDesiredNodeIds(uint subscriptionId)
         {
             Dictionary<string, NodeId> desiredNodeIds = new Dictionary<string, NodeId>();
@@ -311,6 +438,45 @@ namespace Opc.Ua.Client.Tests
             }
 
             return values;
+        }
+
+        private static MonitoredItem CreateEventMonitoredItem(uint queueSize)
+        {
+            var whereClause = new ContentFilter();
+
+            whereClause.Push(FilterOperator.Equals, new FilterOperand[] {
+                new SimpleAttributeOperand() {
+                    AttributeId = Attributes.Value,
+                    TypeDefinitionId = ObjectTypeIds.BaseEventType,
+                    BrowsePath = new QualifiedNameCollection(new QualifiedName[] { "EventType" })
+                },
+                new LiteralOperand {
+                    Value = new Variant(new NodeId(ObjectTypeIds.BaseEventType))
+                }
+            });
+
+            var mi = new MonitoredItem() {
+                AttributeId = Attributes.EventNotifier,
+                StartNodeId = ObjectIds.Server,
+                MonitoringMode = MonitoringMode.Reporting,
+                Handle = 1,
+                SamplingInterval = -1,
+                Filter =
+                        new EventFilter {
+                            SelectClauses = new SimpleAttributeOperandCollection(
+                            new SimpleAttributeOperand[] {
+                                new SimpleAttributeOperand{
+                                    AttributeId = Attributes.Value,
+                                    TypeDefinitionId = ObjectTypeIds.BaseEventType,
+                                    BrowsePath = new QualifiedNameCollection(new QualifiedName[] { BrowseNames.Message})
+                                }
+                            }),
+                            WhereClause = whereClause,
+                        },
+                DiscardOldest = true,
+                QueueSize = queueSize
+            };
+            return mi;
         }
 
         #endregion
