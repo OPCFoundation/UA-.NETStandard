@@ -358,11 +358,12 @@ namespace Quickstarts
                 int subscriptionPublishingInterval = 1000;
                 int itemSamplingInterval = 1000;
                 uint queueSize = 10;
+                uint lifetime = minLifeTime;
 
                 if (enableDurableSubscriptions)
                 {
-                    subscriptionPublishingInterval = 30000;
-                    queueSize = 600;
+                    queueSize = 100;
+                    lifetime = 20;
                 }
 
                 // Define Subscription parameters
@@ -371,7 +372,8 @@ namespace Quickstarts
                     PublishingEnabled = true,
                     PublishingInterval = subscriptionPublishingInterval,
                     LifetimeCount = 0,
-                    MinLifetimeInterval = minLifeTime,
+                    MinLifetimeInterval = lifetime,
+                    KeepAliveCount = 5,
                 };
 
                 session.AddSubscription(subscription);

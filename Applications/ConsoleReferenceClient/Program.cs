@@ -247,6 +247,11 @@ namespace Quickstarts.ConsoleReferenceClient
                             }
                         }
 
+                        if ( enableDurableSubscriptions )
+                        {
+                            uaClient.ReconnectPeriodExponentialBackoff = 60000;
+                        }
+
                         bool connected = await uaClient.ConnectAsync(serverUrl.ToString(), !noSecurity, quitCTS.Token).ConfigureAwait(false);
                         if (connected)
                         {
@@ -385,6 +390,7 @@ namespace Quickstarts.ConsoleReferenceClient
                                 if (enableDurableSubscriptions)
                                 {
                                     quitTimeout = 150_000;
+                                    uaClient.ReconnectPeriod = 500_000;
                                 }
 
                                 NodeId sessionNodeId = uaClient.Session.SessionId;
@@ -394,27 +400,23 @@ namespace Quickstarts.ConsoleReferenceClient
                                 samples.Browse(uaClient.Session);
                                 samples.CallMethod(uaClient.Session);
                                 samples.EnableEvents(uaClient.Session, (uint)quitTimeout);
-                                bool isDurable = samples.SubscribeToDataChanges(
+                                samples.SubscribeToDataChanges(
                                     uaClient.Session, 60_000, enableDurableSubscriptions);
-                                if ( isDurable )
-                                {
-                                    // Need to control the reconnect
-                                    uaClient.ReconnectPeriod = 200_000;
-                                }
 
                                 output.WriteLine("Waiting...");
 
                                 // Wait for some DataChange notifications from MonitoredItems
                                 int waitCounters = 0;
                                 int checkForWaitTime = 1000;
-                                int closeSessionTime = checkForWaitTime * 35;
-                                int restartSessionTime = checkForWaitTime * 65;
+                                int closeSessionTime = checkForWaitTime * 15;
+                                int restartSessionTime = checkForWaitTime * 45;
                                 bool stopNotQuit = false;
+                                int stopCount = 0;
                                 while (!quit && !stopNotQuit && waitCounters < quitTimeout)
                                 {
                                     quit = quitEvent.WaitOne(checkForWaitTime);
                                     waitCounters += checkForWaitTime;
-                                    if (isDurable)
+                                    if (enableDurableSubscriptions)
                                     {
                                         if (waitCounters == closeSessionTime)
                                         {
@@ -432,6 +434,12 @@ namespace Quickstarts.ConsoleReferenceClient
                                                 serverUrl.ToString(),
                                                 useSecurity: !noSecurity,
                                                 quitCTS.Token);
+                                        }
+
+                                        if ( waitCounters > closeSessionTime && waitCounters < restartSessionTime )
+                                        {
+                                            Console.WriteLine("No Communication Interval " + stopCount.ToString());
+                                            stopCount++;
                                         }
                                     }
                                 }
