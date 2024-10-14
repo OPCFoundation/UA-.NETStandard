@@ -348,6 +348,7 @@
     <opc:EnumeratedValue Name="AuthenticatedUser" Value="6" />
     <opc:EnumeratedValue Name="Application" Value="7" />
     <opc:EnumeratedValue Name="X509Subject" Value="8" />
+    <opc:EnumeratedValue Name="TrustedApplication" Value="9" />
   </opc:EnumeratedType>
 
   <opc:StructuredType Name="IdentityMappingRuleType" BaseType="ua:ExtensionObject">
@@ -431,10 +432,122 @@
     <opc:Field Name="IssuerCrls" TypeName="opc:ByteString" LengthField="NoOfIssuerCrls" />
   </opc:StructuredType>
 
+  <opc:StructuredType Name="BaseConfigurationDataType" BaseType="ua:ExtensionObject">
+    <opc:Field Name="ConfigurationVersion" TypeName="opc:UInt32" />
+    <opc:Field Name="NoOfConfigurationProperties" TypeName="opc:Int32" />
+    <opc:Field Name="ConfigurationProperties" TypeName="tns:KeyValuePair" LengthField="NoOfConfigurationProperties" />
+  </opc:StructuredType>
+
+  <opc:StructuredType Name="BaseConfigurationRecordDataType" BaseType="ua:ExtensionObject">
+    <opc:Field Name="Name" TypeName="opc:String" />
+    <opc:Field Name="NoOfRecordProperties" TypeName="opc:Int32" />
+    <opc:Field Name="RecordProperties" TypeName="tns:KeyValuePair" LengthField="NoOfRecordProperties" />
+  </opc:StructuredType>
+
+  <opc:StructuredType Name="CertificateGroupDataType" BaseType="tns:BaseConfigurationRecordDataType">
+    <opc:Field Name="Name" TypeName="opc:String" SourceType="tns:BaseConfigurationRecordDataType" />
+    <opc:Field Name="NoOfRecordProperties" TypeName="opc:Int32" />
+    <opc:Field Name="RecordProperties" TypeName="tns:KeyValuePair" LengthField="NoOfRecordProperties" />
+    <opc:Field Name="NoOfCertificateTypes" TypeName="opc:Int32" />
+    <opc:Field Name="CertificateTypes" TypeName="ua:NodeId" LengthField="NoOfCertificateTypes" />
+    <opc:Field Name="NoOfCertificates" TypeName="opc:Int32" />
+    <opc:Field Name="Certificates" TypeName="opc:ByteString" LengthField="NoOfCertificates" />
+    <opc:Field Name="TrustList" TypeName="tns:TrustListDataType" />
+  </opc:StructuredType>
+
+  <opc:StructuredType Name="ConfigurationUpdateTargetType" BaseType="ua:ExtensionObject">
+    <opc:Field Name="Path" TypeName="opc:String" />
+    <opc:Field Name="UpdateType" TypeName="tns:ConfigurationUpdateType" />
+  </opc:StructuredType>
+
+  <opc:EnumeratedType Name="ConfigurationUpdateType" LengthInBits="32">
+    <opc:EnumeratedValue Name="Insert" Value="1" />
+    <opc:EnumeratedValue Name="Replace" Value="2" />
+    <opc:EnumeratedValue Name="InsertOrReplace" Value="3" />
+    <opc:EnumeratedValue Name="Delete" Value="4" />
+  </opc:EnumeratedType>
+
   <opc:StructuredType Name="TransactionErrorType" BaseType="ua:ExtensionObject">
     <opc:Field Name="TargetId" TypeName="ua:NodeId" />
     <opc:Field Name="Error" TypeName="ua:StatusCode" />
     <opc:Field Name="Message" TypeName="ua:LocalizedText" />
+  </opc:StructuredType>
+
+  <opc:StructuredType Name="ApplicationConfigurationDataType" BaseType="tns:BaseConfigurationDataType">
+    <opc:Field Name="ConfigurationVersion" TypeName="opc:UInt32" SourceType="tns:BaseConfigurationDataType" />
+    <opc:Field Name="NoOfConfigurationProperties" TypeName="opc:Int32" />
+    <opc:Field Name="ConfigurationProperties" TypeName="tns:KeyValuePair" LengthField="NoOfConfigurationProperties" />
+    <opc:Field Name="ApplicationIdentity" TypeName="tns:ApplicationIdentityDataType" />
+    <opc:Field Name="NoOfCertificateGroups" TypeName="opc:Int32" />
+    <opc:Field Name="CertificateGroups" TypeName="tns:CertificateGroupDataType" LengthField="NoOfCertificateGroups" />
+    <opc:Field Name="NoOfServerEndpoints" TypeName="opc:Int32" />
+    <opc:Field Name="ServerEndpoints" TypeName="tns:ServerEndpointDataType" LengthField="NoOfServerEndpoints" />
+    <opc:Field Name="NoOfClientEndpoints" TypeName="opc:Int32" />
+    <opc:Field Name="ClientEndpoints" TypeName="tns:EndpointDataType" LengthField="NoOfClientEndpoints" />
+    <opc:Field Name="NoOfSecuritySettings" TypeName="opc:Int32" />
+    <opc:Field Name="SecuritySettings" TypeName="tns:SecuritySettingsDataType" LengthField="NoOfSecuritySettings" />
+    <opc:Field Name="NoOfUserTokenSettings" TypeName="opc:Int32" />
+    <opc:Field Name="UserTokenSettings" TypeName="tns:UserTokenSettingsDataType" LengthField="NoOfUserTokenSettings" />
+  </opc:StructuredType>
+
+  <opc:StructuredType Name="ApplicationIdentityDataType" BaseType="tns:BaseConfigurationRecordDataType">
+    <opc:Field Name="Name" TypeName="opc:String" SourceType="tns:BaseConfigurationRecordDataType" />
+    <opc:Field Name="NoOfRecordProperties" TypeName="opc:Int32" />
+    <opc:Field Name="RecordProperties" TypeName="tns:KeyValuePair" LengthField="NoOfRecordProperties" />
+    <opc:Field Name="ApplicationUri" TypeName="opc:String" />
+    <opc:Field Name="NoOfApplicationNames" TypeName="opc:Int32" />
+    <opc:Field Name="ApplicationNames" TypeName="ua:LocalizedText" LengthField="NoOfApplicationNames" />
+    <opc:Field Name="SubjectName" TypeName="opc:String" />
+  </opc:StructuredType>
+
+  <opc:StructuredType Name="EndpointDataType" BaseType="tns:BaseConfigurationRecordDataType">
+    <opc:Field Name="Name" TypeName="opc:String" SourceType="tns:BaseConfigurationRecordDataType" />
+    <opc:Field Name="NoOfRecordProperties" TypeName="opc:Int32" />
+    <opc:Field Name="RecordProperties" TypeName="tns:KeyValuePair" LengthField="NoOfRecordProperties" />
+    <opc:Field Name="NoOfEndpointUrls" TypeName="opc:Int32" />
+    <opc:Field Name="EndpointUrls" TypeName="opc:String" LengthField="NoOfEndpointUrls" />
+    <opc:Field Name="NetworkName" TypeName="opc:String" />
+    <opc:Field Name="Port" TypeName="opc:UInt16" />
+  </opc:StructuredType>
+
+  <opc:StructuredType Name="ServerEndpointDataType" BaseType="tns:EndpointDataType">
+    <opc:Field Name="Name" TypeName="opc:String" SourceType="tns:BaseConfigurationRecordDataType" />
+    <opc:Field Name="NoOfRecordProperties" TypeName="opc:Int32" />
+    <opc:Field Name="RecordProperties" TypeName="tns:KeyValuePair" LengthField="NoOfRecordProperties" />
+    <opc:Field Name="NoOfEndpointUrls" TypeName="opc:Int32" />
+    <opc:Field Name="EndpointUrls" TypeName="opc:String" LengthField="NoOfEndpointUrls" />
+    <opc:Field Name="NetworkName" TypeName="opc:String" SourceType="tns:EndpointDataType" />
+    <opc:Field Name="Port" TypeName="opc:UInt16" SourceType="tns:EndpointDataType" />
+    <opc:Field Name="NoOfSecuritySettings" TypeName="opc:Int32" />
+    <opc:Field Name="SecuritySettings" TypeName="opc:String" LengthField="NoOfSecuritySettings" />
+    <opc:Field Name="TransportProfileUri" TypeName="opc:String" />
+    <opc:Field Name="NoOfUserTokenPolicies" TypeName="opc:Int32" />
+    <opc:Field Name="UserTokenPolicies" TypeName="tns:UserTokenPolicy" LengthField="NoOfUserTokenPolicies" />
+    <opc:Field Name="NoOfReverseConnectUrls" TypeName="opc:Int32" />
+    <opc:Field Name="ReverseConnectUrls" TypeName="opc:String" LengthField="NoOfReverseConnectUrls" />
+  </opc:StructuredType>
+
+  <opc:StructuredType Name="SecuritySettingsDataType" BaseType="tns:BaseConfigurationRecordDataType">
+    <opc:Field Name="Name" TypeName="opc:String" SourceType="tns:BaseConfigurationRecordDataType" />
+    <opc:Field Name="NoOfRecordProperties" TypeName="opc:Int32" />
+    <opc:Field Name="RecordProperties" TypeName="tns:KeyValuePair" LengthField="NoOfRecordProperties" />
+    <opc:Field Name="NoOfSecurityModes" TypeName="opc:Int32" />
+    <opc:Field Name="SecurityModes" TypeName="tns:MessageSecurityMode" LengthField="NoOfSecurityModes" />
+    <opc:Field Name="NoOfSecurityPolicyUris" TypeName="opc:Int32" />
+    <opc:Field Name="SecurityPolicyUris" TypeName="opc:String" LengthField="NoOfSecurityPolicyUris" />
+    <opc:Field Name="TransportProfileUri" TypeName="opc:String" />
+    <opc:Field Name="DefaultSecurityLevel" TypeName="opc:Byte" />
+    <opc:Field Name="CertificateGroupName" TypeName="opc:String" />
+  </opc:StructuredType>
+
+  <opc:StructuredType Name="UserTokenSettingsDataType" BaseType="tns:BaseConfigurationRecordDataType">
+    <opc:Field Name="Name" TypeName="opc:String" SourceType="tns:BaseConfigurationRecordDataType" />
+    <opc:Field Name="NoOfRecordProperties" TypeName="opc:Int32" />
+    <opc:Field Name="RecordProperties" TypeName="tns:KeyValuePair" LengthField="NoOfRecordProperties" />
+    <opc:Field Name="TokenType" TypeName="tns:UserTokenType" />
+    <opc:Field Name="IssuedTokenType" TypeName="opc:String" />
+    <opc:Field Name="CertificateGroupName" TypeName="opc:String" />
+    <opc:Field Name="KeyCredentialName" TypeName="opc:String" />
   </opc:StructuredType>
 
   <opc:StructuredType Name="DataTypeSchemaHeader" BaseType="ua:ExtensionObject">
@@ -592,6 +705,37 @@
 
   <opc:StructuredType Name="PublishedDataSetCustomSourceDataType" BaseType="tns:PublishedDataSetSourceDataType">
     <opc:Field Name="CyclicDataSet" TypeName="opc:Boolean" />
+  </opc:StructuredType>
+
+  <opc:StructuredType Name="ActionTargetDataType" BaseType="ua:ExtensionObject">
+    <opc:Field Name="ActionTargetId" TypeName="opc:UInt16" />
+    <opc:Field Name="Name" TypeName="opc:String" />
+    <opc:Field Name="Description" TypeName="ua:LocalizedText" />
+  </opc:StructuredType>
+
+  <opc:StructuredType Name="PublishedActionDataType" BaseType="tns:PublishedDataSetSourceDataType">
+    <opc:Field Name="RequestDataSetMetaData" TypeName="tns:DataSetMetaDataType" />
+    <opc:Field Name="NoOfActionTargets" TypeName="opc:Int32" />
+    <opc:Field Name="ActionTargets" TypeName="tns:ActionTargetDataType" LengthField="NoOfActionTargets" />
+  </opc:StructuredType>
+
+  <opc:EnumeratedType Name="ActionState" LengthInBits="32">
+    <opc:EnumeratedValue Name="Idle" Value="0" />
+    <opc:EnumeratedValue Name="Executing" Value="1" />
+    <opc:EnumeratedValue Name="Done" Value="2" />
+  </opc:EnumeratedType>
+
+  <opc:StructuredType Name="ActionMethodDataType" BaseType="ua:ExtensionObject">
+    <opc:Field Name="ObjectId" TypeName="ua:NodeId" />
+    <opc:Field Name="MethodId" TypeName="ua:NodeId" />
+  </opc:StructuredType>
+
+  <opc:StructuredType Name="PublishedActionMethodDataType" BaseType="tns:PublishedActionDataType">
+    <opc:Field Name="RequestDataSetMetaData" TypeName="tns:DataSetMetaDataType" SourceType="tns:PublishedActionDataType" />
+    <opc:Field Name="NoOfActionTargets" TypeName="opc:Int32" />
+    <opc:Field Name="ActionTargets" TypeName="tns:ActionTargetDataType" LengthField="NoOfActionTargets" />
+    <opc:Field Name="NoOfActionMethods" TypeName="opc:Int32" />
+    <opc:Field Name="ActionMethods" TypeName="tns:ActionMethodDataType" LengthField="NoOfActionMethods" />
   </opc:StructuredType>
 
   <opc:EnumeratedType Name="DataSetFieldContentMask" LengthInBits="32" IsOptionSet="true">
@@ -994,6 +1138,15 @@
     <opc:Field Name="Topic" TypeName="opc:String" />
   </opc:StructuredType>
 
+  <opc:StructuredType Name="DtlsPubSubConnectionDataType" BaseType="ua:ExtensionObject">
+    <opc:Field Name="ClientCipherSuite" TypeName="opc:String" />
+    <opc:Field Name="NoOfServerCipherSuites" TypeName="opc:Int32" />
+    <opc:Field Name="ServerCipherSuites" TypeName="opc:String" LengthField="NoOfServerCipherSuites" />
+    <opc:Field Name="ZeroRTT" TypeName="opc:Boolean" />
+    <opc:Field Name="CertificateGroupId" TypeName="ua:NodeId" />
+    <opc:Field Name="VerifyClientCertificate" TypeName="opc:Boolean" />
+  </opc:StructuredType>
+
   <opc:StructuredType Name="BrokerConnectionTransportDataType" BaseType="tns:ConnectionTransportDataType">
     <opc:Field Name="ResourceUri" TypeName="opc:String" />
     <opc:Field Name="AuthenticationProfileUri" TypeName="opc:String" />
@@ -1190,12 +1343,75 @@
     <opc:EnumeratedValue Name="Failed" Value="3" />
   </opc:EnumeratedType>
 
+  <opc:EnumeratedType Name="ChassisIdSubtype" LengthInBits="32">
+    <opc:EnumeratedValue Name="ChassisComponent" Value="1" />
+    <opc:EnumeratedValue Name="InterfaceAlias" Value="2" />
+    <opc:EnumeratedValue Name="PortComponent" Value="3" />
+    <opc:EnumeratedValue Name="MacAddress" Value="4" />
+    <opc:EnumeratedValue Name="NetworkAddress" Value="5" />
+    <opc:EnumeratedValue Name="InterfaceName" Value="6" />
+    <opc:EnumeratedValue Name="Local" Value="7" />
+  </opc:EnumeratedType>
+
+  <opc:EnumeratedType Name="PortIdSubtype" LengthInBits="32">
+    <opc:EnumeratedValue Name="InterfaceAlias" Value="1" />
+    <opc:EnumeratedValue Name="PortComponent" Value="2" />
+    <opc:EnumeratedValue Name="MacAddress" Value="3" />
+    <opc:EnumeratedValue Name="NetworkAddress" Value="4" />
+    <opc:EnumeratedValue Name="InterfaceName" Value="5" />
+    <opc:EnumeratedValue Name="AgentCircuitId" Value="6" />
+    <opc:EnumeratedValue Name="Local" Value="7" />
+  </opc:EnumeratedType>
+
+  <opc:EnumeratedType Name="ManAddrIfSubtype" LengthInBits="32">
+    <opc:EnumeratedValue Name="None" Value="0" />
+    <opc:EnumeratedValue Name="Unknown" Value="1" />
+    <opc:EnumeratedValue Name="PortRef" Value="2" />
+    <opc:EnumeratedValue Name="SystemPortNumber" Value="3" />
+  </opc:EnumeratedType>
+
   <opc:StructuredType Name="PriorityMappingEntryType" BaseType="ua:ExtensionObject">
     <opc:Field Name="MappingUri" TypeName="opc:String" />
     <opc:Field Name="PriorityLabel" TypeName="opc:String" />
     <opc:Field Name="PriorityValue_PCP" TypeName="opc:Byte" />
     <opc:Field Name="PriorityValue_DSCP" TypeName="opc:UInt32" />
   </opc:StructuredType>
+
+  <opc:StructuredType Name="LldpManagementAddressTxPortType" BaseType="ua:ExtensionObject">
+    <opc:Field Name="AddressSubtype" TypeName="opc:UInt32" />
+    <opc:Field Name="ManAddress" TypeName="opc:String" />
+    <opc:Field Name="TxEnable" TypeName="opc:Boolean" />
+    <opc:Field Name="AddrLen" TypeName="opc:UInt32" />
+    <opc:Field Name="IfSubtype" TypeName="tns:ManAddrIfSubtype" />
+    <opc:Field Name="IfId" TypeName="opc:UInt32" />
+  </opc:StructuredType>
+
+  <opc:StructuredType Name="LldpManagementAddressType" BaseType="ua:ExtensionObject">
+    <opc:Field Name="AddressSubtype" TypeName="opc:UInt32" />
+    <opc:Field Name="Address" TypeName="opc:String" />
+    <opc:Field Name="IfSubtype" TypeName="tns:ManAddrIfSubtype" />
+    <opc:Field Name="IfId" TypeName="opc:UInt32" />
+  </opc:StructuredType>
+
+  <opc:StructuredType Name="LldpTlvType" BaseType="ua:ExtensionObject">
+    <opc:Field Name="TlvType" TypeName="opc:UInt32" />
+    <opc:Field Name="TlvInfo" TypeName="opc:ByteString" />
+  </opc:StructuredType>
+
+  <opc:EnumeratedType Name="LldpSystemCapabilitiesMap" LengthInBits="32" IsOptionSet="true">
+    <opc:EnumeratedValue Name="None" Value="0" />
+    <opc:EnumeratedValue Name="Other" Value="1" />
+    <opc:EnumeratedValue Name="Repeater" Value="2" />
+    <opc:EnumeratedValue Name="Bridge" Value="4" />
+    <opc:EnumeratedValue Name="WlanAccessPoint" Value="8" />
+    <opc:EnumeratedValue Name="Router" Value="16" />
+    <opc:EnumeratedValue Name="Telephone" Value="32" />
+    <opc:EnumeratedValue Name="DocsisCableDevice" Value="64" />
+    <opc:EnumeratedValue Name="StationOnly" Value="128" />
+    <opc:EnumeratedValue Name="CvlanComponent" Value="256" />
+    <opc:EnumeratedValue Name="SvlanComponent" Value="512" />
+    <opc:EnumeratedValue Name="TwoPortMacRelay" Value="1024" />
+  </opc:EnumeratedType>
 
   <opc:StructuredType Name="ReferenceDescriptionDataType" BaseType="ua:ExtensionObject">
     <opc:Field Name="SourceNode" TypeName="ua:NodeId" />
@@ -2390,6 +2606,25 @@
     <opc:Field Name="ReadModified" TypeName="opc:Boolean" />
   </opc:StructuredType>
 
+  <opc:EnumeratedType Name="SortOrderType" LengthInBits="32">
+    <opc:EnumeratedValue Name="Ascending" Value="0" />
+    <opc:EnumeratedValue Name="Descending" Value="1" />
+  </opc:EnumeratedType>
+
+  <opc:StructuredType Name="SortRuleElement" BaseType="ua:ExtensionObject">
+    <opc:Field Name="SortOrder" TypeName="tns:SortOrderType" />
+    <opc:Field Name="EventField" TypeName="tns:SimpleAttributeOperand" />
+  </opc:StructuredType>
+
+  <opc:StructuredType Name="ReadEventDetailsSorted" BaseType="tns:ReadEventDetails">
+    <opc:Field Name="NumValuesPerNode" TypeName="opc:UInt32" SourceType="tns:ReadEventDetails" />
+    <opc:Field Name="StartTime" TypeName="opc:DateTime" SourceType="tns:ReadEventDetails" />
+    <opc:Field Name="EndTime" TypeName="opc:DateTime" SourceType="tns:ReadEventDetails" />
+    <opc:Field Name="Filter" TypeName="tns:EventFilter" SourceType="tns:ReadEventDetails" />
+    <opc:Field Name="NoOfSortClause" TypeName="opc:Int32" />
+    <opc:Field Name="SortClause" TypeName="tns:SortRuleElement" LengthField="NoOfSortClause" />
+  </opc:StructuredType>
+
   <opc:StructuredType Name="ReadRawModifiedDetails" BaseType="tns:HistoryReadDetails">
     <opc:Field Name="IsReadModified" TypeName="opc:Boolean" />
     <opc:Field Name="StartTime" TypeName="opc:DateTime" />
@@ -3122,7 +3357,7 @@
     <opc:Field Name="DisabledMonitoredItemCount" TypeName="opc:UInt32" />
     <opc:Field Name="MonitoringQueueOverflowCount" TypeName="opc:UInt32" />
     <opc:Field Name="NextSequenceNumber" TypeName="opc:UInt32" />
-    <opc:Field Name="EventQueueOverFlowCount" TypeName="opc:UInt32" />
+    <opc:Field Name="EventQueueOverflowCount" TypeName="opc:UInt32" />
   </opc:StructuredType>
 
   <opc:EnumeratedType Name="ModelChangeStructureVerbMask" LengthInBits="32">
