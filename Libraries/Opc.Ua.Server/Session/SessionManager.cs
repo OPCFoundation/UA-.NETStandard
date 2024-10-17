@@ -773,6 +773,12 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
+        public int GetSessionCount()
+        {
+            return m_sessions.Count;
+        }
+
+        /// <inheritdoc/>
         public IList<Session> GetSessions()
         {
             lock (m_lock)
