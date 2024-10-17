@@ -30,7 +30,7 @@
   <Choose>
     <When Condition="'$(TargetFramework)' == 'net462'">
     </When>
-    <When Condition="'$(TargetFramework)' == 'netstandard2.0'">
+    <When Condition="'$(TargetFramework)' == 'netcoreapp2.1'">
     </When>
     <Otherwise>
       <PropertyGroup Condition="'$(DisableECCTests)' != 'true'">

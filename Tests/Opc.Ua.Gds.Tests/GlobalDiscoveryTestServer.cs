@@ -93,7 +93,7 @@ namespace Opc.Ua.Gds.Tests
             }
 
             // check the application certificate.
-            bool haveAppCertificate = await Application.CheckApplicationInstanceCertificate(true, 0).ConfigureAwait(false);
+            bool haveAppCertificate = await Application.CheckApplicationInstanceCertificates(true).ConfigureAwait(false);
             if (!haveAppCertificate)
             {
                 throw new Exception("Application instance certificate invalid!");
@@ -231,6 +231,12 @@ namespace Opc.Ua.Gds.Tests
                 UsersDatabaseStorePath = Path.Combine(gdsRoot, "gdsusersdb.json")
             };
 
+            CertificateIdentifierCollection applicationCerts = ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
+                "CN=Global Discovery Test Client, O=OPC Foundation, DC=localhost",
+                CertificateStoreType.Directory,
+                gdsRoot
+                );
+
             // build the application configuration.
             ApplicationConfiguration config = await application
                 .Build(
@@ -244,7 +250,7 @@ namespace Opc.Ua.Gds.Tests
                 .AddServerProfile("http://opcfoundation.org/UA-Profile/Server/GlobalDiscoveryAndCertificateManagement2017")
                 .SetShutdownDelay(0)
                 .AddSecurityConfiguration(
-                    "CN=Global Discovery Test Server, O=OPC Foundation, DC=localhost",
+                    applicationCerts,
                     gdsRoot)
                 .SetAutoAcceptUntrustedCertificates(true)
                 .SetRejectSHA1SignedCertificates(false)

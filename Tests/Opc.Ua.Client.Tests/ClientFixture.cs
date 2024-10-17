@@ -30,6 +30,9 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
+using System.Net.Http;
+using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using NUnit.Framework;
@@ -91,6 +94,12 @@ namespace Opc.Ua.Client.Tests
 
             pkiRoot = pkiRoot ?? Path.Combine("%LocalApplicationData%", "OPC", "pki");
 
+            CertificateIdentifierCollection applicationCerts = ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
+                "CN=" + clientName + ", O=OPC Foundation, DC=localhost",
+                CertificateStoreType.Directory,
+                pkiRoot
+                );
+
             // build the application configuration.
             Config = await application
                 .Build(
@@ -106,17 +115,18 @@ namespace Opc.Ua.Client.Tests
                     MaxNodesPerWrite = kDefaultOperationLimits
                 })
                 .AddSecurityConfiguration(
-                    "CN=" + clientName + ", O=OPC Foundation, DC=localhost",
+                    applicationCerts,
                     pkiRoot)
+
+                // .SetApplicationCertificates(applicationCerts)
                 .SetAutoAcceptUntrustedCertificates(true)
                 .SetRejectSHA1SignedCertificates(false)
-                .SetMinimumCertificateKeySize(1024)
                 .SetOutputFilePath(Path.Combine(pkiRoot, "Logs", "Opc.Ua.Client.Tests.log.txt"))
                 .SetTraceMasks(TraceMasks)
                 .Create().ConfigureAwait(false);
 
             // check the application certificate.
-            bool haveAppCertificate = await application.CheckApplicationInstanceCertificate(true, 0).ConfigureAwait(false);
+            bool haveAppCertificate = await application.CheckApplicationInstanceCertificates(true).ConfigureAwait(false);
             if (!haveAppCertificate)
             {
                 throw new Exception("Application instance certificate invalid!");
@@ -304,7 +314,8 @@ namespace Opc.Ua.Client.Tests
                 if (endpoint.EndpointUrl.StartsWith(url.Scheme))
                 {
                     // skip unsupported security policies
-                    if (SecurityPolicies.GetDisplayName(endpoint.SecurityPolicyUri) == null)
+                    if (!configuration.SecurityConfiguration.SupportedSecurityPolicies.
+                            Contains(endpoint.SecurityPolicyUri))
                     {
                         continue;
                     }

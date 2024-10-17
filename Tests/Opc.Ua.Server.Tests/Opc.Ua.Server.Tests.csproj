@@ -4,8 +4,20 @@
     <OutputType>Exe</OutputType>
     <TargetFrameworks>$(TestsTargetFrameworks)</TargetFrameworks>
     <RootNamespace>Opc.Ua.Server.Tests</RootNamespace>
-    <GenerateProgramFile>false</GenerateProgramFile>    
+    <GenerateProgramFile>false</GenerateProgramFile>
   </PropertyGroup>
+
+  <Choose>
+    <When Condition="'$(TargetFramework)' == 'net462'">
+    </When>
+    <When Condition="'$(TargetFramework)' == 'netcoreapp2.1'">
+    </When>
+    <Otherwise>
+      <PropertyGroup Condition="'$(DisableECCTests)' != 'true'">
+        <DefineConstants>$(DefineConstants);ECC_SUPPORT</DefineConstants>
+      </PropertyGroup>
+    </Otherwise>
+  </Choose>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
@@ -23,7 +35,7 @@
     </PackageReference>
     <PackageReference Include="BenchmarkDotNet" Version="0.13.2" />
   </ItemGroup>
-  
+
   <ItemGroup>
     <Compile Include="..\Common\Main.cs" />
   </ItemGroup>
