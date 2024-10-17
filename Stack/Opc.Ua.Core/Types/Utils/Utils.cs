@@ -1261,6 +1261,60 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Escapes a URI string using the percent encoding.
+        /// </summary>
+        public static string EscapeUri(string uri)
+        {
+            if (!string.IsNullOrWhiteSpace(uri))
+            {
+                // back compat: for not well formed Uri, fall back to legacy formatting behavior - see #2793
+                if (!Uri.IsWellFormedUriString(uri, UriKind.Absolute) ||
+                    !Uri.TryCreate(uri.Replace(";", "%3b"), UriKind.Absolute, out Uri validUri))
+                {
+                    var buffer = new StringBuilder();
+                    foreach (char ch in uri)
+                    {
+                        switch (ch)
+                        {
+                            case ';':
+                            case '%':
+                            {
+                                buffer.AppendFormat(CultureInfo.InvariantCulture, "%{0:X2}", Convert.ToInt16(ch));
+                                break;
+                            }
+
+                            default:
+                            {
+                                buffer.Append(ch);
+                                break;
+                            }
+                        }
+                    }
+                    return buffer.ToString();
+                }
+                else
+                {
+                    return validUri.AbsoluteUri;
+                }
+            }
+
+            return String.Empty;
+        }
+
+        /// <summary>
+        /// Unescapes a URI string using the percent encoding.
+        /// </summary>
+        public static string UnescapeUri(string uri)
+        {
+            if (!string.IsNullOrWhiteSpace(uri))
+            {
+                return Uri.UnescapeDataString(uri);
+            }
+
+            return String.Empty;
+        }
+
+        /// <summary>
         /// Parses a URI string. Returns null if it is invalid.
         /// </summary>
         public static Uri ParseUri(string uri)
@@ -1504,24 +1558,35 @@ namespace Opc.Ua
                 return String.Empty;
             }
 
-            StringBuilder builder = new StringBuilder(buffer.Length * 2);
-
-            if (invertEndian)
+#if NET6_0_OR_GREATER
+            if (!invertEndian)
             {
-                for (int ii = buffer.Length - 1; ii >= 0; ii--)
-                {
-                    builder.AppendFormat(CultureInfo.InvariantCulture, "{0:X2}", buffer[ii]);
-                }
+                return Convert.ToHexString(buffer);
             }
             else
+#endif
             {
-                for (int ii = 0; ii < buffer.Length; ii++)
-                {
-                    builder.AppendFormat(CultureInfo.InvariantCulture, "{0:X2}", buffer[ii]);
-                }
-            }
+                StringBuilder builder = new StringBuilder(buffer.Length * 2);
 
-            return builder.ToString();
+#if !NET6_0_OR_GREATER
+                if (!invertEndian)
+                {
+                    for (int ii = 0; ii < buffer.Length; ii++)
+                    {
+                        builder.AppendFormat(CultureInfo.InvariantCulture, "{0:X2}", buffer[ii]);
+                    }
+                }
+                else
+#endif
+                {
+                    for (int ii = buffer.Length - 1; ii >= 0; ii--)
+                    {
+                        builder.AppendFormat(CultureInfo.InvariantCulture, "{0:X2}", buffer[ii]);
+                    }
+                }
+
+                return builder.ToString();
+            }
         }
 
         /// <summary>
@@ -1529,6 +1594,9 @@ namespace Opc.Ua
         /// </summary>
         public static byte[] FromHexString(string buffer)
         {
+#if NET6_0_OR_GREATER
+            return Convert.FromHexString(buffer);
+#else
             if (buffer == null)
             {
                 return null;
@@ -1575,6 +1643,7 @@ namespace Opc.Ua
             }
 
             return bytes;
+#endif
         }
 
         /// <summary>
@@ -1724,6 +1793,12 @@ namespace Opc.Ua
 
             // strings are special a reference type that does not need to be copied.
             if (type == typeof(string))
+            {
+                return value;
+            }
+
+            // Guid are special a reference type that does not need to be copied.
+            if (type == typeof(Guid))
             {
                 return value;
             }
@@ -2529,7 +2604,7 @@ namespace Opc.Ua
                 extensions.Add(document.DocumentElement);
             }
         }
-        #endregion
+#endregion
 
         #region Reflection Helper Functions
         /// <summary>
@@ -2593,6 +2668,18 @@ namespace Opc.Ua
             }
 
             return 0;
+        }
+
+        private static readonly DateTime kBaseDateTime = new DateTime(2000, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+
+        /// <summary>
+        /// Return the current time in milliseconds since 1/1/2000.
+        /// </summary>
+        /// <returns>The current time in milliseconds since 1/1/2000.</returns>
+        public static uint GetVersionTime()
+        {
+            var ticks = (DateTime.UtcNow - kBaseDateTime).TotalMilliseconds;
+            return (uint)ticks;
         }
 
         /// <summary>
@@ -2790,6 +2877,39 @@ namespace Opc.Ua
             return certificateChain;
         }
 
+
+        /// <summary>
+        /// Creates a DER blob from a X509Certificate2Collection.
+        /// </summary>
+        /// <param name="certificates">The certificates to be returned as raw data.</param>
+        /// <returns>
+        /// A DER blob containing zero or more certificates.
+        /// </returns>
+        public static byte[] CreateCertificateChainBlob(X509Certificate2Collection certificates)
+        {
+            if (certificates == null || certificates.Count == 0)
+            {
+                return Array.Empty<byte>();
+            }
+
+            int totalSize = 0;
+
+            foreach (X509Certificate2 cert in certificates)
+            {
+                totalSize += cert.RawData.Length;
+            }
+
+            byte[] blobData = new byte[totalSize];
+            int offset = 0;
+
+            foreach (X509Certificate2 cert in certificates)
+            {
+                Array.Copy(cert.RawData, 0, blobData, offset, cert.RawData.Length);
+                offset += cert.RawData.Length;
+            }
+
+            return blobData;
+        }
         /// <summary>
         /// Compare Nonce for equality.
         /// </summary>

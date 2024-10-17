@@ -82,6 +82,8 @@ namespace Opc.Ua.Bindings
                     EndpointDescriptionCollection listenerEndpoints = new EndpointDescriptionCollection();
                     uris.Add(uri.Uri);
 
+                    byte[] instanceCertificateChainBlob = Utils.CreateCertificateChainBlob(instanceCertificateChain);
+
                     foreach (ServerSecurityPolicy policy in securityPolicies)
                     {
                         // create the endpoint description.
@@ -96,27 +98,11 @@ namespace Opc.Ua.Bindings
                         description.UserIdentityTokens = serverBase.GetUserTokenPolicies(configuration, description);
                         description.TransportProfileUri = Profiles.UaTcpTransport;
 
-                        bool requireEncryption = ServerBase.RequireEncryption(description);
-
-                        if (requireEncryption)
-                        {
-                            description.ServerCertificate = instanceCertificate.RawData;
-
-                            // check if complete chain should be sent.
-                            if (configuration.SecurityConfiguration.SendCertificateChain &&
-                                instanceCertificateChain != null &&
-                                instanceCertificateChain.Count > 1)
-                            {
-                                List<byte> serverCertificateChain = new List<byte>();
-
-                                for (int i = 0; i < instanceCertificateChain.Count; i++)
-                                {
-                                    serverCertificateChain.AddRange(instanceCertificateChain[i].RawData);
-                                }
-
-                                description.ServerCertificate = serverCertificateChain.ToArray();
-                            }
-                        }
+                        ServerBase.SetServerCertificateInEndpointDescription(
+                            description,
+                            configuration.SecurityConfiguration.SendCertificateChain,
+                            instanceCertificate,
+                            instanceCertificateChainBlob);
 
                         listenerEndpoints.Add(description);
                     }

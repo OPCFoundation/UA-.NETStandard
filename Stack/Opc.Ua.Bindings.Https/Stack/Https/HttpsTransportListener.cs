@@ -15,6 +15,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Net;
 using System.Security.Authentication;
+using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
@@ -262,17 +263,29 @@ namespace Opc.Ua.Bindings
         {
             Startup.Listener = this;
             m_hostBuilder = new WebHostBuilder();
+
+            // prepare the server TLS certificate
+            var serverCertificate = m_serverCertificate;
+#if NETCOREAPP3_1_OR_GREATER || NETSTANDARD2_1 || NET472_OR_GREATER || NET5_0_OR_GREATER
+            try
+            {
+                // Create a copy of the certificate with the private key on platforms
+                // which default to the ephemeral KeySet. Also a new certificate must be reloaded.
+                // If the key fails to copy, its probably a non exportable key from the X509Store.
+                // Then we can use the original certificate, the private key is already in the key store.
+                serverCertificate = X509Utils.CreateCopyWithPrivateKey(m_serverCertificate, false);
+            }
+            catch (CryptographicException ce)
+            {
+                Utils.LogTrace("Copy of the private key for https was denied: {0}", ce.Message);
+            }
+#endif
+
             var httpsOptions = new HttpsConnectionAdapterOptions() {
                 CheckCertificateRevocation = false,
                 ClientCertificateMode = ClientCertificateMode.NoCertificate,
                 // note: this is the TLS certificate!
-#if NETCOREAPP3_1_OR_GREATER || NETSTANDARD2_1 || NET472_OR_GREATER || NET5_0_OR_GREATER
-                // Create a copy of the certificate with the private key on platforms
-                // which default to the ephemeral KeySet.
-                ServerCertificate = X509Utils.CreateCopyWithPrivateKey(m_serverCertificate, false)
-#else
-                ServerCertificate = m_serverCertificate
-#endif
+                ServerCertificate = serverCertificate,
             };
 
 #if NET462
@@ -463,25 +476,16 @@ namespace Opc.Ua.Bindings
             m_quotas.CertificateValidator = validator;
             m_serverCertificate = serverCertificate;
             m_serverCertificateChain = serverCertificateChain;
-            foreach (var description in m_descriptions)
+
+            byte[] serverCertificateChainBlob = Utils.CreateCertificateChainBlob(serverCertificateChain);
+
+            foreach (EndpointDescription description in m_descriptions)
             {
-                // check if complete chain should be sent.
-                if (m_serverCertificateChain != null &&
-                    m_serverCertificateChain.Count > 1)
-                {
-                    var byteServerCertificateChain = new List<byte>();
-
-                    for (int i = 0; i < m_serverCertificateChain.Count; i++)
-                    {
-                        byteServerCertificateChain.AddRange(m_serverCertificateChain[i].RawData);
-                    }
-
-                    description.ServerCertificate = byteServerCertificateChain.ToArray();
-                }
-                else if (description.ServerCertificate != null)
-                {
-                    description.ServerCertificate = serverCertificate.RawData;
-                }
+                ServerBase.SetServerCertificateInEndpointDescription(description,
+                                                                     serverCertificateChain != null,
+                                                                     serverCertificate,
+                                                                     serverCertificateChainBlob,
+                                                                     false);
             }
 
             Start();
