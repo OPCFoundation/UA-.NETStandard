@@ -52,6 +52,12 @@ namespace Opc.Ua
         private bool m_levelOneSkipped;
         private bool m_dontWriteClosing;
         private bool m_leaveOpen;
+        private bool m_forceNamespaceUri;
+        private bool m_forceNamespaceUriForIndex1;
+        private bool m_includeDefaultNumberValues;
+        private bool m_includeDefaultValues;
+        private bool m_encodeNodeIdAsString;
+
 
         [Flags]
         private enum EscapeOptions : int
@@ -65,14 +71,41 @@ namespace Opc.Ua
 
         #region Constructors
         /// <summary>
-        /// 
+        /// Initializes the object with default values.
+        /// Selects the reversible or non reversible encoding.
         /// </summary>
-        /// <param name="context"></param>
-        /// <param name="useReversibleEncoding"></param>
         public JsonEncoder(
             IServiceMessageContext context,
             bool useReversibleEncoding) :
-            this(context, useReversibleEncoding, false, null, false)
+            this(context, useReversibleEncoding ? JsonEncodingType.Reversible : JsonEncodingType.NonReversible, false, null, false)
+        {
+        }
+
+        /// <summary>
+        /// Initializes the object with default values.
+        /// Selects the reversible or non reversible encoding.
+        /// </summary>
+        public JsonEncoder(
+            IServiceMessageContext context,
+            bool useReversibleEncoding,
+            bool topLevelIsArray = false,
+            Stream stream = null,
+            bool leaveOpen = false,
+            int streamSize = kStreamWriterBufferSize) :
+            this(context, useReversibleEncoding ? JsonEncodingType.Reversible : JsonEncodingType.NonReversible, topLevelIsArray, stream, leaveOpen, streamSize)
+        {
+        }
+
+        /// <summary>
+        /// Initializes the object with default values.
+        /// Selects the reversible or non reversible encoding.
+        /// </summary>
+        public JsonEncoder(
+            IServiceMessageContext context,
+            bool useReversibleEncoding,
+            StreamWriter streamWriter,
+            bool topLevelIsArray = false) :
+            this(context, useReversibleEncoding ? JsonEncodingType.Reversible : JsonEncodingType.NonReversible, streamWriter, topLevelIsArray)
         {
         }
 
@@ -81,19 +114,17 @@ namespace Opc.Ua
         /// </summary>
         public JsonEncoder(
             IServiceMessageContext context,
-            bool useReversibleEncoding,
+            JsonEncodingType encoding,
             bool topLevelIsArray = false,
             Stream stream = null,
             bool leaveOpen = false,
-            int streamSize = kStreamWriterBufferSize
-            )
+            int streamSize = kStreamWriterBufferSize)
         {
-            Initialize();
+            Initialize(encoding);
 
             m_context = context;
             m_stream = stream;
             m_leaveOpen = leaveOpen;
-            UseReversibleEncoding = useReversibleEncoding;
             m_topLevelIsArray = topLevelIsArray;
 
             if (m_stream == null)
@@ -115,15 +146,14 @@ namespace Opc.Ua
         /// </summary>
         public JsonEncoder(
             IServiceMessageContext context,
-            bool useReversibleEncoding,
+            JsonEncodingType encoding,
             StreamWriter writer,
             bool topLevelIsArray = false)
         {
-            Initialize();
+            Initialize(encoding);
 
             m_context = context;
             m_writer = writer;
-            UseReversibleEncoding = useReversibleEncoding;
             m_topLevelIsArray = topLevelIsArray;
 
             if (m_writer == null)
@@ -138,7 +168,7 @@ namespace Opc.Ua
         /// <summary>
         /// Sets private members to default values.
         /// </summary>
-        private void Initialize()
+        private void Initialize(JsonEncodingType encoding)
         {
             m_stream = null;
             m_writer = null;
@@ -149,13 +179,29 @@ namespace Opc.Ua
             m_levelOneSkipped = false;
 
             // defaults for JSON encoding
-            // -- encode namespace index for reversible encoding
-            // -- do not include default values for built in types
-            //    which are not a Number or a bool
-            // -- include default values for numbers and bool
-            ForceNamespaceUri = false;
-            IncludeDefaultValues = false;
-            IncludeDefaultNumberValues = true;
+            EncodingToUse = encoding;
+            if (encoding == JsonEncodingType.Reversible || encoding == JsonEncodingType.NonReversible)
+            {
+                // defaults for reversible and non reversible JSON encoding
+                // -- encode namespace index for reversible encoding / uri for non reversible
+                // -- do not include default values for reversible encoding
+                // -- include default values for non reversible encoding
+                m_forceNamespaceUri =
+                m_forceNamespaceUriForIndex1 =
+                m_includeDefaultValues = encoding == JsonEncodingType.NonReversible;
+                m_includeDefaultNumberValues = true;
+                m_encodeNodeIdAsString = false;
+            }
+            else
+            {
+                // defaults for compact and verbose JSON encoding, properties throw exception if modified
+                m_forceNamespaceUri = true;
+                m_forceNamespaceUriForIndex1 = true;
+                m_includeDefaultValues = encoding == JsonEncodingType.Verbose;
+                m_includeDefaultNumberValues = encoding == JsonEncodingType.Verbose;
+                m_encodeNodeIdAsString = true;
+            }
+            m_inVariantWithEncoding = IncludeDefaultValues;
         }
 
         /// <summary>
@@ -347,6 +393,9 @@ namespace Opc.Ua
 
         #region IJsonEncodeable Members
         /// <inheritdoc/>
+        public JsonEncodingType EncodingToUse { get; private set; }
+
+        /// <inheritdoc/>
         public void PushStructure(string fieldName)
         {
             m_nestingLevel++;
@@ -431,26 +480,43 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
+        [Obsolete("Non/Reversible encoding is deprecated. Use UsingAlternateEncoding instead to support new encoding types.")]
         public void UsingReversibleEncoding<T>(Action<string, T> action, string fieldName, T value, bool useReversibleEncoding)
         {
-            bool currentValue = UseReversibleEncoding;
+            JsonEncodingType currentValue = EncodingToUse;
             try
             {
-                UseReversibleEncoding = useReversibleEncoding;
+                EncodingToUse = useReversibleEncoding ? JsonEncodingType.Reversible : JsonEncodingType.NonReversible;
                 action(fieldName, value);
             }
             finally
             {
-                UseReversibleEncoding = currentValue;
+                EncodingToUse = currentValue;
+            }
+        }
+
+        /// <inheritdoc/>
+        public void UsingAlternateEncoding<T>(Action<string, T> action, string fieldName, T value, JsonEncodingType useEncoding)
+        {
+            JsonEncodingType currentValue = EncodingToUse;
+            try
+            {
+                EncodingToUse = useEncoding;
+                action(fieldName, value);
+            }
+            finally
+            {
+                EncodingToUse = currentValue;
             }
         }
         #endregion
 
         #region IEncoder Members
-        /// <summary>
-        /// The type of encoding being used.
-        /// </summary>
+        /// <inheritdoc/>
         public EncodingType EncodingType => EncodingType.Json;
+
+        /// <inheritdoc/>
+        public bool UseReversibleEncoding => EncodingToUse != JsonEncodingType.NonReversible;
 
         /// <summary>
         /// The message context associated with the encoder.
@@ -458,31 +524,51 @@ namespace Opc.Ua
         public IServiceMessageContext Context => m_context;
 
         /// <summary>
-        /// The Json encoder reversible encoding option
-        /// </summary>
-        public bool UseReversibleEncoding { get; private set; }
-
-        /// <summary>
         /// The Json encoder to encoder namespace URI instead of
         /// namespace Index in NodeIds.
         /// </summary>
-        public bool ForceNamespaceUri { get; set; }
+        public bool ForceNamespaceUri
+        {
+            get => m_forceNamespaceUri;
+            set => m_forceNamespaceUri = ThrowIfCompactOrVerbose(value);
+        }
 
         /// <summary>
         /// The Json encoder to encode namespace URI for all
         /// namespaces
         /// </summary>
-        public bool ForceNamespaceUriForIndex1 { get; set; }
+        public bool ForceNamespaceUriForIndex1
+        {
+            get => m_forceNamespaceUriForIndex1;
+            set => m_forceNamespaceUriForIndex1 = ThrowIfCompactOrVerbose(value);
+        }
 
         /// <summary>
         /// The Json encoder default value option.
         /// </summary>
-        public bool IncludeDefaultValues { get; set; }
+        public bool IncludeDefaultValues
+        {
+            get => m_includeDefaultValues;
+            set => m_includeDefaultValues = ThrowIfCompactOrVerbose(value);
+        }
 
         /// <summary>
         /// The Json encoder default value option.
         /// </summary>
-        public bool IncludeDefaultNumberValues { get; set; }
+        public bool IncludeDefaultNumberValues
+        {
+            get => m_includeDefaultNumberValues;
+            set => m_includeDefaultNumberValues = ThrowIfCompactOrVerbose(value);
+        }
+
+        /// <summary>
+        /// The Json encoder default encoding for NodeId as string or object.
+        /// </summary>
+        public bool EncodeNodeIdAsString
+        {
+            get => m_encodeNodeIdAsString;
+            set => m_encodeNodeIdAsString = ThrowIfCompactOrVerbose(value);
+        }
 
         /// <summary>
         /// Pushes a namespace onto the namespace stack.
@@ -1073,7 +1159,6 @@ namespace Opc.Ua
             }
 
             if ((!UseReversibleEncoding || ForceNamespaceUri) && namespaceIndex > (ForceNamespaceUriForIndex1 ? 0 : 1))
-
             {
                 var uri = m_context.NamespaceUris.GetString(namespaceIndex);
                 if (!string.IsNullOrEmpty(uri))
@@ -1157,10 +1242,15 @@ namespace Opc.Ua
         /// </summary>
         public void WriteNodeId(string fieldName, NodeId value)
         {
-            if (value == null ||
-                (NodeId.IsNull(value) && (value.IdType == IdType.Numeric)))
+            if (value == null || (NodeId.IsNull(value) && (value.IdType == IdType.Numeric)))
             {
                 WriteSimpleFieldNull(fieldName);
+                return;
+            }
+
+            if (m_encodeNodeIdAsString)
+            {
+                WriteSimpleField(fieldName, value.Format(m_context, ForceNamespaceUri), EscapeOptions.Quotes);
                 return;
             }
 
@@ -1184,10 +1274,15 @@ namespace Opc.Ua
         /// </summary>
         public void WriteExpandedNodeId(string fieldName, ExpandedNodeId value)
         {
-            if (value == null || value.InnerNodeId == null ||
-                (!UseReversibleEncoding && NodeId.IsNull(value)))
+            if (value == null || value.InnerNodeId == null || (!UseReversibleEncoding && NodeId.IsNull(value)))
             {
                 WriteSimpleFieldNull(fieldName);
+                return;
+            }
+
+            if (m_encodeNodeIdAsString)
+            {
+                WriteSimpleField(fieldName, value.Format(m_context, ForceNamespaceUri), EscapeOptions.Quotes);
                 return;
             }
 
@@ -1205,12 +1300,16 @@ namespace Opc.Ua
 
             if (serverIndex >= 1)
             {
-                var uri = m_context.ServerUris.GetString(serverIndex);
-
-                if (!string.IsNullOrEmpty(uri))
+                if (EncodingToUse == JsonEncodingType.NonReversible)
                 {
-                    WriteSimpleField("ServerUri", uri, EscapeOptions.Quotes | EscapeOptions.NoFieldNameEscape);
-                    PopStructure();
+                    var uri = m_context.ServerUris.GetString(serverIndex);
+
+                    if (!string.IsNullOrEmpty(uri))
+                    {
+                        WriteSimpleField("ServerUri", uri, EscapeOptions.Quotes | EscapeOptions.NoFieldNameEscape);
+                        PopStructure();
+                    }
+
                     return;
                 }
 
@@ -1240,19 +1339,24 @@ namespace Opc.Ua
                 return;
             }
 
-            if (UseReversibleEncoding)
+            if (EncodingToUse == JsonEncodingType.Reversible || EncodingToUse == JsonEncodingType.Compact)
             {
                 WriteUInt32(fieldName, value.Code);
                 return;
             }
 
+            // Verbose and NonReversible
+            PushStructure(fieldName);
             if (value != StatusCodes.Good)
             {
-                PushStructure(fieldName);
                 WriteSimpleField("Code", value.Code.ToString(CultureInfo.InvariantCulture), EscapeOptions.NoFieldNameEscape);
-                WriteSimpleField("Symbol", StatusCode.LookupSymbolicId(value.CodeBits), EscapeOptions.Quotes | EscapeOptions.NoFieldNameEscape);
-                PopStructure();
+                string symbolicId = StatusCode.LookupSymbolicId(value.CodeBits);
+                if (!string.IsNullOrEmpty(symbolicId))
+                {
+                    WriteSimpleField("Symbol", symbolicId, EscapeOptions.Quotes | EscapeOptions.NoFieldNameEscape);
+                }
             }
+            PopStructure();
         }
 
         /// <summary>
@@ -1274,10 +1378,15 @@ namespace Opc.Ua
                 return;
             }
 
+            if (m_encodeNodeIdAsString)
+            {
+                WriteSimpleField(fieldName, value.Format(m_context, ForceNamespaceUri), EscapeOptions.Quotes);
+                return;
+            }
+
             PushStructure(fieldName);
 
             WriteString("Name", value.Name);
-
             WriteNamespaceIndex("Uri", value.NamespaceIndex);
 
             PopStructure();
@@ -1294,7 +1403,7 @@ namespace Opc.Ua
                 return;
             }
 
-            if (UseReversibleEncoding)
+            if (EncodingToUse != JsonEncodingType.NonReversible)
             {
                 PushStructure(fieldName);
 
@@ -1328,14 +1437,14 @@ namespace Opc.Ua
 
             try
             {
-
                 bool isNull = (value.TypeInfo == null || value.TypeInfo.BuiltInType == BuiltInType.Null || value.Value == null);
 
-                if (UseReversibleEncoding && !isNull)
+                if (!isNull && EncodingToUse != JsonEncodingType.NonReversible)
                 {
                     PushStructure(fieldName);
                     // encode enums as int32.
                     byte encodingByte = (byte)value.TypeInfo.BuiltInType;
+
                     if (value.TypeInfo.BuiltInType == BuiltInType.Enumeration)
                     {
                         encodingByte = (byte)BuiltInType.Int32;
@@ -1359,7 +1468,7 @@ namespace Opc.Ua
 
                 WriteVariantContents(value.Value, value.TypeInfo);
 
-                if (UseReversibleEncoding && !isNull)
+                if (!isNull && EncodingToUse != JsonEncodingType.NonReversible)
                 {
                     if (value.Value is Matrix matrix)
                     {
@@ -1437,9 +1546,10 @@ namespace Opc.Ua
 
             var encodeable = value.Body as IEncodeable;
 
-            if (!UseReversibleEncoding && encodeable != null)
+            if (encodeable != null && EncodingToUse == JsonEncodingType.NonReversible)
             {
                 // non reversible encoding, only the content of the Body field is encoded
+                // TODO: value.Body is Union?
                 if (value.Body is IStructureTypeInfo structureType &&
                     structureType.StructureType == StructureType.Union)
                 {
@@ -1450,6 +1560,7 @@ namespace Opc.Ua
                 PushStructure(fieldName);
                 encodeable.Encode(this);
                 PopStructure();
+
                 return;
             }
 
@@ -1468,15 +1579,7 @@ namespace Opc.Ua
             }
 
             var localTypeId = ExpandedNodeId.ToNodeId(typeId, Context.NamespaceUris);
-
-            if (UseReversibleEncoding)
-            {
-                WriteNodeId("TypeId", localTypeId);
-            }
-            else
-            {
-                WriteExpandedNodeId("TypeId", typeId);
-            }
+            WriteNodeId("TypeId", localTypeId);
 
             if (encodeable != null)
             {
@@ -1565,7 +1668,9 @@ namespace Opc.Ua
         {
             int numeric = Convert.ToInt32(value, CultureInfo.InvariantCulture);
             var numericString = numeric.ToString(CultureInfo.InvariantCulture);
-            if (UseReversibleEncoding)
+
+            if (EncodingToUse == JsonEncodingType.Reversible ||
+                EncodingToUse == JsonEncodingType.Compact)
             {
                 WriteSimpleField(fieldName, numericString);
             }
@@ -1578,7 +1683,7 @@ namespace Opc.Ua
                 }
                 else
                 {
-                    WriteSimpleField(fieldName, Utils.Format("{0}_{1}", value.ToString(), numeric), EscapeOptions.Quotes);
+                    WriteSimpleField(fieldName, Utils.Format("{0}_{1}", valueString, numeric), EscapeOptions.Quotes);
                 }
             }
         }
@@ -1588,8 +1693,9 @@ namespace Opc.Ua
         /// </summary>
         public void WriteEnumerated(string fieldName, int numeric)
         {
+            bool writeNumber = EncodingToUse == JsonEncodingType.Reversible || EncodingToUse == JsonEncodingType.Compact;
             var numericString = numeric.ToString(CultureInfo.InvariantCulture);
-            WriteSimpleField(fieldName, numericString, !UseReversibleEncoding ? EscapeOptions.Quotes : EscapeOptions.None);
+            WriteSimpleField(fieldName, numericString, writeNumber ? EscapeOptions.None : EscapeOptions.Quotes);
         }
 
         /// <summary>
@@ -1597,9 +1703,8 @@ namespace Opc.Ua
         /// </summary>
         public void WriteBooleanArray(string fieldName, IList<bool> values)
         {
-            if (values == null || (values.Count == 0 && !m_inVariantWithEncoding))
+            if (CheckForSimpleFieldNull(fieldName, values))
             {
-                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
@@ -1624,9 +1729,8 @@ namespace Opc.Ua
         /// </summary>
         public void WriteSByteArray(string fieldName, IList<sbyte> values)
         {
-            if (values == null || (values.Count == 0 && !m_inVariantWithEncoding))
+            if (CheckForSimpleFieldNull(fieldName, values))
             {
-                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
@@ -1651,9 +1755,8 @@ namespace Opc.Ua
         /// </summary>
         public void WriteByteArray(string fieldName, IList<byte> values)
         {
-            if (values == null || (values.Count == 0 && !m_inVariantWithEncoding))
+            if (CheckForSimpleFieldNull(fieldName, values))
             {
-                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
@@ -1678,9 +1781,8 @@ namespace Opc.Ua
         /// </summary>
         public void WriteInt16Array(string fieldName, IList<short> values)
         {
-            if (values == null || (values.Count == 0 && !m_inVariantWithEncoding))
+            if (CheckForSimpleFieldNull(fieldName, values))
             {
-                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
@@ -1705,9 +1807,8 @@ namespace Opc.Ua
         /// </summary>
         public void WriteUInt16Array(string fieldName, IList<ushort> values)
         {
-            if (values == null || (values.Count == 0 && !m_inVariantWithEncoding))
+            if (CheckForSimpleFieldNull(fieldName, values))
             {
-                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
@@ -1732,9 +1833,8 @@ namespace Opc.Ua
         /// </summary>
         public void WriteInt32Array(string fieldName, IList<int> values)
         {
-            if (values == null || (values.Count == 0 && !m_inVariantWithEncoding))
+            if (CheckForSimpleFieldNull(fieldName, values))
             {
-                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
@@ -1759,9 +1859,8 @@ namespace Opc.Ua
         /// </summary>
         public void WriteUInt32Array(string fieldName, IList<uint> values)
         {
-            if (values == null || (values.Count == 0 && !m_inVariantWithEncoding))
+            if (CheckForSimpleFieldNull(fieldName, values))
             {
-                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
@@ -1786,9 +1885,8 @@ namespace Opc.Ua
         /// </summary>
         public void WriteInt64Array(string fieldName, IList<long> values)
         {
-            if (values == null || (values.Count == 0 && !m_inVariantWithEncoding))
+            if (CheckForSimpleFieldNull(fieldName, values))
             {
-                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
@@ -1813,9 +1911,8 @@ namespace Opc.Ua
         /// </summary>
         public void WriteUInt64Array(string fieldName, IList<ulong> values)
         {
-            if (values == null || (values.Count == 0 && !m_inVariantWithEncoding))
+            if (CheckForSimpleFieldNull(fieldName, values))
             {
-                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
@@ -1840,9 +1937,8 @@ namespace Opc.Ua
         /// </summary>
         public void WriteFloatArray(string fieldName, IList<float> values)
         {
-            if (values == null || (values.Count == 0 && !m_inVariantWithEncoding))
+            if (CheckForSimpleFieldNull(fieldName, values))
             {
-                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
@@ -1867,9 +1963,8 @@ namespace Opc.Ua
         /// </summary>
         public void WriteDoubleArray(string fieldName, IList<double> values)
         {
-            if (values == null || (values.Count == 0 && !m_inVariantWithEncoding))
+            if (CheckForSimpleFieldNull(fieldName, values))
             {
-                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
@@ -1894,9 +1989,8 @@ namespace Opc.Ua
         /// </summary>
         public void WriteStringArray(string fieldName, IList<string> values)
         {
-            if (values == null || (values.Count == 0 && !m_inVariantWithEncoding))
+            if (CheckForSimpleFieldNull(fieldName, values))
             {
-                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
@@ -1921,9 +2015,8 @@ namespace Opc.Ua
         /// </summary>
         public void WriteDateTimeArray(string fieldName, IList<DateTime> values)
         {
-            if (values == null || (values.Count == 0 && !m_inVariantWithEncoding))
+            if (CheckForSimpleFieldNull(fieldName, values))
             {
-                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
@@ -1955,9 +2048,8 @@ namespace Opc.Ua
         /// </summary>
         public void WriteGuidArray(string fieldName, IList<Uuid> values)
         {
-            if (values == null || (values.Count == 0 && !m_inVariantWithEncoding))
+            if (CheckForSimpleFieldNull(fieldName, values))
             {
-                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
@@ -1982,9 +2074,8 @@ namespace Opc.Ua
         /// </summary>
         public void WriteGuidArray(string fieldName, IList<Guid> values)
         {
-            if (values == null || (values.Count == 0 && !m_inVariantWithEncoding))
+            if (CheckForSimpleFieldNull(fieldName, values))
             {
-                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
@@ -2009,9 +2100,8 @@ namespace Opc.Ua
         /// </summary>
         public void WriteByteStringArray(string fieldName, IList<byte[]> values)
         {
-            if (values == null || (values.Count == 0 && !m_inVariantWithEncoding))
+            if (CheckForSimpleFieldNull(fieldName, values))
             {
-                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
@@ -2036,9 +2126,8 @@ namespace Opc.Ua
         /// </summary>
         public void WriteXmlElementArray(string fieldName, IList<XmlElement> values)
         {
-            if (values == null || (values.Count == 0 && !m_inVariantWithEncoding))
+            if (CheckForSimpleFieldNull(fieldName, values))
             {
-                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
@@ -2063,9 +2152,8 @@ namespace Opc.Ua
         /// </summary>
         public void WriteNodeIdArray(string fieldName, IList<NodeId> values)
         {
-            if (values == null || (values.Count == 0 && !m_inVariantWithEncoding))
+            if (CheckForSimpleFieldNull(fieldName, values))
             {
-                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
@@ -2090,9 +2178,8 @@ namespace Opc.Ua
         /// </summary>
         public void WriteExpandedNodeIdArray(string fieldName, IList<ExpandedNodeId> values)
         {
-            if (values == null || (values.Count == 0 && !m_inVariantWithEncoding))
+            if (CheckForSimpleFieldNull(fieldName, values))
             {
-                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
@@ -2117,9 +2204,8 @@ namespace Opc.Ua
         /// </summary>
         public void WriteStatusCodeArray(string fieldName, IList<StatusCode> values)
         {
-            if (values == null || (values.Count == 0 && !m_inVariantWithEncoding))
+            if (CheckForSimpleFieldNull(fieldName, values))
             {
-                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
@@ -2152,9 +2238,8 @@ namespace Opc.Ua
         /// </summary>
         public void WriteDiagnosticInfoArray(string fieldName, IList<DiagnosticInfo> values)
         {
-            if (values == null || (values.Count == 0 && !m_inVariantWithEncoding))
+            if (CheckForSimpleFieldNull(fieldName, values))
             {
-                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
@@ -2179,9 +2264,8 @@ namespace Opc.Ua
         /// </summary>
         public void WriteQualifiedNameArray(string fieldName, IList<QualifiedName> values)
         {
-            if (values == null || (values.Count == 0 && !m_inVariantWithEncoding))
+            if (CheckForSimpleFieldNull(fieldName, values))
             {
-                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
@@ -2206,9 +2290,8 @@ namespace Opc.Ua
         /// </summary>
         public void WriteLocalizedTextArray(string fieldName, IList<LocalizedText> values)
         {
-            if (values == null || (values.Count == 0 && !m_inVariantWithEncoding))
+            if (CheckForSimpleFieldNull(fieldName, values))
             {
-                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
@@ -2233,9 +2316,8 @@ namespace Opc.Ua
         /// </summary>
         public void WriteVariantArray(string fieldName, IList<Variant> values)
         {
-            if (values == null || (values.Count == 0 && !m_inVariantWithEncoding))
+            if (CheckForSimpleFieldNull(fieldName, values))
             {
-                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
@@ -2266,9 +2348,8 @@ namespace Opc.Ua
         /// </summary>
         public void WriteDataValueArray(string fieldName, IList<DataValue> values)
         {
-            if (values == null || (values.Count == 0 && !m_inVariantWithEncoding))
+            if (CheckForSimpleFieldNull(fieldName, values))
             {
-                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
@@ -2293,9 +2374,8 @@ namespace Opc.Ua
         /// </summary>
         public void WriteExtensionObjectArray(string fieldName, IList<ExtensionObject> values)
         {
-            if (values == null || (values.Count == 0 && !m_inVariantWithEncoding))
+            if (CheckForSimpleFieldNull(fieldName, values))
             {
-                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
@@ -2320,9 +2400,8 @@ namespace Opc.Ua
         /// </summary>
         public void WriteEncodeableArray(string fieldName, IList<IEncodeable> values, System.Type systemType)
         {
-            if (values == null || (values.Count == 0 && !m_inVariantWithEncoding))
+            if (CheckForSimpleFieldNull(fieldName, values))
             {
-                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
@@ -2423,9 +2502,10 @@ namespace Opc.Ua
         /// </summary>
         public void WriteVariantContents(object value, TypeInfo typeInfo)
         {
+            bool inVariantWithEncoding = m_inVariantWithEncoding;
             try
             {
-                m_inVariantWithEncoding = UseReversibleEncoding;
+                m_inVariantWithEncoding = true;
 
                 // check for null.
                 if (value == null)
@@ -2471,7 +2551,7 @@ namespace Opc.Ua
                 else if (typeInfo.ValueRank >= ValueRanks.OneDimension)
                 {
                     int valueRank = typeInfo.ValueRank;
-                    if (UseReversibleEncoding && value is Matrix matrix)
+                    if (EncodingToUse != JsonEncodingType.NonReversible && value is Matrix matrix)
                     {
                         // linearize the matrix
                         value = matrix.Elements;
@@ -2482,7 +2562,7 @@ namespace Opc.Ua
             }
             finally
             {
-                m_inVariantWithEncoding = false;
+                m_inVariantWithEncoding = inVariantWithEncoding;
             }
         }
 
@@ -2491,9 +2571,8 @@ namespace Opc.Ua
         /// </summary>
         public void WriteObjectArray(string fieldName, IList<object> values)
         {
-            if (values == null || (values.Count == 0 && !m_inVariantWithEncoding))
+            if (CheckForSimpleFieldNull(fieldName, values))
             {
-                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
@@ -2607,6 +2686,7 @@ namespace Opc.Ua
                     }
                 }
             }
+
             // write matrix.
             else if (valueRank > ValueRanks.OneDimension)
             {
@@ -2627,8 +2707,15 @@ namespace Opc.Ua
 
                 if (matrix != null)
                 {
-                    int index = 0;
-                    WriteStructureMatrix(fieldName, matrix, 0, ref index, matrix.TypeInfo);
+                    if (EncodingToUse == JsonEncodingType.Compact || EncodingToUse == JsonEncodingType.Verbose)
+                    {
+                        WriteArrayDimensionMatrix(fieldName, builtInType, matrix);
+                    }
+                    else
+                    {
+                        int index = 0;
+                        WriteStructureMatrix(fieldName, matrix, 0, ref index, matrix.TypeInfo);
+                    }
                     return;
                 }
 
@@ -2638,6 +2725,33 @@ namespace Opc.Ua
         #endregion
 
         #region Private Methods
+        /// <summary>
+        /// Returns true if a simple field can be written.
+        /// </summary>
+        private bool CheckForSimpleFieldNull<T>(string fieldName, IList<T> values)
+        {
+            // always include default values for non reversible/verbose
+            // include default values when encoding in a Variant
+            if (values == null || (values.Count == 0 && !m_inVariantWithEncoding && !m_includeDefaultValues))
+            {
+                WriteSimpleFieldNull(fieldName);
+                return true;
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Called on properties which can only be modified for the deprecated encoding.
+        /// </summary>
+        private bool ThrowIfCompactOrVerbose(bool value)
+        {
+            if (EncodingToUse == JsonEncodingType.Compact || EncodingToUse == JsonEncodingType.Verbose)
+            {
+                throw new NotSupportedException($"This property can not be modified with {EncodingToUse} encoding.");
+            }
+            return value;
+        }
+
         /// <summary>
         /// Completes writing and returns the text length.
         /// </summary>
@@ -2736,6 +2850,28 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Encode the Matrix as Dimensions/Array element.
+        /// Writes the matrix as a flattended array with dimensions.
+        /// Validates the dimensions and array size.
+        /// </summary>
+        private void WriteArrayDimensionMatrix(string fieldName, BuiltInType builtInType, Matrix matrix)
+        {
+            // check if matrix is well formed
+            (bool valid, int sizeFromDimensions) = Matrix.ValidateDimensions(true, matrix.Dimensions, Context.MaxArrayLength);
+
+            if (!valid || (sizeFromDimensions != matrix.Elements.Length))
+            {
+                throw ServiceResultException.Create(StatusCodes.BadEncodingError,
+                    "The number of elements in the matrix does not match the dimensions.");
+            }
+
+            PushStructure(fieldName);
+            WriteInt32Array("Dimensions", matrix.Dimensions);
+            WriteArray("Array", matrix.Elements, 1, builtInType);
+            PopStructure();
+        }
+
+        /// <summary>
         /// Write multi dimensional array in structure.
         /// </summary>
         private void WriteStructureMatrix(
@@ -2750,7 +2886,8 @@ namespace Opc.Ua
 
             if (!valid || (sizeFromDimensions != matrix.Elements.Length))
             {
-                throw new ArgumentException("The number of elements in the matrix does not match the dimensions.");
+                throw ServiceResultException.Create(StatusCodes.BadEncodingError,
+                    "The number of elements in the matrix does not match the dimensions.");
             }
 
             CheckAndIncrementNestingLevel();

@@ -368,7 +368,7 @@ namespace Opc.Ua.Server
                     requireEncryption = true;
                 }
 
-                X509Certificate2Collection clientIssuerCertifficates = null;
+                X509Certificate2Collection clientIssuerCertificates = null;
 
                 // validate client application instance certificate.
                 X509Certificate2 parsedClientCertificate = null;
@@ -382,10 +382,10 @@ namespace Opc.Ua.Server
 
                         if (clientCertificateChain.Count > 1)
                         {
-                            clientIssuerCertifficates = new X509Certificate2Collection();
+                            clientIssuerCertificates = new X509Certificate2Collection();
                             for (int i = 1; i < clientCertificateChain.Count; i++)
                             {
-                                clientIssuerCertifficates.Add(clientCertificateChain[i]);
+                                clientIssuerCertificates.Add(clientCertificateChain[i]);
                             }
                         }
 
@@ -446,7 +446,7 @@ namespace Opc.Ua.Server
                     clientDescription,
                     endpointUrl,
                     parsedClientCertificate,
-                    clientIssuerCertifficates,
+                    clientIssuerCertificates,
                     requestedSessionTimeout,
                     maxResponseMessageSize,
                     out sessionId,
@@ -486,9 +486,9 @@ namespace Opc.Ua.Server
                     if (requireEncryption)
                     {
                         // check if complete chain should be sent.
-                        if (Configuration.SecurityConfiguration.SendCertificateChain)
+                        if (InstanceCertificateTypesProvider.SendCertificateChain)
                         {
-                            serverCertificate = InstanceCertificateTypesProvider.LoadCertificateChainRawAsync(instanceCertificate).GetAwaiter().GetResult();
+                            serverCertificate = InstanceCertificateTypesProvider.LoadCertificateChainRaw(instanceCertificate);
                         }
                         else
                         {
@@ -2356,7 +2356,7 @@ namespace Opc.Ua.Server
             var registrationCertificateValidator = new CertificateValidationEventHandler(RegistrationValidator_CertificateValidation);
             configuration.CertificateValidator = new CertificateValidator();
             configuration.CertificateValidator.CertificateValidation += registrationCertificateValidator;
-            configuration.CertificateValidator.Update(configuration.SecurityConfiguration).GetAwaiter().GetResult();
+            configuration.CertificateValidator.UpdateAsync(configuration.SecurityConfiguration).GetAwaiter().GetResult();
 
             try
             {
@@ -2426,7 +2426,7 @@ namespace Opc.Ua.Server
                                 {
                                     client.RegisterServer(requestHeader, m_registrationInfo);
                                 }
-                                
+
                                 m_registeredWithDiscoveryServer = m_registrationInfo.IsOnline;
                                 return true;
                             }
@@ -2858,7 +2858,7 @@ namespace Opc.Ua.Server
                 Configuration.SecurityConfiguration.TrustedPeerCertificates = configuration.SecurityConfiguration.TrustedPeerCertificates;
                 Configuration.SecurityConfiguration.RejectedCertificateStore = configuration.SecurityConfiguration.RejectedCertificateStore;
 
-                Configuration.CertificateValidator.Update(Configuration.SecurityConfiguration).Wait();
+                Configuration.CertificateValidator.UpdateAsync(Configuration.SecurityConfiguration).Wait();
 
                 // update trace configuration.
                 Configuration.TraceConfiguration = configuration.TraceConfiguration;
@@ -3183,7 +3183,7 @@ namespace Opc.Ua.Server
             // attempt graceful shutdown the server.
             try
             {
-                
+
                 if (m_maxRegistrationInterval > 0 && m_registeredWithDiscoveryServer)
                 {
                     // unregister from Discovery Server if registered before

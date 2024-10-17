@@ -19,6 +19,7 @@ using System.Net.Sockets;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Bindings
 {
@@ -489,7 +490,7 @@ namespace Opc.Ua.Bindings
                     X509Certificate2 serverCertificate = certificateTypesProvider.GetInstanceCertificate(description.SecurityPolicyUri);
                     if (certificateTypesProvider.SendCertificateChain)
                     {
-                        byte[] serverCertificateChainRaw = certificateTypesProvider.LoadCertificateChainRawAsync(serverCertificate).Result;
+                        byte[] serverCertificateChainRaw = certificateTypesProvider.LoadCertificateChainRaw(serverCertificate);
                         description.ServerCertificate = serverCertificateChainRaw;
                     }
                     else

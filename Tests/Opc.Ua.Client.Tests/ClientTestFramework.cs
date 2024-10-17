@@ -54,7 +54,6 @@ namespace Opc.Ua.Client.Tests
             new object [] { Utils.UriSchemeOpcHttps},
         };
 
-        public const int MaxChannelCount = 100;
         public const int MaxReferences = 100;
         public const int MaxTimeout = 10000;
         public const int TransportQuotaMaxMessageSize = 4 * 1024 * 1024;
@@ -62,6 +61,7 @@ namespace Opc.Ua.Client.Tests
         public TokenValidatorMock TokenValidator { get; set; } = new TokenValidatorMock();
 
         public bool SingleSession { get; set; } = true;
+        public int MaxChannelCount { get; set; } = 100;
         public bool SupportsExternalServerUrl { get; set; } = false;
         public ServerFixture<ReferenceServer> ServerFixture { get; set; }
         public ClientFixture ClientFixture { get; set; }

@@ -279,6 +279,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             IServiceMessageContext encoderContext,
             MemoryStreamType memoryStreamType,
             EncodingType encoderType,
+            JsonEncodingType jsonEncodingType,
             StructureType structureType,
             ExpandedNodeId nodeId,
             object data
@@ -295,7 +296,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             byte[] buffer;
             using (var encoderStream = CreateEncoderMemoryStream(memoryStreamType))
             {
-                using (IEncoder encoder = CreateEncoder(encoderType, encoderContext, encoderStream, typeof(DataValue)))
+                using (IEncoder encoder = CreateEncoder(encoderType, encoderContext, encoderStream, typeof(DataValue), jsonEncodingType))
                 {
                     encoder.WriteExtensionObject("ExtensionObject", expected);
                 }

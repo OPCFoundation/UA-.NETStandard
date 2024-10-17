@@ -465,6 +465,7 @@ namespace Opc.Ua.PubSub.Encoding
                 valueToEncode = field.Value.StatusCode;
             }
 
+#pragma warning disable CS0618 // Type or member is obsolete
             switch (m_fieldTypeEncoding)
             {
                 case FieldTypeEncodingMask.Variant:
@@ -519,6 +520,7 @@ namespace Opc.Ua.PubSub.Encoding
                     encoder.UsingReversibleEncoding(encoder.WriteDataValue, fieldName, dataValue, false);
                     break;
             }
+#pragma warning restore CS0618 // Type or member is obsolete
         }
         #endregion
 

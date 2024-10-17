@@ -965,7 +965,7 @@ namespace Opc.Ua.Configuration
             // reload the certificate from disk.
             id.Certificate = await id.LoadPrivateKeyEx(passwordProvider).ConfigureAwait(false);
 
-            await configuration.CertificateValidator.Update(configuration.SecurityConfiguration).ConfigureAwait(false);
+            await configuration.CertificateValidator.UpdateAsync(configuration.SecurityConfiguration).ConfigureAwait(false);
 
             Utils.LogCertificate("Certificate created for {0}.", id.Certificate, configuration.ApplicationUri);
 

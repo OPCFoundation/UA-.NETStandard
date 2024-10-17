@@ -14,6 +14,7 @@
 using System;
 using System.Collections.Generic;
 using System.Security.Cryptography.X509Certificates;
+using Opc.Ua.Security.Certificates;
 
 
 namespace Opc.Ua.Bindings
@@ -72,6 +73,11 @@ namespace Opc.Ua.Bindings
                     continue;
                 }
 
+                if (!baseAddresses[ii].StartsWith(UriScheme, StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
                 UriBuilder uri = new UriBuilder(baseAddresses[ii]);
 
                 if (uri.Path[uri.Path.Length - 1] != '/')
@@ -117,9 +123,9 @@ namespace Opc.Ua.Bindings
                     description.ServerCertificate = instanceCertificate.RawData;
 
                     // check if complete chain should be sent.
-                    if (configuration.SecurityConfiguration.SendCertificateChain)
+                    if (certificateTypesProvider.SendCertificateChain)
                     {
-                        description.ServerCertificate = certificateTypesProvider.LoadCertificateChainRawAsync(instanceCertificate).GetAwaiter().GetResult();
+                        description.ServerCertificate = certificateTypesProvider.LoadCertificateChainRaw(instanceCertificate);
                     }
                 }
 

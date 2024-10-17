@@ -109,7 +109,7 @@ namespace Opc.Ua
                     NoPrivateKeys = noPrivateKeys;
                     StorePath = location;
                     m_directory = directory;
-                    if (m_noSubDirs)
+                    if (m_noSubDirs || m_directory == null)
                     {
                         m_certificateSubdir = m_directory;
                         m_crlSubdir = m_directory;
@@ -125,39 +125,6 @@ namespace Opc.Ua
                     // force load
                     ClearCertificates();
                     m_lastDirectoryCheck = DateTime.MinValue;
-
-                    // create folders if they do not exist
-                    try
-                    {
-                        if (!m_directory.Exists)
-                        {
-                            m_directory.Create();
-                        }
-
-                        if (!m_certificateSubdir.Exists)
-                        {
-                            m_certificateSubdir.Create();
-                        }
-
-                        if (noPrivateKeys)
-                        {
-                            if (!m_crlSubdir.Exists)
-                            {
-                                m_crlSubdir.Create();
-                            }
-                        }
-                        else
-                        {
-                            if (!m_privateKeySubdir.Exists)
-                            {
-                                m_privateKeySubdir.Create();
-                            }
-                        }
-                    }
-                    catch (IOException ex)
-                    {
-                        Utils.LogError("Failed to create certificate store: {0}", ex.Message);
-                    }
                 }
             }
         }
@@ -833,7 +800,7 @@ namespace Opc.Ua
                 DateTime now = DateTime.UtcNow;
 
                 // refresh the directories.
-                m_certificateSubdir.Refresh();
+                m_certificateSubdir?.Refresh();
 
                 if (!NoPrivateKeys)
                 {
@@ -841,9 +808,8 @@ namespace Opc.Ua
                 }
 
                 // check if store exists.
-                if (!m_certificateSubdir.Exists)
+                if (m_certificateSubdir?.Exists != true)
                 {
-                    m_certificateSubdir.Create();
                     ClearCertificates();
                     return m_certificates;
                 }

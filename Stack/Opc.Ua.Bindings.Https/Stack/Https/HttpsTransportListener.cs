@@ -24,6 +24,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Server.Kestrel.Https;
 using Microsoft.Extensions.Hosting;
+using Opc.Ua.Security.Certificates;
 
 
 namespace Opc.Ua.Bindings
@@ -473,21 +474,13 @@ namespace Opc.Ua.Bindings
 
             m_quotas.CertificateValidator = validator;
             m_serverCertProvider = certificateTypeProvider;
-            foreach (var description in m_descriptions)
+
+            foreach (EndpointDescription description in m_descriptions)
             {
-                if (description.ServerCertificate != null)
-                {
-                    X509Certificate2 serverCertificate = m_serverCertProvider.GetInstanceCertificate(description.SecurityPolicyUri);
-                    if (m_serverCertProvider.SendCertificateChain)
-                    {
-                        byte[] serverCertificateChainRaw = m_serverCertProvider.LoadCertificateChainRawAsync(serverCertificate).Result;
-                        description.ServerCertificate = serverCertificateChainRaw;
-                    }
-                    else
-                    {
-                        description.ServerCertificate = serverCertificate.RawData;
-                    }
-                }
+                ServerBase.SetServerCertificateInEndpointDescription(description,
+                    m_serverCertProvider.SendCertificateChain,
+                    certificateTypeProvider,
+                    false);
             }
 
             Start();

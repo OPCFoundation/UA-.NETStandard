@@ -500,7 +500,7 @@ namespace Opc.Ua
                 }
             }
 
-            await m_certificateValidator.Update(this.SecurityConfiguration).ConfigureAwait(false);
+            await m_certificateValidator.UpdateAsync(this.SecurityConfiguration).ConfigureAwait(false);
         }
 
         /// <summary>

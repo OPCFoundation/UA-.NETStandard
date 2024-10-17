@@ -107,7 +107,7 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(configuration));
             }
 
-            await Update(configuration.SecurityConfiguration).ConfigureAwait(false);
+            await UpdateAsync(configuration.SecurityConfiguration).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -180,7 +180,7 @@ namespace Opc.Ua
         /// <summary>
         /// Updates the validator with the current state of the configuration.
         /// </summary>
-        public virtual async Task Update(SecurityConfiguration configuration)
+        public virtual async Task UpdateAsync(SecurityConfiguration configuration)
         {
             if (configuration == null)
             {
@@ -246,13 +246,12 @@ namespace Opc.Ua
             {
                 m_semaphore.Release();
             }
-
         }
 
         /// <summary>
         /// Updates the validator with a new application certificate.
         /// </summary>
-        public virtual async Task UpdateCertificate(SecurityConfiguration securityConfiguration)
+        public virtual async Task UpdateCertificateAsync(SecurityConfiguration securityConfiguration)
         {
             await m_semaphore.WaitAsync().ConfigureAwait(false);
 
@@ -276,7 +275,7 @@ namespace Opc.Ua
                 m_semaphore.Release();
             }
 
-            await Update(securityConfiguration).ConfigureAwait(false);
+            await UpdateAsync(securityConfiguration).ConfigureAwait(false);
 
             lock (m_callbackLock)
             {
@@ -291,7 +290,7 @@ namespace Opc.Ua
         /// <summary>
         /// Reset the list of validated certificates.
         /// </summary>
-        private void ResetValidatedCertificates()
+        public void ResetValidatedCertificates()
         {
             m_semaphore.Wait();
 
@@ -303,19 +302,6 @@ namespace Opc.Ua
             {
                 m_semaphore.Release();
             }
-        }
-
-        /// <summary>
-        /// Reset the list of validated certificates.
-        /// </summary>
-        private void InternalResetValidatedCertificates()
-        {
-            // dispose outdated list
-            foreach (var cert in m_validatedCertificates.Values)
-            {
-                Utils.SilentDispose(cert);
-            }
-            m_validatedCertificates.Clear();
         }
 
         /// <summary>
@@ -608,6 +594,123 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Returns the issuers for the certificates.
+        /// </summary>
+        public async Task<bool> GetIssuersNoExceptionsOnGetIssuer(X509Certificate2Collection certificates,
+            List<CertificateIdentifier> issuers, Dictionary<X509Certificate2, ServiceResultException> validationErrors)
+        {
+            bool isTrusted = false;
+            CertificateIdentifier issuer = null;
+            ServiceResultException revocationStatus = null;
+            X509Certificate2 certificate = certificates[0];
+
+            CertificateIdentifierCollection untrustedCollection = new CertificateIdentifierCollection();
+            for (int ii = 1; ii < certificates.Count; ii++)
+            {
+                untrustedCollection.Add(new CertificateIdentifier(certificates[ii]));
+            }
+
+            do
+            {
+                // check for root.
+                if (X509Utils.IsSelfSigned(certificate))
+                {
+                    break;
+                }
+
+                if (validationErrors != null)
+                {
+                    (issuer, revocationStatus) = await GetIssuerNoExceptionAsync(certificate, m_trustedCertificateList, m_trustedCertificateStore, true).ConfigureAwait(false);
+                }
+                else
+                {
+                    issuer = await GetIssuer(certificate, m_trustedCertificateList, m_trustedCertificateStore, true).ConfigureAwait(false);
+                }
+
+                if (issuer == null)
+                {
+                    if (validationErrors != null)
+                    {
+                        (issuer, revocationStatus) = await GetIssuerNoExceptionAsync(certificate, m_issuerCertificateList, m_issuerCertificateStore, true).ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        issuer = await GetIssuer(certificate, m_issuerCertificateList, m_issuerCertificateStore, true).ConfigureAwait(false);
+                    }
+
+                    if (issuer == null)
+                    {
+                        if (validationErrors != null)
+                        {
+                            (issuer, revocationStatus) = await GetIssuerNoExceptionAsync(certificate, untrustedCollection, null, true).ConfigureAwait(false);
+                        }
+                        else
+                        {
+                            issuer = await GetIssuer(certificate, untrustedCollection, null, true).ConfigureAwait(false);
+                        }
+                    }
+                }
+                else
+                {
+                    isTrusted = true;
+                }
+
+                if (issuer != null)
+                {
+                    if (validationErrors != null)
+                    {
+                        validationErrors[certificate] = revocationStatus;
+                    }
+
+                    if (issuers.Find(iss => string.Equals(iss.Thumbprint, issuer.Thumbprint, StringComparison.OrdinalIgnoreCase)) != default(CertificateIdentifier))
+                    {
+                        break;
+                    }
+
+                    issuers.Add(issuer);
+
+                    certificate = await issuer.Find(false).ConfigureAwait(false);
+                }
+            }
+            while (issuer != null);
+
+            return isTrusted;
+        }
+
+        /// <summary>
+        /// Returns the issuers for the certificates.
+        /// </summary>
+        public Task<bool> GetIssuers(X509Certificate2Collection certificates, List<CertificateIdentifier> issuers)
+        {
+            return GetIssuersNoExceptionsOnGetIssuer(
+                certificates, issuers, null // ensures legacy behavior is respected
+                );
+        }
+
+        /// <summary>
+        /// Returns the issuers for the certificate.
+        /// </summary>
+        /// <param name="certificate">The certificate.</param>
+        /// <param name="issuers">The issuers.</param>
+        public Task<bool> GetIssuers(X509Certificate2 certificate, List<CertificateIdentifier> issuers)
+        {
+            return GetIssuers(new X509Certificate2Collection { certificate }, issuers);
+        }
+
+        /// <summary>
+        /// Reset the list of validated certificates.
+        /// </summary>
+        private void InternalResetValidatedCertificates()
+        {
+            // dispose outdated list
+            foreach (var cert in m_validatedCertificates.Values)
+            {
+                Utils.SilentDispose(cert);
+            }
+            m_validatedCertificates.Clear();
+        }
+
+        /// <summary>
         ///
         /// </summary>
         /// <param name="se"></param>
@@ -885,110 +988,6 @@ namespace Opc.Ua
 
             // found match if keyId or serial number was checked
             return check;
-        }
-
-        /// <summary>
-        /// Returns the issuers for the certificates.
-        /// </summary>
-        public async Task<bool> GetIssuersNoExceptionsOnGetIssuer(X509Certificate2Collection certificates,
-            List<CertificateIdentifier> issuers, Dictionary<X509Certificate2, ServiceResultException> validationErrors)
-        {
-            bool isTrusted = false;
-            CertificateIdentifier issuer = null;
-            ServiceResultException revocationStatus = null;
-            X509Certificate2 certificate = certificates[0];
-
-            CertificateIdentifierCollection untrustedCollection = new CertificateIdentifierCollection();
-            for (int ii = 1; ii < certificates.Count; ii++)
-            {
-                untrustedCollection.Add(new CertificateIdentifier(certificates[ii]));
-            }
-
-            do
-            {
-                // check for root.
-                if (X509Utils.IsSelfSigned(certificate))
-                {
-                    break;
-                }
-
-                if (validationErrors != null)
-                {
-                    (issuer, revocationStatus) = await GetIssuerNoExceptionAsync(certificate, m_trustedCertificateList, m_trustedCertificateStore, true).ConfigureAwait(false);
-                }
-                else
-                {
-                    issuer = await GetIssuer(certificate, m_trustedCertificateList, m_trustedCertificateStore, true).ConfigureAwait(false);
-                }
-
-                if (issuer == null)
-                {
-                    if (validationErrors != null)
-                    {
-                        (issuer, revocationStatus) = await GetIssuerNoExceptionAsync(certificate, m_issuerCertificateList, m_issuerCertificateStore, true).ConfigureAwait(false);
-                    }
-                    else
-                    {
-                        issuer = await GetIssuer(certificate, m_issuerCertificateList, m_issuerCertificateStore, true).ConfigureAwait(false);
-                    }
-
-                    if (issuer == null)
-                    {
-                        if (validationErrors != null)
-                        {
-                            (issuer, revocationStatus) = await GetIssuerNoExceptionAsync(certificate, untrustedCollection, null, true).ConfigureAwait(false);
-                        }
-                        else
-                        {
-                            issuer = await GetIssuer(certificate, untrustedCollection, null, true).ConfigureAwait(false);
-                        }
-                    }
-                }
-                else
-                {
-                    isTrusted = true;
-                }
-
-                if (issuer != null)
-                {
-                    if (validationErrors != null)
-                    {
-                        validationErrors[certificate] = revocationStatus;
-                    }
-
-                    if (issuers.Find(iss => string.Equals(iss.Thumbprint, issuer.Thumbprint, StringComparison.OrdinalIgnoreCase)) != default(CertificateIdentifier))
-                    {
-                        break;
-                    }
-
-                    issuers.Add(issuer);
-
-                    certificate = await issuer.Find(false).ConfigureAwait(false);
-                }
-            }
-            while (issuer != null);
-
-            return isTrusted;
-        }
-
-        /// <summary>
-        /// Returns the issuers for the certificates.
-        /// </summary>
-        public Task<bool> GetIssuers(X509Certificate2Collection certificates, List<CertificateIdentifier> issuers)
-        {
-            return GetIssuersNoExceptionsOnGetIssuer(
-                certificates, issuers, null // ensures legacy behavior is respected
-                );
-        }
-
-        /// <summary>
-        /// Returns the issuers for the certificate.
-        /// </summary>
-        /// <param name="certificate">The certificate.</param>
-        /// <param name="issuers">The issuers.</param>
-        public Task<bool> GetIssuers(X509Certificate2 certificate, List<CertificateIdentifier> issuers)
-        {
-            return GetIssuers(new X509Certificate2Collection { certificate }, issuers);
         }
 
         /// <summary>

@@ -17,6 +17,7 @@ using System.IO;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Bindings
 {
@@ -897,7 +898,7 @@ namespace Opc.Ua.Bindings
 
                 if (loadChain)
                 {
-                    m_serverCertificateChain = m_serverCertificateTypesProvider?.LoadCertificateChainAsync(receiverCertificate).GetAwaiter().GetResult();
+                    m_serverCertificateChain = m_serverCertificateTypesProvider?.LoadCertificateChain(receiverCertificate);
                 }
             }
             else
@@ -929,7 +930,7 @@ namespace Opc.Ua.Bindings
                             m_securityMode = endpoint.SecurityMode;
                             m_selectedEndpoint = endpoint;
                             m_serverCertificate = m_serverCertificateTypesProvider.GetInstanceCertificate(m_securityPolicyUri);
-                            m_serverCertificateChain = m_serverCertificateTypesProvider.LoadCertificateChainAsync(m_serverCertificate).GetAwaiter().GetResult();
+                            m_serverCertificateChain = m_serverCertificateTypesProvider.LoadCertificateChain(m_serverCertificate);
                             supported = true;
                             break;
                         }

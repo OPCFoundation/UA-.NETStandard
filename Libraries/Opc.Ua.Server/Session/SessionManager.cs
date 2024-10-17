@@ -235,7 +235,9 @@ namespace Opc.Ua.Server
                     clientCertificate,
                     clientCertificateChain,
                     revisedSessionTimeout,
-                    maxResponseMessageSize);
+                    maxResponseMessageSize,
+                    m_maxRequestAge,
+                    m_maxBrowseContinuationPoints);
 
                 // get the session id.
                 sessionId = session.Id;
@@ -558,7 +560,9 @@ namespace Opc.Ua.Server
             X509Certificate2 clientCertificate,
             X509Certificate2Collection clientCertificateChain,
             double sessionTimeout,
-            uint maxResponseMessageSize)
+            uint maxResponseMessageSize,
+            int maxRequestAge, // TBD - Remove unused parameter.
+            int maxContinuationPoints) // TBD - Remove unused parameter.
         {
             Session session = new Session(
                 context,

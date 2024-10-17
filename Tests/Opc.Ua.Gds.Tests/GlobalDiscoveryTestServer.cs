@@ -202,7 +202,7 @@ namespace Opc.Ua.Gds.Tests
 
         private static async Task<ApplicationConfiguration> Load(ApplicationInstance application, int basePort)
         {
-#if USE_FILE_CONFIG
+#if !USE_FILE_CONFIG
             // load the application configuration.
             ApplicationConfiguration config = await application.LoadApplicationConfiguration(true).ConfigureAwait(false);
 #else
@@ -254,7 +254,7 @@ namespace Opc.Ua.Gds.Tests
                     gdsRoot)
                 .SetAutoAcceptUntrustedCertificates(true)
                 .SetRejectSHA1SignedCertificates(false)
-                .SetRejectUnknownRevocationStatus(false)
+                .SetRejectUnknownRevocationStatus(true)
                 .SetMinimumCertificateKeySize(1024)
                 .AddExtension<GlobalDiscoveryServerConfiguration>(null, gdsConfig)
                 .SetDeleteOnLoad(true)

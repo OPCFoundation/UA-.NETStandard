@@ -155,9 +155,9 @@ namespace Opc.Ua.Server
 
             TraceState("CREATED");
         }
-#endregion
+        #endregion
 
-#region IDisposable Members
+        #region IDisposable Members
         /// <summary>
         /// Frees any unmanaged resources.
         /// </summary>
@@ -207,9 +207,9 @@ namespace Opc.Ua.Server
                 }
             }
         }
-#endregion
+        #endregion
 
-#region Public Interface
+        #region Public Interface
         /// <summary>
         /// Gets the identifier assigned to the session when it was created.
         /// </summary>
@@ -256,18 +256,6 @@ namespace Opc.Ua.Server
         public SessionDiagnosticsDataType SessionDiagnostics
         {
             get { return m_diagnostics; }
-        }
-
-        /// <summary>
-        /// Gets or sets the server certificate chain.
-        /// </summary>
-        /// <value>
-        /// The server certificate chain.
-        /// </value>
-        public byte[] ServerCertificateChain
-        {
-            get { return m_serverCertificateChain; }
-            set { m_serverCertificateChain = value; }
         }
 
         /// <summary>
@@ -839,9 +827,9 @@ namespace Opc.Ua.Server
             public object Value;
             public DateTime Timestamp;
         }
-#endregion
+        #endregion
 
-#region Private Methods
+        #region Private Methods
         /// <summary>
         /// Dumps the current state of the session queue.
         /// </summary>
@@ -1178,9 +1166,9 @@ namespace Opc.Ua.Server
                 }
             }
         }
-#endregion
+        #endregion
 
-#region Private Fields
+        #region Private Fields
         private readonly object m_lock = new object();
         private NodeId m_sessionId;
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1823:AvoidUnusedPrivateFields")]
@@ -1201,7 +1189,6 @@ namespace Opc.Ua.Server
         private string m_secureChannelId;
         private EndpointDescription m_endpoint;
         private X509Certificate2 m_serverCertificate;
-        private byte[] m_serverCertificateChain;
 
         private Nonce m_serverNonce;
         private string m_eccUserTokenSecurityPolicyUri;
@@ -1224,6 +1211,6 @@ namespace Opc.Ua.Server
         private EphemeralKeyType m_ephemeralKey;
 #endif
 
-#endregion
+        #endregion
     }
 }

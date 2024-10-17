@@ -317,7 +317,7 @@ namespace Opc.Ua.Configuration
             await ApplicationConfiguration.Validate(ApplicationInstance.ApplicationType).ConfigureAwait(false);
 
             await ApplicationConfiguration.CertificateValidator.
-                Update(ApplicationConfiguration.SecurityConfiguration).ConfigureAwait(false);
+                UpdateAsync(ApplicationConfiguration.SecurityConfiguration).ConfigureAwait(false);
 
             return ApplicationConfiguration;
         }

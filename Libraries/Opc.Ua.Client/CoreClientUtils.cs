@@ -114,7 +114,7 @@ namespace Opc.Ua.Client
         /// <param name="discoveryUrl">The discovery URL.</param>
         /// <param name="useSecurity">if set to <c>true</c> select an endpoint that uses security.</param>
         /// <returns>The best available endpoint.</returns>
-        [Obsolete("Use the SelectEndpoint with ApplicationConfiguration instead.")]
+        [Obsolete("Use the SelectEndpoint with ApplicationConfiguration instead to support ECC.")]
         public static EndpointDescription SelectEndpoint(string discoveryUrl, bool useSecurity)
         {
             return SelectEndpoint(discoveryUrl, useSecurity, DefaultDiscoverTimeout);
@@ -127,7 +127,7 @@ namespace Opc.Ua.Client
         /// <param name="useSecurity">if set to <c>true</c> select an endpoint that uses security.</param>
         /// <param name="discoverTimeout">Operation timeout in milliseconds.</param>
         /// <returns>The best available endpoint.</returns>
-        [Obsolete("Use the SelectEndpoint with ApplicationConfiguration instead.")]
+        [Obsolete("Use the SelectEndpoint with ApplicationConfiguration instead to support ECC.")]
         public static EndpointDescription SelectEndpoint(
             string discoveryUrl,
             bool useSecurity,
@@ -240,7 +240,7 @@ namespace Opc.Ua.Client
         /// <param name="url">The discovery Url of the server.</param>
         /// <param name="endpoints"></param>
         /// <param name="useSecurity"></param>
-        [Obsolete("Use the SelectEndpoint with ApplicationConfiguration instead.")]
+        [Obsolete("Use the SelectEndpoint with ApplicationConfiguration instead to support ECC.")]
         public static EndpointDescription SelectEndpoint(
             Uri url,
             EndpointDescriptionCollection endpoints,

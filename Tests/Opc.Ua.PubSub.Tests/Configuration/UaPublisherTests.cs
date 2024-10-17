@@ -37,10 +37,11 @@ using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.PubSub.Tests.Configuration
 {
-    [TestFixture(Description = "Tests for UAPublisher class")]
+    [TestFixture(Description = "Tests for UAPublisher class"), SingleThreaded]
     public class UaPublisherTests
     {
-        static IList<DateTime> s_publishTimes = new List<DateTime>();
+        static List<long> s_publishTicks = new List<long>();
+        static object s_lock = new Object();
 
         [Test(Description = "Test that PublishMessage method is called after a UAPublisher is started.")]
         [Combinatorial]
@@ -53,12 +54,17 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             [Values(10)] int publishTimeInSeconds)
         {
             //Arrange
-            s_publishTimes.Clear();
+            s_publishTicks.Clear();
             var mockConnection = new Mock<IUaPubSubConnection>();
             mockConnection.Setup(x => x.CanPublish(It.IsAny<WriterGroupDataType>())).Returns(true);
 
             mockConnection.Setup(x => x.CreateNetworkMessages(It.IsAny<WriterGroupDataType>(), It.IsAny<WriterGroupPublishState>()))
-                .Callback(() => s_publishTimes.Add(DateTime.Now));
+                .Callback(() => {
+                    lock (s_lock)
+                    {
+                        s_publishTicks.Add(HiResClock.Ticks);
+                    }
+                });
 
             WriterGroupDataType writerGroupDataType = new WriterGroupDataType();
             writerGroupDataType.PublishingInterval = publishingInterval;
@@ -70,25 +76,38 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             //wait so many seconds
             Thread.Sleep(publishTimeInSeconds * 1000);
             publisher.Stop();
+
             int faultIndex = -1;
             double faultDeviation = 0;
 
-            s_publishTimes = (from t in s_publishTimes
+            s_publishTicks = (from t in s_publishTicks
                               orderby t
                               select t).ToList();
 
             //Assert
-            for (int i = 1; i < s_publishTimes.Count; i++)
+            for (int i = 1; i < s_publishTicks.Count; i++)
             {
-                double interval = s_publishTimes[i].Subtract(s_publishTimes[i - 1]).TotalMilliseconds;
-                double deviation = Math.Abs(publishingInterval - interval);
-                if (deviation >= maxDeviation && deviation > faultDeviation)
+                double interval = (s_publishTicks[i] - s_publishTicks[i - 1])/HiResClock.TicksPerMillisecond;
+                if (interval != 0)
                 {
-                    faultIndex = i;
-                    faultDeviation = deviation;
+                    double deviation = -1;
+                    if (interval != publishingInterval)
+                    {
+                        deviation = Math.Abs(publishingInterval - interval);
+                    }
+                    if (deviation >= maxDeviation && deviation > faultDeviation)
+                    {
+                        faultIndex = i;
+                        faultDeviation = deviation;
+                    }
                 }
             }
-            Assert.IsTrue(faultIndex < 0, "publishingInterval={0}, maxDeviation={1}, publishTimeInSecods={2}, deviation[{3}] = {4} has maximum deviation", publishingInterval, maxDeviation, publishTimeInSeconds, faultIndex, faultDeviation);
+            Assert.IsTrue(faultIndex < 0, "publishingInterval={0}, maxDeviation={1}, publishTimeInSecods={2}, deviation[{3}] = {4} as max deviation",
+                publishingInterval,
+                maxDeviation,
+                publishTimeInSeconds,
+                faultIndex,
+                faultDeviation);
         }
     }
 }

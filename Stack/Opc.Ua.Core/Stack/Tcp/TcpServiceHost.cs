@@ -13,6 +13,7 @@
 using System;
 using System.Collections.Generic;
 using System.Security.Cryptography.X509Certificates;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Bindings
 {
@@ -75,43 +76,30 @@ namespace Opc.Ua.Bindings
                     uri.Host = computerName;
                 }
 
+                bool sendCertificateChain = instanceCertificateTypesProvider.SendCertificateChain;
                 ITransportListener listener = this.Create();
                 if (listener != null)
                 {
-                    EndpointDescriptionCollection listenerEndpoints = new EndpointDescriptionCollection();
+                    var listenerEndpoints = new EndpointDescriptionCollection();
                     uris.Add(uri.Uri);
 
                     foreach (ServerSecurityPolicy policy in securityPolicies)
                     {
                         // create the endpoint description.
-                        EndpointDescription description = new EndpointDescription();
-
-                        description.EndpointUrl = uri.ToString();
-                        description.Server = serverDescription;
-
-                        description.SecurityMode = policy.SecurityMode;
-                        description.SecurityPolicyUri = policy.SecurityPolicyUri;
-                        description.SecurityLevel = ServerSecurityPolicy.CalculateSecurityLevel(policy.SecurityMode, policy.SecurityPolicyUri);
+                        EndpointDescription description = new EndpointDescription {
+                            EndpointUrl = uri.ToString(),
+                            Server = serverDescription,
+                            TransportProfileUri = Profiles.UaTcpTransport,
+                            SecurityMode = policy.SecurityMode,
+                            SecurityPolicyUri = policy.SecurityPolicyUri,
+                            SecurityLevel = ServerSecurityPolicy.CalculateSecurityLevel(policy.SecurityMode, policy.SecurityPolicyUri)
+                        };
                         description.UserIdentityTokens = serverBase.GetUserTokenPolicies(configuration, description);
-                        description.TransportProfileUri = Profiles.UaTcpTransport;
 
-                        bool requireEncryption = ServerBase.RequireEncryption(description);
-
-                        if (requireEncryption)
-                        {
-                            if (instanceCertificateTypesProvider != null)
-                            {
-                                var instanceCertificate = instanceCertificateTypesProvider.GetInstanceCertificate(description.SecurityPolicyUri);
-                                description.ServerCertificate = instanceCertificate?.RawData;
-
-                                // check if complete chain should be sent.
-                                if (instanceCertificate != null &&
-                                    configuration.SecurityConfiguration.SendCertificateChain)
-                                {
-                                    description.ServerCertificate = instanceCertificateTypesProvider.LoadCertificateChainRawAsync(instanceCertificate).GetAwaiter().GetResult();
-                                }
-                            }
-                        }
+                        ServerBase.SetServerCertificateInEndpointDescription(
+                            description,
+                            sendCertificateChain,
+                            instanceCertificateTypesProvider);
 
                         listenerEndpoints.Add(description);
                     }
