@@ -109,7 +109,7 @@ namespace Opc.Ua
                     NoPrivateKeys = noPrivateKeys;
                     StorePath = location;
                     m_directory = directory;
-                    if (m_noSubDirs)
+                    if (m_noSubDirs || m_directory == null)
                     {
                         m_certificateSubdir = m_directory;
                         m_crlSubdir = m_directory;
@@ -125,39 +125,6 @@ namespace Opc.Ua
                     // force load
                     ClearCertificates();
                     m_lastDirectoryCheck = DateTime.MinValue;
-
-                    // create folders if they do not exist
-                    try
-                    {
-                        if (!m_directory.Exists)
-                        {
-                            m_directory.Create();
-                        }
-
-                        if (!m_certificateSubdir.Exists)
-                        {
-                            m_certificateSubdir.Create();
-                        }
-
-                        if (noPrivateKeys)
-                        {
-                            if (!m_crlSubdir.Exists)
-                            {
-                                m_crlSubdir.Create();
-                            }
-                        }
-                        else
-                        {
-                            if (!m_privateKeySubdir.Exists)
-                            {
-                                m_privateKeySubdir.Create();
-                            }
-                        }
-                    }
-                    catch (IOException ex)
-                    {
-                        Utils.LogError("Failed to create certificate store: {0}", ex.Message);
-                    }
                 }
             }
         }
@@ -456,9 +423,18 @@ namespace Opc.Ua
         public bool SupportsLoadPrivateKey => true;
 
         /// <summary>
-        /// Loads the private key from a PFX/PEM file in the certificate store.
+        /// Loads the private key certificate with RSA signature from a PFX file in the certificate store.
         /// </summary>
-        public async Task<X509Certificate2> LoadPrivateKey(string thumbprint, string subjectName, string password)
+        [Obsolete("Method is deprecated. Use only for RSA certificates, the replacing LoadPrivateKey with certificateType parameter should be used.")]
+        public Task<X509Certificate2> LoadPrivateKey(string thumbprint, string subjectName, string password)
+        {
+            return LoadPrivateKey(thumbprint, subjectName, null, password);
+        }
+
+        /// <summary>
+        /// Loads the private key from a PFX file in the certificate store.
+        /// </summary>
+        public async Task<X509Certificate2> LoadPrivateKey(string thumbprint, string subjectName, NodeId certificateType, string password)
         {
             if (NoPrivateKeys || m_privateKeySubdir == null ||
                 m_certificateSubdir == null || !m_certificateSubdir.Exists)
@@ -509,8 +485,7 @@ namespace Opc.Ua
                             }
                         }
 
-                        // skip if not RSA certificate
-                        if (X509Utils.GetRSAPublicKeySize(certificate) < 0)
+                        if (!CertificateIdentifier.ValidateCertificateType(certificate, certificateType))
                         {
                             continue;
                         }
@@ -550,7 +525,7 @@ namespace Opc.Ua
                                         privateKeyFilePfx.FullName,
                                         password,
                                         flag);
-                                    if (X509Utils.VerifyRSAKeyPair(certificate, certificate, true))
+                                    if (X509Utils.VerifyKeyPair(certificate, certificate, true))
                                     {
                                         Utils.LogInfo(Utils.TraceMasks.Security, "Imported the PFX private key for [{0}].", certificate.Thumbprint);
                                         return certificate;
@@ -571,7 +546,7 @@ namespace Opc.Ua
                             {
                                 byte[] pemDataBlob = File.ReadAllBytes(privateKeyFilePem.FullName);
                                 certificate = CertificateFactory.CreateCertificateWithPEMPrivateKey(certificate, pemDataBlob, password);
-                                if (X509Utils.VerifyRSAKeyPair(certificate, certificate, true))
+                                if (X509Utils.VerifyKeyPair(certificate, certificate, true))
                                 {
                                     Utils.LogInfo(Utils.TraceMasks.Security, "Imported the PEM private key for [{0}].", certificate.Thumbprint);
                                     return certificate;
@@ -825,7 +800,7 @@ namespace Opc.Ua
                 DateTime now = DateTime.UtcNow;
 
                 // refresh the directories.
-                m_certificateSubdir.Refresh();
+                m_certificateSubdir?.Refresh();
 
                 if (!NoPrivateKeys)
                 {
@@ -833,9 +808,8 @@ namespace Opc.Ua
                 }
 
                 // check if store exists.
-                if (!m_certificateSubdir.Exists)
+                if (m_certificateSubdir?.Exists != true)
                 {
-                    m_certificateSubdir.Create();
                     ClearCertificates();
                     return m_certificates;
                 }
@@ -975,6 +949,14 @@ namespace Opc.Ua
                 }
 
                 fileName.Append(ch);
+            }
+
+            var signatureQualifier = X509Utils.GetECDsaQualifier(certificate);
+            if (!string.IsNullOrEmpty(signatureQualifier))
+            {
+                fileName.Append(" [");
+                fileName.Append(signatureQualifier);
+                fileName.Append(']');
             }
 
             fileName.Append(" [");

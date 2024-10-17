@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2018 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2024 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -84,67 +84,67 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// </summary>
         [DatapointSource]
         public static readonly JsonValidationData[] Data = new JsonValidationDataCollection() {
-            {   BuiltInType.Boolean, true,"true", null },
-            {   BuiltInType.Boolean, false, null, null },
-            {   BuiltInType.Boolean, false, "false", null, true },
+            {   BuiltInType.Boolean, true, "true", null },
+            {   BuiltInType.Boolean, false, null, null, null, "false" },
+            {   BuiltInType.Boolean, false, "false", null, null, "false", true },
 
-            {   BuiltInType.Byte, (Byte)0, null, null},
-            {   BuiltInType.Byte, (Byte)0, "0", null, true },
+            {   BuiltInType.Byte, (Byte)0, null, null, null, "0"},
+            {   BuiltInType.Byte, (Byte)0, "0", null, null, "0", true },
             {   BuiltInType.Byte, (Byte)88, "88", null },
             {   BuiltInType.Byte, (Byte)188, "188", null },
-            {   BuiltInType.Byte, Byte.MinValue, Byte.MinValue.ToString(CultureInfo.InvariantCulture), null, true},
+            {   BuiltInType.Byte, Byte.MinValue, Byte.MinValue.ToString(CultureInfo.InvariantCulture), null, null, Byte.MinValue.ToString(CultureInfo.InvariantCulture), true},
             {   BuiltInType.Byte, Byte.MaxValue, Byte.MaxValue.ToString(CultureInfo.InvariantCulture), null },
 
-            {   BuiltInType.SByte, (SByte)0, null, null },
-            {   BuiltInType.SByte, (SByte)0, "0", null, true },
+            {   BuiltInType.SByte, (SByte)0, null, null, null, "0" },
+            {   BuiltInType.SByte, (SByte)0, "0", null, null, "0", true },
             {   BuiltInType.SByte, (SByte)(-77), "-77", null },
             {   BuiltInType.SByte, (SByte)(77), "77", null },
             {   BuiltInType.SByte, SByte.MaxValue, SByte.MaxValue.ToString(CultureInfo.InvariantCulture), null },
             {   BuiltInType.SByte, SByte.MinValue, SByte.MinValue.ToString(CultureInfo.InvariantCulture), null },
 
-            {   BuiltInType.UInt16, (UInt16)0, null, null},
-            {   BuiltInType.UInt16, (UInt16)0, "0", null, true },
+            {   BuiltInType.UInt16, (UInt16)0, null, null, null, "0"},
+            {   BuiltInType.UInt16, (UInt16)0, "0", null, null, "0", true },
             {   BuiltInType.UInt16, (UInt16)12345, "12345", null },
             {   BuiltInType.UInt16, (UInt16)44444, "44444", null },
-            {   BuiltInType.UInt16, UInt16.MinValue, UInt16.MinValue.ToString(CultureInfo.InvariantCulture), null, true },
+            {   BuiltInType.UInt16, UInt16.MinValue, UInt16.MinValue.ToString(CultureInfo.InvariantCulture), null, null, UInt16.MinValue.ToString(CultureInfo.InvariantCulture), true },
             {   BuiltInType.UInt16, UInt16.MaxValue, UInt16.MaxValue.ToString(CultureInfo.InvariantCulture), null },
 
-            {   BuiltInType.Int16, (Int16)0, null, null },
-            {   BuiltInType.Int16, (Int16)0, "0", null, true },
+            {   BuiltInType.Int16, (Int16)0, null, null,null, "0" },
+            {   BuiltInType.Int16, (Int16)0, "0", null, null, "0", true },
             {   BuiltInType.Int16, (Int16)(-12345), "-12345", null },
             {   BuiltInType.Int16, (Int16)12345, "12345", null },
             {   BuiltInType.Int16, Int16.MaxValue, Int16.MaxValue.ToString(CultureInfo.InvariantCulture), null },
             {   BuiltInType.Int16, Int16.MinValue, Int16.MinValue.ToString(CultureInfo.InvariantCulture), null },
 
-            {   BuiltInType.UInt32, (UInt32)0, null, null },
-            {   BuiltInType.UInt32, (UInt32)0, "0", null, true },
+            {   BuiltInType.UInt32, (UInt32)0, null, null,null, "0" },
+            {   BuiltInType.UInt32, (UInt32)0, "0", null, null, "0", true },
             {   BuiltInType.UInt32, (UInt32)1234567, "1234567", null },
             {   BuiltInType.UInt32, (UInt32)4444444, "4444444", null },
-            {   BuiltInType.UInt32, UInt32.MinValue, UInt32.MinValue.ToString(CultureInfo.InvariantCulture), null, true },
+            {   BuiltInType.UInt32, UInt32.MinValue, UInt32.MinValue.ToString(CultureInfo.InvariantCulture), null, null, UInt32.MinValue.ToString(CultureInfo.InvariantCulture), true },
             {   BuiltInType.UInt32, UInt32.MaxValue, UInt32.MaxValue.ToString(CultureInfo.InvariantCulture), null },
 
-            {   BuiltInType.Int32, 0, null, null },
-            {   BuiltInType.Int32, 0, "0", null, true },
+            {   BuiltInType.Int32, 0, null, null,null, "0" },
+            {   BuiltInType.Int32, 0, "0", null, null, "0", true },
             {   BuiltInType.Int32, -12345678, "-12345678", null },
             {   BuiltInType.Int32, 12345678, "12345678", null },
             {   BuiltInType.Int32, Int32.MaxValue, Int32.MaxValue.ToString(CultureInfo.InvariantCulture), null },
             {   BuiltInType.Int32, Int32.MinValue, Int32.MinValue.ToString(CultureInfo.InvariantCulture), null },
 
-            {   BuiltInType.Int64, (Int64)0, null, null },
-            {   BuiltInType.Int64, (Int64)0, Quotes("0"), null, true },
+            {   BuiltInType.Int64, (Int64)0, null, null,null, Quotes("0") },
+            {   BuiltInType.Int64, (Int64)0, Quotes("0"), null, null, Quotes("0"), true },
             {   BuiltInType.Int64, kInt64Value, Quotes(kInt64Value.ToString(CultureInfo.InvariantCulture)), null },
             {   BuiltInType.Int64, (Int64)kUInt64Value, Quotes(kUInt64Value.ToString(CultureInfo.InvariantCulture)), null },
             {   BuiltInType.Int64, Int64.MinValue, Quotes(Int64.MinValue.ToString(CultureInfo.InvariantCulture)), null },
             {   BuiltInType.Int64, Int64.MaxValue, Quotes(Int64.MaxValue.ToString(CultureInfo.InvariantCulture)), null },
 
-            {   BuiltInType.UInt64, (UInt64)0, null, null },
-            {   BuiltInType.UInt64, (UInt64)0, Quotes("0"), null, true },
+            {   BuiltInType.UInt64, (UInt64)0, null, null,null, Quotes("0") },
+            {   BuiltInType.UInt64, (UInt64)0, Quotes("0"), null, null, Quotes("0"), true },
             {   BuiltInType.UInt64, (UInt64)kUInt64Value, Quotes(kUInt64Value.ToString(CultureInfo.InvariantCulture)), null },
-            {   BuiltInType.UInt64, UInt64.MinValue, Quotes(UInt64.MinValue.ToString(CultureInfo.InvariantCulture)), null, true },
+            {   BuiltInType.UInt64, UInt64.MinValue, Quotes(UInt64.MinValue.ToString(CultureInfo.InvariantCulture)), null, null, Quotes(UInt64.MinValue.ToString(CultureInfo.InvariantCulture)), true },
             {   BuiltInType.UInt64, UInt64.MaxValue, Quotes(UInt64.MaxValue.ToString(CultureInfo.InvariantCulture)), null },
 
-            {   BuiltInType.Float, (Single)0, null, null},
-            {   BuiltInType.Float, (Single)0, "0", null, true},
+            {   BuiltInType.Float, (Single)0, null, null,null, "0"},
+            {   BuiltInType.Float, (Single)0, "0", null, null, "0", true},
             {   BuiltInType.Float, (Single)(-12345678.1234), Convert.ToSingle("-12345678.1234", CultureInfo.InvariantCulture).ToString("R",CultureInfo.InvariantCulture), null },
             {   BuiltInType.Float, (Single)12345678.1234, Convert.ToSingle("12345678.1234", CultureInfo.InvariantCulture).ToString("R",CultureInfo.InvariantCulture), null },
             {   BuiltInType.Float, Single.MaxValue, Single.MaxValue.ToString("R",CultureInfo.InvariantCulture), null },
@@ -153,8 +153,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             {   BuiltInType.Float, Single.PositiveInfinity, Quotes("Infinity"), null },
             {   BuiltInType.Float, Single.NaN, Quotes("NaN"), null },
 
-            {   BuiltInType.Double, (Double)0, null, null},
-            {   BuiltInType.Double, (Double)0, "0", null, true},
+            {   BuiltInType.Double, (Double)0, null, null,null, "0"},
+            {   BuiltInType.Double, (Double)0, "0", null, null, "0", true},
             {   BuiltInType.Double, (Double)(-12345678.1234), Convert.ToDouble("-12345678.1234", CultureInfo.InvariantCulture).ToString("R",CultureInfo.InvariantCulture), null },
             {   BuiltInType.Double, (Double)12345678.1234, Convert.ToDouble("12345678.1234", CultureInfo.InvariantCulture).ToString("R",CultureInfo.InvariantCulture), null },
             {   BuiltInType.Double, Double.MaxValue, Double.MaxValue.ToString("R",CultureInfo.InvariantCulture), null },
@@ -165,116 +165,196 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             {   BuiltInType.DateTime, Utils.TimeBase,  Quotes("1601-01-01T00:00:00Z"), null , true},
             {   BuiltInType.DateTime, Utils.TimeBase.ToUniversalTime(),  Quotes("1601-01-01T00:00:00Z"), null },
-            {   BuiltInType.DateTime, DateTime.MinValue,  null, null },
-            {   BuiltInType.DateTime, DateTime.MinValue,  Quotes("0001-01-01T00:00:00Z"), null, true },
+            {   BuiltInType.DateTime, DateTime.MinValue,  null, null, null, Quotes("0001-01-01T00:00:00Z") },
+            {   BuiltInType.DateTime, DateTime.MinValue,  Quotes("0001-01-01T00:00:00Z"), null, null, Quotes("0001-01-01T00:00:00Z"), true },
             {   BuiltInType.DateTime, DateTime.MaxValue,  Quotes("9999-12-31T23:59:59Z"), null },
 
-            {   BuiltInType.Guid, Uuid.Empty,  null, null },
-            {   BuiltInType.Guid, Uuid.Empty,  Quotes("00000000-0000-0000-0000-000000000000"), null, true },
+            {   BuiltInType.Guid, Uuid.Empty,  null, null, null, Quotes("00000000-0000-0000-0000-000000000000") },
+            {   BuiltInType.Guid, Uuid.Empty,  Quotes("00000000-0000-0000-0000-000000000000"), null, null, Quotes("00000000-0000-0000-0000-000000000000"), true },
             {   BuiltInType.Guid, new Uuid(s_nodeIdGuid),  Quotes($"{s_nodeIdGuid}"), null },
 
             {   BuiltInType.NodeId, NodeId.Null, null, null },
-            {   BuiltInType.NodeId, new NodeId(kNodeIdInt), $"{{\"Id\":{kNodeIdInt}}}", null },
-            {   BuiltInType.NodeId, new NodeId(kNodeIdInt,1), $"{{\"Id\":{kNodeIdInt},\"Namespace\":1}}", null },
+            {   BuiltInType.NodeId, new NodeId(kNodeIdInt), $"{{\"Id\":{kNodeIdInt}}}", null, $"\"i={kNodeIdInt}\"", null },
+            {   BuiltInType.NodeId, new NodeId(kNodeIdInt,1),
+                    $"{{\"Id\":{kNodeIdInt},\"Namespace\":1}}", $"{{\"Id\":{kNodeIdInt},\"Namespace\":\"{kApplicationUri}\"}}",
+                    $"\"nsu={kApplicationUri};i={kNodeIdInt}\"", null },
             {   BuiltInType.NodeId, new NodeId(kNodeIdInt,kDemoServerIndex),
-                $"{{\"Id\":{kNodeIdInt},\"Namespace\":{kDemoServerIndex}}}", $"{{\"Id\":{kNodeIdInt},\"Namespace\":\"{kDemoServer}\"}}" },
-            {   BuiltInType.NodeId, new NodeId(kNodeIdInt,88), $"{{\"Id\":{kNodeIdInt},\"Namespace\":88}}", null},
-            {   BuiltInType.NodeId, new NodeId("ns=0;"+kNodeIdString), $"{{\"IdType\":1,\"Id\":\"{kNodeIdString}\"}}", null },
-            {   BuiltInType.NodeId, new NodeId("s="+kNodeIdString), $"{{\"IdType\":1,\"Id\":\"{kNodeIdString}\"}}", null },
-            {   BuiltInType.NodeId, new NodeId(kNodeIdString,0), $"{{\"IdType\":1,\"Id\":\"{kNodeIdString}\"}}", null },
-            {   BuiltInType.NodeId, new NodeId(kNodeIdString,1), $"{{\"IdType\":1,\"Id\":\"{kNodeIdString}\",\"Namespace\":1}}", null },
+                    $"{{\"Id\":{kNodeIdInt},\"Namespace\":{kDemoServerIndex}}}", $"{{\"Id\":{kNodeIdInt},\"Namespace\":\"{kDemoServer}\"}}",
+                    $"\"nsu={kDemoServer};i={kNodeIdInt}\"", null},
+            {   BuiltInType.NodeId, new NodeId(kNodeIdInt,88), $"{{\"Id\":{kNodeIdInt},\"Namespace\":88}}", null, $"\"ns=88;i={kNodeIdInt}\"", null },
+            {   BuiltInType.NodeId, new NodeId("ns=0;"+kNodeIdString), $"{{\"IdType\":1,\"Id\":\"{kNodeIdString}\"}}", null, $"\"s={kNodeIdString}\"", null },
+            {   BuiltInType.NodeId, new NodeId("s="+kNodeIdString), $"{{\"IdType\":1,\"Id\":\"{kNodeIdString}\"}}", null, $"\"s={kNodeIdString}\"", null },
+            {   BuiltInType.NodeId, new NodeId(kNodeIdString,0), $"{{\"IdType\":1,\"Id\":\"{kNodeIdString}\"}}", null,$"\"s={kNodeIdString}\"", null  },
+            {   BuiltInType.NodeId, new NodeId(kNodeIdString,1),
+                    $"{{\"IdType\":1,\"Id\":\"{kNodeIdString}\",\"Namespace\":1}}", $"{{\"IdType\":1,\"Id\":\"{kNodeIdString}\",\"Namespace\":\"{kApplicationUri}\"}}",
+                    $"\"nsu={kApplicationUri};s={kNodeIdString}\"", null },
             {   BuiltInType.NodeId, new NodeId(kNodeIdString,kDemoServerIndex),
-                $"{{\"IdType\":1,\"Id\":\"{kNodeIdString}\",\"Namespace\":{kDemoServerIndex}}}",
-                $"{{\"IdType\":1,\"Id\":\"{kNodeIdString}\",\"Namespace\":\"{kDemoServer}\"}}" },
-            {   BuiltInType.NodeId, new NodeId(kNodeIdString,88), $"{{\"IdType\":1,\"Id\":\"{kNodeIdString}\",\"Namespace\":88}}", null},
-            {   BuiltInType.NodeId, new NodeId(s_nodeIdGuid), $"{{\"IdType\":2,\"Id\":\"{s_nodeIdGuid}\"}}", null },
-            {   BuiltInType.NodeId, new NodeId(s_nodeIdGuid,1), $"{{\"IdType\":2,\"Id\":\"{s_nodeIdGuid}\",\"Namespace\":1}}", null },
+                    $"{{\"IdType\":1,\"Id\":\"{kNodeIdString}\",\"Namespace\":{kDemoServerIndex}}}",
+                    $"{{\"IdType\":1,\"Id\":\"{kNodeIdString}\",\"Namespace\":\"{kDemoServer}\"}}",
+                    $"\"nsu={kDemoServer};s={kNodeIdString}\"", null},
+            {   BuiltInType.NodeId, new NodeId(kNodeIdString,88), $"{{\"IdType\":1,\"Id\":\"{kNodeIdString}\",\"Namespace\":88}}", null,$"\"ns=88;s={kNodeIdString}\"", null},
+            {   BuiltInType.NodeId, new NodeId(s_nodeIdGuid), $"{{\"IdType\":2,\"Id\":\"{s_nodeIdGuid}\"}}", null, $"\"g={s_nodeIdGuid}\"", null },
+            {   BuiltInType.NodeId, new NodeId(s_nodeIdGuid,1),
+                    $"{{\"IdType\":2,\"Id\":\"{s_nodeIdGuid}\",\"Namespace\":1}}", $"{{\"IdType\":2,\"Id\":\"{s_nodeIdGuid}\",\"Namespace\":\"{kApplicationUri}\"}}",
+                    $"\"nsu={kApplicationUri};g={s_nodeIdGuid}\"", null },
             {   BuiltInType.NodeId, new NodeId(s_nodeIdGuid,kDemoServerIndex),
-                $"{{\"IdType\":2,\"Id\":\"{s_nodeIdGuid}\",\"Namespace\":{kDemoServerIndex}}}",
-                $"{{\"IdType\":2,\"Id\":\"{s_nodeIdGuid}\",\"Namespace\":\"{kDemoServer}\"}}" },
-            {   BuiltInType.NodeId, new NodeId(s_nodeIdGuid,88), $"{{\"IdType\":2,\"Id\":\"{s_nodeIdGuid}\",\"Namespace\":88}}", null},
-            {   BuiltInType.NodeId, new NodeId(s_byteString), $"{{\"IdType\":3,\"Id\":\"{s_byteString64}\"}}", null },
-            {   BuiltInType.NodeId, new NodeId(s_byteString,1), $"{{\"IdType\":3,\"Id\":\"{s_byteString64}\",\"Namespace\":1}}", null },
+                    $"{{\"IdType\":2,\"Id\":\"{s_nodeIdGuid}\",\"Namespace\":{kDemoServerIndex}}}",
+                    $"{{\"IdType\":2,\"Id\":\"{s_nodeIdGuid}\",\"Namespace\":\"{kDemoServer}\"}}" ,
+                    $"\"nsu={kDemoServer};g={s_nodeIdGuid}\"", null},
+            {   BuiltInType.NodeId, new NodeId(s_nodeIdGuid,88), $"{{\"IdType\":2,\"Id\":\"{s_nodeIdGuid}\",\"Namespace\":88}}", null,$"\"ns=88;g={s_nodeIdGuid}\"", null},
+            {   BuiltInType.NodeId, new NodeId(s_byteString), $"{{\"IdType\":3,\"Id\":\"{s_byteString64}\"}}", null, $"\"b={s_byteString64}\"", null },
+            {   BuiltInType.NodeId, new NodeId(s_byteString,1),
+                    $"{{\"IdType\":3,\"Id\":\"{s_byteString64}\",\"Namespace\":1}}", $"{{\"IdType\":3,\"Id\":\"{s_byteString64}\",\"Namespace\":\"{kApplicationUri}\"}}",
+                    $"\"nsu={kApplicationUri};b={s_byteString64}\"", null },
             {   BuiltInType.NodeId, new NodeId(s_byteString,kDemoServerIndex),
-                $"{{\"IdType\":3,\"Id\":\"{s_byteString64}\",\"Namespace\":{kDemoServerIndex}}}",
-                $"{{\"IdType\":3,\"Id\":\"{s_byteString64}\",\"Namespace\":\"{kDemoServer}\"}}" },
-            {   BuiltInType.NodeId, new NodeId(s_byteString,88), $"{{\"IdType\":3,\"Id\":\"{s_byteString64}\",\"Namespace\":88}}", null},
+                    $"{{\"IdType\":3,\"Id\":\"{s_byteString64}\",\"Namespace\":{kDemoServerIndex}}}",
+                    $"{{\"IdType\":3,\"Id\":\"{s_byteString64}\",\"Namespace\":\"{kDemoServer}\"}}",
+                    $"\"nsu={kDemoServer};b={s_byteString64}\"", null},
+            {   BuiltInType.NodeId, new NodeId(s_byteString,88), $"{{\"IdType\":3,\"Id\":\"{s_byteString64}\",\"Namespace\":88}}", null,$"\"ns=88;b={s_byteString64}\"", null },
             // TODO: add cases for serverIndex
             {   BuiltInType.ExpandedNodeId, ExpandedNodeId.Null, null, null },
-            {   BuiltInType.ExpandedNodeId, new ExpandedNodeId(kNodeIdInt), $"{{\"Id\":{kNodeIdInt}}}", null },
-            {   BuiltInType.ExpandedNodeId, new ExpandedNodeId(kNodeIdInt,1), $"{{\"Id\":{kNodeIdInt},\"Namespace\":1}}", null },
+            {   BuiltInType.ExpandedNodeId, new ExpandedNodeId(kNodeIdInt),
+                    $"{{\"Id\":{kNodeIdInt}}}", null,
+                    $"\"i={kNodeIdInt}\"", null},
+            {   BuiltInType.ExpandedNodeId, new ExpandedNodeId(kNodeIdInt,1),
+                    $"{{\"Id\":{kNodeIdInt},\"Namespace\":1}}", $"{{\"Id\":{kNodeIdInt},\"Namespace\":\"{kApplicationUri}\"}}",
+                    $"\"nsu={kApplicationUri};i={kNodeIdInt}\"", null},
             {   BuiltInType.ExpandedNodeId, new ExpandedNodeId(kNodeIdInt,kDemoServerIndex),
-                $"{{\"Id\":{kNodeIdInt},\"Namespace\":{kDemoServerIndex}}}", $"{{\"Id\":{kNodeIdInt},\"Namespace\":\"{kDemoServer}\"}}" },
+                    $"{{\"Id\":{kNodeIdInt},\"Namespace\":{kDemoServerIndex}}}", $"{{\"Id\":{kNodeIdInt},\"Namespace\":\"{kDemoServer}\"}}",
+                    $"\"nsu={kDemoServer};i={kNodeIdInt}\"", null},
             {   BuiltInType.ExpandedNodeId, new ExpandedNodeId(kNodeIdInt,kDemoServer2),
-                $"{{\"Id\":{kNodeIdInt},\"Namespace\":\"{kDemoServer2}\"}}", $"{{\"Id\":{kNodeIdInt},\"Namespace\":\"{kDemoServer2}\"}}" },
-            {   BuiltInType.ExpandedNodeId, new ExpandedNodeId(kNodeIdInt,88), $"{{\"Id\":{kNodeIdInt},\"Namespace\":88}}", null},
-            {   BuiltInType.ExpandedNodeId, new ExpandedNodeId("ns=0;"+kNodeIdString), $"{{\"IdType\":1,\"Id\":\"{kNodeIdString}\"}}", null },
-            {   BuiltInType.ExpandedNodeId, new ExpandedNodeId("s="+kNodeIdString), $"{{\"IdType\":1,\"Id\":\"{kNodeIdString}\"}}", null },
-            {   BuiltInType.ExpandedNodeId, new ExpandedNodeId(kNodeIdString,0), $"{{\"IdType\":1,\"Id\":\"{kNodeIdString}\"}}", null },
-            {   BuiltInType.ExpandedNodeId, new ExpandedNodeId(kNodeIdString,1), $"{{\"IdType\":1,\"Id\":\"{kNodeIdString}\",\"Namespace\":1}}", null },
+                    $"{{\"Id\":{kNodeIdInt},\"Namespace\":\"{kDemoServer2}\"}}", $"{{\"Id\":{kNodeIdInt},\"Namespace\":\"{kDemoServer2}\"}}",
+                    $"\"nsu={kDemoServer2};i={kNodeIdInt}\"", null},
+            {   BuiltInType.ExpandedNodeId, new ExpandedNodeId(kNodeIdInt,88),
+                    $"{{\"Id\":{kNodeIdInt},\"Namespace\":88}}", null,
+                    $"\"ns=88;i={kNodeIdInt}\"", null},
+            {   BuiltInType.ExpandedNodeId, new ExpandedNodeId("ns=0;"+kNodeIdString),
+                    $"{{\"IdType\":1,\"Id\":\"{kNodeIdString}\"}}", null,
+                    $"\"s={kNodeIdString}\"", null},
+            {   BuiltInType.ExpandedNodeId, new ExpandedNodeId("s="+kNodeIdString),
+                    $"{{\"IdType\":1,\"Id\":\"{kNodeIdString}\"}}", null,
+                    $"\"s={kNodeIdString}\"", null},
+            {   BuiltInType.ExpandedNodeId, new ExpandedNodeId(kNodeIdString,0),
+                    $"{{\"IdType\":1,\"Id\":\"{kNodeIdString}\"}}", null,
+                    $"\"s={kNodeIdString}\"", null},
+            {   BuiltInType.ExpandedNodeId, new ExpandedNodeId(kNodeIdString,1),
+                    $"{{\"IdType\":1,\"Id\":\"{kNodeIdString}\",\"Namespace\":1}}", $"{{\"IdType\":1,\"Id\":\"{kNodeIdString}\",\"Namespace\":\"{kApplicationUri}\"}}",
+                    $"\"nsu={kApplicationUri};s={kNodeIdString}\"", null},
             {   BuiltInType.ExpandedNodeId, new ExpandedNodeId(kNodeIdString,kDemoServerIndex),
-                $"{{\"IdType\":1,\"Id\":\"{kNodeIdString}\",\"Namespace\":{kDemoServerIndex}}}",
-                $"{{\"IdType\":1,\"Id\":\"{kNodeIdString}\",\"Namespace\":\"{kDemoServer}\"}}" },
+                    $"{{\"IdType\":1,\"Id\":\"{kNodeIdString}\",\"Namespace\":{kDemoServerIndex}}}",
+                    $"{{\"IdType\":1,\"Id\":\"{kNodeIdString}\",\"Namespace\":\"{kDemoServer}\"}}",
+                    $"\"nsu={kDemoServer};s={kNodeIdString}\"", null},
             {   BuiltInType.ExpandedNodeId, new ExpandedNodeId(kNodeIdString,kDemoServer2),
-                $"{{\"IdType\":1,\"Id\":\"{kNodeIdString}\",\"Namespace\":\"{kDemoServer2}\"}}",
-                $"{{\"IdType\":1,\"Id\":\"{kNodeIdString}\",\"Namespace\":\"{kDemoServer2}\"}}" },
-            {   BuiltInType.ExpandedNodeId, new ExpandedNodeId(kNodeIdString,88), $"{{\"IdType\":1,\"Id\":\"{kNodeIdString}\",\"Namespace\":88}}", null},
-            {   BuiltInType.ExpandedNodeId, new ExpandedNodeId(s_nodeIdGuid), $"{{\"IdType\":2,\"Id\":\"{s_nodeIdGuid}\"}}", null },
-            {   BuiltInType.ExpandedNodeId, new ExpandedNodeId(s_nodeIdGuid, 1), $"{{\"IdType\":2,\"Id\":\"{s_nodeIdGuid}\",\"Namespace\":1}}", null },
+                    $"{{\"IdType\":1,\"Id\":\"{kNodeIdString}\",\"Namespace\":\"{kDemoServer2}\"}}",
+                    $"{{\"IdType\":1,\"Id\":\"{kNodeIdString}\",\"Namespace\":\"{kDemoServer2}\"}}",
+                    $"\"nsu={kDemoServer2};s={kNodeIdString}\"", null},
+            {   BuiltInType.ExpandedNodeId, new ExpandedNodeId(kNodeIdString,88),
+                    $"{{\"IdType\":1,\"Id\":\"{kNodeIdString}\",\"Namespace\":88}}", null,
+                    $"\"ns=88;s={kNodeIdString}\"", null},
+            {   BuiltInType.ExpandedNodeId, new ExpandedNodeId(s_nodeIdGuid),
+                    $"{{\"IdType\":2,\"Id\":\"{s_nodeIdGuid}\"}}", null,
+                    $"\"g={s_nodeIdGuid}\"", null},
+            {   BuiltInType.ExpandedNodeId, new ExpandedNodeId(s_nodeIdGuid, 1),
+                    $"{{\"IdType\":2,\"Id\":\"{s_nodeIdGuid}\",\"Namespace\":1}}", $"{{\"IdType\":2,\"Id\":\"{s_nodeIdGuid}\",\"Namespace\":\"{kApplicationUri}\"}}",
+                    $"\"nsu={kApplicationUri};g={s_nodeIdGuid}\"", null},
             {   BuiltInType.ExpandedNodeId, new ExpandedNodeId(s_nodeIdGuid, kDemoServerIndex),
-                $"{{\"IdType\":2,\"Id\":\"{s_nodeIdGuid}\",\"Namespace\":{kDemoServerIndex}}}",
-                $"{{\"IdType\":2,\"Id\":\"{s_nodeIdGuid}\",\"Namespace\":\"{kDemoServer}\"}}" },
+                    $"{{\"IdType\":2,\"Id\":\"{s_nodeIdGuid}\",\"Namespace\":{kDemoServerIndex}}}",
+                    $"{{\"IdType\":2,\"Id\":\"{s_nodeIdGuid}\",\"Namespace\":\"{kDemoServer}\"}}",
+                    $"\"nsu={kDemoServer};g={s_nodeIdGuid}\"", null},
             {   BuiltInType.ExpandedNodeId, new ExpandedNodeId(s_nodeIdGuid, kDemoServer2),
-                $"{{\"IdType\":2,\"Id\":\"{s_nodeIdGuid}\",\"Namespace\":\"{kDemoServer2}\"}}",
-                $"{{\"IdType\":2,\"Id\":\"{s_nodeIdGuid}\",\"Namespace\":\"{kDemoServer2}\"}}" },
-            {   BuiltInType.ExpandedNodeId, new ExpandedNodeId(s_nodeIdGuid,88), $"{{\"IdType\":2,\"Id\":\"{s_nodeIdGuid}\",\"Namespace\":88}}", null},
-            {   BuiltInType.ExpandedNodeId, new ExpandedNodeId(s_byteString), $"{{\"IdType\":3,\"Id\":\"{s_byteString64}\"}}", null },
-            {   BuiltInType.ExpandedNodeId, new ExpandedNodeId(s_byteString,1), $"{{\"IdType\":3,\"Id\":\"{s_byteString64}\",\"Namespace\":1}}", null },
+                    $"{{\"IdType\":2,\"Id\":\"{s_nodeIdGuid}\",\"Namespace\":\"{kDemoServer2}\"}}",
+                    $"{{\"IdType\":2,\"Id\":\"{s_nodeIdGuid}\",\"Namespace\":\"{kDemoServer2}\"}}",
+                    $"\"nsu={kDemoServer2};g={s_nodeIdGuid}\"", null},
+            {   BuiltInType.ExpandedNodeId, new ExpandedNodeId(s_nodeIdGuid,88),
+                    $"{{\"IdType\":2,\"Id\":\"{s_nodeIdGuid}\",\"Namespace\":88}}", null,
+                    $"\"ns=88;g={s_nodeIdGuid}\"", null},
+            {   BuiltInType.ExpandedNodeId, new ExpandedNodeId(s_byteString),
+                    $"{{\"IdType\":3,\"Id\":\"{s_byteString64}\"}}", null,
+                    $"\"b={s_byteString64}\"", null},
+            {   BuiltInType.ExpandedNodeId, new ExpandedNodeId(s_byteString,1),
+                    $"{{\"IdType\":3,\"Id\":\"{s_byteString64}\",\"Namespace\":1}}", $"{{\"IdType\":3,\"Id\":\"{s_byteString64}\",\"Namespace\":\"{kApplicationUri}\"}}",
+                    $"\"nsu={kApplicationUri};b={s_byteString64}\"", null},
             {   BuiltInType.ExpandedNodeId, new ExpandedNodeId(s_byteString,kDemoServerIndex),
-                $"{{\"IdType\":3,\"Id\":\"{s_byteString64}\",\"Namespace\":{kDemoServerIndex}}}",
-                $"{{\"IdType\":3,\"Id\":\"{s_byteString64}\",\"Namespace\":\"{kDemoServer}\"}}" },
+                    $"{{\"IdType\":3,\"Id\":\"{s_byteString64}\",\"Namespace\":{kDemoServerIndex}}}",
+                    $"{{\"IdType\":3,\"Id\":\"{s_byteString64}\",\"Namespace\":\"{kDemoServer}\"}}",
+                    $"\"nsu={kDemoServer};b={s_byteString64}\"", null},
             {   BuiltInType.ExpandedNodeId, new ExpandedNodeId(s_byteString,kDemoServer2),
-                $"{{\"IdType\":3,\"Id\":\"{s_byteString64}\",\"Namespace\":\"{kDemoServer2}\"}}",
-                $"{{\"IdType\":3,\"Id\":\"{s_byteString64}\",\"Namespace\":\"{kDemoServer2}\"}}" },
-            {   BuiltInType.ExpandedNodeId, new ExpandedNodeId(s_byteString,88), $"{{\"IdType\":3,\"Id\":\"{s_byteString64}\",\"Namespace\":88}}", null},
+                    $"{{\"IdType\":3,\"Id\":\"{s_byteString64}\",\"Namespace\":\"{kDemoServer2}\"}}",
+                    $"{{\"IdType\":3,\"Id\":\"{s_byteString64}\",\"Namespace\":\"{kDemoServer2}\"}}",
+                    $"\"nsu={kDemoServer2};b={s_byteString64}\"", null},
+            {   BuiltInType.ExpandedNodeId, new ExpandedNodeId(s_byteString,88),
+                    $"{{\"IdType\":3,\"Id\":\"{s_byteString64}\",\"Namespace\":88}}", null,
+                    $"\"ns=88;b={s_byteString64}\"", null},
 
-            {   BuiltInType.StatusCode, new StatusCode(StatusCodes.Good), null, null},
-            {   BuiltInType.StatusCode, new StatusCode(StatusCodes.Good), $"{StatusCodes.Good}", "", true},
+            {   BuiltInType.StatusCode, new StatusCode(StatusCodes.Good), null, null, null, "{}"},
+            {   BuiltInType.StatusCode, new StatusCode(StatusCodes.Good), $"{StatusCodes.Good}", "{}", null, "{}", true},
             {   BuiltInType.StatusCode, new StatusCode(StatusCodes.BadBoundNotFound), $"{StatusCodes.BadBoundNotFound}",
-                $"{{\"Code\":{StatusCodes.BadBoundNotFound}, \"Symbol\":\"{nameof(StatusCodes.BadBoundNotFound)}\"}}"},
+                    $"{{\"Code\":{StatusCodes.BadBoundNotFound}, \"Symbol\":\"{nameof(StatusCodes.BadBoundNotFound)}\"}}"},
             {   BuiltInType.StatusCode, new StatusCode(StatusCodes.BadCertificateInvalid),
-                $"{StatusCodes.BadCertificateInvalid}", $"{{\"Code\":{StatusCodes.BadCertificateInvalid}, \"Symbol\":\"{nameof(StatusCodes.BadCertificateInvalid)}\"}}"},
+                    $"{StatusCodes.BadCertificateInvalid}", $"{{\"Code\":{StatusCodes.BadCertificateInvalid}, \"Symbol\":\"{nameof(StatusCodes.BadCertificateInvalid)}\"}}"},
+            {   BuiltInType.StatusCode, new StatusCode(1234567), "1234567", $"{{\"Code\":1234567}}"},
 
             {   BuiltInType.DiagnosticInfo, new DiagnosticInfo(), null, null},
             {   BuiltInType.DiagnosticInfo, new DiagnosticInfo(-1,-1,-1,-1,null), null, null},
             {   BuiltInType.DiagnosticInfo, new DiagnosticInfo(1,2,3,4,"AdditionalInfo"), "{\"SymbolicId\":1,\"NamespaceUri\":2,\"Locale\":3,\"LocalizedText\":4,\"AdditionalInfo\":\"AdditionalInfo\"}", null},
 
             {   BuiltInType.QualifiedName, QualifiedName.Null, null, null},
-            {   BuiltInType.QualifiedName, new QualifiedName(kQualifiedName), $"{{\"Name\":\"{kQualifiedName}\"}}", null},
-            {   BuiltInType.QualifiedName, new QualifiedName(kQualifiedName, 1), $"{{\"Name\":\"{kQualifiedName}\",\"Uri\":1}}", $"{{\"Name\":\"{kQualifiedName}\",\"Uri\":1}}"},
+            {   BuiltInType.QualifiedName, new QualifiedName(kQualifiedName),
+                    $"{{\"Name\":\"{kQualifiedName}\"}}", null,
+                    $"\"{kQualifiedName}\"", null},
+            {   BuiltInType.QualifiedName, new QualifiedName(kQualifiedName, 1),
+                    $"{{\"Name\":\"{kQualifiedName}\",\"Uri\":1}}",
+                    $"{{\"Name\":\"{kQualifiedName}\",\"Uri\":\"{kApplicationUri}\"}}",
+                    $"\"nsu={kApplicationUri};{kQualifiedName}\"", null},
             {   BuiltInType.QualifiedName, new QualifiedName(kQualifiedName, kDemoServerIndex),
-                $"{{\"Name\":\"{kQualifiedName}\",\"Uri\":{kDemoServerIndex}}}", $"{{\"Name\":\"{kQualifiedName}\",\"Uri\":\"{kDemoServer}\"}}"},
+                    $"{{\"Name\":\"{kQualifiedName}\",\"Uri\":{kDemoServerIndex}}}",
+                    $"{{\"Name\":\"{kQualifiedName}\",\"Uri\":\"{kDemoServer}\"}}",
+                    $"\"nsu={kDemoServer};{kQualifiedName}\"", null},
 
             {   BuiltInType.LocalizedText, LocalizedText.Null, null, null},
-            {   BuiltInType.LocalizedText, new LocalizedText(kLocalizedText), $"{{\"Text\":\"{kLocalizedText}\"}}", $"\"{kLocalizedText}\"", true},
-            {   BuiltInType.LocalizedText, new LocalizedText(kLocale, kLocalizedText), $"{{\"Text\":\"{kLocalizedText}\",\"Locale\":\"{kLocale}\"}}", $"\"{kLocalizedText}\""},
+            {   BuiltInType.LocalizedText, new LocalizedText(kLocalizedText),
+                    $"{{\"Text\":\"{kLocalizedText}\"}}", $"\"{kLocalizedText}\"",
+                    $"{{\"Text\":\"{kLocalizedText}\"}}", null,
+                    true},
+            {   BuiltInType.LocalizedText, new LocalizedText(kLocale, kLocalizedText),
+                    $"{{\"Text\":\"{kLocalizedText}\",\"Locale\":\"{kLocale}\"}}", $"\"{kLocalizedText}\"",
+                    $"{{\"Text\":\"{kLocalizedText}\",\"Locale\":\"{kLocale}\"}}", null},
 
             {   BuiltInType.ExtensionObject, ExtensionObject.Null, null, null},
             {   BuiltInType.ExtensionObject, new ExtensionObject(kNodeIdInt), null, null},
             {   BuiltInType.ExtensionObject, new ExtensionObject((IEncodeable) null), null, null},
 
             {   BuiltInType.Variant, Variant.Null, "", null},
-            {   BuiltInType.Variant, new Variant((SByte)123), $"{{\"Type\":{BuiltInType.SByte.ToString("d")}, \"Body\":123}}", "123"},
-            {   BuiltInType.Variant, new Variant((Int16)12345), $"{{\"Type\":{BuiltInType.Int16.ToString("d")}, \"Body\":12345}}", "12345"},
-            {   BuiltInType.Variant, new Variant(1234567), $"{{\"Type\":{BuiltInType.Int32.ToString("d")}, \"Body\":1234567}}", "1234567"},
-            {   BuiltInType.Variant, new Variant((Int64)123456789), $"{{\"Type\":{BuiltInType.Int64.ToString("d")}, \"Body\":\"123456789\"}}", "\"123456789\""},
-            {   BuiltInType.Variant, new Variant((Byte)123), $"{{\"Type\":{BuiltInType.Byte.ToString("d")}, \"Body\":123}}", "123"},
-            {   BuiltInType.Variant, new Variant((UInt16)12345), $"{{\"Type\":{BuiltInType.UInt16.ToString("d")}, \"Body\":12345}}", "12345"},
-            {   BuiltInType.Variant, new Variant((UInt32)1234567), $"{{\"Type\":{BuiltInType.UInt32.ToString("d")}, \"Body\":1234567}}", "1234567"},
-            {   BuiltInType.Variant, new Variant((UInt64)123456789), $"{{\"Type\":{BuiltInType.UInt64.ToString("d")}, \"Body\":\"123456789\"}}", "\"123456789\""},
+            {   BuiltInType.Variant, new Variant((SByte)123),
+                    $"{{\"Type\":{BuiltInType.SByte.ToString("d")}, \"Body\":123}}", "123",
+                    $"{{\"Type\":{BuiltInType.SByte.ToString("d")}, \"Body\":123}}", null},
+            {   BuiltInType.Variant, new Variant((Int16)12345),
+                    $"{{\"Type\":{BuiltInType.Int16.ToString("d")}, \"Body\":12345}}", "12345",
+                    $"{{\"Type\":{BuiltInType.Int16.ToString("d")}, \"Body\":12345}}", null},
+            {   BuiltInType.Variant, new Variant(1234567),
+                    $"{{\"Type\":{BuiltInType.Int32.ToString("d")}, \"Body\":1234567}}", "1234567",
+                    $"{{\"Type\":{BuiltInType.Int32.ToString("d")}, \"Body\":1234567}}", null},
+            {   BuiltInType.Variant, new Variant((Int64)123456789),
+                    $"{{\"Type\":{BuiltInType.Int64.ToString("d")}, \"Body\":\"123456789\"}}", "\"123456789\"",
+                    $"{{\"Type\":{BuiltInType.Int64.ToString("d")}, \"Body\":\"123456789\"}}", null},
+            {   BuiltInType.Variant, new Variant((Byte)123),
+                    $"{{\"Type\":{BuiltInType.Byte.ToString("d")}, \"Body\":123}}", "123",
+                    $"{{\"Type\":{BuiltInType.Byte.ToString("d")}, \"Body\":123}}", null},
+            {   BuiltInType.Variant, new Variant((UInt16)12345),
+                    $"{{\"Type\":{BuiltInType.UInt16.ToString("d")}, \"Body\":12345}}", "12345",
+                    $"{{\"Type\":{BuiltInType.UInt16.ToString("d")}, \"Body\":12345}}", null},
+            {   BuiltInType.Variant, new Variant((UInt32)1234567),
+                    $"{{\"Type\":{BuiltInType.UInt32.ToString("d")}, \"Body\":1234567}}", "1234567",
+                    $"{{\"Type\":{BuiltInType.UInt32.ToString("d")}, \"Body\":1234567}}", null},
+            {   BuiltInType.Variant, new Variant((UInt64)123456789),
+                    $"{{\"Type\":{BuiltInType.UInt64.ToString("d")}, \"Body\":\"123456789\"}}", "\"123456789\"",
+                    $"{{\"Type\":{BuiltInType.UInt64.ToString("d")}, \"Body\":\"123456789\"}}", null},
 
             {   BuiltInType.DataValue, new DataValue(), "{}", null},
             {   BuiltInType.DataValue, new DataValue(StatusCodes.Good), "{}", null},
+            {   BuiltInType.DataValue, new DataValue(StatusCodes.BadNotWritable),
+                    $"{{\"StatusCode\":{StatusCodes.BadNotWritable}}}",
+                    $"{{\"StatusCode\":{{\"Code\":{StatusCodes.BadNotWritable}, \"Symbol\":\"{nameof(StatusCodes.BadNotWritable)}\"}}}}"},
 
             {   BuiltInType.Enumeration, (TestEnumType) 0, "0", "\"0\""},
             {   BuiltInType.Enumeration, TestEnumType.Three, TestEnumType.Three.ToString("d"), $"\"{TestEnumType.Three}_{TestEnumType.Three.ToString("d")}\""},
@@ -291,8 +371,13 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             {   BuiltInType.Enumeration, s_testInt32Array, "[2,3,10]", "[\"2\",\"3\",\"10\"]"},
 
             // IEncodeable
-            {   BuiltInType.ExtensionObject, s_testEncodeable, "{\"Body\":{\"Foo\":\"bar_999\"}}", "{\"Foo\":\"bar_999\"}"}
+            {   BuiltInType.ExtensionObject, s_testEncodeable,
+                "{\"Body\":{\"Foo\":\"bar_999\"}}", "{\"Foo\":\"bar_999\"}",
+                "{\"Body\":{\"Foo\":\"bar_999\"}}", null}
         }.ToArray();
+
+        [DatapointSource]
+        public static StatusCode[] GoodAndBadStatusCodes = { StatusCodes.Good, StatusCodes.BadAlreadyExists };
         #endregion
 
         #region Test Setup
@@ -348,6 +433,21 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         #endregion
 
         #region Test Methods
+        [Test]
+        [TestCase(JsonEncodingType.Compact)]
+        [TestCase(JsonEncodingType.Verbose)]
+        public void ForcePropertiesShouldThrow(JsonEncodingType jsonEncodingType)
+        {
+            using (var encoder = new JsonEncoder(Context, jsonEncodingType))
+            {
+                Assert.Throws<NotSupportedException>(() => encoder.ForceNamespaceUri = true);
+                Assert.Throws<NotSupportedException>(() => encoder.ForceNamespaceUriForIndex1 = true);
+                Assert.Throws<NotSupportedException>(() => encoder.IncludeDefaultNumberValues = true);
+                Assert.Throws<NotSupportedException>(() => encoder.IncludeDefaultValues = true);
+                Assert.Throws<NotSupportedException>(() => encoder.EncodeNodeIdAsString = false);
+            }
+        }
+
         /// <summary>
         /// Validate constructor signature.
         /// </summary>
@@ -581,33 +681,17 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         }
 
         /// <summary>
-        /// Verify reversible Json encoding.
+        /// Verify any Json encoding.
         /// </summary>
         [Theory]
-        public void JsonEncodeRev(JsonValidationData jsonValidationData, MemoryStreamType memoryStreamType)
+        public void JsonEncode(JsonEncodingType jsonEncodingType, JsonValidationData jsonValidationData, MemoryStreamType memoryStreamType)
         {
             EncodeJsonVerifyResult(
                 jsonValidationData.BuiltInType,
                 memoryStreamType,
                 jsonValidationData.Instance,
-                true,
-                jsonValidationData.ExpectedReversible,
-                false,
-                jsonValidationData.IncludeDefaultValue);
-        }
-
-        /// <summary>
-        /// Verify non reversible Json encoding.
-        /// </summary>
-        [Theory]
-        public void JsonEncodeNonRev(JsonValidationData jsonValidationData, MemoryStreamType memoryStreamType)
-        {
-            EncodeJsonVerifyResult(
-                jsonValidationData.BuiltInType,
-                memoryStreamType,
-                jsonValidationData.Instance,
-                false,
-                jsonValidationData.ExpectedNonReversible ?? jsonValidationData.ExpectedReversible,
+                jsonEncodingType,
+                jsonValidationData.GetExpected(jsonEncodingType),
                 false,
                 jsonValidationData.IncludeDefaultValue);
         }
@@ -1083,6 +1167,45 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             bool success = DateTime.TryParse(dateTimeString, CultureInfo.InvariantCulture, DateTimeStyles.AdjustToUniversal, out DateTime dateTime);
             Assert.True(success);
             DateTimeEncodeStringTest(dateTime);
+        }
+
+        /// <summary>
+        /// Validate that a ExpandedNodeId returns the expected
+        /// result for a not well formed Uri.
+        /// </summary>
+        [Test]
+        public void NotWellFormedUriInExpandedNodeId2String()
+        {
+            string namespaceUri = "KEPServerEX";
+            string nodeName = "Data Type Examples.16 Bit Device.K Registers.Double3";
+            String expectedNodeIdString = $"nsu={namespaceUri};s={nodeName}";
+            ExpandedNodeId expandedNodeId = new ExpandedNodeId(expectedNodeIdString);
+
+            string stringifiedExpandedNodId = expandedNodeId.ToString();
+            TestContext.Out.WriteLine(stringifiedExpandedNodId);
+            Assert.AreEqual(expectedNodeIdString, stringifiedExpandedNodId);
+        }
+
+        /// <summary>
+        /// Validate that a statuscode in a DataValue produces valid JSON.
+        /// </summary>
+        [Theory]
+        public void DataValueWithStatusCodes(
+            JsonEncodingType jsonEncodingType,
+            [ValueSource(nameof(GoodAndBadStatusCodes))] StatusCode statusCodeVariant,
+            [ValueSource(nameof(GoodAndBadStatusCodes))] StatusCode statusCode)
+        {
+            var dataValue = new DataValue() {
+                Value = new Variant(statusCodeVariant),
+                ServerTimestamp = DateTime.UtcNow,
+                StatusCode = statusCode
+            };
+            using (var jsonEncoder = new JsonEncoder(m_context, jsonEncodingType))
+            {
+                jsonEncoder.WriteDataValue("Data", dataValue);
+                var result = jsonEncoder.CloseAndReturnText();
+                PrettifyAndValidateJson(result, true);
+            }
         }
 
         /// <summary>

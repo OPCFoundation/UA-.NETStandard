@@ -29,6 +29,8 @@ using System.Collections.ObjectModel;
 using Opc.Ua.Security.Certificates;
 using System.Runtime.InteropServices;
 
+using NewNonceImplementation = Opc.Ua.Nonce;
+
 namespace Opc.Ua
 {
     /// <summary>
@@ -1261,6 +1263,60 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Escapes a URI string using the percent encoding.
+        /// </summary>
+        public static string EscapeUri(string uri)
+        {
+            if (!string.IsNullOrWhiteSpace(uri))
+            {
+                // back compat: for not well formed Uri, fall back to legacy formatting behavior - see #2793
+                if (!Uri.IsWellFormedUriString(uri, UriKind.Absolute) ||
+                    !Uri.TryCreate(uri.Replace(";", "%3b"), UriKind.Absolute, out Uri validUri))
+                {
+                    var buffer = new StringBuilder();
+                    foreach (char ch in uri)
+                    {
+                        switch (ch)
+                        {
+                            case ';':
+                            case '%':
+                            {
+                                buffer.AppendFormat(CultureInfo.InvariantCulture, "%{0:X2}", Convert.ToInt16(ch));
+                                break;
+                            }
+
+                            default:
+                            {
+                                buffer.Append(ch);
+                                break;
+                            }
+                        }
+                    }
+                    return buffer.ToString();
+                }
+                else
+                {
+                    return validUri.AbsoluteUri;
+                }
+            }
+
+            return String.Empty;
+        }
+
+        /// <summary>
+        /// Unescapes a URI string using the percent encoding.
+        /// </summary>
+        public static string UnescapeUri(string uri)
+        {
+            if (!string.IsNullOrWhiteSpace(uri))
+            {
+                return Uri.UnescapeDataString(uri);
+            }
+
+            return String.Empty;
+        }
+
+        /// <summary>
         /// Parses a URI string. Returns null if it is invalid.
         /// </summary>
         public static Uri ParseUri(string uri)
@@ -1504,24 +1560,35 @@ namespace Opc.Ua
                 return String.Empty;
             }
 
-            StringBuilder builder = new StringBuilder(buffer.Length * 2);
-
-            if (invertEndian)
+#if NET6_0_OR_GREATER
+            if (!invertEndian)
             {
-                for (int ii = buffer.Length - 1; ii >= 0; ii--)
-                {
-                    builder.AppendFormat(CultureInfo.InvariantCulture, "{0:X2}", buffer[ii]);
-                }
+                return Convert.ToHexString(buffer);
             }
             else
+#endif
             {
-                for (int ii = 0; ii < buffer.Length; ii++)
-                {
-                    builder.AppendFormat(CultureInfo.InvariantCulture, "{0:X2}", buffer[ii]);
-                }
-            }
+                StringBuilder builder = new StringBuilder(buffer.Length * 2);
 
-            return builder.ToString();
+#if !NET6_0_OR_GREATER
+                if (!invertEndian)
+                {
+                    for (int ii = 0; ii < buffer.Length; ii++)
+                    {
+                        builder.AppendFormat(CultureInfo.InvariantCulture, "{0:X2}", buffer[ii]);
+                    }
+                }
+                else
+#endif
+                {
+                    for (int ii = buffer.Length - 1; ii >= 0; ii--)
+                    {
+                        builder.AppendFormat(CultureInfo.InvariantCulture, "{0:X2}", buffer[ii]);
+                    }
+                }
+
+                return builder.ToString();
+            }
         }
 
         /// <summary>
@@ -1529,6 +1596,9 @@ namespace Opc.Ua
         /// </summary>
         public static byte[] FromHexString(string buffer)
         {
+#if NET6_0_OR_GREATER
+            return Convert.FromHexString(buffer);
+#else
             if (buffer == null)
             {
                 return null;
@@ -1575,6 +1645,7 @@ namespace Opc.Ua
             }
 
             return bytes;
+#endif
         }
 
         /// <summary>
@@ -1724,6 +1795,12 @@ namespace Opc.Ua
 
             // strings are special a reference type that does not need to be copied.
             if (type == typeof(string))
+            {
+                return value;
+            }
+
+            // Guid are special a reference type that does not need to be copied.
+            if (type == typeof(Guid))
             {
                 return value;
             }
@@ -2529,7 +2606,7 @@ namespace Opc.Ua
                 extensions.Add(document.DocumentElement);
             }
         }
-        #endregion
+#endregion
 
         #region Reflection Helper Functions
         /// <summary>
@@ -2593,6 +2670,18 @@ namespace Opc.Ua
             }
 
             return 0;
+        }
+
+        private static readonly DateTime kBaseDateTime = new DateTime(2000, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+
+        /// <summary>
+        /// Return the current time in milliseconds since 1/1/2000.
+        /// </summary>
+        /// <returns>The current time in milliseconds since 1/1/2000.</returns>
+        public static uint GetVersionTime()
+        {
+            var ticks = (DateTime.UtcNow - kBaseDateTime).TotalMilliseconds;
+            return (uint)ticks;
         }
 
         /// <summary>
@@ -2790,101 +2879,88 @@ namespace Opc.Ua
             return certificateChain;
         }
 
+
+        /// <summary>
+        /// Creates a DER blob from a X509Certificate2Collection.
+        /// </summary>
+        /// <param name="certificates">The certificates to be returned as raw data.</param>
+        /// <returns>
+        /// A DER blob containing zero or more certificates.
+        /// </returns>
+        public static byte[] CreateCertificateChainBlob(X509Certificate2Collection certificates)
+        {
+            if (certificates == null || certificates.Count == 0)
+            {
+                return Array.Empty<byte>();
+            }
+
+            int totalSize = 0;
+
+            foreach (X509Certificate2 cert in certificates)
+            {
+                totalSize += cert.RawData.Length;
+            }
+
+            byte[] blobData = new byte[totalSize];
+            int offset = 0;
+
+            foreach (X509Certificate2 cert in certificates)
+            {
+                Array.Copy(cert.RawData, 0, blobData, offset, cert.RawData.Length);
+                offset += cert.RawData.Length;
+            }
+
+            return blobData;
+        }
         /// <summary>
         /// Compare Nonce for equality.
         /// </summary>
+        [Obsolete("Use equivalent methods from the Opc.Ua.Nonce class")]
         public static bool CompareNonce(byte[] a, byte[] b)
         {
-            if (a == null || b == null) return false;
-            if (a.Length != b.Length) return false;
-
-            byte result = 0;
-            for (int i = 0; i < a.Length; i++)
-                result |= (byte)(a[i] ^ b[i]);
-
-            return result == 0;
+            return NewNonceImplementation.CompareNonce(a, b);
         }
 
         /// <summary>
         /// Cryptographic Nonce helper functions.
         /// </summary>
+        [Obsolete("Use equivalent methods from the Opc.Ua.Nonce class")]
         public static class Nonce
         {
-            static readonly RandomNumberGenerator m_rng = RandomNumberGenerator.Create();
-
             /// <summary>
             /// Generates a Nonce for cryptographic functions.
             /// </summary>
+            [Obsolete("Use equivalent CreateRandomNonceData method from the Opc.Ua.Nonce class")]
             public static byte[] CreateNonce(uint length)
             {
-                byte[] randomBytes = new byte[length];
-                m_rng.GetBytes(randomBytes);
-                return randomBytes;
+                return NewNonceImplementation.CreateRandomNonceData(length);
             }
 
             /// <summary>
             /// Returns the length of the symmetric encryption key for a security policy.
             /// </summary>
+            [Obsolete("Use equivalent method from the Opc.Ua.Nonce class")]
             public static uint GetNonceLength(string securityPolicyUri)
             {
-                switch (securityPolicyUri)
-                {
-                    case SecurityPolicies.Basic128Rsa15:
-                    {
-                        return 16;
-                    }
-
-                    case SecurityPolicies.Basic256:
-                    case SecurityPolicies.Basic256Sha256:
-                    case SecurityPolicies.Aes128_Sha256_RsaOaep:
-                    case SecurityPolicies.Aes256_Sha256_RsaPss:
-                    {
-                        return 32;
-                    }
-
-                    default:
-                    case SecurityPolicies.None:
-                    {
-                        return 0;
-                    }
-                }
+                return NewNonceImplementation.GetNonceLength(securityPolicyUri);
             }
 
             /// <summary>
             /// Validates the nonce for a message security mode and security policy.
             /// </summary>
+            [Obsolete("Use equivalent method from the Opc.Ua.Nonce class")]
             public static bool ValidateNonce(byte[] nonce, MessageSecurityMode securityMode, string securityPolicyUri)
             {
-                return ValidateNonce(nonce, securityMode, GetNonceLength(securityPolicyUri));
+                return NewNonceImplementation.ValidateNonce(nonce, securityMode, GetNonceLength(securityPolicyUri));
             }
 
             /// <summary>
             /// Validates the nonce for a message security mode and a minimum length.
             /// </summary>
+            [Obsolete("Use equivalent method from the Opc.Ua.Nonce class")]
             public static bool ValidateNonce(byte[] nonce, MessageSecurityMode securityMode, uint minNonceLength)
             {
-                // no nonce needed for no security.
-                if (securityMode == MessageSecurityMode.None)
-                {
-                    return true;
-                }
-
-                // check the length.
-                if (nonce == null || nonce.Length < minNonceLength)
-                {
-                    return false;
-                }
-
-                // try to catch programming errors by rejecting nonces with all zeros.
-                for (int ii = 0; ii < nonce.Length; ii++)
-                {
-                    if (nonce[ii] != 0)
-                    {
-                        return true;
-                    }
-                }
-
-                return false;
+                return NewNonceImplementation.ValidateNonce(nonce,securityMode, minNonceLength);
             }
         }
 
@@ -2916,7 +2992,7 @@ namespace Opc.Ua
         /// <summary>
         /// Generates a Pseudo random sequence of bits using the HMAC algorithm.
         /// </summary>
-        private static byte[] PSHA(HMAC hmac, string label, byte[] data, int offset, int length)
+        public static byte[] PSHA(HMAC hmac, string label, byte[] data, int offset, int length)
         {
             if (hmac == null) throw new ArgumentNullException(nameof(hmac));
             if (offset < 0) throw new ArgumentOutOfRangeException(nameof(offset));
@@ -2992,6 +3068,32 @@ namespace Opc.Ua
             return output;
         }
 
+
+        /// <summary>
+        /// Creates an HMAC.
+        /// </summary>
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Security",
+            "CA5350:Do Not Use Weak Cryptographic Algorithms", Justification = "<Pending>")]
+        public static HMAC CreateHMAC(HashAlgorithmName algorithmName, byte[] secret)
+        {
+            if (algorithmName == HashAlgorithmName.SHA256)
+            {
+                return new HMACSHA256(secret);
+            }
+
+            if (algorithmName == HashAlgorithmName.SHA384)
+            {
+                return new HMACSHA384(secret);
+            }
+
+            if (algorithmName == HashAlgorithmName.SHA1)
+            {
+                return new HMACSHA1(secret);
+            }
+
+            throw new NotImplementedException();
+        }
+
         /// <summary>
         /// Checks if the target is in the list. Comparisons ignore case.
         /// </summary>
@@ -3012,6 +3114,74 @@ namespace Opc.Ua
 
             return false;
         }
+
+        /// <summary>
+        /// Returns if the certificate type is supported on the platform OS.
+        /// </summary>
+        /// <param name="certificateType">The certificate type to check.</param>
+        public static bool IsSupportedCertificateType(NodeId certificateType)
+        {
+            if (certificateType.Identifier is uint identifier)
+            {
+                switch (identifier)
+                {
+#if ECC_SUPPORT
+                    case ObjectTypes.EccApplicationCertificateType:
+                        return true;
+                    case ObjectTypes.EccBrainpoolP256r1ApplicationCertificateType:
+                        return s_eccCurveSupportCache[ECCurve.NamedCurves.brainpoolP256r1.Oid.FriendlyName].Value;
+                    case ObjectTypes.EccBrainpoolP384r1ApplicationCertificateType:
+                        return s_eccCurveSupportCache[ECCurve.NamedCurves.brainpoolP384r1.Oid.FriendlyName].Value;
+                    case ObjectTypes.EccNistP256ApplicationCertificateType:
+                        return s_eccCurveSupportCache[ECCurve.NamedCurves.nistP256.Oid.FriendlyName].Value;
+                    case ObjectTypes.EccNistP384ApplicationCertificateType:
+                        return s_eccCurveSupportCache[ECCurve.NamedCurves.nistP384.Oid.FriendlyName].Value;
+                    //case ObjectTypes.EccCurve25519ApplicationCertificateType:
+                    //case ObjectTypes.EccCurve448ApplicationCertificateType:
+#endif
+                    case ObjectTypes.ApplicationCertificateType:
+                    case ObjectTypes.RsaMinApplicationCertificateType:
+                    case ObjectTypes.RsaSha256ApplicationCertificateType:
+                    case ObjectTypes.HttpsCertificateType:
+                        return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Check if known curve is supported by platform
+        /// </summary>
+        /// <param name="eCCurve"></param>
+        private static bool IsCurveSupported(ECCurve eCCurve)
+        {
+            try
+            {
+                // Create a ECDsa object and generate a new keypair on the given curve
+                using (ECDsa eCDsa = ECDsa.Create(eCCurve))
+                {
+                    ECParameters parameters = eCDsa.ExportParameters(false);
+                    return parameters.Q.X != null && parameters.Q.Y != null;
+                }
+            }
+            catch (Exception ex) when (
+                ex is PlatformNotSupportedException ||
+                ex is ArgumentException ||
+                ex is CryptographicException)
+            {
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Lazy helper for checking ECC eliptic curve support for running OS
+        /// </summary>
+        private static readonly Dictionary<string, Lazy<bool>> s_eccCurveSupportCache = new Dictionary<string, Lazy<bool>>{
+            { ECCurve.NamedCurves.nistP256.Oid.FriendlyName, new Lazy<bool>(() => IsCurveSupported(ECCurve.NamedCurves.nistP256)) },
+            { ECCurve.NamedCurves.nistP384.Oid.FriendlyName, new Lazy<bool>(() => IsCurveSupported(ECCurve.NamedCurves.nistP384)) },
+            { ECCurve.NamedCurves.brainpoolP256r1.Oid.FriendlyName, new Lazy<bool>(() => IsCurveSupported(ECCurve.NamedCurves.brainpoolP256r1)) },
+            { ECCurve.NamedCurves.brainpoolP384r1.Oid.FriendlyName, new Lazy<bool>(() => IsCurveSupported(ECCurve.NamedCurves.brainpoolP384r1)) },
+        };
 
         /// <summary>
         /// Lazy helper to allow runtime check for Mono.

@@ -19,6 +19,7 @@ using System.Net.Sockets;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Bindings
 {
@@ -155,8 +156,7 @@ namespace Opc.Ua.Bindings
             m_quotas.CertificateValidator = settings.CertificateValidator;
 
             // save the server certificate.
-            m_serverCertificate = settings.ServerCertificate;
-            m_serverCertificateChain = settings.ServerCertificateChain;
+            m_serverCertificateTypesProvider = settings.ServerCertificateTypesProvider;
 
             m_bufferManager = new BufferManager("Server", m_quotas.MaxBufferSize);
             m_channels = new ConcurrentDictionary<uint, TcpListenerChannel>();
@@ -269,7 +269,7 @@ namespace Opc.Ua.Bindings
                 this,
                 m_bufferManager,
                 m_quotas,
-                m_serverCertificate,
+                m_serverCertificateTypesProvider,
                 m_descriptions);
 
             uint channelId = GetNextChannelId();
@@ -477,30 +477,26 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public void CertificateUpdate(
             ICertificateValidator validator,
-            X509Certificate2 serverCertificate,
-            X509Certificate2Collection serverCertificateChain)
+            CertificateTypesProvider certificateTypesProvider
+            )
         {
             m_quotas.CertificateValidator = validator;
-            m_serverCertificate = serverCertificate;
-            m_serverCertificateChain = serverCertificateChain;
+            m_serverCertificateTypesProvider = certificateTypesProvider;
             foreach (var description in m_descriptions)
             {
-                // check if complete chain should be sent.
-                if (m_serverCertificateChain != null &&
-                    m_serverCertificateChain.Count > 1)
+                // TODO: why only if SERVERCERT != null
+                if (description.ServerCertificate != null)
                 {
-                    var byteServerCertificateChain = new List<byte>();
-
-                    for (int i = 0; i < m_serverCertificateChain.Count; i++)
+                    X509Certificate2 serverCertificate = certificateTypesProvider.GetInstanceCertificate(description.SecurityPolicyUri);
+                    if (certificateTypesProvider.SendCertificateChain)
                     {
-                        byteServerCertificateChain.AddRange(m_serverCertificateChain[i].RawData);
+                        byte[] serverCertificateChainRaw = certificateTypesProvider.LoadCertificateChainRaw(serverCertificate);
+                        description.ServerCertificate = serverCertificateChainRaw;
                     }
-
-                    description.ServerCertificate = byteServerCertificateChain.ToArray();
-                }
-                else if (description.ServerCertificate != null)
-                {
-                    description.ServerCertificate = serverCertificate.RawData;
+                    else
+                    {
+                        description.ServerCertificate = serverCertificate.RawData;
+                    }
                 }
             }
         }
@@ -539,33 +535,32 @@ namespace Opc.Ua.Bindings
                             Utils.SilentDispose(e.AcceptSocket);
                         }
 
-                        // check if the accept socket has been created.
-                        if (serveChannel && e.AcceptSocket != null && e.SocketError == SocketError.Success)
+                    // check if the accept socket has been created.
+                    if (serveChannel && e.AcceptSocket != null && e.SocketError == SocketError.Success)
+                    {
+                        try
                         {
-                            try
+                            if (m_reverseConnectListener)
                             {
-                                if (m_reverseConnectListener)
-                                {
-                                    // create the channel to manage incoming reverse connections.
-                                    channel = new TcpReverseConnectChannel(
-                                        m_listenerId,
-                                        this,
-                                        m_bufferManager,
-                                        m_quotas,
-                                        m_descriptions);
-                                }
-                                else
-                                {
-                                    // create the channel to manage incoming connections.
-                                    channel = new TcpServerChannel(
-                                        m_listenerId,
-                                        this,
-                                        m_bufferManager,
-                                        m_quotas,
-                                        m_serverCertificate,
-                                        m_serverCertificateChain,
-                                        m_descriptions);
-                                }
+                                // create the channel to manage incoming reverse connections.
+                                channel = new TcpReverseConnectChannel(
+                                    m_listenerId,
+                                    this,
+                                    m_bufferManager,
+                                    m_quotas,
+                                    m_descriptions);
+                            }
+                            else
+                            {
+                                // create the channel to manage incoming connections.
+                                channel = new TcpServerChannel(
+                                    m_listenerId,
+                                    this,
+                                    m_bufferManager,
+                                    m_quotas,
+                                    m_serverCertificateTypesProvider,
+                                    m_descriptions);
+                            }
 
                                 if (m_callback != null)
                                 {
@@ -804,8 +799,7 @@ namespace Opc.Ua.Bindings
         private EndpointDescriptionCollection m_descriptions;
         private BufferManager m_bufferManager;
         private ChannelQuotas m_quotas;
-        private X509Certificate2 m_serverCertificate;
-        private X509Certificate2Collection m_serverCertificateChain;
+        private CertificateTypesProvider m_serverCertificateTypesProvider;
         private int m_lastChannelId;
         private Socket m_listeningSocket;
         private Socket m_listeningSocketIPv6;

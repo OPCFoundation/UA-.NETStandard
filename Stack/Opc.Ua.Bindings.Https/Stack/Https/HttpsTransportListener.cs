@@ -15,6 +15,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Net;
 using System.Security.Authentication;
+using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
@@ -23,6 +24,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Server.Kestrel.Https;
 using Microsoft.Extensions.Hosting;
+using Opc.Ua.Security.Certificates;
 
 
 namespace Opc.Ua.Bindings
@@ -201,8 +203,7 @@ namespace Opc.Ua.Bindings
             // save the callback to the server.
             m_callback = callback;
 
-            m_serverCertificate = settings.ServerCertificate;
-            m_serverCertificateChain = settings.ServerCertificateChain;
+            m_serverCertProvider = settings.ServerCertificateTypesProvider;
 
             // start the listener
             Start();
@@ -262,17 +263,29 @@ namespace Opc.Ua.Bindings
         {
             Startup.Listener = this;
             m_hostBuilder = new WebHostBuilder();
+
+            // prepare the server TLS certificate
+            var serverCertificate = m_serverCertProvider.GetInstanceCertificate(SecurityPolicies.Https);
+#if NETCOREAPP3_1_OR_GREATER || NETSTANDARD2_1 || NET472_OR_GREATER || NET5_0_OR_GREATER
+            try
+            {
+                // Create a copy of the certificate with the private key on platforms
+                // which default to the ephemeral KeySet. Also a new certificate must be reloaded.
+                // If the key fails to copy, its probably a non exportable key from the X509Store.
+                // Then we can use the original certificate, the private key is already in the key store.
+                serverCertificate = X509Utils.CreateCopyWithPrivateKey(serverCertificate, false);
+            }
+            catch (CryptographicException ce)
+            {
+                Utils.LogTrace("Copy of the private key for https was denied: {0}", ce.Message);
+            }
+#endif
+
             var httpsOptions = new HttpsConnectionAdapterOptions() {
                 CheckCertificateRevocation = false,
                 ClientCertificateMode = ClientCertificateMode.NoCertificate,
                 // note: this is the TLS certificate!
-#if NETCOREAPP3_1_OR_GREATER || NETSTANDARD2_1 || NET472_OR_GREATER || NET5_0_OR_GREATER
-                // Create a copy of the certificate with the private key on platforms
-                // which default to the ephemeral KeySet.
-                ServerCertificate = X509Utils.CreateCopyWithPrivateKey(m_serverCertificate, false)
-#else
-                ServerCertificate = m_serverCertificate
-#endif
+                ServerCertificate = serverCertificate
             };
 
 #if NET462
@@ -455,33 +468,19 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public void CertificateUpdate(
             ICertificateValidator validator,
-            X509Certificate2 serverCertificate,
-            X509Certificate2Collection serverCertificateChain)
+            CertificateTypesProvider certificateTypeProvider)
         {
             Stop();
 
             m_quotas.CertificateValidator = validator;
-            m_serverCertificate = serverCertificate;
-            m_serverCertificateChain = serverCertificateChain;
-            foreach (var description in m_descriptions)
+            m_serverCertProvider = certificateTypeProvider;
+
+            foreach (EndpointDescription description in m_descriptions)
             {
-                // check if complete chain should be sent.
-                if (m_serverCertificateChain != null &&
-                    m_serverCertificateChain.Count > 1)
-                {
-                    var byteServerCertificateChain = new List<byte>();
-
-                    for (int i = 0; i < m_serverCertificateChain.Count; i++)
-                    {
-                        byteServerCertificateChain.AddRange(m_serverCertificateChain[i].RawData);
-                    }
-
-                    description.ServerCertificate = byteServerCertificateChain.ToArray();
-                }
-                else if (description.ServerCertificate != null)
-                {
-                    description.ServerCertificate = serverCertificate.RawData;
-                }
+                ServerBase.SetServerCertificateInEndpointDescription(description,
+                    m_serverCertProvider.SendCertificateChain,
+                    certificateTypeProvider,
+                    false);
             }
 
             Start();
@@ -531,8 +530,7 @@ namespace Opc.Ua.Bindings
         private ITransportListenerCallback m_callback;
         private IWebHostBuilder m_hostBuilder;
         private IWebHost m_host;
-        private X509Certificate2 m_serverCertificate;
-        private X509Certificate2Collection m_serverCertificateChain;
+        private CertificateTypesProvider m_serverCertProvider;
         #endregion
     }
 }

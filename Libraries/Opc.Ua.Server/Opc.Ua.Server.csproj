@@ -21,11 +21,22 @@
     <DefineConstants>$(DefineConstants);SIGNASSEMBLY</DefineConstants>
   </PropertyGroup>
 
+  <!-- select ECC support -->
+  <Choose>
+    <When Condition="'$(TargetFramework)' == 'net462' OR '$(TargetFramework)' == 'netstandard2.0'">
+    </When>
+    <Otherwise>
+      <PropertyGroup>
+        <DefineConstants>$(DefineConstants);ECC_SUPPORT</DefineConstants>
+      </PropertyGroup>
+    </Otherwise>
+  </Choose>
+
   <ItemGroup>
     <ProjectReference Include="..\..\Stack\Opc.Ua.Core\Opc.Ua.Core.csproj" />
     <ProjectReference Include="..\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj" />
   </ItemGroup>
-  
+
   <Target Name="GetPackagingOutputs" />
   
 </Project>

@@ -85,9 +85,21 @@ namespace Opc.Ua.Core.Tests
                 m_trustedStore = null;
                 m_rejectedStore = null;
                 var path = Utils.ReplaceSpecialFolderNames(m_pkiRoot);
-                if (Directory.Exists(path))
+                int retries = 5;
+                while (retries-- > 0)
                 {
-                    Directory.Delete(path, true);
+                    try
+                    {
+                        if (Directory.Exists(path))
+                        {
+                            Directory.Delete(path, true);
+                        }
+                        retries = 0;
+                    }
+                    catch (IOException)
+                    {
+                        Thread.Sleep(1000);
+                    }
                 }
             }
         }
@@ -116,18 +128,18 @@ namespace Opc.Ua.Core.Tests
         {
             var certValidator = new CertificateValidator();
             var issuerTrustList = new CertificateTrustList {
-                StoreType = "Directory",
+                StoreType = CertificateStoreType.Directory,
                 StorePath = m_issuerStore.Directory.FullName
             };
             var trustedTrustList = new CertificateTrustList {
-                StoreType = "Directory",
+                StoreType = CertificateStoreType.Directory,
                 StorePath = m_trustedStore.Directory.FullName
             };
             CertificateStoreIdentifier rejectedList = null;
             if (m_rejectedStore != null)
             {
                 rejectedList = new CertificateStoreIdentifier {
-                    StoreType = "Directory",
+                    StoreType = CertificateStoreType.Directory,
                     StorePath = m_rejectedStore.Directory.FullName
                 };
             }

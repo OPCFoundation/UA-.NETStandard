@@ -8,11 +8,23 @@
     <GenerateProgramFile>false</GenerateProgramFile>
   </PropertyGroup>
 
+  <Choose>
+    <When Condition="'$(TargetFramework)' == 'net462'">
+    </When>
+    <When Condition="'$(TargetFramework)' == 'netcoreapp2.1'">
+    </When>
+    <Otherwise>
+      <PropertyGroup Condition="'$(DisableECCTests)' != 'true'">
+        <DefineConstants>$(DefineConstants);ECC_SUPPORT</DefineConstants>
+      </PropertyGroup>
+    </Otherwise>
+  </Choose>
+
   <ItemGroup>
-    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.0" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
-    <PackageReference Include="NUnit" Version="4.1.0" />
-    <PackageReference Include="NUnit.Console" Version="3.18.1" />
+    <PackageReference Include="NUnit" Version="4.2.2" />
+    <PackageReference Include="NUnit.Console" Version="3.18.3" />
     <PackageReference Include="BenchmarkDotNet.TestAdapter" Version="0.13.12" />
     <PackageReference Include="BenchmarkDotNet" Version="0.13.12" />
     <PackageReference Include="NUnit3TestAdapter" Version="4.6.0">
@@ -32,6 +44,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\Libraries\Opc.Ua.Client\Opc.Ua.Client.csproj" />
     <ProjectReference Include="..\..\Libraries\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj" />
+    <ProjectReference Include="..\Opc.Ua.Security.Certificates.Tests\Opc.Ua.Security.Certificates.Tests.csproj" />
     <ProjectReference Include="..\Opc.Ua.Server.Tests\Opc.Ua.Server.Tests.csproj" />
   </ItemGroup>
 
