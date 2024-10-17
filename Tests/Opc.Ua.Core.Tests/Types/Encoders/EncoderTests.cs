@@ -48,7 +48,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
     /// </summary>
     public class EncodingTypeGroup : IFormattable
     {
-        public EncodingTypeGroup(EncodingType encoderType, JsonEncodingType jsonEncodingType = JsonEncodingType.Reversible)
+        public EncodingTypeGroup(EncodingType encoderType, JsonEncodingType jsonEncodingType = JsonEncodingType.Reversible_Deprecated)
         {
             this.EncoderType = encoderType;
             this.JsonEncodingType = jsonEncodingType;
@@ -276,11 +276,11 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             {
                 Assert.Throws(
                     typeof(ServiceResultException),
-                    () => EncodeDataValue(EncodingType.Json, builtInType, MemoryStreamType.ArraySegmentStream, randomData, JsonEncodingType.NonReversible)
+                    () => EncodeDataValue(EncodingType.Json, builtInType, MemoryStreamType.ArraySegmentStream, randomData, JsonEncodingType.NonReversible_Deprecated)
                 );
                 return;
             }
-            string json = EncodeDataValue(EncodingType.Json, builtInType, MemoryStreamType.MemoryStream, randomData, JsonEncodingType.NonReversible);
+            string json = EncodeDataValue(EncodingType.Json, builtInType, MemoryStreamType.MemoryStream, randomData, JsonEncodingType.NonReversible_Deprecated);
             PrettifyAndValidateJson(json);
         }
 
@@ -321,7 +321,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         {
             SetRandomSeed(arrayLength);
             object randomData = DataGenerator.GetRandomArray(builtInType, useBoundaryValues, arrayLength, true);
-            string json = EncodeDataValue(EncodingType.Json, builtInType, MemoryStreamType.RecyclableMemoryStream, randomData, JsonEncodingType.NonReversible);
+            string json = EncodeDataValue(EncodingType.Json, builtInType, MemoryStreamType.RecyclableMemoryStream, randomData, JsonEncodingType.NonReversible_Deprecated);
             PrettifyAndValidateJson(json);
         }
 
@@ -336,7 +336,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             )
         {
             object randomData = DataGenerator.GetRandomArray(builtInType, false, 0, true);
-            string json = EncodeDataValue(EncodingType.Json, builtInType, MemoryStreamType.MemoryStream, randomData, JsonEncodingType.NonReversible);
+            string json = EncodeDataValue(EncodingType.Json, builtInType, MemoryStreamType.MemoryStream, randomData, JsonEncodingType.NonReversible_Deprecated);
             PrettifyAndValidateJson(json);
         }
 
@@ -586,7 +586,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             object expected = AdjustExpectedBoundaryValues(encoderType, builtInType, randomData);
 
             // strip the locale information from localized text for non reversible
-            if (builtInType == BuiltInType.LocalizedText && jsonEncodingType == JsonEncodingType.NonReversible)
+            if (builtInType == BuiltInType.LocalizedText && jsonEncodingType == JsonEncodingType.NonReversible_Deprecated)
             {
                 var localizedTextCollection = new LocalizedTextCollection(randomData.Length);
                 foreach (var entry in randomData)
@@ -713,7 +713,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             object expected = AdjustExpectedBoundaryValues(encoderType, builtInType, matrix);
 
             // strip the locale information from localized text for non reversible
-            if (builtInType == BuiltInType.LocalizedText && jsonEncodingType == JsonEncodingType.NonReversible)
+            if (builtInType == BuiltInType.LocalizedText && jsonEncodingType == JsonEncodingType.NonReversible_Deprecated)
             {
                 var localizedTextCollection = new LocalizedTextCollection(randomData.Length);
                 foreach (var entry in matrix.Elements)
@@ -784,7 +784,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             {
                 using (IEncoder encoder = CreateEncoder(encoderType, Context, encoderStream, typeof(DataValue), jsonEncodingType))
                 {
-                    if (encoderType == EncodingType.Json && jsonEncodingType == JsonEncodingType.NonReversible)
+                    if (encoderType == EncodingType.Json && jsonEncodingType == JsonEncodingType.NonReversible_Deprecated)
                     {
                         var sre = Assert.Throws<ServiceResultException>(() => encoder.WriteDataValue("DataValue", expected));
                         Assert.AreEqual(StatusCodes.BadEncodingLimitsExceeded, sre.StatusCode);
@@ -860,7 +860,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             {
                 using (IEncoder encoder = CreateEncoder(encoderType, Context, encoderStream, typeof(DataValue), jsonEncodingType))
                 {
-                    if (encoderType == EncodingType.Json && jsonEncodingType == JsonEncodingType.NonReversible)
+                    if (encoderType == EncodingType.Json && jsonEncodingType == JsonEncodingType.NonReversible_Deprecated)
                     {
                         var sre = Assert.Throws<ServiceResultException>(() => encoder.WriteDataValue("DataValue", expected));
                         Assert.AreEqual(StatusCodes.BadEncodingLimitsExceeded, sre.StatusCode);
