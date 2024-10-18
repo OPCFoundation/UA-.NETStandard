@@ -122,9 +122,6 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             writerGroup.KeepAliveTime = 5000;
             writerGroup.MaxNetworkMessageSize = 1500;
 
-            writerGroup.MessageSettings = new ExtensionObject(new WriterGroupMessageDataType());
-            writerGroup.TransportSettings = new ExtensionObject(new WriterGroupTransportDataType());
-
             return writerGroup;
         }
 
@@ -888,8 +885,6 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             readerGroup1.Name = "ReaderGroup 1";
             readerGroup1.Enabled = true;
             readerGroup1.MaxNetworkMessageSize = 1500;
-            readerGroup1.MessageSettings = new ExtensionObject(new ReaderGroupMessageDataType());
-            readerGroup1.TransportSettings = new ExtensionObject(new ReaderGroupTransportDataType());
             #endregion
 
             for (ushort dataSetWriterId = 1; dataSetWriterId <= dataSetMetaDataArray.Length; dataSetWriterId++)
@@ -921,7 +916,6 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                             NetworkMessageContentMask = (uint)networkMessageContentMask,
                             DataSetMessageContentMask = (uint)dataSetMessageContentMask,
                         };
-                        dataSetReaderTransportSettings = new DataSetReaderTransportDataType();
                         break;
                     case Profiles.PubSubMqttUadpTransport:
                         dataSetReaderMessageSettings = new UadpDataSetReaderMessageDataType() {

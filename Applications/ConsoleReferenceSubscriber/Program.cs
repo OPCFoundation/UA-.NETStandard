@@ -326,8 +326,6 @@ namespace Quickstarts.ConsoleReferenceSubscriber
             readerGroup1.Name = "ReaderGroup 1";
             readerGroup1.Enabled = true;
             readerGroup1.MaxNetworkMessageSize = 1500;
-            readerGroup1.MessageSettings = new ExtensionObject(new ReaderGroupMessageDataType());
-            readerGroup1.TransportSettings = new ExtensionObject(new ReaderGroupTransportDataType());
 
             #region Define DataSetReader 'Simple' for PublisherId = (UInt16)1, DataSetWriterId = 1
             DataSetReaderDataType dataSetReaderSimple = new DataSetReaderDataType();
@@ -338,7 +336,6 @@ namespace Quickstarts.ConsoleReferenceSubscriber
             dataSetReaderSimple.Enabled = true;
             dataSetReaderSimple.DataSetFieldContentMask = (uint)DataSetFieldContentMask.RawData;
             dataSetReaderSimple.KeyFrameCount = 1;
-            dataSetReaderSimple.TransportSettings = new ExtensionObject(new DataSetReaderTransportDataType());
 
             UadpDataSetReaderMessageDataType uadpDataSetReaderMessage = new UadpDataSetReaderMessageDataType() {
                 GroupVersion = 0,
@@ -385,7 +382,6 @@ namespace Quickstarts.ConsoleReferenceSubscriber
             dataSetReaderAllTypes.Enabled = true;
             dataSetReaderAllTypes.DataSetFieldContentMask = (uint)DataSetFieldContentMask.RawData;
             dataSetReaderAllTypes.KeyFrameCount = 1;
-            dataSetReaderAllTypes.TransportSettings = new ExtensionObject(new DataSetReaderTransportDataType());
 
             uadpDataSetReaderMessage = new UadpDataSetReaderMessageDataType() {
                 GroupVersion = 0,
@@ -468,8 +464,6 @@ namespace Quickstarts.ConsoleReferenceSubscriber
             readerGroup1.Name = "ReaderGroup 1";
             readerGroup1.Enabled = true;
             readerGroup1.MaxNetworkMessageSize = 1500;
-            readerGroup1.MessageSettings = new ExtensionObject(new ReaderGroupMessageDataType());
-            readerGroup1.TransportSettings = new ExtensionObject(new ReaderGroupTransportDataType());
 
             #region Define DataSetReader1 'Simple' for PublisherId = (UInt16)2, DataSetWriterId = 1
 
@@ -625,8 +619,6 @@ namespace Quickstarts.ConsoleReferenceSubscriber
             readerGroup1.Name = "ReaderGroup 1";
             readerGroup1.Enabled = true;
             readerGroup1.MaxNetworkMessageSize = 1500;
-            readerGroup1.MessageSettings = new ExtensionObject(new ReaderGroupMessageDataType());
-            readerGroup1.TransportSettings = new ExtensionObject(new ReaderGroupTransportDataType());
 
             #region Define DataSetReader 'Simple' for PublisherId = (UInt16)1, DataSetWriterId = 1
             DataSetReaderDataType dataSetReaderSimple = new DataSetReaderDataType();
