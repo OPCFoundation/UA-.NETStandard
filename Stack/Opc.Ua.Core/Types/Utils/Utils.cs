@@ -1265,10 +1265,37 @@ namespace Opc.Ua
         /// </summary>
         public static string EscapeUri(string uri)
         {
-            if (!String.IsNullOrWhiteSpace(uri))
+            if (!string.IsNullOrWhiteSpace(uri))
             {
-                var builder = new UriBuilder(uri.Replace(";", "%3b"));
-                return builder.Uri.AbsoluteUri;
+                // back compat: for not well formed Uri, fall back to legacy formatting behavior - see #2793
+                if (!Uri.IsWellFormedUriString(uri, UriKind.Absolute) ||
+                    !Uri.TryCreate(uri.Replace(";", "%3b"), UriKind.Absolute, out Uri validUri))
+                {
+                    var buffer = new StringBuilder();
+                    foreach (char ch in uri)
+                    {
+                        switch (ch)
+                        {
+                            case ';':
+                            case '%':
+                            {
+                                buffer.AppendFormat(CultureInfo.InvariantCulture, "%{0:X2}", Convert.ToInt16(ch));
+                                break;
+                            }
+
+                            default:
+                            {
+                                buffer.Append(ch);
+                                break;
+                            }
+                        }
+                    }
+                    return buffer.ToString();
+                }
+                else
+                {
+                    return validUri.AbsoluteUri;
+                }
             }
 
             return String.Empty;
@@ -2850,6 +2877,39 @@ namespace Opc.Ua
             return certificateChain;
         }
 
+
+        /// <summary>
+        /// Creates a DER blob from a X509Certificate2Collection.
+        /// </summary>
+        /// <param name="certificates">The certificates to be returned as raw data.</param>
+        /// <returns>
+        /// A DER blob containing zero or more certificates.
+        /// </returns>
+        public static byte[] CreateCertificateChainBlob(X509Certificate2Collection certificates)
+        {
+            if (certificates == null || certificates.Count == 0)
+            {
+                return Array.Empty<byte>();
+            }
+
+            int totalSize = 0;
+
+            foreach (X509Certificate2 cert in certificates)
+            {
+                totalSize += cert.RawData.Length;
+            }
+
+            byte[] blobData = new byte[totalSize];
+            int offset = 0;
+
+            foreach (X509Certificate2 cert in certificates)
+            {
+                Array.Copy(cert.RawData, 0, blobData, offset, cert.RawData.Length);
+                offset += cert.RawData.Length;
+            }
+
+            return blobData;
+        }
         /// <summary>
         /// Compare Nonce for equality.
         /// </summary>

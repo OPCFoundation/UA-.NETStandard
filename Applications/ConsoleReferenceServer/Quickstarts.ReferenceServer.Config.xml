@@ -14,7 +14,7 @@
     <!-- Where the application instance certificate is stored (MachineDefault) -->
     <ApplicationCertificate>
       <StoreType>Directory</StoreType>
-      <StorePath>%LocalApplicationData%/OPC Foundation/pki/own</StorePath>
+      <StorePath>%LocalApplicationData%/OPC Foundation/pki/own</StorePath>      
       <SubjectName>CN=Quickstart Reference Server, C=US, S=Arizona, O=OPC Foundation, DC=localhost</SubjectName>
     </ApplicationCertificate>
 
@@ -77,6 +77,7 @@
     <BaseAddresses>
       <ua:String>opc.https://localhost:62540/Quickstarts/ReferenceServer</ua:String>
       <ua:String>opc.tcp://localhost:62541/Quickstarts/ReferenceServer</ua:String>
+      <!--<ua:String>https://localhost:62542/Quickstarts/ReferenceServer</ua:String>-->
     </BaseAddresses>
     <!-- 
     These list the alternate addresses (via firewalls, multiple NICs etc.) that can be

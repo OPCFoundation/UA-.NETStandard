@@ -254,18 +254,6 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Gets or sets the server certificate chain.
-        /// </summary>
-        /// <value>
-        /// The server certificate chain.
-        /// </value>
-        public byte[] ServerCertificateChain
-        {
-            get { return m_serverCertificateChain; }
-            set { m_serverCertificateChain = value; }
-        }
-
-        /// <summary>
         /// The client Nonce associated with the session.
         /// </summary>
         public byte[] ClientNonce
@@ -1138,7 +1126,6 @@ namespace Opc.Ua.Server
         private string m_secureChannelId;
         private EndpointDescription m_endpoint;
         private X509Certificate2 m_serverCertificate;
-        private byte[] m_serverCertificateChain;
 
         private string[] m_localeIds;
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1823:AvoidUnusedPrivateFields")]
