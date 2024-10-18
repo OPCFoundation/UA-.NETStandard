@@ -61,7 +61,8 @@ namespace MemoryBuffer
             double samplingInterval,
             uint queueSize,
             bool discardOldest,
-            double minimumSamplingInterval)
+            double minimumSamplingInterval,
+            bool createDurable)
         :
             base(
                 server,
@@ -80,7 +81,8 @@ namespace MemoryBuffer
                 samplingInterval,
                 queueSize,
                 discardOldest,
-                minimumSamplingInterval)
+                minimumSamplingInterval,
+                createDurable)
         {
             m_offset = offset;
         }

@@ -283,6 +283,7 @@ namespace Opc.Ua.Server
             IList<ServiceResult> errors,
             IList<MonitoringFilterResult> filterErrors,
             IList<IMonitoredItem> monitoredItems,
+            bool createDurable,
             ref long globalIdCounter);
 
         /// <summary>

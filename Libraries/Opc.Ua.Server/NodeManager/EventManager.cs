@@ -44,13 +44,14 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Creates a new instance of a sampling group.
         /// </summary>
-        public EventManager(IServerInternal server, uint maxQueueSize)
+        public EventManager(IServerInternal server, uint maxQueueSize, uint maxDurableQueueSize)
         {
             if (server == null) throw new ArgumentNullException(nameof(server));
 
             m_server = server;
-            m_monitoredItems = new Dictionary<uint,IEventMonitoredItem>();
+            m_monitoredItems = new Dictionary<uint, IEventMonitoredItem>();
             m_maxEventQueueSize = maxQueueSize;
+            m_maxDurableEventQueueSize = maxDurableQueueSize;
         }
         #endregion
 
@@ -105,14 +106,14 @@ namespace Opc.Ua.Server
         /// </summary>
         [Obsolete("Replaced by variant that includes the publishingInterval")]
         public MonitoredItem CreateMonitoredItem(
-            OperationContext           context,
-            INodeManager               nodeManager,
-            object                     handle,
-            uint                       subscriptionId,
-            uint                       monitoredItemId,
-            TimestampsToReturn         timestampsToReturn,
+            OperationContext context,
+            INodeManager nodeManager,
+            object handle,
+            uint subscriptionId,
+            uint monitoredItemId,
+            TimestampsToReturn timestampsToReturn,
             MonitoredItemCreateRequest itemToCreate,
-            EventFilter                filter)
+            EventFilter filter)
         {
             return CreateMonitoredItem(
                 context,
@@ -123,22 +124,24 @@ namespace Opc.Ua.Server
                 timestampsToReturn,
                 0,
                 itemToCreate,
-                filter);
+                filter,
+                false);
         }
 
         /// <summary>
         /// Creates a set of monitored items.
         /// </summary>
         public MonitoredItem CreateMonitoredItem(
-            OperationContext           context,
-            INodeManager               nodeManager,
-            object                     handle,
-            uint                       subscriptionId,
-            uint                       monitoredItemId,
-            TimestampsToReturn         timestampsToReturn,
-            double                     publishingInterval,
+            OperationContext context,
+            INodeManager nodeManager,
+            object handle,
+            uint subscriptionId,
+            uint monitoredItemId,
+            TimestampsToReturn timestampsToReturn,
+            double publishingInterval,
             MonitoredItemCreateRequest itemToCreate,
-            EventFilter                filter)
+            EventFilter filter,
+            bool createDurable)
         {
             lock (m_lock)
             {
@@ -151,12 +154,7 @@ namespace Opc.Ua.Server
                 }
 
                 // limit the queue size.
-                uint queueSize = itemToCreate.RequestedParameters.QueueSize;
-
-                if (queueSize > m_maxEventQueueSize)
-                {
-                    queueSize = m_maxEventQueueSize;
-                }
+                uint revisedQueueSize = CalculateRevisedQueueSize(createDurable, itemToCreate.RequestedParameters.QueueSize);
 
                 // create the monitored item.
                 MonitoredItem monitoredItem = new MonitoredItem(
@@ -174,9 +172,10 @@ namespace Opc.Ua.Server
                     filter,
                     null,
                     samplingInterval,
-                    queueSize,
+                    revisedQueueSize,
                     itemToCreate.RequestedParameters.DiscardOldest,
-                    MinimumSamplingIntervals.Continuous);
+                    MinimumSamplingIntervals.Continuous,
+                    createDurable);
 
                 // save the monitored item.
                 m_monitoredItems.Add(monitoredItemId, monitoredItem);
@@ -185,15 +184,31 @@ namespace Opc.Ua.Server
             }
         }
 
+        //calculates a revised queue size based on the application confiugration limits
+        private uint CalculateRevisedQueueSize(bool isDurable, uint queueSize)
+        {
+            if (queueSize > m_maxEventQueueSize && !isDurable)
+            {
+                queueSize = m_maxEventQueueSize;
+            }
+
+            if (queueSize > m_maxDurableEventQueueSize && isDurable)
+            {
+                queueSize = m_maxDurableEventQueueSize;
+            }
+
+            return queueSize;
+        }
+
         /// <summary>
         /// Modifies a monitored item.
         /// </summary>
         public void ModifyMonitoredItem(
-            OperationContext           context,
-            IEventMonitoredItem        monitoredItem,
-            TimestampsToReturn         timestampsToReturn,
+            OperationContext context,
+            IEventMonitoredItem monitoredItem,
+            TimestampsToReturn timestampsToReturn,
             MonitoredItemModifyRequest itemToModify,
-            EventFilter                filter)
+            EventFilter filter)
         {
             lock (m_lock)
             {
@@ -203,13 +218,9 @@ namespace Opc.Ua.Server
                     return;
                 }
 
-                // limit the queue size.
-                uint queueSize = itemToModify.RequestedParameters.QueueSize;
 
-                if (queueSize > m_maxEventQueueSize)
-                {
-                    queueSize = m_maxEventQueueSize;
-                }
+                // limit the queue size.
+                uint revisedQueueSize = CalculateRevisedQueueSize(monitoredItem.IsDurable, itemToModify.RequestedParameters.QueueSize);
 
                 // modify the attributes.
                 monitoredItem.ModifyAttributes(
@@ -220,7 +231,7 @@ namespace Opc.Ua.Server
                     filter,
                     null,
                     itemToModify.RequestedParameters.SamplingInterval,
-                    queueSize,
+                    revisedQueueSize,
                     itemToModify.RequestedParameters.DiscardOldest);
             }
         }
@@ -253,6 +264,7 @@ namespace Opc.Ua.Server
         private IServerInternal m_server;
         private Dictionary<uint, IEventMonitoredItem> m_monitoredItems;
         private uint m_maxEventQueueSize;
+        private uint m_maxDurableEventQueueSize;
         #endregion
     }
 }

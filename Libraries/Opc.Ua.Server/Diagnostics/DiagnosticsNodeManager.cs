@@ -66,6 +66,7 @@ namespace Opc.Ua.Server
             m_doScanBusy = false;
             m_sampledItems = new List<MonitoredItem>();
             m_minimumSamplingInterval = 100;
+            m_durableSubscriptionsEnabled = configuration.ServerConfiguration?.DurableSubscriptionsEnabled ?? false;
         }
         #endregion
 
@@ -173,36 +174,38 @@ namespace Opc.Ua.Server
                     }
                 }
 
-#if SUPPORT_DURABLE_SUBSCRIPTION
-                // hook up the server SetSubscriptionDurable method.
-                SetSubscriptionDurableMethodState setSubscriptionDurable= (SetSubscriptionDurableMethodState)FindPredefinedNode(
-                    MethodIds.Server_SetSubscriptionDurable,
-                    typeof(SetSubscriptionDurableMethodState));
-
-                if (setSubscriptionDurable != null)
+                if (m_durableSubscriptionsEnabled)
                 {
-                    setSubscriptionDurable.OnCall = OnSetSubscriptionDurable;
-                }
-#else
-                // Subscription Durable mode not supported by the server.
-                ServerObjectState serverObject = (ServerObjectState)FindPredefinedNode(
-                    ObjectIds.Server,
-                    typeof(ServerObjectState));
+                    // hook up the server SetSubscriptionDurable method.
+                    SetSubscriptionDurableMethodState setSubscriptionDurable = (SetSubscriptionDurableMethodState)FindPredefinedNode(
+                        MethodIds.Server_SetSubscriptionDurable,
+                        typeof(SetSubscriptionDurableMethodState));
 
-                if (serverObject != null)
-                {
-                    NodeState setSubscriptionDurableNode = serverObject.FindChild(
-                        SystemContext,
-                        BrowseNames.SetSubscriptionDurable);
-
-                    if (setSubscriptionDurableNode != null)
+                    if (setSubscriptionDurable != null)
                     {
-                        DeleteNode(SystemContext, MethodIds.Server_SetSubscriptionDurable);
-                        serverObject.SetSubscriptionDurable = null;
+                        setSubscriptionDurable.OnCall = OnSetSubscriptionDurable;
                     }
                 }
-#endif
+                else
+                {
+                    // Subscription Durable mode not supported by the server.
+                    ServerObjectState serverObject = (ServerObjectState)FindPredefinedNode(
+                        ObjectIds.Server,
+                        typeof(ServerObjectState));
 
+                    if (serverObject != null)
+                    {
+                        NodeState setSubscriptionDurableNode = serverObject.FindChild(
+                            SystemContext,
+                            BrowseNames.SetSubscriptionDurable);
+
+                        if (setSubscriptionDurableNode != null)
+                        {
+                            DeleteNode(SystemContext, MethodIds.Server_SetSubscriptionDurable);
+                            serverObject.SetSubscriptionDurable = null;
+                        }
+                    }
+                }
                 // hookup server ResendData method.
 
                 ResendDataMethodState resendData = (ResendDataMethodState)FindPredefinedNode(
@@ -228,26 +231,7 @@ namespace Opc.Ua.Server
             uint lifetimeInHours,
             ref uint revisedLifetimeInHours)
         {
-            revisedLifetimeInHours = 0;
-
-            foreach (Subscription subscription in Server.SubscriptionManager.GetSubscriptions())
-            {
-                if (subscription.Id == subscriptionId)
-                {
-                    if (subscription.SessionId != context.SessionId)
-                    {
-                        // user tries to access subscription of different session
-                        return StatusCodes.BadUserAccessDenied;
-                    }
-
-                    ServiceResult result = subscription.SetSubscriptionDurable(lifetimeInHours, out uint revisedLifeTimeHours);
-
-                    revisedLifetimeInHours = revisedLifeTimeHours;
-                    return result;
-                }
-            }
-
-            return StatusCodes.BadSubscriptionIdInvalid;
+            return Server.SubscriptionManager.SetSubscriptionDurable(context, subscriptionId, lifetimeInHours, out revisedLifetimeInHours);
         }
 
         /// <summary>
@@ -2137,6 +2121,7 @@ namespace Opc.Ua.Server
         private int m_diagnosticsMonitoringCount;
         private bool m_diagnosticsEnabled;
         private bool m_doScanBusy;
+        private bool m_durableSubscriptionsEnabled;
         private DateTime m_lastDiagnosticsScanTime;
         private ServerDiagnosticsSummaryValue m_serverDiagnostics;
         private NodeValueSimpleEventHandler m_serverDiagnosticsCallback;
