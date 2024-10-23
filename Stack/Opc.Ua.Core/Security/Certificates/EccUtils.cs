@@ -1168,7 +1168,7 @@ namespace Opc.Ua
 
             return secret;
         }
-
+#else
         /// <summary>
         /// Verifies a ECDsa signature.
         /// </summary>
@@ -1338,7 +1338,7 @@ namespace Opc.Ua
             string[] securityPolicyUris;
             return GetPublicKey(certificate, out securityPolicyUris);
         }
-#endif
+
         /// <summary>
         /// Returns the hash algorithm for the specified security policy.
         /// </summary>
@@ -1374,5 +1374,7 @@ namespace Opc.Ua
                 }
             }
         }
+
+#endif
     }
 }
