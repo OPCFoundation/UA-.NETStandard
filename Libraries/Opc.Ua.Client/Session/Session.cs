@@ -1686,19 +1686,19 @@ namespace Opc.Ua.Client
                     }
                     property.SetValue(operationLimits, value);
                 }
-
                 OperationLimits = operationLimits;
-                if (values[maxBrowseContinuationPointIndex] != null
-                    && ServiceResult.IsNotBad(errors[maxBrowseContinuationPointIndex]))
+
+                if (values[maxBrowseContinuationPointIndex].Value is UInt16 serverMaxContinuationPointsPerBrowse &&
+                    ServiceResult.IsNotBad(errors[maxBrowseContinuationPointIndex]))
                 {
-                    ServerMaxContinuationPointsPerBrowse = (UInt16)values[maxBrowseContinuationPointIndex];
-                }
-                if (values[maxByteStringLengthIndex] != null
-                    && ServiceResult.IsNotBad(errors[maxByteStringLengthIndex]))
-                {
-                    ServerMaxByteStringLength = (UInt32)values[maxByteStringLengthIndex];
+                    ServerMaxContinuationPointsPerBrowse = serverMaxContinuationPointsPerBrowse;
                 }
 
+                if (values[maxByteStringLengthIndex].Value is UInt32 serverMaxByteStringLength &&
+                    ServiceResult.IsNotBad(errors[maxByteStringLengthIndex]))
+                {
+                    ServerMaxByteStringLength = serverMaxByteStringLength;
+                }
             }
             catch (Exception ex)
             {
