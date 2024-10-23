@@ -299,7 +299,7 @@ namespace Opc.Ua.Server
 
                         if (ServiceResult.IsBad(validationResult))
                         {
-                            // skip reading the value MonitoredItem without permissions
+                            // skip if the monitored item does not have permission to read
                             continue;
                         }
 
