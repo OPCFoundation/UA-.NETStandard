@@ -136,6 +136,7 @@ namespace Opc.Ua.Client
             m_keepAliveInterval = template.KeepAliveInterval;
             m_checkDomain = template.m_checkDomain;
             m_continuationPointPolicy = template.m_continuationPointPolicy;
+            ReturnDiagnostics = template.ReturnDiagnostics;
             if (template.OperationTimeout > 0)
             {
                 OperationTimeout = template.OperationTimeout;
