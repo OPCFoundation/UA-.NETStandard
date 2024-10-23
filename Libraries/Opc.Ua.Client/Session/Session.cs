@@ -6539,6 +6539,7 @@ namespace Opc.Ua.Client
             {
                 foreach (var ii in parameters.Parameters)
                 {
+#if ECC_SUPPORT
                     if (ii.Key == "ECDHKey")
                     {
                         if (ii.Value.TypeInfo == TypeInfo.Scalars.StatusCode)
@@ -6566,10 +6567,11 @@ namespace Opc.Ua.Client
 
                         m_eccServerEphemeralKey = Nonce.CreateNonce(m_userTokenSecurityPolicyUri, key.PublicKey);
                     }
+#endif
                 }
             }
         }
-        #endregion
+#endregion
 
         #region Protected Fields
         /// <summary>
