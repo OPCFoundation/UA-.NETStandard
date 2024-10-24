@@ -3148,7 +3148,7 @@ namespace Opc.Ua
             }
             return false;
         }
-
+#if ECC_SUPPORT
         /// <summary>
         /// Check if known curve is supported by platform
         /// </summary>
@@ -3182,6 +3182,7 @@ namespace Opc.Ua
             { ECCurve.NamedCurves.brainpoolP256r1.Oid.FriendlyName, new Lazy<bool>(() => IsCurveSupported(ECCurve.NamedCurves.brainpoolP256r1)) },
             { ECCurve.NamedCurves.brainpoolP384r1.Oid.FriendlyName, new Lazy<bool>(() => IsCurveSupported(ECCurve.NamedCurves.brainpoolP384r1)) },
         };
+#endif
 
         /// <summary>
         /// Lazy helper to allow runtime check for Mono.
@@ -3198,6 +3199,6 @@ namespace Opc.Ua
         {
             return s_isRunningOnMonoValue.Value;
         }
-        #endregion
+#endregion
     }
 }

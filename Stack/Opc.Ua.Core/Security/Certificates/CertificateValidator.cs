@@ -1776,6 +1776,7 @@ namespace Opc.Ua
         /// </summary>
         private static readonly Dictionary<string, int> NamedCurveBitSizes = new Dictionary<string, int>
         {
+#if ECC_SUPPORT
             // NIST Curves
             { ECCurve.NamedCurves.nistP256.Oid.Value ?? "1.2.840.10045.3.1.7", 256 },    // NIST P-256
             { ECCurve.NamedCurves.nistP384.Oid.Value ?? "1.3.132.0.34"       , 384 },    // NIST P-384
@@ -1784,6 +1785,7 @@ namespace Opc.Ua
             // Brainpool Curves
             { ECCurve.NamedCurves.brainpoolP256r1.Oid.Value ?? "1.3.36.3.3.2.8.1.1.7", 256 },  // BrainpoolP256r1
             { ECCurve.NamedCurves.brainpoolP384r1.Oid.Value ?? "1.3.36.3.3.2.8.1.1.11", 384 },  // BrainpoolP384r1
+#endif
         };
 
         /// <summary>
@@ -1844,7 +1846,7 @@ namespace Opc.Ua
             }
             return domainFound;
         }
-
+#if ECC_SUPPORT
         /// <summary>
         /// Returns if the certificate is secure enough for the profile.
         /// </summary>
@@ -1883,7 +1885,8 @@ namespace Opc.Ua
                 }
             }
         }
-        #endregion
+#endif
+#endregion
 
         #region Private Enum
         /// <summary>

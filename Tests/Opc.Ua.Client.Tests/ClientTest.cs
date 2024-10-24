@@ -1673,7 +1673,7 @@ namespace Opc.Ua.Client.Tests
                 Assert.NotNull(value1);
             }
         }
-
+#if ECC_SUPPORT
         /// <summary>
         /// Open a session on a channel using ECC encrypted UserCertificateIdentityToken
         /// </summary>
@@ -1732,7 +1732,8 @@ namespace Opc.Ua.Client.Tests
                 }
             }
         }
-        #endregion
+#endif
+#endregion
 
         #region Benchmarks
         /// <summary>

@@ -1339,7 +1339,7 @@ namespace Opc.Ua
             return GetPublicKey(certificate, out securityPolicyUris);
         }
 
-            /// <summary>
+        /// <summary>
         /// Returns the hash algorithm for the specified security policy.
         /// </summary>
         /// <param name="securityPolicyUri"></param>
@@ -1374,7 +1374,7 @@ namespace Opc.Ua
                 }
             }
         }
-    
+
 #endif
     }
 }

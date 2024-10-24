@@ -194,10 +194,12 @@ namespace Opc.Ua
 
             switch (securityPolicyUri)
             {
+#if ECC_SUPPORT
                 case SecurityPolicies.ECC_nistP256: { return CreateNonce(ECCurve.NamedCurves.nistP256); }
                 case SecurityPolicies.ECC_nistP384: { return CreateNonce(ECCurve.NamedCurves.nistP384); }
                 case SecurityPolicies.ECC_brainpoolP256r1: { return CreateNonce(ECCurve.NamedCurves.brainpoolP256r1); }
                 case SecurityPolicies.ECC_brainpoolP384r1: { return CreateNonce(ECCurve.NamedCurves.brainpoolP384r1); }
+#endif
 #if CURVE25519
                 case SecurityPolicies.ECC_curve25519:
                 {
@@ -245,11 +247,12 @@ namespace Opc.Ua
 
             switch (securityPolicyUri)
             {
+#if ECC_SUPPORT
                 case SecurityPolicies.ECC_nistP256: { return CreateNonce(ECCurve.NamedCurves.nistP256, nonceData); }
                 case SecurityPolicies.ECC_nistP384: { return CreateNonce(ECCurve.NamedCurves.nistP384, nonceData); }
                 case SecurityPolicies.ECC_brainpoolP256r1: { return CreateNonce(ECCurve.NamedCurves.brainpoolP256r1, nonceData); }
                 case SecurityPolicies.ECC_brainpoolP384r1: { return CreateNonce(ECCurve.NamedCurves.brainpoolP384r1, nonceData); }
-
+#endif
                 case SecurityPolicies.ECC_curve25519:
                 {
                     return CreateNonceForCurve25519(nonceData);
@@ -268,7 +271,7 @@ namespace Opc.Ua
 
             return nonce;
         }
-        #endregion
+#endregion
 
         #region Utility Methods
 
@@ -422,7 +425,7 @@ namespace Opc.Ua
 
             return nonce;
         }
-
+#if ECC_SUPPORT
         /// <summary>
         /// Creates a new Nonce instance with the specified ECC curve and nonce data.
         /// </summary>
@@ -431,7 +434,7 @@ namespace Opc.Ua
         /// <returns>A new Nonce instance with the specified curve and nonce data.</returns>
         private static Nonce CreateNonce(ECCurve curve, byte[] nonceData)
         {
-#if ECC_SUPPORT
+
             Nonce nonce = new Nonce() {
                 Data = nonceData
             };
@@ -464,9 +467,6 @@ namespace Opc.Ua
             }
 
             return nonce;
-#else
-            throw new NotSupportedException("Platform does not support ECC curves");
-#endif
         }
 
         /// <summary>
@@ -476,7 +476,7 @@ namespace Opc.Ua
         /// <returns>A new Nonce instance.</returns>
         private static Nonce CreateNonce(ECCurve curve)
         {
-#if ECC_SUPPORT
+
             var ecdh = (ECDiffieHellman)ECDiffieHellman.Create(curve);
             var ecdhParameters = ecdh.ExportParameters(false);
             int xLen = ecdhParameters.Q.X.Length;
@@ -492,12 +492,8 @@ namespace Opc.Ua
             };
 
             return nonce;
-
-#else
-            throw new NotSupportedException("Platform does not support ECC curves");
-#endif
         }
-
+#endif
 
 
         /// <summary>
@@ -578,9 +574,10 @@ namespace Opc.Ua
         /// <param name="context"></param>
         protected Nonce(SerializationInfo info, StreamingContext context)
         {
+#if ECC_SUPPORT
             var curveName = info.GetString("CurveName");
 
-#if ECC_SUPPORT
+
             if (curveName != null)
             {
                 var ecParams = new ECParameters {
