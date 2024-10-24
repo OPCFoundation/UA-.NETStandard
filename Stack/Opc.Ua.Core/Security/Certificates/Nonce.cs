@@ -574,9 +574,10 @@ namespace Opc.Ua
         /// <param name="context"></param>
         protected Nonce(SerializationInfo info, StreamingContext context)
         {
+#if ECC_SUPPORT
             var curveName = info.GetString("CurveName");
 
-#if ECC_SUPPORT
+
             if (curveName != null)
             {
                 var ecParams = new ECParameters {
