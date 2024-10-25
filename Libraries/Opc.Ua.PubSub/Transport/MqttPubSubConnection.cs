@@ -717,6 +717,17 @@ namespace Opc.Ua.PubSub.Transport
                 return null;
             }
 
+            // Setup data needed also in mqttClientOptionsBuilder
+            if ((connectionUri.Scheme == Utils.UriSchemeMqtt) || (connectionUri.Scheme == Utils.UriSchemeMqtts))
+            {
+                if (!String.IsNullOrEmpty(connectionUri.Host))
+                {
+                    m_brokerHostName = connectionUri.Host;
+                    m_brokerPort = (connectionUri.Port > 0) ? connectionUri.Port : ((connectionUri.Scheme == Utils.UriSchemeMqtt) ? 1883 : 8883);
+                    m_urlScheme = connectionUri.Scheme;
+                }
+            }
+
             ITransportProtocolConfiguration transportProtocolConfiguration =
                 new MqttClientProtocolConfiguration(PubSubConnectionConfiguration.ConnectionProperties);
 
@@ -728,6 +739,7 @@ namespace Opc.Ua.PubSub.Transport
                     .ProtocolVersion;
                 // create uniques client id
                 string clientId = $"ClientId_{new Random().Next():D10}";
+
                 // MQTTS mqttConnection.
                 if (connectionUri.Scheme == Utils.UriSchemeMqtts)
                 {
@@ -794,6 +806,8 @@ namespace Opc.Ua.PubSub.Transport
                     // Set user credentials.
                     if (mqttProtocolConfiguration.UseCredentials)
                     {
+                        // Following Password usage in both cases is correct since it is the Password position
+                        // to be taken into account for the UserName to be read properly
                         mqttClientOptionsBuilder.WithCredentials(
                             new System.Net.NetworkCredential(string.Empty, mqttProtocolConfiguration.UserName)
                                 .Password,
