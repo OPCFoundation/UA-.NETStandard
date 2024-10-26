@@ -206,7 +206,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public abstract partial class Union : IEncodeable, IJsonEncodeable
+    public partial class Union : IEncodeable, IJsonEncodeable
     {
         #region Constructors
         /// <remarks />
@@ -1560,7 +1560,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public abstract partial class Vector : IEncodeable, IJsonEncodeable
+    public partial class Vector : IEncodeable, IJsonEncodeable
     {
         #region Constructors
         /// <remarks />
@@ -1831,7 +1831,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_x, value.m_x)) return false;
             if (!Utils.IsEqual(m_y, value.m_y)) return false;
             if (!Utils.IsEqual(m_z, value.m_z)) return false;
@@ -1938,7 +1937,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public abstract partial class CartesianCoordinates : IEncodeable, IJsonEncodeable
+    public partial class CartesianCoordinates : IEncodeable, IJsonEncodeable
     {
         #region Constructors
         /// <remarks />
@@ -2209,7 +2208,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_x, value.m_x)) return false;
             if (!Utils.IsEqual(m_y, value.m_y)) return false;
             if (!Utils.IsEqual(m_z, value.m_z)) return false;
@@ -2316,7 +2314,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public abstract partial class Orientation : IEncodeable, IJsonEncodeable
+    public partial class Orientation : IEncodeable, IJsonEncodeable
     {
         #region Constructors
         /// <remarks />
@@ -2587,7 +2585,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_a, value.m_a)) return false;
             if (!Utils.IsEqual(m_b, value.m_b)) return false;
             if (!Utils.IsEqual(m_c, value.m_c)) return false;
@@ -2694,7 +2691,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public abstract partial class Frame : IEncodeable, IJsonEncodeable
+    public partial class Frame : IEncodeable, IJsonEncodeable
     {
         #region Constructors
         /// <remarks />
@@ -2978,7 +2975,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_cartesianCoordinates, value.m_cartesianCoordinates)) return false;
             if (!Utils.IsEqual(m_orientation, value.m_orientation)) return false;
 
@@ -4946,7 +4942,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public abstract partial class BaseConfigurationDataType : IEncodeable, IJsonEncodeable
+    public partial class BaseConfigurationDataType : IEncodeable, IJsonEncodeable
     {
         #region Constructors
         /// <remarks />
@@ -5151,7 +5147,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public abstract partial class BaseConfigurationRecordDataType : IEncodeable, IJsonEncodeable
+    public partial class BaseConfigurationRecordDataType : IEncodeable, IJsonEncodeable
     {
         #region Constructors
         /// <remarks />
@@ -5497,7 +5493,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_certificateTypes, value.m_certificateTypes)) return false;
             if (!Utils.IsEqual(m_certificates, value.m_certificates)) return false;
             if (!Utils.IsEqual(m_trustList, value.m_trustList)) return false;
@@ -6306,7 +6301,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_applicationIdentity, value.m_applicationIdentity)) return false;
             if (!Utils.IsEqual(m_certificateGroups, value.m_certificateGroups)) return false;
             if (!Utils.IsEqual(m_serverEndpoints, value.m_serverEndpoints)) return false;
@@ -6539,7 +6533,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_applicationUri, value.m_applicationUri)) return false;
             if (!Utils.IsEqual(m_applicationNames, value.m_applicationNames)) return false;
             if (!Utils.IsEqual(m_subjectName, value.m_subjectName)) return false;
@@ -6763,7 +6756,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_endpointUrls, value.m_endpointUrls)) return false;
             if (!Utils.IsEqual(m_networkName, value.m_networkName)) return false;
             if (!Utils.IsEqual(m_port, value.m_port)) return false;
@@ -7022,7 +7014,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_securitySettings, value.m_securitySettings)) return false;
             if (!Utils.IsEqual(m_transportProfileUri, value.m_transportProfileUri)) return false;
             if (!Utils.IsEqual(m_userTokenPolicies, value.m_userTokenPolicies)) return false;
@@ -7283,7 +7274,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_securityModes, value.m_securityModes)) return false;
             if (!Utils.IsEqual(m_securityPolicyUris, value.m_securityPolicyUris)) return false;
             if (!Utils.IsEqual(m_transportProfileUri, value.m_transportProfileUri)) return false;
@@ -7512,7 +7502,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_tokenType, value.m_tokenType)) return false;
             if (!Utils.IsEqual(m_issuedTokenType, value.m_issuedTokenType)) return false;
             if (!Utils.IsEqual(m_certificateGroupName, value.m_certificateGroupName)) return false;
@@ -7750,7 +7739,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public abstract partial class DataTypeSchemaHeader : IEncodeable, IJsonEncodeable
+    public partial class DataTypeSchemaHeader : IEncodeable, IJsonEncodeable
     {
         #region Constructors
         /// <remarks />
@@ -8019,7 +8008,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public abstract partial class DataTypeDescription : IEncodeable, IJsonEncodeable
+    public partial class DataTypeDescription : IEncodeable, IJsonEncodeable
     {
         #region Constructors
         /// <remarks />
@@ -8307,7 +8296,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_structureDefinition, value.m_structureDefinition)) return false;
 
             return base.IsEqual(encodeable);
@@ -8514,7 +8502,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_enumDefinition, value.m_enumDefinition)) return false;
             if (!Utils.IsEqual(m_builtInType, value.m_builtInType)) return false;
 
@@ -8712,7 +8699,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_baseDataType, value.m_baseDataType)) return false;
             if (!Utils.IsEqual(m_builtInType, value.m_builtInType)) return false;
 
@@ -8933,7 +8919,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_schemaLocation, value.m_schemaLocation)) return false;
             if (!Utils.IsEqual(m_fileHeader, value.m_fileHeader)) return false;
             if (!Utils.IsEqual(m_body, value.m_body)) return false;
@@ -9866,7 +9851,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_name, value.m_name)) return false;
             if (!Utils.IsEqual(m_description, value.m_description)) return false;
             if (!Utils.IsEqual(m_fields, value.m_fields)) return false;
@@ -10791,7 +10775,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public abstract partial class PublishedDataSetSourceDataType : IEncodeable, IJsonEncodeable
+    public partial class PublishedDataSetSourceDataType : IEncodeable, IJsonEncodeable
     {
         #region Constructors
         /// <remarks />
@@ -11341,7 +11325,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_publishedData, value.m_publishedData)) return false;
 
             return base.IsEqual(encodeable);
@@ -11571,7 +11554,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_eventNotifier, value.m_eventNotifier)) return false;
             if (!Utils.IsEqual(m_selectedFields, value.m_selectedFields)) return false;
             if (!Utils.IsEqual(m_filter, value.m_filter)) return false;
@@ -11761,7 +11743,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_cyclicDataSet, value.m_cyclicDataSet)) return false;
 
             return base.IsEqual(encodeable);
@@ -12187,7 +12168,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_requestDataSetMetaData, value.m_requestDataSetMetaData)) return false;
             if (!Utils.IsEqual(m_actionTargets, value.m_actionTargets)) return false;
 
@@ -12667,7 +12647,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_actionMethods, value.m_actionMethods)) return false;
 
             return base.IsEqual(encodeable);
@@ -13175,7 +13154,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public abstract partial class DataSetWriterTransportDataType : IEncodeable, IJsonEncodeable
+    public partial class DataSetWriterTransportDataType : IEncodeable, IJsonEncodeable
     {
         #region Constructors
         /// <remarks />
@@ -13341,7 +13320,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public abstract partial class DataSetWriterMessageDataType : IEncodeable, IJsonEncodeable
+    public partial class DataSetWriterMessageDataType : IEncodeable, IJsonEncodeable
     {
         #region Constructors
         /// <remarks />
@@ -13507,7 +13486,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public abstract partial class PubSubGroupDataType : IEncodeable, IJsonEncodeable
+    public partial class PubSubGroupDataType : IEncodeable, IJsonEncodeable
     {
         #region Constructors
         /// <remarks />
@@ -13989,7 +13968,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_writerGroupId, value.m_writerGroupId)) return false;
             if (!Utils.IsEqual(m_publishingInterval, value.m_publishingInterval)) return false;
             if (!Utils.IsEqual(m_keepAliveTime, value.m_keepAliveTime)) return false;
@@ -14114,7 +14092,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public abstract partial class WriterGroupTransportDataType : IEncodeable, IJsonEncodeable
+    public partial class WriterGroupTransportDataType : IEncodeable, IJsonEncodeable
     {
         #region Constructors
         /// <remarks />
@@ -14280,7 +14258,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public abstract partial class WriterGroupMessageDataType : IEncodeable, IJsonEncodeable
+    public partial class WriterGroupMessageDataType : IEncodeable, IJsonEncodeable
     {
         #region Constructors
         /// <remarks />
@@ -14773,7 +14751,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public abstract partial class ConnectionTransportDataType : IEncodeable, IJsonEncodeable
+    public partial class ConnectionTransportDataType : IEncodeable, IJsonEncodeable
     {
         #region Constructors
         /// <remarks />
@@ -14939,7 +14917,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public abstract partial class NetworkAddressDataType : IEncodeable, IJsonEncodeable
+    public partial class NetworkAddressDataType : IEncodeable, IJsonEncodeable
     {
         #region Constructors
         /// <remarks />
@@ -15201,7 +15179,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_url, value.m_url)) return false;
 
             return base.IsEqual(encodeable);
@@ -15419,7 +15396,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_transportSettings, value.m_transportSettings)) return false;
             if (!Utils.IsEqual(m_messageSettings, value.m_messageSettings)) return false;
             if (!Utils.IsEqual(m_dataSetReaders, value.m_dataSetReaders)) return false;
@@ -15526,7 +15502,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public abstract partial class ReaderGroupTransportDataType : IEncodeable, IJsonEncodeable
+    public partial class ReaderGroupTransportDataType : IEncodeable, IJsonEncodeable
     {
         #region Constructors
         /// <remarks />
@@ -15692,7 +15668,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public abstract partial class ReaderGroupMessageDataType : IEncodeable, IJsonEncodeable
+    public partial class ReaderGroupMessageDataType : IEncodeable, IJsonEncodeable
     {
         #region Constructors
         /// <remarks />
@@ -16297,7 +16273,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public abstract partial class DataSetReaderTransportDataType : IEncodeable, IJsonEncodeable
+    public partial class DataSetReaderTransportDataType : IEncodeable, IJsonEncodeable
     {
         #region Constructors
         /// <remarks />
@@ -16463,7 +16439,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public abstract partial class DataSetReaderMessageDataType : IEncodeable, IJsonEncodeable
+    public partial class DataSetReaderMessageDataType : IEncodeable, IJsonEncodeable
     {
         #region Constructors
         /// <remarks />
@@ -16629,7 +16605,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public abstract partial class SubscribedDataSetDataType : IEncodeable, IJsonEncodeable
+    public partial class SubscribedDataSetDataType : IEncodeable, IJsonEncodeable
     {
         #region Constructors
         /// <remarks />
@@ -16890,7 +16866,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_targetVariables, value.m_targetVariables)) return false;
 
             return base.IsEqual(encodeable);
@@ -17448,7 +17423,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_parentNodeName, value.m_parentNodeName)) return false;
             if (!Utils.IsEqual(m_rolePermissions, value.m_rolePermissions)) return false;
 
@@ -17866,7 +17840,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_dataSetName, value.m_dataSetName)) return false;
 
             return base.IsEqual(encodeable);
@@ -18107,7 +18080,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_name, value.m_name)) return false;
             if (!Utils.IsEqual(m_dataSetFolder, value.m_dataSetFolder)) return false;
             if (!Utils.IsEqual(m_dataSetMetaData, value.m_dataSetMetaData)) return false;
@@ -19104,7 +19076,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_subscribedDataSets, value.m_subscribedDataSets)) return false;
             if (!Utils.IsEqual(m_dataSetClasses, value.m_dataSetClasses)) return false;
             if (!Utils.IsEqual(m_defaultSecurityKeyServices, value.m_defaultSecurityKeyServices)) return false;
@@ -19574,7 +19545,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_groupVersion, value.m_groupVersion)) return false;
             if (!Utils.IsEqual(m_dataSetOrdering, value.m_dataSetOrdering)) return false;
             if (!Utils.IsEqual(m_networkMessageContentMask, value.m_networkMessageContentMask)) return false;
@@ -19907,7 +19877,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_dataSetMessageContentMask, value.m_dataSetMessageContentMask)) return false;
             if (!Utils.IsEqual(m_configuredSize, value.m_configuredSize)) return false;
             if (!Utils.IsEqual(m_networkMessageNumber, value.m_networkMessageNumber)) return false;
@@ -20188,7 +20157,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_groupVersion, value.m_groupVersion)) return false;
             if (!Utils.IsEqual(m_networkMessageNumber, value.m_networkMessageNumber)) return false;
             if (!Utils.IsEqual(m_dataSetOffset, value.m_dataSetOffset)) return false;
@@ -20504,7 +20472,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_networkMessageContentMask, value.m_networkMessageContentMask)) return false;
 
             return base.IsEqual(encodeable);
@@ -20640,8 +20607,8 @@ namespace Opc.Ua
         DataSetWriterName = 64,
 
         /// <remarks />
-        [EnumMember(Value = "ReversibleFieldEncoding_128")]
-        ReversibleFieldEncoding = 128,
+        [EnumMember(Value = "FieldEncoding1_128")]
+        FieldEncoding1 = 128,
 
         /// <remarks />
         [EnumMember(Value = "PublisherId_256")]
@@ -20654,6 +20621,10 @@ namespace Opc.Ua
         /// <remarks />
         [EnumMember(Value = "MinorVersion_1024")]
         MinorVersion = 1024,
+
+        /// <remarks />
+        [EnumMember(Value = "FieldEncoding2_2048")]
+        FieldEncoding2 = 2048,
     }
 
     #region JsonDataSetMessageContentMaskCollection Class
@@ -20812,7 +20783,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_dataSetMessageContentMask, value.m_dataSetMessageContentMask)) return false;
 
             return base.IsEqual(encodeable);
@@ -21007,7 +20977,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_networkMessageContentMask, value.m_networkMessageContentMask)) return false;
             if (!Utils.IsEqual(m_dataSetMessageContentMask, value.m_dataSetMessageContentMask)) return false;
 
@@ -21111,7 +21080,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public abstract partial class QosDataType : IEncodeable, IJsonEncodeable
+    public partial class QosDataType : IEncodeable, IJsonEncodeable
     {
         #region Constructors
         /// <remarks />
@@ -21530,7 +21499,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_priorityLabel, value.m_priorityLabel)) return false;
 
             return base.IsEqual(encodeable);
@@ -21884,7 +21852,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_priorityLabel, value.m_priorityLabel)) return false;
 
             return base.IsEqual(encodeable);
@@ -22068,7 +22035,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_discoveryAddress, value.m_discoveryAddress)) return false;
 
             return base.IsEqual(encodeable);
@@ -22285,7 +22251,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_discoveryAnnounceRate, value.m_discoveryAnnounceRate)) return false;
             if (!Utils.IsEqual(m_discoveryMaxMessageSize, value.m_discoveryMaxMessageSize)) return false;
             if (!Utils.IsEqual(m_qosCategory, value.m_qosCategory)) return false;
@@ -22489,7 +22454,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_messageRepeatCount, value.m_messageRepeatCount)) return false;
             if (!Utils.IsEqual(m_messageRepeatDelay, value.m_messageRepeatDelay)) return false;
 
@@ -22720,7 +22684,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_address, value.m_address)) return false;
             if (!Utils.IsEqual(m_qosCategory, value.m_qosCategory)) return false;
             if (!Utils.IsEqual(m_datagramQos, value.m_datagramQos)) return false;
@@ -22949,7 +22912,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_address, value.m_address)) return false;
             if (!Utils.IsEqual(m_qosCategory, value.m_qosCategory)) return false;
             if (!Utils.IsEqual(m_datagramQos, value.m_datagramQos)) return false;
@@ -23400,7 +23362,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_resourceUri, value.m_resourceUri)) return false;
             if (!Utils.IsEqual(m_authenticationProfileUri, value.m_authenticationProfileUri)) return false;
 
@@ -23716,7 +23677,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_queueName, value.m_queueName)) return false;
             if (!Utils.IsEqual(m_resourceUri, value.m_resourceUri)) return false;
             if (!Utils.IsEqual(m_authenticationProfileUri, value.m_authenticationProfileUri)) return false;
@@ -23964,7 +23924,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_queueName, value.m_queueName)) return false;
             if (!Utils.IsEqual(m_resourceUri, value.m_resourceUri)) return false;
             if (!Utils.IsEqual(m_authenticationProfileUri, value.m_authenticationProfileUri)) return false;
@@ -24207,7 +24166,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_queueName, value.m_queueName)) return false;
             if (!Utils.IsEqual(m_resourceUri, value.m_resourceUri)) return false;
             if (!Utils.IsEqual(m_authenticationProfileUri, value.m_authenticationProfileUri)) return false;
@@ -28847,7 +28805,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public abstract partial class DataTypeDefinition : IEncodeable, IJsonEncodeable
+    public partial class DataTypeDefinition : IEncodeable, IJsonEncodeable
     {
         #region Constructors
         /// <remarks />
@@ -29447,7 +29405,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_defaultEncodingId, value.m_defaultEncodingId)) return false;
             if (!Utils.IsEqual(m_baseDataType, value.m_baseDataType)) return false;
             if (!Utils.IsEqual(m_structureType, value.m_structureType)) return false;
@@ -29652,7 +29609,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_fields, value.m_fields)) return false;
 
             return base.IsEqual(encodeable);
@@ -30401,7 +30357,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_eventNotifier, value.m_eventNotifier)) return false;
 
             return base.IsEqual(encodeable);
@@ -30520,7 +30475,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_isAbstract, value.m_isAbstract)) return false;
 
             return base.IsEqual(encodeable);
@@ -30739,7 +30693,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_value, value.m_value)) return false;
             if (!Utils.IsEqual(m_dataType, value.m_dataType)) return false;
             if (!Utils.IsEqual(m_valueRank, value.m_valueRank)) return false;
@@ -30938,7 +30891,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_value, value.m_value)) return false;
             if (!Utils.IsEqual(m_dataType, value.m_dataType)) return false;
             if (!Utils.IsEqual(m_valueRank, value.m_valueRank)) return false;
@@ -31091,7 +31043,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_isAbstract, value.m_isAbstract)) return false;
             if (!Utils.IsEqual(m_symmetric, value.m_symmetric)) return false;
             if (!Utils.IsEqual(m_inverseName, value.m_inverseName)) return false;
@@ -31227,7 +31178,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_executable, value.m_executable)) return false;
             if (!Utils.IsEqual(m_userExecutable, value.m_userExecutable)) return false;
 
@@ -31360,7 +31310,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_containsNoLoops, value.m_containsNoLoops)) return false;
             if (!Utils.IsEqual(m_eventNotifier, value.m_eventNotifier)) return false;
 
@@ -31493,7 +31442,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_isAbstract, value.m_isAbstract)) return false;
             if (!Utils.IsEqual(m_dataTypeDefinition, value.m_dataTypeDefinition)) return false;
 
@@ -32276,7 +32224,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_name, value.m_name)) return false;
 
             return base.IsEqual(encodeable);
@@ -32377,7 +32324,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public abstract partial class OptionSet : IEncodeable, IJsonEncodeable
+    public partial class OptionSet : IEncodeable, IJsonEncodeable
     {
         #region Constructors
         /// <remarks />
@@ -36665,7 +36612,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_mdnsServerName, value.m_mdnsServerName)) return false;
             if (!Utils.IsEqual(m_serverCapabilities, value.m_serverCapabilities)) return false;
 
@@ -38722,7 +38668,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public abstract partial class UserIdentityToken : IEncodeable, IJsonEncodeable
+    public partial class UserIdentityToken : IEncodeable, IJsonEncodeable
     {
         #region Constructors
         /// <remarks />
@@ -39046,7 +38992,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_userName, value.m_userName)) return false;
             if (!Utils.IsEqual(m_password, value.m_password)) return false;
             if (!Utils.IsEqual(m_encryptionAlgorithm, value.m_encryptionAlgorithm)) return false;
@@ -39171,7 +39116,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_certificateData, value.m_certificateData)) return false;
 
             return base.IsEqual(encodeable);
@@ -39301,7 +39245,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_tokenData, value.m_tokenData)) return false;
             if (!Utils.IsEqual(m_encryptionAlgorithm, value.m_encryptionAlgorithm)) return false;
 
@@ -40726,7 +40669,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_eventNotifier, value.m_eventNotifier)) return false;
 
             return base.IsEqual(encodeable);
@@ -40934,7 +40876,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_value, value.m_value)) return false;
             if (!Utils.IsEqual(m_dataType, value.m_dataType)) return false;
             if (!Utils.IsEqual(m_valueRank, value.m_valueRank)) return false;
@@ -41085,7 +41026,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_executable, value.m_executable)) return false;
             if (!Utils.IsEqual(m_userExecutable, value.m_userExecutable)) return false;
 
@@ -41207,7 +41147,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_isAbstract, value.m_isAbstract)) return false;
 
             return base.IsEqual(encodeable);
@@ -41382,7 +41321,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_value, value.m_value)) return false;
             if (!Utils.IsEqual(m_dataType, value.m_dataType)) return false;
             if (!Utils.IsEqual(m_valueRank, value.m_valueRank)) return false;
@@ -41535,7 +41473,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_isAbstract, value.m_isAbstract)) return false;
             if (!Utils.IsEqual(m_symmetric, value.m_symmetric)) return false;
             if (!Utils.IsEqual(m_inverseName, value.m_inverseName)) return false;
@@ -41660,7 +41597,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_isAbstract, value.m_isAbstract)) return false;
 
             return base.IsEqual(encodeable);
@@ -41790,7 +41726,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_containsNoLoops, value.m_containsNoLoops)) return false;
             if (!Utils.IsEqual(m_eventNotifier, value.m_eventNotifier)) return false;
 
@@ -42117,7 +42052,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_attributeValues, value.m_attributeValues)) return false;
 
             return base.IsEqual(encodeable);
@@ -49912,7 +49846,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public abstract partial class FilterOperand : IEncodeable, IJsonEncodeable
+    public partial class FilterOperand : IEncodeable, IJsonEncodeable
     {
         #region Constructors
         /// <remarks />
@@ -50096,7 +50030,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_index, value.m_index)) return false;
 
             return base.IsEqual(encodeable);
@@ -50215,7 +50148,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_value, value.m_value)) return false;
 
             return base.IsEqual(encodeable);
@@ -50390,7 +50322,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_nodeId, value.m_nodeId)) return false;
             if (!Utils.IsEqual(m_alias, value.m_alias)) return false;
             if (!Utils.IsEqual(m_browsePath, value.m_browsePath)) return false;
@@ -50566,7 +50497,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_typeDefinitionId, value.m_typeDefinitionId)) return false;
             if (!Utils.IsEqual(m_browsePath, value.m_browsePath)) return false;
             if (!Utils.IsEqual(m_attributeId, value.m_attributeId)) return false;
@@ -53124,7 +53054,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public abstract partial class HistoryReadDetails : IEncodeable, IJsonEncodeable
+    public partial class HistoryReadDetails : IEncodeable, IJsonEncodeable
     {
         #region Constructors
         /// <remarks />
@@ -53353,7 +53283,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_numValuesPerNode, value.m_numValuesPerNode)) return false;
             if (!Utils.IsEqual(m_startTime, value.m_startTime)) return false;
             if (!Utils.IsEqual(m_endTime, value.m_endTime)) return false;
@@ -53481,7 +53410,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_readModified, value.m_readModified)) return false;
 
             return base.IsEqual(encodeable);
@@ -53836,7 +53764,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_sortClause, value.m_sortClause)) return false;
 
             return base.IsEqual(encodeable);
@@ -53999,7 +53926,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_isReadModified, value.m_isReadModified)) return false;
             if (!Utils.IsEqual(m_startTime, value.m_startTime)) return false;
             if (!Utils.IsEqual(m_endTime, value.m_endTime)) return false;
@@ -54198,7 +54124,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_startTime, value.m_startTime)) return false;
             if (!Utils.IsEqual(m_endTime, value.m_endTime)) return false;
             if (!Utils.IsEqual(m_processingInterval, value.m_processingInterval)) return false;
@@ -54352,7 +54277,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_reqTimes, value.m_reqTimes)) return false;
             if (!Utils.IsEqual(m_useSimpleBounds, value.m_useSimpleBounds)) return false;
 
@@ -54486,7 +54410,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_reqTimes, value.m_reqTimes)) return false;
 
             return base.IsEqual(encodeable);
@@ -54950,7 +54873,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_modificationInfos, value.m_modificationInfos)) return false;
 
             return base.IsEqual(encodeable);
@@ -55207,7 +55129,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_modificationInfos, value.m_modificationInfos)) return false;
 
             return base.IsEqual(encodeable);
@@ -56166,7 +56087,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public abstract partial class HistoryUpdateDetails : IEncodeable, IJsonEncodeable
+    public partial class HistoryUpdateDetails : IEncodeable, IJsonEncodeable
     {
         #region Constructors
         /// <remarks />
@@ -56438,7 +56359,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_nodeId, value.m_nodeId)) return false;
             if (!Utils.IsEqual(m_performInsertReplace, value.m_performInsertReplace)) return false;
             if (!Utils.IsEqual(m_updateValues, value.m_updateValues)) return false;
@@ -56597,7 +56517,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_nodeId, value.m_nodeId)) return false;
             if (!Utils.IsEqual(m_performInsertReplace, value.m_performInsertReplace)) return false;
             if (!Utils.IsEqual(m_updateValues, value.m_updateValues)) return false;
@@ -56779,7 +56698,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_nodeId, value.m_nodeId)) return false;
             if (!Utils.IsEqual(m_performInsertReplace, value.m_performInsertReplace)) return false;
             if (!Utils.IsEqual(m_filter, value.m_filter)) return false;
@@ -56940,7 +56858,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_nodeId, value.m_nodeId)) return false;
             if (!Utils.IsEqual(m_isDeleteModified, value.m_isDeleteModified)) return false;
             if (!Utils.IsEqual(m_startTime, value.m_startTime)) return false;
@@ -57091,7 +57008,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_nodeId, value.m_nodeId)) return false;
             if (!Utils.IsEqual(m_reqTimes, value.m_reqTimes)) return false;
 
@@ -57236,7 +57152,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_nodeId, value.m_nodeId)) return false;
             if (!Utils.IsEqual(m_eventIds, value.m_eventIds)) return false;
 
@@ -58917,7 +58832,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_trigger, value.m_trigger)) return false;
             if (!Utils.IsEqual(m_deadbandType, value.m_deadbandType)) return false;
             if (!Utils.IsEqual(m_deadbandValue, value.m_deadbandValue)) return false;
@@ -59077,7 +58991,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_selectClauses, value.m_selectClauses)) return false;
             if (!Utils.IsEqual(m_whereClause, value.m_whereClause)) return false;
 
@@ -59414,7 +59327,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_startTime, value.m_startTime)) return false;
             if (!Utils.IsEqual(m_aggregateType, value.m_aggregateType)) return false;
             if (!Utils.IsEqual(m_processingInterval, value.m_processingInterval)) return false;
@@ -59701,7 +59613,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_selectClauseResults, value.m_selectClauseResults)) return false;
             if (!Utils.IsEqual(m_selectClauseDiagnosticInfos, value.m_selectClauseDiagnosticInfos)) return false;
             if (!Utils.IsEqual(m_whereClauseResult, value.m_whereClauseResult)) return false;
@@ -59860,7 +59771,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_revisedStartTime, value.m_revisedStartTime)) return false;
             if (!Utils.IsEqual(m_revisedProcessingInterval, value.m_revisedProcessingInterval)) return false;
             if (!Utils.IsEqual(m_revisedAggregateConfiguration, value.m_revisedAggregateConfiguration)) return false;
@@ -64305,7 +64215,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_monitoredItems, value.m_monitoredItems)) return false;
             if (!Utils.IsEqual(m_diagnosticInfos, value.m_diagnosticInfos)) return false;
 
@@ -64632,7 +64541,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_events, value.m_events)) return false;
 
             return base.IsEqual(encodeable);
@@ -65158,7 +65066,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_status, value.m_status)) return false;
             if (!Utils.IsEqual(m_diagnosticInfo, value.m_diagnosticInfo)) return false;
 
@@ -72990,7 +72897,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public abstract partial class TestAbstractStructure : IEncodeable, IJsonEncodeable
+    public partial class TestAbstractStructure : IEncodeable, IJsonEncodeable
     {
         #region Constructors
         /// <remarks />
@@ -73302,7 +73209,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_d, value.m_d)) return false;
             if (!Utils.IsEqual(m_e, value.m_e)) return false;
             if (!Utils.IsEqual(m_f, value.m_f)) return false;

@@ -2601,30 +2601,6 @@ namespace Opc.Ua
         public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_GetRejectedList = 18544;
 
         /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_Open = 18562;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_Close = 18565;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_Read = 18567;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_Write = 18570;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_GetPosition = 18572;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_SetPosition = 18575;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_ConfirmUpdate = 18584;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_CloseAndUpdate = 18581;
-
-        /// <remarks />
         public const uint ServerConfigurationType_CertificateGroups_DefaultApplicationGroup_TrustList_Open = 13958;
 
         /// <remarks />
@@ -2862,30 +2838,6 @@ namespace Opc.Ua
         public const uint ServerConfigurationType_ResetToServerDefaults = 25699;
 
         /// <remarks />
-        public const uint ServerConfigurationType_ConfigurationFile_Open = 15572;
-
-        /// <remarks />
-        public const uint ServerConfigurationType_ConfigurationFile_Close = 15575;
-
-        /// <remarks />
-        public const uint ServerConfigurationType_ConfigurationFile_Read = 15791;
-
-        /// <remarks />
-        public const uint ServerConfigurationType_ConfigurationFile_Write = 15805;
-
-        /// <remarks />
-        public const uint ServerConfigurationType_ConfigurationFile_GetPosition = 15807;
-
-        /// <remarks />
-        public const uint ServerConfigurationType_ConfigurationFile_SetPosition = 15810;
-
-        /// <remarks />
-        public const uint ServerConfigurationType_ConfigurationFile_ConfirmUpdate = 15863;
-
-        /// <remarks />
-        public const uint ServerConfigurationType_ConfigurationFile_CloseAndUpdate = 15849;
-
-        /// <remarks />
         public const uint ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList_Open = 12647;
 
         /// <remarks />
@@ -3118,30 +3070,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint ServerConfiguration_ResetToServerDefaults = 25709;
-
-        /// <remarks />
-        public const uint ServerConfiguration_ConfigurationFile_Open = 16013;
-
-        /// <remarks />
-        public const uint ServerConfiguration_ConfigurationFile_Close = 16060;
-
-        /// <remarks />
-        public const uint ServerConfiguration_ConfigurationFile_Read = 16074;
-
-        /// <remarks />
-        public const uint ServerConfiguration_ConfigurationFile_Write = 16101;
-
-        /// <remarks />
-        public const uint ServerConfiguration_ConfigurationFile_GetPosition = 16103;
-
-        /// <remarks />
-        public const uint ServerConfiguration_ConfigurationFile_SetPosition = 16124;
-
-        /// <remarks />
-        public const uint ServerConfiguration_ConfigurationFile_ConfirmUpdate = 16320;
-
-        /// <remarks />
-        public const uint ServerConfiguration_ConfigurationFile_CloseAndUpdate = 16317;
 
         /// <remarks />
         public const uint KeyCredentialConfigurationFolderType_CreateCredential = 17522;
@@ -3786,30 +3714,6 @@ namespace Opc.Ua
         public const uint ProvisionableDeviceType_ApplicationName_Placeholder_GetRejectedList = 28013;
 
         /// <remarks />
-        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_Open = 16332;
-
-        /// <remarks />
-        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_Close = 16335;
-
-        /// <remarks />
-        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_Read = 16337;
-
-        /// <remarks />
-        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_Write = 16340;
-
-        /// <remarks />
-        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_GetPosition = 16342;
-
-        /// <remarks />
-        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_SetPosition = 16345;
-
-        /// <remarks />
-        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_ConfirmUpdate = 16523;
-
-        /// <remarks />
-        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_CloseAndUpdate = 16368;
-
-        /// <remarks />
         public const uint ProvisionableDevice_RequestTickets = 29880;
 
         /// <remarks />
@@ -4320,9 +4224,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint ServerConfigurationType_TransactionDiagnostics = 32299;
-
-        /// <remarks />
-        public const uint ServerConfigurationType_ConfigurationFile = 15564;
 
         /// <remarks />
         public const uint ServerConfiguration = 12637;
@@ -9872,6 +9773,9 @@ namespace Opc.Ua
         public const uint SessionDiagnosticsObjectType_SubscriptionDiagnosticsArray = 2032;
 
         /// <remarks />
+        public const uint SessionDiagnosticsObjectType_CurrentRoleIds = 19303;
+
+        /// <remarks />
         public const uint ServerRedundancyType_RedundancySupport = 2035;
 
         /// <remarks />
@@ -10226,6 +10130,9 @@ namespace Opc.Ua
         public const uint AuditActivateSessionEventType_SecureChannelId = 11485;
 
         /// <remarks />
+        public const uint AuditActivateSessionEventType_CurrentRoleIds = 19304;
+
+        /// <remarks />
         public const uint AuditCancelEventType_RequestHandle = 2079;
 
         /// <remarks />
@@ -10268,7 +10175,13 @@ namespace Opc.Ua
         public const uint AuditUpdateMethodEventType_MethodId = 2128;
 
         /// <remarks />
+        public const uint AuditUpdateMethodEventType_StatusCodeId = 19305;
+
+        /// <remarks />
         public const uint AuditUpdateMethodEventType_InputArguments = 2129;
+
+        /// <remarks />
+        public const uint AuditUpdateMethodEventType_OutputArguments = 19306;
 
         /// <remarks />
         public const uint SystemStatusChangeEventType_SystemState = 11696;
@@ -16889,84 +16802,6 @@ namespace Opc.Ua
         public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_TransactionDiagnostics_Errors = 18553;
 
         /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_Size = 18555;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_Writable = 18556;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_UserWritable = 18557;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_OpenCount = 18558;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_Open_InputArguments = 18563;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_Open_OutputArguments = 18564;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_Close_InputArguments = 18566;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_Read_InputArguments = 18568;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_Read_OutputArguments = 18569;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_Write_InputArguments = 18571;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_GetPosition_InputArguments = 18573;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_GetPosition_OutputArguments = 18574;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_SetPosition_InputArguments = 18576;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_LastUpdateTime = 18577;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_CurrentVersion = 18578;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_ActivityTimeout = 18579;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_SupportedDataType = 18580;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_ConfirmUpdate_InputArguments = 18585;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_ConfirmUpdate_OutputArguments = 18586;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_CloseAndUpdate_InputArguments = 18582;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_CloseAndUpdate_OutputArguments = 18583;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_AvailableNetworks = 18587;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_AvailablePorts = 18588;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_SecurityPolicyUris = 18589;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_UserTokenTypes = 18590;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_CertificateTypes = 18591;
-
-        /// <remarks />
         public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_Enabled = 18592;
 
         /// <remarks />
@@ -18221,6 +18056,9 @@ namespace Opc.Ua
         public const uint ServerConfigurationType_SupportsTransactions = 18661;
 
         /// <remarks />
+        public const uint ServerConfigurationType_InApplicationSetup = 19308;
+
+        /// <remarks />
         public const uint ServerConfigurationType_UpdateCertificate_InputArguments = 12617;
 
         /// <remarks />
@@ -18258,84 +18096,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint ServerConfigurationType_TransactionDiagnostics_Errors = 32305;
-
-        /// <remarks />
-        public const uint ServerConfigurationType_ConfigurationFile_Size = 15565;
-
-        /// <remarks />
-        public const uint ServerConfigurationType_ConfigurationFile_Writable = 15566;
-
-        /// <remarks />
-        public const uint ServerConfigurationType_ConfigurationFile_UserWritable = 15567;
-
-        /// <remarks />
-        public const uint ServerConfigurationType_ConfigurationFile_OpenCount = 15568;
-
-        /// <remarks />
-        public const uint ServerConfigurationType_ConfigurationFile_Open_InputArguments = 15573;
-
-        /// <remarks />
-        public const uint ServerConfigurationType_ConfigurationFile_Open_OutputArguments = 15574;
-
-        /// <remarks />
-        public const uint ServerConfigurationType_ConfigurationFile_Close_InputArguments = 15790;
-
-        /// <remarks />
-        public const uint ServerConfigurationType_ConfigurationFile_Read_InputArguments = 15792;
-
-        /// <remarks />
-        public const uint ServerConfigurationType_ConfigurationFile_Read_OutputArguments = 15804;
-
-        /// <remarks />
-        public const uint ServerConfigurationType_ConfigurationFile_Write_InputArguments = 15806;
-
-        /// <remarks />
-        public const uint ServerConfigurationType_ConfigurationFile_GetPosition_InputArguments = 15808;
-
-        /// <remarks />
-        public const uint ServerConfigurationType_ConfigurationFile_GetPosition_OutputArguments = 15809;
-
-        /// <remarks />
-        public const uint ServerConfigurationType_ConfigurationFile_SetPosition_InputArguments = 15811;
-
-        /// <remarks />
-        public const uint ServerConfigurationType_ConfigurationFile_LastUpdateTime = 15812;
-
-        /// <remarks />
-        public const uint ServerConfigurationType_ConfigurationFile_CurrentVersion = 15813;
-
-        /// <remarks />
-        public const uint ServerConfigurationType_ConfigurationFile_ActivityTimeout = 15814;
-
-        /// <remarks />
-        public const uint ServerConfigurationType_ConfigurationFile_SupportedDataType = 15848;
-
-        /// <remarks />
-        public const uint ServerConfigurationType_ConfigurationFile_ConfirmUpdate_InputArguments = 15864;
-
-        /// <remarks />
-        public const uint ServerConfigurationType_ConfigurationFile_ConfirmUpdate_OutputArguments = 15865;
-
-        /// <remarks />
-        public const uint ServerConfigurationType_ConfigurationFile_CloseAndUpdate_InputArguments = 15850;
-
-        /// <remarks />
-        public const uint ServerConfigurationType_ConfigurationFile_CloseAndUpdate_OutputArguments = 15851;
-
-        /// <remarks />
-        public const uint ServerConfigurationType_ConfigurationFile_AvailableNetworks = 16646;
-
-        /// <remarks />
-        public const uint ServerConfigurationType_ConfigurationFile_AvailablePorts = 16647;
-
-        /// <remarks />
-        public const uint ServerConfigurationType_ConfigurationFile_SecurityPolicyUris = 16648;
-
-        /// <remarks />
-        public const uint ServerConfigurationType_ConfigurationFile_UserTokenTypes = 16649;
-
-        /// <remarks />
-        public const uint ServerConfigurationType_ConfigurationFile_CertificateTypes = 16650;
 
         /// <remarks />
         public const uint CertificateUpdatedAuditEventType_CertificateGroup = 13735;
@@ -19611,84 +19371,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint ServerConfiguration_TransactionDiagnostics_Errors = 32342;
-
-        /// <remarks />
-        public const uint ServerConfiguration_ConfigurationFile_Size = 15893;
-
-        /// <remarks />
-        public const uint ServerConfiguration_ConfigurationFile_Writable = 15894;
-
-        /// <remarks />
-        public const uint ServerConfiguration_ConfigurationFile_UserWritable = 15937;
-
-        /// <remarks />
-        public const uint ServerConfiguration_ConfigurationFile_OpenCount = 15938;
-
-        /// <remarks />
-        public const uint ServerConfiguration_ConfigurationFile_Open_InputArguments = 16020;
-
-        /// <remarks />
-        public const uint ServerConfiguration_ConfigurationFile_Open_OutputArguments = 16059;
-
-        /// <remarks />
-        public const uint ServerConfiguration_ConfigurationFile_Close_InputArguments = 16061;
-
-        /// <remarks />
-        public const uint ServerConfiguration_ConfigurationFile_Read_InputArguments = 16075;
-
-        /// <remarks />
-        public const uint ServerConfiguration_ConfigurationFile_Read_OutputArguments = 16076;
-
-        /// <remarks />
-        public const uint ServerConfiguration_ConfigurationFile_Write_InputArguments = 16102;
-
-        /// <remarks />
-        public const uint ServerConfiguration_ConfigurationFile_GetPosition_InputArguments = 16122;
-
-        /// <remarks />
-        public const uint ServerConfiguration_ConfigurationFile_GetPosition_OutputArguments = 16123;
-
-        /// <remarks />
-        public const uint ServerConfiguration_ConfigurationFile_SetPosition_InputArguments = 16160;
-
-        /// <remarks />
-        public const uint ServerConfiguration_ConfigurationFile_LastUpdateTime = 16283;
-
-        /// <remarks />
-        public const uint ServerConfiguration_ConfigurationFile_CurrentVersion = 16306;
-
-        /// <remarks />
-        public const uint ServerConfiguration_ConfigurationFile_ActivityTimeout = 16315;
-
-        /// <remarks />
-        public const uint ServerConfiguration_ConfigurationFile_SupportedDataType = 16316;
-
-        /// <remarks />
-        public const uint ServerConfiguration_ConfigurationFile_ConfirmUpdate_InputArguments = 16321;
-
-        /// <remarks />
-        public const uint ServerConfiguration_ConfigurationFile_ConfirmUpdate_OutputArguments = 16322;
-
-        /// <remarks />
-        public const uint ServerConfiguration_ConfigurationFile_CloseAndUpdate_InputArguments = 16318;
-
-        /// <remarks />
-        public const uint ServerConfiguration_ConfigurationFile_CloseAndUpdate_OutputArguments = 16319;
-
-        /// <remarks />
-        public const uint ServerConfiguration_ConfigurationFile_AvailableNetworks = 16652;
-
-        /// <remarks />
-        public const uint ServerConfiguration_ConfigurationFile_AvailablePorts = 16653;
-
-        /// <remarks />
-        public const uint ServerConfiguration_ConfigurationFile_SecurityPolicyUris = 16654;
-
-        /// <remarks />
-        public const uint ServerConfiguration_ConfigurationFile_UserTokenTypes = 16655;
-
-        /// <remarks />
-        public const uint ServerConfiguration_ConfigurationFile_CertificateTypes = 16656;
 
         /// <remarks />
         public const uint KeyCredentialConfigurationFolderType_ServiceName_Placeholder_ResourceUri = 17512;
@@ -24998,84 +24680,6 @@ namespace Opc.Ua
         public const uint ProvisionableDeviceType_ApplicationName_Placeholder_TransactionDiagnostics_Errors = 32368;
 
         /// <remarks />
-        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_Size = 16325;
-
-        /// <remarks />
-        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_Writable = 16326;
-
-        /// <remarks />
-        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_UserWritable = 16327;
-
-        /// <remarks />
-        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_OpenCount = 16328;
-
-        /// <remarks />
-        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_Open_InputArguments = 16333;
-
-        /// <remarks />
-        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_Open_OutputArguments = 16334;
-
-        /// <remarks />
-        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_Close_InputArguments = 16336;
-
-        /// <remarks />
-        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_Read_InputArguments = 16338;
-
-        /// <remarks />
-        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_Read_OutputArguments = 16339;
-
-        /// <remarks />
-        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_Write_InputArguments = 16341;
-
-        /// <remarks />
-        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_GetPosition_InputArguments = 16343;
-
-        /// <remarks />
-        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_GetPosition_OutputArguments = 16344;
-
-        /// <remarks />
-        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_SetPosition_InputArguments = 16346;
-
-        /// <remarks />
-        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_LastUpdateTime = 16347;
-
-        /// <remarks />
-        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_CurrentVersion = 16365;
-
-        /// <remarks />
-        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_ActivityTimeout = 16366;
-
-        /// <remarks />
-        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_SupportedDataType = 16367;
-
-        /// <remarks />
-        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_ConfirmUpdate_InputArguments = 16536;
-
-        /// <remarks />
-        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_ConfirmUpdate_OutputArguments = 16537;
-
-        /// <remarks />
-        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_CloseAndUpdate_InputArguments = 16369;
-
-        /// <remarks />
-        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_CloseAndUpdate_OutputArguments = 16370;
-
-        /// <remarks />
-        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_AvailableNetworks = 16657;
-
-        /// <remarks />
-        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_AvailablePorts = 16658;
-
-        /// <remarks />
-        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_SecurityPolicyUris = 16659;
-
-        /// <remarks />
-        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_UserTokenTypes = 16660;
-
-        /// <remarks />
-        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_CertificateTypes = 16661;
-
-        /// <remarks />
         public const uint ProvisionableDeviceType_ApplicationName_Placeholder_Enabled = 27996;
 
         /// <remarks />
@@ -29390,30 +28994,6 @@ namespace Opc.Ua
         public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_GetRejectedList = new NodeId(Opc.Ua.Methods.ApplicationConfigurationFolderType_ApplicationName_Placeholder_GetRejectedList);
 
         /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_Open = new NodeId(Opc.Ua.Methods.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_Open);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_Close = new NodeId(Opc.Ua.Methods.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_Close);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_Read = new NodeId(Opc.Ua.Methods.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_Read);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_Write = new NodeId(Opc.Ua.Methods.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_Write);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_GetPosition = new NodeId(Opc.Ua.Methods.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_GetPosition);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_SetPosition = new NodeId(Opc.Ua.Methods.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_SetPosition);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_ConfirmUpdate = new NodeId(Opc.Ua.Methods.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_ConfirmUpdate);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_CloseAndUpdate = new NodeId(Opc.Ua.Methods.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_CloseAndUpdate);
-
-        /// <remarks />
         public static readonly NodeId ServerConfigurationType_CertificateGroups_DefaultApplicationGroup_TrustList_Open = new NodeId(Opc.Ua.Methods.ServerConfigurationType_CertificateGroups_DefaultApplicationGroup_TrustList_Open);
 
         /// <remarks />
@@ -29651,30 +29231,6 @@ namespace Opc.Ua
         public static readonly NodeId ServerConfigurationType_ResetToServerDefaults = new NodeId(Opc.Ua.Methods.ServerConfigurationType_ResetToServerDefaults);
 
         /// <remarks />
-        public static readonly NodeId ServerConfigurationType_ConfigurationFile_Open = new NodeId(Opc.Ua.Methods.ServerConfigurationType_ConfigurationFile_Open);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfigurationType_ConfigurationFile_Close = new NodeId(Opc.Ua.Methods.ServerConfigurationType_ConfigurationFile_Close);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfigurationType_ConfigurationFile_Read = new NodeId(Opc.Ua.Methods.ServerConfigurationType_ConfigurationFile_Read);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfigurationType_ConfigurationFile_Write = new NodeId(Opc.Ua.Methods.ServerConfigurationType_ConfigurationFile_Write);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfigurationType_ConfigurationFile_GetPosition = new NodeId(Opc.Ua.Methods.ServerConfigurationType_ConfigurationFile_GetPosition);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfigurationType_ConfigurationFile_SetPosition = new NodeId(Opc.Ua.Methods.ServerConfigurationType_ConfigurationFile_SetPosition);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfigurationType_ConfigurationFile_ConfirmUpdate = new NodeId(Opc.Ua.Methods.ServerConfigurationType_ConfigurationFile_ConfirmUpdate);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfigurationType_ConfigurationFile_CloseAndUpdate = new NodeId(Opc.Ua.Methods.ServerConfigurationType_ConfigurationFile_CloseAndUpdate);
-
-        /// <remarks />
         public static readonly NodeId ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList_Open = new NodeId(Opc.Ua.Methods.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList_Open);
 
         /// <remarks />
@@ -29907,30 +29463,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId ServerConfiguration_ResetToServerDefaults = new NodeId(Opc.Ua.Methods.ServerConfiguration_ResetToServerDefaults);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfiguration_ConfigurationFile_Open = new NodeId(Opc.Ua.Methods.ServerConfiguration_ConfigurationFile_Open);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfiguration_ConfigurationFile_Close = new NodeId(Opc.Ua.Methods.ServerConfiguration_ConfigurationFile_Close);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfiguration_ConfigurationFile_Read = new NodeId(Opc.Ua.Methods.ServerConfiguration_ConfigurationFile_Read);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfiguration_ConfigurationFile_Write = new NodeId(Opc.Ua.Methods.ServerConfiguration_ConfigurationFile_Write);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfiguration_ConfigurationFile_GetPosition = new NodeId(Opc.Ua.Methods.ServerConfiguration_ConfigurationFile_GetPosition);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfiguration_ConfigurationFile_SetPosition = new NodeId(Opc.Ua.Methods.ServerConfiguration_ConfigurationFile_SetPosition);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfiguration_ConfigurationFile_ConfirmUpdate = new NodeId(Opc.Ua.Methods.ServerConfiguration_ConfigurationFile_ConfirmUpdate);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfiguration_ConfigurationFile_CloseAndUpdate = new NodeId(Opc.Ua.Methods.ServerConfiguration_ConfigurationFile_CloseAndUpdate);
 
         /// <remarks />
         public static readonly NodeId KeyCredentialConfigurationFolderType_CreateCredential = new NodeId(Opc.Ua.Methods.KeyCredentialConfigurationFolderType_CreateCredential);
@@ -30575,30 +30107,6 @@ namespace Opc.Ua
         public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_GetRejectedList = new NodeId(Opc.Ua.Methods.ProvisionableDeviceType_ApplicationName_Placeholder_GetRejectedList);
 
         /// <remarks />
-        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_Open = new NodeId(Opc.Ua.Methods.ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_Open);
-
-        /// <remarks />
-        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_Close = new NodeId(Opc.Ua.Methods.ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_Close);
-
-        /// <remarks />
-        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_Read = new NodeId(Opc.Ua.Methods.ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_Read);
-
-        /// <remarks />
-        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_Write = new NodeId(Opc.Ua.Methods.ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_Write);
-
-        /// <remarks />
-        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_GetPosition = new NodeId(Opc.Ua.Methods.ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_GetPosition);
-
-        /// <remarks />
-        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_SetPosition = new NodeId(Opc.Ua.Methods.ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_SetPosition);
-
-        /// <remarks />
-        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_ConfirmUpdate = new NodeId(Opc.Ua.Methods.ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_ConfirmUpdate);
-
-        /// <remarks />
-        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_CloseAndUpdate = new NodeId(Opc.Ua.Methods.ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_CloseAndUpdate);
-
-        /// <remarks />
         public static readonly NodeId ProvisionableDevice_RequestTickets = new NodeId(Opc.Ua.Methods.ProvisionableDevice_RequestTickets);
 
         /// <remarks />
@@ -31109,9 +30617,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId ServerConfigurationType_TransactionDiagnostics = new NodeId(Opc.Ua.Objects.ServerConfigurationType_TransactionDiagnostics);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfigurationType_ConfigurationFile = new NodeId(Opc.Ua.Objects.ServerConfigurationType_ConfigurationFile);
 
         /// <remarks />
         public static readonly NodeId ServerConfiguration = new NodeId(Opc.Ua.Objects.ServerConfiguration);
@@ -36661,6 +36166,9 @@ namespace Opc.Ua
         public static readonly NodeId SessionDiagnosticsObjectType_SubscriptionDiagnosticsArray = new NodeId(Opc.Ua.Variables.SessionDiagnosticsObjectType_SubscriptionDiagnosticsArray);
 
         /// <remarks />
+        public static readonly NodeId SessionDiagnosticsObjectType_CurrentRoleIds = new NodeId(Opc.Ua.Variables.SessionDiagnosticsObjectType_CurrentRoleIds);
+
+        /// <remarks />
         public static readonly NodeId ServerRedundancyType_RedundancySupport = new NodeId(Opc.Ua.Variables.ServerRedundancyType_RedundancySupport);
 
         /// <remarks />
@@ -37015,6 +36523,9 @@ namespace Opc.Ua
         public static readonly NodeId AuditActivateSessionEventType_SecureChannelId = new NodeId(Opc.Ua.Variables.AuditActivateSessionEventType_SecureChannelId);
 
         /// <remarks />
+        public static readonly NodeId AuditActivateSessionEventType_CurrentRoleIds = new NodeId(Opc.Ua.Variables.AuditActivateSessionEventType_CurrentRoleIds);
+
+        /// <remarks />
         public static readonly NodeId AuditCancelEventType_RequestHandle = new NodeId(Opc.Ua.Variables.AuditCancelEventType_RequestHandle);
 
         /// <remarks />
@@ -37057,7 +36568,13 @@ namespace Opc.Ua
         public static readonly NodeId AuditUpdateMethodEventType_MethodId = new NodeId(Opc.Ua.Variables.AuditUpdateMethodEventType_MethodId);
 
         /// <remarks />
+        public static readonly NodeId AuditUpdateMethodEventType_StatusCodeId = new NodeId(Opc.Ua.Variables.AuditUpdateMethodEventType_StatusCodeId);
+
+        /// <remarks />
         public static readonly NodeId AuditUpdateMethodEventType_InputArguments = new NodeId(Opc.Ua.Variables.AuditUpdateMethodEventType_InputArguments);
+
+        /// <remarks />
+        public static readonly NodeId AuditUpdateMethodEventType_OutputArguments = new NodeId(Opc.Ua.Variables.AuditUpdateMethodEventType_OutputArguments);
 
         /// <remarks />
         public static readonly NodeId SystemStatusChangeEventType_SystemState = new NodeId(Opc.Ua.Variables.SystemStatusChangeEventType_SystemState);
@@ -43678,84 +43195,6 @@ namespace Opc.Ua
         public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_TransactionDiagnostics_Errors = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_TransactionDiagnostics_Errors);
 
         /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_Size = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_Size);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_Writable = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_Writable);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_UserWritable = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_UserWritable);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_OpenCount = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_OpenCount);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_Open_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_Open_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_Open_OutputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_Open_OutputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_Close_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_Close_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_Read_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_Read_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_Read_OutputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_Read_OutputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_Write_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_Write_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_GetPosition_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_GetPosition_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_GetPosition_OutputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_GetPosition_OutputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_SetPosition_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_SetPosition_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_LastUpdateTime = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_LastUpdateTime);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_CurrentVersion = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_CurrentVersion);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_ActivityTimeout = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_ActivityTimeout);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_SupportedDataType = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_SupportedDataType);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_ConfirmUpdate_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_ConfirmUpdate_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_ConfirmUpdate_OutputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_ConfirmUpdate_OutputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_CloseAndUpdate_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_CloseAndUpdate_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_CloseAndUpdate_OutputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_CloseAndUpdate_OutputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_AvailableNetworks = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_AvailableNetworks);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_AvailablePorts = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_AvailablePorts);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_SecurityPolicyUris = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_SecurityPolicyUris);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_UserTokenTypes = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_UserTokenTypes);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_CertificateTypes = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_CertificateTypes);
-
-        /// <remarks />
         public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_Enabled = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_Enabled);
 
         /// <remarks />
@@ -45010,6 +44449,9 @@ namespace Opc.Ua
         public static readonly NodeId ServerConfigurationType_SupportsTransactions = new NodeId(Opc.Ua.Variables.ServerConfigurationType_SupportsTransactions);
 
         /// <remarks />
+        public static readonly NodeId ServerConfigurationType_InApplicationSetup = new NodeId(Opc.Ua.Variables.ServerConfigurationType_InApplicationSetup);
+
+        /// <remarks />
         public static readonly NodeId ServerConfigurationType_UpdateCertificate_InputArguments = new NodeId(Opc.Ua.Variables.ServerConfigurationType_UpdateCertificate_InputArguments);
 
         /// <remarks />
@@ -45047,84 +44489,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId ServerConfigurationType_TransactionDiagnostics_Errors = new NodeId(Opc.Ua.Variables.ServerConfigurationType_TransactionDiagnostics_Errors);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfigurationType_ConfigurationFile_Size = new NodeId(Opc.Ua.Variables.ServerConfigurationType_ConfigurationFile_Size);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfigurationType_ConfigurationFile_Writable = new NodeId(Opc.Ua.Variables.ServerConfigurationType_ConfigurationFile_Writable);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfigurationType_ConfigurationFile_UserWritable = new NodeId(Opc.Ua.Variables.ServerConfigurationType_ConfigurationFile_UserWritable);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfigurationType_ConfigurationFile_OpenCount = new NodeId(Opc.Ua.Variables.ServerConfigurationType_ConfigurationFile_OpenCount);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfigurationType_ConfigurationFile_Open_InputArguments = new NodeId(Opc.Ua.Variables.ServerConfigurationType_ConfigurationFile_Open_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfigurationType_ConfigurationFile_Open_OutputArguments = new NodeId(Opc.Ua.Variables.ServerConfigurationType_ConfigurationFile_Open_OutputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfigurationType_ConfigurationFile_Close_InputArguments = new NodeId(Opc.Ua.Variables.ServerConfigurationType_ConfigurationFile_Close_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfigurationType_ConfigurationFile_Read_InputArguments = new NodeId(Opc.Ua.Variables.ServerConfigurationType_ConfigurationFile_Read_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfigurationType_ConfigurationFile_Read_OutputArguments = new NodeId(Opc.Ua.Variables.ServerConfigurationType_ConfigurationFile_Read_OutputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfigurationType_ConfigurationFile_Write_InputArguments = new NodeId(Opc.Ua.Variables.ServerConfigurationType_ConfigurationFile_Write_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfigurationType_ConfigurationFile_GetPosition_InputArguments = new NodeId(Opc.Ua.Variables.ServerConfigurationType_ConfigurationFile_GetPosition_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfigurationType_ConfigurationFile_GetPosition_OutputArguments = new NodeId(Opc.Ua.Variables.ServerConfigurationType_ConfigurationFile_GetPosition_OutputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfigurationType_ConfigurationFile_SetPosition_InputArguments = new NodeId(Opc.Ua.Variables.ServerConfigurationType_ConfigurationFile_SetPosition_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfigurationType_ConfigurationFile_LastUpdateTime = new NodeId(Opc.Ua.Variables.ServerConfigurationType_ConfigurationFile_LastUpdateTime);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfigurationType_ConfigurationFile_CurrentVersion = new NodeId(Opc.Ua.Variables.ServerConfigurationType_ConfigurationFile_CurrentVersion);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfigurationType_ConfigurationFile_ActivityTimeout = new NodeId(Opc.Ua.Variables.ServerConfigurationType_ConfigurationFile_ActivityTimeout);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfigurationType_ConfigurationFile_SupportedDataType = new NodeId(Opc.Ua.Variables.ServerConfigurationType_ConfigurationFile_SupportedDataType);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfigurationType_ConfigurationFile_ConfirmUpdate_InputArguments = new NodeId(Opc.Ua.Variables.ServerConfigurationType_ConfigurationFile_ConfirmUpdate_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfigurationType_ConfigurationFile_ConfirmUpdate_OutputArguments = new NodeId(Opc.Ua.Variables.ServerConfigurationType_ConfigurationFile_ConfirmUpdate_OutputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfigurationType_ConfigurationFile_CloseAndUpdate_InputArguments = new NodeId(Opc.Ua.Variables.ServerConfigurationType_ConfigurationFile_CloseAndUpdate_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfigurationType_ConfigurationFile_CloseAndUpdate_OutputArguments = new NodeId(Opc.Ua.Variables.ServerConfigurationType_ConfigurationFile_CloseAndUpdate_OutputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfigurationType_ConfigurationFile_AvailableNetworks = new NodeId(Opc.Ua.Variables.ServerConfigurationType_ConfigurationFile_AvailableNetworks);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfigurationType_ConfigurationFile_AvailablePorts = new NodeId(Opc.Ua.Variables.ServerConfigurationType_ConfigurationFile_AvailablePorts);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfigurationType_ConfigurationFile_SecurityPolicyUris = new NodeId(Opc.Ua.Variables.ServerConfigurationType_ConfigurationFile_SecurityPolicyUris);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfigurationType_ConfigurationFile_UserTokenTypes = new NodeId(Opc.Ua.Variables.ServerConfigurationType_ConfigurationFile_UserTokenTypes);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfigurationType_ConfigurationFile_CertificateTypes = new NodeId(Opc.Ua.Variables.ServerConfigurationType_ConfigurationFile_CertificateTypes);
 
         /// <remarks />
         public static readonly NodeId CertificateUpdatedAuditEventType_CertificateGroup = new NodeId(Opc.Ua.Variables.CertificateUpdatedAuditEventType_CertificateGroup);
@@ -46400,84 +45764,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId ServerConfiguration_TransactionDiagnostics_Errors = new NodeId(Opc.Ua.Variables.ServerConfiguration_TransactionDiagnostics_Errors);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfiguration_ConfigurationFile_Size = new NodeId(Opc.Ua.Variables.ServerConfiguration_ConfigurationFile_Size);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfiguration_ConfigurationFile_Writable = new NodeId(Opc.Ua.Variables.ServerConfiguration_ConfigurationFile_Writable);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfiguration_ConfigurationFile_UserWritable = new NodeId(Opc.Ua.Variables.ServerConfiguration_ConfigurationFile_UserWritable);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfiguration_ConfigurationFile_OpenCount = new NodeId(Opc.Ua.Variables.ServerConfiguration_ConfigurationFile_OpenCount);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfiguration_ConfigurationFile_Open_InputArguments = new NodeId(Opc.Ua.Variables.ServerConfiguration_ConfigurationFile_Open_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfiguration_ConfigurationFile_Open_OutputArguments = new NodeId(Opc.Ua.Variables.ServerConfiguration_ConfigurationFile_Open_OutputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfiguration_ConfigurationFile_Close_InputArguments = new NodeId(Opc.Ua.Variables.ServerConfiguration_ConfigurationFile_Close_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfiguration_ConfigurationFile_Read_InputArguments = new NodeId(Opc.Ua.Variables.ServerConfiguration_ConfigurationFile_Read_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfiguration_ConfigurationFile_Read_OutputArguments = new NodeId(Opc.Ua.Variables.ServerConfiguration_ConfigurationFile_Read_OutputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfiguration_ConfigurationFile_Write_InputArguments = new NodeId(Opc.Ua.Variables.ServerConfiguration_ConfigurationFile_Write_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfiguration_ConfigurationFile_GetPosition_InputArguments = new NodeId(Opc.Ua.Variables.ServerConfiguration_ConfigurationFile_GetPosition_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfiguration_ConfigurationFile_GetPosition_OutputArguments = new NodeId(Opc.Ua.Variables.ServerConfiguration_ConfigurationFile_GetPosition_OutputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfiguration_ConfigurationFile_SetPosition_InputArguments = new NodeId(Opc.Ua.Variables.ServerConfiguration_ConfigurationFile_SetPosition_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfiguration_ConfigurationFile_LastUpdateTime = new NodeId(Opc.Ua.Variables.ServerConfiguration_ConfigurationFile_LastUpdateTime);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfiguration_ConfigurationFile_CurrentVersion = new NodeId(Opc.Ua.Variables.ServerConfiguration_ConfigurationFile_CurrentVersion);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfiguration_ConfigurationFile_ActivityTimeout = new NodeId(Opc.Ua.Variables.ServerConfiguration_ConfigurationFile_ActivityTimeout);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfiguration_ConfigurationFile_SupportedDataType = new NodeId(Opc.Ua.Variables.ServerConfiguration_ConfigurationFile_SupportedDataType);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfiguration_ConfigurationFile_ConfirmUpdate_InputArguments = new NodeId(Opc.Ua.Variables.ServerConfiguration_ConfigurationFile_ConfirmUpdate_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfiguration_ConfigurationFile_ConfirmUpdate_OutputArguments = new NodeId(Opc.Ua.Variables.ServerConfiguration_ConfigurationFile_ConfirmUpdate_OutputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfiguration_ConfigurationFile_CloseAndUpdate_InputArguments = new NodeId(Opc.Ua.Variables.ServerConfiguration_ConfigurationFile_CloseAndUpdate_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfiguration_ConfigurationFile_CloseAndUpdate_OutputArguments = new NodeId(Opc.Ua.Variables.ServerConfiguration_ConfigurationFile_CloseAndUpdate_OutputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfiguration_ConfigurationFile_AvailableNetworks = new NodeId(Opc.Ua.Variables.ServerConfiguration_ConfigurationFile_AvailableNetworks);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfiguration_ConfigurationFile_AvailablePorts = new NodeId(Opc.Ua.Variables.ServerConfiguration_ConfigurationFile_AvailablePorts);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfiguration_ConfigurationFile_SecurityPolicyUris = new NodeId(Opc.Ua.Variables.ServerConfiguration_ConfigurationFile_SecurityPolicyUris);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfiguration_ConfigurationFile_UserTokenTypes = new NodeId(Opc.Ua.Variables.ServerConfiguration_ConfigurationFile_UserTokenTypes);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfiguration_ConfigurationFile_CertificateTypes = new NodeId(Opc.Ua.Variables.ServerConfiguration_ConfigurationFile_CertificateTypes);
 
         /// <remarks />
         public static readonly NodeId KeyCredentialConfigurationFolderType_ServiceName_Placeholder_ResourceUri = new NodeId(Opc.Ua.Variables.KeyCredentialConfigurationFolderType_ServiceName_Placeholder_ResourceUri);
@@ -51787,84 +51073,6 @@ namespace Opc.Ua
         public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_TransactionDiagnostics_Errors = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_TransactionDiagnostics_Errors);
 
         /// <remarks />
-        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_Size = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_Size);
-
-        /// <remarks />
-        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_Writable = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_Writable);
-
-        /// <remarks />
-        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_UserWritable = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_UserWritable);
-
-        /// <remarks />
-        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_OpenCount = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_OpenCount);
-
-        /// <remarks />
-        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_Open_InputArguments = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_Open_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_Open_OutputArguments = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_Open_OutputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_Close_InputArguments = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_Close_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_Read_InputArguments = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_Read_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_Read_OutputArguments = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_Read_OutputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_Write_InputArguments = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_Write_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_GetPosition_InputArguments = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_GetPosition_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_GetPosition_OutputArguments = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_GetPosition_OutputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_SetPosition_InputArguments = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_SetPosition_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_LastUpdateTime = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_LastUpdateTime);
-
-        /// <remarks />
-        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_CurrentVersion = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_CurrentVersion);
-
-        /// <remarks />
-        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_ActivityTimeout = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_ActivityTimeout);
-
-        /// <remarks />
-        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_SupportedDataType = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_SupportedDataType);
-
-        /// <remarks />
-        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_ConfirmUpdate_InputArguments = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_ConfirmUpdate_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_ConfirmUpdate_OutputArguments = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_ConfirmUpdate_OutputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_CloseAndUpdate_InputArguments = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_CloseAndUpdate_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_CloseAndUpdate_OutputArguments = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_CloseAndUpdate_OutputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_AvailableNetworks = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_AvailableNetworks);
-
-        /// <remarks />
-        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_AvailablePorts = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_AvailablePorts);
-
-        /// <remarks />
-        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_SecurityPolicyUris = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_SecurityPolicyUris);
-
-        /// <remarks />
-        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_UserTokenTypes = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_UserTokenTypes);
-
-        /// <remarks />
-        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_CertificateTypes = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_CertificateTypes);
-
-        /// <remarks />
         public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_Enabled = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_Enabled);
 
         /// <remarks />
@@ -54850,6 +54058,9 @@ namespace Opc.Ua
         public const string CurrentPublishRequestsInQueue = "CurrentPublishRequestsInQueue";
 
         /// <remarks />
+        public const string CurrentRoleIds = "CurrentRoleIds";
+
+        /// <remarks />
         public const string CurrentServerId = "CurrentServerId";
 
         /// <remarks />
@@ -56051,6 +55262,9 @@ namespace Opc.Ua
 
         /// <remarks />
         public const string ImagePNG = "ImagePNG";
+
+        /// <remarks />
+        public const string InApplicationSetup = "InApplicationSetup";
 
         /// <remarks />
         public const string Index = "Index";

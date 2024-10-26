@@ -1069,10 +1069,11 @@
     <opc:EnumeratedValue Name="Status" Value="16" />
     <opc:EnumeratedValue Name="MessageType" Value="32" />
     <opc:EnumeratedValue Name="DataSetWriterName" Value="64" />
-    <opc:EnumeratedValue Name="ReversibleFieldEncoding" Value="128" />
+    <opc:EnumeratedValue Name="FieldEncoding1" Value="128" />
     <opc:EnumeratedValue Name="PublisherId" Value="256" />
     <opc:EnumeratedValue Name="WriterGroupName" Value="512" />
     <opc:EnumeratedValue Name="MinorVersion" Value="1024" />
+    <opc:EnumeratedValue Name="FieldEncoding2" Value="2048" />
   </opc:EnumeratedType>
 
   <opc:StructuredType Name="JsonDataSetWriterMessageDataType" BaseType="tns:DataSetWriterMessageDataType">
