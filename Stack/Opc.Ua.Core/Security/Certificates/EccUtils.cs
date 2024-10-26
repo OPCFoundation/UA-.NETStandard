@@ -1237,6 +1237,7 @@ namespace Opc.Ua
         /// <returns></returns>
         public static ECDsa GetPublicKey(X509Certificate2 certificate, out string[] securityPolicyUris)
         {
+#if ECC_SUPPORT
             securityPolicyUris = null;
 
             var keyAlgorithm = certificate.GetKeyAlgorithm();
@@ -1326,6 +1327,9 @@ namespace Opc.Ua
             }
 
             return ECDsa.Create(ecParameters);
+#else
+            throw new NotSupportedException("ECC is not available on NET4.6.2");
+#endif
         }
 
         /// <summary>
