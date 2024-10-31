@@ -15,6 +15,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Runtime.Serialization;
+using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
@@ -1115,9 +1116,9 @@ namespace Opc.Ua
         /// <summary>
         /// Updates an endpoint with information from the server's discovery endpoint.
         /// </summary>
-        public Task UpdateFromServerAsync(CancellationToken ct = default)
+        public Task UpdateFromServerAsync(CancellationToken ct = default, ApplicationConfiguration applicationConfiguration = null)
         {
-            return UpdateFromServerAsync(EndpointUrl, m_description.SecurityMode, m_description.SecurityPolicyUri, ct);
+            return UpdateFromServerAsync(EndpointUrl, m_description.SecurityMode, m_description.SecurityPolicyUri, ct, applicationConfiguration);
         }
 
         /// <summary>
@@ -1127,9 +1128,10 @@ namespace Opc.Ua
             Uri endpointUrl,
             MessageSecurityMode securityMode,
             string securityPolicyUri,
-            CancellationToken ct = default)
+            CancellationToken ct = default,
+            ApplicationConfiguration applicationConfiguration = null)
         {
-            return UpdateFromServerAsync(endpointUrl, null, securityMode, securityPolicyUri, ct);
+            return UpdateFromServerAsync(endpointUrl, null, securityMode, securityPolicyUri, ct, applicationConfiguration);
         }
 
         /// <summary>
@@ -1140,7 +1142,8 @@ namespace Opc.Ua
             ITransportWaitingConnection connection,
             MessageSecurityMode securityMode,
             string securityPolicyUri,
-            CancellationToken ct = default)
+            CancellationToken ct = default,
+            ApplicationConfiguration applicationConfiguration = null)
         {
             // get the a discovery url.
             Uri discoveryUrl = GetDiscoveryUrl(endpointUrl);
@@ -1153,7 +1156,7 @@ namespace Opc.Ua
             }
             else
             {
-                client = DiscoveryClient.Create(discoveryUrl, m_configuration);
+                client = DiscoveryClient.Create(discoveryUrl, m_configuration, applicationConfiguration);
             }
 
             try

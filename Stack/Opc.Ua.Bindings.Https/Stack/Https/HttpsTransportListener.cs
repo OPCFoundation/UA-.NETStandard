@@ -14,6 +14,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Net;
+using System.Net.Security;
 using System.Security.Authentication;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
@@ -24,6 +25,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Server.Kestrel.Https;
 using Microsoft.Extensions.Hosting;
+using Opc.Ua.Security.Certificates;
 
 
 namespace Opc.Ua.Bindings
@@ -283,9 +285,10 @@ namespace Opc.Ua.Bindings
 
             var httpsOptions = new HttpsConnectionAdapterOptions() {
                 CheckCertificateRevocation = false,
-                ClientCertificateMode = ClientCertificateMode.NoCertificate,
+                ClientCertificateMode = ClientCertificateMode.RequireCertificate,
                 // note: this is the TLS certificate!
                 ServerCertificate = serverCertificate,
+                ClientCertificateValidation = ValidateClientCertificate,
             };
 
 #if NET462
@@ -333,7 +336,7 @@ namespace Opc.Ua.Bindings
         {
             Dispose();
         }
-        #endregion
+#endregion
 
         #region Private Methods
         /// <summary>
@@ -366,6 +369,33 @@ namespace Opc.Ua.Bindings
                     message = "HTTPSLISTENER - Invalid buffer.";
                     await WriteResponseAsync(context.Response, message, HttpStatusCode.BadRequest).ConfigureAwait(false);
                     return;
+                }
+
+                // Access client certificate
+                var clientCertificate = context.Connection.ClientCertificate;
+
+                if (clientCertificate == null)
+                {
+                    // No client certificate is provided
+                    message = "Client certificate is required";
+                    await WriteResponseAsync(context.Response, message, HttpStatusCode.Unauthorized).ConfigureAwait(false);
+                    return;
+                }
+
+                // Validate the client certificate 
+                if (clientCertificate != null && m_quotas.CertificateValidator != null)
+                {
+                    try
+                    {
+                        await m_quotas.CertificateValidator.ValidateAsync(clientCertificate, ct).ConfigureAwait(false);
+                    }
+                    catch (Exception ex)
+                    {
+                        message = "Client certificate validation failed.";
+                        Utils.LogError(ex, message);
+                        await WriteResponseAsync(context.Response, message, HttpStatusCode.Unauthorized).ConfigureAwait (false);
+                        return;
+                    }
                 }
 
                 IServiceRequest input = (IServiceRequest)BinaryDecoder.DecodeMessage(buffer, null, m_quotas.MessageContext);
@@ -523,6 +553,36 @@ namespace Opc.Ua.Bindings
                 await reader.BaseStream.CopyToAsync(memory).ConfigureAwait(false);
                 return memory.ToArray();
             }
+        }
+
+        /// <summary>
+        /// Validate TLS Client certificate
+        /// </summary>
+        /// <param name="clientCertificate"></param>
+        /// <param name="chain"></param>
+        /// <param name="sslPolicyErrors"></param>
+        /// <returns></returns>
+        private bool ValidateClientCertificate(
+            X509Certificate2 clientCertificate,
+            X509Chain chain,
+            SslPolicyErrors sslPolicyErrors)
+        {
+            if (sslPolicyErrors == SslPolicyErrors.None)
+            {
+                // certificate is valid
+                return true;
+            }
+
+            try
+            {
+                m_quotas.CertificateValidator.Validate(clientCertificate);
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+
+            return true;
         }
         #endregion
 
