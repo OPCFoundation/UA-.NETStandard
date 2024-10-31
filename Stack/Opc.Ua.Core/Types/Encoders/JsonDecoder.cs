@@ -18,6 +18,7 @@ using System.Linq;
 using System.Text;
 using System.Xml;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 namespace Opc.Ua
 {
@@ -1304,7 +1305,12 @@ namespace Opc.Ua
             {
                 m_stack.Push(value);
 
-                BuiltInType type = (BuiltInType)ReadByte("Type");
+                BuiltInType type = (BuiltInType)ReadByte("@Type");
+
+                if (type == BuiltInType.Null)
+                {
+                    type = (BuiltInType)ReadByte("Type");
+                }
 
                 var context = m_stack.Peek() as Dictionary<string, object>;
 
@@ -1413,7 +1419,15 @@ namespace Opc.Ua
             {
                 m_stack.Push(value);
 
-                ExpandedNodeId typeId = ReadExpandedNodeId("TypeId");
+                bool inlineValues = true;
+                ExpandedNodeId typeId = ReadExpandedNodeId("@TypeId");
+
+                if (typeId == null)
+                {
+                    typeId = ReadExpandedNodeId("TypeId");
+                    inlineValues = false;
+                }
+
                 ExpandedNodeId absoluteId =
                     typeId.IsAbsolute ?
                     typeId :
@@ -1460,10 +1474,27 @@ namespace Opc.Ua
 
                 if (systemType != null)
                 {
-                    var encodeable = ReadEncodeable("Body", systemType, typeId);
-                    if (encodeable == null)
+                    IEncodeable encodeable = null;
+
+                    if (inlineValues)
                     {
-                        return extension;
+                        encodeable = Activator.CreateInstance(systemType) as IEncodeable;
+
+                        if (encodeable == null)
+                        {
+                            throw new ServiceResultException(StatusCodes.BadDecodingError, Utils.Format("Type does not support IEncodeable interface: '{0}'", systemType.FullName));
+                        }
+
+                        encodeable.Decode(this);
+                    }
+                    else
+                    {
+                        encodeable = ReadEncodeable("Body", systemType, typeId);
+
+                        if (encodeable == null)
+                        {
+                            return extension;
+                        }
                     }
 
                     return new ExtensionObject(typeId, encodeable);
@@ -1472,12 +1503,14 @@ namespace Opc.Ua
                 using (var ostrm = new MemoryStream())
                 {
                     using (var stream = new StreamWriter(ostrm))
-                    using (JsonTextWriter writer = new JsonTextWriter(stream))
                     {
-                        EncodeAsJson(writer, token);
+                        using (JsonTextWriter writer = new JsonTextWriter(stream))
+                        {
+                            EncodeAsJson(writer, token);
+                        }
+
+                        return new ExtensionObject(typeId, ostrm.ToArray());
                     }
-                    // Close the writer before retrieving the data
-                    return new ExtensionObject(typeId, ostrm.ToArray());
                 }
             }
             finally
@@ -1506,7 +1539,6 @@ namespace Opc.Ua
             {
                 return null;
             }
-
 
             if (!(Activator.CreateInstance(systemType) is IEncodeable value))
             {
@@ -3269,7 +3301,6 @@ namespace Opc.Ua
                     EncodeAsJson(writer, map);
                     return;
                 }
-
 
                 if (value is List<object> list)
                 {

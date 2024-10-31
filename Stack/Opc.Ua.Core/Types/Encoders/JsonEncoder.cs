@@ -18,6 +18,7 @@ using System.IO;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Xml;
+using Newtonsoft.Json.Linq;
 
 namespace Opc.Ua
 {
@@ -1339,14 +1340,30 @@ namespace Opc.Ua
                 return;
             }
 
-            if (EncodingToUse == JsonEncodingType.Reversible || EncodingToUse == JsonEncodingType.Compact)
+            if (EncodingToUse == JsonEncodingType.Reversible)
             {
                 WriteUInt32(fieldName, value.Code);
                 return;
             }
 
-            // Verbose and NonReversible
+            if (EncodingToUse == JsonEncodingType.Compact || EncodingToUse == JsonEncodingType.Verbose)
+            {
+                PushStructure(fieldName);
+                WriteUInt32("Code", value.Code);
+
+                if (EncodingToUse == JsonEncodingType.Verbose)
+                {
+                    string symbolicId = StatusCode.LookupSymbolicId(value.CodeBits);
+                    WriteSimpleField("Text", symbolicId, EscapeOptions.Quotes | EscapeOptions.NoFieldNameEscape);
+                }
+
+                PopStructure();
+                return;
+            }
+
+            // NonReversible
             PushStructure(fieldName);
+
             if (value != StatusCodes.Good)
             {
                 WriteSimpleField("Code", value.Code.ToString(CultureInfo.InvariantCulture), EscapeOptions.NoFieldNameEscape);
@@ -1356,6 +1373,7 @@ namespace Opc.Ua
                     WriteSimpleField("Symbol", symbolicId, EscapeOptions.Quotes | EscapeOptions.NoFieldNameEscape);
                 }
             }
+
             PopStructure();
         }
 
@@ -1450,7 +1468,7 @@ namespace Opc.Ua
                         encodingByte = (byte)BuiltInType.Int32;
                     }
 
-                    WriteByte("Type", encodingByte);
+                    WriteByte((EncodingToUse != JsonEncodingType.Reversible) ? "@Type" : "Type", encodingByte);
                     fieldName = "Body";
                 }
 
@@ -1548,10 +1566,8 @@ namespace Opc.Ua
 
             if (encodeable != null && EncodingToUse == JsonEncodingType.NonReversible)
             {
-                // non reversible encoding, only the content of the Body field is encoded
-                // TODO: value.Body is Union?
-                if (value.Body is IStructureTypeInfo structureType &&
-                    structureType.StructureType == StructureType.Union)
+                // non reversible encoding, only the content of the Body field is encoded.
+                if (value.Body is IStructureTypeInfo structureType && structureType.StructureType == StructureType.Union)
                 {
                     encodeable.Encode(this);
                     return;
@@ -1560,13 +1576,44 @@ namespace Opc.Ua
                 PushStructure(fieldName);
                 encodeable.Encode(this);
                 PopStructure();
-
                 return;
             }
 
             PushStructure(fieldName);
 
             var typeId = value.TypeId;
+            var localTypeId = ExpandedNodeId.ToNodeId(value.TypeId, Context.NamespaceUris);
+
+            if (EncodingToUse == JsonEncodingType.Compact)
+            {
+                WriteNodeId("@TypeId", localTypeId);
+
+                if (encodeable != null)
+                {
+                    encodeable.Encode(this);
+                }
+                else
+                {
+                    if (value.Body is JObject json)
+                    {
+                        string text = json.ToString(Newtonsoft.Json.Formatting.None);
+                        m_writer.Write(text.Substring(1, text.Length-2));
+                    }
+                    else if (value.Encoding == ExtensionObjectEncoding.Binary)
+                    {
+                        WriteByteString("@UaBinary", value.Body as byte[]);
+                    }
+                    else if (value.Encoding == ExtensionObjectEncoding.Xml)
+                    {
+                        WriteXmlElement("@UaXml", value.Body as XmlElement);
+                    }
+                }
+
+                PopStructure();
+                return;
+            }
+
+            WriteNodeId("TypeId", localTypeId);
 
             if (encodeable != null)
             {
@@ -1578,32 +1625,28 @@ namespace Opc.Ua
                 }
             }
 
-            var localTypeId = ExpandedNodeId.ToNodeId(typeId, Context.NamespaceUris);
-            WriteNodeId("TypeId", localTypeId);
-
             if (encodeable != null)
             {
                 WriteEncodeable("Body", encodeable, null);
             }
             else
             {
-                if (value.Body != null)
+                if (value.Body is JObject json)
                 {
-                    if (value.Encoding == ExtensionObjectEncoding.Json)
+                    string text = json.ToString(Newtonsoft.Json.Formatting.None);
+                    m_writer.Write(text.Substring(1, text.Length - 2));
+                }
+                else
+                {
+                    WriteByte("Encoding", (byte)value.Encoding);
+
+                    if (value.Encoding == ExtensionObjectEncoding.Binary)
                     {
-                        WriteSimpleField("Body", value.Body as string, EscapeOptions.Quotes | EscapeOptions.NoFieldNameEscape);
+                        WriteByteString("Body", value.Body as byte[]);
                     }
-                    else
+                    else if (value.Encoding == ExtensionObjectEncoding.Xml)
                     {
-                        WriteByte("Encoding", (byte)value.Encoding);
-                        if (value.Encoding == ExtensionObjectEncoding.Binary)
-                        {
-                            WriteByteString("Body", value.Body as byte[]);
-                        }
-                        else if (value.Encoding == ExtensionObjectEncoding.Xml)
-                        {
-                            WriteXmlElement("Body", value.Body as XmlElement);
-                        }
+                        WriteXmlElement("Body", value.Body as XmlElement);
                     }
                 }
             }
@@ -1669,14 +1712,14 @@ namespace Opc.Ua
             int numeric = Convert.ToInt32(value, CultureInfo.InvariantCulture);
             var numericString = numeric.ToString(CultureInfo.InvariantCulture);
 
-            if (EncodingToUse == JsonEncodingType.Reversible ||
-                EncodingToUse == JsonEncodingType.Compact)
+            if (EncodingToUse == JsonEncodingType.Reversible || EncodingToUse == JsonEncodingType.Compact)
             {
                 WriteSimpleField(fieldName, numericString);
             }
             else
             {
                 var valueString = value.ToString();
+
                 if (valueString == numericString)
                 {
                     WriteSimpleField(fieldName, numericString, EscapeOptions.Quotes);
@@ -1693,7 +1736,15 @@ namespace Opc.Ua
         /// </summary>
         public void WriteEnumerated(string fieldName, int numeric)
         {
-            bool writeNumber = EncodingToUse == JsonEncodingType.Reversible || EncodingToUse == JsonEncodingType.Compact;
+            if (EncodingToUse == JsonEncodingType.Compact || EncodingToUse == JsonEncodingType.Verbose)
+            {
+                PushStructure(fieldName);
+                WriteInt32("Code", numeric);
+                PopStructure();
+                return;
+            }
+
+            bool writeNumber = EncodingToUse == JsonEncodingType.Reversible;
             var numericString = numeric.ToString(CultureInfo.InvariantCulture);
             WriteSimpleField(fieldName, numericString, writeNumber ? EscapeOptions.None : EscapeOptions.Quotes);
         }
