@@ -50,6 +50,7 @@ namespace Opc.Ua.Security.Certificates
         public X509CRL(string filePath) : this()
         {
             RawData = File.ReadAllBytes(filePath);
+            EnsureDecoded();
         }
 
         /// <summary>
@@ -58,6 +59,7 @@ namespace Opc.Ua.Security.Certificates
         public X509CRL(byte[] crl) : this()
         {
             RawData = crl;
+            EnsureDecoded();
         }
 
         /// <summary>
@@ -78,6 +80,7 @@ namespace Opc.Ua.Security.Certificates
                 m_crlExtensions.Add(extension);
             }
             RawData = crl.RawData;
+            EnsureDecoded();
         }
 
         /// <summary>
@@ -99,7 +102,6 @@ namespace Opc.Ua.Security.Certificates
         {
             get
             {
-                EnsureDecoded();
                 return m_issuerName;
             }
         }
@@ -250,14 +252,8 @@ namespace Opc.Ua.Security.Certificates
                     // Signature Algorithm Identifier
                     AsnReader sigReader = seqReader.ReadSequence();
                     string oid = sigReader.ReadObjectIdentifier();
-                    try
-                    {
-                        m_hashAlgorithmName = Oids.GetHashAlgorithmName(oid);
-                    }
-                    catch (CryptographicException)
-                    {
-                        //decode crl sucesfully even if hash algorithm name of the crl is not a known opc ua hash algorithm
-                    }
+                    m_hashAlgorithmName = Oids.GetHashAlgorithmName(oid);
+
                     if (sigReader.HasData)
                     {
                         sigReader.ReadNull();

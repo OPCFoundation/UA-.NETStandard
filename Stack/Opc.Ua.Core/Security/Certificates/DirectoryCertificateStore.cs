@@ -678,8 +678,16 @@ namespace Opc.Ua
             {
                 foreach (FileInfo file in m_crlSubdir.GetFiles("*" + kCrlExtension))
                 {
-                    var crl = new X509CRL(file.FullName);
-                    crls.Add(crl);
+                    try
+                    {
+                        var crl = new X509CRL(file.FullName);
+                        crls.Add(crl);
+                    }
+                    catch (Exception e)
+                    {
+                        Utils.LogError(e, "Failed to parse CRL in store {store}.", StorePath);
+                    }
+
                 }
             }
 
@@ -697,28 +705,20 @@ namespace Opc.Ua
             var crls = new X509CRLCollection();
             foreach (X509CRL crl in await EnumerateCRLs().ConfigureAwait(false))
             {
-                try
+                if (!X509Utils.CompareDistinguishedName(crl.IssuerName, issuer.SubjectName))
                 {
-                    if (!X509Utils.CompareDistinguishedName(crl.IssuerName, issuer.SubjectName))
-                    {
-                        continue;
-                    }
-
-                    if (!crl.VerifySignature(issuer, false))
-                    {
-                        continue;
-                    }
-
-                    if (!validateUpdateTime ||
-                        crl.ThisUpdate <= DateTime.UtcNow && (crl.NextUpdate == DateTime.MinValue || crl.NextUpdate >= DateTime.UtcNow))
-                    {
-                        crls.Add(crl);
-                    }
-                }
-                catch (CryptographicException e)
-                {
-                    Utils.LogError(e, "Failed to parse CRL in store {store}.", StorePath);
                     continue;
+                }
+
+                if (!crl.VerifySignature(issuer, false))
+                {
+                    continue;
+                }
+
+                if (!validateUpdateTime ||
+                    crl.ThisUpdate <= DateTime.UtcNow && (crl.NextUpdate == DateTime.MinValue || crl.NextUpdate >= DateTime.UtcNow))
+                {
+                    crls.Add(crl);
                 }
             }
 

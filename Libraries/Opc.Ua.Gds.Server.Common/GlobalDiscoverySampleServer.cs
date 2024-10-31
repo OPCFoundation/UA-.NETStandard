@@ -269,19 +269,10 @@ namespace Opc.Ua.Gds.Server
                 var crls = AuthoritiesStore.EnumerateCRLs().Result;
                 foreach (X509CRL crl in crls)
                 {
-                    try
+                    if (crl.IsRevoked(applicationInstanceCertificate))
                     {
-                        if (crl.IsRevoked(applicationInstanceCertificate))
-                        {
-                            applicationRegistered = false;
-                        }
+                        applicationRegistered = false;
                     }
-                    catch (CryptographicException e)
-                    {
-                        Utils.LogError(e, "Failed to decode crl in store {store}", configuration.AuthoritiesStorePath);
-                        continue;
-                    }
-
                 }
             }
             return applicationRegistered;

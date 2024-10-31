@@ -472,7 +472,7 @@ namespace Opc.Ua.Server
                         result = StatusCodes.BadCertificateInvalid;
                     }
 
-                    var storeIdentifier = isTrustedCertificate? m_trustedStore : m_issuerStore;
+                    var storeIdentifier = isTrustedCertificate ? m_trustedStore : m_issuerStore;
                     ICertificateStore store = storeIdentifier.OpenStore();
                     try
                     {
@@ -539,21 +539,12 @@ namespace Opc.Ua.Server
                             {
                                 foreach (var cert in certCollection)
                                 {
-                                    try
+                                    if (X509Utils.CompareDistinguishedName(cert.SubjectName, crl.IssuerName) &&
+                                   crl.VerifySignature(cert, false))
                                     {
-                                        if (X509Utils.CompareDistinguishedName(cert.SubjectName, crl.IssuerName) &&
-                                       crl.VerifySignature(cert, false))
-                                        {
-                                            crlsToDelete.Add(crl);
-                                            break;
-                                        }
-                                    }
-                                    catch (CryptographicException e)
-                                    {
-                                        Utils.LogError(e, "Failed to decode crl in store {store}", storeIdentifier.StorePath);
+                                        crlsToDelete.Add(crl);
                                         break;
                                     }
-                                   
                                 }
                             }
 
