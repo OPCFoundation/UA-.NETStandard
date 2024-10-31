@@ -15,7 +15,7 @@
 */
 
 using System;
-using System.IO;
+using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading.Tasks;
@@ -251,26 +251,34 @@ namespace Opc.Ua
 
             foreach (X509CRL crl in crls)
             {
-
-                if (!X509Utils.CompareDistinguishedName(crl.IssuerName, issuer.SubjectName))
+                try
                 {
+                    if (!X509Utils.CompareDistinguishedName(crl.IssuerName, issuer.SubjectName))
+                    {
+                        continue;
+                    }
+
+                    if (!crl.VerifySignature(issuer, false))
+                    {
+                        continue;
+                    }
+
+                    if (crl.IsRevoked(certificate))
+                    {
+                        return (StatusCode)StatusCodes.BadCertificateRevoked;
+                    }
+
+                    if (crl.ThisUpdate <= DateTime.UtcNow && (crl.NextUpdate == DateTime.MinValue || crl.NextUpdate >= DateTime.UtcNow))
+                    {
+                        crlExpired = false;
+                    }
+                }
+                catch (CryptographicException e)
+                {
+                    Utils.LogError(e, "Failed to parse CRL in store {store}.", m_storeName);
                     continue;
                 }
-
-                if (!crl.VerifySignature(issuer, false))
-                {
-                    continue;
-                }
-
-                if (crl.IsRevoked(certificate))
-                {
-                    return (StatusCode)StatusCodes.BadCertificateRevoked;
-                }
-
-                if (crl.ThisUpdate <= DateTime.UtcNow && (crl.NextUpdate == DateTime.MinValue || crl.NextUpdate >= DateTime.UtcNow))
-                {
-                    crlExpired = false;
-                }
+               
             }
 
             // certificate is fine.
@@ -321,21 +329,30 @@ namespace Opc.Ua
             var crls = new X509CRLCollection();
             foreach (X509CRL crl in await EnumerateCRLs().ConfigureAwait(false))
             {
-                if (!X509Utils.CompareDistinguishedName(crl.IssuerName, issuer.SubjectName))
+                try
                 {
+                    if (!X509Utils.CompareDistinguishedName(crl.IssuerName, issuer.SubjectName))
+                    {
+                        continue;
+                    }
+
+                    if (!crl.VerifySignature(issuer, false))
+                    {
+                        continue;
+                    }
+
+                    if (!validateUpdateTime ||
+                        crl.ThisUpdate <= DateTime.UtcNow && (crl.NextUpdate == DateTime.MinValue || crl.NextUpdate >= DateTime.UtcNow))
+                    {
+                        crls.Add(crl);
+                    }
+                }
+                catch (CryptographicException e)
+                {
+                    Utils.LogError(e, "Failed to parse CRL in store {store}.", m_storeName);
                     continue;
                 }
-
-                if (!crl.VerifySignature(issuer, false))
-                {
-                    continue;
-                }
-
-                if (!validateUpdateTime ||
-                    crl.ThisUpdate <= DateTime.UtcNow && (crl.NextUpdate == DateTime.MinValue || crl.NextUpdate >= DateTime.UtcNow))
-                {
-                    crls.Add(crl);
-                }
+               
             }
 
             return crls;

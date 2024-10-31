@@ -250,7 +250,14 @@ namespace Opc.Ua.Security.Certificates
                     // Signature Algorithm Identifier
                     AsnReader sigReader = seqReader.ReadSequence();
                     string oid = sigReader.ReadObjectIdentifier();
-                    m_hashAlgorithmName = Oids.GetHashAlgorithmName(oid);
+                    try
+                    {
+                        m_hashAlgorithmName = Oids.GetHashAlgorithmName(oid);
+                    }
+                    catch (CryptographicException)
+                    {
+                        //decode crl sucesfully even if hash algorithm name of the crl is not a known opc ua hash algorithm
+                    }
                     if (sigReader.HasData)
                     {
                         sigReader.ReadNull();

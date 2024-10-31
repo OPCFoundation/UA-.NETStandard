@@ -20,7 +20,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.Redaction;
-using System.Threading;
+using System.Security.Cryptography;
 
 namespace Opc.Ua
 {
@@ -620,28 +620,36 @@ namespace Opc.Ua
                     }
                     catch (Exception e)
                     {
-                        Utils.LogError(e, "Could not parse CRL file.");
+                        Utils.LogError(e, "Could not parse CRL file {file}.", file.FullName);
                         continue;
                     }
 
-                    if (!X509Utils.CompareDistinguishedName(crl.IssuerName, issuer.SubjectName))
+                    try
                     {
+                        if (!X509Utils.CompareDistinguishedName(crl.IssuerName, issuer.SubjectName))
+                        {
+                            continue;
+                        }
+
+                        if (!crl.VerifySignature(issuer, false))
+                        {
+                            continue;
+                        }
+
+                        if (crl.IsRevoked(certificate))
+                        {
+                            return Task.FromResult((StatusCode)StatusCodes.BadCertificateRevoked);
+                        }
+
+                        if (crl.ThisUpdate <= DateTime.UtcNow && (crl.NextUpdate == DateTime.MinValue || crl.NextUpdate >= DateTime.UtcNow))
+                        {
+                            crlExpired = false;
+                        }
+                    }
+                    catch (CryptographicException e)
+                    {
+                        Utils.LogError(e, "Failed to parse CRL {file}.", file.FullName);
                         continue;
-                    }
-
-                    if (!crl.VerifySignature(issuer, false))
-                    {
-                        continue;
-                    }
-
-                    if (crl.IsRevoked(certificate))
-                    {
-                        return Task.FromResult((StatusCode)StatusCodes.BadCertificateRevoked);
-                    }
-
-                    if (crl.ThisUpdate <= DateTime.UtcNow && (crl.NextUpdate == DateTime.MinValue || crl.NextUpdate >= DateTime.UtcNow))
-                    {
-                        crlExpired = false;
                     }
                 }
 
@@ -689,20 +697,28 @@ namespace Opc.Ua
             var crls = new X509CRLCollection();
             foreach (X509CRL crl in await EnumerateCRLs().ConfigureAwait(false))
             {
-                if (!X509Utils.CompareDistinguishedName(crl.IssuerName, issuer.SubjectName))
+                try
                 {
-                    continue;
-                }
+                    if (!X509Utils.CompareDistinguishedName(crl.IssuerName, issuer.SubjectName))
+                    {
+                        continue;
+                    }
 
-                if (!crl.VerifySignature(issuer, false))
-                {
-                    continue;
-                }
+                    if (!crl.VerifySignature(issuer, false))
+                    {
+                        continue;
+                    }
 
-                if (!validateUpdateTime ||
-                    crl.ThisUpdate <= DateTime.UtcNow && (crl.NextUpdate == DateTime.MinValue || crl.NextUpdate >= DateTime.UtcNow))
+                    if (!validateUpdateTime ||
+                        crl.ThisUpdate <= DateTime.UtcNow && (crl.NextUpdate == DateTime.MinValue || crl.NextUpdate >= DateTime.UtcNow))
+                    {
+                        crls.Add(crl);
+                    }
+                }
+                catch (CryptographicException e)
                 {
-                    crls.Add(crl);
+                    Utils.LogError(e, "Failed to parse CRL in store {store}.", StorePath);
+                    continue;
                 }
             }
 
