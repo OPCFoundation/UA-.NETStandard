@@ -35,6 +35,7 @@ using Opc.Ua.Gds.Server.Database;
 using Opc.Ua.Server.UserDatabase;
 using System.Linq;
 using Opc.Ua.Security.Certificates;
+using System.Security.Cryptography;
 
 namespace Opc.Ua.Gds.Server
 {
@@ -268,10 +269,19 @@ namespace Opc.Ua.Gds.Server
                 var crls = AuthoritiesStore.EnumerateCRLs().Result;
                 foreach (X509CRL crl in crls)
                 {
-                    if (crl.IsRevoked(applicationInstanceCertificate))
+                    try
                     {
-                        applicationRegistered = false;
+                        if (crl.IsRevoked(applicationInstanceCertificate))
+                        {
+                            applicationRegistered = false;
+                        }
                     }
+                    catch (CryptographicException e)
+                    {
+                        Utils.LogError(e, "Failed to decode crl in store {store}", configuration.AuthoritiesStorePath);
+                        continue;
+                    }
+
                 }
             }
             return applicationRegistered;

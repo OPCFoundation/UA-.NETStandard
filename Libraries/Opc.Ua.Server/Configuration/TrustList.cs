@@ -29,6 +29,7 @@
 
 using System;
 using System.IO;
+using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 using Opc.Ua.Security.Certificates;
@@ -538,12 +539,21 @@ namespace Opc.Ua.Server
                             {
                                 foreach (var cert in certCollection)
                                 {
-                                    if (X509Utils.CompareDistinguishedName(cert.SubjectName, crl.IssuerName) &&
-                                        crl.VerifySignature(cert, false))
+                                    try
                                     {
-                                        crlsToDelete.Add(crl);
+                                        if (X509Utils.CompareDistinguishedName(cert.SubjectName, crl.IssuerName) &&
+                                       crl.VerifySignature(cert, false))
+                                        {
+                                            crlsToDelete.Add(crl);
+                                            break;
+                                        }
+                                    }
+                                    catch (CryptographicException e)
+                                    {
+                                        Utils.LogError(e, "Failed to decode crl in store {store}", storeIdentifier.StorePath);
                                         break;
                                     }
+                                   
                                 }
                             }
 
