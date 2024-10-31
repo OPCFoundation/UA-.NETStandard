@@ -114,7 +114,6 @@ namespace Opc.Ua.Security.Certificates
         {
             get
             {
-                EnsureDecoded();
                 return m_thisUpdate;
             }
         }
@@ -124,7 +123,6 @@ namespace Opc.Ua.Security.Certificates
         {
             get
             {
-                EnsureDecoded();
                 return m_nextUpdate;
             }
         }
@@ -134,7 +132,6 @@ namespace Opc.Ua.Security.Certificates
         {
             get
             {
-                EnsureDecoded();
                 return m_hashAlgorithmName;
             }
         }
@@ -144,7 +141,6 @@ namespace Opc.Ua.Security.Certificates
         {
             get
             {
-                EnsureDecoded();
                 return m_revokedCertificates.AsReadOnly();
             }
         }
@@ -154,7 +150,6 @@ namespace Opc.Ua.Security.Certificates
         {
             get
             {
-                EnsureDecoded();
                 return m_crlExtensions;
             }
         }
@@ -253,7 +248,6 @@ namespace Opc.Ua.Security.Certificates
                     AsnReader sigReader = seqReader.ReadSequence();
                     string oid = sigReader.ReadObjectIdentifier();
                     m_hashAlgorithmName = Oids.GetHashAlgorithmName(oid);
-
                     if (sigReader.HasData)
                     {
                         sigReader.ReadNull();

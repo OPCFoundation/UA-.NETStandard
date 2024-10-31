@@ -624,32 +624,24 @@ namespace Opc.Ua
                         continue;
                     }
 
-                    try
+                    if (!X509Utils.CompareDistinguishedName(crl.IssuerName, issuer.SubjectName))
                     {
-                        if (!X509Utils.CompareDistinguishedName(crl.IssuerName, issuer.SubjectName))
-                        {
-                            continue;
-                        }
-
-                        if (!crl.VerifySignature(issuer, false))
-                        {
-                            continue;
-                        }
-
-                        if (crl.IsRevoked(certificate))
-                        {
-                            return Task.FromResult((StatusCode)StatusCodes.BadCertificateRevoked);
-                        }
-
-                        if (crl.ThisUpdate <= DateTime.UtcNow && (crl.NextUpdate == DateTime.MinValue || crl.NextUpdate >= DateTime.UtcNow))
-                        {
-                            crlExpired = false;
-                        }
-                    }
-                    catch (CryptographicException e)
-                    {
-                        Utils.LogError(e, "Failed to parse CRL {file}.", file.FullName);
                         continue;
+                    }
+
+                    if (!crl.VerifySignature(issuer, false))
+                    {
+                        continue;
+                    }
+
+                    if (crl.IsRevoked(certificate))
+                    {
+                        return Task.FromResult((StatusCode)StatusCodes.BadCertificateRevoked);
+                    }
+
+                    if (crl.ThisUpdate <= DateTime.UtcNow && (crl.NextUpdate == DateTime.MinValue || crl.NextUpdate >= DateTime.UtcNow))
+                    {
+                        crlExpired = false;
                     }
                 }
 

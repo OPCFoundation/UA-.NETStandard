@@ -35,7 +35,6 @@ using Opc.Ua.Gds.Server.Database;
 using Opc.Ua.Server.UserDatabase;
 using System.Linq;
 using Opc.Ua.Security.Certificates;
-using System.Security.Cryptography;
 
 namespace Opc.Ua.Gds.Server
 {
