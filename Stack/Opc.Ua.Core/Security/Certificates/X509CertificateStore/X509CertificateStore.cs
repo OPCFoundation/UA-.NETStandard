@@ -19,6 +19,7 @@ using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading.Tasks;
+using System.Xml.Linq;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.X509StoreExtensions;
 
@@ -305,7 +306,7 @@ namespace Opc.Ua
                     }
                     catch (Exception e)
                     {
-                        Utils.LogError(e, "Failed to parse CRL in store {store}.", m_storeName);
+                        Utils.LogError(e, "Failed to parse CRL in store {0}.", store.Name);
                     }
                 }
             }
