@@ -15,11 +15,9 @@
 */
 
 using System;
-using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading.Tasks;
-using System.Xml.Linq;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.X509StoreExtensions;
 
