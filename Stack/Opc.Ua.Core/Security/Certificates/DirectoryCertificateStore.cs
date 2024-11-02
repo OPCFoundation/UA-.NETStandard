@@ -20,7 +20,6 @@ using System.Text;
 using System.Threading.Tasks;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.Redaction;
-using System.Threading;
 
 namespace Opc.Ua
 {
@@ -620,7 +619,7 @@ namespace Opc.Ua
                     }
                     catch (Exception e)
                     {
-                        Utils.LogError(e, "Could not parse CRL file.");
+                        Utils.LogError(e, "Failed to parse CRL {0} in store {1}.", file.FullName, StorePath);
                         continue;
                     }
 
@@ -670,8 +669,16 @@ namespace Opc.Ua
             {
                 foreach (FileInfo file in m_crlSubdir.GetFiles("*" + kCrlExtension))
                 {
-                    var crl = new X509CRL(file.FullName);
-                    crls.Add(crl);
+                    try
+                    {
+                        var crl = new X509CRL(file.FullName);
+                        crls.Add(crl);
+                    }
+                    catch (Exception e)
+                    {
+                        Utils.LogError(e, "Failed to parse CRL {0} in store {1}.", file.FullName, StorePath);
+                    }
+
                 }
             }
 

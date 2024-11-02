@@ -471,7 +471,7 @@ namespace Opc.Ua.Server
                         result = StatusCodes.BadCertificateInvalid;
                     }
 
-                    var storeIdentifier = isTrustedCertificate? m_trustedStore : m_issuerStore;
+                    var storeIdentifier = isTrustedCertificate ? m_trustedStore : m_issuerStore;
                     ICertificateStore store = storeIdentifier.OpenStore();
                     try
                     {
@@ -539,7 +539,7 @@ namespace Opc.Ua.Server
                                 foreach (var cert in certCollection)
                                 {
                                     if (X509Utils.CompareDistinguishedName(cert.SubjectName, crl.IssuerName) &&
-                                        crl.VerifySignature(cert, false))
+                                   crl.VerifySignature(cert, false))
                                     {
                                         crlsToDelete.Add(crl);
                                         break;

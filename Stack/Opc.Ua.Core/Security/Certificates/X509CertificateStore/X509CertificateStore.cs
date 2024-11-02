@@ -15,7 +15,6 @@
 */
 
 using System;
-using System.IO;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading.Tasks;
@@ -251,7 +250,6 @@ namespace Opc.Ua
 
             foreach (X509CRL crl in crls)
             {
-
                 if (!X509Utils.CompareDistinguishedName(crl.IssuerName, issuer.SubjectName))
                 {
                     continue;
@@ -299,8 +297,15 @@ namespace Opc.Ua
                 byte[][] rawCrls = store.EnumerateCrls();
                 foreach (byte[] rawCrl in rawCrls)
                 {
-                    var crl = new X509CRL(rawCrl);
-                    crls.Add(crl);
+                    try
+                    {
+                        var crl = new X509CRL(rawCrl);
+                        crls.Add(crl);
+                    }
+                    catch (Exception e)
+                    {
+                        Utils.LogError(e, "Failed to parse CRL in store {0}.", store.Name);
+                    }
                 }
             }
             return Task.FromResult(crls);
