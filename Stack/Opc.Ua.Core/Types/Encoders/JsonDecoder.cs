@@ -1337,7 +1337,7 @@ namespace Opc.Ua
             try
             {
                 m_stack.Push(value);
-                BuiltInType builtInType = (value.ContainsKey("uaType"))? (BuiltInType)ReadByte("uaType") : (BuiltInType)ReadByte("Type");
+                BuiltInType builtInType = (value.ContainsKey("UaType"))? (BuiltInType)ReadByte("UaType") : (BuiltInType)ReadByte("Type");
                 return ReadVariantFromObject("Body", builtInType, value);
             }
             finally
@@ -1371,9 +1371,9 @@ namespace Opc.Ua
             {
                 m_stack.Push(value);
 
-                if (value.ContainsKey("uaType"))
+                if (value.ContainsKey("UaType"))
                 {
-                    var builtInType = (BuiltInType)ReadByte("uaType");
+                    var builtInType = (BuiltInType)ReadByte("UaType");
                     dv.WrappedValue = ReadVariantFromObject("Value", builtInType, value);
                 }
                 else
@@ -1418,7 +1418,7 @@ namespace Opc.Ua
                 m_stack.Push(value);
 
                 bool inlineValues = true;
-                ExpandedNodeId typeId = ReadExpandedNodeId("uaTypeId");
+                ExpandedNodeId typeId = ReadExpandedNodeId("UaTypeId");
 
                 if (typeId == null)
                 {
@@ -1440,17 +1440,17 @@ namespace Opc.Ua
                     typeId = absoluteId;
                 }
 
-                byte encoding = ReadByte((inlineValues) ? "uaEncoding" : "Encoding");
+                byte encoding = ReadByte((inlineValues) ? "UaEncoding" : "Encoding");
 
                 if (encoding == (byte)ExtensionObjectEncoding.Binary)
                 {
-                    var bytes = ReadByteString((inlineValues) ? "uaBody" : "Body");
+                    var bytes = ReadByteString((inlineValues) ? "UaBody" : "Body");
                     return new ExtensionObject(typeId, bytes ?? Array.Empty<byte>());
                 }
 
                 if (encoding == (byte)ExtensionObjectEncoding.Xml)
                 {
-                    var xml = ReadXmlElement((inlineValues) ? "uaBody" : "Body");
+                    var xml = ReadXmlElement((inlineValues) ? "UaBody" : "Body");
                     if (xml == null)
                     {
                         return extension;
@@ -1460,7 +1460,7 @@ namespace Opc.Ua
 
                 if (encoding == (byte)ExtensionObjectEncoding.Json)
                 {
-                    var json = ReadString((inlineValues) ? "uaBody" : "Body");
+                    var json = ReadString((inlineValues) ? "UaBody" : "Body");
                     if (string.IsNullOrEmpty(json))
                     {
                         return extension;

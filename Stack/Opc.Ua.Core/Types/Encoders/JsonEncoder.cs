@@ -1476,7 +1476,7 @@ namespace Opc.Ua
                         encodingByte = (byte)BuiltInType.Int32;
                     }
 
-                    WriteByte((EncodingToUse != JsonEncodingType.Reversible) ? "uaType" : "Type", encodingByte);
+                    WriteByte((EncodingToUse != JsonEncodingType.Reversible) ? "UaType" : "Type", encodingByte);
                     fieldName = "Body";
                 }
 
@@ -1533,7 +1533,7 @@ namespace Opc.Ua
                         encodingByte = (byte)BuiltInType.Int32;
                     }
 
-                    WriteByte("uaType", encodingByte);
+                    WriteByte("UaType", encodingByte);
                 }
 
                 if (m_commaRequired)
@@ -1656,7 +1656,7 @@ namespace Opc.Ua
 
             if (EncodingToUse == JsonEncodingType.Compact)
             {
-                WriteNodeId("uaTypeId", localTypeId);
+                WriteNodeId("UaTypeId", localTypeId);
 
                 if (encodeable != null)
                 {
@@ -1671,13 +1671,13 @@ namespace Opc.Ua
                     }
                     else if (value.Encoding == ExtensionObjectEncoding.Binary)
                     {
-                        WriteByte("uaEncoding", (byte)ExtensionObjectEncoding.Binary);
-                        WriteByteString("uaBody", value.Body as byte[]);
+                        WriteByte("UaEncoding", (byte)ExtensionObjectEncoding.Binary);
+                        WriteByteString("UaBody", value.Body as byte[]);
                     }
                     else if (value.Encoding == ExtensionObjectEncoding.Xml)
                     {
-                        WriteByte("uaEncoding",(byte)ExtensionObjectEncoding.Xml);
-                        WriteXmlElement("uaBody", value.Body as XmlElement);
+                        WriteByte("UaEncoding",(byte)ExtensionObjectEncoding.Xml);
+                        WriteXmlElement("UaBody", value.Body as XmlElement);
                     }
                 }
 
