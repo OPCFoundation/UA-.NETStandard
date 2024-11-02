@@ -1445,6 +1445,14 @@ namespace Opc.Ua
         /// </summary>
         public void WriteVariant(string fieldName, Variant value)
         {
+            if (EncodingToUse == JsonEncodingType.Compact || EncodingToUse == JsonEncodingType.Verbose)
+            {
+                PushStructure(fieldName);
+                WriteVariantIntoObject("Body", value);
+                PopStructure();
+                return;
+            }
+
             if (Variant.Null == value)
             {
                 WriteSimpleFieldNull(fieldName);
@@ -1502,6 +1510,60 @@ namespace Opc.Ua
             }
         }
 
+        private void WriteVariantIntoObject(string fieldName, Variant value)
+        {
+            if (Variant.Null == value)
+            {
+                WriteSimpleFieldNull(fieldName);
+                return;
+            }
+
+            try
+            {
+                CheckAndIncrementNestingLevel();
+
+                bool isNull = (value.TypeInfo == null || value.TypeInfo.BuiltInType == BuiltInType.Null || value.Value == null);
+
+                if (!isNull)
+                {
+                    byte encodingByte = (byte)value.TypeInfo.BuiltInType;
+
+                    if (value.TypeInfo.BuiltInType == BuiltInType.Enumeration)
+                    {
+                        encodingByte = (byte)BuiltInType.Int32;
+                    }
+
+                    WriteByte("@Type", encodingByte);
+                }
+
+                if (m_commaRequired)
+                {
+                    m_writer.Write(s_comma);
+                }
+
+                if (!string.IsNullOrEmpty(fieldName))
+                {
+                    m_writer.Write(s_quotation);
+                    EscapeString(fieldName);
+                    m_writer.Write(s_quotationColon);
+                }
+
+                WriteVariantContents(value.Value, value.TypeInfo);
+
+                if (!isNull)
+                {
+                    if (value.Value is Matrix matrix)
+                    {
+                        WriteInt32Array("Dimensions", matrix.Dimensions);
+                    }
+                }
+            }
+            finally
+            {
+                m_nestingLevel--;
+            }
+        }
+
         /// <summary>
         /// Writes an DataValue array to the stream.
         /// </summary>
@@ -1519,8 +1581,16 @@ namespace Opc.Ua
             {
                 if (value.WrappedValue.TypeInfo != null && value.WrappedValue.TypeInfo.BuiltInType != BuiltInType.Null)
                 {
-                    WriteVariant("Value", value.WrappedValue);
+                    if (EncodingToUse != JsonEncodingType.Compact && EncodingToUse != JsonEncodingType.Verbose)
+                    {
+                        WriteVariant("Value", value.WrappedValue);
+                    }
+                    else
+                    {
+                        WriteVariantIntoObject("Value", value.WrappedValue);
+                    }
                 }
+
 
                 if (value.StatusCode != StatusCodes.Good)
                 {
@@ -1581,8 +1651,8 @@ namespace Opc.Ua
 
             PushStructure(fieldName);
 
-            var typeId = value.TypeId;
-            var localTypeId = ExpandedNodeId.ToNodeId(value.TypeId, Context.NamespaceUris);
+            var typeId = (!NodeId.IsNull(value.TypeId)) ? value.TypeId : encodeable.TypeId;
+            var localTypeId = ExpandedNodeId.ToNodeId(typeId, Context.NamespaceUris);
 
             if (EncodingToUse == JsonEncodingType.Compact)
             {
@@ -1597,15 +1667,17 @@ namespace Opc.Ua
                     if (value.Body is JObject json)
                     {
                         string text = json.ToString(Newtonsoft.Json.Formatting.None);
-                        m_writer.Write(text.Substring(1, text.Length-2));
+                        m_writer.Write(text.Substring(1, text.Length - 2));
                     }
                     else if (value.Encoding == ExtensionObjectEncoding.Binary)
                     {
-                        WriteByteString("@UaBinary", value.Body as byte[]);
+                        WriteByte("@Encoding", (byte)ExtensionObjectEncoding.Binary);
+                        WriteByteString("@Body", value.Body as byte[]);
                     }
                     else if (value.Encoding == ExtensionObjectEncoding.Xml)
                     {
-                        WriteXmlElement("@UaXml", value.Body as XmlElement);
+                        WriteByte("@Encoding",(byte)ExtensionObjectEncoding.Xml);
+                        WriteXmlElement("@Body", value.Body as XmlElement);
                     }
                 }
 

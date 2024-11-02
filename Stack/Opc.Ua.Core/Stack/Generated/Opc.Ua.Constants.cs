@@ -550,6 +550,42 @@ namespace Opc.Ua
         public const uint PubSubDiagnosticsCounterClassification = 19730;
 
         /// <remarks />
+        public const uint JsonNetworkMessage = 19311;
+
+        /// <remarks />
+        public const uint JsonDataSetMessage = 19312;
+
+        /// <remarks />
+        public const uint JsonDataSetMetaDataMessage = 19313;
+
+        /// <remarks />
+        public const uint JsonApplicationDescriptionMessage = 19314;
+
+        /// <remarks />
+        public const uint JsonServerEndpointsMessage = 19315;
+
+        /// <remarks />
+        public const uint JsonStatusMessage = 19316;
+
+        /// <remarks />
+        public const uint JsonPubSubConnectionMessage = 19317;
+
+        /// <remarks />
+        public const uint JsonActionMetaDataMessage = 19318;
+
+        /// <remarks />
+        public const uint JsonActionResponderMessage = 19319;
+
+        /// <remarks />
+        public const uint JsonActionNetworkMessage = 19320;
+
+        /// <remarks />
+        public const uint JsonActionRequestMessage = 19321;
+
+        /// <remarks />
+        public const uint JsonActionResponseMessage = 19322;
+
+        /// <remarks />
         public const uint AliasNameDataType = 23468;
 
         /// <remarks />
@@ -5102,6 +5138,42 @@ namespace Opc.Ua
         public const uint PubSubConfigurationValueDataType_Encoding_DefaultBinary = 25532;
 
         /// <remarks />
+        public const uint JsonNetworkMessage_Encoding_DefaultBinary = 19323;
+
+        /// <remarks />
+        public const uint JsonDataSetMessage_Encoding_DefaultBinary = 19324;
+
+        /// <remarks />
+        public const uint JsonDataSetMetaDataMessage_Encoding_DefaultBinary = 19325;
+
+        /// <remarks />
+        public const uint JsonApplicationDescriptionMessage_Encoding_DefaultBinary = 19326;
+
+        /// <remarks />
+        public const uint JsonServerEndpointsMessage_Encoding_DefaultBinary = 19327;
+
+        /// <remarks />
+        public const uint JsonStatusMessage_Encoding_DefaultBinary = 19328;
+
+        /// <remarks />
+        public const uint JsonPubSubConnectionMessage_Encoding_DefaultBinary = 19329;
+
+        /// <remarks />
+        public const uint JsonActionMetaDataMessage_Encoding_DefaultBinary = 19330;
+
+        /// <remarks />
+        public const uint JsonActionResponderMessage_Encoding_DefaultBinary = 19331;
+
+        /// <remarks />
+        public const uint JsonActionNetworkMessage_Encoding_DefaultBinary = 19332;
+
+        /// <remarks />
+        public const uint JsonActionRequestMessage_Encoding_DefaultBinary = 19333;
+
+        /// <remarks />
+        public const uint JsonActionResponseMessage_Encoding_DefaultBinary = 19334;
+
+        /// <remarks />
         public const uint AliasNameDataType_Encoding_DefaultBinary = 23499;
 
         /// <remarks />
@@ -6158,6 +6230,42 @@ namespace Opc.Ua
         public const uint PubSubConfigurationValueDataType_Encoding_DefaultXml = 25548;
 
         /// <remarks />
+        public const uint JsonNetworkMessage_Encoding_DefaultXml = 19371;
+
+        /// <remarks />
+        public const uint JsonDataSetMessage_Encoding_DefaultXml = 19372;
+
+        /// <remarks />
+        public const uint JsonDataSetMetaDataMessage_Encoding_DefaultXml = 19373;
+
+        /// <remarks />
+        public const uint JsonApplicationDescriptionMessage_Encoding_DefaultXml = 19374;
+
+        /// <remarks />
+        public const uint JsonServerEndpointsMessage_Encoding_DefaultXml = 19375;
+
+        /// <remarks />
+        public const uint JsonStatusMessage_Encoding_DefaultXml = 19376;
+
+        /// <remarks />
+        public const uint JsonPubSubConnectionMessage_Encoding_DefaultXml = 19377;
+
+        /// <remarks />
+        public const uint JsonActionMetaDataMessage_Encoding_DefaultXml = 19378;
+
+        /// <remarks />
+        public const uint JsonActionResponderMessage_Encoding_DefaultXml = 19379;
+
+        /// <remarks />
+        public const uint JsonActionNetworkMessage_Encoding_DefaultXml = 19380;
+
+        /// <remarks />
+        public const uint JsonActionRequestMessage_Encoding_DefaultXml = 19381;
+
+        /// <remarks />
+        public const uint JsonActionResponseMessage_Encoding_DefaultXml = 19382;
+
+        /// <remarks />
         public const uint AliasNameDataType_Encoding_DefaultXml = 23505;
 
         /// <remarks />
@@ -7212,6 +7320,42 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint PubSubConfigurationValueDataType_Encoding_DefaultJson = 25564;
+
+        /// <remarks />
+        public const uint JsonNetworkMessage_Encoding_DefaultJson = 19419;
+
+        /// <remarks />
+        public const uint JsonDataSetMessage_Encoding_DefaultJson = 19420;
+
+        /// <remarks />
+        public const uint JsonDataSetMetaDataMessage_Encoding_DefaultJson = 19421;
+
+        /// <remarks />
+        public const uint JsonApplicationDescriptionMessage_Encoding_DefaultJson = 19422;
+
+        /// <remarks />
+        public const uint JsonServerEndpointsMessage_Encoding_DefaultJson = 19423;
+
+        /// <remarks />
+        public const uint JsonStatusMessage_Encoding_DefaultJson = 19424;
+
+        /// <remarks />
+        public const uint JsonPubSubConnectionMessage_Encoding_DefaultJson = 19425;
+
+        /// <remarks />
+        public const uint JsonActionMetaDataMessage_Encoding_DefaultJson = 19426;
+
+        /// <remarks />
+        public const uint JsonActionResponderMessage_Encoding_DefaultJson = 19427;
+
+        /// <remarks />
+        public const uint JsonActionNetworkMessage_Encoding_DefaultJson = 19428;
+
+        /// <remarks />
+        public const uint JsonActionRequestMessage_Encoding_DefaultJson = 19429;
+
+        /// <remarks />
+        public const uint JsonActionResponseMessage_Encoding_DefaultJson = 19430;
 
         /// <remarks />
         public const uint AliasNameDataType_Encoding_DefaultJson = 23511;
@@ -25463,6 +25607,42 @@ namespace Opc.Ua
         public const uint OpcUa_BinarySchema_PubSubConfigurationValueDataType = 25542;
 
         /// <remarks />
+        public const uint OpcUa_BinarySchema_JsonNetworkMessage = 19335;
+
+        /// <remarks />
+        public const uint OpcUa_BinarySchema_JsonDataSetMessage = 19338;
+
+        /// <remarks />
+        public const uint OpcUa_BinarySchema_JsonDataSetMetaDataMessage = 19341;
+
+        /// <remarks />
+        public const uint OpcUa_BinarySchema_JsonApplicationDescriptionMessage = 19344;
+
+        /// <remarks />
+        public const uint OpcUa_BinarySchema_JsonServerEndpointsMessage = 19347;
+
+        /// <remarks />
+        public const uint OpcUa_BinarySchema_JsonStatusMessage = 19350;
+
+        /// <remarks />
+        public const uint OpcUa_BinarySchema_JsonPubSubConnectionMessage = 19353;
+
+        /// <remarks />
+        public const uint OpcUa_BinarySchema_JsonActionMetaDataMessage = 19356;
+
+        /// <remarks />
+        public const uint OpcUa_BinarySchema_JsonActionResponderMessage = 19359;
+
+        /// <remarks />
+        public const uint OpcUa_BinarySchema_JsonActionNetworkMessage = 19362;
+
+        /// <remarks />
+        public const uint OpcUa_BinarySchema_JsonActionRequestMessage = 19365;
+
+        /// <remarks />
+        public const uint OpcUa_BinarySchema_JsonActionResponseMessage = 19368;
+
+        /// <remarks />
         public const uint OpcUa_BinarySchema_AliasNameDataType = 23502;
 
         /// <remarks />
@@ -26007,6 +26187,42 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint OpcUa_XmlSchema_PubSubConfigurationValueDataType = 25558;
+
+        /// <remarks />
+        public const uint OpcUa_XmlSchema_JsonNetworkMessage = 19383;
+
+        /// <remarks />
+        public const uint OpcUa_XmlSchema_JsonDataSetMessage = 19386;
+
+        /// <remarks />
+        public const uint OpcUa_XmlSchema_JsonDataSetMetaDataMessage = 19389;
+
+        /// <remarks />
+        public const uint OpcUa_XmlSchema_JsonApplicationDescriptionMessage = 19392;
+
+        /// <remarks />
+        public const uint OpcUa_XmlSchema_JsonServerEndpointsMessage = 19395;
+
+        /// <remarks />
+        public const uint OpcUa_XmlSchema_JsonStatusMessage = 19398;
+
+        /// <remarks />
+        public const uint OpcUa_XmlSchema_JsonPubSubConnectionMessage = 19401;
+
+        /// <remarks />
+        public const uint OpcUa_XmlSchema_JsonActionMetaDataMessage = 19404;
+
+        /// <remarks />
+        public const uint OpcUa_XmlSchema_JsonActionResponderMessage = 19407;
+
+        /// <remarks />
+        public const uint OpcUa_XmlSchema_JsonActionNetworkMessage = 19410;
+
+        /// <remarks />
+        public const uint OpcUa_XmlSchema_JsonActionRequestMessage = 19413;
+
+        /// <remarks />
+        public const uint OpcUa_XmlSchema_JsonActionResponseMessage = 19416;
 
         /// <remarks />
         public const uint OpcUa_XmlSchema_AliasNameDataType = 23508;
@@ -26941,6 +27157,42 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId PubSubDiagnosticsCounterClassification = new NodeId(Opc.Ua.DataTypes.PubSubDiagnosticsCounterClassification);
+
+        /// <remarks />
+        public static readonly NodeId JsonNetworkMessage = new NodeId(Opc.Ua.DataTypes.JsonNetworkMessage);
+
+        /// <remarks />
+        public static readonly NodeId JsonDataSetMessage = new NodeId(Opc.Ua.DataTypes.JsonDataSetMessage);
+
+        /// <remarks />
+        public static readonly NodeId JsonDataSetMetaDataMessage = new NodeId(Opc.Ua.DataTypes.JsonDataSetMetaDataMessage);
+
+        /// <remarks />
+        public static readonly NodeId JsonApplicationDescriptionMessage = new NodeId(Opc.Ua.DataTypes.JsonApplicationDescriptionMessage);
+
+        /// <remarks />
+        public static readonly NodeId JsonServerEndpointsMessage = new NodeId(Opc.Ua.DataTypes.JsonServerEndpointsMessage);
+
+        /// <remarks />
+        public static readonly NodeId JsonStatusMessage = new NodeId(Opc.Ua.DataTypes.JsonStatusMessage);
+
+        /// <remarks />
+        public static readonly NodeId JsonPubSubConnectionMessage = new NodeId(Opc.Ua.DataTypes.JsonPubSubConnectionMessage);
+
+        /// <remarks />
+        public static readonly NodeId JsonActionMetaDataMessage = new NodeId(Opc.Ua.DataTypes.JsonActionMetaDataMessage);
+
+        /// <remarks />
+        public static readonly NodeId JsonActionResponderMessage = new NodeId(Opc.Ua.DataTypes.JsonActionResponderMessage);
+
+        /// <remarks />
+        public static readonly NodeId JsonActionNetworkMessage = new NodeId(Opc.Ua.DataTypes.JsonActionNetworkMessage);
+
+        /// <remarks />
+        public static readonly NodeId JsonActionRequestMessage = new NodeId(Opc.Ua.DataTypes.JsonActionRequestMessage);
+
+        /// <remarks />
+        public static readonly NodeId JsonActionResponseMessage = new NodeId(Opc.Ua.DataTypes.JsonActionResponseMessage);
 
         /// <remarks />
         public static readonly NodeId AliasNameDataType = new NodeId(Opc.Ua.DataTypes.AliasNameDataType);
@@ -31495,6 +31747,42 @@ namespace Opc.Ua
         public static readonly NodeId PubSubConfigurationValueDataType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.PubSubConfigurationValueDataType_Encoding_DefaultBinary);
 
         /// <remarks />
+        public static readonly NodeId JsonNetworkMessage_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.JsonNetworkMessage_Encoding_DefaultBinary);
+
+        /// <remarks />
+        public static readonly NodeId JsonDataSetMessage_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.JsonDataSetMessage_Encoding_DefaultBinary);
+
+        /// <remarks />
+        public static readonly NodeId JsonDataSetMetaDataMessage_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.JsonDataSetMetaDataMessage_Encoding_DefaultBinary);
+
+        /// <remarks />
+        public static readonly NodeId JsonApplicationDescriptionMessage_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.JsonApplicationDescriptionMessage_Encoding_DefaultBinary);
+
+        /// <remarks />
+        public static readonly NodeId JsonServerEndpointsMessage_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.JsonServerEndpointsMessage_Encoding_DefaultBinary);
+
+        /// <remarks />
+        public static readonly NodeId JsonStatusMessage_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.JsonStatusMessage_Encoding_DefaultBinary);
+
+        /// <remarks />
+        public static readonly NodeId JsonPubSubConnectionMessage_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.JsonPubSubConnectionMessage_Encoding_DefaultBinary);
+
+        /// <remarks />
+        public static readonly NodeId JsonActionMetaDataMessage_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.JsonActionMetaDataMessage_Encoding_DefaultBinary);
+
+        /// <remarks />
+        public static readonly NodeId JsonActionResponderMessage_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.JsonActionResponderMessage_Encoding_DefaultBinary);
+
+        /// <remarks />
+        public static readonly NodeId JsonActionNetworkMessage_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.JsonActionNetworkMessage_Encoding_DefaultBinary);
+
+        /// <remarks />
+        public static readonly NodeId JsonActionRequestMessage_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.JsonActionRequestMessage_Encoding_DefaultBinary);
+
+        /// <remarks />
+        public static readonly NodeId JsonActionResponseMessage_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.JsonActionResponseMessage_Encoding_DefaultBinary);
+
+        /// <remarks />
         public static readonly NodeId AliasNameDataType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.AliasNameDataType_Encoding_DefaultBinary);
 
         /// <remarks />
@@ -32551,6 +32839,42 @@ namespace Opc.Ua
         public static readonly NodeId PubSubConfigurationValueDataType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.PubSubConfigurationValueDataType_Encoding_DefaultXml);
 
         /// <remarks />
+        public static readonly NodeId JsonNetworkMessage_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.JsonNetworkMessage_Encoding_DefaultXml);
+
+        /// <remarks />
+        public static readonly NodeId JsonDataSetMessage_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.JsonDataSetMessage_Encoding_DefaultXml);
+
+        /// <remarks />
+        public static readonly NodeId JsonDataSetMetaDataMessage_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.JsonDataSetMetaDataMessage_Encoding_DefaultXml);
+
+        /// <remarks />
+        public static readonly NodeId JsonApplicationDescriptionMessage_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.JsonApplicationDescriptionMessage_Encoding_DefaultXml);
+
+        /// <remarks />
+        public static readonly NodeId JsonServerEndpointsMessage_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.JsonServerEndpointsMessage_Encoding_DefaultXml);
+
+        /// <remarks />
+        public static readonly NodeId JsonStatusMessage_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.JsonStatusMessage_Encoding_DefaultXml);
+
+        /// <remarks />
+        public static readonly NodeId JsonPubSubConnectionMessage_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.JsonPubSubConnectionMessage_Encoding_DefaultXml);
+
+        /// <remarks />
+        public static readonly NodeId JsonActionMetaDataMessage_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.JsonActionMetaDataMessage_Encoding_DefaultXml);
+
+        /// <remarks />
+        public static readonly NodeId JsonActionResponderMessage_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.JsonActionResponderMessage_Encoding_DefaultXml);
+
+        /// <remarks />
+        public static readonly NodeId JsonActionNetworkMessage_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.JsonActionNetworkMessage_Encoding_DefaultXml);
+
+        /// <remarks />
+        public static readonly NodeId JsonActionRequestMessage_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.JsonActionRequestMessage_Encoding_DefaultXml);
+
+        /// <remarks />
+        public static readonly NodeId JsonActionResponseMessage_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.JsonActionResponseMessage_Encoding_DefaultXml);
+
+        /// <remarks />
         public static readonly NodeId AliasNameDataType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.AliasNameDataType_Encoding_DefaultXml);
 
         /// <remarks />
@@ -33605,6 +33929,42 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId PubSubConfigurationValueDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.PubSubConfigurationValueDataType_Encoding_DefaultJson);
+
+        /// <remarks />
+        public static readonly NodeId JsonNetworkMessage_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.JsonNetworkMessage_Encoding_DefaultJson);
+
+        /// <remarks />
+        public static readonly NodeId JsonDataSetMessage_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.JsonDataSetMessage_Encoding_DefaultJson);
+
+        /// <remarks />
+        public static readonly NodeId JsonDataSetMetaDataMessage_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.JsonDataSetMetaDataMessage_Encoding_DefaultJson);
+
+        /// <remarks />
+        public static readonly NodeId JsonApplicationDescriptionMessage_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.JsonApplicationDescriptionMessage_Encoding_DefaultJson);
+
+        /// <remarks />
+        public static readonly NodeId JsonServerEndpointsMessage_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.JsonServerEndpointsMessage_Encoding_DefaultJson);
+
+        /// <remarks />
+        public static readonly NodeId JsonStatusMessage_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.JsonStatusMessage_Encoding_DefaultJson);
+
+        /// <remarks />
+        public static readonly NodeId JsonPubSubConnectionMessage_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.JsonPubSubConnectionMessage_Encoding_DefaultJson);
+
+        /// <remarks />
+        public static readonly NodeId JsonActionMetaDataMessage_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.JsonActionMetaDataMessage_Encoding_DefaultJson);
+
+        /// <remarks />
+        public static readonly NodeId JsonActionResponderMessage_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.JsonActionResponderMessage_Encoding_DefaultJson);
+
+        /// <remarks />
+        public static readonly NodeId JsonActionNetworkMessage_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.JsonActionNetworkMessage_Encoding_DefaultJson);
+
+        /// <remarks />
+        public static readonly NodeId JsonActionRequestMessage_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.JsonActionRequestMessage_Encoding_DefaultJson);
+
+        /// <remarks />
+        public static readonly NodeId JsonActionResponseMessage_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.JsonActionResponseMessage_Encoding_DefaultJson);
 
         /// <remarks />
         public static readonly NodeId AliasNameDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.AliasNameDataType_Encoding_DefaultJson);
@@ -51856,6 +52216,42 @@ namespace Opc.Ua
         public static readonly NodeId OpcUa_BinarySchema_PubSubConfigurationValueDataType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_PubSubConfigurationValueDataType);
 
         /// <remarks />
+        public static readonly NodeId OpcUa_BinarySchema_JsonNetworkMessage = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_JsonNetworkMessage);
+
+        /// <remarks />
+        public static readonly NodeId OpcUa_BinarySchema_JsonDataSetMessage = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_JsonDataSetMessage);
+
+        /// <remarks />
+        public static readonly NodeId OpcUa_BinarySchema_JsonDataSetMetaDataMessage = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_JsonDataSetMetaDataMessage);
+
+        /// <remarks />
+        public static readonly NodeId OpcUa_BinarySchema_JsonApplicationDescriptionMessage = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_JsonApplicationDescriptionMessage);
+
+        /// <remarks />
+        public static readonly NodeId OpcUa_BinarySchema_JsonServerEndpointsMessage = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_JsonServerEndpointsMessage);
+
+        /// <remarks />
+        public static readonly NodeId OpcUa_BinarySchema_JsonStatusMessage = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_JsonStatusMessage);
+
+        /// <remarks />
+        public static readonly NodeId OpcUa_BinarySchema_JsonPubSubConnectionMessage = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_JsonPubSubConnectionMessage);
+
+        /// <remarks />
+        public static readonly NodeId OpcUa_BinarySchema_JsonActionMetaDataMessage = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_JsonActionMetaDataMessage);
+
+        /// <remarks />
+        public static readonly NodeId OpcUa_BinarySchema_JsonActionResponderMessage = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_JsonActionResponderMessage);
+
+        /// <remarks />
+        public static readonly NodeId OpcUa_BinarySchema_JsonActionNetworkMessage = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_JsonActionNetworkMessage);
+
+        /// <remarks />
+        public static readonly NodeId OpcUa_BinarySchema_JsonActionRequestMessage = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_JsonActionRequestMessage);
+
+        /// <remarks />
+        public static readonly NodeId OpcUa_BinarySchema_JsonActionResponseMessage = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_JsonActionResponseMessage);
+
+        /// <remarks />
         public static readonly NodeId OpcUa_BinarySchema_AliasNameDataType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_AliasNameDataType);
 
         /// <remarks />
@@ -52400,6 +52796,42 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId OpcUa_XmlSchema_PubSubConfigurationValueDataType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_PubSubConfigurationValueDataType);
+
+        /// <remarks />
+        public static readonly NodeId OpcUa_XmlSchema_JsonNetworkMessage = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_JsonNetworkMessage);
+
+        /// <remarks />
+        public static readonly NodeId OpcUa_XmlSchema_JsonDataSetMessage = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_JsonDataSetMessage);
+
+        /// <remarks />
+        public static readonly NodeId OpcUa_XmlSchema_JsonDataSetMetaDataMessage = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_JsonDataSetMetaDataMessage);
+
+        /// <remarks />
+        public static readonly NodeId OpcUa_XmlSchema_JsonApplicationDescriptionMessage = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_JsonApplicationDescriptionMessage);
+
+        /// <remarks />
+        public static readonly NodeId OpcUa_XmlSchema_JsonServerEndpointsMessage = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_JsonServerEndpointsMessage);
+
+        /// <remarks />
+        public static readonly NodeId OpcUa_XmlSchema_JsonStatusMessage = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_JsonStatusMessage);
+
+        /// <remarks />
+        public static readonly NodeId OpcUa_XmlSchema_JsonPubSubConnectionMessage = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_JsonPubSubConnectionMessage);
+
+        /// <remarks />
+        public static readonly NodeId OpcUa_XmlSchema_JsonActionMetaDataMessage = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_JsonActionMetaDataMessage);
+
+        /// <remarks />
+        public static readonly NodeId OpcUa_XmlSchema_JsonActionResponderMessage = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_JsonActionResponderMessage);
+
+        /// <remarks />
+        public static readonly NodeId OpcUa_XmlSchema_JsonActionNetworkMessage = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_JsonActionNetworkMessage);
+
+        /// <remarks />
+        public static readonly NodeId OpcUa_XmlSchema_JsonActionRequestMessage = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_JsonActionRequestMessage);
+
+        /// <remarks />
+        public static readonly NodeId OpcUa_XmlSchema_JsonActionResponseMessage = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_JsonActionResponseMessage);
 
         /// <remarks />
         public static readonly NodeId OpcUa_XmlSchema_AliasNameDataType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_AliasNameDataType);
@@ -55399,7 +55831,31 @@ namespace Opc.Ua
         public const string IVlanIdType = "IVlanIdType";
 
         /// <remarks />
+        public const string JsonActionMetaDataMessage = "JsonActionMetaDataMessage";
+
+        /// <remarks />
+        public const string JsonActionNetworkMessage = "JsonActionNetworkMessage";
+
+        /// <remarks />
+        public const string JsonActionRequestMessage = "JsonActionRequestMessage";
+
+        /// <remarks />
+        public const string JsonActionResponderMessage = "JsonActionResponderMessage";
+
+        /// <remarks />
+        public const string JsonActionResponseMessage = "JsonActionResponseMessage";
+
+        /// <remarks />
+        public const string JsonApplicationDescriptionMessage = "JsonApplicationDescriptionMessage";
+
+        /// <remarks />
+        public const string JsonDataSetMessage = "JsonDataSetMessage";
+
+        /// <remarks />
         public const string JsonDataSetMessageContentMask = "JsonDataSetMessageContentMask";
+
+        /// <remarks />
+        public const string JsonDataSetMetaDataMessage = "JsonDataSetMetaDataMessage";
 
         /// <remarks />
         public const string JsonDataSetReaderMessageDataType = "JsonDataSetReaderMessageDataType";
@@ -55414,7 +55870,19 @@ namespace Opc.Ua
         public const string JsonDataSetWriterMessageType = "JsonDataSetWriterMessageType";
 
         /// <remarks />
+        public const string JsonNetworkMessage = "JsonNetworkMessage";
+
+        /// <remarks />
         public const string JsonNetworkMessageContentMask = "JsonNetworkMessageContentMask";
+
+        /// <remarks />
+        public const string JsonPubSubConnectionMessage = "JsonPubSubConnectionMessage";
+
+        /// <remarks />
+        public const string JsonServerEndpointsMessage = "JsonServerEndpointsMessage";
+
+        /// <remarks />
+        public const string JsonStatusMessage = "JsonStatusMessage";
 
         /// <remarks />
         public const string JsonWriterGroupMessageDataType = "JsonWriterGroupMessageDataType";

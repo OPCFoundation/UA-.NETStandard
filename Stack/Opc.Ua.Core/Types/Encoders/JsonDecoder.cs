@@ -1281,6 +1281,39 @@ namespace Opc.Ua
             return new LocalizedText(locale, text);
         }
 
+        private Variant ReadVariantFromObject(string valueName, BuiltInType builtInType, Dictionary<string, object> value)
+        {
+            if (value.TryGetValue(valueName, out var innerValue))
+            {
+                if (innerValue is List<object>)
+                {
+                    var array = ReadVariantArrayBody(valueName, builtInType);
+                    var dimensions = ReadInt32Array("Dimensions");
+
+                    if (dimensions?.Count > 1 && array.Value is Array matrixArray)
+                    {
+                        (bool valid, int matrixLength) = Matrix.ValidateDimensions(dimensions, matrixArray.Length, Context.MaxArrayLength);
+
+                        if (!valid || (matrixLength != matrixArray.Length))
+                        {
+                            throw ServiceResultException.Create(
+                                StatusCodes.BadDecodingError,
+                                "ArrayDimensions length does not match with the ArrayLength in Variant object.");
+                        }
+
+                        Matrix matrix = new Matrix(matrixArray, builtInType, dimensions.ToArray());
+                        return new Variant(matrix);
+                    }
+
+                    return array;
+                }
+
+                return ReadVariantBody(valueName, builtInType);
+            }
+
+            return Variant.Null;
+        }
+
         /// <summary>
         /// Reads an Variant from the stream.
         /// </summary>
@@ -1304,52 +1337,8 @@ namespace Opc.Ua
             try
             {
                 m_stack.Push(value);
-
-                BuiltInType type = (BuiltInType)ReadByte("@Type");
-
-                if (type == BuiltInType.Null)
-                {
-                    type = (BuiltInType)ReadByte("Type");
-                }
-
-                var context = m_stack.Peek() as Dictionary<string, object>;
-
-                if (!context.TryGetValue("Body", out token))
-                {
-                    return Variant.Null;
-                }
-
-                Variant array;
-                if (token is Array)
-                {
-                    array = ReadVariantBody("Body", type);
-                }
-                else if (token is List<object>)
-                {
-                    array = ReadVariantArrayBody("Body", type);
-                }
-                else
-                {
-                    return ReadVariantBody("Body", type);
-                }
-                Int32Collection dimensions = ReadInt32Array("Dimensions");
-
-                if (array.Value is Array arrayValue && dimensions != null && dimensions.Count > 1)
-                {
-                    int length = arrayValue.Length;
-                    var dimensionsArray = dimensions.ToArray();
-                    (bool valid, int matrixLength) = Matrix.ValidateDimensions(dimensionsArray, length, Context.MaxArrayLength);
-
-                    if (!valid || (matrixLength != length))
-                    {
-                        throw ServiceResultException.Create(StatusCodes.BadDecodingError,
-                            "ArrayDimensions length does not match with the ArrayLength in Variant object.");
-                    }
-
-                    array = new Variant(new Matrix(arrayValue, type, dimensionsArray));
-                }
-
-                return array;
+                BuiltInType builtInType = (value.ContainsKey("@Type"))? (BuiltInType)ReadByte("@Type") : (BuiltInType)ReadByte("Type");
+                return ReadVariantFromObject("Body", builtInType, value);
             }
             finally
             {
@@ -1382,7 +1371,16 @@ namespace Opc.Ua
             {
                 m_stack.Push(value);
 
-                dv.WrappedValue = ReadVariant("Value");
+                if (value.ContainsKey("@Type"))
+                {
+                    var builtInType = (BuiltInType)ReadByte("@Type");
+                    dv.WrappedValue = ReadVariantFromObject("Value", builtInType, value);
+                }
+                else
+                {
+                    dv.WrappedValue = ReadVariant("Value");
+                }
+
                 dv.StatusCode = ReadStatusCode("StatusCode");
                 dv.SourceTimestamp = ReadDateTime("SourceTimestamp");
                 dv.SourcePicoseconds = ReadUInt16("SourcePicoseconds");
@@ -1442,17 +1440,17 @@ namespace Opc.Ua
                     typeId = absoluteId;
                 }
 
-                byte encoding = ReadByte("Encoding");
+                byte encoding = ReadByte((inlineValues) ? "@Encoding" : "Encoding");
 
                 if (encoding == (byte)ExtensionObjectEncoding.Binary)
                 {
-                    var bytes = ReadByteString("Body");
+                    var bytes = ReadByteString((inlineValues) ? "@Body" : "Body");
                     return new ExtensionObject(typeId, bytes ?? Array.Empty<byte>());
                 }
 
                 if (encoding == (byte)ExtensionObjectEncoding.Xml)
                 {
-                    var xml = ReadXmlElement("Body");
+                    var xml = ReadXmlElement((inlineValues) ? "@Body" : "Body");
                     if (xml == null)
                     {
                         return extension;
@@ -1462,7 +1460,7 @@ namespace Opc.Ua
 
                 if (encoding == (byte)ExtensionObjectEncoding.Json)
                 {
-                    var json = ReadString("Body");
+                    var json = ReadString((inlineValues) ? "@Body" : "Body");
                     if (string.IsNullOrEmpty(json))
                     {
                         return extension;

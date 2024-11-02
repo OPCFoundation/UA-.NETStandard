@@ -2729,6 +2729,258 @@
   </xs:complexType>
   <xs:element name="ListOfPubSubDiagnosticsCounterClassification" type="tns:ListOfPubSubDiagnosticsCounterClassification" nillable="true"></xs:element>
 
+  <xs:complexType name="JsonNetworkMessage">
+    <xs:sequence>
+      <xs:element name="MessageId" type="xs:string" minOccurs="0" nillable="true" />
+      <xs:element name="MessageType" type="xs:string" minOccurs="0" nillable="true" />
+      <xs:element name="PublisherId" type="xs:string" minOccurs="0" nillable="true" />
+      <xs:element name="WriterGroupName" type="xs:string" minOccurs="0" nillable="true" />
+      <xs:element name="DataSetClassId" type="xs:string" minOccurs="0" nillable="true" />
+      <xs:element name="Messages" type="ua:Variant" minOccurs="0" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="JsonNetworkMessage" type="tns:JsonNetworkMessage" />
+
+  <xs:complexType name="ListOfJsonNetworkMessage">
+    <xs:sequence>
+      <xs:element name="JsonNetworkMessage" type="tns:JsonNetworkMessage" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfJsonNetworkMessage" type="tns:ListOfJsonNetworkMessage" nillable="true"></xs:element>
+
+  <xs:complexType name="JsonDataSetMessage">
+    <xs:sequence>
+      <xs:element name="DataSetWriterId" type="xs:unsignedShort" minOccurs="0" />
+      <xs:element name="DataSetWriterName" type="xs:string" minOccurs="0" nillable="true" />
+      <xs:element name="PublisherId" type="xs:string" minOccurs="0" nillable="true" />
+      <xs:element name="WriterGroupName" type="xs:string" minOccurs="0" nillable="true" />
+      <xs:element name="SequenceNumber" type="xs:unsignedInt" minOccurs="0" />
+      <xs:element name="MetaDataVersion" type="tns:ConfigurationVersionDataType" minOccurs="0" nillable="true" />
+      <xs:element name="MinorVersion" type="xs:unsignedInt" minOccurs="0" />
+      <xs:element name="Timestamp" type="xs:dateTime" minOccurs="0" />
+      <xs:element name="Status" type="ua:StatusCode" minOccurs="0" />
+      <xs:element name="MessageType" type="xs:string" minOccurs="0" nillable="true" />
+      <xs:element name="Payload" type="ua:ExtensionObject" minOccurs="0" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="JsonDataSetMessage" type="tns:JsonDataSetMessage" />
+
+  <xs:complexType name="ListOfJsonDataSetMessage">
+    <xs:sequence>
+      <xs:element name="JsonDataSetMessage" type="tns:JsonDataSetMessage" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfJsonDataSetMessage" type="tns:ListOfJsonDataSetMessage" nillable="true"></xs:element>
+
+  <xs:complexType name="JsonDataSetMetaDataMessage">
+    <xs:sequence>
+      <xs:element name="MessageId" type="xs:string" minOccurs="0" nillable="true" />
+      <xs:element name="MessageType" type="xs:string" minOccurs="0" nillable="true" />
+      <xs:element name="PublisherId" type="xs:string" minOccurs="0" nillable="true" />
+      <xs:element name="DataSetWriterId" type="xs:unsignedShort" minOccurs="0" />
+      <xs:element name="WriterGroupName" type="xs:string" minOccurs="0" nillable="true" />
+      <xs:element name="DataSetWriterName" type="xs:string" minOccurs="0" nillable="true" />
+      <xs:element name="Timestamp" type="xs:dateTime" minOccurs="0" />
+      <xs:element name="MetaData" type="tns:DataSetMetaDataType" minOccurs="0" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="JsonDataSetMetaDataMessage" type="tns:JsonDataSetMetaDataMessage" />
+
+  <xs:complexType name="ListOfJsonDataSetMetaDataMessage">
+    <xs:sequence>
+      <xs:element name="JsonDataSetMetaDataMessage" type="tns:JsonDataSetMetaDataMessage" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfJsonDataSetMetaDataMessage" type="tns:ListOfJsonDataSetMetaDataMessage" nillable="true"></xs:element>
+
+  <xs:complexType name="JsonApplicationDescriptionMessage">
+    <xs:sequence>
+      <xs:element name="MessageId" type="xs:string" minOccurs="0" nillable="true" />
+      <xs:element name="MessageType" type="xs:string" minOccurs="0" nillable="true" />
+      <xs:element name="PublisherId" type="xs:string" minOccurs="0" nillable="true" />
+      <xs:element name="Timestamp" type="xs:dateTime" minOccurs="0" />
+      <xs:element name="Description" type="tns:ApplicationDescription" minOccurs="0" nillable="true" />
+      <xs:element name="ServerCapabilities" type="ua:ListOfString" minOccurs="0" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="JsonApplicationDescriptionMessage" type="tns:JsonApplicationDescriptionMessage" />
+
+  <xs:complexType name="ListOfJsonApplicationDescriptionMessage">
+    <xs:sequence>
+      <xs:element name="JsonApplicationDescriptionMessage" type="tns:JsonApplicationDescriptionMessage" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfJsonApplicationDescriptionMessage" type="tns:ListOfJsonApplicationDescriptionMessage" nillable="true"></xs:element>
+
+  <xs:complexType name="JsonServerEndpointsMessage">
+    <xs:sequence>
+      <xs:element name="MessageId" type="xs:string" minOccurs="0" nillable="true" />
+      <xs:element name="MessageType" type="xs:string" minOccurs="0" nillable="true" />
+      <xs:element name="PublisherId" type="xs:string" minOccurs="0" nillable="true" />
+      <xs:element name="Timestamp" type="xs:dateTime" minOccurs="0" />
+      <xs:element name="Description" type="tns:ApplicationDescription" minOccurs="0" nillable="true" />
+      <xs:element name="Endpoints" type="tns:ListOfEndpointDescription" minOccurs="0" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="JsonServerEndpointsMessage" type="tns:JsonServerEndpointsMessage" />
+
+  <xs:complexType name="ListOfJsonServerEndpointsMessage">
+    <xs:sequence>
+      <xs:element name="JsonServerEndpointsMessage" type="tns:JsonServerEndpointsMessage" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfJsonServerEndpointsMessage" type="tns:ListOfJsonServerEndpointsMessage" nillable="true"></xs:element>
+
+  <xs:complexType name="JsonStatusMessage">
+    <xs:sequence>
+      <xs:element name="MessageId" type="xs:string" minOccurs="0" nillable="true" />
+      <xs:element name="MessageType" type="xs:string" minOccurs="0" nillable="true" />
+      <xs:element name="PublisherId" type="xs:string" minOccurs="0" nillable="true" />
+      <xs:element name="Timestamp" type="xs:dateTime" minOccurs="0" />
+      <xs:element name="IsCyclic" type="xs:boolean" minOccurs="0" />
+      <xs:element name="Status" type="tns:PubSubState" minOccurs="0" />
+      <xs:element name="NextReportTime" type="xs:dateTime" minOccurs="0" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="JsonStatusMessage" type="tns:JsonStatusMessage" />
+
+  <xs:complexType name="ListOfJsonStatusMessage">
+    <xs:sequence>
+      <xs:element name="JsonStatusMessage" type="tns:JsonStatusMessage" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfJsonStatusMessage" type="tns:ListOfJsonStatusMessage" nillable="true"></xs:element>
+
+  <xs:complexType name="JsonPubSubConnectionMessage">
+    <xs:sequence>
+      <xs:element name="MessageId" type="xs:string" minOccurs="0" nillable="true" />
+      <xs:element name="MessageType" type="xs:string" minOccurs="0" nillable="true" />
+      <xs:element name="PublisherId" type="xs:string" minOccurs="0" nillable="true" />
+      <xs:element name="Timestamp" type="xs:dateTime" minOccurs="0" />
+      <xs:element name="Connection" type="tns:PubSubConnectionDataType" minOccurs="0" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="JsonPubSubConnectionMessage" type="tns:JsonPubSubConnectionMessage" />
+
+  <xs:complexType name="ListOfJsonPubSubConnectionMessage">
+    <xs:sequence>
+      <xs:element name="JsonPubSubConnectionMessage" type="tns:JsonPubSubConnectionMessage" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfJsonPubSubConnectionMessage" type="tns:ListOfJsonPubSubConnectionMessage" nillable="true"></xs:element>
+
+  <xs:complexType name="JsonActionMetaDataMessage">
+    <xs:sequence>
+      <xs:element name="MessageId" type="xs:string" minOccurs="0" nillable="true" />
+      <xs:element name="MessageType" type="xs:string" minOccurs="0" nillable="true" />
+      <xs:element name="PublisherId" type="xs:string" minOccurs="0" nillable="true" />
+      <xs:element name="DataSetWriterId" type="xs:unsignedShort" minOccurs="0" />
+      <xs:element name="DataSetWriterName" type="xs:string" minOccurs="0" nillable="true" />
+      <xs:element name="Timestamp" type="xs:dateTime" minOccurs="0" />
+      <xs:element name="ActionTargets" type="tns:ListOfActionTargetDataType" minOccurs="0" nillable="true" />
+      <xs:element name="Request" type="tns:DataSetMetaDataType" minOccurs="0" nillable="true" />
+      <xs:element name="Response" type="tns:DataSetMetaDataType" minOccurs="0" nillable="true" />
+      <xs:element name="ActionMethods" type="tns:ListOfActionMethodDataType" minOccurs="0" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="JsonActionMetaDataMessage" type="tns:JsonActionMetaDataMessage" />
+
+  <xs:complexType name="ListOfJsonActionMetaDataMessage">
+    <xs:sequence>
+      <xs:element name="JsonActionMetaDataMessage" type="tns:JsonActionMetaDataMessage" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfJsonActionMetaDataMessage" type="tns:ListOfJsonActionMetaDataMessage" nillable="true"></xs:element>
+
+  <xs:complexType name="JsonActionResponderMessage">
+    <xs:sequence>
+      <xs:element name="MessageId" type="xs:string" minOccurs="0" nillable="true" />
+      <xs:element name="MessageType" type="xs:string" minOccurs="0" nillable="true" />
+      <xs:element name="PublisherId" type="xs:string" minOccurs="0" nillable="true" />
+      <xs:element name="Timestamp" type="xs:dateTime" minOccurs="0" />
+      <xs:element name="Connection" type="tns:PubSubConnectionDataType" minOccurs="0" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="JsonActionResponderMessage" type="tns:JsonActionResponderMessage" />
+
+  <xs:complexType name="ListOfJsonActionResponderMessage">
+    <xs:sequence>
+      <xs:element name="JsonActionResponderMessage" type="tns:JsonActionResponderMessage" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfJsonActionResponderMessage" type="tns:ListOfJsonActionResponderMessage" nillable="true"></xs:element>
+
+  <xs:complexType name="JsonActionNetworkMessage">
+    <xs:sequence>
+      <xs:element name="MessageId" type="xs:string" minOccurs="0" nillable="true" />
+      <xs:element name="MessageType" type="xs:string" minOccurs="0" nillable="true" />
+      <xs:element name="PublisherId" type="xs:string" minOccurs="0" nillable="true" />
+      <xs:element name="Timestamp" type="xs:dateTime" minOccurs="0" />
+      <xs:element name="ResponseAddress" type="xs:string" minOccurs="0" nillable="true" />
+      <xs:element name="CorrelationData" type="xs:base64Binary" minOccurs="0" nillable="true" />
+      <xs:element name="RequestorId" type="xs:string" minOccurs="0" nillable="true" />
+      <xs:element name="TimeoutHint" type="xs:double" minOccurs="0" />
+      <xs:element name="Message" type="ua:Variant" minOccurs="0" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="JsonActionNetworkMessage" type="tns:JsonActionNetworkMessage" />
+
+  <xs:complexType name="ListOfJsonActionNetworkMessage">
+    <xs:sequence>
+      <xs:element name="JsonActionNetworkMessage" type="tns:JsonActionNetworkMessage" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfJsonActionNetworkMessage" type="tns:ListOfJsonActionNetworkMessage" nillable="true"></xs:element>
+
+  <xs:complexType name="JsonActionRequestMessage">
+    <xs:sequence>
+      <xs:element name="DataSetWriterId" type="xs:unsignedShort" minOccurs="0" />
+      <xs:element name="ActionTargetId" type="xs:unsignedShort" minOccurs="0" />
+      <xs:element name="DataSetWriterName" type="xs:string" minOccurs="0" nillable="true" />
+      <xs:element name="WriterGroupName" type="xs:string" minOccurs="0" nillable="true" />
+      <xs:element name="MetaDataVersion" type="tns:ConfigurationVersionDataType" minOccurs="0" nillable="true" />
+      <xs:element name="MinorVersion" type="xs:unsignedInt" minOccurs="0" />
+      <xs:element name="Timestamp" type="xs:dateTime" minOccurs="0" />
+      <xs:element name="MessageType" type="xs:string" minOccurs="0" nillable="true" />
+      <xs:element name="RequestId" type="xs:unsignedShort" minOccurs="0" />
+      <xs:element name="ActionState" type="tns:ActionState" minOccurs="0" />
+      <xs:element name="Payload" type="ua:ExtensionObject" minOccurs="0" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="JsonActionRequestMessage" type="tns:JsonActionRequestMessage" />
+
+  <xs:complexType name="ListOfJsonActionRequestMessage">
+    <xs:sequence>
+      <xs:element name="JsonActionRequestMessage" type="tns:JsonActionRequestMessage" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfJsonActionRequestMessage" type="tns:ListOfJsonActionRequestMessage" nillable="true"></xs:element>
+
+  <xs:complexType name="JsonActionResponseMessage">
+    <xs:sequence>
+      <xs:element name="DataSetWriterId" type="xs:unsignedShort" minOccurs="0" />
+      <xs:element name="ActionTargetId" type="xs:unsignedShort" minOccurs="0" />
+      <xs:element name="DataSetWriterName" type="xs:string" minOccurs="0" nillable="true" />
+      <xs:element name="WriterGroupName" type="xs:string" minOccurs="0" nillable="true" />
+      <xs:element name="MetaDataVersion" type="tns:ConfigurationVersionDataType" minOccurs="0" nillable="true" />
+      <xs:element name="MinorVersion" type="xs:unsignedInt" minOccurs="0" />
+      <xs:element name="Timestamp" type="xs:dateTime" minOccurs="0" />
+      <xs:element name="Status" type="ua:StatusCode" minOccurs="0" />
+      <xs:element name="MessageType" type="xs:string" minOccurs="0" nillable="true" />
+      <xs:element name="RequestId" type="xs:unsignedShort" minOccurs="0" />
+      <xs:element name="ActionState" type="tns:ActionState" minOccurs="0" />
+      <xs:element name="Payload" type="ua:ExtensionObject" minOccurs="0" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="JsonActionResponseMessage" type="tns:JsonActionResponseMessage" />
+
+  <xs:complexType name="ListOfJsonActionResponseMessage">
+    <xs:sequence>
+      <xs:element name="JsonActionResponseMessage" type="tns:JsonActionResponseMessage" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfJsonActionResponseMessage" type="tns:ListOfJsonActionResponseMessage" nillable="true"></xs:element>
+
   <xs:complexType name="AliasNameDataType">
     <xs:sequence>
       <xs:element name="AliasName" type="ua:QualifiedName" minOccurs="0" nillable="true" />
@@ -6495,6 +6747,7 @@
       <xs:element name="W" type="ua:ExtensionObject" minOccurs="0" nillable="true" />
       <xs:element name="X" type="tns:TestConcreteStructure" minOccurs="0" nillable="true" />
       <xs:element name="Y" type="tns:TestEnumeration" minOccurs="0" />
+      <xs:element name="Z" type="ua:DataValue" minOccurs="0" nillable="true" />
     </xs:sequence>
   </xs:complexType>
   <xs:element name="TestScalarStructure" type="tns:TestScalarStructure" />
@@ -6533,6 +6786,7 @@
       <xs:element name="W" type="ua:ListOfExtensionObject" minOccurs="0" nillable="true" />
       <xs:element name="X" type="tns:ListOfTestConcreteStructure" minOccurs="0" nillable="true" />
       <xs:element name="Y" type="tns:ListOfTestEnumeration" minOccurs="0" nillable="true" />
+      <xs:element name="Z" type="ua:ListOfDataValue" minOccurs="0" nillable="true" />
     </xs:sequence>
   </xs:complexType>
   <xs:element name="TestArrayStructure" type="tns:TestArrayStructure" />

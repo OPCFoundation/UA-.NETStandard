@@ -25024,6 +25024,3498 @@ namespace Opc.Ua
     #endif
     #endregion
 
+    #region JsonNetworkMessage Class
+    #if (!OPCUA_EXCLUDE_JsonNetworkMessage)
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
+    public partial class JsonNetworkMessage : IEncodeable, IJsonEncodeable
+    {
+        #region Constructors
+        /// <remarks />
+        public JsonNetworkMessage()
+        {
+            Initialize();
+        }
+            
+        [OnDeserializing]
+        private void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+            
+        private void Initialize()
+        {
+            m_messageId = null;
+            m_messageType = null;
+            m_publisherId = null;
+            m_writerGroupName = null;
+            m_dataSetClassId = null;
+            m_messages = Variant.Null;
+        }
+        #endregion
+
+        #region Public Properties
+        /// <remarks />
+        [DataMember(Name = "MessageId", IsRequired = false, Order = 1)]
+        public string MessageId
+        {
+            get { return m_messageId;  }
+            set { m_messageId = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "MessageType", IsRequired = false, Order = 2)]
+        public string MessageType
+        {
+            get { return m_messageType;  }
+            set { m_messageType = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "PublisherId", IsRequired = false, Order = 3)]
+        public string PublisherId
+        {
+            get { return m_publisherId;  }
+            set { m_publisherId = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "WriterGroupName", IsRequired = false, Order = 4)]
+        public string WriterGroupName
+        {
+            get { return m_writerGroupName;  }
+            set { m_writerGroupName = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "DataSetClassId", IsRequired = false, Order = 5)]
+        public string DataSetClassId
+        {
+            get { return m_dataSetClassId;  }
+            set { m_dataSetClassId = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "Messages", IsRequired = false, Order = 6)]
+        public Variant Messages
+        {
+            get { return m_messages;  }
+            set { m_messages = value; }
+        }
+        #endregion
+
+        #region IEncodeable Members
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId TypeId => DataTypeIds.JsonNetworkMessage; 
+
+        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.JsonNetworkMessage_Encoding_DefaultBinary;
+
+        /// <summary cref="IEncodeable.XmlEncodingId" />
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.JsonNetworkMessage_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.JsonNetworkMessage_Encoding_DefaultJson; 
+
+        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        public virtual void Encode(IEncoder encoder)
+        {
+            encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            encoder.WriteString("MessageId", MessageId);
+            encoder.WriteString("MessageType", MessageType);
+            encoder.WriteString("PublisherId", PublisherId);
+            encoder.WriteString("WriterGroupName", WriterGroupName);
+            encoder.WriteString("DataSetClassId", DataSetClassId);
+            encoder.WriteVariant("Messages", Messages);
+
+            encoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        public virtual void Decode(IDecoder decoder)
+        {
+            decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            MessageId = decoder.ReadString("MessageId");
+            MessageType = decoder.ReadString("MessageType");
+            PublisherId = decoder.ReadString("PublisherId");
+            WriterGroupName = decoder.ReadString("WriterGroupName");
+            DataSetClassId = decoder.ReadString("DataSetClassId");
+            Messages = decoder.ReadVariant("Messages");
+
+            decoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        public virtual bool IsEqual(IEncodeable encodeable)
+        {
+            if (Object.ReferenceEquals(this, encodeable))
+            {
+                return true;
+            }
+
+            JsonNetworkMessage value = encodeable as JsonNetworkMessage;
+
+            if (value == null)
+            {
+                return false;
+            }
+
+            if (!Utils.IsEqual(m_messageId, value.m_messageId)) return false;
+            if (!Utils.IsEqual(m_messageType, value.m_messageType)) return false;
+            if (!Utils.IsEqual(m_publisherId, value.m_publisherId)) return false;
+            if (!Utils.IsEqual(m_writerGroupName, value.m_writerGroupName)) return false;
+            if (!Utils.IsEqual(m_dataSetClassId, value.m_dataSetClassId)) return false;
+            if (!Utils.IsEqual(m_messages, value.m_messages)) return false;
+
+            return true;
+        }
+
+        /// <summary cref="ICloneable.Clone" />
+        public virtual object Clone()
+        {
+            return (JsonNetworkMessage)this.MemberwiseClone();
+        }
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            JsonNetworkMessage clone = (JsonNetworkMessage)base.MemberwiseClone();
+
+            clone.m_messageId = (string)Utils.Clone(this.m_messageId);
+            clone.m_messageType = (string)Utils.Clone(this.m_messageType);
+            clone.m_publisherId = (string)Utils.Clone(this.m_publisherId);
+            clone.m_writerGroupName = (string)Utils.Clone(this.m_writerGroupName);
+            clone.m_dataSetClassId = (string)Utils.Clone(this.m_dataSetClassId);
+            clone.m_messages = (Variant)Utils.Clone(this.m_messages);
+
+            return clone;
+        }
+        #endregion
+
+        #region Private Fields
+        private string m_messageId;
+        private string m_messageType;
+        private string m_publisherId;
+        private string m_writerGroupName;
+        private string m_dataSetClassId;
+        private Variant m_messages;
+        #endregion
+    }
+
+    #region JsonNetworkMessageCollection Class
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [CollectionDataContract(Name = "ListOfJsonNetworkMessage", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "JsonNetworkMessage")]
+    public partial class JsonNetworkMessageCollection : List<JsonNetworkMessage>, ICloneable
+    {
+        #region Constructors
+        /// <remarks />
+        public JsonNetworkMessageCollection() {}
+
+        /// <remarks />
+        public JsonNetworkMessageCollection(int capacity) : base(capacity) {}
+
+        /// <remarks />
+        public JsonNetworkMessageCollection(IEnumerable<JsonNetworkMessage> collection) : base(collection) {}
+        #endregion
+
+        #region Static Operators
+        /// <remarks />
+        public static implicit operator JsonNetworkMessageCollection(JsonNetworkMessage[] values)
+        {
+            if (values != null)
+            {
+                return new JsonNetworkMessageCollection(values);
+            }
+
+            return new JsonNetworkMessageCollection();
+        }
+
+        /// <remarks />
+        public static explicit operator JsonNetworkMessage[](JsonNetworkMessageCollection values)
+        {
+            if (values != null)
+            {
+                return values.ToArray();
+            }
+
+            return null;
+        }
+        #endregion
+
+        #region ICloneable Methods
+        /// <remarks />
+        public object Clone()
+        {
+            return (JsonNetworkMessageCollection)this.MemberwiseClone();
+        }
+        #endregion
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            JsonNetworkMessageCollection clone = new JsonNetworkMessageCollection(this.Count);
+
+            for (int ii = 0; ii < this.Count; ii++)
+            {
+                clone.Add((JsonNetworkMessage)Utils.Clone(this[ii]));
+            }
+
+            return clone;
+        }
+    }
+    #endregion
+    #endif
+    #endregion
+
+    #region JsonDataSetMessage Class
+    #if (!OPCUA_EXCLUDE_JsonDataSetMessage)
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
+    public partial class JsonDataSetMessage : IEncodeable, IJsonEncodeable
+    {
+        #region Constructors
+        /// <remarks />
+        public JsonDataSetMessage()
+        {
+            Initialize();
+        }
+            
+        [OnDeserializing]
+        private void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+            
+        private void Initialize()
+        {
+            m_dataSetWriterId = (ushort)0;
+            m_dataSetWriterName = null;
+            m_publisherId = null;
+            m_writerGroupName = null;
+            m_sequenceNumber = (uint)0;
+            m_metaDataVersion = new ConfigurationVersionDataType();
+            m_minorVersion = (uint)0;
+            m_timestamp = DateTime.MinValue;
+            m_status = StatusCodes.Good;
+            m_messageType = null;
+            m_payload = null;
+        }
+        #endregion
+
+        #region Public Properties
+        /// <remarks />
+        [DataMember(Name = "DataSetWriterId", IsRequired = false, Order = 1)]
+        public ushort DataSetWriterId
+        {
+            get { return m_dataSetWriterId;  }
+            set { m_dataSetWriterId = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "DataSetWriterName", IsRequired = false, Order = 2)]
+        public string DataSetWriterName
+        {
+            get { return m_dataSetWriterName;  }
+            set { m_dataSetWriterName = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "PublisherId", IsRequired = false, Order = 3)]
+        public string PublisherId
+        {
+            get { return m_publisherId;  }
+            set { m_publisherId = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "WriterGroupName", IsRequired = false, Order = 4)]
+        public string WriterGroupName
+        {
+            get { return m_writerGroupName;  }
+            set { m_writerGroupName = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "SequenceNumber", IsRequired = false, Order = 5)]
+        public uint SequenceNumber
+        {
+            get { return m_sequenceNumber;  }
+            set { m_sequenceNumber = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "MetaDataVersion", IsRequired = false, Order = 6)]
+        public ConfigurationVersionDataType MetaDataVersion
+        {
+            get
+            {
+                return m_metaDataVersion;
+            }
+
+            set
+            {
+                m_metaDataVersion = value;
+
+                if (value == null)
+                {
+                    m_metaDataVersion = new ConfigurationVersionDataType();
+                }
+            }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "MinorVersion", IsRequired = false, Order = 7)]
+        public uint MinorVersion
+        {
+            get { return m_minorVersion;  }
+            set { m_minorVersion = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "Timestamp", IsRequired = false, Order = 8)]
+        public DateTime Timestamp
+        {
+            get { return m_timestamp;  }
+            set { m_timestamp = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "Status", IsRequired = false, Order = 9)]
+        public StatusCode Status
+        {
+            get { return m_status;  }
+            set { m_status = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "MessageType", IsRequired = false, Order = 10)]
+        public string MessageType
+        {
+            get { return m_messageType;  }
+            set { m_messageType = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "Payload", IsRequired = false, Order = 11)]
+        public ExtensionObject Payload
+        {
+            get { return m_payload;  }
+            set { m_payload = value; }
+        }
+        #endregion
+
+        #region IEncodeable Members
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId TypeId => DataTypeIds.JsonDataSetMessage; 
+
+        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.JsonDataSetMessage_Encoding_DefaultBinary;
+
+        /// <summary cref="IEncodeable.XmlEncodingId" />
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.JsonDataSetMessage_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.JsonDataSetMessage_Encoding_DefaultJson; 
+
+        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        public virtual void Encode(IEncoder encoder)
+        {
+            encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            encoder.WriteUInt16("DataSetWriterId", DataSetWriterId);
+            encoder.WriteString("DataSetWriterName", DataSetWriterName);
+            encoder.WriteString("PublisherId", PublisherId);
+            encoder.WriteString("WriterGroupName", WriterGroupName);
+            encoder.WriteUInt32("SequenceNumber", SequenceNumber);
+            encoder.WriteEncodeable("MetaDataVersion", MetaDataVersion, typeof(ConfigurationVersionDataType));
+            encoder.WriteUInt32("MinorVersion", MinorVersion);
+            encoder.WriteDateTime("Timestamp", Timestamp);
+            encoder.WriteStatusCode("Status", Status);
+            encoder.WriteString("MessageType", MessageType);
+            encoder.WriteExtensionObject("Payload", Payload);
+
+            encoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        public virtual void Decode(IDecoder decoder)
+        {
+            decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            DataSetWriterId = decoder.ReadUInt16("DataSetWriterId");
+            DataSetWriterName = decoder.ReadString("DataSetWriterName");
+            PublisherId = decoder.ReadString("PublisherId");
+            WriterGroupName = decoder.ReadString("WriterGroupName");
+            SequenceNumber = decoder.ReadUInt32("SequenceNumber");
+            MetaDataVersion = (ConfigurationVersionDataType)decoder.ReadEncodeable("MetaDataVersion", typeof(ConfigurationVersionDataType));
+            MinorVersion = decoder.ReadUInt32("MinorVersion");
+            Timestamp = decoder.ReadDateTime("Timestamp");
+            Status = decoder.ReadStatusCode("Status");
+            MessageType = decoder.ReadString("MessageType");
+            Payload = decoder.ReadExtensionObject("Payload");
+
+            decoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        public virtual bool IsEqual(IEncodeable encodeable)
+        {
+            if (Object.ReferenceEquals(this, encodeable))
+            {
+                return true;
+            }
+
+            JsonDataSetMessage value = encodeable as JsonDataSetMessage;
+
+            if (value == null)
+            {
+                return false;
+            }
+
+            if (!Utils.IsEqual(m_dataSetWriterId, value.m_dataSetWriterId)) return false;
+            if (!Utils.IsEqual(m_dataSetWriterName, value.m_dataSetWriterName)) return false;
+            if (!Utils.IsEqual(m_publisherId, value.m_publisherId)) return false;
+            if (!Utils.IsEqual(m_writerGroupName, value.m_writerGroupName)) return false;
+            if (!Utils.IsEqual(m_sequenceNumber, value.m_sequenceNumber)) return false;
+            if (!Utils.IsEqual(m_metaDataVersion, value.m_metaDataVersion)) return false;
+            if (!Utils.IsEqual(m_minorVersion, value.m_minorVersion)) return false;
+            if (!Utils.IsEqual(m_timestamp, value.m_timestamp)) return false;
+            if (!Utils.IsEqual(m_status, value.m_status)) return false;
+            if (!Utils.IsEqual(m_messageType, value.m_messageType)) return false;
+            if (!Utils.IsEqual(m_payload, value.m_payload)) return false;
+
+            return true;
+        }
+
+        /// <summary cref="ICloneable.Clone" />
+        public virtual object Clone()
+        {
+            return (JsonDataSetMessage)this.MemberwiseClone();
+        }
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            JsonDataSetMessage clone = (JsonDataSetMessage)base.MemberwiseClone();
+
+            clone.m_dataSetWriterId = (ushort)Utils.Clone(this.m_dataSetWriterId);
+            clone.m_dataSetWriterName = (string)Utils.Clone(this.m_dataSetWriterName);
+            clone.m_publisherId = (string)Utils.Clone(this.m_publisherId);
+            clone.m_writerGroupName = (string)Utils.Clone(this.m_writerGroupName);
+            clone.m_sequenceNumber = (uint)Utils.Clone(this.m_sequenceNumber);
+            clone.m_metaDataVersion = (ConfigurationVersionDataType)Utils.Clone(this.m_metaDataVersion);
+            clone.m_minorVersion = (uint)Utils.Clone(this.m_minorVersion);
+            clone.m_timestamp = (DateTime)Utils.Clone(this.m_timestamp);
+            clone.m_status = (StatusCode)Utils.Clone(this.m_status);
+            clone.m_messageType = (string)Utils.Clone(this.m_messageType);
+            clone.m_payload = (ExtensionObject)Utils.Clone(this.m_payload);
+
+            return clone;
+        }
+        #endregion
+
+        #region Private Fields
+        private ushort m_dataSetWriterId;
+        private string m_dataSetWriterName;
+        private string m_publisherId;
+        private string m_writerGroupName;
+        private uint m_sequenceNumber;
+        private ConfigurationVersionDataType m_metaDataVersion;
+        private uint m_minorVersion;
+        private DateTime m_timestamp;
+        private StatusCode m_status;
+        private string m_messageType;
+        private ExtensionObject m_payload;
+        #endregion
+    }
+
+    #region JsonDataSetMessageCollection Class
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [CollectionDataContract(Name = "ListOfJsonDataSetMessage", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "JsonDataSetMessage")]
+    public partial class JsonDataSetMessageCollection : List<JsonDataSetMessage>, ICloneable
+    {
+        #region Constructors
+        /// <remarks />
+        public JsonDataSetMessageCollection() {}
+
+        /// <remarks />
+        public JsonDataSetMessageCollection(int capacity) : base(capacity) {}
+
+        /// <remarks />
+        public JsonDataSetMessageCollection(IEnumerable<JsonDataSetMessage> collection) : base(collection) {}
+        #endregion
+
+        #region Static Operators
+        /// <remarks />
+        public static implicit operator JsonDataSetMessageCollection(JsonDataSetMessage[] values)
+        {
+            if (values != null)
+            {
+                return new JsonDataSetMessageCollection(values);
+            }
+
+            return new JsonDataSetMessageCollection();
+        }
+
+        /// <remarks />
+        public static explicit operator JsonDataSetMessage[](JsonDataSetMessageCollection values)
+        {
+            if (values != null)
+            {
+                return values.ToArray();
+            }
+
+            return null;
+        }
+        #endregion
+
+        #region ICloneable Methods
+        /// <remarks />
+        public object Clone()
+        {
+            return (JsonDataSetMessageCollection)this.MemberwiseClone();
+        }
+        #endregion
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            JsonDataSetMessageCollection clone = new JsonDataSetMessageCollection(this.Count);
+
+            for (int ii = 0; ii < this.Count; ii++)
+            {
+                clone.Add((JsonDataSetMessage)Utils.Clone(this[ii]));
+            }
+
+            return clone;
+        }
+    }
+    #endregion
+    #endif
+    #endregion
+
+    #region JsonDataSetMetaDataMessage Class
+    #if (!OPCUA_EXCLUDE_JsonDataSetMetaDataMessage)
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
+    public partial class JsonDataSetMetaDataMessage : IEncodeable, IJsonEncodeable
+    {
+        #region Constructors
+        /// <remarks />
+        public JsonDataSetMetaDataMessage()
+        {
+            Initialize();
+        }
+            
+        [OnDeserializing]
+        private void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+            
+        private void Initialize()
+        {
+            m_messageId = null;
+            m_messageType = null;
+            m_publisherId = null;
+            m_dataSetWriterId = (ushort)0;
+            m_writerGroupName = null;
+            m_dataSetWriterName = null;
+            m_timestamp = DateTime.MinValue;
+            m_metaData = new DataSetMetaDataType();
+        }
+        #endregion
+
+        #region Public Properties
+        /// <remarks />
+        [DataMember(Name = "MessageId", IsRequired = false, Order = 1)]
+        public string MessageId
+        {
+            get { return m_messageId;  }
+            set { m_messageId = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "MessageType", IsRequired = false, Order = 2)]
+        public string MessageType
+        {
+            get { return m_messageType;  }
+            set { m_messageType = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "PublisherId", IsRequired = false, Order = 3)]
+        public string PublisherId
+        {
+            get { return m_publisherId;  }
+            set { m_publisherId = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "DataSetWriterId", IsRequired = false, Order = 4)]
+        public ushort DataSetWriterId
+        {
+            get { return m_dataSetWriterId;  }
+            set { m_dataSetWriterId = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "WriterGroupName", IsRequired = false, Order = 5)]
+        public string WriterGroupName
+        {
+            get { return m_writerGroupName;  }
+            set { m_writerGroupName = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "DataSetWriterName", IsRequired = false, Order = 6)]
+        public string DataSetWriterName
+        {
+            get { return m_dataSetWriterName;  }
+            set { m_dataSetWriterName = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "Timestamp", IsRequired = false, Order = 7)]
+        public DateTime Timestamp
+        {
+            get { return m_timestamp;  }
+            set { m_timestamp = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "MetaData", IsRequired = false, Order = 8)]
+        public DataSetMetaDataType MetaData
+        {
+            get
+            {
+                return m_metaData;
+            }
+
+            set
+            {
+                m_metaData = value;
+
+                if (value == null)
+                {
+                    m_metaData = new DataSetMetaDataType();
+                }
+            }
+        }
+        #endregion
+
+        #region IEncodeable Members
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId TypeId => DataTypeIds.JsonDataSetMetaDataMessage; 
+
+        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.JsonDataSetMetaDataMessage_Encoding_DefaultBinary;
+
+        /// <summary cref="IEncodeable.XmlEncodingId" />
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.JsonDataSetMetaDataMessage_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.JsonDataSetMetaDataMessage_Encoding_DefaultJson; 
+
+        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        public virtual void Encode(IEncoder encoder)
+        {
+            encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            encoder.WriteString("MessageId", MessageId);
+            encoder.WriteString("MessageType", MessageType);
+            encoder.WriteString("PublisherId", PublisherId);
+            encoder.WriteUInt16("DataSetWriterId", DataSetWriterId);
+            encoder.WriteString("WriterGroupName", WriterGroupName);
+            encoder.WriteString("DataSetWriterName", DataSetWriterName);
+            encoder.WriteDateTime("Timestamp", Timestamp);
+            encoder.WriteEncodeable("MetaData", MetaData, typeof(DataSetMetaDataType));
+
+            encoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        public virtual void Decode(IDecoder decoder)
+        {
+            decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            MessageId = decoder.ReadString("MessageId");
+            MessageType = decoder.ReadString("MessageType");
+            PublisherId = decoder.ReadString("PublisherId");
+            DataSetWriterId = decoder.ReadUInt16("DataSetWriterId");
+            WriterGroupName = decoder.ReadString("WriterGroupName");
+            DataSetWriterName = decoder.ReadString("DataSetWriterName");
+            Timestamp = decoder.ReadDateTime("Timestamp");
+            MetaData = (DataSetMetaDataType)decoder.ReadEncodeable("MetaData", typeof(DataSetMetaDataType));
+
+            decoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        public virtual bool IsEqual(IEncodeable encodeable)
+        {
+            if (Object.ReferenceEquals(this, encodeable))
+            {
+                return true;
+            }
+
+            JsonDataSetMetaDataMessage value = encodeable as JsonDataSetMetaDataMessage;
+
+            if (value == null)
+            {
+                return false;
+            }
+
+            if (!Utils.IsEqual(m_messageId, value.m_messageId)) return false;
+            if (!Utils.IsEqual(m_messageType, value.m_messageType)) return false;
+            if (!Utils.IsEqual(m_publisherId, value.m_publisherId)) return false;
+            if (!Utils.IsEqual(m_dataSetWriterId, value.m_dataSetWriterId)) return false;
+            if (!Utils.IsEqual(m_writerGroupName, value.m_writerGroupName)) return false;
+            if (!Utils.IsEqual(m_dataSetWriterName, value.m_dataSetWriterName)) return false;
+            if (!Utils.IsEqual(m_timestamp, value.m_timestamp)) return false;
+            if (!Utils.IsEqual(m_metaData, value.m_metaData)) return false;
+
+            return true;
+        }
+
+        /// <summary cref="ICloneable.Clone" />
+        public virtual object Clone()
+        {
+            return (JsonDataSetMetaDataMessage)this.MemberwiseClone();
+        }
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            JsonDataSetMetaDataMessage clone = (JsonDataSetMetaDataMessage)base.MemberwiseClone();
+
+            clone.m_messageId = (string)Utils.Clone(this.m_messageId);
+            clone.m_messageType = (string)Utils.Clone(this.m_messageType);
+            clone.m_publisherId = (string)Utils.Clone(this.m_publisherId);
+            clone.m_dataSetWriterId = (ushort)Utils.Clone(this.m_dataSetWriterId);
+            clone.m_writerGroupName = (string)Utils.Clone(this.m_writerGroupName);
+            clone.m_dataSetWriterName = (string)Utils.Clone(this.m_dataSetWriterName);
+            clone.m_timestamp = (DateTime)Utils.Clone(this.m_timestamp);
+            clone.m_metaData = (DataSetMetaDataType)Utils.Clone(this.m_metaData);
+
+            return clone;
+        }
+        #endregion
+
+        #region Private Fields
+        private string m_messageId;
+        private string m_messageType;
+        private string m_publisherId;
+        private ushort m_dataSetWriterId;
+        private string m_writerGroupName;
+        private string m_dataSetWriterName;
+        private DateTime m_timestamp;
+        private DataSetMetaDataType m_metaData;
+        #endregion
+    }
+
+    #region JsonDataSetMetaDataMessageCollection Class
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [CollectionDataContract(Name = "ListOfJsonDataSetMetaDataMessage", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "JsonDataSetMetaDataMessage")]
+    public partial class JsonDataSetMetaDataMessageCollection : List<JsonDataSetMetaDataMessage>, ICloneable
+    {
+        #region Constructors
+        /// <remarks />
+        public JsonDataSetMetaDataMessageCollection() {}
+
+        /// <remarks />
+        public JsonDataSetMetaDataMessageCollection(int capacity) : base(capacity) {}
+
+        /// <remarks />
+        public JsonDataSetMetaDataMessageCollection(IEnumerable<JsonDataSetMetaDataMessage> collection) : base(collection) {}
+        #endregion
+
+        #region Static Operators
+        /// <remarks />
+        public static implicit operator JsonDataSetMetaDataMessageCollection(JsonDataSetMetaDataMessage[] values)
+        {
+            if (values != null)
+            {
+                return new JsonDataSetMetaDataMessageCollection(values);
+            }
+
+            return new JsonDataSetMetaDataMessageCollection();
+        }
+
+        /// <remarks />
+        public static explicit operator JsonDataSetMetaDataMessage[](JsonDataSetMetaDataMessageCollection values)
+        {
+            if (values != null)
+            {
+                return values.ToArray();
+            }
+
+            return null;
+        }
+        #endregion
+
+        #region ICloneable Methods
+        /// <remarks />
+        public object Clone()
+        {
+            return (JsonDataSetMetaDataMessageCollection)this.MemberwiseClone();
+        }
+        #endregion
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            JsonDataSetMetaDataMessageCollection clone = new JsonDataSetMetaDataMessageCollection(this.Count);
+
+            for (int ii = 0; ii < this.Count; ii++)
+            {
+                clone.Add((JsonDataSetMetaDataMessage)Utils.Clone(this[ii]));
+            }
+
+            return clone;
+        }
+    }
+    #endregion
+    #endif
+    #endregion
+
+    #region JsonApplicationDescriptionMessage Class
+    #if (!OPCUA_EXCLUDE_JsonApplicationDescriptionMessage)
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
+    public partial class JsonApplicationDescriptionMessage : IEncodeable, IJsonEncodeable
+    {
+        #region Constructors
+        /// <remarks />
+        public JsonApplicationDescriptionMessage()
+        {
+            Initialize();
+        }
+            
+        [OnDeserializing]
+        private void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+            
+        private void Initialize()
+        {
+            m_messageId = null;
+            m_messageType = null;
+            m_publisherId = null;
+            m_timestamp = DateTime.MinValue;
+            m_description = new ApplicationDescription();
+            m_serverCapabilities = new StringCollection();
+        }
+        #endregion
+
+        #region Public Properties
+        /// <remarks />
+        [DataMember(Name = "MessageId", IsRequired = false, Order = 1)]
+        public string MessageId
+        {
+            get { return m_messageId;  }
+            set { m_messageId = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "MessageType", IsRequired = false, Order = 2)]
+        public string MessageType
+        {
+            get { return m_messageType;  }
+            set { m_messageType = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "PublisherId", IsRequired = false, Order = 3)]
+        public string PublisherId
+        {
+            get { return m_publisherId;  }
+            set { m_publisherId = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "Timestamp", IsRequired = false, Order = 4)]
+        public DateTime Timestamp
+        {
+            get { return m_timestamp;  }
+            set { m_timestamp = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "Description", IsRequired = false, Order = 5)]
+        public ApplicationDescription Description
+        {
+            get
+            {
+                return m_description;
+            }
+
+            set
+            {
+                m_description = value;
+
+                if (value == null)
+                {
+                    m_description = new ApplicationDescription();
+                }
+            }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "ServerCapabilities", IsRequired = false, Order = 6)]
+        public StringCollection ServerCapabilities
+        {
+            get
+            {
+                return m_serverCapabilities;
+            }
+
+            set
+            {
+                m_serverCapabilities = value;
+
+                if (value == null)
+                {
+                    m_serverCapabilities = new StringCollection();
+                }
+            }
+        }
+        #endregion
+
+        #region IEncodeable Members
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId TypeId => DataTypeIds.JsonApplicationDescriptionMessage; 
+
+        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.JsonApplicationDescriptionMessage_Encoding_DefaultBinary;
+
+        /// <summary cref="IEncodeable.XmlEncodingId" />
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.JsonApplicationDescriptionMessage_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.JsonApplicationDescriptionMessage_Encoding_DefaultJson; 
+
+        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        public virtual void Encode(IEncoder encoder)
+        {
+            encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            encoder.WriteString("MessageId", MessageId);
+            encoder.WriteString("MessageType", MessageType);
+            encoder.WriteString("PublisherId", PublisherId);
+            encoder.WriteDateTime("Timestamp", Timestamp);
+            encoder.WriteEncodeable("Description", Description, typeof(ApplicationDescription));
+            encoder.WriteStringArray("ServerCapabilities", ServerCapabilities);
+
+            encoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        public virtual void Decode(IDecoder decoder)
+        {
+            decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            MessageId = decoder.ReadString("MessageId");
+            MessageType = decoder.ReadString("MessageType");
+            PublisherId = decoder.ReadString("PublisherId");
+            Timestamp = decoder.ReadDateTime("Timestamp");
+            Description = (ApplicationDescription)decoder.ReadEncodeable("Description", typeof(ApplicationDescription));
+            ServerCapabilities = decoder.ReadStringArray("ServerCapabilities");
+
+            decoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        public virtual bool IsEqual(IEncodeable encodeable)
+        {
+            if (Object.ReferenceEquals(this, encodeable))
+            {
+                return true;
+            }
+
+            JsonApplicationDescriptionMessage value = encodeable as JsonApplicationDescriptionMessage;
+
+            if (value == null)
+            {
+                return false;
+            }
+
+            if (!Utils.IsEqual(m_messageId, value.m_messageId)) return false;
+            if (!Utils.IsEqual(m_messageType, value.m_messageType)) return false;
+            if (!Utils.IsEqual(m_publisherId, value.m_publisherId)) return false;
+            if (!Utils.IsEqual(m_timestamp, value.m_timestamp)) return false;
+            if (!Utils.IsEqual(m_description, value.m_description)) return false;
+            if (!Utils.IsEqual(m_serverCapabilities, value.m_serverCapabilities)) return false;
+
+            return true;
+        }
+
+        /// <summary cref="ICloneable.Clone" />
+        public virtual object Clone()
+        {
+            return (JsonApplicationDescriptionMessage)this.MemberwiseClone();
+        }
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            JsonApplicationDescriptionMessage clone = (JsonApplicationDescriptionMessage)base.MemberwiseClone();
+
+            clone.m_messageId = (string)Utils.Clone(this.m_messageId);
+            clone.m_messageType = (string)Utils.Clone(this.m_messageType);
+            clone.m_publisherId = (string)Utils.Clone(this.m_publisherId);
+            clone.m_timestamp = (DateTime)Utils.Clone(this.m_timestamp);
+            clone.m_description = (ApplicationDescription)Utils.Clone(this.m_description);
+            clone.m_serverCapabilities = (StringCollection)Utils.Clone(this.m_serverCapabilities);
+
+            return clone;
+        }
+        #endregion
+
+        #region Private Fields
+        private string m_messageId;
+        private string m_messageType;
+        private string m_publisherId;
+        private DateTime m_timestamp;
+        private ApplicationDescription m_description;
+        private StringCollection m_serverCapabilities;
+        #endregion
+    }
+
+    #region JsonApplicationDescriptionMessageCollection Class
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [CollectionDataContract(Name = "ListOfJsonApplicationDescriptionMessage", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "JsonApplicationDescriptionMessage")]
+    public partial class JsonApplicationDescriptionMessageCollection : List<JsonApplicationDescriptionMessage>, ICloneable
+    {
+        #region Constructors
+        /// <remarks />
+        public JsonApplicationDescriptionMessageCollection() {}
+
+        /// <remarks />
+        public JsonApplicationDescriptionMessageCollection(int capacity) : base(capacity) {}
+
+        /// <remarks />
+        public JsonApplicationDescriptionMessageCollection(IEnumerable<JsonApplicationDescriptionMessage> collection) : base(collection) {}
+        #endregion
+
+        #region Static Operators
+        /// <remarks />
+        public static implicit operator JsonApplicationDescriptionMessageCollection(JsonApplicationDescriptionMessage[] values)
+        {
+            if (values != null)
+            {
+                return new JsonApplicationDescriptionMessageCollection(values);
+            }
+
+            return new JsonApplicationDescriptionMessageCollection();
+        }
+
+        /// <remarks />
+        public static explicit operator JsonApplicationDescriptionMessage[](JsonApplicationDescriptionMessageCollection values)
+        {
+            if (values != null)
+            {
+                return values.ToArray();
+            }
+
+            return null;
+        }
+        #endregion
+
+        #region ICloneable Methods
+        /// <remarks />
+        public object Clone()
+        {
+            return (JsonApplicationDescriptionMessageCollection)this.MemberwiseClone();
+        }
+        #endregion
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            JsonApplicationDescriptionMessageCollection clone = new JsonApplicationDescriptionMessageCollection(this.Count);
+
+            for (int ii = 0; ii < this.Count; ii++)
+            {
+                clone.Add((JsonApplicationDescriptionMessage)Utils.Clone(this[ii]));
+            }
+
+            return clone;
+        }
+    }
+    #endregion
+    #endif
+    #endregion
+
+    #region JsonServerEndpointsMessage Class
+    #if (!OPCUA_EXCLUDE_JsonServerEndpointsMessage)
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
+    public partial class JsonServerEndpointsMessage : IEncodeable, IJsonEncodeable
+    {
+        #region Constructors
+        /// <remarks />
+        public JsonServerEndpointsMessage()
+        {
+            Initialize();
+        }
+            
+        [OnDeserializing]
+        private void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+            
+        private void Initialize()
+        {
+            m_messageId = null;
+            m_messageType = null;
+            m_publisherId = null;
+            m_timestamp = DateTime.MinValue;
+            m_description = new ApplicationDescription();
+            m_endpoints = new EndpointDescriptionCollection();
+        }
+        #endregion
+
+        #region Public Properties
+        /// <remarks />
+        [DataMember(Name = "MessageId", IsRequired = false, Order = 1)]
+        public string MessageId
+        {
+            get { return m_messageId;  }
+            set { m_messageId = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "MessageType", IsRequired = false, Order = 2)]
+        public string MessageType
+        {
+            get { return m_messageType;  }
+            set { m_messageType = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "PublisherId", IsRequired = false, Order = 3)]
+        public string PublisherId
+        {
+            get { return m_publisherId;  }
+            set { m_publisherId = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "Timestamp", IsRequired = false, Order = 4)]
+        public DateTime Timestamp
+        {
+            get { return m_timestamp;  }
+            set { m_timestamp = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "Description", IsRequired = false, Order = 5)]
+        public ApplicationDescription Description
+        {
+            get
+            {
+                return m_description;
+            }
+
+            set
+            {
+                m_description = value;
+
+                if (value == null)
+                {
+                    m_description = new ApplicationDescription();
+                }
+            }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "Endpoints", IsRequired = false, Order = 6)]
+        public EndpointDescriptionCollection Endpoints
+        {
+            get
+            {
+                return m_endpoints;
+            }
+
+            set
+            {
+                m_endpoints = value;
+
+                if (value == null)
+                {
+                    m_endpoints = new EndpointDescriptionCollection();
+                }
+            }
+        }
+        #endregion
+
+        #region IEncodeable Members
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId TypeId => DataTypeIds.JsonServerEndpointsMessage; 
+
+        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.JsonServerEndpointsMessage_Encoding_DefaultBinary;
+
+        /// <summary cref="IEncodeable.XmlEncodingId" />
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.JsonServerEndpointsMessage_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.JsonServerEndpointsMessage_Encoding_DefaultJson; 
+
+        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        public virtual void Encode(IEncoder encoder)
+        {
+            encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            encoder.WriteString("MessageId", MessageId);
+            encoder.WriteString("MessageType", MessageType);
+            encoder.WriteString("PublisherId", PublisherId);
+            encoder.WriteDateTime("Timestamp", Timestamp);
+            encoder.WriteEncodeable("Description", Description, typeof(ApplicationDescription));
+            encoder.WriteEncodeableArray("Endpoints", Endpoints.ToArray(), typeof(EndpointDescription));
+
+            encoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        public virtual void Decode(IDecoder decoder)
+        {
+            decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            MessageId = decoder.ReadString("MessageId");
+            MessageType = decoder.ReadString("MessageType");
+            PublisherId = decoder.ReadString("PublisherId");
+            Timestamp = decoder.ReadDateTime("Timestamp");
+            Description = (ApplicationDescription)decoder.ReadEncodeable("Description", typeof(ApplicationDescription));
+            Endpoints = (EndpointDescriptionCollection)decoder.ReadEncodeableArray("Endpoints", typeof(EndpointDescription));
+
+            decoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        public virtual bool IsEqual(IEncodeable encodeable)
+        {
+            if (Object.ReferenceEquals(this, encodeable))
+            {
+                return true;
+            }
+
+            JsonServerEndpointsMessage value = encodeable as JsonServerEndpointsMessage;
+
+            if (value == null)
+            {
+                return false;
+            }
+
+            if (!Utils.IsEqual(m_messageId, value.m_messageId)) return false;
+            if (!Utils.IsEqual(m_messageType, value.m_messageType)) return false;
+            if (!Utils.IsEqual(m_publisherId, value.m_publisherId)) return false;
+            if (!Utils.IsEqual(m_timestamp, value.m_timestamp)) return false;
+            if (!Utils.IsEqual(m_description, value.m_description)) return false;
+            if (!Utils.IsEqual(m_endpoints, value.m_endpoints)) return false;
+
+            return true;
+        }
+
+        /// <summary cref="ICloneable.Clone" />
+        public virtual object Clone()
+        {
+            return (JsonServerEndpointsMessage)this.MemberwiseClone();
+        }
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            JsonServerEndpointsMessage clone = (JsonServerEndpointsMessage)base.MemberwiseClone();
+
+            clone.m_messageId = (string)Utils.Clone(this.m_messageId);
+            clone.m_messageType = (string)Utils.Clone(this.m_messageType);
+            clone.m_publisherId = (string)Utils.Clone(this.m_publisherId);
+            clone.m_timestamp = (DateTime)Utils.Clone(this.m_timestamp);
+            clone.m_description = (ApplicationDescription)Utils.Clone(this.m_description);
+            clone.m_endpoints = (EndpointDescriptionCollection)Utils.Clone(this.m_endpoints);
+
+            return clone;
+        }
+        #endregion
+
+        #region Private Fields
+        private string m_messageId;
+        private string m_messageType;
+        private string m_publisherId;
+        private DateTime m_timestamp;
+        private ApplicationDescription m_description;
+        private EndpointDescriptionCollection m_endpoints;
+        #endregion
+    }
+
+    #region JsonServerEndpointsMessageCollection Class
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [CollectionDataContract(Name = "ListOfJsonServerEndpointsMessage", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "JsonServerEndpointsMessage")]
+    public partial class JsonServerEndpointsMessageCollection : List<JsonServerEndpointsMessage>, ICloneable
+    {
+        #region Constructors
+        /// <remarks />
+        public JsonServerEndpointsMessageCollection() {}
+
+        /// <remarks />
+        public JsonServerEndpointsMessageCollection(int capacity) : base(capacity) {}
+
+        /// <remarks />
+        public JsonServerEndpointsMessageCollection(IEnumerable<JsonServerEndpointsMessage> collection) : base(collection) {}
+        #endregion
+
+        #region Static Operators
+        /// <remarks />
+        public static implicit operator JsonServerEndpointsMessageCollection(JsonServerEndpointsMessage[] values)
+        {
+            if (values != null)
+            {
+                return new JsonServerEndpointsMessageCollection(values);
+            }
+
+            return new JsonServerEndpointsMessageCollection();
+        }
+
+        /// <remarks />
+        public static explicit operator JsonServerEndpointsMessage[](JsonServerEndpointsMessageCollection values)
+        {
+            if (values != null)
+            {
+                return values.ToArray();
+            }
+
+            return null;
+        }
+        #endregion
+
+        #region ICloneable Methods
+        /// <remarks />
+        public object Clone()
+        {
+            return (JsonServerEndpointsMessageCollection)this.MemberwiseClone();
+        }
+        #endregion
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            JsonServerEndpointsMessageCollection clone = new JsonServerEndpointsMessageCollection(this.Count);
+
+            for (int ii = 0; ii < this.Count; ii++)
+            {
+                clone.Add((JsonServerEndpointsMessage)Utils.Clone(this[ii]));
+            }
+
+            return clone;
+        }
+    }
+    #endregion
+    #endif
+    #endregion
+
+    #region JsonStatusMessage Class
+    #if (!OPCUA_EXCLUDE_JsonStatusMessage)
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
+    public partial class JsonStatusMessage : IEncodeable, IJsonEncodeable
+    {
+        #region Constructors
+        /// <remarks />
+        public JsonStatusMessage()
+        {
+            Initialize();
+        }
+            
+        [OnDeserializing]
+        private void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+            
+        private void Initialize()
+        {
+            m_messageId = null;
+            m_messageType = null;
+            m_publisherId = null;
+            m_timestamp = DateTime.MinValue;
+            m_isCyclic = true;
+            m_status = PubSubState.Disabled;
+            m_nextReportTime = DateTime.MinValue;
+        }
+        #endregion
+
+        #region Public Properties
+        /// <remarks />
+        [DataMember(Name = "MessageId", IsRequired = false, Order = 1)]
+        public string MessageId
+        {
+            get { return m_messageId;  }
+            set { m_messageId = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "MessageType", IsRequired = false, Order = 2)]
+        public string MessageType
+        {
+            get { return m_messageType;  }
+            set { m_messageType = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "PublisherId", IsRequired = false, Order = 3)]
+        public string PublisherId
+        {
+            get { return m_publisherId;  }
+            set { m_publisherId = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "Timestamp", IsRequired = false, Order = 4)]
+        public DateTime Timestamp
+        {
+            get { return m_timestamp;  }
+            set { m_timestamp = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "IsCyclic", IsRequired = false, Order = 5)]
+        public bool IsCyclic
+        {
+            get { return m_isCyclic;  }
+            set { m_isCyclic = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "Status", IsRequired = false, Order = 6)]
+        public PubSubState Status
+        {
+            get { return m_status;  }
+            set { m_status = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "NextReportTime", IsRequired = false, Order = 7)]
+        public DateTime NextReportTime
+        {
+            get { return m_nextReportTime;  }
+            set { m_nextReportTime = value; }
+        }
+        #endregion
+
+        #region IEncodeable Members
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId TypeId => DataTypeIds.JsonStatusMessage; 
+
+        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.JsonStatusMessage_Encoding_DefaultBinary;
+
+        /// <summary cref="IEncodeable.XmlEncodingId" />
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.JsonStatusMessage_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.JsonStatusMessage_Encoding_DefaultJson; 
+
+        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        public virtual void Encode(IEncoder encoder)
+        {
+            encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            encoder.WriteString("MessageId", MessageId);
+            encoder.WriteString("MessageType", MessageType);
+            encoder.WriteString("PublisherId", PublisherId);
+            encoder.WriteDateTime("Timestamp", Timestamp);
+            encoder.WriteBoolean("IsCyclic", IsCyclic);
+            encoder.WriteEnumerated("Status", Status);
+            encoder.WriteDateTime("NextReportTime", NextReportTime);
+
+            encoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        public virtual void Decode(IDecoder decoder)
+        {
+            decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            MessageId = decoder.ReadString("MessageId");
+            MessageType = decoder.ReadString("MessageType");
+            PublisherId = decoder.ReadString("PublisherId");
+            Timestamp = decoder.ReadDateTime("Timestamp");
+            IsCyclic = decoder.ReadBoolean("IsCyclic");
+            Status = (PubSubState)decoder.ReadEnumerated("Status", typeof(PubSubState));
+            NextReportTime = decoder.ReadDateTime("NextReportTime");
+
+            decoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        public virtual bool IsEqual(IEncodeable encodeable)
+        {
+            if (Object.ReferenceEquals(this, encodeable))
+            {
+                return true;
+            }
+
+            JsonStatusMessage value = encodeable as JsonStatusMessage;
+
+            if (value == null)
+            {
+                return false;
+            }
+
+            if (!Utils.IsEqual(m_messageId, value.m_messageId)) return false;
+            if (!Utils.IsEqual(m_messageType, value.m_messageType)) return false;
+            if (!Utils.IsEqual(m_publisherId, value.m_publisherId)) return false;
+            if (!Utils.IsEqual(m_timestamp, value.m_timestamp)) return false;
+            if (!Utils.IsEqual(m_isCyclic, value.m_isCyclic)) return false;
+            if (!Utils.IsEqual(m_status, value.m_status)) return false;
+            if (!Utils.IsEqual(m_nextReportTime, value.m_nextReportTime)) return false;
+
+            return true;
+        }
+
+        /// <summary cref="ICloneable.Clone" />
+        public virtual object Clone()
+        {
+            return (JsonStatusMessage)this.MemberwiseClone();
+        }
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            JsonStatusMessage clone = (JsonStatusMessage)base.MemberwiseClone();
+
+            clone.m_messageId = (string)Utils.Clone(this.m_messageId);
+            clone.m_messageType = (string)Utils.Clone(this.m_messageType);
+            clone.m_publisherId = (string)Utils.Clone(this.m_publisherId);
+            clone.m_timestamp = (DateTime)Utils.Clone(this.m_timestamp);
+            clone.m_isCyclic = (bool)Utils.Clone(this.m_isCyclic);
+            clone.m_status = (PubSubState)Utils.Clone(this.m_status);
+            clone.m_nextReportTime = (DateTime)Utils.Clone(this.m_nextReportTime);
+
+            return clone;
+        }
+        #endregion
+
+        #region Private Fields
+        private string m_messageId;
+        private string m_messageType;
+        private string m_publisherId;
+        private DateTime m_timestamp;
+        private bool m_isCyclic;
+        private PubSubState m_status;
+        private DateTime m_nextReportTime;
+        #endregion
+    }
+
+    #region JsonStatusMessageCollection Class
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [CollectionDataContract(Name = "ListOfJsonStatusMessage", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "JsonStatusMessage")]
+    public partial class JsonStatusMessageCollection : List<JsonStatusMessage>, ICloneable
+    {
+        #region Constructors
+        /// <remarks />
+        public JsonStatusMessageCollection() {}
+
+        /// <remarks />
+        public JsonStatusMessageCollection(int capacity) : base(capacity) {}
+
+        /// <remarks />
+        public JsonStatusMessageCollection(IEnumerable<JsonStatusMessage> collection) : base(collection) {}
+        #endregion
+
+        #region Static Operators
+        /// <remarks />
+        public static implicit operator JsonStatusMessageCollection(JsonStatusMessage[] values)
+        {
+            if (values != null)
+            {
+                return new JsonStatusMessageCollection(values);
+            }
+
+            return new JsonStatusMessageCollection();
+        }
+
+        /// <remarks />
+        public static explicit operator JsonStatusMessage[](JsonStatusMessageCollection values)
+        {
+            if (values != null)
+            {
+                return values.ToArray();
+            }
+
+            return null;
+        }
+        #endregion
+
+        #region ICloneable Methods
+        /// <remarks />
+        public object Clone()
+        {
+            return (JsonStatusMessageCollection)this.MemberwiseClone();
+        }
+        #endregion
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            JsonStatusMessageCollection clone = new JsonStatusMessageCollection(this.Count);
+
+            for (int ii = 0; ii < this.Count; ii++)
+            {
+                clone.Add((JsonStatusMessage)Utils.Clone(this[ii]));
+            }
+
+            return clone;
+        }
+    }
+    #endregion
+    #endif
+    #endregion
+
+    #region JsonPubSubConnectionMessage Class
+    #if (!OPCUA_EXCLUDE_JsonPubSubConnectionMessage)
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
+    public partial class JsonPubSubConnectionMessage : IEncodeable, IJsonEncodeable
+    {
+        #region Constructors
+        /// <remarks />
+        public JsonPubSubConnectionMessage()
+        {
+            Initialize();
+        }
+            
+        [OnDeserializing]
+        private void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+            
+        private void Initialize()
+        {
+            m_messageId = null;
+            m_messageType = null;
+            m_publisherId = null;
+            m_timestamp = DateTime.MinValue;
+            m_connection = new PubSubConnectionDataType();
+        }
+        #endregion
+
+        #region Public Properties
+        /// <remarks />
+        [DataMember(Name = "MessageId", IsRequired = false, Order = 1)]
+        public string MessageId
+        {
+            get { return m_messageId;  }
+            set { m_messageId = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "MessageType", IsRequired = false, Order = 2)]
+        public string MessageType
+        {
+            get { return m_messageType;  }
+            set { m_messageType = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "PublisherId", IsRequired = false, Order = 3)]
+        public string PublisherId
+        {
+            get { return m_publisherId;  }
+            set { m_publisherId = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "Timestamp", IsRequired = false, Order = 4)]
+        public DateTime Timestamp
+        {
+            get { return m_timestamp;  }
+            set { m_timestamp = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "Connection", IsRequired = false, Order = 5)]
+        public PubSubConnectionDataType Connection
+        {
+            get
+            {
+                return m_connection;
+            }
+
+            set
+            {
+                m_connection = value;
+
+                if (value == null)
+                {
+                    m_connection = new PubSubConnectionDataType();
+                }
+            }
+        }
+        #endregion
+
+        #region IEncodeable Members
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId TypeId => DataTypeIds.JsonPubSubConnectionMessage; 
+
+        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.JsonPubSubConnectionMessage_Encoding_DefaultBinary;
+
+        /// <summary cref="IEncodeable.XmlEncodingId" />
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.JsonPubSubConnectionMessage_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.JsonPubSubConnectionMessage_Encoding_DefaultJson; 
+
+        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        public virtual void Encode(IEncoder encoder)
+        {
+            encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            encoder.WriteString("MessageId", MessageId);
+            encoder.WriteString("MessageType", MessageType);
+            encoder.WriteString("PublisherId", PublisherId);
+            encoder.WriteDateTime("Timestamp", Timestamp);
+            encoder.WriteEncodeable("Connection", Connection, typeof(PubSubConnectionDataType));
+
+            encoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        public virtual void Decode(IDecoder decoder)
+        {
+            decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            MessageId = decoder.ReadString("MessageId");
+            MessageType = decoder.ReadString("MessageType");
+            PublisherId = decoder.ReadString("PublisherId");
+            Timestamp = decoder.ReadDateTime("Timestamp");
+            Connection = (PubSubConnectionDataType)decoder.ReadEncodeable("Connection", typeof(PubSubConnectionDataType));
+
+            decoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        public virtual bool IsEqual(IEncodeable encodeable)
+        {
+            if (Object.ReferenceEquals(this, encodeable))
+            {
+                return true;
+            }
+
+            JsonPubSubConnectionMessage value = encodeable as JsonPubSubConnectionMessage;
+
+            if (value == null)
+            {
+                return false;
+            }
+
+            if (!Utils.IsEqual(m_messageId, value.m_messageId)) return false;
+            if (!Utils.IsEqual(m_messageType, value.m_messageType)) return false;
+            if (!Utils.IsEqual(m_publisherId, value.m_publisherId)) return false;
+            if (!Utils.IsEqual(m_timestamp, value.m_timestamp)) return false;
+            if (!Utils.IsEqual(m_connection, value.m_connection)) return false;
+
+            return true;
+        }
+
+        /// <summary cref="ICloneable.Clone" />
+        public virtual object Clone()
+        {
+            return (JsonPubSubConnectionMessage)this.MemberwiseClone();
+        }
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            JsonPubSubConnectionMessage clone = (JsonPubSubConnectionMessage)base.MemberwiseClone();
+
+            clone.m_messageId = (string)Utils.Clone(this.m_messageId);
+            clone.m_messageType = (string)Utils.Clone(this.m_messageType);
+            clone.m_publisherId = (string)Utils.Clone(this.m_publisherId);
+            clone.m_timestamp = (DateTime)Utils.Clone(this.m_timestamp);
+            clone.m_connection = (PubSubConnectionDataType)Utils.Clone(this.m_connection);
+
+            return clone;
+        }
+        #endregion
+
+        #region Private Fields
+        private string m_messageId;
+        private string m_messageType;
+        private string m_publisherId;
+        private DateTime m_timestamp;
+        private PubSubConnectionDataType m_connection;
+        #endregion
+    }
+
+    #region JsonPubSubConnectionMessageCollection Class
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [CollectionDataContract(Name = "ListOfJsonPubSubConnectionMessage", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "JsonPubSubConnectionMessage")]
+    public partial class JsonPubSubConnectionMessageCollection : List<JsonPubSubConnectionMessage>, ICloneable
+    {
+        #region Constructors
+        /// <remarks />
+        public JsonPubSubConnectionMessageCollection() {}
+
+        /// <remarks />
+        public JsonPubSubConnectionMessageCollection(int capacity) : base(capacity) {}
+
+        /// <remarks />
+        public JsonPubSubConnectionMessageCollection(IEnumerable<JsonPubSubConnectionMessage> collection) : base(collection) {}
+        #endregion
+
+        #region Static Operators
+        /// <remarks />
+        public static implicit operator JsonPubSubConnectionMessageCollection(JsonPubSubConnectionMessage[] values)
+        {
+            if (values != null)
+            {
+                return new JsonPubSubConnectionMessageCollection(values);
+            }
+
+            return new JsonPubSubConnectionMessageCollection();
+        }
+
+        /// <remarks />
+        public static explicit operator JsonPubSubConnectionMessage[](JsonPubSubConnectionMessageCollection values)
+        {
+            if (values != null)
+            {
+                return values.ToArray();
+            }
+
+            return null;
+        }
+        #endregion
+
+        #region ICloneable Methods
+        /// <remarks />
+        public object Clone()
+        {
+            return (JsonPubSubConnectionMessageCollection)this.MemberwiseClone();
+        }
+        #endregion
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            JsonPubSubConnectionMessageCollection clone = new JsonPubSubConnectionMessageCollection(this.Count);
+
+            for (int ii = 0; ii < this.Count; ii++)
+            {
+                clone.Add((JsonPubSubConnectionMessage)Utils.Clone(this[ii]));
+            }
+
+            return clone;
+        }
+    }
+    #endregion
+    #endif
+    #endregion
+
+    #region JsonActionMetaDataMessage Class
+    #if (!OPCUA_EXCLUDE_JsonActionMetaDataMessage)
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
+    public partial class JsonActionMetaDataMessage : IEncodeable, IJsonEncodeable
+    {
+        #region Constructors
+        /// <remarks />
+        public JsonActionMetaDataMessage()
+        {
+            Initialize();
+        }
+            
+        [OnDeserializing]
+        private void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+            
+        private void Initialize()
+        {
+            m_messageId = null;
+            m_messageType = null;
+            m_publisherId = null;
+            m_dataSetWriterId = (ushort)0;
+            m_dataSetWriterName = null;
+            m_timestamp = DateTime.MinValue;
+            m_actionTargets = new ActionTargetDataTypeCollection();
+            m_request = new DataSetMetaDataType();
+            m_response = new DataSetMetaDataType();
+            m_actionMethods = new ActionMethodDataTypeCollection();
+        }
+        #endregion
+
+        #region Public Properties
+        /// <remarks />
+        [DataMember(Name = "MessageId", IsRequired = false, Order = 1)]
+        public string MessageId
+        {
+            get { return m_messageId;  }
+            set { m_messageId = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "MessageType", IsRequired = false, Order = 2)]
+        public string MessageType
+        {
+            get { return m_messageType;  }
+            set { m_messageType = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "PublisherId", IsRequired = false, Order = 3)]
+        public string PublisherId
+        {
+            get { return m_publisherId;  }
+            set { m_publisherId = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "DataSetWriterId", IsRequired = false, Order = 4)]
+        public ushort DataSetWriterId
+        {
+            get { return m_dataSetWriterId;  }
+            set { m_dataSetWriterId = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "DataSetWriterName", IsRequired = false, Order = 5)]
+        public string DataSetWriterName
+        {
+            get { return m_dataSetWriterName;  }
+            set { m_dataSetWriterName = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "Timestamp", IsRequired = false, Order = 6)]
+        public DateTime Timestamp
+        {
+            get { return m_timestamp;  }
+            set { m_timestamp = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "ActionTargets", IsRequired = false, Order = 7)]
+        public ActionTargetDataTypeCollection ActionTargets
+        {
+            get
+            {
+                return m_actionTargets;
+            }
+
+            set
+            {
+                m_actionTargets = value;
+
+                if (value == null)
+                {
+                    m_actionTargets = new ActionTargetDataTypeCollection();
+                }
+            }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "Request", IsRequired = false, Order = 8)]
+        public DataSetMetaDataType Request
+        {
+            get
+            {
+                return m_request;
+            }
+
+            set
+            {
+                m_request = value;
+
+                if (value == null)
+                {
+                    m_request = new DataSetMetaDataType();
+                }
+            }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "Response", IsRequired = false, Order = 9)]
+        public DataSetMetaDataType Response
+        {
+            get
+            {
+                return m_response;
+            }
+
+            set
+            {
+                m_response = value;
+
+                if (value == null)
+                {
+                    m_response = new DataSetMetaDataType();
+                }
+            }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "ActionMethods", IsRequired = false, Order = 10)]
+        public ActionMethodDataTypeCollection ActionMethods
+        {
+            get
+            {
+                return m_actionMethods;
+            }
+
+            set
+            {
+                m_actionMethods = value;
+
+                if (value == null)
+                {
+                    m_actionMethods = new ActionMethodDataTypeCollection();
+                }
+            }
+        }
+        #endregion
+
+        #region IEncodeable Members
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId TypeId => DataTypeIds.JsonActionMetaDataMessage; 
+
+        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.JsonActionMetaDataMessage_Encoding_DefaultBinary;
+
+        /// <summary cref="IEncodeable.XmlEncodingId" />
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.JsonActionMetaDataMessage_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.JsonActionMetaDataMessage_Encoding_DefaultJson; 
+
+        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        public virtual void Encode(IEncoder encoder)
+        {
+            encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            encoder.WriteString("MessageId", MessageId);
+            encoder.WriteString("MessageType", MessageType);
+            encoder.WriteString("PublisherId", PublisherId);
+            encoder.WriteUInt16("DataSetWriterId", DataSetWriterId);
+            encoder.WriteString("DataSetWriterName", DataSetWriterName);
+            encoder.WriteDateTime("Timestamp", Timestamp);
+            encoder.WriteEncodeableArray("ActionTargets", ActionTargets.ToArray(), typeof(ActionTargetDataType));
+            encoder.WriteEncodeable("Request", Request, typeof(DataSetMetaDataType));
+            encoder.WriteEncodeable("Response", Response, typeof(DataSetMetaDataType));
+            encoder.WriteEncodeableArray("ActionMethods", ActionMethods.ToArray(), typeof(ActionMethodDataType));
+
+            encoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        public virtual void Decode(IDecoder decoder)
+        {
+            decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            MessageId = decoder.ReadString("MessageId");
+            MessageType = decoder.ReadString("MessageType");
+            PublisherId = decoder.ReadString("PublisherId");
+            DataSetWriterId = decoder.ReadUInt16("DataSetWriterId");
+            DataSetWriterName = decoder.ReadString("DataSetWriterName");
+            Timestamp = decoder.ReadDateTime("Timestamp");
+            ActionTargets = (ActionTargetDataTypeCollection)decoder.ReadEncodeableArray("ActionTargets", typeof(ActionTargetDataType));
+            Request = (DataSetMetaDataType)decoder.ReadEncodeable("Request", typeof(DataSetMetaDataType));
+            Response = (DataSetMetaDataType)decoder.ReadEncodeable("Response", typeof(DataSetMetaDataType));
+            ActionMethods = (ActionMethodDataTypeCollection)decoder.ReadEncodeableArray("ActionMethods", typeof(ActionMethodDataType));
+
+            decoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        public virtual bool IsEqual(IEncodeable encodeable)
+        {
+            if (Object.ReferenceEquals(this, encodeable))
+            {
+                return true;
+            }
+
+            JsonActionMetaDataMessage value = encodeable as JsonActionMetaDataMessage;
+
+            if (value == null)
+            {
+                return false;
+            }
+
+            if (!Utils.IsEqual(m_messageId, value.m_messageId)) return false;
+            if (!Utils.IsEqual(m_messageType, value.m_messageType)) return false;
+            if (!Utils.IsEqual(m_publisherId, value.m_publisherId)) return false;
+            if (!Utils.IsEqual(m_dataSetWriterId, value.m_dataSetWriterId)) return false;
+            if (!Utils.IsEqual(m_dataSetWriterName, value.m_dataSetWriterName)) return false;
+            if (!Utils.IsEqual(m_timestamp, value.m_timestamp)) return false;
+            if (!Utils.IsEqual(m_actionTargets, value.m_actionTargets)) return false;
+            if (!Utils.IsEqual(m_request, value.m_request)) return false;
+            if (!Utils.IsEqual(m_response, value.m_response)) return false;
+            if (!Utils.IsEqual(m_actionMethods, value.m_actionMethods)) return false;
+
+            return true;
+        }
+
+        /// <summary cref="ICloneable.Clone" />
+        public virtual object Clone()
+        {
+            return (JsonActionMetaDataMessage)this.MemberwiseClone();
+        }
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            JsonActionMetaDataMessage clone = (JsonActionMetaDataMessage)base.MemberwiseClone();
+
+            clone.m_messageId = (string)Utils.Clone(this.m_messageId);
+            clone.m_messageType = (string)Utils.Clone(this.m_messageType);
+            clone.m_publisherId = (string)Utils.Clone(this.m_publisherId);
+            clone.m_dataSetWriterId = (ushort)Utils.Clone(this.m_dataSetWriterId);
+            clone.m_dataSetWriterName = (string)Utils.Clone(this.m_dataSetWriterName);
+            clone.m_timestamp = (DateTime)Utils.Clone(this.m_timestamp);
+            clone.m_actionTargets = (ActionTargetDataTypeCollection)Utils.Clone(this.m_actionTargets);
+            clone.m_request = (DataSetMetaDataType)Utils.Clone(this.m_request);
+            clone.m_response = (DataSetMetaDataType)Utils.Clone(this.m_response);
+            clone.m_actionMethods = (ActionMethodDataTypeCollection)Utils.Clone(this.m_actionMethods);
+
+            return clone;
+        }
+        #endregion
+
+        #region Private Fields
+        private string m_messageId;
+        private string m_messageType;
+        private string m_publisherId;
+        private ushort m_dataSetWriterId;
+        private string m_dataSetWriterName;
+        private DateTime m_timestamp;
+        private ActionTargetDataTypeCollection m_actionTargets;
+        private DataSetMetaDataType m_request;
+        private DataSetMetaDataType m_response;
+        private ActionMethodDataTypeCollection m_actionMethods;
+        #endregion
+    }
+
+    #region JsonActionMetaDataMessageCollection Class
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [CollectionDataContract(Name = "ListOfJsonActionMetaDataMessage", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "JsonActionMetaDataMessage")]
+    public partial class JsonActionMetaDataMessageCollection : List<JsonActionMetaDataMessage>, ICloneable
+    {
+        #region Constructors
+        /// <remarks />
+        public JsonActionMetaDataMessageCollection() {}
+
+        /// <remarks />
+        public JsonActionMetaDataMessageCollection(int capacity) : base(capacity) {}
+
+        /// <remarks />
+        public JsonActionMetaDataMessageCollection(IEnumerable<JsonActionMetaDataMessage> collection) : base(collection) {}
+        #endregion
+
+        #region Static Operators
+        /// <remarks />
+        public static implicit operator JsonActionMetaDataMessageCollection(JsonActionMetaDataMessage[] values)
+        {
+            if (values != null)
+            {
+                return new JsonActionMetaDataMessageCollection(values);
+            }
+
+            return new JsonActionMetaDataMessageCollection();
+        }
+
+        /// <remarks />
+        public static explicit operator JsonActionMetaDataMessage[](JsonActionMetaDataMessageCollection values)
+        {
+            if (values != null)
+            {
+                return values.ToArray();
+            }
+
+            return null;
+        }
+        #endregion
+
+        #region ICloneable Methods
+        /// <remarks />
+        public object Clone()
+        {
+            return (JsonActionMetaDataMessageCollection)this.MemberwiseClone();
+        }
+        #endregion
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            JsonActionMetaDataMessageCollection clone = new JsonActionMetaDataMessageCollection(this.Count);
+
+            for (int ii = 0; ii < this.Count; ii++)
+            {
+                clone.Add((JsonActionMetaDataMessage)Utils.Clone(this[ii]));
+            }
+
+            return clone;
+        }
+    }
+    #endregion
+    #endif
+    #endregion
+
+    #region JsonActionResponderMessage Class
+    #if (!OPCUA_EXCLUDE_JsonActionResponderMessage)
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
+    public partial class JsonActionResponderMessage : IEncodeable, IJsonEncodeable
+    {
+        #region Constructors
+        /// <remarks />
+        public JsonActionResponderMessage()
+        {
+            Initialize();
+        }
+            
+        [OnDeserializing]
+        private void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+            
+        private void Initialize()
+        {
+            m_messageId = null;
+            m_messageType = null;
+            m_publisherId = null;
+            m_timestamp = DateTime.MinValue;
+            m_connection = new PubSubConnectionDataType();
+        }
+        #endregion
+
+        #region Public Properties
+        /// <remarks />
+        [DataMember(Name = "MessageId", IsRequired = false, Order = 1)]
+        public string MessageId
+        {
+            get { return m_messageId;  }
+            set { m_messageId = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "MessageType", IsRequired = false, Order = 2)]
+        public string MessageType
+        {
+            get { return m_messageType;  }
+            set { m_messageType = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "PublisherId", IsRequired = false, Order = 3)]
+        public string PublisherId
+        {
+            get { return m_publisherId;  }
+            set { m_publisherId = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "Timestamp", IsRequired = false, Order = 4)]
+        public DateTime Timestamp
+        {
+            get { return m_timestamp;  }
+            set { m_timestamp = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "Connection", IsRequired = false, Order = 5)]
+        public PubSubConnectionDataType Connection
+        {
+            get
+            {
+                return m_connection;
+            }
+
+            set
+            {
+                m_connection = value;
+
+                if (value == null)
+                {
+                    m_connection = new PubSubConnectionDataType();
+                }
+            }
+        }
+        #endregion
+
+        #region IEncodeable Members
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId TypeId => DataTypeIds.JsonActionResponderMessage; 
+
+        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.JsonActionResponderMessage_Encoding_DefaultBinary;
+
+        /// <summary cref="IEncodeable.XmlEncodingId" />
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.JsonActionResponderMessage_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.JsonActionResponderMessage_Encoding_DefaultJson; 
+
+        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        public virtual void Encode(IEncoder encoder)
+        {
+            encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            encoder.WriteString("MessageId", MessageId);
+            encoder.WriteString("MessageType", MessageType);
+            encoder.WriteString("PublisherId", PublisherId);
+            encoder.WriteDateTime("Timestamp", Timestamp);
+            encoder.WriteEncodeable("Connection", Connection, typeof(PubSubConnectionDataType));
+
+            encoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        public virtual void Decode(IDecoder decoder)
+        {
+            decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            MessageId = decoder.ReadString("MessageId");
+            MessageType = decoder.ReadString("MessageType");
+            PublisherId = decoder.ReadString("PublisherId");
+            Timestamp = decoder.ReadDateTime("Timestamp");
+            Connection = (PubSubConnectionDataType)decoder.ReadEncodeable("Connection", typeof(PubSubConnectionDataType));
+
+            decoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        public virtual bool IsEqual(IEncodeable encodeable)
+        {
+            if (Object.ReferenceEquals(this, encodeable))
+            {
+                return true;
+            }
+
+            JsonActionResponderMessage value = encodeable as JsonActionResponderMessage;
+
+            if (value == null)
+            {
+                return false;
+            }
+
+            if (!Utils.IsEqual(m_messageId, value.m_messageId)) return false;
+            if (!Utils.IsEqual(m_messageType, value.m_messageType)) return false;
+            if (!Utils.IsEqual(m_publisherId, value.m_publisherId)) return false;
+            if (!Utils.IsEqual(m_timestamp, value.m_timestamp)) return false;
+            if (!Utils.IsEqual(m_connection, value.m_connection)) return false;
+
+            return true;
+        }
+
+        /// <summary cref="ICloneable.Clone" />
+        public virtual object Clone()
+        {
+            return (JsonActionResponderMessage)this.MemberwiseClone();
+        }
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            JsonActionResponderMessage clone = (JsonActionResponderMessage)base.MemberwiseClone();
+
+            clone.m_messageId = (string)Utils.Clone(this.m_messageId);
+            clone.m_messageType = (string)Utils.Clone(this.m_messageType);
+            clone.m_publisherId = (string)Utils.Clone(this.m_publisherId);
+            clone.m_timestamp = (DateTime)Utils.Clone(this.m_timestamp);
+            clone.m_connection = (PubSubConnectionDataType)Utils.Clone(this.m_connection);
+
+            return clone;
+        }
+        #endregion
+
+        #region Private Fields
+        private string m_messageId;
+        private string m_messageType;
+        private string m_publisherId;
+        private DateTime m_timestamp;
+        private PubSubConnectionDataType m_connection;
+        #endregion
+    }
+
+    #region JsonActionResponderMessageCollection Class
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [CollectionDataContract(Name = "ListOfJsonActionResponderMessage", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "JsonActionResponderMessage")]
+    public partial class JsonActionResponderMessageCollection : List<JsonActionResponderMessage>, ICloneable
+    {
+        #region Constructors
+        /// <remarks />
+        public JsonActionResponderMessageCollection() {}
+
+        /// <remarks />
+        public JsonActionResponderMessageCollection(int capacity) : base(capacity) {}
+
+        /// <remarks />
+        public JsonActionResponderMessageCollection(IEnumerable<JsonActionResponderMessage> collection) : base(collection) {}
+        #endregion
+
+        #region Static Operators
+        /// <remarks />
+        public static implicit operator JsonActionResponderMessageCollection(JsonActionResponderMessage[] values)
+        {
+            if (values != null)
+            {
+                return new JsonActionResponderMessageCollection(values);
+            }
+
+            return new JsonActionResponderMessageCollection();
+        }
+
+        /// <remarks />
+        public static explicit operator JsonActionResponderMessage[](JsonActionResponderMessageCollection values)
+        {
+            if (values != null)
+            {
+                return values.ToArray();
+            }
+
+            return null;
+        }
+        #endregion
+
+        #region ICloneable Methods
+        /// <remarks />
+        public object Clone()
+        {
+            return (JsonActionResponderMessageCollection)this.MemberwiseClone();
+        }
+        #endregion
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            JsonActionResponderMessageCollection clone = new JsonActionResponderMessageCollection(this.Count);
+
+            for (int ii = 0; ii < this.Count; ii++)
+            {
+                clone.Add((JsonActionResponderMessage)Utils.Clone(this[ii]));
+            }
+
+            return clone;
+        }
+    }
+    #endregion
+    #endif
+    #endregion
+
+    #region JsonActionNetworkMessage Class
+    #if (!OPCUA_EXCLUDE_JsonActionNetworkMessage)
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
+    public partial class JsonActionNetworkMessage : IEncodeable, IJsonEncodeable
+    {
+        #region Constructors
+        /// <remarks />
+        public JsonActionNetworkMessage()
+        {
+            Initialize();
+        }
+            
+        [OnDeserializing]
+        private void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+            
+        private void Initialize()
+        {
+            m_messageId = null;
+            m_messageType = null;
+            m_publisherId = null;
+            m_timestamp = DateTime.MinValue;
+            m_responseAddress = null;
+            m_correlationData = null;
+            m_requestorId = null;
+            m_timeoutHint = (double)0;
+            m_message = Variant.Null;
+        }
+        #endregion
+
+        #region Public Properties
+        /// <remarks />
+        [DataMember(Name = "MessageId", IsRequired = false, Order = 1)]
+        public string MessageId
+        {
+            get { return m_messageId;  }
+            set { m_messageId = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "MessageType", IsRequired = false, Order = 2)]
+        public string MessageType
+        {
+            get { return m_messageType;  }
+            set { m_messageType = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "PublisherId", IsRequired = false, Order = 3)]
+        public string PublisherId
+        {
+            get { return m_publisherId;  }
+            set { m_publisherId = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "Timestamp", IsRequired = false, Order = 4)]
+        public DateTime Timestamp
+        {
+            get { return m_timestamp;  }
+            set { m_timestamp = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "ResponseAddress", IsRequired = false, Order = 5)]
+        public string ResponseAddress
+        {
+            get { return m_responseAddress;  }
+            set { m_responseAddress = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "CorrelationData", IsRequired = false, Order = 6)]
+        public byte[] CorrelationData
+        {
+            get { return m_correlationData;  }
+            set { m_correlationData = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "RequestorId", IsRequired = false, Order = 7)]
+        public string RequestorId
+        {
+            get { return m_requestorId;  }
+            set { m_requestorId = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "TimeoutHint", IsRequired = false, Order = 8)]
+        public double TimeoutHint
+        {
+            get { return m_timeoutHint;  }
+            set { m_timeoutHint = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "Message", IsRequired = false, Order = 9)]
+        public Variant Message
+        {
+            get { return m_message;  }
+            set { m_message = value; }
+        }
+        #endregion
+
+        #region IEncodeable Members
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId TypeId => DataTypeIds.JsonActionNetworkMessage; 
+
+        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.JsonActionNetworkMessage_Encoding_DefaultBinary;
+
+        /// <summary cref="IEncodeable.XmlEncodingId" />
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.JsonActionNetworkMessage_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.JsonActionNetworkMessage_Encoding_DefaultJson; 
+
+        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        public virtual void Encode(IEncoder encoder)
+        {
+            encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            encoder.WriteString("MessageId", MessageId);
+            encoder.WriteString("MessageType", MessageType);
+            encoder.WriteString("PublisherId", PublisherId);
+            encoder.WriteDateTime("Timestamp", Timestamp);
+            encoder.WriteString("ResponseAddress", ResponseAddress);
+            encoder.WriteByteString("CorrelationData", CorrelationData);
+            encoder.WriteString("RequestorId", RequestorId);
+            encoder.WriteDouble("TimeoutHint", TimeoutHint);
+            encoder.WriteVariant("Message", Message);
+
+            encoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        public virtual void Decode(IDecoder decoder)
+        {
+            decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            MessageId = decoder.ReadString("MessageId");
+            MessageType = decoder.ReadString("MessageType");
+            PublisherId = decoder.ReadString("PublisherId");
+            Timestamp = decoder.ReadDateTime("Timestamp");
+            ResponseAddress = decoder.ReadString("ResponseAddress");
+            CorrelationData = decoder.ReadByteString("CorrelationData");
+            RequestorId = decoder.ReadString("RequestorId");
+            TimeoutHint = decoder.ReadDouble("TimeoutHint");
+            Message = decoder.ReadVariant("Message");
+
+            decoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        public virtual bool IsEqual(IEncodeable encodeable)
+        {
+            if (Object.ReferenceEquals(this, encodeable))
+            {
+                return true;
+            }
+
+            JsonActionNetworkMessage value = encodeable as JsonActionNetworkMessage;
+
+            if (value == null)
+            {
+                return false;
+            }
+
+            if (!Utils.IsEqual(m_messageId, value.m_messageId)) return false;
+            if (!Utils.IsEqual(m_messageType, value.m_messageType)) return false;
+            if (!Utils.IsEqual(m_publisherId, value.m_publisherId)) return false;
+            if (!Utils.IsEqual(m_timestamp, value.m_timestamp)) return false;
+            if (!Utils.IsEqual(m_responseAddress, value.m_responseAddress)) return false;
+            if (!Utils.IsEqual(m_correlationData, value.m_correlationData)) return false;
+            if (!Utils.IsEqual(m_requestorId, value.m_requestorId)) return false;
+            if (!Utils.IsEqual(m_timeoutHint, value.m_timeoutHint)) return false;
+            if (!Utils.IsEqual(m_message, value.m_message)) return false;
+
+            return true;
+        }
+
+        /// <summary cref="ICloneable.Clone" />
+        public virtual object Clone()
+        {
+            return (JsonActionNetworkMessage)this.MemberwiseClone();
+        }
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            JsonActionNetworkMessage clone = (JsonActionNetworkMessage)base.MemberwiseClone();
+
+            clone.m_messageId = (string)Utils.Clone(this.m_messageId);
+            clone.m_messageType = (string)Utils.Clone(this.m_messageType);
+            clone.m_publisherId = (string)Utils.Clone(this.m_publisherId);
+            clone.m_timestamp = (DateTime)Utils.Clone(this.m_timestamp);
+            clone.m_responseAddress = (string)Utils.Clone(this.m_responseAddress);
+            clone.m_correlationData = (byte[])Utils.Clone(this.m_correlationData);
+            clone.m_requestorId = (string)Utils.Clone(this.m_requestorId);
+            clone.m_timeoutHint = (double)Utils.Clone(this.m_timeoutHint);
+            clone.m_message = (Variant)Utils.Clone(this.m_message);
+
+            return clone;
+        }
+        #endregion
+
+        #region Private Fields
+        private string m_messageId;
+        private string m_messageType;
+        private string m_publisherId;
+        private DateTime m_timestamp;
+        private string m_responseAddress;
+        private byte[] m_correlationData;
+        private string m_requestorId;
+        private double m_timeoutHint;
+        private Variant m_message;
+        #endregion
+    }
+
+    #region JsonActionNetworkMessageCollection Class
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [CollectionDataContract(Name = "ListOfJsonActionNetworkMessage", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "JsonActionNetworkMessage")]
+    public partial class JsonActionNetworkMessageCollection : List<JsonActionNetworkMessage>, ICloneable
+    {
+        #region Constructors
+        /// <remarks />
+        public JsonActionNetworkMessageCollection() {}
+
+        /// <remarks />
+        public JsonActionNetworkMessageCollection(int capacity) : base(capacity) {}
+
+        /// <remarks />
+        public JsonActionNetworkMessageCollection(IEnumerable<JsonActionNetworkMessage> collection) : base(collection) {}
+        #endregion
+
+        #region Static Operators
+        /// <remarks />
+        public static implicit operator JsonActionNetworkMessageCollection(JsonActionNetworkMessage[] values)
+        {
+            if (values != null)
+            {
+                return new JsonActionNetworkMessageCollection(values);
+            }
+
+            return new JsonActionNetworkMessageCollection();
+        }
+
+        /// <remarks />
+        public static explicit operator JsonActionNetworkMessage[](JsonActionNetworkMessageCollection values)
+        {
+            if (values != null)
+            {
+                return values.ToArray();
+            }
+
+            return null;
+        }
+        #endregion
+
+        #region ICloneable Methods
+        /// <remarks />
+        public object Clone()
+        {
+            return (JsonActionNetworkMessageCollection)this.MemberwiseClone();
+        }
+        #endregion
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            JsonActionNetworkMessageCollection clone = new JsonActionNetworkMessageCollection(this.Count);
+
+            for (int ii = 0; ii < this.Count; ii++)
+            {
+                clone.Add((JsonActionNetworkMessage)Utils.Clone(this[ii]));
+            }
+
+            return clone;
+        }
+    }
+    #endregion
+    #endif
+    #endregion
+
+    #region JsonActionRequestMessage Class
+    #if (!OPCUA_EXCLUDE_JsonActionRequestMessage)
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
+    public partial class JsonActionRequestMessage : IEncodeable, IJsonEncodeable
+    {
+        #region Constructors
+        /// <remarks />
+        public JsonActionRequestMessage()
+        {
+            Initialize();
+        }
+            
+        [OnDeserializing]
+        private void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+            
+        private void Initialize()
+        {
+            m_dataSetWriterId = (ushort)0;
+            m_actionTargetId = (ushort)0;
+            m_dataSetWriterName = null;
+            m_writerGroupName = null;
+            m_metaDataVersion = new ConfigurationVersionDataType();
+            m_minorVersion = (uint)0;
+            m_timestamp = DateTime.MinValue;
+            m_messageType = null;
+            m_requestId = (ushort)0;
+            m_actionState = ActionState.Idle;
+            m_payload = null;
+        }
+        #endregion
+
+        #region Public Properties
+        /// <remarks />
+        [DataMember(Name = "DataSetWriterId", IsRequired = false, Order = 1)]
+        public ushort DataSetWriterId
+        {
+            get { return m_dataSetWriterId;  }
+            set { m_dataSetWriterId = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "ActionTargetId", IsRequired = false, Order = 2)]
+        public ushort ActionTargetId
+        {
+            get { return m_actionTargetId;  }
+            set { m_actionTargetId = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "DataSetWriterName", IsRequired = false, Order = 3)]
+        public string DataSetWriterName
+        {
+            get { return m_dataSetWriterName;  }
+            set { m_dataSetWriterName = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "WriterGroupName", IsRequired = false, Order = 4)]
+        public string WriterGroupName
+        {
+            get { return m_writerGroupName;  }
+            set { m_writerGroupName = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "MetaDataVersion", IsRequired = false, Order = 5)]
+        public ConfigurationVersionDataType MetaDataVersion
+        {
+            get
+            {
+                return m_metaDataVersion;
+            }
+
+            set
+            {
+                m_metaDataVersion = value;
+
+                if (value == null)
+                {
+                    m_metaDataVersion = new ConfigurationVersionDataType();
+                }
+            }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "MinorVersion", IsRequired = false, Order = 6)]
+        public uint MinorVersion
+        {
+            get { return m_minorVersion;  }
+            set { m_minorVersion = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "Timestamp", IsRequired = false, Order = 7)]
+        public DateTime Timestamp
+        {
+            get { return m_timestamp;  }
+            set { m_timestamp = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "MessageType", IsRequired = false, Order = 8)]
+        public string MessageType
+        {
+            get { return m_messageType;  }
+            set { m_messageType = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "RequestId", IsRequired = false, Order = 9)]
+        public ushort RequestId
+        {
+            get { return m_requestId;  }
+            set { m_requestId = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "ActionState", IsRequired = false, Order = 10)]
+        public ActionState ActionState
+        {
+            get { return m_actionState;  }
+            set { m_actionState = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "Payload", IsRequired = false, Order = 11)]
+        public ExtensionObject Payload
+        {
+            get { return m_payload;  }
+            set { m_payload = value; }
+        }
+        #endregion
+
+        #region IEncodeable Members
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId TypeId => DataTypeIds.JsonActionRequestMessage; 
+
+        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.JsonActionRequestMessage_Encoding_DefaultBinary;
+
+        /// <summary cref="IEncodeable.XmlEncodingId" />
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.JsonActionRequestMessage_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.JsonActionRequestMessage_Encoding_DefaultJson; 
+
+        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        public virtual void Encode(IEncoder encoder)
+        {
+            encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            encoder.WriteUInt16("DataSetWriterId", DataSetWriterId);
+            encoder.WriteUInt16("ActionTargetId", ActionTargetId);
+            encoder.WriteString("DataSetWriterName", DataSetWriterName);
+            encoder.WriteString("WriterGroupName", WriterGroupName);
+            encoder.WriteEncodeable("MetaDataVersion", MetaDataVersion, typeof(ConfigurationVersionDataType));
+            encoder.WriteUInt32("MinorVersion", MinorVersion);
+            encoder.WriteDateTime("Timestamp", Timestamp);
+            encoder.WriteString("MessageType", MessageType);
+            encoder.WriteUInt16("RequestId", RequestId);
+            encoder.WriteEnumerated("ActionState", ActionState);
+            encoder.WriteExtensionObject("Payload", Payload);
+
+            encoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        public virtual void Decode(IDecoder decoder)
+        {
+            decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            DataSetWriterId = decoder.ReadUInt16("DataSetWriterId");
+            ActionTargetId = decoder.ReadUInt16("ActionTargetId");
+            DataSetWriterName = decoder.ReadString("DataSetWriterName");
+            WriterGroupName = decoder.ReadString("WriterGroupName");
+            MetaDataVersion = (ConfigurationVersionDataType)decoder.ReadEncodeable("MetaDataVersion", typeof(ConfigurationVersionDataType));
+            MinorVersion = decoder.ReadUInt32("MinorVersion");
+            Timestamp = decoder.ReadDateTime("Timestamp");
+            MessageType = decoder.ReadString("MessageType");
+            RequestId = decoder.ReadUInt16("RequestId");
+            ActionState = (ActionState)decoder.ReadEnumerated("ActionState", typeof(ActionState));
+            Payload = decoder.ReadExtensionObject("Payload");
+
+            decoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        public virtual bool IsEqual(IEncodeable encodeable)
+        {
+            if (Object.ReferenceEquals(this, encodeable))
+            {
+                return true;
+            }
+
+            JsonActionRequestMessage value = encodeable as JsonActionRequestMessage;
+
+            if (value == null)
+            {
+                return false;
+            }
+
+            if (!Utils.IsEqual(m_dataSetWriterId, value.m_dataSetWriterId)) return false;
+            if (!Utils.IsEqual(m_actionTargetId, value.m_actionTargetId)) return false;
+            if (!Utils.IsEqual(m_dataSetWriterName, value.m_dataSetWriterName)) return false;
+            if (!Utils.IsEqual(m_writerGroupName, value.m_writerGroupName)) return false;
+            if (!Utils.IsEqual(m_metaDataVersion, value.m_metaDataVersion)) return false;
+            if (!Utils.IsEqual(m_minorVersion, value.m_minorVersion)) return false;
+            if (!Utils.IsEqual(m_timestamp, value.m_timestamp)) return false;
+            if (!Utils.IsEqual(m_messageType, value.m_messageType)) return false;
+            if (!Utils.IsEqual(m_requestId, value.m_requestId)) return false;
+            if (!Utils.IsEqual(m_actionState, value.m_actionState)) return false;
+            if (!Utils.IsEqual(m_payload, value.m_payload)) return false;
+
+            return true;
+        }
+
+        /// <summary cref="ICloneable.Clone" />
+        public virtual object Clone()
+        {
+            return (JsonActionRequestMessage)this.MemberwiseClone();
+        }
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            JsonActionRequestMessage clone = (JsonActionRequestMessage)base.MemberwiseClone();
+
+            clone.m_dataSetWriterId = (ushort)Utils.Clone(this.m_dataSetWriterId);
+            clone.m_actionTargetId = (ushort)Utils.Clone(this.m_actionTargetId);
+            clone.m_dataSetWriterName = (string)Utils.Clone(this.m_dataSetWriterName);
+            clone.m_writerGroupName = (string)Utils.Clone(this.m_writerGroupName);
+            clone.m_metaDataVersion = (ConfigurationVersionDataType)Utils.Clone(this.m_metaDataVersion);
+            clone.m_minorVersion = (uint)Utils.Clone(this.m_minorVersion);
+            clone.m_timestamp = (DateTime)Utils.Clone(this.m_timestamp);
+            clone.m_messageType = (string)Utils.Clone(this.m_messageType);
+            clone.m_requestId = (ushort)Utils.Clone(this.m_requestId);
+            clone.m_actionState = (ActionState)Utils.Clone(this.m_actionState);
+            clone.m_payload = (ExtensionObject)Utils.Clone(this.m_payload);
+
+            return clone;
+        }
+        #endregion
+
+        #region Private Fields
+        private ushort m_dataSetWriterId;
+        private ushort m_actionTargetId;
+        private string m_dataSetWriterName;
+        private string m_writerGroupName;
+        private ConfigurationVersionDataType m_metaDataVersion;
+        private uint m_minorVersion;
+        private DateTime m_timestamp;
+        private string m_messageType;
+        private ushort m_requestId;
+        private ActionState m_actionState;
+        private ExtensionObject m_payload;
+        #endregion
+    }
+
+    #region JsonActionRequestMessageCollection Class
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [CollectionDataContract(Name = "ListOfJsonActionRequestMessage", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "JsonActionRequestMessage")]
+    public partial class JsonActionRequestMessageCollection : List<JsonActionRequestMessage>, ICloneable
+    {
+        #region Constructors
+        /// <remarks />
+        public JsonActionRequestMessageCollection() {}
+
+        /// <remarks />
+        public JsonActionRequestMessageCollection(int capacity) : base(capacity) {}
+
+        /// <remarks />
+        public JsonActionRequestMessageCollection(IEnumerable<JsonActionRequestMessage> collection) : base(collection) {}
+        #endregion
+
+        #region Static Operators
+        /// <remarks />
+        public static implicit operator JsonActionRequestMessageCollection(JsonActionRequestMessage[] values)
+        {
+            if (values != null)
+            {
+                return new JsonActionRequestMessageCollection(values);
+            }
+
+            return new JsonActionRequestMessageCollection();
+        }
+
+        /// <remarks />
+        public static explicit operator JsonActionRequestMessage[](JsonActionRequestMessageCollection values)
+        {
+            if (values != null)
+            {
+                return values.ToArray();
+            }
+
+            return null;
+        }
+        #endregion
+
+        #region ICloneable Methods
+        /// <remarks />
+        public object Clone()
+        {
+            return (JsonActionRequestMessageCollection)this.MemberwiseClone();
+        }
+        #endregion
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            JsonActionRequestMessageCollection clone = new JsonActionRequestMessageCollection(this.Count);
+
+            for (int ii = 0; ii < this.Count; ii++)
+            {
+                clone.Add((JsonActionRequestMessage)Utils.Clone(this[ii]));
+            }
+
+            return clone;
+        }
+    }
+    #endregion
+    #endif
+    #endregion
+
+    #region JsonActionResponseMessage Class
+    #if (!OPCUA_EXCLUDE_JsonActionResponseMessage)
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
+    public partial class JsonActionResponseMessage : IEncodeable, IJsonEncodeable
+    {
+        #region Constructors
+        /// <remarks />
+        public JsonActionResponseMessage()
+        {
+            Initialize();
+        }
+            
+        [OnDeserializing]
+        private void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+            
+        private void Initialize()
+        {
+            m_dataSetWriterId = (ushort)0;
+            m_actionTargetId = (ushort)0;
+            m_dataSetWriterName = null;
+            m_writerGroupName = null;
+            m_metaDataVersion = new ConfigurationVersionDataType();
+            m_minorVersion = (uint)0;
+            m_timestamp = DateTime.MinValue;
+            m_status = StatusCodes.Good;
+            m_messageType = null;
+            m_requestId = (ushort)0;
+            m_actionState = ActionState.Idle;
+            m_payload = null;
+        }
+        #endregion
+
+        #region Public Properties
+        /// <remarks />
+        [DataMember(Name = "DataSetWriterId", IsRequired = false, Order = 1)]
+        public ushort DataSetWriterId
+        {
+            get { return m_dataSetWriterId;  }
+            set { m_dataSetWriterId = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "ActionTargetId", IsRequired = false, Order = 2)]
+        public ushort ActionTargetId
+        {
+            get { return m_actionTargetId;  }
+            set { m_actionTargetId = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "DataSetWriterName", IsRequired = false, Order = 3)]
+        public string DataSetWriterName
+        {
+            get { return m_dataSetWriterName;  }
+            set { m_dataSetWriterName = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "WriterGroupName", IsRequired = false, Order = 4)]
+        public string WriterGroupName
+        {
+            get { return m_writerGroupName;  }
+            set { m_writerGroupName = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "MetaDataVersion", IsRequired = false, Order = 5)]
+        public ConfigurationVersionDataType MetaDataVersion
+        {
+            get
+            {
+                return m_metaDataVersion;
+            }
+
+            set
+            {
+                m_metaDataVersion = value;
+
+                if (value == null)
+                {
+                    m_metaDataVersion = new ConfigurationVersionDataType();
+                }
+            }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "MinorVersion", IsRequired = false, Order = 6)]
+        public uint MinorVersion
+        {
+            get { return m_minorVersion;  }
+            set { m_minorVersion = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "Timestamp", IsRequired = false, Order = 7)]
+        public DateTime Timestamp
+        {
+            get { return m_timestamp;  }
+            set { m_timestamp = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "Status", IsRequired = false, Order = 8)]
+        public StatusCode Status
+        {
+            get { return m_status;  }
+            set { m_status = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "MessageType", IsRequired = false, Order = 9)]
+        public string MessageType
+        {
+            get { return m_messageType;  }
+            set { m_messageType = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "RequestId", IsRequired = false, Order = 10)]
+        public ushort RequestId
+        {
+            get { return m_requestId;  }
+            set { m_requestId = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "ActionState", IsRequired = false, Order = 11)]
+        public ActionState ActionState
+        {
+            get { return m_actionState;  }
+            set { m_actionState = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "Payload", IsRequired = false, Order = 12)]
+        public ExtensionObject Payload
+        {
+            get { return m_payload;  }
+            set { m_payload = value; }
+        }
+        #endregion
+
+        #region IEncodeable Members
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId TypeId => DataTypeIds.JsonActionResponseMessage; 
+
+        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.JsonActionResponseMessage_Encoding_DefaultBinary;
+
+        /// <summary cref="IEncodeable.XmlEncodingId" />
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.JsonActionResponseMessage_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.JsonActionResponseMessage_Encoding_DefaultJson; 
+
+        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        public virtual void Encode(IEncoder encoder)
+        {
+            encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            encoder.WriteUInt16("DataSetWriterId", DataSetWriterId);
+            encoder.WriteUInt16("ActionTargetId", ActionTargetId);
+            encoder.WriteString("DataSetWriterName", DataSetWriterName);
+            encoder.WriteString("WriterGroupName", WriterGroupName);
+            encoder.WriteEncodeable("MetaDataVersion", MetaDataVersion, typeof(ConfigurationVersionDataType));
+            encoder.WriteUInt32("MinorVersion", MinorVersion);
+            encoder.WriteDateTime("Timestamp", Timestamp);
+            encoder.WriteStatusCode("Status", Status);
+            encoder.WriteString("MessageType", MessageType);
+            encoder.WriteUInt16("RequestId", RequestId);
+            encoder.WriteEnumerated("ActionState", ActionState);
+            encoder.WriteExtensionObject("Payload", Payload);
+
+            encoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        public virtual void Decode(IDecoder decoder)
+        {
+            decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            DataSetWriterId = decoder.ReadUInt16("DataSetWriterId");
+            ActionTargetId = decoder.ReadUInt16("ActionTargetId");
+            DataSetWriterName = decoder.ReadString("DataSetWriterName");
+            WriterGroupName = decoder.ReadString("WriterGroupName");
+            MetaDataVersion = (ConfigurationVersionDataType)decoder.ReadEncodeable("MetaDataVersion", typeof(ConfigurationVersionDataType));
+            MinorVersion = decoder.ReadUInt32("MinorVersion");
+            Timestamp = decoder.ReadDateTime("Timestamp");
+            Status = decoder.ReadStatusCode("Status");
+            MessageType = decoder.ReadString("MessageType");
+            RequestId = decoder.ReadUInt16("RequestId");
+            ActionState = (ActionState)decoder.ReadEnumerated("ActionState", typeof(ActionState));
+            Payload = decoder.ReadExtensionObject("Payload");
+
+            decoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        public virtual bool IsEqual(IEncodeable encodeable)
+        {
+            if (Object.ReferenceEquals(this, encodeable))
+            {
+                return true;
+            }
+
+            JsonActionResponseMessage value = encodeable as JsonActionResponseMessage;
+
+            if (value == null)
+            {
+                return false;
+            }
+
+            if (!Utils.IsEqual(m_dataSetWriterId, value.m_dataSetWriterId)) return false;
+            if (!Utils.IsEqual(m_actionTargetId, value.m_actionTargetId)) return false;
+            if (!Utils.IsEqual(m_dataSetWriterName, value.m_dataSetWriterName)) return false;
+            if (!Utils.IsEqual(m_writerGroupName, value.m_writerGroupName)) return false;
+            if (!Utils.IsEqual(m_metaDataVersion, value.m_metaDataVersion)) return false;
+            if (!Utils.IsEqual(m_minorVersion, value.m_minorVersion)) return false;
+            if (!Utils.IsEqual(m_timestamp, value.m_timestamp)) return false;
+            if (!Utils.IsEqual(m_status, value.m_status)) return false;
+            if (!Utils.IsEqual(m_messageType, value.m_messageType)) return false;
+            if (!Utils.IsEqual(m_requestId, value.m_requestId)) return false;
+            if (!Utils.IsEqual(m_actionState, value.m_actionState)) return false;
+            if (!Utils.IsEqual(m_payload, value.m_payload)) return false;
+
+            return true;
+        }
+
+        /// <summary cref="ICloneable.Clone" />
+        public virtual object Clone()
+        {
+            return (JsonActionResponseMessage)this.MemberwiseClone();
+        }
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            JsonActionResponseMessage clone = (JsonActionResponseMessage)base.MemberwiseClone();
+
+            clone.m_dataSetWriterId = (ushort)Utils.Clone(this.m_dataSetWriterId);
+            clone.m_actionTargetId = (ushort)Utils.Clone(this.m_actionTargetId);
+            clone.m_dataSetWriterName = (string)Utils.Clone(this.m_dataSetWriterName);
+            clone.m_writerGroupName = (string)Utils.Clone(this.m_writerGroupName);
+            clone.m_metaDataVersion = (ConfigurationVersionDataType)Utils.Clone(this.m_metaDataVersion);
+            clone.m_minorVersion = (uint)Utils.Clone(this.m_minorVersion);
+            clone.m_timestamp = (DateTime)Utils.Clone(this.m_timestamp);
+            clone.m_status = (StatusCode)Utils.Clone(this.m_status);
+            clone.m_messageType = (string)Utils.Clone(this.m_messageType);
+            clone.m_requestId = (ushort)Utils.Clone(this.m_requestId);
+            clone.m_actionState = (ActionState)Utils.Clone(this.m_actionState);
+            clone.m_payload = (ExtensionObject)Utils.Clone(this.m_payload);
+
+            return clone;
+        }
+        #endregion
+
+        #region Private Fields
+        private ushort m_dataSetWriterId;
+        private ushort m_actionTargetId;
+        private string m_dataSetWriterName;
+        private string m_writerGroupName;
+        private ConfigurationVersionDataType m_metaDataVersion;
+        private uint m_minorVersion;
+        private DateTime m_timestamp;
+        private StatusCode m_status;
+        private string m_messageType;
+        private ushort m_requestId;
+        private ActionState m_actionState;
+        private ExtensionObject m_payload;
+        #endregion
+    }
+
+    #region JsonActionResponseMessageCollection Class
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [CollectionDataContract(Name = "ListOfJsonActionResponseMessage", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "JsonActionResponseMessage")]
+    public partial class JsonActionResponseMessageCollection : List<JsonActionResponseMessage>, ICloneable
+    {
+        #region Constructors
+        /// <remarks />
+        public JsonActionResponseMessageCollection() {}
+
+        /// <remarks />
+        public JsonActionResponseMessageCollection(int capacity) : base(capacity) {}
+
+        /// <remarks />
+        public JsonActionResponseMessageCollection(IEnumerable<JsonActionResponseMessage> collection) : base(collection) {}
+        #endregion
+
+        #region Static Operators
+        /// <remarks />
+        public static implicit operator JsonActionResponseMessageCollection(JsonActionResponseMessage[] values)
+        {
+            if (values != null)
+            {
+                return new JsonActionResponseMessageCollection(values);
+            }
+
+            return new JsonActionResponseMessageCollection();
+        }
+
+        /// <remarks />
+        public static explicit operator JsonActionResponseMessage[](JsonActionResponseMessageCollection values)
+        {
+            if (values != null)
+            {
+                return values.ToArray();
+            }
+
+            return null;
+        }
+        #endregion
+
+        #region ICloneable Methods
+        /// <remarks />
+        public object Clone()
+        {
+            return (JsonActionResponseMessageCollection)this.MemberwiseClone();
+        }
+        #endregion
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            JsonActionResponseMessageCollection clone = new JsonActionResponseMessageCollection(this.Count);
+
+            for (int ii = 0; ii < this.Count; ii++)
+            {
+                clone.Add((JsonActionResponseMessage)Utils.Clone(this[ii]));
+            }
+
+            return clone;
+        }
+    }
+    #endregion
+    #endif
+    #endregion
+
     #region AliasNameDataType Class
     #if (!OPCUA_EXCLUDE_AliasNameDataType)
     /// <remarks />
@@ -73449,6 +76941,7 @@ namespace Opc.Ua
             m_w = null;
             m_x = new TestConcreteStructure();
             m_y = TestEnumeration.Invalid;
+            m_z = new DataValue();
         }
         #endregion
 
@@ -73664,6 +77157,14 @@ namespace Opc.Ua
             get { return m_y;  }
             set { m_y = value; }
         }
+
+        /// <remarks />
+        [DataMember(Name = "Z", IsRequired = false, Order = 26)]
+        public DataValue Z
+        {
+            get { return m_z;  }
+            set { m_z = value; }
+        }
         #endregion
 
         #region IEncodeable Members
@@ -73709,6 +77210,7 @@ namespace Opc.Ua
             encoder.WriteExtensionObject("W", W);
             encoder.WriteEncodeable("X", X, typeof(TestConcreteStructure));
             encoder.WriteEnumerated("Y", Y);
+            encoder.WriteDataValue("Z", Z);
 
             encoder.PopNamespace();
         }
@@ -73743,6 +77245,7 @@ namespace Opc.Ua
             W = decoder.ReadExtensionObject("W");
             X = (TestConcreteStructure)decoder.ReadEncodeable("X", typeof(TestConcreteStructure));
             Y = (TestEnumeration)decoder.ReadEnumerated("Y", typeof(TestEnumeration));
+            Z = decoder.ReadDataValue("Z");
 
             decoder.PopNamespace();
         }
@@ -73787,6 +77290,7 @@ namespace Opc.Ua
             if (!Utils.IsEqual(m_w, value.m_w)) return false;
             if (!Utils.IsEqual(m_x, value.m_x)) return false;
             if (!Utils.IsEqual(m_y, value.m_y)) return false;
+            if (!Utils.IsEqual(m_z, value.m_z)) return false;
 
             return true;
         }
@@ -73827,6 +77331,7 @@ namespace Opc.Ua
             clone.m_w = (ExtensionObject)Utils.Clone(this.m_w);
             clone.m_x = (TestConcreteStructure)Utils.Clone(this.m_x);
             clone.m_y = (TestEnumeration)Utils.Clone(this.m_y);
+            clone.m_z = (DataValue)Utils.Clone(this.m_z);
 
             return clone;
         }
@@ -73858,6 +77363,7 @@ namespace Opc.Ua
         private ExtensionObject m_w;
         private TestConcreteStructure m_x;
         private TestEnumeration m_y;
+        private DataValue m_z;
         #endregion
     }
 
@@ -73976,6 +77482,7 @@ namespace Opc.Ua
             m_w = new ExtensionObjectCollection();
             m_x = new TestConcreteStructureCollection();
             m_y = new TestEnumerationCollection();
+            m_z = new DataValueCollection();
         }
         #endregion
 
@@ -74467,6 +77974,26 @@ namespace Opc.Ua
                 }
             }
         }
+
+        /// <remarks />
+        [DataMember(Name = "Z", IsRequired = false, Order = 26)]
+        public DataValueCollection Z
+        {
+            get
+            {
+                return m_z;
+            }
+
+            set
+            {
+                m_z = value;
+
+                if (value == null)
+                {
+                    m_z = new DataValueCollection();
+                }
+            }
+        }
         #endregion
 
         #region IEncodeable Members
@@ -74512,6 +78039,7 @@ namespace Opc.Ua
             encoder.WriteExtensionObjectArray("W", W);
             encoder.WriteEncodeableArray("X", X.ToArray(), typeof(TestConcreteStructure));
             encoder.WriteEnumeratedArray("Y", Y.ToArray(), typeof(TestEnumeration));
+            encoder.WriteDataValueArray("Z", Z);
 
             encoder.PopNamespace();
         }
@@ -74546,6 +78074,7 @@ namespace Opc.Ua
             W = decoder.ReadExtensionObjectArray("W");
             X = (TestConcreteStructureCollection)decoder.ReadEncodeableArray("X", typeof(TestConcreteStructure));
             Y = (TestEnumerationCollection)decoder.ReadEnumeratedArray("Y", typeof(TestEnumeration));
+            Z = decoder.ReadDataValueArray("Z");
 
             decoder.PopNamespace();
         }
@@ -74590,6 +78119,7 @@ namespace Opc.Ua
             if (!Utils.IsEqual(m_w, value.m_w)) return false;
             if (!Utils.IsEqual(m_x, value.m_x)) return false;
             if (!Utils.IsEqual(m_y, value.m_y)) return false;
+            if (!Utils.IsEqual(m_z, value.m_z)) return false;
 
             return true;
         }
@@ -74630,6 +78160,7 @@ namespace Opc.Ua
             clone.m_w = (ExtensionObjectCollection)Utils.Clone(this.m_w);
             clone.m_x = (TestConcreteStructureCollection)Utils.Clone(this.m_x);
             clone.m_y = (TestEnumerationCollection)Utils.Clone(this.m_y);
+            clone.m_z = (DataValueCollection)Utils.Clone(this.m_z);
 
             return clone;
         }
@@ -74661,6 +78192,7 @@ namespace Opc.Ua
         private ExtensionObjectCollection m_w;
         private TestConcreteStructureCollection m_x;
         private TestEnumerationCollection m_y;
+        private DataValueCollection m_z;
         #endregion
     }
 
