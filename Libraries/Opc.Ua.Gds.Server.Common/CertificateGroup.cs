@@ -31,10 +31,10 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading.Tasks;
-using Opc.Ua.Security;
 using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Gds.Server
@@ -152,14 +152,24 @@ namespace Opc.Ua.Gds.Server
             if (application.ApplicationNames == null) throw new ArgumentNullException(nameof(application.ApplicationNames));
 
             using (var signingKey = await LoadSigningKeyAsync(Certificate, string.Empty).ConfigureAwait(false))
-            using (var certificate = CertificateFactory.CreateCertificate(
-                application.ApplicationUri,
-                application.ApplicationNames.Count > 0 ? application.ApplicationNames[0].Text : "ApplicationName",
-                subjectName,
-                domainNames)
-                .SetIssuer(signingKey)
-                .CreateForRSA())
             {
+                X509Certificate2 certificate;
+
+                ICertificateBuilderIssuer builder = CertificateFactory.CreateCertificate(
+                    application.ApplicationUri,
+                    application.ApplicationNames.Count > 0 ? application.ApplicationNames[0].Text : "ApplicationName",
+                    subjectName,
+                    domainNames)
+                    .SetIssuer(signingKey);
+#if ECC_SUPPORT
+                certificate = TryGetECCCurve(out ECCurve curve) ?
+                   builder.SetECCurve(curve).CreateForECDsa() :
+                   builder.CreateForRSA();
+#else
+                certificate = builder
+                       .CreateForRSA();
+#endif
+
                 byte[] privateKey;
                 if (privateKeyFormat == "PFX")
                 {
@@ -173,7 +183,13 @@ namespace Opc.Ua.Gds.Server
                 {
                     throw new ServiceResultException(StatusCodes.BadInvalidArgument, "Invalid private key format");
                 }
-                return new X509Certificate2KeyPair(new X509Certificate2(certificate.RawData), privateKeyFormat, privateKey);
+
+
+                var publicKey = new X509Certificate2(certificate.RawData);
+
+                certificate?.Dispose();
+
+                return new X509Certificate2KeyPair(publicKey, privateKeyFormat, privateKey);
             }
         }
 
@@ -289,14 +305,29 @@ namespace Opc.Ua.Gds.Server
                 using (var signingKey = await LoadSigningKeyAsync(Certificate, string.Empty).ConfigureAwait(false))
                 {
                     X500DistinguishedName subjectName = new X500DistinguishedName(info.Subject.GetEncoded());
-                    return CertificateBuilder.Create(subjectName)
+
+                    X509Certificate2 certificate;
+
+                    ICertificateBuilder builder = CertificateBuilder.Create(subjectName)
                         .AddExtension(new X509SubjectAltNameExtension(application.ApplicationUri, domainNames))
                         .SetNotBefore(yesterday)
-                        .SetLifeTime(Configuration.DefaultCertificateLifetime)
-                        .SetHashAlgorithm(X509Utils.GetRSAHashAlgorithmName(Configuration.DefaultCertificateHashSize))
-                        .SetIssuer(signingKey)
-                        .SetRSAPublicKey(info.SubjectPublicKeyInfo.GetEncoded())
-                        .CreateForRSA();
+                        .SetLifeTime(Configuration.DefaultCertificateLifetime);
+
+#if ECC_SUPPORT
+                    certificate = TryGetECCCurve(out ECCurve curve) ?
+                       builder.SetIssuer(signingKey).SetECDsaPublicKey(info.SubjectPublicKeyInfo.GetEncoded()).CreateForECDsa() :
+                       builder.SetHashAlgorithm(X509Utils.GetRSAHashAlgorithmName(Configuration.DefaultCertificateHashSize))
+                                .SetIssuer(signingKey)
+                                .SetRSAPublicKey(info.SubjectPublicKeyInfo.GetEncoded())
+                                .CreateForRSA();
+#else
+                    certificate = builder.SetHashAlgorithm(X509Utils.GetRSAHashAlgorithmName(Configuration.DefaultCertificateHashSize))
+                                    .SetIssuer(signingKey)
+                                    .SetRSAPublicKey(info.SubjectPublicKeyInfo.GetEncoded())
+                                    .CreateForRSA();
+#endif
+
+                    return certificate;
                 }
             }
             catch (Exception ex)
@@ -325,37 +356,51 @@ namespace Opc.Ua.Gds.Server
             }
 
             DateTime yesterday = DateTime.Today.AddDays(-1);
-            using (X509Certificate2 newCertificate = await CertificateFactory.CreateCertificate(subjectName)
+            X509Certificate2 certificate;
+
+            ICertificateBuilder builder = CertificateFactory.CreateCertificate(subjectName)
                 .SetNotBefore(yesterday)
                 .SetLifeTime(Configuration.CACertificateLifetime)
-                .SetHashAlgorithm(X509Utils.GetRSAHashAlgorithmName(Configuration.CACertificateHashSize))
-                .SetCAConstraint()
-                .SetRSAKeySize(Configuration.CACertificateKeySize)
-                .CreateForRSA()
-                .AddToStoreAsync(AuthoritiesStore).ConfigureAwait(false))
+                .SetCAConstraint();
+
+#if ECC_SUPPORT
+            certificate = TryGetECCCurve(out ECCurve curve) ?
+               builder.SetECCurve(curve).CreateForECDsa() :
+               builder.SetHashAlgorithm(X509Utils.GetRSAHashAlgorithmName(Configuration.CACertificateHashSize))
+                      .SetRSAKeySize(Configuration.CACertificateKeySize)
+                      .CreateForRSA();
+#else
+            certificate =  builder.SetHashAlgorithm(X509Utils.GetRSAHashAlgorithmName(Configuration.CACertificateHashSize))
+                      .SetRSAKeySize(Configuration.CACertificateKeySize)
+                      .CreateForRSA();
+#endif
+
+            await certificate.AddToStoreAsync(AuthoritiesStore).ConfigureAwait(false);
+
+            // save only public key
+            Certificate = new X509Certificate2(certificate.RawData);
+
+            // initialize revocation list
+            X509CRL crl = await RevokeCertificateAsync(AuthoritiesStore, certificate, null).ConfigureAwait(false);
+
+            //Update TrustedList Store
+            if (crl != null)
             {
+                // TODO: make CA trust selectable
+                var certificateStoreIdentifier = new CertificateStoreIdentifier(Configuration.TrustedListPath);
+                await UpdateAuthorityCertInCertificateStore(certificateStoreIdentifier).ConfigureAwait(false);
 
-                // save only public key
-                Certificate = new X509Certificate2(newCertificate.RawData);
-
-                // initialize revocation list
-                X509CRL crl = await RevokeCertificateAsync(AuthoritiesStore, newCertificate, null).ConfigureAwait(false);
-
-                //Update TrustedList Store
-                if (crl != null)
+                // Update TrustedIssuerCertificates Store
+                if (IssuerCertificatesStore != null)
                 {
-                    // TODO: make CA trust selectable
-                    var certificateStoreIdentifier = new CertificateStoreIdentifier(Configuration.TrustedListPath);
-                    await UpdateAuthorityCertInCertificateStore(certificateStoreIdentifier).ConfigureAwait(false);
-
-                    // Update TrustedIssuerCertificates Store
-                    if (IssuerCertificatesStore != null)
-                    {
-                        await UpdateAuthorityCertInCertificateStore(IssuerCertificatesStore).ConfigureAwait(false);
-                    }
+                    await UpdateAuthorityCertInCertificateStore(IssuerCertificatesStore).ConfigureAwait(false);
                 }
-                return Certificate;
             }
+
+            certificate?.Dispose();
+
+            return Certificate;
+
         }
 
         #endregion
@@ -470,6 +515,46 @@ namespace Opc.Ua.Gds.Server
         #endregion
 
         #region Private Methods
+#if ECC_SUPPORT
+        /// <summary>
+        /// GetTheEccCurve of the CertificateGroups CertificateType
+        /// </summary>
+        /// <param name="curve"></param>
+        /// <returns>returns false if RSA CertificateType, true if a ECCurve can be found, else throws Exception</returns>
+        /// <exception cref="ServiceResultException"></exception>
+        private bool TryGetECCCurve(out ECCurve curve)
+        {
+            curve = default;
+            if (IsRSACertificateType())
+            {
+                return false;
+            }
+            ECCurve? tempCurve = EccUtils.GetCurveFromCertificateTypeId(CertificateType);
+
+            if (tempCurve == null)
+            {
+                throw new ServiceResultException(StatusCodes.BadNotSupported, $"The certificate type {CertificateType} is not supported.");
+            }
+
+            curve = tempCurve.Value;
+
+            return true;
+        }
+#endif
+        /// <summary>
+        /// Checks if the Certificate Group is for RSA Certificates
+        /// </summary>
+        /// <returns>True if the CertificateType of the Certificate Group is an RSA Certificate Type</returns>
+        private bool IsRSACertificateType()
+        {
+            return CertificateType == null ||
+                   CertificateType == Opc.Ua.ObjectTypeIds.ApplicationCertificateType ||
+                   CertificateType == Opc.Ua.ObjectTypeIds.HttpsCertificateType ||
+                   CertificateType == Opc.Ua.ObjectTypeIds.UserCredentialCertificateType ||
+                   CertificateType == Opc.Ua.ObjectTypeIds.RsaMinApplicationCertificateType ||
+                   CertificateType == Opc.Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType;
+        }
+
         /// <summary>
         /// Updates the certificate authority certificate and CRL in the provided CertificateStore
         /// </summary>

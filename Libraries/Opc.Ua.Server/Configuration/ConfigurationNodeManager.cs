@@ -114,7 +114,7 @@ namespace Opc.Ua.Server
                 defaultApplicationGroup.CertificateTypes = defaultApplicationGroup.CertificateTypes.Concat(new NodeId[] { cert.CertificateType }).ToArray();
                 defaultApplicationGroup.ApplicationCertificates.Add(cert);
 
-                if(cert.CertificateType == ObjectTypeIds.HttpsCertificateType)
+                if (cert.CertificateType == ObjectTypeIds.HttpsCertificateType)
                 {
                     defaultHttpsGroup.CertificateTypes = defaultHttpsGroup.CertificateTypes.Concat(new NodeId[] { cert.CertificateType }).ToArray();
                     defaultHttpsGroup.ApplicationCertificates.Add(cert);
