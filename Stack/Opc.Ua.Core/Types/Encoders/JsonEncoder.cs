@@ -1656,26 +1656,28 @@ namespace Opc.Ua
 
             if (EncodingToUse == JsonEncodingType.Compact)
             {
-                WriteNodeId("UaTypeId", localTypeId);
-
                 if (encodeable != null)
                 {
+                    WriteNodeId("UaTypeId", localTypeId);
                     encodeable.Encode(this);
                 }
                 else
                 {
                     if (value.Body is JObject json)
                     {
+                        WriteNodeId("UaTypeId", localTypeId);
                         string text = json.ToString(Newtonsoft.Json.Formatting.None);
                         m_writer.Write(text.Substring(1, text.Length - 2));
                     }
                     else if (value.Encoding == ExtensionObjectEncoding.Binary)
                     {
+                        WriteNodeId("UaTypeId", localTypeId);
                         WriteByte("UaEncoding", (byte)ExtensionObjectEncoding.Binary);
                         WriteByteString("UaBody", value.Body as byte[]);
                     }
                     else if (value.Encoding == ExtensionObjectEncoding.Xml)
                     {
+                        WriteNodeId("UaTypeId", localTypeId);
                         WriteByte("UaEncoding",(byte)ExtensionObjectEncoding.Xml);
                         WriteXmlElement("UaBody", value.Body as XmlElement);
                     }
