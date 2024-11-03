@@ -180,7 +180,7 @@ namespace Opc.Ua
         /// <summary>
         /// Updates the validator with the current state of the configuration.
         /// </summary>
-        public virtual async Task UpdateAsync(SecurityConfiguration configuration)
+        public virtual async Task UpdateAsync(SecurityConfiguration configuration, string applicationUri = null)
         {
             if (configuration == null)
             {
@@ -226,7 +226,7 @@ namespace Opc.Ua
                 {
                     foreach (var applicationCertificate in configuration.ApplicationCertificates)
                     {
-                        X509Certificate2 certificate = await applicationCertificate.Find(true).ConfigureAwait(false);
+                        X509Certificate2 certificate = await applicationCertificate.Find(true, applicationUri).ConfigureAwait(false);
                         if (certificate == null)
                         {
                             Utils.Trace(Utils.TraceMasks.Security, "Could not find application certificate: {0}", applicationCertificate);
@@ -251,7 +251,7 @@ namespace Opc.Ua
         /// <summary>
         /// Updates the validator with a new application certificate.
         /// </summary>
-        public virtual async Task UpdateCertificateAsync(SecurityConfiguration securityConfiguration)
+        public virtual async Task UpdateCertificateAsync(SecurityConfiguration securityConfiguration, string applicationUri = null)
         {
             await m_semaphore.WaitAsync().ConfigureAwait(false);
 
@@ -267,7 +267,7 @@ namespace Opc.Ua
                 foreach (var applicationCertificate in securityConfiguration.ApplicationCertificates)
                 {
                     await applicationCertificate.LoadPrivateKeyEx(
-                        securityConfiguration.CertificatePasswordProvider).ConfigureAwait(false);
+                        securityConfiguration.CertificatePasswordProvider, applicationUri).ConfigureAwait(false);
                 }
             }
             finally
@@ -275,7 +275,7 @@ namespace Opc.Ua
                 m_semaphore.Release();
             }
 
-            await UpdateAsync(securityConfiguration).ConfigureAwait(false);
+            await UpdateAsync(securityConfiguration, applicationUri).ConfigureAwait(false);
 
             lock (m_callbackLock)
             {

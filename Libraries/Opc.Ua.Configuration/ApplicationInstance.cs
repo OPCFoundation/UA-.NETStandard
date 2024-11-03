@@ -525,10 +525,10 @@ namespace Opc.Ua.Configuration
 
             // reload the certificate from disk in the cache.
             var passwordProvider = configuration.SecurityConfiguration.CertificatePasswordProvider;
-            await id.LoadPrivateKeyEx(passwordProvider).ConfigureAwait(false);
+            await id.LoadPrivateKeyEx(passwordProvider, configuration.ApplicationUri).ConfigureAwait(false);
 
             // load the certificate
-            X509Certificate2 certificate = await id.Find(true).ConfigureAwait(false);
+            X509Certificate2 certificate = await id.Find(true, configuration.ApplicationUri).ConfigureAwait(false);
 
             // check that it is ok.
             if (certificate != null)
@@ -550,7 +550,7 @@ namespace Opc.Ua.Configuration
             else
             {
                 // check for missing private key.
-                certificate = await id.Find(false).ConfigureAwait(false);
+                certificate = await id.Find(false, configuration.ApplicationUri).ConfigureAwait(false);
 
                 if (certificate != null)
                 {
@@ -568,7 +568,7 @@ namespace Opc.Ua.Configuration
                             StorePath = id.StorePath,
                             SubjectName = id.SubjectName
                         };
-                        certificate = await id2.Find(true).ConfigureAwait(false);
+                        certificate = await id2.Find(true, configuration.ApplicationUri).ConfigureAwait(false);
                     }
 
                     if (certificate != null)
@@ -963,7 +963,7 @@ namespace Opc.Ua.Configuration
             }
 
             // reload the certificate from disk.
-            id.Certificate = await id.LoadPrivateKeyEx(passwordProvider).ConfigureAwait(false);
+            id.Certificate = await id.LoadPrivateKeyEx(passwordProvider, configuration.ApplicationUri).ConfigureAwait(false);
 
             await configuration.CertificateValidator.UpdateAsync(configuration.SecurityConfiguration).ConfigureAwait(false);
 
@@ -988,7 +988,7 @@ namespace Opc.Ua.Configuration
             }
 
             // delete certificate and private key.
-            X509Certificate2 certificate = await id.Find().ConfigureAwait(false);
+            X509Certificate2 certificate = await id.Find(configuration.ApplicationUri).ConfigureAwait(false);
             if (certificate != null)
             {
                 Utils.LogCertificate(TraceMasks.Security, "Deleting application instance certificate and private key.", certificate);
