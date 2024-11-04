@@ -374,29 +374,32 @@ namespace Opc.Ua.Bindings
                 }
 
                 // Access client certificate
-                var clientCertificate = context.Connection.ClientCertificate;
-
-                if (clientCertificate == null)
+                if (m_ClientCertificateMode == ClientCertificateMode.RequireCertificate)
                 {
-                    // No client certificate is provided
-                    message = "Client certificate is required";
-                    await WriteResponseAsync(context.Response, message, HttpStatusCode.Unauthorized).ConfigureAwait(false);
-                    return;
-                }
+                    var clientCertificate = context.Connection.ClientCertificate;
 
-                // Validate the client certificate 
-                if (clientCertificate != null && m_quotas.CertificateValidator != null)
-                {
-                    try
+                    if (clientCertificate == null)
                     {
-                        await m_quotas.CertificateValidator.ValidateAsync(clientCertificate, ct).ConfigureAwait(false);
-                    }
-                    catch (Exception ex)
-                    {
-                        message = "Client certificate validation failed.";
-                        Utils.LogError(ex, message);
-                        await WriteResponseAsync(context.Response, message, HttpStatusCode.Unauthorized).ConfigureAwait (false);
+                        // No client certificate is provided
+                        message = "Client certificate is required";
+                        await WriteResponseAsync(context.Response, message, HttpStatusCode.Unauthorized).ConfigureAwait(false);
                         return;
+                    }
+
+                    // Validate the client certificate 
+                    if (clientCertificate != null && m_quotas.CertificateValidator != null)
+                    {
+                        try
+                        {
+                            await m_quotas.CertificateValidator.ValidateAsync(clientCertificate, ct).ConfigureAwait(false);
+                        }
+                        catch (Exception ex)
+                        {
+                            message = "Client certificate validation failed.";
+                            Utils.LogError(ex, message);
+                            await WriteResponseAsync(context.Response, message, HttpStatusCode.Unauthorized).ConfigureAwait(false);
+                            return;
+                        }
                     }
                 }
 
