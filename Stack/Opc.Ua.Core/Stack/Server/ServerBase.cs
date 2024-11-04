@@ -884,6 +884,10 @@ namespace Opc.Ua
                 if (m_configuration is ApplicationConfiguration applicationConfiguration)
                 {
                     settings.MaxChannelCount = applicationConfiguration.ServerConfiguration.MaxChannelCount;
+                    if (Utils.IsUriHttpsScheme(endpointUri.AbsoluteUri))
+                    {
+                        settings.HttpMutualTls = applicationConfiguration.ServerConfiguration.HttpsMutualTls;
+                    }
                 }
 
                 listener.Open(

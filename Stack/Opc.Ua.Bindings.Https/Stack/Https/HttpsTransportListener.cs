@@ -207,6 +207,8 @@ namespace Opc.Ua.Bindings
             m_serverCertificate = settings.ServerCertificate;
             m_serverCertificateChain = settings.ServerCertificateChain;
 
+            m_ClientCertificateMode = settings.HttpMutualTls ? ClientCertificateMode.RequireCertificate : ClientCertificateMode.NoCertificate;
+
             // start the listener
             Start();
         }
@@ -285,7 +287,7 @@ namespace Opc.Ua.Bindings
 
             var httpsOptions = new HttpsConnectionAdapterOptions() {
                 CheckCertificateRevocation = false,
-                ClientCertificateMode = ClientCertificateMode.RequireCertificate,
+                ClientCertificateMode = m_ClientCertificateMode,
                 // note: this is the TLS certificate!
                 ServerCertificate = serverCertificate,
                 ClientCertificateValidation = ValidateClientCertificate,
@@ -597,6 +599,7 @@ namespace Opc.Ua.Bindings
         private IWebHost m_host;
         private X509Certificate2 m_serverCertificate;
         private X509Certificate2Collection m_serverCertificateChain;
+        private ClientCertificateMode m_ClientCertificateMode;
         #endregion
     }
 }

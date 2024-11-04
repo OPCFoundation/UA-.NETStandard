@@ -780,6 +780,13 @@ namespace Opc.Ua.Configuration
         }
 
         /// <inheritdoc/>
+        public IApplicationConfigurationBuilderServerOptions SetHttpsMutualTls(bool mTlsEnabled)
+        {
+            ApplicationConfiguration.ServerConfiguration.HttpsMutualTls = mTlsEnabled;
+            return this;
+        }
+
+        /// <inheritdoc/>
         public IApplicationConfigurationBuilderClientOptions SetDefaultSessionTimeout(int defaultSessionTimeout)
         {
             ApplicationConfiguration.ClientConfiguration.DefaultSessionTimeout = defaultSessionTimeout;
