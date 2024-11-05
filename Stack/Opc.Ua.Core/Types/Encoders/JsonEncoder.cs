@@ -1651,7 +1651,7 @@ namespace Opc.Ua
 
             PushStructure(fieldName);
 
-            var typeId = (!NodeId.IsNull(value.TypeId)) ? value.TypeId : encodeable.TypeId;
+            var typeId = (!NodeId.IsNull(value.TypeId)) ? value.TypeId : encodeable?.TypeId ?? NodeId.Null;
             var localTypeId = ExpandedNodeId.ToNodeId(typeId, Context.NamespaceUris);
 
             if (EncodingToUse == JsonEncodingType.Compact)
