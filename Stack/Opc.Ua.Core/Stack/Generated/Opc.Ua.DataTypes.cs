@@ -27580,7 +27580,6 @@ namespace Opc.Ua
             m_correlationData = null;
             m_requestorId = null;
             m_timeoutHint = (double)0;
-            m_message = Variant.Null;
         }
         #endregion
 
@@ -27648,14 +27647,6 @@ namespace Opc.Ua
             get { return m_timeoutHint;  }
             set { m_timeoutHint = value; }
         }
-
-        /// <remarks />
-        [DataMember(Name = "Message", IsRequired = false, Order = 9)]
-        public Variant Message
-        {
-            get { return m_message;  }
-            set { m_message = value; }
-        }
         #endregion
 
         #region IEncodeable Members
@@ -27684,7 +27675,6 @@ namespace Opc.Ua
             encoder.WriteByteString("CorrelationData", CorrelationData);
             encoder.WriteString("RequestorId", RequestorId);
             encoder.WriteDouble("TimeoutHint", TimeoutHint);
-            encoder.WriteVariant("Message", Message);
 
             encoder.PopNamespace();
         }
@@ -27702,7 +27692,6 @@ namespace Opc.Ua
             CorrelationData = decoder.ReadByteString("CorrelationData");
             RequestorId = decoder.ReadString("RequestorId");
             TimeoutHint = decoder.ReadDouble("TimeoutHint");
-            Message = decoder.ReadVariant("Message");
 
             decoder.PopNamespace();
         }
@@ -27730,7 +27719,6 @@ namespace Opc.Ua
             if (!Utils.IsEqual(m_correlationData, value.m_correlationData)) return false;
             if (!Utils.IsEqual(m_requestorId, value.m_requestorId)) return false;
             if (!Utils.IsEqual(m_timeoutHint, value.m_timeoutHint)) return false;
-            if (!Utils.IsEqual(m_message, value.m_message)) return false;
 
             return true;
         }
@@ -27754,7 +27742,6 @@ namespace Opc.Ua
             clone.m_correlationData = (byte[])Utils.Clone(this.m_correlationData);
             clone.m_requestorId = (string)Utils.Clone(this.m_requestorId);
             clone.m_timeoutHint = (double)Utils.Clone(this.m_timeoutHint);
-            clone.m_message = (Variant)Utils.Clone(this.m_message);
 
             return clone;
         }
@@ -27769,7 +27756,6 @@ namespace Opc.Ua
         private byte[] m_correlationData;
         private string m_requestorId;
         private double m_timeoutHint;
-        private Variant m_message;
         #endregion
     }
 
@@ -27873,7 +27859,6 @@ namespace Opc.Ua
             m_messageType = null;
             m_requestId = (ushort)0;
             m_actionState = ActionState.Idle;
-            m_payload = null;
         }
         #endregion
 
@@ -27969,14 +27954,6 @@ namespace Opc.Ua
             get { return m_actionState;  }
             set { m_actionState = value; }
         }
-
-        /// <remarks />
-        [DataMember(Name = "Payload", IsRequired = false, Order = 11)]
-        public ExtensionObject Payload
-        {
-            get { return m_payload;  }
-            set { m_payload = value; }
-        }
         #endregion
 
         #region IEncodeable Members
@@ -28007,7 +27984,6 @@ namespace Opc.Ua
             encoder.WriteString("MessageType", MessageType);
             encoder.WriteUInt16("RequestId", RequestId);
             encoder.WriteEnumerated("ActionState", ActionState);
-            encoder.WriteExtensionObject("Payload", Payload);
 
             encoder.PopNamespace();
         }
@@ -28027,7 +28003,6 @@ namespace Opc.Ua
             MessageType = decoder.ReadString("MessageType");
             RequestId = decoder.ReadUInt16("RequestId");
             ActionState = (ActionState)decoder.ReadEnumerated("ActionState", typeof(ActionState));
-            Payload = decoder.ReadExtensionObject("Payload");
 
             decoder.PopNamespace();
         }
@@ -28057,7 +28032,6 @@ namespace Opc.Ua
             if (!Utils.IsEqual(m_messageType, value.m_messageType)) return false;
             if (!Utils.IsEqual(m_requestId, value.m_requestId)) return false;
             if (!Utils.IsEqual(m_actionState, value.m_actionState)) return false;
-            if (!Utils.IsEqual(m_payload, value.m_payload)) return false;
 
             return true;
         }
@@ -28083,7 +28057,6 @@ namespace Opc.Ua
             clone.m_messageType = (string)Utils.Clone(this.m_messageType);
             clone.m_requestId = (ushort)Utils.Clone(this.m_requestId);
             clone.m_actionState = (ActionState)Utils.Clone(this.m_actionState);
-            clone.m_payload = (ExtensionObject)Utils.Clone(this.m_payload);
 
             return clone;
         }
@@ -28100,7 +28073,6 @@ namespace Opc.Ua
         private string m_messageType;
         private ushort m_requestId;
         private ActionState m_actionState;
-        private ExtensionObject m_payload;
         #endregion
     }
 
@@ -28205,7 +28177,6 @@ namespace Opc.Ua
             m_messageType = null;
             m_requestId = (ushort)0;
             m_actionState = ActionState.Idle;
-            m_payload = null;
         }
         #endregion
 
@@ -28309,14 +28280,6 @@ namespace Opc.Ua
             get { return m_actionState;  }
             set { m_actionState = value; }
         }
-
-        /// <remarks />
-        [DataMember(Name = "Payload", IsRequired = false, Order = 12)]
-        public ExtensionObject Payload
-        {
-            get { return m_payload;  }
-            set { m_payload = value; }
-        }
         #endregion
 
         #region IEncodeable Members
@@ -28348,7 +28311,6 @@ namespace Opc.Ua
             encoder.WriteString("MessageType", MessageType);
             encoder.WriteUInt16("RequestId", RequestId);
             encoder.WriteEnumerated("ActionState", ActionState);
-            encoder.WriteExtensionObject("Payload", Payload);
 
             encoder.PopNamespace();
         }
@@ -28369,7 +28331,6 @@ namespace Opc.Ua
             MessageType = decoder.ReadString("MessageType");
             RequestId = decoder.ReadUInt16("RequestId");
             ActionState = (ActionState)decoder.ReadEnumerated("ActionState", typeof(ActionState));
-            Payload = decoder.ReadExtensionObject("Payload");
 
             decoder.PopNamespace();
         }
@@ -28400,7 +28361,6 @@ namespace Opc.Ua
             if (!Utils.IsEqual(m_messageType, value.m_messageType)) return false;
             if (!Utils.IsEqual(m_requestId, value.m_requestId)) return false;
             if (!Utils.IsEqual(m_actionState, value.m_actionState)) return false;
-            if (!Utils.IsEqual(m_payload, value.m_payload)) return false;
 
             return true;
         }
@@ -28427,7 +28387,6 @@ namespace Opc.Ua
             clone.m_messageType = (string)Utils.Clone(this.m_messageType);
             clone.m_requestId = (ushort)Utils.Clone(this.m_requestId);
             clone.m_actionState = (ActionState)Utils.Clone(this.m_actionState);
-            clone.m_payload = (ExtensionObject)Utils.Clone(this.m_payload);
 
             return clone;
         }
@@ -28445,7 +28404,6 @@ namespace Opc.Ua
         private string m_messageType;
         private ushort m_requestId;
         private ActionState m_actionState;
-        private ExtensionObject m_payload;
         #endregion
     }
 

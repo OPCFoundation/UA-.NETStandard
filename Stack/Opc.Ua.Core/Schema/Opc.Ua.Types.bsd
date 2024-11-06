@@ -1332,7 +1332,6 @@
     <opc:Field Name="CorrelationData" TypeName="opc:ByteString" />
     <opc:Field Name="RequestorId" TypeName="opc:String" />
     <opc:Field Name="TimeoutHint" TypeName="opc:Double" />
-    <opc:Field Name="Message" TypeName="ua:Variant" />
   </opc:StructuredType>
 
   <opc:StructuredType Name="JsonActionRequestMessage" BaseType="ua:ExtensionObject">
@@ -1346,7 +1345,6 @@
     <opc:Field Name="MessageType" TypeName="opc:String" />
     <opc:Field Name="RequestId" TypeName="opc:UInt16" />
     <opc:Field Name="ActionState" TypeName="tns:ActionState" />
-    <opc:Field Name="Payload" TypeName="ua:ExtensionObject" />
   </opc:StructuredType>
 
   <opc:StructuredType Name="JsonActionResponseMessage" BaseType="ua:ExtensionObject">
@@ -1361,7 +1359,6 @@
     <opc:Field Name="MessageType" TypeName="opc:String" />
     <opc:Field Name="RequestId" TypeName="opc:UInt16" />
     <opc:Field Name="ActionState" TypeName="tns:ActionState" />
-    <opc:Field Name="Payload" TypeName="ua:ExtensionObject" />
   </opc:StructuredType>
 
   <opc:StructuredType Name="AliasNameDataType" BaseType="ua:ExtensionObject">

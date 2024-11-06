@@ -397,6 +397,9 @@ namespace Opc.Ua
         public JsonEncodingType EncodingToUse { get; private set; }
 
         /// <inheritdoc/>
+        public bool SuppressArtifacts { get; set; }
+
+        /// <inheritdoc/>
         public void PushStructure(string fieldName)
         {
             m_nestingLevel++;
@@ -508,6 +511,24 @@ namespace Opc.Ua
             finally
             {
                 EncodingToUse = currentValue;
+            }
+        }
+
+        /// <inheritdoc/>
+        public void WriteSwitchField(string fieldName, uint switchField)
+        {
+            if (!SuppressArtifacts)
+            {
+                WriteUInt32(fieldName, switchField);
+            }
+        }
+
+       /// <inheritdoc/>
+       public void WriteEncodingMask(string fieldName, uint encodingMask)
+        {
+            if (!SuppressArtifacts)
+            {
+                WriteUInt32(fieldName, encodingMask);
             }
         }
         #endregion
@@ -1476,7 +1497,11 @@ namespace Opc.Ua
                         encodingByte = (byte)BuiltInType.Int32;
                     }
 
-                    WriteByte((EncodingToUse != JsonEncodingType.Reversible) ? "UaType" : "Type", encodingByte);
+                    if (!SuppressArtifacts)
+                    {
+                        WriteByte((EncodingToUse != JsonEncodingType.Reversible) ? "UaType" : "Type", encodingByte);
+                    }
+
                     fieldName = "Body";
                 }
 
@@ -1533,7 +1558,10 @@ namespace Opc.Ua
                         encodingByte = (byte)BuiltInType.Int32;
                     }
 
-                    WriteByte("UaType", encodingByte);
+                    if (!SuppressArtifacts)
+                    {
+                        WriteByte("UaType", encodingByte);
+                    }
                 }
 
                 if (m_commaRequired)
@@ -1658,26 +1686,42 @@ namespace Opc.Ua
             {
                 if (encodeable != null)
                 {
-                    WriteNodeId("UaTypeId", localTypeId);
+                    if (!SuppressArtifacts)
+                    {
+                        WriteNodeId("UaTypeId", localTypeId);
+                    }
+
                     encodeable.Encode(this);
                 }
                 else
                 {
                     if (value.Body is JObject json)
                     {
-                        WriteNodeId("UaTypeId", localTypeId);
+                        if (!SuppressArtifacts)
+                        {
+                            WriteNodeId("UaTypeId", localTypeId);
+                        }
+
                         string text = json.ToString(Newtonsoft.Json.Formatting.None);
                         m_writer.Write(text.Substring(1, text.Length - 2));
                     }
                     else if (value.Encoding == ExtensionObjectEncoding.Binary)
                     {
-                        WriteNodeId("UaTypeId", localTypeId);
+                        if (!SuppressArtifacts)
+                        {
+                            WriteNodeId("UaTypeId", localTypeId);
+                        }
+
                         WriteByte("UaEncoding", (byte)ExtensionObjectEncoding.Binary);
                         WriteByteString("UaBody", value.Body as byte[]);
                     }
                     else if (value.Encoding == ExtensionObjectEncoding.Xml)
                     {
-                        WriteNodeId("UaTypeId", localTypeId);
+                        if (!SuppressArtifacts)
+                        {
+                            WriteNodeId("UaTypeId", localTypeId);
+                        }
+
                         WriteByte("UaEncoding",(byte)ExtensionObjectEncoding.Xml);
                         WriteXmlElement("UaBody", value.Body as XmlElement);
                     }

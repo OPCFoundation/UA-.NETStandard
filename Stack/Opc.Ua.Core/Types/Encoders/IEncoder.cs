@@ -368,6 +368,16 @@ namespace Opc.Ua
         /// Encode an array according to its valueRank and BuiltInType
         /// </summary>
         void WriteArray(string fieldName, object array, int valueRank, BuiltInType builtInType);
+
+        /// <summary>
+        /// Encode the switch field for a union.
+        /// </summary>
+        void WriteSwitchField(string fieldName, uint switchField);
+
+        /// <summary>
+        /// Encode the encoding mask for a structure with optional fields.
+        /// </summary>
+        void WriteEncodingMask(string fieldName, uint encodingMask);
     }
 
     /// <summary>
