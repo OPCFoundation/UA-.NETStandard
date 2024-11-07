@@ -13,21 +13,21 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Text;
-using System.Xml;
+using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.Globalization;
-using System.Security.Cryptography.X509Certificates;
-using System.Reflection;
-using System.Runtime.Serialization;
 using System.IO;
 using System.Linq;
-using System.Threading.Tasks;
-using System.Diagnostics;
-using System.Security.Cryptography;
 using System.Net;
-using System.Collections.ObjectModel;
-using Opc.Ua.Security.Certificates;
+using System.Reflection;
 using System.Runtime.InteropServices;
+using System.Runtime.Serialization;
+using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
+using System.Text;
+using System.Threading.Tasks;
+using System.Xml;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua
 {
@@ -1267,37 +1267,30 @@ namespace Opc.Ua
         {
             if (!string.IsNullOrWhiteSpace(uri))
             {
-                // back compat: for not well formed Uri, fall back to legacy formatting behavior - see #2793
-                if (!Uri.IsWellFormedUriString(uri, UriKind.Absolute) ||
-                    !Uri.TryCreate(uri.Replace(";", "%3b"), UriKind.Absolute, out Uri validUri))
+                // always use back compat: for not well formed Uri, fall back to legacy formatting behavior - see #2793, #2826
+                // problem with Uri.TryCreate(uri.Replace(";", "%3b"), UriKind.Absolute, out Uri validUri);
+                // -> uppercase letters will later be lowercase (and therefore the uri will later be non-matching)
+                var buffer = new StringBuilder();
+                foreach (char ch in uri)
                 {
-                    var buffer = new StringBuilder();
-                    foreach (char ch in uri)
+                    switch (ch)
                     {
-                        switch (ch)
+                        case ';':
+                        case '%':
                         {
-                            case ';':
-                            case '%':
-                            {
-                                buffer.AppendFormat(CultureInfo.InvariantCulture, "%{0:X2}", Convert.ToInt16(ch));
-                                break;
-                            }
+                            buffer.AppendFormat(CultureInfo.InvariantCulture, "%{0:X2}", Convert.ToInt16(ch));
+                            break;
+                        }
 
-                            default:
-                            {
-                                buffer.Append(ch);
-                                break;
-                            }
+                        default:
+                        {
+                            buffer.Append(ch);
+                            break;
                         }
                     }
-                    return buffer.ToString();
                 }
-                else
-                {
-                    return validUri.AbsoluteUri;
-                }
+                return buffer.ToString();
             }
-
             return String.Empty;
         }
 
@@ -2604,7 +2597,7 @@ namespace Opc.Ua
                 extensions.Add(document.DocumentElement);
             }
         }
-#endregion
+        #endregion
 
         #region Reflection Helper Functions
         /// <summary>
