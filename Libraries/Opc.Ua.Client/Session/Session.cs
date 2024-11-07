@@ -1064,16 +1064,7 @@ namespace Opc.Ua.Client
             // update endpoint description using the discovery endpoint.
             if (endpoint.UpdateBeforeConnect && connection == null)
             {
-                if (Utils.IsUriHttpsScheme(endpoint.EndpointUrl.AbsoluteUri))
-                {
-                    // https channels need a TLS certificate for the TLS authentication
-                    await endpoint.UpdateFromServerAsync(ct, configuration).ConfigureAwait(false);
-                }
-                else
-                {
-                    await endpoint.UpdateFromServerAsync(ct).ConfigureAwait(false);
-                }
-                
+                await endpoint.UpdateFromServerAsync(ct).ConfigureAwait(false);
                 endpointDescription = endpoint.Description;
                 endpointConfiguration = endpoint.Configuration;
             }

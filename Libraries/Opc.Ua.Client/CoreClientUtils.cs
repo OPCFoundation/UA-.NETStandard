@@ -307,7 +307,9 @@ namespace Opc.Ua.Client
         public static Uri GetDiscoveryUrl(string discoveryUrl)
         {
             // needs to add the '/discovery' back onto non-UA TCP URLs.
-            if (discoveryUrl.StartsWith(Utils.UriSchemeHttp, StringComparison.Ordinal))
+            if (discoveryUrl.StartsWith(Utils.UriSchemeHttp, StringComparison.Ordinal) ||
+                discoveryUrl.StartsWith(Utils.UriSchemeHttps, StringComparison.Ordinal) ||
+                discoveryUrl.StartsWith(Utils.UriSchemeOpcHttps, StringComparison.Ordinal))
             {
                 if (!discoveryUrl.EndsWith(ConfiguredEndpoint.DiscoverySuffix, StringComparison.OrdinalIgnoreCase))
                 {

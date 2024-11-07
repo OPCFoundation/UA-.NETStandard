@@ -1116,9 +1116,9 @@ namespace Opc.Ua
         /// <summary>
         /// Updates an endpoint with information from the server's discovery endpoint.
         /// </summary>
-        public Task UpdateFromServerAsync(CancellationToken ct = default, ApplicationConfiguration applicationConfiguration = null)
+        public Task UpdateFromServerAsync(CancellationToken ct = default)
         {
-            return UpdateFromServerAsync(EndpointUrl, m_description.SecurityMode, m_description.SecurityPolicyUri, ct, applicationConfiguration);
+            return UpdateFromServerAsync(EndpointUrl, m_description.SecurityMode, m_description.SecurityPolicyUri, ct);
         }
 
         /// <summary>
@@ -1128,10 +1128,9 @@ namespace Opc.Ua
             Uri endpointUrl,
             MessageSecurityMode securityMode,
             string securityPolicyUri,
-            CancellationToken ct = default,
-            ApplicationConfiguration applicationConfiguration = null)
+            CancellationToken ct = default)
         {
-            return UpdateFromServerAsync(endpointUrl, null, securityMode, securityPolicyUri, ct, applicationConfiguration);
+            return UpdateFromServerAsync(endpointUrl, null, securityMode, securityPolicyUri, ct);
         }
 
         /// <summary>
@@ -1142,8 +1141,7 @@ namespace Opc.Ua
             ITransportWaitingConnection connection,
             MessageSecurityMode securityMode,
             string securityPolicyUri,
-            CancellationToken ct = default,
-            ApplicationConfiguration applicationConfiguration = null)
+            CancellationToken ct = default)
         {
             // get the a discovery url.
             Uri discoveryUrl = GetDiscoveryUrl(endpointUrl);
@@ -1156,7 +1154,7 @@ namespace Opc.Ua
             }
             else
             {
-                client = DiscoveryClient.Create(discoveryUrl, m_configuration, applicationConfiguration);
+                client = DiscoveryClient.Create(discoveryUrl, m_configuration);
             }
 
             try

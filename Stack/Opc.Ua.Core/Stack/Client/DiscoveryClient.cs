@@ -48,17 +48,7 @@ namespace Opc.Ua
                 configuration = EndpointConfiguration.Create();
             }
 
-            ITransportChannel channel;
-            if (Utils.IsUriHttpsScheme(discoveryUrl.AbsoluteUri))
-            {
-                // https channels need a TLS certificate for the TLS authentication
-                channel = DiscoveryChannel.Create(application, discoveryUrl, configuration, application.CreateMessageContext(),
-                    application.SecurityConfiguration.ApplicationCertificate.Certificate);
-            }
-            else
-            {
-                channel = DiscoveryChannel.Create(application, discoveryUrl, configuration, application.CreateMessageContext());
-            }
+            ITransportChannel channel = DiscoveryChannel.Create(application, discoveryUrl, configuration, application.CreateMessageContext());
             return new DiscoveryClient(channel);
         }
 

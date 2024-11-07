@@ -287,7 +287,7 @@ namespace Opc.Ua.Bindings
 
             var httpsOptions = new HttpsConnectionAdapterOptions() {
                 CheckCertificateRevocation = false,
-                ClientCertificateMode = m_ClientCertificateMode,
+                ClientCertificateMode = ClientCertificateMode.AllowCertificate,
                 // note: this is the TLS certificate!
                 ServerCertificate = serverCertificate,
                 ClientCertificateValidation = ValidateClientCertificate,
@@ -373,8 +373,11 @@ namespace Opc.Ua.Bindings
                     return;
                 }
 
+                string path = context.Request.Path.Value?.TrimEnd('/') ?? string.Empty;
+                string currentPath = m_uri.AbsolutePath?.TrimEnd('/') + ConfiguredEndpoint.DiscoverySuffix;
+                bool isDiscoveryPath = path.Equals(currentPath, StringComparison.OrdinalIgnoreCase);
                 // Access client certificate
-                if (m_ClientCertificateMode == ClientCertificateMode.RequireCertificate)
+                if (!isDiscoveryPath && m_ClientCertificateMode == ClientCertificateMode.RequireCertificate)
                 {
                     var clientCertificate = context.Connection.ClientCertificate;
 
@@ -572,6 +575,7 @@ namespace Opc.Ua.Bindings
             X509Chain chain,
             SslPolicyErrors sslPolicyErrors)
         {
+
             if (sslPolicyErrors == SslPolicyErrors.None)
             {
                 // certificate is valid
