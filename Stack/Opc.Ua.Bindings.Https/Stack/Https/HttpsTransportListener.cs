@@ -376,37 +376,32 @@ namespace Opc.Ua.Bindings
                 string path = context.Request.Path.Value?.TrimEnd('/') ?? string.Empty;
                 string currentPath = m_uri.AbsolutePath?.TrimEnd('/') + ConfiguredEndpoint.DiscoverySuffix;
                 bool isDiscoveryPath = path.Equals(currentPath, StringComparison.OrdinalIgnoreCase);
-                // Access client certificate
+                // Access and validate tls client certificate
                 if (!isDiscoveryPath && m_ClientCertificateMode == ClientCertificateMode.RequireCertificate)
                 {
-                    var clientCertificate = context.Connection.ClientCertificate;
-
-                    if (clientCertificate == null)
+                    if (!await ValidateClientTlsCertificateAsync(context, ct).ConfigureAwait(false))
                     {
-                        // No client certificate is provided
-                        message = "Client certificate is required";
-                        await WriteResponseAsync(context.Response, message, HttpStatusCode.Unauthorized).ConfigureAwait(false);
                         return;
-                    }
-
-                    // Validate the client certificate 
-                    if (clientCertificate != null && m_quotas.CertificateValidator != null)
-                    {
-                        try
-                        {
-                            await m_quotas.CertificateValidator.ValidateAsync(clientCertificate, ct).ConfigureAwait(false);
-                        }
-                        catch (Exception ex)
-                        {
-                            message = "Client certificate validation failed.";
-                            Utils.LogError(ex, message);
-                            await WriteResponseAsync(context.Response, message, HttpStatusCode.Unauthorized).ConfigureAwait(false);
-                            return;
-                        }
                     }
                 }
 
                 IServiceRequest input = (IServiceRequest)BinaryDecoder.DecodeMessage(buffer, null, m_quotas.MessageContext);
+
+                // Match tls client certificate against client application certificate provided in CreateSessionRequest
+                if (!isDiscoveryPath &&
+                    m_ClientCertificateMode == ClientCertificateMode.RequireCertificate &&
+                    input.TypeId == DataTypeIds.CreateSessionRequest)
+                {
+                    byte[] tlsClientCertificate = context.Connection.ClientCertificate.RawData;
+                    byte[] opcUaClientCertificate = ((CreateSessionRequest)input).ClientCertificate;
+                    if (!Utils.IsEqual(tlsClientCertificate, opcUaClientCertificate))
+                    {
+                        message = "Client TLS certificate does not match with ClientCertificate provided in CreateSessionRequest";
+                        Utils.LogError(message);
+                        await WriteResponseAsync(context.Response, message, HttpStatusCode.Unauthorized).ConfigureAwait(false);
+                        return;
+                    }
+                }
 
                 // extract the JWT token from the HTTP headers.
                 if (input.RequestHeader == null)
@@ -501,6 +496,8 @@ namespace Opc.Ua.Bindings
             await WriteResponseAsync(context.Response, message, HttpStatusCode.InternalServerError).ConfigureAwait(false);
         }
 
+
+
         /// <summary>
         /// Called when a UpdateCertificate event occured.
         /// </summary>
@@ -589,6 +586,44 @@ namespace Opc.Ua.Bindings
             catch (Exception)
             {
                 return false;
+            }
+
+            return true;
+        }
+
+        /// <summary>
+        /// Validates the client TLS certificate
+        /// </summary>
+        /// <param name="context">Context of the validation</param>
+        /// <param name="ct">Continuation token</param>
+        /// <returns>true if validation passes, elst false</returns>
+        private async Task<bool> ValidateClientTlsCertificateAsync(HttpContext context, CancellationToken ct)
+        {
+            var clientCertificate = context.Connection.ClientCertificate;
+
+            if (clientCertificate == null)
+            {
+                string message = "Client TLS certificate is required";
+                Utils.LogError(message);
+                // No tls client certificate is provided
+                await WriteResponseAsync(context.Response, message, HttpStatusCode.Unauthorized).ConfigureAwait(false);
+                return false;
+            }
+
+            // Validate the client certificate 
+            if (clientCertificate != null && m_quotas.CertificateValidator != null)
+            {
+                try
+                {
+                    await m_quotas.CertificateValidator.ValidateAsync(clientCertificate, ct).ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    string message = "Client TLS certificate validation failed.";
+                    Utils.LogError(ex, message);
+                    await WriteResponseAsync(context.Response, message, HttpStatusCode.Unauthorized).ConfigureAwait(false);
+                    return false;
+                }
             }
 
             return true;
