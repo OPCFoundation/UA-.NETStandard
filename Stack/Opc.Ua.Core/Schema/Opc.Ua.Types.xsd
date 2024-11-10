@@ -2736,7 +2736,7 @@
       <xs:element name="PublisherId" type="xs:string" minOccurs="0" nillable="true" />
       <xs:element name="WriterGroupName" type="xs:string" minOccurs="0" nillable="true" />
       <xs:element name="DataSetClassId" type="xs:string" minOccurs="0" nillable="true" />
-      <xs:element name="Messages" type="ua:Variant" minOccurs="0" />
+      <xs:element name="Messages" type="ua:ListOfExtensionObject" minOccurs="0" nillable="true" />
     </xs:sequence>
   </xs:complexType>
   <xs:element name="JsonNetworkMessage" type="tns:JsonNetworkMessage" />
@@ -2920,6 +2920,7 @@
       <xs:element name="CorrelationData" type="xs:base64Binary" minOccurs="0" nillable="true" />
       <xs:element name="RequestorId" type="xs:string" minOccurs="0" nillable="true" />
       <xs:element name="TimeoutHint" type="xs:double" minOccurs="0" />
+      <xs:element name="Messages" type="ua:ListOfExtensionObject" minOccurs="0" nillable="true" />
     </xs:sequence>
   </xs:complexType>
   <xs:element name="JsonActionNetworkMessage" type="tns:JsonActionNetworkMessage" />
@@ -2943,6 +2944,7 @@
       <xs:element name="MessageType" type="xs:string" minOccurs="0" nillable="true" />
       <xs:element name="RequestId" type="xs:unsignedShort" minOccurs="0" />
       <xs:element name="ActionState" type="tns:ActionState" minOccurs="0" />
+      <xs:element name="Payload" type="ua:ExtensionObject" minOccurs="0" nillable="true" />
     </xs:sequence>
   </xs:complexType>
   <xs:element name="JsonActionRequestMessage" type="tns:JsonActionRequestMessage" />
@@ -2967,6 +2969,7 @@
       <xs:element name="MessageType" type="xs:string" minOccurs="0" nillable="true" />
       <xs:element name="RequestId" type="xs:unsignedShort" minOccurs="0" />
       <xs:element name="ActionState" type="tns:ActionState" minOccurs="0" />
+      <xs:element name="Payload" type="ua:ExtensionObject" minOccurs="0" nillable="true" />
     </xs:sequence>
   </xs:complexType>
   <xs:element name="JsonActionResponseMessage" type="tns:JsonActionResponseMessage" />
