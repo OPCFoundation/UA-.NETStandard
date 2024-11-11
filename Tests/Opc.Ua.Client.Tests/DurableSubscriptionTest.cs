@@ -548,8 +548,14 @@ namespace Opc.Ua.Client.Tests
             Assert.NotNull(references, "Initial Browse has no references");
             Assert.Greater(references.Count, 0, "Initial Browse has zero references");
 
+            TestContext.Out.WriteLine("Initial Browse for SubscriptionDiagnosticsArray has {0} references, Desired SubscriptionId {1}",
+                references.Count,
+                subscriptionId);
+
             foreach (ReferenceDescription reference in references)
             {
+                TestContext.Out.WriteLine("Initial Browse Reference {0}", reference.BrowseName.Name);
+
                 if (reference.BrowseName.Name == subscriptionId.ToString())
                 {
                     ReferenceDescriptionCollection desiredReferences;
@@ -565,8 +571,16 @@ namespace Opc.Ua.Client.Tests
                     Assert.NotNull(desiredReferences, "Secondary Browse has no references");
                     Assert.Greater(desiredReferences.Count, 0, "Secondary Browse has zero references");
 
+                    TestContext.Out.WriteLine("Secondary Browse for SubscriptionId {0} has {1} references",
+                        subscriptionId,
+                        desiredReferences.Count
+                    );
+
+
                     foreach (ReferenceDescription referenceDescription in desiredReferences)
                     {
+                        TestContext.Out.WriteLine("Subscription Reference {0}",
+                            referenceDescription.BrowseName.Name);
                         if (referenceDescription.BrowseName.Name.Equals("MonitoredItemCount",
                             StringComparison.OrdinalIgnoreCase))
                         {
