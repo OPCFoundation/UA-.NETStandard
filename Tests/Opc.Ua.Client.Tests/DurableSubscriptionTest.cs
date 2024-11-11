@@ -579,44 +579,61 @@ namespace Opc.Ua.Client.Tests
 
                     foreach (ReferenceDescription referenceDescription in desiredReferences)
                     {
-                        TestContext.Out.WriteLine("Subscription Reference {0}",
-                            referenceDescription.BrowseName.Name);
+                        NodeId recreated = null;
+                        if (referenceDescription.NodeId.IsNull)
+                        {
+                            TestContext.Out.WriteLine("Subscription Reference {0} ExpandedNodeId is Null",
+                                referenceDescription.BrowseName.Name);
+                            TestContext.Out.WriteLine("Full ReferenceDescription {0}",
+                                referenceDescription.ToString());
+                        }
+                        else
+                        {
+                            recreated = new NodeId(
+                                referenceDescription.NodeId.Identifier,
+                                referenceDescription.NodeId.NamespaceIndex);
+
+                            if ( recreated.IsNullNodeId )
+                            {
+                                TestContext.Out.WriteLine("Subscription Reference {0} Recreated Node is Null",
+                                    referenceDescription.BrowseName.Name);
+                                TestContext.Out.WriteLine("Full ReferenceDescription {0}",
+                                    referenceDescription.ToString());
+                            }
+                            else
+                            {
+                                TestContext.Out.WriteLine("Subscription Reference {0} ExpandedNodeId {1} Recreated {2}",
+                                    referenceDescription.BrowseName.Name,
+                                    referenceDescription.NodeId.ToString(),
+                                    recreated.ToString());
+                            }
+                        }
+
                         if (referenceDescription.BrowseName.Name.Equals("MonitoredItemCount",
                             StringComparison.OrdinalIgnoreCase))
                         {
-                            monitoredItemCountNodeId = new NodeId(
-                                referenceDescription.NodeId.Identifier,
-                                referenceDescription.NodeId.NamespaceIndex);
+                            monitoredItemCountNodeId = recreated;
                         }
                         else if (referenceDescription.BrowseName.Name.Equals("MaxLifetimeCount",
                             StringComparison.OrdinalIgnoreCase))
                         {
-                            maxLifetimeCountNodeId = new NodeId(
-                                referenceDescription.NodeId.Identifier,
-                                referenceDescription.NodeId.NamespaceIndex);
+                            maxLifetimeCountNodeId = recreated;
 
                         }
                         else if (referenceDescription.BrowseName.Name.Equals("MaxKeepAliveCount",
                             StringComparison.OrdinalIgnoreCase))
                         {
-                            maxKeepAliveCountNodeId = new NodeId(
-                                referenceDescription.NodeId.Identifier,
-                                referenceDescription.NodeId.NamespaceIndex);
-
+                            maxKeepAliveCountNodeId = recreated;
                         }
                         else if (referenceDescription.BrowseName.Name.Equals("CurrentLifetimeCount",
                             StringComparison.OrdinalIgnoreCase))
                         {
-                            currentLifetimeCountNodeId = new NodeId(
-                                referenceDescription.NodeId.Identifier,
-                                referenceDescription.NodeId.NamespaceIndex);
+                            currentLifetimeCountNodeId = recreated;
                         }
                         else if (referenceDescription.BrowseName.Name.Equals("PublishingInterval",
                             StringComparison.OrdinalIgnoreCase))
                         {
-                            publishingIntervalNodeId = new NodeId(
-                                referenceDescription.NodeId.Identifier,
-                                referenceDescription.NodeId.NamespaceIndex);
+                            publishingIntervalNodeId = recreated;
                         }
                     }
                 }
