@@ -584,29 +584,39 @@ namespace Opc.Ua.Client.Tests
                         if (referenceDescription.BrowseName.Name.Equals("MonitoredItemCount",
                             StringComparison.OrdinalIgnoreCase))
                         {
-                            monitoredItemCountNodeId = ((NodeId)referenceDescription.NodeId);
+                            monitoredItemCountNodeId = new NodeId(
+                                referenceDescription.NodeId.Identifier,
+                                referenceDescription.NodeId.NamespaceIndex);
                         }
                         else if (referenceDescription.BrowseName.Name.Equals("MaxLifetimeCount",
                             StringComparison.OrdinalIgnoreCase))
                         {
-                            maxLifetimeCountNodeId = ((NodeId)referenceDescription.NodeId);
+                            maxLifetimeCountNodeId = new NodeId(
+                                referenceDescription.NodeId.Identifier,
+                                referenceDescription.NodeId.NamespaceIndex);
 
                         }
                         else if (referenceDescription.BrowseName.Name.Equals("MaxKeepAliveCount",
                             StringComparison.OrdinalIgnoreCase))
                         {
-                            maxKeepAliveCountNodeId = ((NodeId)referenceDescription.NodeId);
+                            maxKeepAliveCountNodeId = new NodeId(
+                                referenceDescription.NodeId.Identifier,
+                                referenceDescription.NodeId.NamespaceIndex);
 
                         }
                         else if (referenceDescription.BrowseName.Name.Equals("CurrentLifetimeCount",
                             StringComparison.OrdinalIgnoreCase))
                         {
-                            currentLifetimeCountNodeId = ((NodeId)referenceDescription.NodeId);
+                            currentLifetimeCountNodeId = new NodeId(
+                                referenceDescription.NodeId.Identifier,
+                                referenceDescription.NodeId.NamespaceIndex);
                         }
                         else if (referenceDescription.BrowseName.Name.Equals("PublishingInterval",
                             StringComparison.OrdinalIgnoreCase))
                         {
-                            publishingIntervalNodeId = ((NodeId)referenceDescription.NodeId);
+                            publishingIntervalNodeId = new NodeId(
+                                referenceDescription.NodeId.Identifier,
+                                referenceDescription.NodeId.NamespaceIndex);
                         }
                     }
                 }
