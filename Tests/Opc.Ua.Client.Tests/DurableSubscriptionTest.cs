@@ -324,7 +324,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test, Order(200)]
-        [TestCase(false, TestName = "Validate session close")]
+        [TestCase(false, TestName = "Validate Session Close")]
         [TestCase(true, TestName = "Validate Transfer")]
         public async Task TestSessionTransfer(bool setSubscriptionDurable)
         {
@@ -436,8 +436,12 @@ namespace Opc.Ua.Client.Tests
 
                 double tolerance = 1500;
 
+                TestContext.Out.WriteLine("Session StartTime at {0}", DateTimeMs(startTime));
+                TestContext.Out.WriteLine("Session Closed at {0}", DateTimeMs(closeTime));
+                TestContext.Out.WriteLine("Restart at {0}", DateTimeMs(restartTime));
+                TestContext.Out.WriteLine("Completion at {0}", DateTimeMs(completionTime));
+
                 // Validate 
-                int counter = 0;
                 foreach (KeyValuePair<NodeId, List<DateTime>> pair in valueTimeStamps)
                 {
                     DateTime previous = startTime;
@@ -450,7 +454,7 @@ namespace Opc.Ua.Client.Tests
                         TestContext.Out.WriteLine($"Node: {pair.Key} Index: {index} Time: {DateTimeMs(timestamp)} Previous: {DateTimeMs(previous)} Timespan {timeSpan.TotalMilliseconds.ToString("000.")}");
 
                         Assert.Less(Math.Abs(timeSpan.TotalMilliseconds), tolerance,
-                            $"Node: {pair.Key} [{counter}] Index: {index} Timespan {timeSpan.TotalMilliseconds} ");
+                            $"Node: {pair.Key} Index: {index} Timespan {timeSpan.TotalMilliseconds} ");
 
                         previous = timestamp;
 
@@ -458,15 +462,11 @@ namespace Opc.Ua.Client.Tests
                         if (index == pair.Value.Count - 1)
                         {
                             TimeSpan finalTimeSpan = completionTime - timestamp;
-                            Assert.Less(Math.Abs(finalTimeSpan.TotalMilliseconds), tolerance);
+                            Assert.Less(Math.Abs(finalTimeSpan.TotalMilliseconds), tolerance,
+                                $"Last Value - Node: {pair.Key} Index: {index} Timespan {finalTimeSpan.TotalMilliseconds} ");
                         }
                     }
                 }
-
-                TestContext.Out.WriteLine("Session StartTime at {0}", startTime);
-                TestContext.Out.WriteLine("Session Closed at {0}", closeTime);
-                TestContext.Out.WriteLine("Restart at {0}", restartTime);
-                TestContext.Out.WriteLine("Completion at {0}", completionTime);
 
                 Assert.True(await transferSession.RemoveSubscriptionAsync(subscription));
             }
