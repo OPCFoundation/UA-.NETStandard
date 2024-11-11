@@ -662,7 +662,7 @@ namespace Opc.Ua.Client.Tests
             foreach (KeyValuePair<string, NodeId> id in ids)
             {
                 values.Add(id.Key, Session.ReadValue(id.Value));
-                Debug.WriteLine($"{id.Key}: {values[id.Key]}");
+                TestContext.Out.WriteLine($"{id.Key}: {values[id.Key]}");
             }
 
             return values;
