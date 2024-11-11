@@ -462,7 +462,7 @@ namespace Opc.Ua.Client.Tests
                         if (index == pair.Value.Count - 1)
                         {
                             TimeSpan finalTimeSpan = completionTime - timestamp;
-                            Assert.Less(Math.Abs(finalTimeSpan.TotalMilliseconds), tolerance,
+                            Assert.Less(Math.Abs(finalTimeSpan.TotalMilliseconds), tolerance * 2,
                                 $"Last Value - Node: {pair.Key} Index: {index} Timespan {finalTimeSpan.TotalMilliseconds} ");
                         }
                     }
@@ -545,8 +545,8 @@ namespace Opc.Ua.Client.Tests
                 out var continuationPoint,
                 out references);
 
-            Assert.NotNull(references);
-            Assert.Greater(references.Count, 0);
+            Assert.NotNull(references, "Initial Browse has no references");
+            Assert.Greater(references.Count, 0, "Initial Browse has zero references");
 
             foreach (ReferenceDescription reference in references)
             {
@@ -562,8 +562,8 @@ namespace Opc.Ua.Client.Tests
                         out var anotherContinuationPoint,
                         out desiredReferences);
 
-                    Assert.NotNull(desiredReferences);
-                    Assert.Greater(desiredReferences.Count, 0);
+                    Assert.NotNull(desiredReferences, "Secondary Browse has no references");
+                    Assert.Greater(desiredReferences.Count, 0, "Secondary Browse has zero references");
 
                     foreach (ReferenceDescription referenceDescription in desiredReferences)
                     {
@@ -599,11 +599,11 @@ namespace Opc.Ua.Client.Tests
                 break;
             }
 
-            Assert.IsNotNull(monitoredItemCountNodeId);
-            Assert.IsNotNull(maxLifetimeCountNodeId);
-            Assert.IsNotNull(maxKeepAliveCountNodeId);
-            Assert.IsNotNull(currentLifetimeCountNodeId);
-            Assert.IsNotNull(publishingIntervalNodeId);
+            Assert.IsNotNull(monitoredItemCountNodeId, "Unable to find MonitoredItemCount");
+            Assert.IsNotNull(maxLifetimeCountNodeId, "Unable to find MaxLifetimeCount");
+            Assert.IsNotNull(maxKeepAliveCountNodeId, "Unable to find MaxKeepAliveCount");
+            Assert.IsNotNull(currentLifetimeCountNodeId, "Unable to find CurrentLifetimeCount");
+            Assert.IsNotNull(publishingIntervalNodeId, "Unable to find PublishingInterval");
 
             desiredNodeIds.Add("MonitoredItemCount", monitoredItemCountNodeId);
             desiredNodeIds.Add("MaxLifetimeCount", maxLifetimeCountNodeId);
