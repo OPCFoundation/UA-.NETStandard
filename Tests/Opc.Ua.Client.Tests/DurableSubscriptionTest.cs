@@ -446,9 +446,9 @@ namespace Opc.Ua.Client.Tests
                     {
                         DateTime timestamp = pair.Value[index];
 
-                        TestContext.Out.WriteLine($"Node: {pair.Key} Index: {index} Time: {timestamp.ToLongTimeString()} Previous: {previous.ToLongTimeString()}");
-
                         TimeSpan timeSpan = timestamp - previous;
+                        TestContext.Out.WriteLine($"Node: {pair.Key} Index: {index} Time: {DateTimeMs(timestamp)} Previous: {DateTimeMs(previous)} Timespan {timeSpan.TotalMilliseconds.ToString("000.")}");
+
                         Assert.Less(Math.Abs(timeSpan.TotalMilliseconds), tolerance,
                             $"Node: {pair.Key} [{counter}] Index: {index} Timespan {timeSpan.TotalMilliseconds} ");
 
@@ -523,6 +523,7 @@ namespace Opc.Ua.Client.Tests
 
             return subscription;
         }
+
         private Dictionary<string, NodeId> GetDesiredNodeIds(uint subscriptionId)
         {
             Dictionary<string, NodeId> desiredNodeIds = new Dictionary<string, NodeId>();
@@ -664,6 +665,15 @@ namespace Opc.Ua.Client.Tests
             };
             return mi;
         }
+
+        private string DateTimeMs( DateTime dateTime )
+        {
+            string readable = dateTime.ToLongTimeString() + "." +
+                dateTime.Millisecond.ToString("D3");
+
+            return readable;
+        }
+
 
         #endregion
     }
