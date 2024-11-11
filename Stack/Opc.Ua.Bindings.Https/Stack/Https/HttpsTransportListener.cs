@@ -207,7 +207,7 @@ namespace Opc.Ua.Bindings
             m_serverCertificate = settings.ServerCertificate;
             m_serverCertificateChain = settings.ServerCertificateChain;
 
-            m_ClientCertificateMode = settings.HttpMutualTls ? ClientCertificateMode.RequireCertificate : ClientCertificateMode.NoCertificate;
+            m_ClientCertificateMode = settings.HttpsMutualTls ? ClientCertificateMode.RequireCertificate : ClientCertificateMode.NoCertificate;
 
             // start the listener
             Start();
@@ -376,8 +376,10 @@ namespace Opc.Ua.Bindings
                 string path = context.Request.Path.Value?.TrimEnd('/') ?? string.Empty;
                 string currentPath = m_uri.AbsolutePath?.TrimEnd('/') + ConfiguredEndpoint.DiscoverySuffix;
                 bool isDiscoveryPath = path.Equals(currentPath, StringComparison.OrdinalIgnoreCase);
+                bool validateClientTlsCertificate = !isDiscoveryPath && m_ClientCertificateMode == ClientCertificateMode.RequireCertificate;
+
                 // Access and validate tls client certificate
-                if (!isDiscoveryPath && m_ClientCertificateMode == ClientCertificateMode.RequireCertificate)
+                if (validateClientTlsCertificate)
                 {
                     if (!await ValidateClientTlsCertificateAsync(context, ct).ConfigureAwait(false))
                     {
@@ -388,8 +390,7 @@ namespace Opc.Ua.Bindings
                 IServiceRequest input = (IServiceRequest)BinaryDecoder.DecodeMessage(buffer, null, m_quotas.MessageContext);
 
                 // Match tls client certificate against client application certificate provided in CreateSessionRequest
-                if (!isDiscoveryPath &&
-                    m_ClientCertificateMode == ClientCertificateMode.RequireCertificate &&
+                if (validateClientTlsCertificate &&
                     input.TypeId == DataTypeIds.CreateSessionRequest)
                 {
                     byte[] tlsClientCertificate = context.Connection.ClientCertificate.RawData;

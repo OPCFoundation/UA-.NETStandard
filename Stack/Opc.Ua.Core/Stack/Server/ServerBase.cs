@@ -886,7 +886,7 @@ namespace Opc.Ua
                     settings.MaxChannelCount = applicationConfiguration.ServerConfiguration.MaxChannelCount;
                     if (Utils.IsUriHttpsScheme(endpointUri.AbsoluteUri))
                     {
-                        settings.HttpMutualTls = applicationConfiguration.ServerConfiguration.HttpsMutualTls;
+                        settings.HttpsMutualTls = applicationConfiguration.ServerConfiguration.HttpsMutualTls;
                     }
                 }
 

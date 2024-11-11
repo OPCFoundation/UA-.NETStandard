@@ -133,7 +133,7 @@ namespace Opc.Ua
         /// Handled only by HttpsTransportListner
         /// In case true, the client should provide it's own valid TLS certificate to the TLS layer for the connection to succeed.
         /// </summary>
-        public bool HttpMutualTls
+        public bool HttpsMutualTls
         {
             get { return m_httpMutualTls; }
             set { m_httpMutualTls = value; }
