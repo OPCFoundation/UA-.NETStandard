@@ -417,13 +417,11 @@ namespace Opc.Ua.Client.Tests
                 SecurityPolicies.Basic256Sha256, null,
                 new UserIdentity("sysadmin", "demo")).ConfigureAwait(false);
 
-
             var result = await transferSession.TransferSubscriptionsAsync(subscriptions, true);
 
-            TestContext.Out.WriteLine("SetSubscriptionDurable = " + setSubscriptionDurable.ToString() +
-                " Transfer Result " + result.ToString());
-
-            Assert.AreEqual(setSubscriptionDurable, result);
+            Assert.AreEqual(setSubscriptionDurable, result,
+                "SetSubscriptionDurable = " + setSubscriptionDurable.ToString() +
+                " Transfer Result " + result.ToString() + " Expected " + setSubscriptionDurable );
 
             if (setSubscriptionDurable)
             {
