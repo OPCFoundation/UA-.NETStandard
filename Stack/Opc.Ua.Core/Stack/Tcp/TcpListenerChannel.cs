@@ -11,6 +11,7 @@
 */
 
 using System;
+using System.Net;
 using System.Net.Sockets;
 using System.Security.Cryptography.X509Certificates;
 using Microsoft.Extensions.Logging;
@@ -267,6 +268,17 @@ namespace Opc.Ua.Bindings
 
                 if (close)
                 {
+                    // mark the RemoteAddress as potential rogue
+                    if (reason.StatusCode == StatusCodes.BadSecurityChecksFailed || reason.StatusCode == StatusCodes.BadTcpMessageTypeInvalid)
+                    {
+                        var tcpTransportListener = m_listener as TcpTransportListener;
+                        if (tcpTransportListener != null)
+                        {
+                            tcpTransportListener.MarkAsPotentialRogue
+                                (((IPEndPoint)Socket.RemoteEndpoint).Address);
+                        }
+                    }
+
                     // close channel immediately.
                     ChannelFaulted();
                 }

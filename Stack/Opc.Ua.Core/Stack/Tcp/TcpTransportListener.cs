@@ -13,6 +13,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
@@ -35,6 +36,230 @@ namespace Opc.Ua.Bindings
         {
             return new TcpTransportListener();
         }
+    }
+
+    /// <summary>
+    /// Represents a potential RogueClient
+    /// </summary>
+    public class RogueClient
+    {
+        #region Properties
+        /// <summary>
+        /// Time of the last recorded rogue action
+        /// </summary>
+        public int LastRogueActionTicks
+        {
+            get
+            {
+                return m_lastRogueActionTicks;
+            }
+            set
+            {
+                m_lastRogueActionTicks = value;
+            }
+        }
+
+        /// <summary>
+        /// Counter for number of rogue recorded actions
+        /// </summary>
+        public int RogueActionCount
+        {
+            get
+            {
+                return m_rogueActionCount;
+            }
+            set
+            {
+                m_rogueActionCount = value;
+            }
+        }
+
+        /// <summary>
+        /// Ticks until the client is Blocked
+        /// </summary>
+        public int BlockedUntilTicks
+        {
+            get
+            {
+                return m_blockedUntilTicks;
+            }
+            set
+            {
+                m_blockedUntilTicks = value;
+            }
+        }
+        #endregion
+
+        #region Private members
+        int m_lastRogueActionTicks;
+        int m_rogueActionCount;
+        int m_blockedUntilTicks;
+        #endregion
+    }
+
+    /// <summary>
+    /// Manages potential rogue clients
+    /// </summary>
+    public class RogueClientTracker : IDisposable
+    {
+        #region Public
+        /// <summary>
+        /// Constructor
+        /// </summary>
+        public RogueClientTracker()
+        {
+            m_cleanupTimer = new Timer(CleanupExpiredEntries, null, m_kCleanupIntervalMs, m_kCleanupIntervalMs);
+        }
+
+        /// <summary>
+        /// Checks if an IP address is currently blocked
+        /// </summary>
+        /// <param name="ipAddress"></param>
+        /// <returns></returns>
+        public bool IsBlocked(IPAddress ipAddress)
+        {
+            if (m_rogueClients.TryGetValue(ipAddress, out RogueClient client))
+            {
+                int currentTicks = HiResClock.TickCount;
+                return IsBlockedTicks(client.BlockedUntilTicks, currentTicks);
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Adds an action entry for a potential rogue client
+        /// </summary>
+        /// <param name="ipAddress"></param>
+        public void AddRogueClientAction(IPAddress ipAddress)
+        {
+            int currentTicks = HiResClock.TickCount;
+
+            m_rogueClients.AddOrUpdate(ipAddress,
+                // If client is new , create a new entry
+                key => new RogueClient {
+                    LastRogueActionTicks = currentTicks,
+                    RogueActionCount = 1,
+                    BlockedUntilTicks = 0
+                },
+                // If the client exists, update its entry
+                (key, existingEntry) => {
+                    // If IP currently blocked simply do nothing
+                    if (IsBlockedTicks(existingEntry.BlockedUntilTicks, currentTicks))
+                    {
+                        return existingEntry;
+                    }
+
+                    // Elapsed time since last recorded action
+                    int elapsedSinceLastRecAction = currentTicks - existingEntry.LastRogueActionTicks;
+
+                    if (elapsedSinceLastRecAction <= m_kRogueIntervalMs)
+                    {
+                        existingEntry.RogueActionCount++;
+
+                        if (existingEntry.RogueActionCount > m_kNrActionsTillBlock)
+                        {
+                            // Block the IP
+                            existingEntry.BlockedUntilTicks = currentTicks + m_kBlockDurationMs;
+                            Utils.LogError("RemoteClient IPAddress: {0} blocked for {1} ms due to exceeding {2} actions under {3} ms ",
+                                ipAddress.ToString(),
+                                m_kBlockDurationMs,
+                                m_kNrActionsTillBlock,
+                                m_kRogueIntervalMs);
+
+                        }
+                    }
+                    else
+                    {
+                        // Reset the count as the last action was outside the interval
+                        existingEntry.RogueActionCount = 1;
+                    }
+
+                    existingEntry.LastRogueActionTicks = currentTicks;
+
+                    return existingEntry;
+                }
+            );
+        }
+
+        /// <summary>
+        /// Dispose the cleanup timer
+        /// </summary>
+        public void Dispose()
+        {
+            m_cleanupTimer?.Dispose();
+        }
+
+        #endregion
+        #region Private methods
+
+        /// <summary>
+        /// Periodically cleans up expired RogueClientEntries to avoid memory leak and unblock clients whose duration has expired.
+        /// </summary>
+        /// <param name="state"></param>
+        private void CleanupExpiredEntries(object state)
+        {
+            int currentTicks = HiResClock.TickCount;
+
+            foreach (var entry in m_rogueClients)
+            {
+                IPAddress clientIp = entry.Key;
+                RogueClient rClient = entry.Value;
+
+                // Unblock client if blocking duration has been exceeded
+                if (rClient.BlockedUntilTicks != 0 && !IsBlockedTicks(rClient.BlockedUntilTicks, currentTicks))
+                {
+                    rClient.BlockedUntilTicks = 0;
+                    rClient.RogueActionCount = 0;
+                    Utils.LogInfo("Rogue Client with IP {0} is now unblocked, blocking duration has been exceeded", clientIp.ToString());
+                }
+
+                // Remove clients that haven't had any rogue actions in the last m_kEntryExpirationMs interval 
+                int elapsedSinceBadActionTicks = currentTicks - rClient.LastRogueActionTicks;
+                if (elapsedSinceBadActionTicks > m_kEntryExpirationMs)
+                {
+                    // Even if TryRemove fails it will most probably succeed at the next execution
+                    if (m_rogueClients.TryRemove(clientIp, out _))
+                    {
+                        Utils.LogInfo("Rogue Client with IP {0} is not tracked any longer, hasn't had rogue actions for more than {1} ms",
+                            clientIp.ToString(),
+                            m_kEntryExpirationMs);
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Determines if the IP is currently blocked based on the block expiration ticks and current ticks
+        /// </summary>
+        /// <param name="blockedUntilTicks"></param>
+        /// <param name="currentTicks"></param>
+        /// <returns></returns>
+        private bool IsBlockedTicks(int blockedUntilTicks, int currentTicks)
+        {
+            if (blockedUntilTicks == 0)
+            {
+                return false;
+            }
+            // C# signed arithmetic 
+            int diff = blockedUntilTicks - currentTicks;
+            // If currentTicks < blockedUntilTicks then it is still blocked
+            // Works even if TickCount has wrapped around due to C# signed integer arithmetic
+            return diff > 0;
+        }
+
+
+        #endregion
+        #region Private members
+        private ConcurrentDictionary<IPAddress, RogueClient> m_rogueClients = new ConcurrentDictionary<IPAddress, RogueClient>();
+
+        private const int m_kRogueIntervalMs = 10_000;
+        private const int m_kBlockDurationMs = 300_000; // 5 minutes
+        private const int m_kCleanupIntervalMs = 60_000;
+        private const int m_kEntryExpirationMs = 600_000; // 10 minutes
+        private const int m_kNrActionsTillBlock = 3;
+
+        private Timer m_cleanupTimer;
+        #endregion
     }
 
     /// <summary>
@@ -410,6 +635,8 @@ namespace Opc.Ua.Bindings
                         StatusCodes.BadNoCommunication,
                         "Failed to establish tcp listener sockets for Ipv4 and IPv6.");
                 }
+
+                m_rogueClientTracker = new RogueClientTracker();
             }
         }
 
@@ -497,12 +724,32 @@ namespace Opc.Ua.Bindings
         }
         #endregion
 
+        #region Internal
+        /// <summary>
+        /// Mark a remote endpoint as potential rogue
+        /// </summary>
+        /// <param name="remoteEndpoint"></param>
+        internal void MarkAsPotentialRogue(IPAddress remoteEndpoint)
+        {
+            Utils.LogError("MarkClientAsPotentialRogue address: {0} ", remoteEndpoint.ToString());
+            m_rogueClientTracker.AddRogueClientAction(remoteEndpoint);
+        }
+        #endregion
+
         #region Socket Event Handler
         /// <summary>
         /// Handles a new connection.
         /// </summary>
         private void OnAccept(object sender, SocketAsyncEventArgs e)
         {
+            // Filter out the RemoveAddresses which are detected with unwanted behavior
+            if (m_rogueClientTracker.IsBlocked(((IPEndPoint)e.AcceptSocket.RemoteEndPoint).Address))
+            {
+                Utils.LogError("OnAccept: RemoteEndpoint address: {0} refused access for behaving as potential rogue ",
+                    ((IPEndPoint)e.AcceptSocket.RemoteEndPoint).Address.ToString());
+                e.Dispose();
+                return;
+            }
             TcpListenerChannel channel = null;
             bool repeatAccept = false;
             do
@@ -806,6 +1053,8 @@ namespace Opc.Ua.Bindings
         private int m_inactivityDetectPeriod;
         private Timer m_inactivityDetectionTimer;
         private int m_maxChannelCount;
+
+        private RogueClientTracker m_rogueClientTracker;
         #endregion
     }
 
