@@ -1509,6 +1509,7 @@ namespace Opc.Ua
             m_maxTrustListSize = 0;
             m_multicastDnsEnabled = false;
             m_auditingEnabled = false;
+            m_httpsMTls = true;
         }
 
         /// <summary>
