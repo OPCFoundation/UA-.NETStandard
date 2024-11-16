@@ -517,16 +517,16 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public void WriteSwitchField(string fieldName, uint switchField)
         {
-            if (!SuppressArtifacts)
+            if (EncodingToUse == JsonEncodingType.Reversible)
             {
                 WriteUInt32(fieldName, switchField);
             }
-        }
+         }
 
-       /// <inheritdoc/>
-       public void WriteEncodingMask(string fieldName, uint encodingMask)
+        /// <inheritdoc/>
+        public void WriteEncodingMask(string fieldName, uint encodingMask)
         {
-            if (!SuppressArtifacts)
+            if ((!SuppressArtifacts && EncodingToUse == JsonEncodingType.Compact) || EncodingToUse == JsonEncodingType.Reversible)
             {
                 WriteUInt32(fieldName, encodingMask);
             }
@@ -1375,6 +1375,12 @@ namespace Opc.Ua
                 if (EncodingToUse == JsonEncodingType.Verbose)
                 {
                     string symbolicId = StatusCode.LookupSymbolicId(value.CodeBits);
+
+                    if (String.IsNullOrEmpty(symbolicId))
+                    {
+                        symbolicId = $"0x{value.CodeBits:X8}";
+                    }
+
                     WriteSimpleField("Text", symbolicId, EscapeOptions.Quotes | EscapeOptions.NoFieldNameEscape);
                 }
 
@@ -1469,7 +1475,7 @@ namespace Opc.Ua
             if (EncodingToUse == JsonEncodingType.Compact || EncodingToUse == JsonEncodingType.Verbose)
             {
                 PushStructure(fieldName);
-                WriteVariantIntoObject("Body", value);
+                WriteVariantIntoObject("Value", value);
                 PopStructure();
                 return;
             }
@@ -1574,17 +1580,22 @@ namespace Opc.Ua
                     m_writer.Write(s_quotation);
                     EscapeString(fieldName);
                     m_writer.Write(s_quotationColon);
+                    m_commaRequired = false;
+                }
+
+                if (value.Value is Matrix matrix)
+                {
+                    PushStructure(null);
+                    m_writer.Write(s_quotation);
+                    EscapeString("Array");
+                    m_writer.Write(s_quotationColon);
+                    WriteVariantContents(value.Value, value.TypeInfo);
+                    WriteInt32Array("Dimensions", matrix.Dimensions);
+                    PopStructure();
+                    return;
                 }
 
                 WriteVariantContents(value.Value, value.TypeInfo);
-
-                if (!isNull)
-                {
-                    if (value.Value is Matrix matrix)
-                    {
-                        WriteInt32Array("Dimensions", matrix.Dimensions);
-                    }
-                }
             }
             finally
             {
@@ -1682,7 +1693,7 @@ namespace Opc.Ua
             var typeId = (!NodeId.IsNull(value.TypeId)) ? value.TypeId : encodeable?.TypeId ?? NodeId.Null;
             var localTypeId = ExpandedNodeId.ToNodeId(typeId, Context.NamespaceUris);
 
-            if (EncodingToUse == JsonEncodingType.Compact)
+            if (EncodingToUse == JsonEncodingType.Compact || EncodingToUse == JsonEncodingType.Verbose)
             {
                 if (encodeable != null)
                 {
@@ -1722,7 +1733,7 @@ namespace Opc.Ua
                             WriteNodeId("UaTypeId", localTypeId);
                         }
 
-                        WriteByte("UaEncoding",(byte)ExtensionObjectEncoding.Xml);
+                        WriteByte("UaEncoding", (byte)ExtensionObjectEncoding.Xml);
                         WriteXmlElement("UaBody", value.Body as XmlElement);
                     }
                 }
@@ -2666,6 +2677,211 @@ namespace Opc.Ua
         #endregion
 
         #region Public Methods
+        private void WriteRawExtensionObject(object value)
+        {
+            if (value is ExtensionObject eo)
+            {
+                value = eo.Body;
+            }
+
+            if (value is IEncodeable encodeable)
+            {
+                PushStructure(null);
+                encodeable.Encode(this);
+                PopStructure();
+            }
+            else
+            {
+                if (m_commaRequired)
+                {
+                    m_writer.Write(s_comma);
+                }
+
+                m_writer.Write(s_null);
+            }
+
+            m_commaRequired = true;
+        }
+
+        private void WriteRawVariantArray(object value)
+        {
+            if (value is IList<Variant> list)
+            {
+                PushArray(null);
+
+                foreach (var ii in list)
+                {
+                    if (ii is Variant vt)
+                    {
+                        PushStructure(null);
+                        WriteVariantContents(vt.Value, vt.TypeInfo);
+                        PopStructure();
+                    }
+                    else
+                    {
+                        if (m_commaRequired)
+                        {
+                            m_writer.Write(s_comma);
+                        }
+
+                        m_writer.Write(s_null);
+                    }
+                }
+
+                PopArray();
+            }
+            else
+            {
+                m_writer.Write(s_null);
+            }
+
+            m_commaRequired = true;
+        }
+
+        /// <summary>
+        /// Writes a raw value.
+        /// </summary>
+        public void WriteRawValue(FieldMetaData field, DataValue dv)
+        {
+            m_nestingLevel++;
+
+            try
+            {
+                if (m_commaRequired)
+                {
+                    m_writer.Write(s_comma);
+                }
+
+                m_writer.Write(s_quotation);
+                EscapeString(field.Name);
+                m_writer.Write(s_quotationColon);
+                m_commaRequired = false;
+
+                object value = dv.Value;
+                TypeInfo typeInfo = dv.WrappedValue.TypeInfo;
+
+                if (dv.WrappedValue == Variant.Null)
+                {
+                    value = TypeInfo.GetDefaultValue(field.BuiltInType, field.ValueRank);
+                    typeInfo = new TypeInfo((BuiltInType)field.BuiltInType, field.ValueRank);
+
+                    if (value != null)
+                    {
+                        WriteVariantContents(value, typeInfo);
+                    }
+                    else
+                    {
+                        m_writer.Write(s_null);
+                    }
+
+                    m_commaRequired = true;
+                    return;
+                }
+
+                if (field.ValueRank == ValueRanks.Scalar)
+                {
+                    if (field.BuiltInType == (byte)BuiltInType.ExtensionObject)
+                    {
+                        WriteRawExtensionObject(value);
+                        return;
+                    }
+                }
+                else
+                {
+                    if (value is Matrix matrix)
+                    {
+                        PushStructure(null);
+                        PushArray("Array");
+
+                        foreach (var ii in matrix.Elements)
+                        {
+                            if (m_commaRequired)
+                            {
+                                m_writer.Write(s_comma);
+                            }
+
+                            if (field.BuiltInType == (byte)BuiltInType.ExtensionObject)
+                            {
+                                m_commaRequired = false;
+                                WriteRawExtensionObject(ii);
+                                m_commaRequired = true;
+                                continue;
+                            }
+                            else if (field.BuiltInType == (byte)BuiltInType.Variant)
+                            {
+                                m_commaRequired = false;
+
+                                if (ii is Variant vt)
+                                {
+                                    WriteVariant(null, vt);
+                                }
+                                else
+                                {
+                                    m_writer.Write(s_null);
+                                }
+
+                                m_commaRequired = true;
+                                continue;
+                            }
+
+                            WriteVariantContents(ii, new TypeInfo((BuiltInType)field.BuiltInType, ValueRanks.Scalar));
+                            m_commaRequired = true;
+                        }
+
+                        PopArray();
+                        WriteInt32Array("Dimensions", matrix.Dimensions);
+                        PopStructure();
+                        m_commaRequired = true;
+                        return;
+                    }
+
+                    if (field.BuiltInType == (byte)BuiltInType.ExtensionObject)
+                    {
+                        if (value is IList<ExtensionObject> list)
+                        {
+                            PushArray(null);
+
+                            foreach (var element in list)
+                            {
+                                WriteRawExtensionObject(element);
+                            }
+
+                            PopArray();
+                            m_commaRequired = true;
+                            return;
+                        }
+                    }
+
+                    if (field.BuiltInType == (byte)BuiltInType.Variant)
+                    {
+                        if (value is IList<Variant> list)
+                        {
+                            WriteRawVariantArray(value);
+                            return;
+                        }
+                    }
+                }
+
+                WriteVariantContents(value, typeInfo);
+
+                if (EncodingToUse == JsonEncodingType.Reversible)
+                {
+                    if (dv.Value is Matrix matrix)
+                    {
+                        WriteInt32Array("Dimensions", matrix.Dimensions);
+                    }
+
+                    m_writer.Write(s_rightCurlyBrace);
+                }
+
+                m_commaRequired = true;
+            }
+            finally
+            {
+                m_nestingLevel--;
+            }
+        }
+
         /// <summary>
         /// Writes the contents of an Variant to the stream.
         /// </summary>
@@ -2926,6 +3142,11 @@ namespace Opc.Ua
         /// </summary>
         private int InternalClose(bool dispose)
         {
+            if (m_writer == null)
+            {
+                return 0;
+            }
+
             if (!m_dontWriteClosing)
             {
                 if (m_topLevelIsArray)
