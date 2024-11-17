@@ -2134,7 +2134,7 @@ namespace Opc.Ua
                     int used = Position - start;
                     if (length != used)
                     {
-                        errorMessage = "Length mismatch";
+                        errorMessage = Utils.Format("Length mismatch expected: {0} decoded: {1}", length, used);
                         exception = null;
                     }
                     else
@@ -2167,8 +2167,11 @@ namespace Opc.Ua
                     if (typeId.NamespaceIndex == 0 ||
                         m_encodeablesRecovered >= m_context.MaxDecoderRecoveries)
                     {
-                        throw exception ??
-                            ServiceResultException.Create(StatusCodes.BadDecodingError, "{0}, failed to decode encodeable type '{1}', NodeId='{2}'.",
+                        if (exception is ServiceResultException sre)
+                        {
+                            throw sre;
+                        }
+                        throw ServiceResultException.Create(StatusCodes.BadDecodingError, exception, "{0}, failed to decode encodeable type '{1}', NodeId='{2}'.",
                                 errorMessage, systemType.Name, extension.TypeId);
                     }
                     else if (m_encodeablesRecovered == 0)
@@ -2481,7 +2484,7 @@ namespace Opc.Ua
             byte[] bytes = m_reader.ReadBytes(length);
             if (bytes.Length != length)
             {
-                throw ServiceResultException.Create(StatusCodes.BadDecodingError,
+                throw ServiceResultException.Create(StatusCodes.BadDecodingError, new EndOfStreamException(),
                     "Reading {0} bytes of {1} reached end of stream after {2} bytes.", length, functionName, bytes.Length);
             }
             return bytes;
@@ -2498,9 +2501,9 @@ namespace Opc.Ua
             {
                 return m_reader.ReadBoolean();
             }
-            catch (EndOfStreamException)
+            catch (EndOfStreamException eos)
             {
-                throw CreateDecodingError(nameof(ReadBoolean), functionName);
+                throw CreateDecodingError(eos, nameof(ReadBoolean), functionName);
             }
         }
 
@@ -2515,9 +2518,9 @@ namespace Opc.Ua
             {
                 return m_reader.ReadSByte();
             }
-            catch (EndOfStreamException)
+            catch (EndOfStreamException eos)
             {
-                throw CreateDecodingError(nameof(ReadSByte), functionName);
+                throw CreateDecodingError(eos, nameof(ReadSByte), functionName);
             }
         }
 
@@ -2532,9 +2535,9 @@ namespace Opc.Ua
             {
                 return m_reader.ReadByte();
             }
-            catch (EndOfStreamException)
+            catch (EndOfStreamException eos)
             {
-                throw CreateDecodingError(nameof(ReadByte), functionName);
+                throw CreateDecodingError(eos, nameof(ReadByte), functionName);
             }
         }
 
@@ -2549,9 +2552,9 @@ namespace Opc.Ua
             {
                 return m_reader.ReadInt16();
             }
-            catch (EndOfStreamException)
+            catch (EndOfStreamException eos)
             {
-                throw CreateDecodingError(nameof(ReadInt16), functionName);
+                throw CreateDecodingError(eos, nameof(ReadInt16), functionName);
             }
         }
 
@@ -2566,9 +2569,9 @@ namespace Opc.Ua
             {
                 return m_reader.ReadUInt16();
             }
-            catch (EndOfStreamException)
+            catch (EndOfStreamException eos)
             {
-                throw CreateDecodingError(nameof(ReadUInt16), functionName);
+                throw CreateDecodingError(eos, nameof(ReadUInt16), functionName);
             }
         }
 
@@ -2583,9 +2586,9 @@ namespace Opc.Ua
             {
                 return m_reader.ReadInt32();
             }
-            catch (EndOfStreamException)
+            catch (EndOfStreamException eos)
             {
-                throw CreateDecodingError(nameof(ReadInt32), functionName);
+                throw CreateDecodingError(eos, nameof(ReadInt32), functionName);
             }
         }
 
@@ -2600,9 +2603,9 @@ namespace Opc.Ua
             {
                 return m_reader.ReadUInt32();
             }
-            catch (EndOfStreamException)
+            catch (EndOfStreamException eos)
             {
-                throw CreateDecodingError(nameof(ReadUInt32), functionName);
+                throw CreateDecodingError(eos, nameof(ReadUInt32), functionName);
             }
         }
 
@@ -2617,9 +2620,9 @@ namespace Opc.Ua
             {
                 return m_reader.ReadInt64();
             }
-            catch (EndOfStreamException)
+            catch (EndOfStreamException eos)
             {
-                throw CreateDecodingError(nameof(ReadInt64), functionName);
+                throw CreateDecodingError(eos, nameof(ReadInt64), functionName);
             }
         }
 
@@ -2634,9 +2637,9 @@ namespace Opc.Ua
             {
                 return m_reader.ReadUInt64();
             }
-            catch (EndOfStreamException)
+            catch (EndOfStreamException eos)
             {
-                throw CreateDecodingError(nameof(ReadUInt64), functionName);
+                throw CreateDecodingError(eos,nameof(ReadUInt64), functionName);
             }
         }
 
@@ -2651,9 +2654,9 @@ namespace Opc.Ua
             {
                 return m_reader.ReadSingle();
             }
-            catch (EndOfStreamException)
+            catch (EndOfStreamException eos )
             {
-                throw CreateDecodingError(nameof(ReadFloat), functionName);
+                throw CreateDecodingError(eos, nameof(ReadFloat), functionName);
             }
         }
 
@@ -2668,21 +2671,22 @@ namespace Opc.Ua
             {
                 return m_reader.ReadDouble();
             }
-            catch (EndOfStreamException)
+            catch (EndOfStreamException eos)
             {
-                throw CreateDecodingError(nameof(ReadDouble), functionName);
+                throw CreateDecodingError(eos, nameof(ReadDouble), functionName);
             }
         }
 
         /// <summary>
         /// Throws a BadDecodingError for the specific dataType and function.
         /// </summary>
+        /// <param name="eos">End of stream exception.</param>
         /// <param name="dataTypeName">The datatype which reached the end of the stream.</param>
         /// <param name="functionName">The property which tried to read the datatype.</param>
         /// <exception cref="ServiceResultException"> with <see cref="StatusCodes.BadDecodingError"/></exception>
-        ServiceResultException CreateDecodingError(string dataTypeName, string functionName)
+        ServiceResultException CreateDecodingError(EndOfStreamException eos, string dataTypeName, string functionName)
         {
-            return ServiceResultException.Create(StatusCodes.BadDecodingError,
+            return ServiceResultException.Create(StatusCodes.BadDecodingError, eos,
                 "Reading {0} in {1} reached end of stream.", dataTypeName, functionName);
         }
 
