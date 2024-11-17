@@ -67,7 +67,10 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected override void Dispose(bool disposing)
         {
-            base.Dispose(disposing);
+            lock (DataLock)
+            {
+                base.Dispose(disposing);
+            }
         }
         #endregion
 
@@ -1140,7 +1143,6 @@ namespace Opc.Ua.Bindings
                 return true;
             }
         }
-
         #endregion
 
         #region Private Fields

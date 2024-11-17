@@ -42,13 +42,13 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected ChannelToken CreateToken()
         {
-            ChannelToken token = new ChannelToken();
-
-            token.ChannelId = m_channelId;
-            token.TokenId = 0;
-            token.CreatedAt = DateTime.UtcNow;
-            token.CreatedAtTickCount = HiResClock.TickCount;
-            token.Lifetime = (int)Quotas.SecurityTokenLifetime;
+            ChannelToken token = new ChannelToken {
+                ChannelId = m_channelId,
+                TokenId = 0,
+                CreatedAt = DateTime.UtcNow,
+                CreatedAtTickCount = HiResClock.TickCount,
+                Lifetime = Quotas.SecurityTokenLifetime
+            };
 
             Utils.LogInfo("ChannelId {0}: New Token created. CreatedAt={1:HH:mm:ss.fff}-{2}. Lifetime={3}.",
                 Id, token.CreatedAt, token.CreatedAtTickCount, token.Lifetime);
@@ -523,10 +523,9 @@ namespace Opc.Ua.Bindings
                 }
 
                 // check if activation of the new token should be forced.
-                if (RenewedToken != null && CurrentToken.ActivationRequired)
+                else if (RenewedToken != null && CurrentToken.ActivationRequired)
                 {
                     ActivateToken(RenewedToken);
-
                     Utils.LogInfo("ChannelId {0}: Token #{1} activated forced.", Id, CurrentToken.TokenId);
                 }
 

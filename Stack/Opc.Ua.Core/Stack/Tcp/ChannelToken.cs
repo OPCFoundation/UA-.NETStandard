@@ -59,7 +59,6 @@ namespace Opc.Ua.Bindings
         /// </summary>
         ~ChannelToken()
         {
-            Debug.Assert(m_disposed);
             Dispose(disposing: false);
         }
 #endif

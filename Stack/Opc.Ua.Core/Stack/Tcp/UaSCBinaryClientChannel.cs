@@ -107,6 +107,8 @@ namespace Opc.Ua.Bindings
             {
                 Utils.SilentDispose(m_handshakeTimer);
                 m_handshakeTimer = null;
+                Utils.SilentDispose(m_requestedToken);
+                m_requestedToken = null;
             }
 
             base.Dispose(disposing);
@@ -1161,6 +1163,7 @@ namespace Opc.Ua.Bindings
 
                 // clear the handshake state.
                 m_handshakeOperation = null;
+                Utils.SilentDispose(m_requestedToken);
                 m_requestedToken = null;
                 m_reconnecting = false;
 
@@ -1228,6 +1231,7 @@ namespace Opc.Ua.Bindings
 
                 // clear the handshake state.
                 m_handshakeOperation = null;
+                Utils.SilentDispose(m_requestedToken);
                 m_requestedToken = null;
                 m_reconnecting = true;
 
