@@ -333,6 +333,9 @@ namespace Opc.Ua.Bindings
 
                 BufferCollection chunksToSend = new BufferCollection(chunksToProcess.Capacity);
 
+#if NETSTANDARD2_1_OR_GREATER || NET6_0_OR_GREATER
+                Span<byte> paddingBuffer = stackalloc byte[EncryptionBlockSize];
+#endif
                 int messageSize = 0;
 
                 for (int ii = 0; ii < chunksToProcess.Count; ii++)
@@ -429,7 +432,7 @@ namespace Opc.Ua.Bindings
                         if (SecurityMode == MessageSecurityMode.SignAndEncrypt && padding > 0)
                         {
 #if NETSTANDARD2_1_OR_GREATER || NET6_0_OR_GREATER
-                            Span<byte> buffer = stackalloc byte[padding];
+                            Span<byte> buffer = paddingBuffer.Slice(0, padding);
                             buffer.Fill((byte)padding);
                             encoder.WriteRawBytes(buffer);
 #else
@@ -782,7 +785,7 @@ namespace Opc.Ua.Bindings
             if (!result || !computedSignature.SequenceEqual(signature))
             {
                 string expectedSignature = Utils.ToHexString(computedSignature.ToArray());
-                string messageType = Encoding.UTF8.GetString(dataToVerify.Slice(0,4));
+                string messageType = Encoding.UTF8.GetString(dataToVerify.Slice(0, 4));
                 int messageLength = BitConverter.ToInt32(dataToVerify.Slice(4));
                 string actualSignature = Utils.ToHexString(signature);
 #else
@@ -885,7 +888,7 @@ namespace Opc.Ua.Bindings
                 decryptor.TransformBlock(blockToDecrypt, start, count, blockToDecrypt, start);
             }
         }
-#endregion
+        #endregion
 
         #region Private Fields
         private ChannelToken m_currentToken;
