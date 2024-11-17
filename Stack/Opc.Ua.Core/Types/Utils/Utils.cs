@@ -1546,14 +1546,19 @@ namespace Opc.Ua
         /// </summary>
 #if NETSTANDARD2_1_OR_GREATER || NET6_0_OR_GREATER
         public static string ToHexString(ReadOnlySpan<byte> buffer, bool invertEndian = false)
+        {
+            if (buffer.Length == 0)
+            {
+                return String.Empty;
+            }
 #else
         public static string ToHexString(byte[] buffer, bool invertEndian = false)
-#endif
         {
             if (buffer == null || buffer.Length == 0)
             {
                 return String.Empty;
             }
+#endif
 
 #if NET6_0_OR_GREATER
             if (!invertEndian)

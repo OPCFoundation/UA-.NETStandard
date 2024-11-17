@@ -696,7 +696,7 @@ namespace Opc.Ua.Bindings
                 State = TcpChannelState.Open;
 
                 // send the response.
-                SendOpenSecureChannelResponse(requestId, token, request);
+                SendOpenSecureChannelResponse(requestId, CurrentToken, request);
 
                 // notify reverse 
                 CompleteReverseHello(null);

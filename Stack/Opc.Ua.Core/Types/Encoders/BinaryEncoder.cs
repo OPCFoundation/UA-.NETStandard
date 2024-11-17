@@ -593,7 +593,7 @@ namespace Opc.Ua
         /// </summary>
         public void WriteByteString(string fieldName, ReadOnlySpan<byte> value)
         {
-            if (value == null)
+            if (value.Length == 0)
             {
                 WriteInt32(null, -1);
                 return;
