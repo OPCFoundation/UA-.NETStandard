@@ -429,18 +429,23 @@ namespace Opc.Ua.Bindings
                         messageSize += chunkToProcess.Count;
 
                         // write padding.
-                        if (SecurityMode == MessageSecurityMode.SignAndEncrypt && padding > 0)
+                        if (SecurityMode == MessageSecurityMode.SignAndEncrypt)
                         {
 #if NETSTANDARD2_1_OR_GREATER || NET6_0_OR_GREATER
-                            Span<byte> buffer = paddingBuffer.Slice(0, padding);
-                            buffer.Fill((byte)padding);
-                            encoder.WriteRawBytes(buffer);
-#else
-                            for (int jj = 0; jj <= padding; jj++)
+                            if (padding > 1)
                             {
-                                encoder.WriteByte(null, (byte)padding);
+                                Span<byte> buffer = paddingBuffer.Slice(0, padding + 1);
+                                buffer.Fill((byte)padding);
+                                encoder.WriteRawBytes(buffer);
                             }
+                            else
 #endif
+                            {
+                                for (int jj = 0; jj <= padding; jj++)
+                                {
+                                    encoder.WriteByte(null, (byte)padding);
+                                }
+                            }
                         }
 
                         if (SecurityMode != MessageSecurityMode.None)
