@@ -15,6 +15,7 @@ using System.IO;
 using System.Security.Cryptography;
 using System.Text;
 using System.Diagnostics.CodeAnalysis;
+using System.Diagnostics;
 
 namespace Opc.Ua.Bindings
 {
@@ -46,10 +47,11 @@ namespace Opc.Ua.Bindings
             token.ChannelId = m_channelId;
             token.TokenId = 0;
             token.CreatedAt = DateTime.UtcNow;
+            token.CreatedAtTickCount = HiResClock.TickCount;
             token.Lifetime = (int)Quotas.SecurityTokenLifetime;
 
-            Utils.LogInfo("ChannelId {0}: Token #{1} created. CreatedAt={2:HH:mm:ss.fff}. Lifetime={3}.",
-                Id, token.TokenId, token.CreatedAt, token.Lifetime);
+            Utils.LogInfo("ChannelId {0}: New Token created. CreatedAt={1:HH:mm:ss.fff}-{2}. Lifetime={3}.",
+                Id, token.CreatedAt, token.CreatedAtTickCount, token.Lifetime);
 
             return token;
         }
@@ -62,20 +64,25 @@ namespace Opc.Ua.Bindings
             // compute the keys for the token.
             ComputeKeys(token);
 
+            Utils.SilentDispose(m_previousToken);
             m_previousToken = m_currentToken;
             m_currentToken = token;
+            Utils.SilentDispose(m_renewedToken);
             m_renewedToken = null;
 
-            Utils.LogInfo("ChannelId {0}: Token #{1} activated. CreatedAt={2:HH:mm:ss.fff}. Lifetime={3}.", Id, token.TokenId, token.CreatedAt, token.Lifetime);
+            Utils.LogInfo("ChannelId {0}: Token #{1} activated. CreatedAt={2:HH:mm:ss.fff}-{3}. Lifetime={4}.",
+                Id, token.TokenId, token.CreatedAt, token.CreatedAtTickCount, token.Lifetime);
         }
 
         /// <summary>
-        /// Sets the renewed token
+        /// Sets the renewed token.
         /// </summary>
         protected void SetRenewedToken(ChannelToken token)
         {
+            Utils.SilentDispose(m_renewedToken);
             m_renewedToken = token;
-            Utils.LogInfo("ChannelId {0}: Renewed Token #{1} set. CreatedAt={2:HH:mm:ss.fff}. Lifetime ={3}.", Id, token.TokenId, token.CreatedAt, token.Lifetime);
+            Utils.LogInfo("ChannelId {0}: Renewed Token #{1} set. CreatedAt={2:HH:mm:ss.fff}-{3}. Lifetime={4}.",
+                Id, token.TokenId, token.CreatedAt, token.CreatedAtTickCount, token.Lifetime);
         }
 
         /// <summary>
@@ -83,8 +90,12 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected void DiscardTokens()
         {
+            Utils.SilentDispose(m_previousToken);
             m_previousToken = null;
+            Utils.SilentDispose(m_currentToken);
             m_currentToken = null;
+            Utils.SilentDispose(m_renewedToken);
+            m_renewedToken = null;
         }
         #endregion
 
@@ -180,21 +191,33 @@ namespace Opc.Ua.Bindings
                 SecurityPolicyUri == SecurityPolicies.Aes128_Sha256_RsaOaep ||
                 SecurityPolicyUri == SecurityPolicies.Aes256_Sha256_RsaPss)
             {
-                token.ClientSigningKey = Utils.PSHA256(token.ServerNonce, null, token.ClientNonce, 0, m_signatureKeySize);
-                token.ClientEncryptingKey = Utils.PSHA256(token.ServerNonce, null, token.ClientNonce, m_signatureKeySize, m_encryptionKeySize);
-                token.ClientInitializationVector = Utils.PSHA256(token.ServerNonce, null, token.ClientNonce, m_signatureKeySize + m_encryptionKeySize, m_encryptionBlockSize);
-                token.ServerSigningKey = Utils.PSHA256(token.ClientNonce, null, token.ServerNonce, 0, m_signatureKeySize);
-                token.ServerEncryptingKey = Utils.PSHA256(token.ClientNonce, null, token.ServerNonce, m_signatureKeySize, m_encryptionKeySize);
-                token.ServerInitializationVector = Utils.PSHA256(token.ClientNonce, null, token.ServerNonce, m_signatureKeySize + m_encryptionKeySize, m_encryptionBlockSize);
+                using (HMACSHA256 hmac = new HMACSHA256(token.ServerNonce))
+                {
+                    token.ClientSigningKey = Utils.PSHA256(hmac, null, token.ClientNonce, 0, m_signatureKeySize);
+                    token.ClientEncryptingKey = Utils.PSHA256(hmac, null, token.ClientNonce, m_signatureKeySize, m_encryptionKeySize);
+                    token.ClientInitializationVector = Utils.PSHA256(hmac, null, token.ClientNonce, m_signatureKeySize + m_encryptionKeySize, m_encryptionBlockSize);
+                }
+                using (HMACSHA256 hmac = new HMACSHA256(token.ClientNonce))
+                {
+                    token.ServerSigningKey = Utils.PSHA256(hmac, null, token.ServerNonce, 0, m_signatureKeySize);
+                    token.ServerEncryptingKey = Utils.PSHA256(hmac, null, token.ServerNonce, m_signatureKeySize, m_encryptionKeySize);
+                    token.ServerInitializationVector = Utils.PSHA256(hmac, null, token.ServerNonce, m_signatureKeySize + m_encryptionKeySize, m_encryptionBlockSize);
+                }
             }
             else
             {
-                token.ClientSigningKey = Utils.PSHA1(token.ServerNonce, null, token.ClientNonce, 0, m_signatureKeySize);
-                token.ClientEncryptingKey = Utils.PSHA1(token.ServerNonce, null, token.ClientNonce, m_signatureKeySize, m_encryptionKeySize);
-                token.ClientInitializationVector = Utils.PSHA1(token.ServerNonce, null, token.ClientNonce, m_signatureKeySize + m_encryptionKeySize, m_encryptionBlockSize);
-                token.ServerSigningKey = Utils.PSHA1(token.ClientNonce, null, token.ServerNonce, 0, m_signatureKeySize);
-                token.ServerEncryptingKey = Utils.PSHA1(token.ClientNonce, null, token.ServerNonce, m_signatureKeySize, m_encryptionKeySize);
-                token.ServerInitializationVector = Utils.PSHA1(token.ClientNonce, null, token.ServerNonce, m_signatureKeySize + m_encryptionKeySize, m_encryptionBlockSize);
+                using (HMACSHA1 hmac = new HMACSHA1(token.ServerNonce))
+                {
+                    token.ClientSigningKey = Utils.PSHA1(hmac, null, token.ClientNonce, 0, m_signatureKeySize);
+                    token.ClientEncryptingKey = Utils.PSHA1(hmac, null, token.ClientNonce, m_signatureKeySize, m_encryptionKeySize);
+                    token.ClientInitializationVector = Utils.PSHA1(hmac, null, token.ClientNonce, m_signatureKeySize + m_encryptionKeySize, m_encryptionBlockSize);
+                }
+                using (HMACSHA1 hmac = new HMACSHA1(token.ClientNonce))
+                {
+                    token.ServerSigningKey = Utils.PSHA1(hmac, null, token.ServerNonce, 0, m_signatureKeySize);
+                    token.ServerEncryptingKey = Utils.PSHA1(hmac, null, token.ServerNonce, m_signatureKeySize, m_encryptionKeySize);
+                    token.ServerInitializationVector = Utils.PSHA1(hmac, null, token.ServerNonce, m_signatureKeySize + m_encryptionKeySize, m_encryptionBlockSize);
+                }
             }
 
             switch (SecurityPolicyUri)
@@ -206,19 +229,19 @@ namespace Opc.Ua.Bindings
                 case SecurityPolicies.Aes256_Sha256_RsaPss:
                 {
                     // create encryptors.
-                    SymmetricAlgorithm AesCbcEncryptorProvider = Aes.Create();
-                    AesCbcEncryptorProvider.Mode = CipherMode.CBC;
-                    AesCbcEncryptorProvider.Padding = PaddingMode.None;
-                    AesCbcEncryptorProvider.Key = token.ClientEncryptingKey;
-                    AesCbcEncryptorProvider.IV = token.ClientInitializationVector;
-                    token.ClientEncryptor = AesCbcEncryptorProvider;
+                    SymmetricAlgorithm aesCbcEncryptorProvider = Aes.Create();
+                    aesCbcEncryptorProvider.Mode = CipherMode.CBC;
+                    aesCbcEncryptorProvider.Padding = PaddingMode.None;
+                    aesCbcEncryptorProvider.Key = token.ClientEncryptingKey;
+                    aesCbcEncryptorProvider.IV = token.ClientInitializationVector;
+                    token.ClientEncryptor = aesCbcEncryptorProvider;
 
-                    SymmetricAlgorithm AesCbcDecryptorProvider = Aes.Create();
-                    AesCbcDecryptorProvider.Mode = CipherMode.CBC;
-                    AesCbcDecryptorProvider.Padding = PaddingMode.None;
-                    AesCbcDecryptorProvider.Key = token.ServerEncryptingKey;
-                    AesCbcDecryptorProvider.IV = token.ServerInitializationVector;
-                    token.ServerEncryptor = AesCbcDecryptorProvider;
+                    SymmetricAlgorithm aesCbcDecryptorProvider = Aes.Create();
+                    aesCbcDecryptorProvider.Mode = CipherMode.CBC;
+                    aesCbcDecryptorProvider.Padding = PaddingMode.None;
+                    aesCbcDecryptorProvider.Key = token.ServerEncryptingKey;
+                    aesCbcDecryptorProvider.IV = token.ServerInitializationVector;
+                    token.ServerEncryptor = aesCbcDecryptorProvider;
 
                     // create HMACs.
                     if (SecurityPolicyUri == SecurityPolicies.Basic256Sha256 ||
@@ -277,7 +300,6 @@ namespace Opc.Ua.Bindings
                     maxPayloadSize);
 
                 // check for encodeable body.
-
                 if (messageBody is IEncodeable encodeable)
                 {
                     // debug code used to verify that message aborts are handled correctly.
@@ -329,7 +351,6 @@ namespace Opc.Ua.Bindings
 
                     try
                     {
-
                         // check if the message needs to be aborted.
                         if (MessageLimitsExceeded(isRequest, messageSize + chunkToProcess.Count - headerSize, ii + 1))
                         {
@@ -377,9 +398,11 @@ namespace Opc.Ua.Bindings
                             // reserve one byte for the padding size.
                             count++;
 
-                            if (count % EncryptionBlockSize != 0)
+                            // use padding as helper to calc the real padding
+                            padding = count % EncryptionBlockSize;
+                            if (padding != 0)
                             {
-                                padding = EncryptionBlockSize - (count % EncryptionBlockSize);
+                                padding = EncryptionBlockSize - padding;
                             }
 
                             count += padding;
@@ -403,12 +426,18 @@ namespace Opc.Ua.Bindings
                         messageSize += chunkToProcess.Count;
 
                         // write padding.
-                        if (SecurityMode == MessageSecurityMode.SignAndEncrypt)
+                        if (SecurityMode == MessageSecurityMode.SignAndEncrypt && padding > 0)
                         {
+#if NETSTANDARD2_1_OR_GREATER || NET6_0_OR_GREATER
+                            Span<byte> buffer = stackalloc byte[padding];
+                            buffer.Fill((byte)padding);
+                            encoder.WriteRawBytes(buffer);
+#else
                             for (int jj = 0; jj <= padding; jj++)
                             {
                                 encoder.WriteByte(null, (byte)padding);
                             }
+#endif
                         }
 
                         if (SecurityMode != MessageSecurityMode.None)
@@ -502,7 +531,7 @@ namespace Opc.Ua.Bindings
                 }
 
                 // find the token.
-                if (currentToken.TokenId != tokenId && PreviousToken != null && PreviousToken.TokenId != tokenId)
+                if (currentToken.TokenId != tokenId && (PreviousToken == null || PreviousToken.TokenId != tokenId))
                 {
                     throw ServiceResultException.Create(
                         StatusCodes.BadTcpSecureChannelUnknown,
@@ -524,8 +553,8 @@ namespace Opc.Ua.Bindings
                 if (token.Expired)
                 {
                     throw ServiceResultException.Create(StatusCodes.BadTcpSecureChannelUnknown,
-                        "Channel{0}: Token #{1} has expired. Lifetime={2:HH:mm:ss.fff}",
-                        Id, token.TokenId, token.CreatedAt);
+                        "Channel{0}: Token #{1} has expired. Lifetime={2:HH:mm:ss.fff}-{3}",
+                        Id, token.TokenId, token.CreatedAt, token.CreatedAtTickCount);
                 }
 
                 int headerSize = decoder.Position;
@@ -536,15 +565,14 @@ namespace Opc.Ua.Bindings
                     Decrypt(token, new ArraySegment<byte>(buffer.Array, buffer.Offset + headerSize, buffer.Count - headerSize), isRequest);
                 }
 
+                int paddingCount = 0;
                 if (SecurityMode != MessageSecurityMode.None)
                 {
+                    int signatureStart = buffer.Offset + buffer.Count - SymmetricSignatureSize;
+
                     // extract signature.
                     byte[] signature = new byte[SymmetricSignatureSize];
-
-                    for (int ii = 0; ii < SymmetricSignatureSize; ii++)
-                    {
-                        signature[ii] = buffer.Array[buffer.Offset + buffer.Count - SymmetricSignatureSize + ii];
-                    }
+                    Array.Copy(buffer.Array, signatureStart, signature, 0, signature.Length);
 
                     // verify the signature.
                     if (!Verify(token, signature, new ArraySegment<byte>(buffer.Array, buffer.Offset, buffer.Count - SymmetricSignatureSize), isRequest))
@@ -552,26 +580,24 @@ namespace Opc.Ua.Bindings
                         Utils.LogError("ChannelId {0}: Could not verify signature on message.", Id);
                         throw ServiceResultException.Create(StatusCodes.BadSecurityChecksFailed, "Could not verify the signature on the message.");
                     }
-                }
 
-                int paddingCount = 0;
-
-                if (SecurityMode == MessageSecurityMode.SignAndEncrypt)
-                {
-                    // verify padding.
-                    int paddingStart = buffer.Offset + buffer.Count - SymmetricSignatureSize - 1;
-                    paddingCount = buffer.Array[paddingStart];
-
-                    for (int ii = paddingStart - paddingCount; ii < paddingStart; ii++)
+                    if (SecurityMode == MessageSecurityMode.SignAndEncrypt)
                     {
-                        if (buffer.Array[ii] != paddingCount)
-                        {
-                            throw ServiceResultException.Create(StatusCodes.BadSecurityChecksFailed, "Could not verify the padding in the message.");
-                        }
-                    }
+                        // verify padding.
+                        int paddingStart = signatureStart - 1;
+                        paddingCount = buffer.Array[paddingStart];
 
-                    // add byte for size.
-                    paddingCount++;
+                        for (int ii = paddingStart - paddingCount; ii < paddingStart; ii++)
+                        {
+                            if (buffer.Array[ii] != paddingCount)
+                            {
+                                throw ServiceResultException.Create(StatusCodes.BadSecurityChecksFailed, "Could not verify the padding in the message.");
+                            }
+                        }
+
+                        // add byte for size.
+                        paddingCount++;
+                    }
                 }
 
                 // extract request id and sequence number.
@@ -693,15 +719,37 @@ namespace Opc.Ua.Bindings
             }
         }
 
-
+#if NETSTANDARD2_1_OR_GREATER || NET6_0_OR_GREATER
         /// <summary>
-        /// Signs the message using SHA1 HMAC
+        /// Signs the message using HMAC.
+        /// </summary>
+        private static byte[] SymmetricSign(ChannelToken token, ReadOnlySpan<byte> dataToSign, bool useClientKeys)
+        {
+            // get HMAC object.
+            HMAC hmac = (useClientKeys) ? token.ClientHmac : token.ServerHmac;
+
+            // compute hash.
+            int hashSizeInBytes = hmac.HashSize >> 3;
+            byte[] signature = new byte[hashSizeInBytes];
+            bool result = hmac.TryComputeHash(dataToSign, signature, out int bytesWritten);
+
+            // check result
+            if (!result || bytesWritten != hashSizeInBytes)
+            {
+                ServiceResultException.Create(StatusCodes.BadSecurityChecksFailed, "The computed hash doesn't match the expected size.");
+            }
+
+            // return signature.
+            return signature;
+        }
+#else
+        /// <summary>
+        /// Signs the message using HMAC.
         /// </summary>
         private static byte[] SymmetricSign(ChannelToken token, ArraySegment<byte> dataToSign, bool useClientKeys)
         {
             // get HMAC object.
             HMAC hmac = (useClientKeys) ? token.ClientHmac : token.ServerHmac;
-
             // compute hash.
             MemoryStream istrm = new MemoryStream(dataToSign.Array, dataToSign.Offset, dataToSign.Count, false);
             byte[] signature = hmac.ComputeHash(istrm);
@@ -710,7 +758,34 @@ namespace Opc.Ua.Bindings
             // return signature.
             return signature;
         }
+#endif
 
+#if NETSTANDARD2_1_OR_GREATER || NET6_0_OR_GREATER
+        /// <summary>
+        /// Verifies a HMAC for a message.
+        /// </summary>
+        private bool SymmetricVerify(
+            ChannelToken token,
+            ReadOnlySpan<byte> signature,
+            ReadOnlySpan<byte> dataToVerify,
+            bool useClientKeys)
+        {
+            // get HMAC object.
+            HMAC hmac = (useClientKeys) ? token.ClientHmac : token.ServerHmac;
+
+            // compute hash.
+            int hashSizeInBytes = hmac.HashSize >> 3;
+            Span<byte> computedSignature = stackalloc byte[hashSizeInBytes];
+            bool result = hmac.TryComputeHash(dataToVerify, computedSignature, out int bytesWritten);
+            Debug.Assert(bytesWritten == hashSizeInBytes);
+            // compare signatures.
+            if (!result || !computedSignature.SequenceEqual(signature))
+            {
+                string expectedSignature = Utils.ToHexString(computedSignature.ToArray());
+                string messageType = Encoding.UTF8.GetString(dataToVerify.Slice(0,4));
+                int messageLength = BitConverter.ToInt32(dataToVerify.Slice(4));
+                string actualSignature = Utils.ToHexString(signature);
+#else
         /// <summary>
         /// Verifies a HMAC for a message.
         /// </summary>
@@ -723,31 +798,27 @@ namespace Opc.Ua.Bindings
             // get HMAC object.
             HMAC hmac = (useClientKeys) ? token.ClientHmac : token.ServerHmac;
 
-            // compute hash.
             MemoryStream istrm = new MemoryStream(dataToVerify.Array, dataToVerify.Offset, dataToVerify.Count, false);
             byte[] computedSignature = hmac.ComputeHash(istrm);
             istrm.Dispose();
-
             // compare signatures.
-            for (int ii = 0; ii < signature.Length; ii++)
+            if (!Utils.IsEqual(computedSignature, signature))
             {
-                if (computedSignature[ii] != signature[ii])
-                {
-                    string messageType = Encoding.UTF8.GetString(dataToVerify.Array, dataToVerify.Offset, 4);
-                    int messageLength = BitConverter.ToInt32(dataToVerify.Array, dataToVerify.Offset + 4);
-                    string expectedSignature = Utils.ToHexString(computedSignature);
-                    string actualSignature = Utils.ToHexString(signature);
+                string expectedSignature = Utils.ToHexString(computedSignature);
+                string messageType = Encoding.UTF8.GetString(dataToVerify.Array, dataToVerify.Offset, 4);
+                int messageLength = BitConverter.ToInt32(dataToVerify.Array, dataToVerify.Offset + 4);
+                string actualSignature = Utils.ToHexString(signature);
+#endif
 
-                    var message = new StringBuilder();
-                    message.AppendLine("Channel{0}: Could not validate signature.");
-                    message.AppendLine("ChannelId={1}, TokenId={2}, MessageType={3}, Length={4}");
-                    message.AppendLine("ExpectedSignature={5}");
-                    message.AppendLine("ActualSignature={6}");
-                    Utils.LogError(message.ToString(), Id, token.ChannelId, token.TokenId,
-                        messageType, messageLength, expectedSignature, actualSignature);
+                var message = new StringBuilder();
+                message.AppendLine("Channel{0}: Could not validate signature.");
+                message.AppendLine("ChannelId={1}, TokenId={2}, MessageType={3}, Length={4}");
+                message.AppendLine("ExpectedSignature={5}");
+                message.AppendLine("ActualSignature={6}");
+                Utils.LogError(message.ToString(), Id, token.ChannelId, token.TokenId,
+                    messageType, messageLength, expectedSignature, actualSignature);
 
-                    return false;
-                }
+                return false;
             }
 
             return true;
@@ -779,7 +850,6 @@ namespace Opc.Ua.Bindings
                 {
                     throw ServiceResultException.Create(StatusCodes.BadSecurityChecksFailed, "Input data is not an even number of encryption blocks.");
                 }
-
                 encryptor.TransformBlock(blockToEncrypt, start, count, blockToEncrypt, start);
             }
         }
@@ -815,7 +885,7 @@ namespace Opc.Ua.Bindings
                 decryptor.TransformBlock(blockToDecrypt, start, count, blockToDecrypt, start);
             }
         }
-        #endregion
+#endregion
 
         #region Private Fields
         private ChannelToken m_currentToken;

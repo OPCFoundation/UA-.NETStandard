@@ -81,6 +81,7 @@ namespace Opc.Ua.Bindings
             }
 
             m_requests = new ConcurrentDictionary<uint, WriteOperation>();
+            m_random = new Random();
             m_lastRequestId = 0;
             m_ConnectCallback = new EventHandler<IMessageSocketAsyncEventArgs>(OnConnectComplete);
             m_startHandshake = new TimerCallback(OnScheduledHandshake);
@@ -504,7 +505,7 @@ namespace Opc.Ua.Bindings
                 decoder.Close();
             }
 
- 
+
             // ready to open the channel.
             State = TcpChannelState.Opening;
 
@@ -958,11 +959,17 @@ namespace Opc.Ua.Bindings
                     // close the socket and reconnect.
                     State = TcpChannelState.Closed;
 
-                    if (Socket != null)
+                    // dispose of the tokens.
+                    uint channelId = ChannelId;
+                    ChannelId = 0;
+                    DiscardTokens();
+
+                    var socket = Socket;
+                    if (socket != null)
                     {
-                        Utils.LogInfo("ChannelId {0}: CLIENTCHANNEL SOCKET CLOSED: {1:X8}", ChannelId, Socket.Handle);
-                        Socket.Close();
                         Socket = null;
+                        Utils.LogInfo("ChannelId {0}: CLIENTCHANNEL SOCKET CLOSED ON SCHEDULED HANDSHAKE: {1:X8}", channelId, socket.Handle);
+                        socket.Close();
                     }
 
                     // set the state.
@@ -1157,11 +1164,12 @@ namespace Opc.Ua.Bindings
                 m_requestedToken = null;
                 m_reconnecting = false;
 
-                if (Socket != null)
+                var socket = Socket;
+                if (socket != null)
                 {
-                    Utils.LogInfo("ChannelId {0}: CLIENTCHANNEL SOCKET CLOSED: {1:X8}", channelId, Socket.Handle);
-                    Socket.Close();
                     Socket = null;
+                    Utils.LogInfo("ChannelId {0}: CLIENTCHANNEL SOCKET CLOSED SHUTDOWN: {1:X8}", channelId, socket.Handle);
+                    socket.Close();
                 }
 
                 // set the state.       
@@ -1265,19 +1273,20 @@ namespace Opc.Ua.Bindings
                 m_handshakeTimer = null;
             }
 
-            // calculate renewal timing based on token lifetime.
-            DateTime expiryTime = token.CreatedAt.AddMilliseconds(token.Lifetime);
-
-            double timeToRenewal = ((expiryTime.Ticks - DateTime.UtcNow.Ticks) / TimeSpan.TicksPerMillisecond) * TcpMessageLimits.TokenRenewalPeriod;
-
+            // calculate renewal timing based on token lifetime + jitter. Do not rely on the server time!
+            int jitterResolution = (int)Math.Round(token.Lifetime * TcpMessageLimits.TokenRenewalJitterPeriod);
+            int jitter = m_random.Next(-jitterResolution, jitterResolution);
+            int timeToRenewal = (int)Math.Round(token.Lifetime * TcpMessageLimits.TokenRenewalPeriod) +
+                jitter - (HiResClock.TickCount - token.CreatedAtTickCount);
             if (timeToRenewal < 0)
             {
                 timeToRenewal = 0;
             }
 
-            Utils.LogInfo("ChannelId {0}: Token Expiry {1}, renewal scheduled in {2} ms.", ChannelId, expiryTime, (int)timeToRenewal);
+            Utils.LogInfo("ChannelId {0}: Token Expiry {1:HH:mm:ss.fff}, renewal scheduled at {2:HH:mm:ss.fff} in {3} ms.",
+                ChannelId, token.CreatedAt.AddMilliseconds(token.Lifetime), HiResClock.UtcTickCount(token.CreatedAtTickCount + timeToRenewal), timeToRenewal);
 
-            m_handshakeTimer = new Timer(m_startHandshake, token, (int)timeToRenewal, Timeout.Infinite);
+            m_handshakeTimer = new Timer(m_startHandshake, token, timeToRenewal, Timeout.Infinite);
         }
 
         /// <summary>
@@ -1605,6 +1614,7 @@ namespace Opc.Ua.Bindings
         private TimerCallback m_startHandshake;
         private AsyncCallback m_handshakeComplete;
         private List<QueuedOperation> m_queuedOperations;
+        private Random m_random;
         private readonly string g_ImplementationString = "UA.NETStandard ClientChannel {0} " + Utils.GetAssemblyBuildNumber();
         #endregion
     }
