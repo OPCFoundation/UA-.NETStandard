@@ -241,7 +241,8 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public void ChannelClosed(uint channelId)
         {
-            if (m_channels?.TryRemove(channelId, out var channel) == true)
+            TcpListenerChannel channel = null;
+            if (m_channels?.TryRemove(channelId, out channel) == true)
             {
                 Utils.SilentDispose(channel);
                 Utils.LogInfo("ChannelId {0}: closed", channelId);
