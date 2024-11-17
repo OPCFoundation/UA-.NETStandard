@@ -76801,6 +76801,489 @@ namespace Opc.Ua
     #endif
     #endregion
 
+    #region TestUnion Class
+    #if (!OPCUA_EXCLUDE_TestUnion)
+    /// <remarks />
+    /// <exclude />
+    public enum TestUnionFields : uint
+    {
+        /// <remarks />
+        None = 0,
+        /// <remarks />
+        A = 1,
+        /// <remarks />
+        B = 2,
+        /// <remarks />
+        C = 3
+    }
+
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
+    public partial class TestUnion : IEncodeable, IJsonEncodeable
+    {
+        #region Constructors
+        /// <remarks />
+        public TestUnion()
+        {
+            Initialize();
+        }
+
+        [OnDeserializing]
+        private void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+
+        private void Initialize()
+        {
+            SwitchField = TestUnionFields.None;
+            m_a = (short)0;
+            m_b = (double)0;
+            m_c = null;
+        }
+        #endregion
+
+        #region Public Properties
+        /// <remarks />
+        [DataMember(Name = "SwitchField", IsRequired = true, Order = 0)]
+        public TestUnionFields SwitchField { get; set; }
+
+        /// <remarks />
+        [DataMember(Name = "A", IsRequired = false, Order = 1)]
+        public short A
+        {
+            get { return m_a;  }
+            set { m_a = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "B", IsRequired = false, Order = 2)]
+        public double B
+        {
+            get { return m_b;  }
+            set { m_b = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "C", IsRequired = false, Order = 3)]
+        public string C
+        {
+            get { return m_c;  }
+            set { m_c = value; }
+        }
+        #endregion
+
+        #region IEncodeable Members
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId TypeId => DataTypeIds.TestUnion; 
+
+        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.TestUnion_Encoding_DefaultBinary;
+
+        /// <summary cref="IEncodeable.XmlEncodingId" />
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.TestUnion_Encoding_DefaultXml;
+
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.TestUnion_Encoding_DefaultJson; 
+
+        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        public virtual void Encode(IEncoder encoder)
+        {
+            encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+            encoder.WriteSwitchField(nameof(SwitchField), (uint)SwitchField);
+
+            switch (SwitchField)
+            {
+                default: { break; }
+                case TestUnionFields.A: { encoder.WriteInt16("A", A); break; }
+                case TestUnionFields.B: { encoder.WriteDouble("B", B); break; }
+                case TestUnionFields.C: { encoder.WriteString("C", C); break; }
+            }
+            
+            encoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        public virtual void Decode(IDecoder decoder)
+        {
+            decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            SwitchField = (TestUnionFields)decoder.ReadSwitchField(typeof(TestUnionFields));
+                
+            switch (SwitchField)
+            {
+                default: { break; }
+                case TestUnionFields.A: { A = decoder.ReadInt16("A"); break; }
+                case TestUnionFields.B: { B = decoder.ReadDouble("B"); break; }
+                case TestUnionFields.C: { C = decoder.ReadString("C"); break; }
+            }
+
+            decoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        public virtual bool IsEqual(IEncodeable encodeable)
+        {
+            if (Object.ReferenceEquals(this, encodeable))
+            {
+                return true;
+            }
+
+            TestUnion value = encodeable as TestUnion;
+
+            if (value == null)
+            {
+                return false;
+            }
+
+            if (value.SwitchField != this.SwitchField) return false;
+
+            switch (SwitchField)
+            {
+                default: { break; }
+                case TestUnionFields.A: { if (!Utils.IsEqual(m_a, value.m_a)) return false; break; }
+                case TestUnionFields.B: { if (!Utils.IsEqual(m_b, value.m_b)) return false; break; }
+                case TestUnionFields.C: { if (!Utils.IsEqual(m_c, value.m_c)) return false; break; }
+            }
+
+            return true;
+        }
+
+        /// <summary cref="ICloneable.Clone" />
+        public virtual object Clone()
+        {
+            return (TestUnion)this.MemberwiseClone();
+        }
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            TestUnion clone = (TestUnion)base.MemberwiseClone();
+
+            clone.SwitchField = this.SwitchField;
+
+            switch (SwitchField)
+            {
+                default: { break; }
+                case TestUnionFields.A: { clone.m_a = (short)Utils.Clone(this.m_a); break; }
+                case TestUnionFields.B: { clone.m_b = (double)Utils.Clone(this.m_b); break; }
+                case TestUnionFields.C: { clone.m_c = (string)Utils.Clone(this.m_c); break; }
+            }
+
+            return clone;
+        }
+        #endregion
+
+        #region Private Fields
+        private short m_a;
+        private double m_b;
+        private string m_c;
+        #endregion
+    }
+
+    #region TestUnionCollection Class
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [CollectionDataContract(Name = "ListOfTestUnion", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "TestUnion")]
+    public partial class TestUnionCollection : List<TestUnion>, ICloneable
+    {
+        #region Constructors
+        /// <remarks />
+        public TestUnionCollection() {}
+
+        /// <remarks />
+        public TestUnionCollection(int capacity) : base(capacity) {}
+
+        /// <remarks />
+        public TestUnionCollection(IEnumerable<TestUnion> collection) : base(collection) {}
+        #endregion
+
+        #region Static Operators
+        /// <remarks />
+        public static implicit operator TestUnionCollection(TestUnion[] values)
+        {
+            if (values != null)
+            {
+                return new TestUnionCollection(values);
+            }
+
+            return new TestUnionCollection();
+        }
+
+        /// <remarks />
+        public static explicit operator TestUnion[](TestUnionCollection values)
+        {
+            if (values != null)
+            {
+                return values.ToArray();
+            }
+
+            return null;
+        }
+        #endregion
+
+        #region ICloneable Methods
+        /// <remarks />
+        public object Clone()
+        {
+            return (TestUnionCollection)this.MemberwiseClone();
+        }
+        #endregion
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            TestUnionCollection clone = new TestUnionCollection(this.Count);
+
+            for (int ii = 0; ii < this.Count; ii++)
+            {
+                clone.Add((TestUnion)Utils.Clone(this[ii]));
+            }
+
+            return clone;
+        }
+    }
+    #endregion
+    #endif
+    #endregion
+
+    #region TestOptionalFields Class
+    #if (!OPCUA_EXCLUDE_TestOptionalFields)
+    /// <remarks />
+    /// <exclude />
+    
+    public enum TestOptionalFieldsFields : uint
+    {   
+        /// <remarks />
+        None = 0,
+        /// <remarks />
+        A = 0x1,
+        /// <remarks />
+        B = 0x2,
+        /// <remarks />
+        C = 0x4,
+    }
+        
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
+    public partial class TestOptionalFields : IEncodeable, IJsonEncodeable
+    {
+        #region Constructors
+        /// <remarks />
+        public TestOptionalFields()
+        {
+            Initialize();
+        }
+
+        [OnDeserializing]
+        private void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+
+        private void Initialize()
+        {
+            EncodingMask = (uint)TestOptionalFieldsFields.None;
+            m_a = (short)0;
+            m_b = (double)0;
+            m_c = null;
+        }
+        #endregion
+
+        #region Public Properties
+        /// <remarks />
+        [DataMember(Name = "EncodingMask", IsRequired = true, Order = 0)]
+        public virtual uint EncodingMask { get; set; }
+
+        /// <remarks />
+        [DataMember(Name = "A", IsRequired = false, Order = 1)]
+        public short A
+        {
+            get { return m_a;  }
+            set { m_a = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "B", IsRequired = false, Order = 2)]
+        public double B
+        {
+            get { return m_b;  }
+            set { m_b = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "C", IsRequired = false, Order = 3)]
+        public string C
+        {
+            get { return m_c;  }
+            set { m_c = value; }
+        }
+        #endregion
+
+        #region IEncodeable Members
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId TypeId => DataTypeIds.TestOptionalFields; 
+
+        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.TestOptionalFields_Encoding_DefaultBinary;
+
+        /// <summary cref="IEncodeable.XmlEncodingId" />
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.TestOptionalFields_Encoding_DefaultXml;
+            
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.TestOptionalFields_Encoding_DefaultJson; 
+
+        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        public virtual void Encode(IEncoder encoder)
+        {
+            encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+            encoder.WriteEncodingMask(nameof(EncodingMask), (uint)EncodingMask);
+
+            if ((EncodingMask & (uint)TestOptionalFieldsFields.A) != 0) encoder.WriteInt16("A", A);
+            if ((EncodingMask & (uint)TestOptionalFieldsFields.B) != 0) encoder.WriteDouble("B", B);
+            if ((EncodingMask & (uint)TestOptionalFieldsFields.C) != 0) encoder.WriteString("C", C);
+
+            encoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        public virtual void Decode(IDecoder decoder)
+        {
+            decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            EncodingMask = decoder.ReadEncodingMask(typeof(TestOptionalFieldsFields));
+
+            if ((EncodingMask & (uint)TestOptionalFieldsFields.A) != 0) A = decoder.ReadInt16("A");
+            if ((EncodingMask & (uint)TestOptionalFieldsFields.B) != 0) B = decoder.ReadDouble("B");
+            if ((EncodingMask & (uint)TestOptionalFieldsFields.C) != 0) C = decoder.ReadString("C");
+
+            decoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        public virtual bool IsEqual(IEncodeable encodeable)
+        {
+            if (Object.ReferenceEquals(this, encodeable))
+            {
+                return true;
+            }
+
+            TestOptionalFields value = encodeable as TestOptionalFields;
+
+            if (value == null)
+            {
+                return false;
+            }
+
+            if (value.EncodingMask != this.EncodingMask) return false;
+
+            if ((EncodingMask & (uint)TestOptionalFieldsFields.A) != 0) if (!Utils.IsEqual(m_a, value.m_a)) return false;
+            if ((EncodingMask & (uint)TestOptionalFieldsFields.B) != 0) if (!Utils.IsEqual(m_b, value.m_b)) return false;
+            if ((EncodingMask & (uint)TestOptionalFieldsFields.C) != 0) if (!Utils.IsEqual(m_c, value.m_c)) return false;
+
+            return true;
+        }
+
+        /// <summary cref="ICloneable.Clone" />
+        public virtual object Clone()
+        {
+            return (TestOptionalFields)this.MemberwiseClone();
+        }
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            TestOptionalFields clone = (TestOptionalFields)base.MemberwiseClone();
+
+            clone.EncodingMask = this.EncodingMask;
+
+            if ((EncodingMask & (uint)TestOptionalFieldsFields.A) != 0) clone.m_a = (short)Utils.Clone(this.m_a);
+            if ((EncodingMask & (uint)TestOptionalFieldsFields.B) != 0) clone.m_b = (double)Utils.Clone(this.m_b);
+            if ((EncodingMask & (uint)TestOptionalFieldsFields.C) != 0) clone.m_c = (string)Utils.Clone(this.m_c);
+
+            return clone;
+        }
+        #endregion
+
+        #region Private Fields
+        private short m_a;
+        private double m_b;
+        private string m_c;
+        #endregion
+    }
+
+    #region TestOptionalFieldsCollection Class
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [CollectionDataContract(Name = "ListOfTestOptionalFields", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "TestOptionalFields")]
+    public partial class TestOptionalFieldsCollection : List<TestOptionalFields>, ICloneable
+    {
+        #region Constructors
+        /// <remarks />
+        public TestOptionalFieldsCollection() {}
+
+        /// <remarks />
+        public TestOptionalFieldsCollection(int capacity) : base(capacity) {}
+
+        /// <remarks />
+        public TestOptionalFieldsCollection(IEnumerable<TestOptionalFields> collection) : base(collection) {}
+        #endregion
+
+        #region Static Operators
+        /// <remarks />
+        public static implicit operator TestOptionalFieldsCollection(TestOptionalFields[] values)
+        {
+            if (values != null)
+            {
+                return new TestOptionalFieldsCollection(values);
+            }
+
+            return new TestOptionalFieldsCollection();
+        }
+
+        /// <remarks />
+        public static explicit operator TestOptionalFields[](TestOptionalFieldsCollection values)
+        {
+            if (values != null)
+            {
+                return values.ToArray();
+            }
+
+            return null;
+        }
+        #endregion
+
+        #region ICloneable Methods
+        /// <remarks />
+        public object Clone()
+        {
+            return (TestOptionalFieldsCollection)this.MemberwiseClone();
+        }
+        #endregion
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            TestOptionalFieldsCollection clone = new TestOptionalFieldsCollection(this.Count);
+
+            for (int ii = 0; ii < this.Count; ii++)
+            {
+                clone.Add((TestOptionalFields)Utils.Clone(this[ii]));
+            }
+
+            return clone;
+        }
+    }
+    #endregion
+    #endif
+    #endregion
+
     #region TestEnumeration Enumeration
     #if (!OPCUA_EXCLUDE_TestEnumeration)
     /// <remarks />
@@ -76893,6 +77376,98 @@ namespace Opc.Ua
     #endif
     #endregion
 
+    #region TestOptionSet Enumeration
+    #if (!OPCUA_EXCLUDE_TestOptionSet)
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)][Flags]
+    public enum TestOptionSet : UInt64
+    {
+        /// <remarks />
+        [EnumMember(Value = "None_0")]
+        None = 0,
+
+        /// <remarks />
+        [EnumMember(Value = "A_1")]
+        A = 1,
+
+        /// <remarks />
+        [EnumMember(Value = "B_2")]
+        B = 2,
+
+        /// <remarks />
+        [EnumMember(Value = "C_4")]
+        C = 4,
+    }
+
+    #region TestOptionSetCollection Class
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [CollectionDataContract(Name = "ListOfTestOptionSet", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "TestOptionSet")]
+    public partial class TestOptionSetCollection : List<TestOptionSet>, ICloneable
+    {
+        #region Constructors
+        /// <remarks />
+        public TestOptionSetCollection() {}
+
+        /// <remarks />
+        public TestOptionSetCollection(int capacity) : base(capacity) {}
+
+        /// <remarks />
+        public TestOptionSetCollection(IEnumerable<TestOptionSet> collection) : base(collection) {}
+        #endregion
+
+        #region Static Operators
+        /// <remarks />
+        public static implicit operator TestOptionSetCollection(TestOptionSet[] values)
+        {
+            if (values != null)
+            {
+                return new TestOptionSetCollection(values);
+            }
+
+            return new TestOptionSetCollection();
+        }
+
+        /// <remarks />
+        public static explicit operator TestOptionSet[](TestOptionSetCollection values)
+        {
+            if (values != null)
+            {
+                return values.ToArray();
+            }
+
+            return null;
+        }
+        #endregion
+
+        #region ICloneable Methods
+        /// <remarks />
+        public object Clone()
+        {
+            return (TestOptionSetCollection)this.MemberwiseClone();
+        }
+        #endregion
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            TestOptionSetCollection clone = new TestOptionSetCollection(this.Count);
+
+            for (int ii = 0; ii < this.Count; ii++)
+            {
+                clone.Add((TestOptionSet)Utils.Clone(this[ii]));
+            }
+
+            return clone;
+        }
+    }
+    #endregion
+    #endif
+    #endregion
+
     #region TestScalarStructure Class
     #if (!OPCUA_EXCLUDE_TestScalarStructure)
     /// <remarks />
@@ -76941,7 +77516,10 @@ namespace Opc.Ua
             m_w = null;
             m_x = new TestConcreteStructure();
             m_y = TestEnumeration.Invalid;
-            m_z = new DataValue();
+            m_z = 0;
+            m_a1 = new TestUnion();
+            m_b1 = new TestOptionalFields();
+            m_c1 = new DataValue();
         }
         #endregion
 
@@ -77160,10 +77738,58 @@ namespace Opc.Ua
 
         /// <remarks />
         [DataMember(Name = "Z", IsRequired = false, Order = 26)]
-        public DataValue Z
+        public ulong Z
         {
             get { return m_z;  }
             set { m_z = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "A1", IsRequired = false, Order = 27)]
+        public TestUnion A1
+        {
+            get
+            {
+                return m_a1;
+            }
+
+            set
+            {
+                m_a1 = value;
+
+                if (value == null)
+                {
+                    m_a1 = new TestUnion();
+                }
+            }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "B1", IsRequired = false, Order = 28)]
+        public TestOptionalFields B1
+        {
+            get
+            {
+                return m_b1;
+            }
+
+            set
+            {
+                m_b1 = value;
+
+                if (value == null)
+                {
+                    m_b1 = new TestOptionalFields();
+                }
+            }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "C1", IsRequired = false, Order = 29)]
+        public DataValue C1
+        {
+            get { return m_c1;  }
+            set { m_c1 = value; }
         }
         #endregion
 
@@ -77210,7 +77836,10 @@ namespace Opc.Ua
             encoder.WriteExtensionObject("W", W);
             encoder.WriteEncodeable("X", X, typeof(TestConcreteStructure));
             encoder.WriteEnumerated("Y", Y);
-            encoder.WriteDataValue("Z", Z);
+            encoder.WriteUInt64("Z", Z);
+            encoder.WriteEncodeable("A1", A1, typeof(TestUnion));
+            encoder.WriteEncodeable("B1", B1, typeof(TestOptionalFields));
+            encoder.WriteDataValue("C1", C1);
 
             encoder.PopNamespace();
         }
@@ -77245,7 +77874,10 @@ namespace Opc.Ua
             W = decoder.ReadExtensionObject("W");
             X = (TestConcreteStructure)decoder.ReadEncodeable("X", typeof(TestConcreteStructure));
             Y = (TestEnumeration)decoder.ReadEnumerated("Y", typeof(TestEnumeration));
-            Z = decoder.ReadDataValue("Z");
+            Z = decoder.ReadUInt64("Z");
+            A1 = (TestUnion)decoder.ReadEncodeable("A1", typeof(TestUnion));
+            B1 = (TestOptionalFields)decoder.ReadEncodeable("B1", typeof(TestOptionalFields));
+            C1 = decoder.ReadDataValue("C1");
 
             decoder.PopNamespace();
         }
@@ -77291,6 +77923,9 @@ namespace Opc.Ua
             if (!Utils.IsEqual(m_x, value.m_x)) return false;
             if (!Utils.IsEqual(m_y, value.m_y)) return false;
             if (!Utils.IsEqual(m_z, value.m_z)) return false;
+            if (!Utils.IsEqual(m_a1, value.m_a1)) return false;
+            if (!Utils.IsEqual(m_b1, value.m_b1)) return false;
+            if (!Utils.IsEqual(m_c1, value.m_c1)) return false;
 
             return true;
         }
@@ -77331,7 +77966,10 @@ namespace Opc.Ua
             clone.m_w = (ExtensionObject)Utils.Clone(this.m_w);
             clone.m_x = (TestConcreteStructure)Utils.Clone(this.m_x);
             clone.m_y = (TestEnumeration)Utils.Clone(this.m_y);
-            clone.m_z = (DataValue)Utils.Clone(this.m_z);
+            clone.m_z = (ulong)Utils.Clone(this.m_z);
+            clone.m_a1 = (TestUnion)Utils.Clone(this.m_a1);
+            clone.m_b1 = (TestOptionalFields)Utils.Clone(this.m_b1);
+            clone.m_c1 = (DataValue)Utils.Clone(this.m_c1);
 
             return clone;
         }
@@ -77363,7 +78001,10 @@ namespace Opc.Ua
         private ExtensionObject m_w;
         private TestConcreteStructure m_x;
         private TestEnumeration m_y;
-        private DataValue m_z;
+        private ulong m_z;
+        private TestUnion m_a1;
+        private TestOptionalFields m_b1;
+        private DataValue m_c1;
         #endregion
     }
 
@@ -77482,7 +78123,10 @@ namespace Opc.Ua
             m_w = new ExtensionObjectCollection();
             m_x = new TestConcreteStructureCollection();
             m_y = new TestEnumerationCollection();
-            m_z = new DataValueCollection();
+            m_z = new UInt64Collection();
+            m_a1 = new TestUnionCollection();
+            m_b1 = new TestOptionalFieldsCollection();
+            m_c1 = new DataValueCollection();
         }
         #endregion
 
@@ -77977,7 +78621,7 @@ namespace Opc.Ua
 
         /// <remarks />
         [DataMember(Name = "Z", IsRequired = false, Order = 26)]
-        public DataValueCollection Z
+        public UInt64Collection Z
         {
             get
             {
@@ -77990,7 +78634,67 @@ namespace Opc.Ua
 
                 if (value == null)
                 {
-                    m_z = new DataValueCollection();
+                    m_z = new UInt64Collection();
+                }
+            }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "A1", IsRequired = false, Order = 27)]
+        public TestUnionCollection A1
+        {
+            get
+            {
+                return m_a1;
+            }
+
+            set
+            {
+                m_a1 = value;
+
+                if (value == null)
+                {
+                    m_a1 = new TestUnionCollection();
+                }
+            }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "B1", IsRequired = false, Order = 28)]
+        public TestOptionalFieldsCollection B1
+        {
+            get
+            {
+                return m_b1;
+            }
+
+            set
+            {
+                m_b1 = value;
+
+                if (value == null)
+                {
+                    m_b1 = new TestOptionalFieldsCollection();
+                }
+            }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "C1", IsRequired = false, Order = 29)]
+        public DataValueCollection C1
+        {
+            get
+            {
+                return m_c1;
+            }
+
+            set
+            {
+                m_c1 = value;
+
+                if (value == null)
+                {
+                    m_c1 = new DataValueCollection();
                 }
             }
         }
@@ -78039,7 +78743,10 @@ namespace Opc.Ua
             encoder.WriteExtensionObjectArray("W", W);
             encoder.WriteEncodeableArray("X", X.ToArray(), typeof(TestConcreteStructure));
             encoder.WriteEnumeratedArray("Y", Y.ToArray(), typeof(TestEnumeration));
-            encoder.WriteDataValueArray("Z", Z);
+            encoder.WriteUInt64Array("Z", Z);
+            encoder.WriteEncodeableArray("A1", A1.ToArray(), typeof(TestUnion));
+            encoder.WriteEncodeableArray("B1", B1.ToArray(), typeof(TestOptionalFields));
+            encoder.WriteDataValueArray("C1", C1);
 
             encoder.PopNamespace();
         }
@@ -78074,7 +78781,10 @@ namespace Opc.Ua
             W = decoder.ReadExtensionObjectArray("W");
             X = (TestConcreteStructureCollection)decoder.ReadEncodeableArray("X", typeof(TestConcreteStructure));
             Y = (TestEnumerationCollection)decoder.ReadEnumeratedArray("Y", typeof(TestEnumeration));
-            Z = decoder.ReadDataValueArray("Z");
+            Z = decoder.ReadUInt64Array("Z");
+            A1 = (TestUnionCollection)decoder.ReadEncodeableArray("A1", typeof(TestUnion));
+            B1 = (TestOptionalFieldsCollection)decoder.ReadEncodeableArray("B1", typeof(TestOptionalFields));
+            C1 = decoder.ReadDataValueArray("C1");
 
             decoder.PopNamespace();
         }
@@ -78120,6 +78830,9 @@ namespace Opc.Ua
             if (!Utils.IsEqual(m_x, value.m_x)) return false;
             if (!Utils.IsEqual(m_y, value.m_y)) return false;
             if (!Utils.IsEqual(m_z, value.m_z)) return false;
+            if (!Utils.IsEqual(m_a1, value.m_a1)) return false;
+            if (!Utils.IsEqual(m_b1, value.m_b1)) return false;
+            if (!Utils.IsEqual(m_c1, value.m_c1)) return false;
 
             return true;
         }
@@ -78160,7 +78873,10 @@ namespace Opc.Ua
             clone.m_w = (ExtensionObjectCollection)Utils.Clone(this.m_w);
             clone.m_x = (TestConcreteStructureCollection)Utils.Clone(this.m_x);
             clone.m_y = (TestEnumerationCollection)Utils.Clone(this.m_y);
-            clone.m_z = (DataValueCollection)Utils.Clone(this.m_z);
+            clone.m_z = (UInt64Collection)Utils.Clone(this.m_z);
+            clone.m_a1 = (TestUnionCollection)Utils.Clone(this.m_a1);
+            clone.m_b1 = (TestOptionalFieldsCollection)Utils.Clone(this.m_b1);
+            clone.m_c1 = (DataValueCollection)Utils.Clone(this.m_c1);
 
             return clone;
         }
@@ -78192,7 +78908,10 @@ namespace Opc.Ua
         private ExtensionObjectCollection m_w;
         private TestConcreteStructureCollection m_x;
         private TestEnumerationCollection m_y;
-        private DataValueCollection m_z;
+        private UInt64Collection m_z;
+        private TestUnionCollection m_a1;
+        private TestOptionalFieldsCollection m_b1;
+        private DataValueCollection m_c1;
         #endregion
     }
 

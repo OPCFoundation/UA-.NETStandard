@@ -1514,6 +1514,12 @@ namespace Opc.Ua
             }
             return null;
         }
+
+        /// <inheritdoc/>
+        public uint ReadSwitchField(Type switches) => ReadUInt32("SwitchField");
+
+        /// <inheritdoc/>
+        public uint ReadEncodingMask(Type masks) => ReadUInt32("EncodingMask");
         #endregion
 
         #region Private Methods

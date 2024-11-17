@@ -1504,7 +1504,16 @@ namespace Opc.Ua
         public const uint TestConcreteStructure = 15400;
 
         /// <remarks />
+        public const uint TestUnion = 19431;
+
+        /// <remarks />
+        public const uint TestOptionalFields = 19432;
+
+        /// <remarks />
         public const uint TestEnumeration = 15432;
+
+        /// <remarks />
+        public const uint TestOptionSet = 19433;
 
         /// <remarks />
         public const uint TestScalarStructure = 15015;
@@ -5906,6 +5915,12 @@ namespace Opc.Ua
         public const uint TestConcreteStructure_Encoding_DefaultBinary = 15402;
 
         /// <remarks />
+        public const uint TestUnion_Encoding_DefaultBinary = 19435;
+
+        /// <remarks />
+        public const uint TestOptionalFields_Encoding_DefaultBinary = 19436;
+
+        /// <remarks />
         public const uint TestScalarStructure_Encoding_DefaultBinary = 15024;
 
         /// <remarks />
@@ -6998,6 +7013,12 @@ namespace Opc.Ua
         public const uint TestConcreteStructure_Encoding_DefaultXml = 15404;
 
         /// <remarks />
+        public const uint TestUnion_Encoding_DefaultXml = 19437;
+
+        /// <remarks />
+        public const uint TestOptionalFields_Encoding_DefaultXml = 19438;
+
+        /// <remarks />
         public const uint TestScalarStructure_Encoding_DefaultXml = 15232;
 
         /// <remarks />
@@ -8088,6 +8109,12 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint TestConcreteStructure_Encoding_DefaultJson = 15431;
+
+        /// <remarks />
+        public const uint TestUnion_Encoding_DefaultJson = 19439;
+
+        /// <remarks />
+        public const uint TestOptionalFields_Encoding_DefaultJson = 19440;
 
         /// <remarks />
         public const uint TestScalarStructure_Encoding_DefaultJson = 15396;
@@ -25286,6 +25313,9 @@ namespace Opc.Ua
         public const uint TestEnumeration_EnumValues = 15433;
 
         /// <remarks />
+        public const uint TestOptionSet_OptionSetValues = 19441;
+
+        /// <remarks />
         public const uint OpcUa_BinarySchema = 7617;
 
         /// <remarks />
@@ -28113,7 +28143,16 @@ namespace Opc.Ua
         public static readonly NodeId TestConcreteStructure = new NodeId(Opc.Ua.DataTypes.TestConcreteStructure);
 
         /// <remarks />
+        public static readonly NodeId TestUnion = new NodeId(Opc.Ua.DataTypes.TestUnion);
+
+        /// <remarks />
+        public static readonly NodeId TestOptionalFields = new NodeId(Opc.Ua.DataTypes.TestOptionalFields);
+
+        /// <remarks />
         public static readonly NodeId TestEnumeration = new NodeId(Opc.Ua.DataTypes.TestEnumeration);
+
+        /// <remarks />
+        public static readonly NodeId TestOptionSet = new NodeId(Opc.Ua.DataTypes.TestOptionSet);
 
         /// <remarks />
         public static readonly NodeId TestScalarStructure = new NodeId(Opc.Ua.DataTypes.TestScalarStructure);
@@ -32515,6 +32554,12 @@ namespace Opc.Ua
         public static readonly NodeId TestConcreteStructure_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.TestConcreteStructure_Encoding_DefaultBinary);
 
         /// <remarks />
+        public static readonly NodeId TestUnion_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.TestUnion_Encoding_DefaultBinary);
+
+        /// <remarks />
+        public static readonly NodeId TestOptionalFields_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.TestOptionalFields_Encoding_DefaultBinary);
+
+        /// <remarks />
         public static readonly NodeId TestScalarStructure_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.TestScalarStructure_Encoding_DefaultBinary);
 
         /// <remarks />
@@ -33607,6 +33652,12 @@ namespace Opc.Ua
         public static readonly NodeId TestConcreteStructure_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.TestConcreteStructure_Encoding_DefaultXml);
 
         /// <remarks />
+        public static readonly NodeId TestUnion_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.TestUnion_Encoding_DefaultXml);
+
+        /// <remarks />
+        public static readonly NodeId TestOptionalFields_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.TestOptionalFields_Encoding_DefaultXml);
+
+        /// <remarks />
         public static readonly NodeId TestScalarStructure_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.TestScalarStructure_Encoding_DefaultXml);
 
         /// <remarks />
@@ -34697,6 +34748,12 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId TestConcreteStructure_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.TestConcreteStructure_Encoding_DefaultJson);
+
+        /// <remarks />
+        public static readonly NodeId TestUnion_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.TestUnion_Encoding_DefaultJson);
+
+        /// <remarks />
+        public static readonly NodeId TestOptionalFields_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.TestOptionalFields_Encoding_DefaultJson);
 
         /// <remarks />
         public static readonly NodeId TestScalarStructure_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.TestScalarStructure_Encoding_DefaultJson);
@@ -51895,6 +51952,9 @@ namespace Opc.Ua
         public static readonly NodeId TestEnumeration_EnumValues = new NodeId(Opc.Ua.Variables.TestEnumeration_EnumValues);
 
         /// <remarks />
+        public static readonly NodeId TestOptionSet_OptionSetValues = new NodeId(Opc.Ua.Variables.TestOptionSet_OptionSetValues);
+
+        /// <remarks />
         public static readonly NodeId OpcUa_BinarySchema = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema);
 
         /// <remarks />
@@ -58300,10 +58360,19 @@ namespace Opc.Ua
         public const string TestingConditionClassType = "TestingConditionClassType";
 
         /// <remarks />
+        public const string TestOptionalFields = "TestOptionalFields";
+
+        /// <remarks />
+        public const string TestOptionSet = "TestOptionSet";
+
+        /// <remarks />
         public const string TestScalarStructure = "TestScalarStructure";
 
         /// <remarks />
         public const string TestStructure = "TestStructure";
+
+        /// <remarks />
+        public const string TestUnion = "TestUnion";
 
         /// <remarks />
         public const string ThreeDCartesianCoordinates = "3DCartesianCoordinates";

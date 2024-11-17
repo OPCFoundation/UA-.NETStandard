@@ -6697,6 +6697,38 @@
   </xs:complexType>
   <xs:element name="ListOfTestConcreteStructure" type="tns:ListOfTestConcreteStructure" nillable="true"></xs:element>
 
+  <xs:complexType name="TestUnion">
+    <xs:sequence>
+      <xs:element name="A" type="xs:short" minOccurs="0" />
+      <xs:element name="B" type="xs:double" minOccurs="0" />
+      <xs:element name="C" type="xs:string" minOccurs="0" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="TestUnion" type="tns:TestUnion" />
+
+  <xs:complexType name="ListOfTestUnion">
+    <xs:sequence>
+      <xs:element name="TestUnion" type="tns:TestUnion" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfTestUnion" type="tns:ListOfTestUnion" nillable="true"></xs:element>
+
+  <xs:complexType name="TestOptionalFields">
+    <xs:sequence>
+      <xs:element name="A" type="xs:short" minOccurs="0" />
+      <xs:element name="B" type="xs:double" minOccurs="0" />
+      <xs:element name="C" type="xs:string" minOccurs="0" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="TestOptionalFields" type="tns:TestOptionalFields" />
+
+  <xs:complexType name="ListOfTestOptionalFields">
+    <xs:sequence>
+      <xs:element name="TestOptionalFields" type="tns:TestOptionalFields" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfTestOptionalFields" type="tns:ListOfTestOptionalFields" nillable="true"></xs:element>
+
   <xs:simpleType  name="TestEnumeration">
     <xs:restriction base="xs:string">
       <xs:enumeration value="Invalid_0" />
@@ -6713,6 +6745,19 @@
     </xs:sequence>
   </xs:complexType>
   <xs:element name="ListOfTestEnumeration" type="tns:ListOfTestEnumeration" nillable="true"></xs:element>
+
+  <xs:simpleType  name="TestOptionSet">
+    <xs:restriction base="xs:unsignedLong">
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:element name="TestOptionSet" type="tns:TestOptionSet" />
+
+  <xs:complexType name="ListOfTestOptionSet">
+    <xs:sequence>
+      <xs:element name="TestOptionSet" type="tns:TestOptionSet" minOccurs="0" maxOccurs="unbounded" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfTestOptionSet" type="tns:ListOfTestOptionSet" nillable="true"></xs:element>
 
   <xs:complexType name="TestScalarStructure">
     <xs:sequence>
@@ -6747,7 +6792,10 @@
       <xs:element name="W" type="ua:ExtensionObject" minOccurs="0" nillable="true" />
       <xs:element name="X" type="tns:TestConcreteStructure" minOccurs="0" nillable="true" />
       <xs:element name="Y" type="tns:TestEnumeration" minOccurs="0" />
-      <xs:element name="Z" type="ua:DataValue" minOccurs="0" nillable="true" />
+      <xs:element name="Z" type="tns:TestOptionSet" minOccurs="0" />
+      <xs:element name="A1" type="tns:TestUnion" minOccurs="0" nillable="true" />
+      <xs:element name="B1" type="tns:TestOptionalFields" minOccurs="0" nillable="true" />
+      <xs:element name="C1" type="ua:DataValue" minOccurs="0" nillable="true" />
     </xs:sequence>
   </xs:complexType>
   <xs:element name="TestScalarStructure" type="tns:TestScalarStructure" />
@@ -6786,7 +6834,10 @@
       <xs:element name="W" type="ua:ListOfExtensionObject" minOccurs="0" nillable="true" />
       <xs:element name="X" type="tns:ListOfTestConcreteStructure" minOccurs="0" nillable="true" />
       <xs:element name="Y" type="tns:ListOfTestEnumeration" minOccurs="0" nillable="true" />
-      <xs:element name="Z" type="ua:ListOfDataValue" minOccurs="0" nillable="true" />
+      <xs:element name="Z" type="tns:ListOfTestOptionSet" minOccurs="0" nillable="true" />
+      <xs:element name="A1" type="tns:ListOfTestUnion" minOccurs="0" nillable="true" />
+      <xs:element name="B1" type="tns:ListOfTestOptionalFields" minOccurs="0" nillable="true" />
+      <xs:element name="C1" type="ua:ListOfDataValue" minOccurs="0" nillable="true" />
     </xs:sequence>
   </xs:complexType>
   <xs:element name="TestArrayStructure" type="tns:TestArrayStructure" />

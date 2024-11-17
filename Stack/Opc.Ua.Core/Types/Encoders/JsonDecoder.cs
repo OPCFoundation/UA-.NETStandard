@@ -1070,6 +1070,10 @@ namespace Opc.Ua
                     {
                         namespaceUri = null;
                     }
+                    else
+                    {
+                        namespaceIndex = 0;
+                    }
                 }
 
                 if (value.ContainsKey("Id"))
@@ -1288,7 +1292,27 @@ namespace Opc.Ua
                 if (innerValue is List<object>)
                 {
                     var array = ReadVariantArrayBody(valueName, builtInType);
+
+                    if (value.ContainsKey("Dimensions"))
+                    {
+                        var dimensions = ReadInt32Array("Dimensions");
+                        return new Variant(new Matrix(array.Value as Array, builtInType, dimensions.ToArray()));
+                    }
+
+                    return array;
+                }
+
+                if (innerValue is Dictionary<string,object> map &&
+                    map.Count == 2 &&
+                    map.ContainsKey("Array") &&
+                    map.ContainsKey("Dimensions"))
+                {
+                    m_stack.Push(innerValue);
+
+                    var array = ReadVariantArrayBody("Array", builtInType);
                     var dimensions = ReadInt32Array("Dimensions");
+
+                    Matrix matrix = null;
 
                     if (dimensions?.Count > 1 && array.Value is Array matrixArray)
                     {
@@ -1301,11 +1325,11 @@ namespace Opc.Ua
                                 "ArrayDimensions length does not match with the ArrayLength in Variant object.");
                         }
 
-                        Matrix matrix = new Matrix(matrixArray, builtInType, dimensions.ToArray());
-                        return new Variant(matrix);
+                        matrix = new Matrix(matrixArray, builtInType, dimensions.ToArray());
                     }
 
-                    return array;
+                    m_stack.Pop();
+                    return new Variant(matrix);
                 }
 
                 return ReadVariantBody(valueName, builtInType);
@@ -1338,6 +1362,12 @@ namespace Opc.Ua
             {
                 m_stack.Push(value);
                 BuiltInType builtInType = (value.ContainsKey("UaType"))? (BuiltInType)ReadByte("UaType") : (BuiltInType)ReadByte("Type");
+
+                if (value.ContainsKey("Value"))
+                {
+                    return ReadVariantFromObject("Value", builtInType, value);
+                }
+
                 return ReadVariantFromObject("Body", builtInType, value);
             }
             finally
@@ -1420,7 +1450,7 @@ namespace Opc.Ua
                 bool inlineValues = true;
                 ExpandedNodeId typeId = ReadExpandedNodeId("UaTypeId");
 
-                if (typeId == null)
+                if (NodeId.IsNull(typeId))
                 {
                     typeId = ReadExpandedNodeId("TypeId");
                     inlineValues = false;
@@ -2727,6 +2757,49 @@ namespace Opc.Ua
                 return matrix.ToArray();
             }
             return null;
+        }
+
+        /// <inheritdoc/>
+        public uint ReadSwitchField(Type switches)
+        {
+            if (m_stack.Peek() is Dictionary<string, object> context)
+            {
+                foreach (var ii in context)
+                {
+                    if (ii.Key != "SwitchField")
+                    {
+                        return (uint)Enum.Parse(switches, ii.Key);
+                    }
+                }
+            }
+
+            return 0;
+        }
+
+        /// <inheritdoc/>
+        public uint ReadEncodingMask(Type masks)
+        {
+            if (m_stack.Peek() is Dictionary<string, object> context)
+            {
+                if (context.ContainsKey("EncodingMask"))
+                {
+                    return ReadUInt32("EncodingMask");
+                }
+
+                uint mask = 0;
+
+                foreach (var fieldName in Enum.GetNames(masks))
+                {
+                    if (context.ContainsKey(fieldName))
+                    {
+                        mask |= (uint)Enum.Parse(masks, fieldName);
+                    }
+                }
+
+                return mask;
+            }
+
+            return 0;
         }
         #endregion
 

@@ -15,6 +15,7 @@ using System.Buffers;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.Net.Http.Headers;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Xml;
@@ -1381,7 +1382,7 @@ namespace Opc.Ua
                         symbolicId = $"0x{value.CodeBits:X8}";
                     }
 
-                    WriteSimpleField("Text", symbolicId, EscapeOptions.Quotes | EscapeOptions.NoFieldNameEscape);
+                    WriteSimpleField("Symbol", symbolicId, EscapeOptions.Quotes | EscapeOptions.NoFieldNameEscape);
                 }
 
                 PopStructure();
@@ -2738,10 +2739,140 @@ namespace Opc.Ua
             m_commaRequired = true;
         }
 
+        private void WriteRawValueContents(FieldMetaData field, DataValue dv)
+        {
+            object value = dv.Value;
+            TypeInfo typeInfo = dv.WrappedValue.TypeInfo;
+
+            if (dv.WrappedValue == Variant.Null)
+            {
+                value = TypeInfo.GetDefaultValue(field.BuiltInType, field.ValueRank);
+                typeInfo = new TypeInfo((BuiltInType)field.BuiltInType, field.ValueRank);
+
+                if (value != null)
+                {
+                    WriteVariantContents(value, typeInfo);
+                }
+                else if (field.ValueRank >= 0)
+                {
+                    m_writer.Write(s_leftSquareBracket);
+                    m_writer.Write(s_rightSquareBracket);
+                }
+                else if (field.BuiltInType == (byte)BuiltInType.ExtensionObject)
+                {
+                    m_writer.Write(s_leftCurlyBrace);
+                    m_writer.Write(s_rightCurlyBrace);
+                }
+                else
+                {
+                    m_writer.Write(s_null);
+                }
+
+                m_commaRequired = true;
+                return;
+            }
+
+            if (field.ValueRank == ValueRanks.Scalar)
+            {
+                if (field.BuiltInType == (byte)BuiltInType.ExtensionObject)
+                {
+                    WriteRawExtensionObject(value);
+                    return;
+                }
+            }
+            else
+            {
+                if (value is Matrix matrix)
+                {
+                    PushStructure(null);
+                    PushArray("Array");
+
+                    foreach (var ii in matrix.Elements)
+                    {
+                        if (m_commaRequired)
+                        {
+                            m_writer.Write(s_comma);
+                        }
+
+                        if (field.BuiltInType == (byte)BuiltInType.ExtensionObject)
+                        {
+                            m_commaRequired = false;
+                            WriteRawExtensionObject(ii);
+                            m_commaRequired = true;
+                            continue;
+                        }
+                        else if (field.BuiltInType == (byte)BuiltInType.Variant)
+                        {
+                            m_commaRequired = false;
+
+                            if (ii is Variant vt)
+                            {
+                                WriteVariant(null, vt);
+                            }
+                            else
+                            {
+                                m_writer.Write(s_null);
+                            }
+
+                            m_commaRequired = true;
+                            continue;
+                        }
+
+                        WriteVariantContents(ii, new TypeInfo((BuiltInType)field.BuiltInType, ValueRanks.Scalar));
+                        m_commaRequired = true;
+                    }
+
+                    PopArray();
+                    WriteInt32Array("Dimensions", matrix.Dimensions);
+                    PopStructure();
+                    m_commaRequired = true;
+                    return;
+                }
+
+                if (field.BuiltInType == (byte)BuiltInType.ExtensionObject)
+                {
+                    if (value is IList<ExtensionObject> list)
+                    {
+                        PushArray(null);
+
+                        foreach (var element in list)
+                        {
+                            WriteRawExtensionObject(element);
+                        }
+
+                        PopArray();
+                        m_commaRequired = true;
+                        return;
+                    }
+                }
+
+                if (field.BuiltInType == (byte)BuiltInType.Variant)
+                {
+                    if (value is IList<Variant> list)
+                    {
+                        WriteRawVariantArray(value);
+                        return;
+                    }
+                }
+            }
+
+            WriteVariantContents(value, typeInfo);
+
+            if (EncodingToUse == JsonEncodingType.Reversible)
+            {
+                if (dv.Value is Matrix matrix)
+                {
+                    WriteInt32Array("Dimensions", matrix.Dimensions);
+                }
+
+                m_writer.Write(s_rightCurlyBrace);
+            }
+        }
+
         /// <summary>
         /// Writes a raw value.
         /// </summary>
-        public void WriteRawValue(FieldMetaData field, DataValue dv)
+        public void WriteRawValue(FieldMetaData field, DataValue dv, DataSetFieldContentMask mask)
         {
             m_nestingLevel++;
 
@@ -2757,121 +2888,56 @@ namespace Opc.Ua
                 m_writer.Write(s_quotationColon);
                 m_commaRequired = false;
 
-                object value = dv.Value;
-                TypeInfo typeInfo = dv.WrappedValue.TypeInfo;
-
-                if (dv.WrappedValue == Variant.Null)
+                if (mask != DataSetFieldContentMask.None && mask != DataSetFieldContentMask.RawData)
                 {
-                    value = TypeInfo.GetDefaultValue(field.BuiltInType, field.ValueRank);
-                    typeInfo = new TypeInfo((BuiltInType)field.BuiltInType, field.ValueRank);
-
-                    if (value != null)
-                    {
-                        WriteVariantContents(value, typeInfo);
-                    }
-                    else
-                    {
-                        m_writer.Write(s_null);
-                    }
-
-                    m_commaRequired = true;
-                    return;
+                    m_writer.Write(s_leftCurlyBrace);
+                    m_writer.Write(s_quotation);
+                    m_writer.Write("Value");
+                    m_writer.Write(s_quotationColon);
                 }
 
-                if (field.ValueRank == ValueRanks.Scalar)
+                if (mask == DataSetFieldContentMask.None && StatusCode.IsBad(dv.StatusCode))
                 {
-                    if (field.BuiltInType == (byte)BuiltInType.ExtensionObject)
-                    {
-                        WriteRawExtensionObject(value);
-                        return;
-                    }
+                    dv = new DataValue() { WrappedValue = dv.StatusCode };
                 }
-                else
+
+                WriteRawValueContents(field, dv);
+
+                if (mask != DataSetFieldContentMask.None && mask != DataSetFieldContentMask.RawData)
                 {
-                    if (value is Matrix matrix)
+                    if ((mask & DataSetFieldContentMask.StatusCode) != 0 && dv.StatusCode != StatusCodes.Good)
                     {
-                        PushStructure(null);
-                        PushArray("Array");
-
-                        foreach (var ii in matrix.Elements)
-                        {
-                            if (m_commaRequired)
-                            {
-                                m_writer.Write(s_comma);
-                            }
-
-                            if (field.BuiltInType == (byte)BuiltInType.ExtensionObject)
-                            {
-                                m_commaRequired = false;
-                                WriteRawExtensionObject(ii);
-                                m_commaRequired = true;
-                                continue;
-                            }
-                            else if (field.BuiltInType == (byte)BuiltInType.Variant)
-                            {
-                                m_commaRequired = false;
-
-                                if (ii is Variant vt)
-                                {
-                                    WriteVariant(null, vt);
-                                }
-                                else
-                                {
-                                    m_writer.Write(s_null);
-                                }
-
-                                m_commaRequired = true;
-                                continue;
-                            }
-
-                            WriteVariantContents(ii, new TypeInfo((BuiltInType)field.BuiltInType, ValueRanks.Scalar));
-                            m_commaRequired = true;
-                        }
-
-                        PopArray();
-                        WriteInt32Array("Dimensions", matrix.Dimensions);
-                        PopStructure();
-                        m_commaRequired = true;
-                        return;
+                        WriteStatusCode(nameof(dv.StatusCode), dv.StatusCode);
                     }
 
-                    if (field.BuiltInType == (byte)BuiltInType.ExtensionObject)
+                    if ((mask & DataSetFieldContentMask.SourceTimestamp) != 0)
                     {
-                        if (value is IList<ExtensionObject> list)
+                        if (dv.SourceTimestamp != DateTime.MinValue)
                         {
-                            PushArray(null);
+                            WriteDateTime(nameof(dv.SourceTimestamp), dv.SourceTimestamp);
 
-                            foreach (var element in list)
+                            if (dv.SourcePicoseconds != 0)
                             {
-                                WriteRawExtensionObject(element);
+                                WriteUInt16(nameof(dv.SourcePicoseconds), dv.SourcePicoseconds);
                             }
-
-                            PopArray();
-                            m_commaRequired = true;
-                            return;
                         }
                     }
 
-                    if (field.BuiltInType == (byte)BuiltInType.Variant)
+                    if ((mask & DataSetFieldContentMask.ServerTimestamp) != 0)
                     {
-                        if (value is IList<Variant> list)
+                        if (dv.ServerTimestamp != DateTime.MinValue)
                         {
-                            WriteRawVariantArray(value);
-                            return;
+                            WriteDateTime(nameof(dv.ServerTimestamp), dv.ServerTimestamp);
+
+                            if (dv.ServerPicoseconds != 0)
+                            {
+                                WriteUInt16(nameof(dv.ServerPicoseconds), dv.ServerPicoseconds);
+                            }
                         }
-                    }
-                }
-
-                WriteVariantContents(value, typeInfo);
-
-                if (EncodingToUse == JsonEncodingType.Reversible)
-                {
-                    if (dv.Value is Matrix matrix)
-                    {
-                        WriteInt32Array("Dimensions", matrix.Dimensions);
                     }
 
                     m_writer.Write(s_rightCurlyBrace);
+
                 }
 
                 m_commaRequired = true;
