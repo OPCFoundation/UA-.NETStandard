@@ -207,8 +207,7 @@ namespace Opc.Ua.Bindings
             m_serverCertificate = settings.ServerCertificate;
             m_serverCertificateChain = settings.ServerCertificateChain;
 
-            m_ClientCertificateMode = settings.HttpsMutualTls ? ClientCertificateMode.RequireCertificate : ClientCertificateMode.NoCertificate;
-
+            m_ClientCertificateMode = settings.HttpsMutualTls;
             // start the listener
             Start();
         }
@@ -287,7 +286,7 @@ namespace Opc.Ua.Bindings
 
             var httpsOptions = new HttpsConnectionAdapterOptions() {
                 CheckCertificateRevocation = false,
-                ClientCertificateMode = ClientCertificateMode.AllowCertificate,
+                ClientCertificateMode = m_ClientCertificateMode == true ? ClientCertificateMode.AllowCertificate : ClientCertificateMode.NoCertificate,
                 // note: this is the TLS certificate!
                 ServerCertificate = serverCertificate,
                 ClientCertificateValidation = ValidateClientCertificate,
@@ -374,9 +373,9 @@ namespace Opc.Ua.Bindings
                 }
 
                 string path = context.Request.Path.Value?.TrimEnd('/') ?? string.Empty;
-                string currentPath = m_uri.AbsolutePath?.TrimEnd('/') + ConfiguredEndpoint.DiscoverySuffix;
-                bool isDiscoveryPath = path.Equals(currentPath, StringComparison.OrdinalIgnoreCase);
-                bool validateClientTlsCertificate = !isDiscoveryPath && m_ClientCertificateMode == ClientCertificateMode.RequireCertificate;
+                string discoveryPath = m_uri.AbsolutePath?.TrimEnd('/') + ConfiguredEndpoint.DiscoverySuffix;
+                bool isDiscoveryPath = path.Equals(discoveryPath, StringComparison.OrdinalIgnoreCase);
+                bool validateClientTlsCertificate = !isDiscoveryPath && m_ClientCertificateMode == true;
 
                 // Access and validate tls client certificate
                 if (validateClientTlsCertificate)
@@ -562,7 +561,7 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
-        /// Validate TLS Client certificate
+        /// Validate TLS client certificate at TLS handshake
         /// </summary>
         /// <param name="clientCertificate"></param>
         /// <param name="chain"></param>
@@ -593,7 +592,7 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
-        /// Validates the client TLS certificate
+        /// Validates the client TLS certificate per request
         /// </summary>
         /// <param name="context">Context of the validation</param>
         /// <param name="ct">Continuation token</param>
@@ -642,7 +641,7 @@ namespace Opc.Ua.Bindings
         private IWebHost m_host;
         private X509Certificate2 m_serverCertificate;
         private X509Certificate2Collection m_serverCertificateChain;
-        private ClientCertificateMode m_ClientCertificateMode;
+        private bool m_ClientCertificateMode;
         #endregion
     }
 }
