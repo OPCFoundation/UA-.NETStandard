@@ -1127,7 +1127,7 @@ namespace Opc.Ua.Bindings
         private bool ValidateDiscoveryServiceCall(ChannelToken token, uint requestId, ArraySegment<byte> messageBody, out BufferCollection chunksToProcess)
         {
             chunksToProcess = null;
-            using (var decoder = new BinaryDecoder(messageBody.AsMemory().ToArray(), Quotas.MessageContext))
+            using (var decoder = new BinaryDecoder(messageBody, Quotas.MessageContext))
             {
                 // read the type of the message before more chunks are processed.
                 NodeId typeId = decoder.ReadNodeId(null);
