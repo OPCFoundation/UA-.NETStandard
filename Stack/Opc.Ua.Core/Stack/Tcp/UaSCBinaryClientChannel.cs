@@ -110,7 +110,6 @@ namespace Opc.Ua.Bindings
                 Utils.SilentDispose(m_requestedToken);
                 m_requestedToken = null;
                 m_requests?.Clear();
-                m_requests = null;
                 m_handshakeOperation = null;
             }
 
@@ -1154,7 +1153,6 @@ namespace Opc.Ua.Bindings
                 {
                     operation.Value.Fault(new ServiceResult(StatusCodes.BadSecureChannelClosed, reason));
                 }
-
                 m_requests.Clear();
 
                 uint channelId = ChannelId;
@@ -1212,7 +1210,6 @@ namespace Opc.Ua.Bindings
                 {
                     operation.Value.Fault(new ServiceResult(StatusCodes.BadSecureChannelClosed, reason));
                 }
-
                 m_requests.Clear();
 
                 // halt any existing handshake.
@@ -1542,7 +1539,6 @@ namespace Opc.Ua.Bindings
 
             // check if operation is still available.
             WriteOperation operation = null;
-
             if (!m_requests.TryGetValue(requestId, out operation))
             {
                 return false;
