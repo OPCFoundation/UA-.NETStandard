@@ -374,7 +374,8 @@ namespace Opc.Ua.Bindings
 
                 string path = context.Request.Path.Value?.TrimEnd('/') ?? string.Empty;
                 string discoveryPath = m_uri.AbsolutePath?.TrimEnd('/') + ConfiguredEndpoint.DiscoverySuffix;
-                bool isDiscoveryPath = path.Equals(discoveryPath, StringComparison.OrdinalIgnoreCase);
+
+                bool isDiscoveryPath = discoveryPath.EndsWith(path, StringComparison.OrdinalIgnoreCase);
                 bool validateClientTlsCertificate = !isDiscoveryPath && m_ClientCertificateMode == true;
 
                 // Access and validate tls client certificate
