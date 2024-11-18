@@ -1144,7 +1144,8 @@ namespace Opc.Ua
             string url = baseAddress.Url.ToString();
 
             if ((baseAddress.ProfileUri == Profiles.HttpsBinaryTransport) &&
-                url.StartsWith(Utils.UriSchemeHttp, StringComparison.Ordinal) &&
+                (url.StartsWith(Utils.UriSchemeHttp, StringComparison.Ordinal) ||
+                 Utils.IsUriHttpsScheme(url)) &&
                 (!(url.EndsWith(ConfiguredEndpoint.DiscoverySuffix, StringComparison.OrdinalIgnoreCase))))
             {
                 url += ConfiguredEndpoint.DiscoverySuffix;

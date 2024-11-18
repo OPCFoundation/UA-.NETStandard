@@ -32,7 +32,8 @@ namespace Opc.Ua
 
             UriBuilder parsedUrl = new UriBuilder(url);
 
-            if (parsedUrl.Scheme.StartsWith(Utils.UriSchemeHttp, StringComparison.Ordinal))
+            if (parsedUrl.Scheme.StartsWith(Utils.UriSchemeHttp, StringComparison.Ordinal) ||
+                Utils.IsUriHttpsScheme(parsedUrl.Scheme))
             {
                 if (!parsedUrl.Path.EndsWith(ConfiguredEndpoint.DiscoverySuffix, StringComparison.OrdinalIgnoreCase))
                 {

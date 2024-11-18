@@ -131,7 +131,8 @@ namespace Opc.Ua
                 {
                     string discoveryUrl = endpoint.Description.EndpointUrl;
 
-                    if (discoveryUrl.StartsWith(Utils.UriSchemeHttp, StringComparison.Ordinal))
+                    if (discoveryUrl.StartsWith(Utils.UriSchemeHttp, StringComparison.Ordinal) ||
+                        Utils.IsUriHttpsScheme(discoveryUrl))
                     {
                         discoveryUrl += ConfiguredEndpoint.DiscoverySuffix;
                     }
@@ -531,7 +532,8 @@ namespace Opc.Ua
                 }
 
                 if (endpointUrl != null &&
-                    endpointUrl.StartsWith(Utils.UriSchemeHttp, StringComparison.Ordinal) &&
+                    (endpointUrl.StartsWith(Utils.UriSchemeHttp, StringComparison.Ordinal) ||
+                     Utils.IsUriHttpsScheme(endpointUrl)) &&
                     endpointUrl.EndsWith(ConfiguredEndpoint.DiscoverySuffix, StringComparison.OrdinalIgnoreCase))
                 {
                     endpointUrl = endpointUrl.Substring(0, endpointUrl.Length - ConfiguredEndpoint.DiscoverySuffix.Length);
@@ -816,7 +818,8 @@ namespace Opc.Ua
 
                 if (baseUrl != null)
                 {
-                    if (baseUrl.StartsWith(Utils.UriSchemeHttp, StringComparison.Ordinal) &&
+                    if ((baseUrl.StartsWith(Utils.UriSchemeHttp, StringComparison.Ordinal) ||
+                         Utils.IsUriHttpsScheme(baseUrl)) &&
                         baseUrl.EndsWith(DiscoverySuffix, StringComparison.Ordinal))
                     {
                         baseUrl = baseUrl.Substring(0, baseUrl.Length - DiscoverySuffix.Length);
@@ -1209,7 +1212,8 @@ namespace Opc.Ua
             // attempt to construct a discovery url by appending 'discovery' to the endpoint.
             if (discoveryUrls == null || discoveryUrls.Count == 0)
             {
-                if (endpointUrl.Scheme.StartsWith(Utils.UriSchemeHttp, StringComparison.Ordinal))
+                if (endpointUrl.Scheme.StartsWith(Utils.UriSchemeHttp, StringComparison.Ordinal)||
+                    Utils.IsUriHttpsScheme(endpointUrl.Scheme))
                 {
                     return new Uri(Utils.Format("{0}{1}", endpointUrl, DiscoverySuffix));
                 }
