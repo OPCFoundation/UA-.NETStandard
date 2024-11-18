@@ -3075,7 +3075,7 @@ namespace Opc.Ua
         /// <summary>
         /// Generates a Pseudo random sequence of bits using the HMAC algorithm.
         /// </summary>
-        public static byte[] PSHA(HMAC hmac, string label, byte[] data, int offset, int length)
+        private static byte[] PSHA(HMAC hmac, string label, byte[] data, int offset, int length)
         {
             if (hmac == null) throw new ArgumentNullException(nameof(hmac));
             if (offset < 0) throw new ArgumentOutOfRangeException(nameof(offset));
