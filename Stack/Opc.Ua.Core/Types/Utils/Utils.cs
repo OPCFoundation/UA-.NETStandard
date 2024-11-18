@@ -1545,6 +1545,19 @@ namespace Opc.Ua
         /// Converts a buffer to a hexadecimal string.
         /// </summary>
 #if NETSTANDARD2_1_OR_GREATER || NET6_0_OR_GREATER
+        public static string ToHexString(byte[] buffer, bool invertEndian = false)
+        {
+            if (buffer == null || buffer.Length == 0)
+            {
+                return String.Empty;
+            }
+
+            return ToHexString(new ReadOnlySpan<byte>(buffer), invertEndian);
+        }
+
+        /// <summary>
+        /// Converts a buffer to a hexadecimal string.
+        /// </summary>
         public static string ToHexString(ReadOnlySpan<byte> buffer, bool invertEndian = false)
         {
             if (buffer.Length == 0)
