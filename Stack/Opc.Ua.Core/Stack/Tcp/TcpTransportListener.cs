@@ -160,7 +160,7 @@ namespace Opc.Ua.Bindings
                         {
                             // Block the IP
                             existingEntry.BlockedUntilTicks = currentTicks + m_kBlockDurationMs;
-                            Utils.LogError("RemoteClient IPAddress: {0} blocked for {1} ms due to exceeding {2} actions under {3} ms ",
+                            Utils.LogError("RemoteClient IPAddress: {0} blocked for {1} ms due to exceeding {2} rogue actions under {3} ms ",
                                 ipAddress.ToString(),
                                 m_kBlockDurationMs,
                                 m_kNrActionsTillBlock,
@@ -210,7 +210,9 @@ namespace Opc.Ua.Bindings
                 {
                     rClient.BlockedUntilTicks = 0;
                     rClient.RogueActionCount = 0;
-                    Utils.LogInfo("Rogue Client with IP {0} is now unblocked, blocking duration has been exceeded", clientIp.ToString());
+                    Utils.LogInfo("Rogue Client with IP {0} is now unblocked, blocking duration of {1} ms has been exceeded",
+                        clientIp.ToString(),
+                        m_kBlockDurationMs);
                 }
 
                 // Remove clients that haven't had any rogue actions in the last m_kEntryExpirationMs interval 
@@ -253,10 +255,11 @@ namespace Opc.Ua.Bindings
         private ConcurrentDictionary<IPAddress, RogueClient> m_rogueClients = new ConcurrentDictionary<IPAddress, RogueClient>();
 
         private const int m_kRogueIntervalMs = 10_000;
-        private const int m_kBlockDurationMs = 300_000; // 5 minutes
-        private const int m_kCleanupIntervalMs = 60_000;
-        private const int m_kEntryExpirationMs = 600_000; // 10 minutes
         private const int m_kNrActionsTillBlock = 3;
+
+        private const int m_kBlockDurationMs = 30_000; // 30 seconds
+        private const int m_kCleanupIntervalMs = 15_000;
+        private const int m_kEntryExpirationMs = 600_000; // 10 minutes
 
         private Timer m_cleanupTimer;
         #endregion
@@ -742,18 +745,21 @@ namespace Opc.Ua.Bindings
         /// </summary>
         private void OnAccept(object sender, SocketAsyncEventArgs e)
         {
-            // Filter out the RemoveAddresses which are detected with unwanted behavior
-            if (m_rogueClientTracker.IsBlocked(((IPEndPoint)e.AcceptSocket.RemoteEndPoint).Address))
-            {
-                Utils.LogError("OnAccept: RemoteEndpoint address: {0} refused access for behaving as potential rogue ",
-                    ((IPEndPoint)e.AcceptSocket.RemoteEndPoint).Address.ToString());
-                e.Dispose();
-                return;
-            }
+
             TcpListenerChannel channel = null;
             bool repeatAccept = false;
             do
             {
+                bool isRogue = false;
+
+                // Filter out the RemoveAddresses which are detected with rogue behavior
+                if (m_rogueClientTracker.IsBlocked(((IPEndPoint)e.AcceptSocket.RemoteEndPoint).Address))
+                {
+                    Utils.LogError("OnAccept: RemoteEndpoint address: {0} refused access for behaving as potential rogue ",
+                        ((IPEndPoint)e.AcceptSocket.RemoteEndPoint).Address.ToString());
+                    isRogue = true;
+                }
+
                 repeatAccept = false;
                 lock (m_lock)
                 {
@@ -765,7 +771,7 @@ namespace Opc.Ua.Bindings
                     }
 
                     var channels = m_channels;
-                    if (channels != null)
+                    if (channels != null && !isRogue)
                     {
                         // TODO: .Count is flagged as hotpath, implement separate counter
                         int channelCount = channels.Count;
