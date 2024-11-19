@@ -1509,7 +1509,7 @@ namespace Opc.Ua
             m_maxTrustListSize = 0;
             m_multicastDnsEnabled = false;
             m_auditingEnabled = false;
-            m_httpsMTls = true;
+            m_httpsMutualTls = true;
         }
 
         /// <summary>
@@ -1951,8 +1951,8 @@ namespace Opc.Ua
         [DataMember(IsRequired = false, Order = 38)]
         public bool HttpsMutualTls
         {
-            get { return m_httpsMTls; }
-            set { m_httpsMTls = value; }
+            get { return m_httpsMutualTls; }
+            set { m_httpsMutualTls = value; }
         }
         #endregion
 
@@ -1992,7 +1992,7 @@ namespace Opc.Ua
         private ReverseConnectServerConfiguration m_reverseConnect;
         private OperationLimits m_operationLimits;
         private bool m_auditingEnabled;
-        private bool m_httpsMTls;
+        private bool m_httpsMutualTls;
         #endregion
     }
     #endregion

@@ -162,6 +162,16 @@ namespace Opc.Ua
             return url.StartsWith(Utils.UriSchemeHttps, StringComparison.Ordinal) ||
                 url.StartsWith(Utils.UriSchemeOpcHttps, StringComparison.Ordinal);
         }
+
+        /// <summary>
+        /// Returns <c>true</c> if the url starts with http, opc.https or https.
+        /// </summary>
+        /// <param name="url">The url</param>
+        public static bool IsUriHttpRelatedScheme(string url)
+        {
+            return url.StartsWith(Utils.UriSchemeHttps, StringComparison.Ordinal) ||
+                 IsUriHttpsScheme(url);
+        }
         #endregion
 
         #region Trace Support

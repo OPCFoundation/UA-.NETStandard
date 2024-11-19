@@ -780,9 +780,9 @@ namespace Opc.Ua.Configuration
         }
 
         /// <inheritdoc/>
-        public IApplicationConfigurationBuilderServerOptions SetHttpsMutualTls(bool mTlsEnabled)
+        public IApplicationConfigurationBuilderServerOptions SetHttpsMutualTls(bool mutualTlsEnabeld)
         {
-            ApplicationConfiguration.ServerConfiguration.HttpsMutualTls = mTlsEnabled;
+            ApplicationConfiguration.ServerConfiguration.HttpsMutualTls = mutualTlsEnabeld;
             return this;
         }
 

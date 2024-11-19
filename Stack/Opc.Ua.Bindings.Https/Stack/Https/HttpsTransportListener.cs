@@ -207,7 +207,7 @@ namespace Opc.Ua.Bindings
             m_serverCertificate = settings.ServerCertificate;
             m_serverCertificateChain = settings.ServerCertificateChain;
 
-            m_ClientCertificateMode = settings.HttpsMutualTls;
+            m_mutualTlsEnabeld = settings.HttpsMutualTls;
             // start the listener
             Start();
         }
@@ -286,7 +286,7 @@ namespace Opc.Ua.Bindings
 
             var httpsOptions = new HttpsConnectionAdapterOptions() {
                 CheckCertificateRevocation = false,
-                ClientCertificateMode = m_ClientCertificateMode == true ? ClientCertificateMode.AllowCertificate : ClientCertificateMode.NoCertificate,
+                ClientCertificateMode = m_mutualTlsEnabeld == true ? ClientCertificateMode.AllowCertificate : ClientCertificateMode.NoCertificate,
                 // note: this is the TLS certificate!
                 ServerCertificate = serverCertificate,
                 ClientCertificateValidation = ValidateClientCertificate,
@@ -374,9 +374,11 @@ namespace Opc.Ua.Bindings
 
                 string path = context.Request.Path.Value?.TrimEnd('/') ?? string.Empty;
                 string discoveryPath = m_uri.AbsolutePath?.TrimEnd('/') + ConfiguredEndpoint.DiscoverySuffix;
+                ReadOnlyMemory<char> pathMemory = path.AsMemory();
+                ReadOnlyMemory<char> discoveryPathMemory = discoveryPath.AsMemory();
 
-                bool isDiscoveryPath = discoveryPath.EndsWith(path, StringComparison.OrdinalIgnoreCase);
-                bool validateClientTlsCertificate = !isDiscoveryPath && m_ClientCertificateMode == true;
+                bool isDiscoveryPath = discoveryPathMemory.Span.EndsWith(pathMemory.Span, StringComparison.OrdinalIgnoreCase);
+                bool validateClientTlsCertificate = !isDiscoveryPath && m_mutualTlsEnabeld == true;
 
                 // Access and validate tls client certificate
                 if (validateClientTlsCertificate)
@@ -564,9 +566,9 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Validate TLS client certificate at TLS handshake
         /// </summary>
-        /// <param name="clientCertificate"></param>
-        /// <param name="chain"></param>
-        /// <param name="sslPolicyErrors"></param>
+        /// <param name="clientCertificate">Client certificate</param>
+        /// <param name="chain">Certificate chain</param>
+        /// <param name="sslPolicyErrors">SSl policy errors</param>
         /// <returns></returns>
         private bool ValidateClientCertificate(
             X509Certificate2 clientCertificate,
@@ -596,8 +598,8 @@ namespace Opc.Ua.Bindings
         /// Validates the client TLS certificate per request
         /// </summary>
         /// <param name="context">Context of the validation</param>
-        /// <param name="ct">Continuation token</param>
-        /// <returns>true if validation passes, elst false</returns>
+        /// <param name="ct">Cancellation token</param>
+        /// <returns>true if validation passes, else false</returns>
         private async Task<bool> ValidateClientTlsCertificateAsync(HttpContext context, CancellationToken ct)
         {
             var clientCertificate = context.Connection.ClientCertificate;
@@ -642,7 +644,7 @@ namespace Opc.Ua.Bindings
         private IWebHost m_host;
         private X509Certificate2 m_serverCertificate;
         private X509Certificate2Collection m_serverCertificateChain;
-        private bool m_ClientCertificateMode;
+        private bool m_mutualTlsEnabeld;
         #endregion
     }
 }
