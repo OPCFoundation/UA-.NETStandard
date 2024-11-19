@@ -187,9 +187,9 @@ namespace Opc.Ua.Bindings
                 return;
             }
 
-            if (SecurityPolicyUri == SecurityPolicies.Basic256Sha256 ||
-                SecurityPolicyUri == SecurityPolicies.Aes128_Sha256_RsaOaep ||
-                SecurityPolicyUri == SecurityPolicies.Aes256_Sha256_RsaPss)
+            bool useSHA256 = SecurityPolicyUri != SecurityPolicies.Basic128Rsa15 && SecurityPolicyUri != SecurityPolicies.Basic256;
+
+            if (useSHA256)
             {
                 using (HMACSHA256 hmac = new HMACSHA256(token.ServerNonce))
                 {
@@ -243,10 +243,8 @@ namespace Opc.Ua.Bindings
                     aesCbcDecryptorProvider.IV = token.ServerInitializationVector;
                     token.ServerEncryptor = aesCbcDecryptorProvider;
 
-                    // create HMACs.
-                    if (SecurityPolicyUri == SecurityPolicies.Basic256Sha256 ||
-                        SecurityPolicyUri == SecurityPolicies.Aes128_Sha256_RsaOaep ||
-                        SecurityPolicyUri == SecurityPolicies.Aes256_Sha256_RsaPss)
+                    // create HMACs. Must be disposed after use.
+                    if (useSHA256)
                     {
                         // SHA256
                         token.ServerHmac = new HMACSHA256(token.ServerSigningKey);
@@ -350,9 +348,7 @@ namespace Opc.Ua.Bindings
                     }
 
                     MemoryStream strm = new MemoryStream(chunkToProcess.Array, 0, SendBufferSize);
-                    BinaryEncoder encoder = new BinaryEncoder(strm, Quotas.MessageContext, false);
-
-                    try
+                    using (BinaryEncoder encoder = new BinaryEncoder(strm, Quotas.MessageContext, false))
                     {
                         // check if the message needs to be aborted.
                         if (MessageLimitsExceeded(isRequest, messageSize + chunkToProcess.Count - headerSize, ii + 1))
@@ -360,17 +356,16 @@ namespace Opc.Ua.Bindings
                             encoder.WriteUInt32(null, messageType | TcpMessageType.Abort);
 
                             // replace the body in the chunk with an error message.
-                            BinaryEncoder errorEncoder = new BinaryEncoder(
+                            using (BinaryEncoder errorEncoder = new BinaryEncoder(
                                 chunkToProcess.Array,
                                 chunkToProcess.Offset,
                                 chunkToProcess.Count,
-                                Quotas.MessageContext);
-
-                            WriteErrorMessageBody(errorEncoder, (isRequest) ? StatusCodes.BadRequestTooLarge : StatusCodes.BadResponseTooLarge);
-
-                            int size = errorEncoder.Close();
-                            errorEncoder.Dispose();
-                            chunkToProcess = new ArraySegment<byte>(chunkToProcess.Array, chunkToProcess.Offset, size);
+                                Quotas.MessageContext))
+                            {
+                                WriteErrorMessageBody(errorEncoder, (isRequest) ? StatusCodes.BadRequestTooLarge : StatusCodes.BadResponseTooLarge);
+                                int size = errorEncoder.Close();
+                                chunkToProcess = new ArraySegment<byte>(chunkToProcess.Array, chunkToProcess.Offset, size);
+                            }
 
                             limitsExceeded = true;
                         }
@@ -468,10 +463,6 @@ namespace Opc.Ua.Bindings
 
                         // add the header into chunk.
                         chunksToSend.Add(new ArraySegment<byte>(chunkToProcess.Array, 0, encoder.Position));
-                    }
-                    finally
-                    {
-                        encoder.Dispose();
                     }
                 }
 
@@ -594,7 +585,7 @@ namespace Opc.Ua.Bindings
                         int paddingStart = signatureStart - 1;
                         paddingCount = buffer.Array[paddingStart];
 
-                        for (int ii = paddingStart - paddingCount; ii < paddingStart; ii++)
+                        for (int ii = paddingStart - paddingCount; ii <= paddingStart; ii++)
                         {
                             if (buffer.Array[ii] != paddingCount)
                             {
