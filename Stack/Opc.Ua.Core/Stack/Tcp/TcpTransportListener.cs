@@ -551,6 +551,8 @@ namespace Opc.Ua.Bindings
         {
             lock (m_lock)
             {
+                m_rogueClientTracker = new RogueClientTracker();
+
                 // ensure a valid port.
                 int port = m_uri.Port;
 
@@ -638,8 +640,6 @@ namespace Opc.Ua.Bindings
                         StatusCodes.BadNoCommunication,
                         "Failed to establish tcp listener sockets for Ipv4 and IPv6.");
                 }
-
-                m_rogueClientTracker = new RogueClientTracker();
             }
         }
 
