@@ -752,8 +752,9 @@ namespace Opc.Ua.Bindings
             {
                 bool isRogue = false;
 
-                // Filter out the RemoveAddresses which are detected with rogue behavior
-                if ((bool)m_rogueClientTracker?.IsBlocked(((IPEndPoint)e?.AcceptSocket?.RemoteEndPoint)?.Address))
+                // Filter out the Remote IP addresses which are detected with rogue behavior
+                IPAddress ipAddress = ((IPEndPoint)e?.AcceptSocket?.RemoteEndPoint)?.Address;
+                if (ipAddress != null && m_rogueClientTracker.IsBlocked(ipAddress))
                 {
                     Utils.LogError("OnAccept: RemoteEndpoint address: {0} refused access for behaving as potential rogue ",
                         ((IPEndPoint)e.AcceptSocket.RemoteEndPoint).Address.ToString());
