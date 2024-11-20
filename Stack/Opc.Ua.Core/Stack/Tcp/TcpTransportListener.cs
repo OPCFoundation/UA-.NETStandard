@@ -551,7 +551,11 @@ namespace Opc.Ua.Bindings
         {
             lock (m_lock)
             {
-                m_rogueClientTracker = new RogueClientTracker();
+                // Track rogue client behavior only if Basic128Rsa15 security policy is offered
+                if (m_descriptions.Any(d => d.SecurityPolicyUri == SecurityPolicies.Basic128Rsa15))
+                {
+                    m_rogueClientTracker = new RogueClientTracker();
+                }
 
                 // ensure a valid port.
                 int port = m_uri.Port;
@@ -734,8 +738,8 @@ namespace Opc.Ua.Bindings
         /// <param name="remoteEndpoint"></param>
         internal void MarkAsPotentialRogue(IPAddress remoteEndpoint)
         {
-            Utils.LogError("MarkClientAsPotentialRogue address: {0} ", remoteEndpoint.ToString());
-            m_rogueClientTracker.AddRogueClientAction(remoteEndpoint);
+            Utils.LogInfo("MarkClientAsPotentialRogue address: {0} ", remoteEndpoint.ToString());
+            m_rogueClientTracker?.AddRogueClientAction(remoteEndpoint);
         }
         #endregion
 
@@ -752,13 +756,17 @@ namespace Opc.Ua.Bindings
             {
                 bool isRogue = false;
 
-                // Filter out the Remote IP addresses which are detected with rogue behavior
-                IPAddress ipAddress = ((IPEndPoint)e?.AcceptSocket?.RemoteEndPoint)?.Address;
-                if (ipAddress != null && m_rogueClientTracker.IsBlocked(ipAddress))
+                // Track rogue client behavior only if Basic128Rsa15 security policy is offered
+                if (m_rogueClientTracker != null)
                 {
-                    Utils.LogError("OnAccept: RemoteEndpoint address: {0} refused access for behaving as potential rogue ",
-                        ((IPEndPoint)e.AcceptSocket.RemoteEndPoint).Address.ToString());
-                    isRogue = true;
+                    // Filter out the Remote IP addresses which are detected with rogue behavior
+                    IPAddress ipAddress = ((IPEndPoint)e?.AcceptSocket?.RemoteEndPoint)?.Address;
+                    if (ipAddress != null && m_rogueClientTracker.IsBlocked(ipAddress))
+                    {
+                        Utils.LogError("OnAccept: RemoteEndpoint address: {0} refused access for behaving as potential rogue ",
+                            ((IPEndPoint)e.AcceptSocket.RemoteEndPoint).Address.ToString());
+                        isRogue = true;
+                    }
                 }
 
                 repeatAccept = false;
