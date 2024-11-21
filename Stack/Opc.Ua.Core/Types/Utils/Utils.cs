@@ -1544,12 +1544,34 @@ namespace Opc.Ua
         /// <summary>
         /// Converts a buffer to a hexadecimal string.
         /// </summary>
+#if NETSTANDARD2_1_OR_GREATER || NET6_0_OR_GREATER
         public static string ToHexString(byte[] buffer, bool invertEndian = false)
         {
             if (buffer == null || buffer.Length == 0)
             {
                 return String.Empty;
             }
+
+            return ToHexString(new ReadOnlySpan<byte>(buffer), invertEndian);
+        }
+
+        /// <summary>
+        /// Converts a buffer to a hexadecimal string.
+        /// </summary>
+        public static string ToHexString(ReadOnlySpan<byte> buffer, bool invertEndian = false)
+        {
+            if (buffer.Length == 0)
+            {
+                return String.Empty;
+            }
+#else
+        public static string ToHexString(byte[] buffer, bool invertEndian = false)
+        {
+            if (buffer == null || buffer.Length == 0)
+            {
+                return String.Empty;
+            }
+#endif
 
 #if NET6_0_OR_GREATER
             if (!invertEndian)
@@ -2597,7 +2619,7 @@ namespace Opc.Ua
                 extensions.Add(document.DocumentElement);
             }
         }
-        #endregion
+#endregion
 
         #region Reflection Helper Functions
         /// <summary>
@@ -3011,8 +3033,10 @@ namespace Opc.Ua
         {
             if (secret == null) throw new ArgumentNullException(nameof(secret));
             // create the hmac.
-            HMACSHA1 hmac = new HMACSHA1(secret);
-            return PSHA(hmac, label, data, offset, length);
+            using (HMACSHA1 hmac = new HMACSHA1(secret))
+            {
+                return PSHA(hmac, label, data, offset, length);
+            }
         }
 
         /// <summary>
@@ -3022,9 +3046,31 @@ namespace Opc.Ua
         {
             if (secret == null) throw new ArgumentNullException(nameof(secret));
             // create the hmac.
-            HMACSHA256 hmac = new HMACSHA256(secret);
+            using (HMACSHA256 hmac = new HMACSHA256(secret))
+            {
+                return PSHA(hmac, label, data, offset, length);
+            }
+        }
+
+        /// <summary>
+        /// Generates a Pseudo random sequence of bits using the P_SHA1 alhorithm.
+        /// </summary>
+        [System.Diagnostics.CodeAnalysis.SuppressMessage(
+            "Security", "CA5350:Do Not Use Weak Cryptographic Algorithms",
+            Justification = "SHA1 is needed for deprecated security profiles.")]
+        public static byte[] PSHA1(HMACSHA1 hmac, string label, byte[] data, int offset, int length)
+        {
             return PSHA(hmac, label, data, offset, length);
         }
+
+        /// <summary>
+        /// Generates a Pseudo random sequence of bits using the P_SHA256 alhorithm.
+        /// </summary>
+        public static byte[] PSHA256(HMACSHA256 hmac, string label, byte[] data, int offset, int length)
+        {
+            return PSHA(hmac, label, data, offset, length);
+        }
+
 
         /// <summary>
         /// Generates a Pseudo random sequence of bits using the HMAC algorithm.
@@ -3074,7 +3120,6 @@ namespace Opc.Ua
             byte[] output = new byte[length];
 
             int position = 0;
-
             do
             {
                 byte[] hash = hmac.ComputeHash(prfSeed);

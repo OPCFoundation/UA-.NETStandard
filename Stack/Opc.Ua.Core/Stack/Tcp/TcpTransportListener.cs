@@ -241,8 +241,10 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public void ChannelClosed(uint channelId)
         {
-            if (m_channels?.TryRemove(channelId, out _) == true)
+            TcpListenerChannel channel = null;
+            if (m_channels?.TryRemove(channelId, out channel) == true)
             {
+                Utils.SilentDispose(channel);
                 Utils.LogInfo("ChannelId {0}: closed", channelId);
             }
             else
@@ -307,10 +309,16 @@ namespace Opc.Ua.Bindings
                     channel.SetReportCloseSecureChannelAuditCallback(new ReportAuditCloseSecureChannelEventHandler(OnReportAuditCloseSecureChannelEvent));
                     channel.SetReportCertificateAuditCallback(new ReportAuditCertificateEventHandler(OnReportAuditCertificateEvent));
                 }
+
+                channel = null;
             }
             catch (Exception e)
             {
                 ConnectionStatusChanged?.Invoke(this, new ConnectionStatusEventArgs(channel.ReverseConnectionUrl, new ServiceResult(e), true));
+            }
+            finally
+            {
+                Utils.SilentDispose(channel);
             }
         }
         #endregion
@@ -533,6 +541,7 @@ namespace Opc.Ua.Bindings
                         // check if the accept socket has been created.
                         if (serveChannel && e.AcceptSocket != null && e.SocketError == SocketError.Success)
                         {
+                            channel = null;
                             try
                             {
                                 if (m_reverseConnectListener)
@@ -578,10 +587,16 @@ namespace Opc.Ua.Bindings
 
                                 // start accepting messages on the channel.
                                 channel.Attach(channelId, e.AcceptSocket);
+
+                                channel = null;
                             }
                             catch (Exception ex)
                             {
                                 Utils.LogError(ex, "Unexpected error accepting a new connection.");
+                            }
+                            finally
+                            {
+                                Utils.SilentDispose(channel);
                             }
                         }
                     }
