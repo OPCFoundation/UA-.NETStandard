@@ -386,10 +386,6 @@ namespace Opc.Ua.Bindings
                 {
                     byte[] tlsClientCertificate = context.Connection.ClientCertificate.RawData;
                     byte[] opcUaClientCertificate = ((CreateSessionRequest)input).ClientCertificate;
-                    if (!await ValidateClientTlsCertificateAsync(context, ct).ConfigureAwait(false))
-                    {
-                        return;
-                    }
                     if (!Utils.IsEqual(tlsClientCertificate, opcUaClientCertificate))
                     {
                         message = "Client TLS certificate does not match with ClientCertificate provided in CreateSessionRequest";
@@ -397,6 +393,12 @@ namespace Opc.Ua.Bindings
                         await WriteResponseAsync(context.Response, message, HttpStatusCode.Unauthorized).ConfigureAwait(false);
                         return;
                     }
+
+                    if (!await ValidateClientTlsCertificateAsync(context, ct).ConfigureAwait(false))
+                    {
+                        return;
+                    }
+
                 }
 
                 // extract the JWT token from the HTTP headers.
