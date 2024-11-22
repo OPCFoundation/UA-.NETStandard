@@ -176,6 +176,7 @@ namespace Opc.Ua.Bindings
             m_listenerId = Guid.NewGuid().ToString();
 
             m_uri = baseAddress;
+            m_discovery =  m_uri.AbsolutePath?.TrimEnd('/') + ConfiguredEndpoint.DiscoverySuffix;
             m_descriptions = settings.Descriptions;
             var configuration = settings.Configuration;
 
@@ -207,7 +208,7 @@ namespace Opc.Ua.Bindings
             m_serverCertificate = settings.ServerCertificate;
             m_serverCertificateChain = settings.ServerCertificateChain;
 
-            m_mutualTlsEnabeld = settings.HttpsMutualTls;
+            m_mutualTlsEnabled = settings.HttpsMutualTls;
             // start the listener
             Start();
         }
@@ -286,7 +287,7 @@ namespace Opc.Ua.Bindings
 
             var httpsOptions = new HttpsConnectionAdapterOptions() {
                 CheckCertificateRevocation = false,
-                ClientCertificateMode = m_mutualTlsEnabeld == true ? ClientCertificateMode.AllowCertificate : ClientCertificateMode.NoCertificate,
+                ClientCertificateMode = m_mutualTlsEnabled ? ClientCertificateMode.AllowCertificate : ClientCertificateMode.NoCertificate,
                 // note: this is the TLS certificate!
                 ServerCertificate = serverCertificate,
                 ClientCertificateValidation = ValidateClientCertificate,
@@ -373,21 +374,9 @@ namespace Opc.Ua.Bindings
                 }
 
                 string path = context.Request.Path.Value?.TrimEnd('/') ?? string.Empty;
-                string discoveryPath = m_uri.AbsolutePath?.TrimEnd('/') + ConfiguredEndpoint.DiscoverySuffix;
-                ReadOnlyMemory<char> pathMemory = path.AsMemory();
-                ReadOnlyMemory<char> discoveryPathMemory = discoveryPath.AsMemory();
-
-                bool isDiscoveryPath = discoveryPathMemory.Span.EndsWith(pathMemory.Span, StringComparison.OrdinalIgnoreCase);
-                bool validateClientTlsCertificate = !isDiscoveryPath && m_mutualTlsEnabeld == true;
-
-                // Access and validate tls client certificate
-                if (validateClientTlsCertificate)
-                {
-                    if (!await ValidateClientTlsCertificateAsync(context, ct).ConfigureAwait(false))
-                    {
-                        return;
-                    }
-                }
+                
+                bool isDiscoveryPath = m_discovery.EndsWith(path, StringComparison.OrdinalIgnoreCase);
+                bool validateClientTlsCertificate = !isDiscoveryPath && m_mutualTlsEnabled;
 
                 IServiceRequest input = (IServiceRequest)BinaryDecoder.DecodeMessage(buffer, null, m_quotas.MessageContext);
 
@@ -397,6 +386,10 @@ namespace Opc.Ua.Bindings
                 {
                     byte[] tlsClientCertificate = context.Connection.ClientCertificate.RawData;
                     byte[] opcUaClientCertificate = ((CreateSessionRequest)input).ClientCertificate;
+                    if (!await ValidateClientTlsCertificateAsync(context, ct).ConfigureAwait(false))
+                    {
+                        return;
+                    }
                     if (!Utils.IsEqual(tlsClientCertificate, opcUaClientCertificate))
                     {
                         message = "Client TLS certificate does not match with ClientCertificate provided in CreateSessionRequest";
@@ -636,6 +629,7 @@ namespace Opc.Ua.Bindings
         #region Private Fields
         private string m_listenerId;
         private Uri m_uri;
+        private string m_discovery;
         private readonly string m_uriScheme;
         private EndpointDescriptionCollection m_descriptions;
         private ChannelQuotas m_quotas;
@@ -644,7 +638,7 @@ namespace Opc.Ua.Bindings
         private IWebHost m_host;
         private X509Certificate2 m_serverCertificate;
         private X509Certificate2Collection m_serverCertificateChain;
-        private bool m_mutualTlsEnabeld;
+        private bool m_mutualTlsEnabled;
         #endregion
     }
 }
