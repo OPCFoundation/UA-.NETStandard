@@ -795,6 +795,15 @@ namespace Opc.Ua
         protected virtual void OnCertificateUpdate(object sender, CertificateUpdateEventArgs e)
         {
             InstanceCertificateTypesProvider.UpdateAsync(e.SecurityConfiguration).GetAwaiter().GetResult();
+
+            //update certificate in the endpoint descriptions
+            foreach (EndpointDescription endpointDescription in m_endpoints)
+            {
+                SetServerCertificateInEndpointDescriptionAsync(
+                    endpointDescription,
+                    InstanceCertificateTypesProvider).GetAwaiter().GetResult();
+            }
+
             foreach (var listener in TransportListeners)
             {
                 listener.CertificateUpdate(e.CertificateValidator, InstanceCertificateTypesProvider);
