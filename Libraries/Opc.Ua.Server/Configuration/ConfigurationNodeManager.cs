@@ -80,7 +80,7 @@ namespace Opc.Ua.Server
             ServerCertificateGroup defaultApplicationGroup = new ServerCertificateGroup {
                 NodeId = Opc.Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup,
                 BrowseName = Opc.Ua.BrowseNames.DefaultApplicationGroup,
-                CertificateTypes = new NodeId[]{},
+                CertificateTypes = new NodeId[] { },
                 ApplicationCertificates = new CertificateIdentifierCollection(),
                 IssuerStore = new CertificateStoreIdentifier(configuration.SecurityConfiguration.TrustedIssuerCertificates.StorePath),
                 TrustedStore = new CertificateStoreIdentifier(configuration.SecurityConfiguration.TrustedPeerCertificates.StorePath)
@@ -397,7 +397,7 @@ namespace Opc.Ua.Server
 
                 // identify the existing certificate to be updated
                 // it should be of the same type and same subject name as the new certificate
-                CertificateIdentifier existingCertIdentifier = certificateGroup.ApplicationCertificates.FirstOrDefault(cert => 
+                CertificateIdentifier existingCertIdentifier = certificateGroup.ApplicationCertificates.FirstOrDefault(cert =>
                     X509Utils.CompareDistinguishedName(cert.Certificate.Subject, newCert.Subject) &&
                     cert.CertificateType == certificateTypeId);
 
@@ -451,8 +451,8 @@ namespace Opc.Ua.Server
                     {
                         // verify cert with issuer chain
                         CertificateValidator certValidator = new CertificateValidator();
-// TODO: why?
-//                        certValidator.MinimumCertificateKeySize = 1024;
+                        // TODO: why?
+                        //                        certValidator.MinimumCertificateKeySize = 1024;
                         CertificateTrustList issuerStore = new CertificateTrustList();
                         CertificateIdentifierCollection issuerCollection = new CertificateIdentifierCollection();
                         foreach (var issuerCert in newIssuerCollection)
@@ -677,7 +677,15 @@ namespace Opc.Ua.Server
                     // give the client some time to receive the response
                     // before the certificate update may disconnect all sessions
                     await Task.Delay(1000).ConfigureAwait(false);
-                    await m_configuration.CertificateValidator.UpdateCertificateAsync(m_configuration.SecurityConfiguration).ConfigureAwait(false);
+                    try
+                    {
+                        await m_configuration.CertificateValidator.UpdateCertificateAsync(m_configuration.SecurityConfiguration).ConfigureAwait(false);
+                    }
+                    catch (Exception ex)
+                    {
+                        Utils.LogError(ex, "Failed to sucessfully Apply Changes: Error updating application instance certificate");
+                        throw ex;
+                    }
                 }
                 );
             }

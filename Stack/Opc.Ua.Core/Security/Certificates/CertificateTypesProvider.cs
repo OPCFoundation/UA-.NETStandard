@@ -175,7 +175,10 @@ namespace Opc.Ua.Security.Certificates
         public async Task UpdateAsync(SecurityConfiguration securityConfiguration)
         {
             m_securityConfiguration = securityConfiguration;
-            await InitializeAsync();
+            await Task.CompletedTask;
+            //ToDo intialize internal CertificateValidator after Certificate Update
+            //await InitializeAsync();
+
         }
 
         /// <summary>
