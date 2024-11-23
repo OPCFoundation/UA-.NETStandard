@@ -490,7 +490,7 @@ namespace Opc.Ua.Bindings
                     X509Certificate2 serverCertificate = certificateTypesProvider.GetInstanceCertificate(description.SecurityPolicyUri);
                     if (certificateTypesProvider.SendCertificateChain)
                     {
-                        byte[] serverCertificateChainRaw = certificateTypesProvider.LoadCertificateChainRaw(serverCertificate);
+                        byte[] serverCertificateChainRaw = certificateTypesProvider.LoadCertificateChainRawAsync(serverCertificate).GetAwaiter().GetResult();
                         description.ServerCertificate = serverCertificateChainRaw;
                     }
                     else

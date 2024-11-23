@@ -125,7 +125,7 @@ namespace Opc.Ua.Bindings
                     // check if complete chain should be sent.
                     if (certificateTypesProvider.SendCertificateChain)
                     {
-                        description.ServerCertificate = certificateTypesProvider.LoadCertificateChainRaw(instanceCertificate);
+                        description.ServerCertificate = certificateTypesProvider.LoadCertificateChainRawAsync(instanceCertificate).GetAwaiter().GetResult();
                     }
                 }
 

@@ -898,7 +898,7 @@ namespace Opc.Ua.Bindings
 
                 if (loadChain)
                 {
-                    m_serverCertificateChain = m_serverCertificateTypesProvider?.LoadCertificateChain(receiverCertificate);
+                    m_serverCertificateChain = m_serverCertificateTypesProvider?.LoadCertificateChainAsync(receiverCertificate).GetAwaiter().GetResult();
                 }
             }
             else
@@ -930,7 +930,7 @@ namespace Opc.Ua.Bindings
                             m_securityMode = endpoint.SecurityMode;
                             m_selectedEndpoint = endpoint;
                             m_serverCertificate = m_serverCertificateTypesProvider.GetInstanceCertificate(m_securityPolicyUri);
-                            m_serverCertificateChain = m_serverCertificateTypesProvider.LoadCertificateChain(m_serverCertificate);
+                            m_serverCertificateChain = m_serverCertificateTypesProvider.LoadCertificateChainAsync(m_serverCertificate).GetAwaiter().GetResult();
                             supported = true;
                             break;
                         }

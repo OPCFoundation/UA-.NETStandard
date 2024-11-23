@@ -21,10 +21,10 @@ using System.Linq;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading;
-using Microsoft.Extensions.Logging;
 using Opc.Ua.Bindings;
 using System.Net.Sockets;
 using Opc.Ua.Security.Certificates;
+using System.Threading.Tasks;
 
 namespace Opc.Ua
 {
@@ -604,12 +604,10 @@ namespace Opc.Ua
         /// Sets the Server Certificate in an Endpoint description if the description requires encryption.
         /// </summary>
         /// <param name="description">the endpoint Description to set the server certificate</param>
-        /// <param name="sendCertificateChain">true if the certificate chain shall be sent</param>
         /// <param name="certificateTypesProvider">The provider to get the server certificate per certificate type.</param>
         /// <param name="checkRequireEncryption">only set certificate if the endpoint does require Encryption</param>
-        public static void SetServerCertificateInEndpointDescription(
+        public static async Task SetServerCertificateInEndpointDescriptionAsync(
             EndpointDescription description,
-            bool sendCertificateChain,
             CertificateTypesProvider certificateTypesProvider,
             bool checkRequireEncryption = true)
         {
@@ -617,9 +615,9 @@ namespace Opc.Ua
             {
                 X509Certificate2 serverCertificate = certificateTypesProvider.GetInstanceCertificate(description.SecurityPolicyUri);
                 // check if complete chain should be sent.
-                if (sendCertificateChain)
+                if (certificateTypesProvider.SendCertificateChain)
                 {
-                    description.ServerCertificate = certificateTypesProvider.LoadCertificateChainRaw(serverCertificate);
+                    description.ServerCertificate = await certificateTypesProvider.LoadCertificateChainRawAsync(serverCertificate);
                 }
                 else
                 {
@@ -796,7 +794,7 @@ namespace Opc.Ua
         /// </summary>
         protected virtual void OnCertificateUpdate(object sender, CertificateUpdateEventArgs e)
         {
-            InstanceCertificateTypesProvider.Update(e.SecurityConfiguration);
+            InstanceCertificateTypesProvider.UpdateAsync(e.SecurityConfiguration).GetAwaiter().GetResult();
             foreach (var listener in TransportListeners)
             {
                 listener.CertificateUpdate(e.CertificateValidator, InstanceCertificateTypesProvider);

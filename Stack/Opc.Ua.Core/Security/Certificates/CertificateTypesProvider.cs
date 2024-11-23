@@ -122,7 +122,7 @@ namespace Opc.Ua.Security.Certificates
         /// Loads the cached certificate chain blob of a certificate for use in a secure channel as raw byte array.
         /// </summary>
         /// <param name="certificate">The application certificate.</param>
-        public byte[] LoadCertificateChainRaw(X509Certificate2 certificate)
+        public async Task<byte[]> LoadCertificateChainRawAsync(X509Certificate2 certificate)
         {
             if (certificate == null)
             {
@@ -134,7 +134,13 @@ namespace Opc.Ua.Security.Certificates
                 return result.Item2;
             }
 
-            return certificate.RawData;
+            // load certificate chain.
+            Tuple<X509Certificate2Collection, byte[]> dictionaryValue = await LoadCertificateChainFromStoreAsync(certificate);
+
+            // update cached values
+            m_certificateChain[certificate.Thumbprint] = dictionaryValue;
+
+            return dictionaryValue.Item2;
         }
 
         /// <summary>
@@ -154,6 +160,31 @@ namespace Opc.Ua.Security.Certificates
             }
 
             // load certificate chain.
+            Tuple<X509Certificate2Collection, byte[]> dictionaryValue = await LoadCertificateChainFromStoreAsync(certificate);
+
+            // update cached values
+            m_certificateChain[certificate.Thumbprint] = dictionaryValue;
+
+            return dictionaryValue.Item1;
+        }
+
+        /// <summary>
+        /// Update the security configuration of the cert type provider.
+        /// </summary>
+        /// <param name="securityConfiguration">The new security configuration.</param>
+        public async Task UpdateAsync(SecurityConfiguration securityConfiguration)
+        {
+            m_securityConfiguration = securityConfiguration;
+            await InitializeAsync();
+        }
+
+        /// <summary>
+        /// Builds the chain using the Issuer and Trusted Stores of the certificateValidator
+        /// </summary>
+        /// <param name="certificate">the certificate to load the chain for</param>
+        /// <returns></returns>
+        private async Task<Tuple<X509Certificate2Collection, byte[]>> LoadCertificateChainFromStoreAsync(X509Certificate2 certificate)
+        {
             var certificateChain = new X509Certificate2Collection(certificate);
             var issuers = new List<Opc.Ua.CertificateIdentifier>();
             if (await m_certificateValidator.GetIssuers(certificate, issuers).ConfigureAwait(false))
@@ -165,40 +196,7 @@ namespace Opc.Ua.Security.Certificates
             }
 
             byte[] certificateChainRaw = Utils.CreateCertificateChainBlob(certificateChain);
-            var dictionaryValue = new Tuple<X509Certificate2Collection, byte[]>(certificateChain, certificateChainRaw);
-
-            // update cached values
-            m_certificateChain[certificate.Thumbprint] = dictionaryValue;
-
-            return certificateChain;
-        }
-
-        /// <summary>
-        /// Loads the certificate chain for an application certificate from cache.
-        /// </summary>
-        /// <param name="certificate">The application certificate.</param>
-        public X509Certificate2Collection LoadCertificateChain(X509Certificate2 certificate)
-        {
-            if (certificate == null)
-            {
-                return null;
-            }
-
-            if (m_certificateChain.TryGetValue(certificate.Thumbprint, out var certificateChainTuple))
-            {
-                return certificateChainTuple.Item1;
-            }
-
-            return null;
-        }
-
-        /// <summary>
-        /// Update the security configuration of the cert type provider.
-        /// </summary>
-        /// <param name="securityConfiguration">The new security configuration.</param>
-        public void Update(SecurityConfiguration securityConfiguration)
-        {
-            m_securityConfiguration = securityConfiguration;
+            return new Tuple<X509Certificate2Collection, byte[]>(certificateChain, certificateChainRaw);
         }
 
         CertificateValidator m_certificateValidator;

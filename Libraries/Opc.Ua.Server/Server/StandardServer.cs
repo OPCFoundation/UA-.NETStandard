@@ -488,7 +488,7 @@ namespace Opc.Ua.Server
                         // check if complete chain should be sent.
                         if (InstanceCertificateTypesProvider.SendCertificateChain)
                         {
-                            serverCertificate = InstanceCertificateTypesProvider.LoadCertificateChainRaw(instanceCertificate);
+                            serverCertificate = InstanceCertificateTypesProvider.LoadCertificateChainRawAsync(instanceCertificate).GetAwaiter().GetResult();
                         }
                         else
                         {

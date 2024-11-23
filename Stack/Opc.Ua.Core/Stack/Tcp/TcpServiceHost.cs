@@ -76,7 +76,6 @@ namespace Opc.Ua.Bindings
                     uri.Host = computerName;
                 }
 
-                bool sendCertificateChain = instanceCertificateTypesProvider.SendCertificateChain;
                 ITransportListener listener = this.Create();
                 if (listener != null)
                 {
@@ -96,10 +95,9 @@ namespace Opc.Ua.Bindings
                         };
                         description.UserIdentityTokens = serverBase.GetUserTokenPolicies(configuration, description);
 
-                        ServerBase.SetServerCertificateInEndpointDescription(
+                        ServerBase.SetServerCertificateInEndpointDescriptionAsync(
                             description,
-                            sendCertificateChain,
-                            instanceCertificateTypesProvider);
+                            instanceCertificateTypesProvider).GetAwaiter().GetResult();
 
                         listenerEndpoints.Add(description);
                     }

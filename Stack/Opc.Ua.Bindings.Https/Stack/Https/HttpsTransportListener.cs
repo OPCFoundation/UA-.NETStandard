@@ -477,10 +477,9 @@ namespace Opc.Ua.Bindings
 
             foreach (EndpointDescription description in m_descriptions)
             {
-                ServerBase.SetServerCertificateInEndpointDescription(description,
-                    m_serverCertProvider.SendCertificateChain,
+                ServerBase.SetServerCertificateInEndpointDescriptionAsync(description,
                     certificateTypeProvider,
-                    false);
+                    false).GetAwaiter().GetResult();
             }
 
             Start();
