@@ -135,7 +135,7 @@ namespace Opc.Ua.Security.Certificates
             }
 
             // load certificate chain.
-            Tuple<X509Certificate2Collection, byte[]> dictionaryValue = await LoadCertificateChainFromStoreAsync(certificate);
+            Tuple<X509Certificate2Collection, byte[]> dictionaryValue = await LoadCertificateChainFromStoreAsync(certificate).ConfigureAwait(false);
 
             // update cached values
             m_certificateChain[certificate.Thumbprint] = dictionaryValue;
@@ -160,7 +160,7 @@ namespace Opc.Ua.Security.Certificates
             }
 
             // load certificate chain.
-            Tuple<X509Certificate2Collection, byte[]> dictionaryValue = await LoadCertificateChainFromStoreAsync(certificate);
+            Tuple<X509Certificate2Collection, byte[]> dictionaryValue = await LoadCertificateChainFromStoreAsync(certificate).ConfigureAwait(false);
 
             // update cached values
             m_certificateChain[certificate.Thumbprint] = dictionaryValue;
@@ -175,10 +175,8 @@ namespace Opc.Ua.Security.Certificates
         public async Task UpdateAsync(SecurityConfiguration securityConfiguration)
         {
             m_securityConfiguration = securityConfiguration;
-            await Task.CompletedTask;
-            //ToDo intialize internal CertificateValidator after Certificate Update
-            //await InitializeAsync();
-
+            //ToDo intialize internal CertificateValidator after Certificate Update to clear cache of old application certificates
+            await Task.CompletedTask.ConfigureAwait(false);
         }
 
         /// <summary>

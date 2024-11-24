@@ -452,7 +452,7 @@ namespace Opc.Ua.Server
                         // verify cert with issuer chain
                         CertificateValidator certValidator = new CertificateValidator();
                         // TODO: why?
-                        //                        certValidator.MinimumCertificateKeySize = 1024;
+                        // certValidator.MinimumCertificateKeySize = 1024;
                         CertificateTrustList issuerStore = new CertificateTrustList();
                         CertificateIdentifierCollection issuerCollection = new CertificateIdentifierCollection();
                         foreach (var issuerCert in newIssuerCollection)
@@ -683,7 +683,7 @@ namespace Opc.Ua.Server
                     }
                     catch (Exception ex)
                     {
-                        Utils.LogError(ex, "Failed to sucessfully Apply Changes: Error updating application instance certificate");
+                        Utils.LogCritical(ex, "Failed to sucessfully Apply Changes: Error updating application instance certificates. Server could be in faulted state.");
                         throw ex;
                     }
                 }

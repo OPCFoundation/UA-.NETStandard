@@ -617,7 +617,7 @@ namespace Opc.Ua
                 // check if complete chain should be sent.
                 if (certificateTypesProvider.SendCertificateChain)
                 {
-                    description.ServerCertificate = await certificateTypesProvider.LoadCertificateChainRawAsync(serverCertificate);
+                    description.ServerCertificate = await certificateTypesProvider.LoadCertificateChainRawAsync(serverCertificate).ConfigureAwait(false);
                 }
                 else
                 {
