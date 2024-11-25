@@ -518,7 +518,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public void WriteSwitchField(string fieldName, uint switchField)
         {
-            if (EncodingToUse == JsonEncodingType.Reversible)
+            if ((!SuppressArtifacts && EncodingToUse == JsonEncodingType.Compact) || EncodingToUse == JsonEncodingType.Reversible)
             {
                 WriteUInt32(fieldName, switchField);
             }
@@ -1586,13 +1586,8 @@ namespace Opc.Ua
 
                 if (value.Value is Matrix matrix)
                 {
-                    PushStructure(null);
-                    m_writer.Write(s_quotation);
-                    EscapeString("Array");
-                    m_writer.Write(s_quotationColon);
                     WriteVariantContents(value.Value, value.TypeInfo);
                     WriteInt32Array("Dimensions", matrix.Dimensions);
-                    PopStructure();
                     return;
                 }
 

@@ -1302,36 +1302,6 @@ namespace Opc.Ua
                     return array;
                 }
 
-                if (innerValue is Dictionary<string,object> map &&
-                    map.Count == 2 &&
-                    map.ContainsKey("Array") &&
-                    map.ContainsKey("Dimensions"))
-                {
-                    m_stack.Push(innerValue);
-
-                    var array = ReadVariantArrayBody("Array", builtInType);
-                    var dimensions = ReadInt32Array("Dimensions");
-
-                    Matrix matrix = null;
-
-                    if (dimensions?.Count > 1 && array.Value is Array matrixArray)
-                    {
-                        (bool valid, int matrixLength) = Matrix.ValidateDimensions(dimensions, matrixArray.Length, Context.MaxArrayLength);
-
-                        if (!valid || (matrixLength != matrixArray.Length))
-                        {
-                            throw ServiceResultException.Create(
-                                StatusCodes.BadDecodingError,
-                                "ArrayDimensions length does not match with the ArrayLength in Variant object.");
-                        }
-
-                        matrix = new Matrix(matrixArray, builtInType, dimensions.ToArray());
-                    }
-
-                    m_stack.Pop();
-                    return new Variant(matrix);
-                }
-
                 return ReadVariantBody(valueName, builtInType);
             }
 
@@ -2764,12 +2734,14 @@ namespace Opc.Ua
         {
             if (m_stack.Peek() is Dictionary<string, object> context)
             {
+                if (context.ContainsKey("SwitchField"))
+                {
+                    return ReadUInt32("SwitchField");
+                }
+
                 foreach (var ii in context)
                 {
-                    if (ii.Key != "SwitchField")
-                    {
-                        return (uint)Enum.Parse(switches, ii.Key);
-                    }
+                    return (uint)Enum.Parse(switches, ii.Key);
                 }
             }
 
