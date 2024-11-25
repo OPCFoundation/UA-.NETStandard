@@ -393,12 +393,6 @@ namespace Opc.Ua.Bindings
                         await WriteResponseAsync(context.Response, message, HttpStatusCode.Unauthorized).ConfigureAwait(false);
                         return;
                     }
-
-                    if (!await ValidateClientTlsCertificateAsync(context, ct).ConfigureAwait(false))
-                    {
-                        return;
-                    }
-
                 }
 
                 // extract the JWT token from the HTTP headers.
@@ -589,43 +583,6 @@ namespace Opc.Ua.Bindings
             return true;
         }
 
-        /// <summary>
-        /// Validates the client TLS certificate per request
-        /// </summary>
-        /// <param name="context">Context of the validation</param>
-        /// <param name="ct">Cancellation token</param>
-        /// <returns>true if validation passes, else false</returns>
-        private async Task<bool> ValidateClientTlsCertificateAsync(HttpContext context, CancellationToken ct)
-        {
-            var clientCertificate = context.Connection.ClientCertificate;
-
-            if (clientCertificate == null)
-            {
-                string message = "Client TLS certificate is required";
-                Utils.LogError(message);
-                // No tls client certificate is provided
-                await WriteResponseAsync(context.Response, message, HttpStatusCode.Unauthorized).ConfigureAwait(false);
-                return false;
-            }
-
-            // Validate the client certificate 
-            if (clientCertificate != null && m_quotas.CertificateValidator != null)
-            {
-                try
-                {
-                    await m_quotas.CertificateValidator.ValidateAsync(clientCertificate, ct).ConfigureAwait(false);
-                }
-                catch (Exception ex)
-                {
-                    string message = "Client TLS certificate validation failed.";
-                    Utils.LogError(ex, message);
-                    await WriteResponseAsync(context.Response, message, HttpStatusCode.Unauthorized).ConfigureAwait(false);
-                    return false;
-                }
-            }
-
-            return true;
-        }
         #endregion
 
         #region Private Fields
