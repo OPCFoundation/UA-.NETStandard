@@ -797,6 +797,12 @@ namespace Opc.Ua
         protected virtual void OnCertificateUpdate(object sender, CertificateUpdateEventArgs e)
         {
             InstanceCertificateTypesProvider.Update(e.SecurityConfiguration);
+
+            foreach (var certificateIdentifier in Configuration.SecurityConfiguration.ApplicationCertificates)
+            {
+                // preload chain 
+                InstanceCertificateTypesProvider.LoadCertificateChainAsync(certificateIdentifier.Find(false).GetAwaiter().GetResult()).GetAwaiter().GetResult();
+            }
             foreach (var listener in TransportListeners)
             {
                 listener.CertificateUpdate(e.CertificateValidator, InstanceCertificateTypesProvider);
@@ -1472,7 +1478,7 @@ namespace Opc.Ua
         {
             request.CallSynchronously();
         }
-#endregion
+        #endregion
 
         #region RequestQueue Class
         /// <summary>
@@ -1702,7 +1708,7 @@ namespace Opc.Ua
                 }
             }
 #endif
-#endregion
+            #endregion
 
             #region Private Fields
             private ServerBase m_server;
@@ -1716,7 +1722,7 @@ namespace Opc.Ua
             private Queue<IEndpointIncomingRequest> m_queue;
             private int m_totalThreadCount;
 #endif
-#endregion
+            #endregion
 
         }
         #endregion
