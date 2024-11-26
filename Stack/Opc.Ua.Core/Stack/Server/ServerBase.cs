@@ -604,12 +604,10 @@ namespace Opc.Ua
         /// Sets the Server Certificate in an Endpoint description if the description requires encryption.
         /// </summary>
         /// <param name="description">the endpoint Description to set the server certificate</param>
-        /// <param name="sendCertificateChain">true if the certificate chain shall be sent</param>
         /// <param name="certificateTypesProvider">The provider to get the server certificate per certificate type.</param>
         /// <param name="checkRequireEncryption">only set certificate if the endpoint does require Encryption</param>
         public static void SetServerCertificateInEndpointDescription(
             EndpointDescription description,
-            bool sendCertificateChain,
             CertificateTypesProvider certificateTypesProvider,
             bool checkRequireEncryption = true)
         {
@@ -617,7 +615,7 @@ namespace Opc.Ua
             {
                 X509Certificate2 serverCertificate = certificateTypesProvider.GetInstanceCertificate(description.SecurityPolicyUri);
                 // check if complete chain should be sent.
-                if (sendCertificateChain)
+                if (certificateTypesProvider.SendCertificateChain)
                 {
                     description.ServerCertificate = certificateTypesProvider.LoadCertificateChainRaw(serverCertificate);
                 }
@@ -803,6 +801,15 @@ namespace Opc.Ua
                 // preload chain 
                 InstanceCertificateTypesProvider.LoadCertificateChainAsync(certificateIdentifier.Find(false).GetAwaiter().GetResult()).GetAwaiter().GetResult();
             }
+
+            //update certificate in the endpoint descriptions
+            foreach (EndpointDescription endpointDescription in m_endpoints)
+            {
+                SetServerCertificateInEndpointDescription(
+                    endpointDescription,
+                    InstanceCertificateTypesProvider);
+            }
+
             foreach (var listener in TransportListeners)
             {
                 listener.CertificateUpdate(e.CertificateValidator, InstanceCertificateTypesProvider);
