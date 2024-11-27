@@ -28,9 +28,9 @@
  * http://opcfoundation.org/License/MIT/1.00/
 -->
 
-<UANodeSet xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" LastModified="2024-11-01T00:00:00Z" xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
+<UANodeSet xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" LastModified="2024-12-01T00:00:00Z" xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
   <Models>
-    <Model ModelUri="http://opcfoundation.org/UA/" XmlSchemaUri="http://opcfoundation.org/UA/2008/02/Types.xsd" Version="1.05.04" PublicationDate="2024-11-01T00:00:00Z" ModelVersion="1.5.4" />
+    <Model ModelUri="http://opcfoundation.org/UA/" XmlSchemaUri="http://opcfoundation.org/UA/2008/02/Types.xsd" Version="1.05.04" PublicationDate="2024-12-01T00:00:00Z" ModelVersion="1.5.4" />
   </Models>
   <Aliases>
     <Alias Alias="Boolean">i=1</Alias>
@@ -499,6 +499,8 @@
   </UAReferenceType>
   <UAReferenceType NodeId="i=51" BrowseName="FromState">
     <DisplayName>FromState</DisplayName>
+    <Category>Base Info Finite State Machine Instance</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part16/4.4.11</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=32</Reference>
     </References>
@@ -506,6 +508,8 @@
   </UAReferenceType>
   <UAReferenceType NodeId="i=52" BrowseName="ToState">
     <DisplayName>ToState</DisplayName>
+    <Category>Base Info Finite State Machine Instance</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part16/4.4.12</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=32</Reference>
     </References>
@@ -513,6 +517,8 @@
   </UAReferenceType>
   <UAReferenceType NodeId="i=53" BrowseName="HasCause">
     <DisplayName>HasCause</DisplayName>
+    <Category>Base Info Finite State Machine Instance</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part16/4.4.13</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=32</Reference>
     </References>
@@ -520,6 +526,8 @@
   </UAReferenceType>
   <UAReferenceType NodeId="i=54" BrowseName="HasEffect">
     <DisplayName>HasEffect</DisplayName>
+    <Category>Base Info Finite State Machine Instance</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part16/4.4.14</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=32</Reference>
     </References>
@@ -527,6 +535,8 @@
   </UAReferenceType>
   <UAReferenceType NodeId="i=117" BrowseName="HasSubStateMachine">
     <DisplayName>HasSubStateMachine</DisplayName>
+    <Category>Base Info Finite State Machine Instance</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part16/4.4.15</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=32</Reference>
     </References>
@@ -969,7 +979,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">i=15957</Reference>
     </References>
     <Value>
-      <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">2024-11-01T00:00:00Z</DateTime>
+      <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">2024-12-01T00:00:00Z</DateTime>
     </Value>
   </UAVariable>
   <UAVariable NodeId="i=15961" BrowseName="IsNamespaceSubset" ParentNodeId="i=15957" DataType="Boolean">
@@ -5568,8 +5578,8 @@
   </UAVariable>
   <UAObjectType NodeId="i=2127" BrowseName="AuditUpdateMethodEventType" IsAbstract="true">
     <DisplayName>AuditUpdateMethodEventType</DisplayName>
-    <Category>Auditing Method
-Auditing Method Output</Category>
+    <Category>Auditing Method</Category>
+    <Category>Auditing Method Output</Category>
     <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part5/6.4.27</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=2128</Reference>
@@ -9651,6 +9661,8 @@ Auditing Method Output</Category>
   </UADataType>
   <UAObjectType NodeId="i=2299" BrowseName="StateMachineType">
     <DisplayName>StateMachineType</DisplayName>
+    <Category>Base Info State Machine Instance</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part16/4.4.2</Documentation>
     <References>
       <Reference ReferenceType="HasComponent">i=2769</Reference>
       <Reference ReferenceType="HasComponent">i=2770</Reference>
@@ -9693,6 +9705,8 @@ Auditing Method Output</Category>
   </UAVariable>
   <UAVariableType NodeId="i=2755" BrowseName="StateVariableType" DataType="LocalizedText">
     <DisplayName>StateVariableType</DisplayName>
+    <Category>Base Info State Machine Instance</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part16/4.4.3</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=2756</Reference>
       <Reference ReferenceType="HasProperty">i=2757</Reference>
@@ -9735,6 +9749,8 @@ Auditing Method Output</Category>
   </UAVariable>
   <UAVariableType NodeId="i=2762" BrowseName="TransitionVariableType" DataType="LocalizedText">
     <DisplayName>TransitionVariableType</DisplayName>
+    <Category>Base Info State Machine Instance</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part16/4.4.4</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=2763</Reference>
       <Reference ReferenceType="HasProperty">i=2764</Reference>
@@ -9786,6 +9802,9 @@ Auditing Method Output</Category>
   </UAVariable>
   <UAObjectType NodeId="i=2771" BrowseName="FiniteStateMachineType" IsAbstract="true">
     <DisplayName>FiniteStateMachineType</DisplayName>
+    <Category>Base Info Finite State Machine Instance</Category>
+    <Category>Base Info Available States and Transitions</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part16/4.4.5</Documentation>
     <References>
       <Reference ReferenceType="HasComponent">i=2772</Reference>
       <Reference ReferenceType="HasComponent">i=2773</Reference>
@@ -9846,6 +9865,8 @@ Auditing Method Output</Category>
   </UAVariable>
   <UAVariableType NodeId="i=2760" BrowseName="FiniteStateVariableType" DataType="LocalizedText">
     <DisplayName>FiniteStateVariableType</DisplayName>
+    <Category>Base Info Finite State Machine Instance</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part16/4.4.6</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=2761</Reference>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=2755</Reference>
@@ -9861,6 +9882,8 @@ Auditing Method Output</Category>
   </UAVariable>
   <UAVariableType NodeId="i=2767" BrowseName="FiniteTransitionVariableType" DataType="LocalizedText">
     <DisplayName>FiniteTransitionVariableType</DisplayName>
+    <Category>Base Info Finite State Machine Instance</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part16/4.4.7</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=2768</Reference>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=2762</Reference>
@@ -9876,6 +9899,8 @@ Auditing Method Output</Category>
   </UAVariable>
   <UAObjectType NodeId="i=2307" BrowseName="StateType">
     <DisplayName>StateType</DisplayName>
+    <Category>Base Info Finite State Machine Instance</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part16/4.4.8</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=2308</Reference>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=58</Reference>
@@ -9891,12 +9916,16 @@ Auditing Method Output</Category>
   </UAVariable>
   <UAObjectType NodeId="i=2309" BrowseName="InitialStateType">
     <DisplayName>InitialStateType</DisplayName>
+    <Category>Base Info Finite State Machine Instance</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part16/4.4.9</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=2307</Reference>
     </References>
   </UAObjectType>
   <UAObjectType NodeId="i=2310" BrowseName="TransitionType">
     <DisplayName>TransitionType</DisplayName>
+    <Category>Base Info Finite State Machine Instance</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part16/4.4.10</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=2312</Reference>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=58</Reference>
@@ -9912,12 +9941,16 @@ Auditing Method Output</Category>
   </UAVariable>
   <UAObjectType NodeId="i=15109" BrowseName="ChoiceStateType">
     <DisplayName>ChoiceStateType</DisplayName>
+    <Category>Base Info Choice States</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part16/4.6.2</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=2307</Reference>
     </References>
   </UAObjectType>
   <UAReferenceType NodeId="i=15112" BrowseName="HasGuard">
     <DisplayName>HasGuard</DisplayName>
+    <Category>Base Info Choice States</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part16/4.6.3</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=47</Reference>
     </References>
@@ -9925,12 +9958,16 @@ Auditing Method Output</Category>
   </UAReferenceType>
   <UAVariableType NodeId="i=15113" BrowseName="GuardVariableType" DataType="LocalizedText">
     <DisplayName>GuardVariableType</DisplayName>
+    <Category>Base Info Choice States</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part16/4.6.4</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=63</Reference>
     </References>
   </UAVariableType>
   <UAVariableType NodeId="i=15128" BrowseName="ExpressionGuardVariableType" DataType="LocalizedText">
     <DisplayName>ExpressionGuardVariableType</DisplayName>
+    <Category>Base Info Choice States</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part16/4.6.5</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=15129</Reference>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=15113</Reference>
@@ -9946,6 +9983,8 @@ Auditing Method Output</Category>
   </UAVariable>
   <UAVariableType NodeId="i=15317" BrowseName="ElseGuardVariableType" DataType="LocalizedText">
     <DisplayName>ElseGuardVariableType</DisplayName>
+    <Category>Base Info Choice States</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part16/4.6.6</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=15113</Reference>
     </References>
@@ -10414,6 +10453,8 @@ Auditing Method Output</Category>
   </UADataType>
   <UAObjectType NodeId="i=2311" BrowseName="TransitionEventType" IsAbstract="true">
     <DisplayName>TransitionEventType</DisplayName>
+    <Category>Base Info Finite State Machine Instance</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part16/4.4.16</Documentation>
     <References>
       <Reference ReferenceType="HasComponent">i=2774</Reference>
       <Reference ReferenceType="HasComponent">i=2775</Reference>
@@ -10474,6 +10515,8 @@ Auditing Method Output</Category>
   </UAVariable>
   <UAObjectType NodeId="i=2315" BrowseName="AuditUpdateStateEventType" IsAbstract="true">
     <DisplayName>AuditUpdateStateEventType</DisplayName>
+    <Category>Auditing Base</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part16/4.4.17</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=2777</Reference>
       <Reference ReferenceType="HasProperty">i=2778</Reference>
@@ -17005,6 +17048,8 @@ Auditing Method Output</Category>
   </UAReferenceType>
   <UAVariableType NodeId="i=8995" BrowseName="TwoStateVariableType" DataType="LocalizedText">
     <DisplayName>TwoStateVariableType</DisplayName>
+    <Category>A &amp; C Basic</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part9/5.2</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=8996</Reference>
       <Reference ReferenceType="HasProperty">i=9000</Reference>
@@ -17056,6 +17101,8 @@ Auditing Method Output</Category>
   </UAVariable>
   <UAVariableType NodeId="i=9002" BrowseName="ConditionVariableType" ValueRank="-2">
     <DisplayName>ConditionVariableType</DisplayName>
+    <Category>A &amp; C Basic</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part9/5.3</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=9003</Reference>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=63</Reference>
@@ -17071,6 +17118,8 @@ Auditing Method Output</Category>
   </UAVariable>
   <UAReferenceType NodeId="i=9004" BrowseName="HasTrueSubState">
     <DisplayName>HasTrueSubState</DisplayName>
+    <Category>A &amp; C Basic</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part9/5.4.2</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=32</Reference>
     </References>
@@ -17078,6 +17127,8 @@ Auditing Method Output</Category>
   </UAReferenceType>
   <UAReferenceType NodeId="i=9005" BrowseName="HasFalseSubState">
     <DisplayName>HasFalseSubState</DisplayName>
+    <Category>A &amp; C Basic</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part9/5.4.3</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=32</Reference>
     </References>
@@ -17085,6 +17136,8 @@ Auditing Method Output</Category>
   </UAReferenceType>
   <UAReferenceType NodeId="i=16361" BrowseName="HasAlarmSuppressionGroup">
     <DisplayName>HasAlarmSuppressionGroup</DisplayName>
+    <Category>A &amp; C Suppression Group</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part9/5.4.4</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=47</Reference>
     </References>
@@ -17092,6 +17145,9 @@ Auditing Method Output</Category>
   </UAReferenceType>
   <UAReferenceType NodeId="i=16362" BrowseName="AlarmGroupMember">
     <DisplayName>AlarmGroupMember</DisplayName>
+    <Category>A &amp; C Suppression Group</Category>
+    <Category>A &amp; C First in Group Alarm</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part9/5.4.5</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=35</Reference>
     </References>
@@ -17099,6 +17155,8 @@ Auditing Method Output</Category>
   </UAReferenceType>
   <UAReferenceType NodeId="i=32059" BrowseName="AlarmSuppressionGroupMember">
     <DisplayName>AlarmSuppressionGroupMember</DisplayName>
+    <Category>A &amp; C Suppression Group</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part9/5.4.6</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=16362</Reference>
     </References>
@@ -17106,6 +17164,8 @@ Auditing Method Output</Category>
   </UAReferenceType>
   <UAObjectType NodeId="i=2782" BrowseName="ConditionType" IsAbstract="true">
     <DisplayName>ConditionType</DisplayName>
+    <Category>A &amp; C Basic</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part9/5.5.2</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=11112</Reference>
       <Reference ReferenceType="HasProperty">i=11113</Reference>
@@ -17324,6 +17384,8 @@ Auditing Method Output</Category>
   </UAVariable>
   <UAMethod NodeId="i=9028" BrowseName="Disable" ParentNodeId="i=2782">
     <DisplayName>Disable</DisplayName>
+    <Category>A &amp; C Enable</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part9/5.5.4</Documentation>
     <References>
       <Reference ReferenceType="i=3065">i=2803</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
@@ -17332,6 +17394,8 @@ Auditing Method Output</Category>
   </UAMethod>
   <UAMethod NodeId="i=9027" BrowseName="Enable" ParentNodeId="i=2782">
     <DisplayName>Enable</DisplayName>
+    <Category>A &amp; C Enable</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part9/5.5.5</Documentation>
     <References>
       <Reference ReferenceType="i=3065">i=2803</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
@@ -17340,6 +17404,8 @@ Auditing Method Output</Category>
   </UAMethod>
   <UAMethod NodeId="i=9029" BrowseName="AddComment" ParentNodeId="i=2782">
     <DisplayName>AddComment</DisplayName>
+    <Category>A &amp; C Comment</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part9/5.5.6</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=9030</Reference>
       <Reference ReferenceType="i=3065">i=2829</Reference>
@@ -17397,6 +17463,8 @@ Auditing Method Output</Category>
   </UAVariable>
   <UAMethod NodeId="i=3875" BrowseName="ConditionRefresh" ParentNodeId="i=2782">
     <DisplayName>ConditionRefresh</DisplayName>
+    <Category>A &amp; C Refresh</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part9/5.5.7</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=3876</Reference>
       <Reference ReferenceType="i=3065">i=2787</Reference>
@@ -17436,6 +17504,8 @@ Auditing Method Output</Category>
   </UAVariable>
   <UAMethod NodeId="i=12912" BrowseName="ConditionRefresh2" ParentNodeId="i=2782">
     <DisplayName>ConditionRefresh2</DisplayName>
+    <Category>A &amp; C Refresh2</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part9/5.5.8</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=12913</Reference>
       <Reference ReferenceType="i=3065">i=2787</Reference>
@@ -17493,6 +17563,8 @@ Auditing Method Output</Category>
   </UAVariable>
   <UAObjectType NodeId="i=2830" BrowseName="DialogConditionType">
     <DisplayName>DialogConditionType</DisplayName>
+    <Category>A &amp; C Dialog</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part9/5.6.2</Documentation>
     <References>
       <Reference ReferenceType="HasComponent">i=9035</Reference>
       <Reference ReferenceType="HasComponent">i=9055</Reference>
@@ -17630,6 +17702,8 @@ Auditing Method Output</Category>
   </UAVariable>
   <UAMethod NodeId="i=9069" BrowseName="Respond" ParentNodeId="i=2830">
     <DisplayName>Respond</DisplayName>
+    <Category>A &amp; C Dialog</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part9/5.6.3</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=9070</Reference>
       <Reference ReferenceType="i=3065">i=8927</Reference>
@@ -17666,6 +17740,8 @@ Auditing Method Output</Category>
   </UAVariable>
   <UAMethod NodeId="i=24312" BrowseName="Respond2" ParentNodeId="i=2830">
     <DisplayName>Respond2</DisplayName>
+    <Category>A &amp; C Dialog2</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part9/5.6.4</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=24313</Reference>
       <Reference ReferenceType="i=3065">i=8927</Reference>
@@ -17717,6 +17793,8 @@ Auditing Method Output</Category>
   </UAVariable>
   <UAObjectType NodeId="i=2881" BrowseName="AcknowledgeableConditionType">
     <DisplayName>AcknowledgeableConditionType</DisplayName>
+    <Category>A &amp; C Acknowledge</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part9/5.7.2</Documentation>
     <References>
       <Reference ReferenceType="HasComponent">i=9073</Reference>
       <Reference ReferenceType="HasComponent">i=9093</Reference>
@@ -17857,6 +17935,8 @@ Auditing Method Output</Category>
   </UAVariable>
   <UAMethod NodeId="i=9111" BrowseName="Acknowledge" ParentNodeId="i=2881">
     <DisplayName>Acknowledge</DisplayName>
+    <Category>A &amp; C Acknowledge</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part9/5.7.3</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=9112</Reference>
       <Reference ReferenceType="i=3065">i=8944</Reference>
@@ -17914,6 +17994,8 @@ Auditing Method Output</Category>
   </UAVariable>
   <UAMethod NodeId="i=9113" BrowseName="Confirm" ParentNodeId="i=2881">
     <DisplayName>Confirm</DisplayName>
+    <Category>A &amp; C Confirm</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part9/5.7.4</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=9114</Reference>
       <Reference ReferenceType="i=3065">i=8961</Reference>
@@ -17971,6 +18053,8 @@ Auditing Method Output</Category>
   </UAVariable>
   <UAObjectType NodeId="i=2915" BrowseName="AlarmConditionType">
     <DisplayName>AlarmConditionType</DisplayName>
+    <Category>A &amp; C Alarm</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part9/5.8.2</Documentation>
     <References>
       <Reference ReferenceType="HasComponent">i=9118</Reference>
       <Reference ReferenceType="HasComponent">i=9160</Reference>
@@ -18532,6 +18616,8 @@ Auditing Method Output</Category>
   </UAVariable>
   <UAMethod NodeId="i=16402" BrowseName="Silence" ParentNodeId="i=2915">
     <DisplayName>Silence</DisplayName>
+    <Category>A &amp; C Silencing</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part9/5.8.7</Documentation>
     <References>
       <Reference ReferenceType="i=3065">i=17242</Reference>
       <Reference ReferenceType="HasModellingRule">i=80</Reference>
@@ -18540,6 +18626,8 @@ Auditing Method Output</Category>
   </UAMethod>
   <UAMethod NodeId="i=16403" BrowseName="Suppress" ParentNodeId="i=2915">
     <DisplayName>Suppress</DisplayName>
+    <Category>A &amp; C Suppression by Operator</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part9/5.8.8</Documentation>
     <References>
       <Reference ReferenceType="i=3065">i=17225</Reference>
       <Reference ReferenceType="HasModellingRule">i=80</Reference>
@@ -18548,6 +18636,8 @@ Auditing Method Output</Category>
   </UAMethod>
   <UAMethod NodeId="i=24316" BrowseName="Suppress2" ParentNodeId="i=2915">
     <DisplayName>Suppress2</DisplayName>
+    <Category>A &amp; C Suppression2 by Operator</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part9/5.8.9</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=24317</Reference>
       <Reference ReferenceType="i=3065">i=17225</Reference>
@@ -18584,6 +18674,8 @@ Auditing Method Output</Category>
   </UAVariable>
   <UAMethod NodeId="i=17868" BrowseName="Unsuppress" ParentNodeId="i=2915">
     <DisplayName>Unsuppress</DisplayName>
+    <Category>A &amp; C Suppression by Operator</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part9/5.8.10</Documentation>
     <References>
       <Reference ReferenceType="i=3065">i=17225</Reference>
       <Reference ReferenceType="HasModellingRule">i=80</Reference>
@@ -18592,6 +18684,8 @@ Auditing Method Output</Category>
   </UAMethod>
   <UAMethod NodeId="i=24318" BrowseName="Unsuppress2" ParentNodeId="i=2915">
     <DisplayName>Unsuppress2</DisplayName>
+    <Category>A &amp; C Suppression2 by Operator</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part9/5.8.11</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=24319</Reference>
       <Reference ReferenceType="i=3065">i=17225</Reference>
@@ -18628,6 +18722,8 @@ Auditing Method Output</Category>
   </UAVariable>
   <UAMethod NodeId="i=17869" BrowseName="RemoveFromService" ParentNodeId="i=2915">
     <DisplayName>RemoveFromService</DisplayName>
+    <Category>A &amp; C OutOfService</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part9/5.8.12</Documentation>
     <References>
       <Reference ReferenceType="i=3065">i=17259</Reference>
       <Reference ReferenceType="HasModellingRule">i=80</Reference>
@@ -18636,6 +18732,8 @@ Auditing Method Output</Category>
   </UAMethod>
   <UAMethod NodeId="i=24320" BrowseName="RemoveFromService2" ParentNodeId="i=2915">
     <DisplayName>RemoveFromService2</DisplayName>
+    <Category>A &amp; C OutOfService2</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part9/5.8.13</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=24321</Reference>
       <Reference ReferenceType="i=3065">i=17259</Reference>
@@ -18672,6 +18770,8 @@ Auditing Method Output</Category>
   </UAVariable>
   <UAMethod NodeId="i=17870" BrowseName="PlaceInService" ParentNodeId="i=2915">
     <DisplayName>PlaceInService</DisplayName>
+    <Category>A &amp; C OutOfService</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part9/5.8.14</Documentation>
     <References>
       <Reference ReferenceType="i=3065">i=17259</Reference>
       <Reference ReferenceType="HasModellingRule">i=80</Reference>
@@ -18680,6 +18780,8 @@ Auditing Method Output</Category>
   </UAMethod>
   <UAMethod NodeId="i=24322" BrowseName="PlaceInService2" ParentNodeId="i=2915">
     <DisplayName>PlaceInService2</DisplayName>
+    <Category>A &amp; C OutOfService2</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part9/5.8.15</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=24323</Reference>
       <Reference ReferenceType="i=3065">i=17259</Reference>
@@ -18716,6 +18818,8 @@ Auditing Method Output</Category>
   </UAVariable>
   <UAMethod NodeId="i=18199" BrowseName="Reset" ParentNodeId="i=2915">
     <DisplayName>Reset</DisplayName>
+    <Category>A &amp; C Latched State</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part9/5.8.5</Documentation>
     <References>
       <Reference ReferenceType="i=3065">i=15013</Reference>
       <Reference ReferenceType="HasModellingRule">i=80</Reference>
@@ -18724,6 +18828,8 @@ Auditing Method Output</Category>
   </UAMethod>
   <UAMethod NodeId="i=24324" BrowseName="Reset2" ParentNodeId="i=2915">
     <DisplayName>Reset2</DisplayName>
+    <Category>A &amp; C Latched State</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part9/5.8.6</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=24325</Reference>
       <Reference ReferenceType="i=3065">i=15013</Reference>
@@ -18760,6 +18866,8 @@ Auditing Method Output</Category>
   </UAVariable>
   <UAMethod NodeId="i=24744" BrowseName="GetGroupMemberships" ParentNodeId="i=2915">
     <DisplayName>GetGroupMemberships</DisplayName>
+    <Category>A &amp; C GetGroupMemberships</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part9/5.8.16</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=25154</Reference>
       <Reference ReferenceType="HasModellingRule">i=80</Reference>
@@ -18797,6 +18905,9 @@ Auditing Method Output</Category>
   </UAVariable>
   <UAObjectType NodeId="i=16405" BrowseName="AlarmGroupType">
     <DisplayName>AlarmGroupType</DisplayName>
+    <Category>A &amp; C First in Group Alarm</Category>
+    <Category>A &amp; C Suppression Group</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part9/5.8.3</Documentation>
     <References>
       <Reference ReferenceType="i=16362">i=16406</Reference>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=61</Reference>
@@ -19244,6 +19355,8 @@ Auditing Method Output</Category>
   </UAVariable>
   <UAObjectType NodeId="i=32064" BrowseName="AlarmSuppressionGroupType">
     <DisplayName>AlarmSuppressionGroupType</DisplayName>
+    <Category>A &amp; C Suppression Group</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part9/5.8.4</Documentation>
     <References>
       <Reference ReferenceType="i=32059">i=32226</Reference>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=16405</Reference>
@@ -19259,6 +19372,8 @@ Auditing Method Output</Category>
   </UAVariable>
   <UAObjectType NodeId="i=2929" BrowseName="ShelvedStateMachineType">
     <DisplayName>ShelvedStateMachineType</DisplayName>
+    <Category>A &amp; C Shelving</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part9/5.8.17/#5.8.17.1</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=9115</Reference>
       <Reference ReferenceType="HasComponent">i=2930</Reference>
@@ -19502,6 +19617,8 @@ Auditing Method Output</Category>
   </UAVariable>
   <UAMethod NodeId="i=2949" BrowseName="TimedShelve" ParentNodeId="i=2929">
     <DisplayName>TimedShelve</DisplayName>
+    <Category>A &amp; C Shelving</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part9/5.8.17/#5.8.17.4</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=2991</Reference>
       <Reference ReferenceType="HasCause" IsForward="false">i=2935</Reference>
@@ -19540,6 +19657,8 @@ Auditing Method Output</Category>
   </UAVariable>
   <UAMethod NodeId="i=24756" BrowseName="TimedShelve2" ParentNodeId="i=2929">
     <DisplayName>TimedShelve2</DisplayName>
+    <Category>A &amp; C Shelving2</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part9/5.8.17/#5.8.17.5</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=24757</Reference>
       <Reference ReferenceType="HasCause" IsForward="false">i=2935</Reference>
@@ -19593,6 +19712,8 @@ Auditing Method Output</Category>
   </UAVariable>
   <UAMethod NodeId="i=2947" BrowseName="Unshelve" ParentNodeId="i=2929">
     <DisplayName>Unshelve</DisplayName>
+    <Category>A &amp; C Shelving</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part9/5.8.17/#5.8.17.2</Documentation>
     <References>
       <Reference ReferenceType="HasCause" IsForward="false">i=2940</Reference>
       <Reference ReferenceType="HasCause" IsForward="false">i=2943</Reference>
@@ -19603,6 +19724,8 @@ Auditing Method Output</Category>
   </UAMethod>
   <UAMethod NodeId="i=24758" BrowseName="Unshelve2" ParentNodeId="i=2929">
     <DisplayName>Unshelve2</DisplayName>
+    <Category>A &amp; C Shelving2</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part9/5.8.17/#5.8.17.3</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=24759</Reference>
       <Reference ReferenceType="HasCause" IsForward="false">i=2940</Reference>
@@ -19641,6 +19764,8 @@ Auditing Method Output</Category>
   </UAVariable>
   <UAMethod NodeId="i=2948" BrowseName="OneShotShelve" ParentNodeId="i=2929">
     <DisplayName>OneShotShelve</DisplayName>
+    <Category>A &amp; C Shelving</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part9/5.8.17/#5.8.17.6</Documentation>
     <References>
       <Reference ReferenceType="HasCause" IsForward="false">i=2936</Reference>
       <Reference ReferenceType="HasCause" IsForward="false">i=2942</Reference>
@@ -19651,6 +19776,8 @@ Auditing Method Output</Category>
   </UAMethod>
   <UAMethod NodeId="i=24760" BrowseName="OneShotShelve2" ParentNodeId="i=2929">
     <DisplayName>OneShotShelve2</DisplayName>
+    <Category>A &amp; C Shelving2</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part9/5.8.17/#5.8.17.7</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=24761</Reference>
       <Reference ReferenceType="HasCause" IsForward="false">i=2936</Reference>
@@ -19689,6 +19816,9 @@ Auditing Method Output</Category>
   </UAVariable>
   <UAObjectType NodeId="i=2955" BrowseName="LimitAlarmType">
     <DisplayName>LimitAlarmType</DisplayName>
+    <Category>A &amp; C Exclusive Limit</Category>
+    <Category>A &amp; C Non-Exclusive Limit</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part9/5.8.18</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=11124</Reference>
       <Reference ReferenceType="HasProperty">i=11125</Reference>
@@ -19839,6 +19969,8 @@ Auditing Method Output</Category>
   </UAVariable>
   <UAObjectType NodeId="i=9318" BrowseName="ExclusiveLimitStateMachineType">
     <DisplayName>ExclusiveLimitStateMachineType</DisplayName>
+    <Category>A &amp; C Exclusive Limit</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part9/5.8.19/#5.8.19.2</Documentation>
     <References>
       <Reference ReferenceType="HasComponent">i=9329</Reference>
       <Reference ReferenceType="HasComponent">i=9331</Reference>
@@ -20025,6 +20157,8 @@ Auditing Method Output</Category>
   </UAVariable>
   <UAObjectType NodeId="i=9341" BrowseName="ExclusiveLimitAlarmType">
     <DisplayName>ExclusiveLimitAlarmType</DisplayName>
+    <Category>A &amp; C Exclusive Limit</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part9/5.8.19/#5.8.19.3</Documentation>
     <References>
       <Reference ReferenceType="HasComponent">i=9398</Reference>
       <Reference ReferenceType="HasComponent">i=9455</Reference>
@@ -20105,6 +20239,8 @@ Auditing Method Output</Category>
   </UAVariable>
   <UAObjectType NodeId="i=9906" BrowseName="NonExclusiveLimitAlarmType">
     <DisplayName>NonExclusiveLimitAlarmType</DisplayName>
+    <Category>A &amp; C Non-Exclusive Limit</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part9/5.8.20</Documentation>
     <References>
       <Reference ReferenceType="HasComponent">i=9963</Reference>
       <Reference ReferenceType="HasComponent">i=10020</Reference>
@@ -20357,18 +20493,24 @@ Auditing Method Output</Category>
   </UAVariable>
   <UAObjectType NodeId="i=10060" BrowseName="NonExclusiveLevelAlarmType">
     <DisplayName>NonExclusiveLevelAlarmType</DisplayName>
+    <Category>A &amp; C Non-Exclusive Level</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part9/5.8.21/#5.8.21.2</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=9906</Reference>
     </References>
   </UAObjectType>
   <UAObjectType NodeId="i=9482" BrowseName="ExclusiveLevelAlarmType">
     <DisplayName>ExclusiveLevelAlarmType</DisplayName>
+    <Category>A &amp; C Exclusive Level</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part9/5.8.21/#5.8.21.3</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=9341</Reference>
     </References>
   </UAObjectType>
   <UAObjectType NodeId="i=10368" BrowseName="NonExclusiveDeviationAlarmType">
     <DisplayName>NonExclusiveDeviationAlarmType</DisplayName>
+    <Category>A &amp; C Non-Exclusive Deviation</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part9/5.8.22/#5.8.22.2</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=10522</Reference>
       <Reference ReferenceType="HasProperty">i=16776</Reference>
@@ -20393,6 +20535,8 @@ Auditing Method Output</Category>
   </UAVariable>
   <UAObjectType NodeId="i=10214" BrowseName="NonExclusiveRateOfChangeAlarmType">
     <DisplayName>NonExclusiveRateOfChangeAlarmType</DisplayName>
+    <Category>A &amp; C Non-Exclusive RateOfChange</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part9/5.8.23/#5.8.23.2</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=16858</Reference>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=9906</Reference>
@@ -20408,6 +20552,8 @@ Auditing Method Output</Category>
   </UAVariable>
   <UAObjectType NodeId="i=9764" BrowseName="ExclusiveDeviationAlarmType">
     <DisplayName>ExclusiveDeviationAlarmType</DisplayName>
+    <Category>A &amp; C Exclusive Deviation</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part9/5.8.22/#5.8.22.3</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=9905</Reference>
       <Reference ReferenceType="HasProperty">i=16817</Reference>
@@ -20432,6 +20578,8 @@ Auditing Method Output</Category>
   </UAVariable>
   <UAObjectType NodeId="i=9623" BrowseName="ExclusiveRateOfChangeAlarmType">
     <DisplayName>ExclusiveRateOfChangeAlarmType</DisplayName>
+    <Category>A &amp; C Exclusive RateOfChange</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part9/5.8.23/#5.8.23.3</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=16899</Reference>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=9341</Reference>
@@ -20447,12 +20595,16 @@ Auditing Method Output</Category>
   </UAVariable>
   <UAObjectType NodeId="i=10523" BrowseName="DiscreteAlarmType">
     <DisplayName>DiscreteAlarmType</DisplayName>
+    <Category>A &amp; C Discrete</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part9/5.8.24/#5.8.24.1</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=2915</Reference>
     </References>
   </UAObjectType>
   <UAObjectType NodeId="i=10637" BrowseName="OffNormalAlarmType">
     <DisplayName>OffNormalAlarmType</DisplayName>
+    <Category>A &amp; C OffNormal</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part9/5.8.24/#5.8.24.2</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=11158</Reference>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=10523</Reference>
@@ -20468,30 +20620,40 @@ Auditing Method Output</Category>
   </UAVariable>
   <UAObjectType NodeId="i=11753" BrowseName="SystemOffNormalAlarmType">
     <DisplayName>SystemOffNormalAlarmType</DisplayName>
+    <Category>A &amp; C SystemOffNormal</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part9/5.8.24/#5.8.24.3</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=10637</Reference>
     </References>
   </UAObjectType>
   <UAObjectType NodeId="i=10751" BrowseName="TripAlarmType">
     <DisplayName>TripAlarmType</DisplayName>
+    <Category>A &amp; C Trip</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part9/5.8.24/#5.8.24.4</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=10637</Reference>
     </References>
   </UAObjectType>
   <UAObjectType NodeId="i=18347" BrowseName="InstrumentDiagnosticAlarmType">
     <DisplayName>InstrumentDiagnosticAlarmType</DisplayName>
+    <Category>A &amp; C InstrumentDiagnostic</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part9/5.8.24/#5.8.24.5</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=10637</Reference>
     </References>
   </UAObjectType>
   <UAObjectType NodeId="i=18496" BrowseName="SystemDiagnosticAlarmType">
     <DisplayName>SystemDiagnosticAlarmType</DisplayName>
+    <Category>A &amp; C SystemDiagnostic</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part9/5.8.24/#5.8.24.6</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=10637</Reference>
     </References>
   </UAObjectType>
   <UAObjectType NodeId="i=13225" BrowseName="CertificateExpirationAlarmType">
     <DisplayName>CertificateExpirationAlarmType</DisplayName>
+    <Category>A &amp; C CertificateExpiration</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part9/5.8.24/#5.8.24.7</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=13325</Reference>
       <Reference ReferenceType="HasProperty">i=14900</Reference>
@@ -20534,6 +20696,8 @@ Auditing Method Output</Category>
   </UAVariable>
   <UAObjectType NodeId="i=17080" BrowseName="DiscrepancyAlarmType">
     <DisplayName>DiscrepancyAlarmType</DisplayName>
+    <Category>A &amp; C Discrepancy</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part9/5.8.25</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=17215</Reference>
       <Reference ReferenceType="HasProperty">i=17216</Reference>
@@ -20567,72 +20731,96 @@ Auditing Method Output</Category>
   </UAVariable>
   <UAObjectType NodeId="i=11163" BrowseName="BaseConditionClassType" IsAbstract="true">
     <DisplayName>BaseConditionClassType</DisplayName>
+    <Category>A &amp; C ConditionClasses</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part9/5.9.2</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=58</Reference>
     </References>
   </UAObjectType>
   <UAObjectType NodeId="i=11164" BrowseName="ProcessConditionClassType" IsAbstract="true">
     <DisplayName>ProcessConditionClassType</DisplayName>
+    <Category>A &amp; C ConditionClasses</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part9/5.9.3</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=11163</Reference>
     </References>
   </UAObjectType>
   <UAObjectType NodeId="i=11165" BrowseName="MaintenanceConditionClassType" IsAbstract="true">
     <DisplayName>MaintenanceConditionClassType</DisplayName>
+    <Category>A &amp; C ConditionClasses</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part9/5.9.4</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=11163</Reference>
     </References>
   </UAObjectType>
   <UAObjectType NodeId="i=11166" BrowseName="SystemConditionClassType" IsAbstract="true">
     <DisplayName>SystemConditionClassType</DisplayName>
+    <Category>A &amp; C ConditionClasses</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part9/5.9.5</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=11163</Reference>
     </References>
   </UAObjectType>
   <UAObjectType NodeId="i=17218" BrowseName="SafetyConditionClassType" IsAbstract="true">
     <DisplayName>SafetyConditionClassType</DisplayName>
+    <Category>A &amp; C ConditionClasses</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part9/5.9.6</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=11163</Reference>
     </References>
   </UAObjectType>
   <UAObjectType NodeId="i=17219" BrowseName="HighlyManagedAlarmConditionClassType" IsAbstract="true">
     <DisplayName>HighlyManagedAlarmConditionClassType</DisplayName>
+    <Category>A &amp; C ConditionClasses</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part9/5.9.7</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=11163</Reference>
     </References>
   </UAObjectType>
   <UAObjectType NodeId="i=17220" BrowseName="TrainingConditionClassType" IsAbstract="true">
     <DisplayName>TrainingConditionClassType</DisplayName>
+    <Category>A &amp; C ConditionClasses</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part9/5.9.8</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=11163</Reference>
     </References>
   </UAObjectType>
   <UAObjectType NodeId="i=18665" BrowseName="StatisticalConditionClassType" IsAbstract="true">
     <DisplayName>StatisticalConditionClassType</DisplayName>
+    <Category>A &amp; C ConditionClasses</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part9/5.9.9</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=11163</Reference>
     </References>
   </UAObjectType>
   <UAObjectType NodeId="i=17221" BrowseName="TestingConditionClassType" IsAbstract="true">
     <DisplayName>TestingConditionClassType</DisplayName>
+    <Category>A &amp; C ConditionClasses</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part9/5.9.10</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=11163</Reference>
     </References>
   </UAObjectType>
   <UAObjectType NodeId="i=2790" BrowseName="AuditConditionEventType">
     <DisplayName>AuditConditionEventType</DisplayName>
+    <Category>A &amp; C Auditing</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part9/5.10.2</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=2127</Reference>
     </References>
   </UAObjectType>
   <UAObjectType NodeId="i=2803" BrowseName="AuditConditionEnableEventType">
     <DisplayName>AuditConditionEnableEventType</DisplayName>
+    <Category>A &amp; C Auditing</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part9/5.10.3</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=2790</Reference>
     </References>
   </UAObjectType>
   <UAObjectType NodeId="i=2829" BrowseName="AuditConditionCommentEventType">
     <DisplayName>AuditConditionCommentEventType</DisplayName>
+    <Category>A &amp; C Auditing</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part9/5.10.4</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=17222</Reference>
       <Reference ReferenceType="HasProperty">i=11851</Reference>
@@ -20657,6 +20845,8 @@ Auditing Method Output</Category>
   </UAVariable>
   <UAObjectType NodeId="i=8927" BrowseName="AuditConditionRespondEventType">
     <DisplayName>AuditConditionRespondEventType</DisplayName>
+    <Category>A &amp; C Dialog Auditing</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part9/5.10.5</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=11852</Reference>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=2790</Reference>
@@ -20672,6 +20862,8 @@ Auditing Method Output</Category>
   </UAVariable>
   <UAObjectType NodeId="i=8944" BrowseName="AuditConditionAcknowledgeEventType">
     <DisplayName>AuditConditionAcknowledgeEventType</DisplayName>
+    <Category>A &amp; C Acknowledge Auditing</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part9/5.10.6</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=17223</Reference>
       <Reference ReferenceType="HasProperty">i=11853</Reference>
@@ -20696,6 +20888,8 @@ Auditing Method Output</Category>
   </UAVariable>
   <UAObjectType NodeId="i=8961" BrowseName="AuditConditionConfirmEventType">
     <DisplayName>AuditConditionConfirmEventType</DisplayName>
+    <Category>A &amp; C Confirm Auditing</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part9/5.10.7</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=17224</Reference>
       <Reference ReferenceType="HasProperty">i=11854</Reference>
@@ -20720,6 +20914,8 @@ Auditing Method Output</Category>
   </UAVariable>
   <UAObjectType NodeId="i=11093" BrowseName="AuditConditionShelvingEventType">
     <DisplayName>AuditConditionShelvingEventType</DisplayName>
+    <Category>A &amp; C Shelving Auditing</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part9/5.10.8</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=11855</Reference>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=2790</Reference>
@@ -20735,48 +20931,67 @@ Auditing Method Output</Category>
   </UAVariable>
   <UAObjectType NodeId="i=17225" BrowseName="AuditConditionSuppressionEventType">
     <DisplayName>AuditConditionSuppressionEventType</DisplayName>
+    <Category>A &amp; C Suppression Auditing</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part9/5.10.9</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=2790</Reference>
     </References>
   </UAObjectType>
   <UAObjectType NodeId="i=17242" BrowseName="AuditConditionSilenceEventType">
     <DisplayName>AuditConditionSilenceEventType</DisplayName>
+    <Category>A &amp; C Silencing Auditing</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part9/5.10.10</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=2790</Reference>
     </References>
   </UAObjectType>
   <UAObjectType NodeId="i=15013" BrowseName="AuditConditionResetEventType">
     <DisplayName>AuditConditionResetEventType</DisplayName>
+    <Category>A &amp; C Latching Auditing</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part9/5.10.11</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=2790</Reference>
     </References>
   </UAObjectType>
   <UAObjectType NodeId="i=17259" BrowseName="AuditConditionOutOfServiceEventType">
     <DisplayName>AuditConditionOutOfServiceEventType</DisplayName>
+    <Category>A &amp; C OutOfService Auditing</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part9/5.10.12</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=2790</Reference>
     </References>
   </UAObjectType>
   <UAObjectType NodeId="i=2787" BrowseName="RefreshStartEventType" IsAbstract="true">
     <DisplayName>RefreshStartEventType</DisplayName>
+    <Category>A &amp; C Refresh</Category>
+    <Category>A &amp; C Refresh2</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part9/5.11.2</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=2130</Reference>
     </References>
   </UAObjectType>
   <UAObjectType NodeId="i=2788" BrowseName="RefreshEndEventType" IsAbstract="true">
     <DisplayName>RefreshEndEventType</DisplayName>
+    <Category>A &amp; C Refresh</Category>
+    <Category>A &amp; C Refresh2</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part9/5.11.3</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=2130</Reference>
     </References>
   </UAObjectType>
   <UAObjectType NodeId="i=2789" BrowseName="RefreshRequiredEventType" IsAbstract="true">
     <DisplayName>RefreshRequiredEventType</DisplayName>
+    <Category>A &amp; C Refresh</Category>
+    <Category>A &amp; C Refresh2</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part9/5.11.4</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=2130</Reference>
     </References>
   </UAObjectType>
   <UAReferenceType NodeId="i=9006" BrowseName="HasCondition">
     <DisplayName>HasCondition</DisplayName>
+    <Category>A &amp; C Basic</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part9/5.12</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=32</Reference>
     </References>
@@ -20784,6 +20999,8 @@ Auditing Method Output</Category>
   </UAReferenceType>
   <UAReferenceType NodeId="i=17276" BrowseName="HasEffectDisable">
     <DisplayName>HasEffectDisable</DisplayName>
+    <Category>A &amp; C StateMachine Trigger</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part9/7.2</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=54</Reference>
     </References>
@@ -20791,6 +21008,8 @@ Auditing Method Output</Category>
   </UAReferenceType>
   <UAReferenceType NodeId="i=17983" BrowseName="HasEffectEnable">
     <DisplayName>HasEffectEnable</DisplayName>
+    <Category>A &amp; C Statemachine Trigger</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part9/7.3</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=54</Reference>
     </References>
@@ -20798,6 +21017,8 @@ Auditing Method Output</Category>
   </UAReferenceType>
   <UAReferenceType NodeId="i=17984" BrowseName="HasEffectSuppressed">
     <DisplayName>HasEffectSuppressed</DisplayName>
+    <Category>A &amp; C Statemachine Suppression Trigger</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part9/7.4</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=54</Reference>
     </References>
@@ -20805,6 +21026,8 @@ Auditing Method Output</Category>
   </UAReferenceType>
   <UAReferenceType NodeId="i=17985" BrowseName="HasEffectUnsuppressed">
     <DisplayName>HasEffectUnsuppressed</DisplayName>
+    <Category>A &amp; C Statemachine Suppression Trigger</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part9/7.5</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=54</Reference>
     </References>
@@ -20812,6 +21035,8 @@ Auditing Method Output</Category>
   </UAReferenceType>
   <UAObjectType NodeId="i=17279" BrowseName="AlarmMetricsType">
     <DisplayName>AlarmMetricsType</DisplayName>
+    <Category>A &amp; C Alarm Metrics</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part9/9.2</Documentation>
     <References>
       <Reference ReferenceType="HasComponent">i=17280</Reference>
       <Reference ReferenceType="HasComponent">i=17991</Reference>
@@ -20918,6 +21143,8 @@ Auditing Method Output</Category>
   </UAVariable>
   <UAMethod NodeId="i=18666" BrowseName="Reset" ParentNodeId="i=17279">
     <DisplayName>Reset</DisplayName>
+    <Category>A &amp; C Alarm Metrics</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part9/9.4</Documentation>
     <References>
       <Reference ReferenceType="i=3065">i=2127</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
@@ -20926,6 +21153,8 @@ Auditing Method Output</Category>
   </UAMethod>
   <UAVariableType NodeId="i=17277" BrowseName="AlarmRateVariableType" DataType="Double">
     <DisplayName>AlarmRateVariableType</DisplayName>
+    <Category>A &amp; C Alarm Metrics</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part9/9.3</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=17278</Reference>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=63</Reference>
@@ -20941,6 +21170,8 @@ Auditing Method Output</Category>
   </UAVariable>
   <UAVariableType NodeId="i=32244" BrowseName="AlarmStateVariableType" DataType="i=32251">
     <DisplayName>AlarmStateVariableType</DisplayName>
+    <Category>A &amp; C Summary</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part9/8.2</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=32245</Reference>
       <Reference ReferenceType="HasProperty">i=32246</Reference>
@@ -21001,6 +21232,8 @@ Auditing Method Output</Category>
   </UAVariable>
   <UADataType NodeId="i=32251" BrowseName="AlarmMask">
     <DisplayName>AlarmMask</DisplayName>
+    <Category>A &amp; C Summary</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part9/8.3</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=32252</Reference>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=5</Reference>
@@ -21033,6 +21266,8 @@ Auditing Method Output</Category>
   </UAVariable>
   <UAObjectType NodeId="i=2391" BrowseName="ProgramStateMachineType">
     <DisplayName>ProgramStateMachineType</DisplayName>
+    <Category>Program Basic</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part10/5.2.1</Documentation>
     <References>
       <Reference ReferenceType="HasComponent">i=3830</Reference>
       <Reference ReferenceType="HasComponent">i=3835</Reference>
@@ -21297,6 +21532,7 @@ Auditing Method Output</Category>
   </UAVariable>
   <UAObject NodeId="i=3850" BrowseName="FinalResultData" ParentNodeId="i=2391">
     <DisplayName>FinalResultData</DisplayName>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part10/A.2.6/#A.2.6.2</Documentation>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=58</Reference>
       <Reference ReferenceType="HasModellingRule">i=80</Reference>
@@ -21659,6 +21895,8 @@ Auditing Method Output</Category>
   </UAMethod>
   <UAObjectType NodeId="i=2378" BrowseName="ProgramTransitionEventType" IsAbstract="true">
     <DisplayName>ProgramTransitionEventType</DisplayName>
+    <Category>Program Basic</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part10/5.2.5/#5.2.5.2</Documentation>
     <References>
       <Reference ReferenceType="HasComponent">i=2379</Reference>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=2311</Reference>
@@ -21674,6 +21912,8 @@ Auditing Method Output</Category>
   </UAVariable>
   <UAObjectType NodeId="i=11856" BrowseName="AuditProgramTransitionEventType" IsAbstract="true">
     <DisplayName>AuditProgramTransitionEventType</DisplayName>
+    <Category>Program Auditing</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part10/5.2.6</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=11875</Reference>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=2315</Reference>
@@ -21809,6 +22049,8 @@ Auditing Method Output</Category>
   </UAVariable>
   <UAVariableType NodeId="i=15383" BrowseName="ProgramDiagnostic2Type" DataType="i=24033">
     <DisplayName>ProgramDiagnostic2Type</DisplayName>
+    <Category>Program Basic</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part10/5.2.9</Documentation>
     <References>
       <Reference ReferenceType="HasComponent">i=15384</Reference>
       <Reference ReferenceType="HasComponent">i=15385</Reference>
@@ -34313,6 +34555,7 @@ Auditing Method Output</Category>
   <UAObject NodeId="i=2357" BrowseName="Start" SymbolicName="AggregateFunction_Start">
     <DisplayName>Start</DisplayName>
     <Description>Retrieve the value at the beginning of the interval using Interpolated Bounding Values.</Description>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part10/A.2.6/#A.2.6.2</Documentation>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=2340</Reference>
     </References>
@@ -58498,7 +58741,7 @@ Auditing Method Output</Category>
   <UADataType NodeId="i=295" BrowseName="LocaleId">
     <DisplayName>LocaleId</DisplayName>
     <Category>Base Info ServerType</Category>
-    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part5/12.2.11/#12.2.11.1</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part9/A.1.1</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=12</Reference>
     </References>
@@ -60560,6 +60803,8 @@ Auditing Method Output</Category>
   </UADataType>
   <UADataType NodeId="i=24033" BrowseName="ProgramDiagnostic2DataType">
     <DisplayName>ProgramDiagnostic2DataType</DisplayName>
+    <Category>Program Basic</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part10/5.2.8</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
@@ -69637,7 +69882,7 @@ ZXMueHNkIg0KICB0YXJnZXROYW1lc3BhY2U9Imh0dHA6Ly9vcGNmb3VuZGF0aW9uLm9yZy9VQS8y
 MDA4LzAyL1R5cGVzLnhzZCINCiAgZWxlbWVudEZvcm1EZWZhdWx0PSJxdWFsaWZpZWQiDQo+DQog
 IDx4czphbm5vdGF0aW9uPg0KICAgIDx4czphcHBpbmZvPg0KICAgICAgPHVhOk1vZGVsIE1vZGVs
 VXJpPSJodHRwOi8vb3BjZm91bmRhdGlvbi5vcmcvVUEvIiBWZXJzaW9uPSIxLjA1LjA0IiBQdWJs
-aWNhdGlvbkRhdGU9IjIwMjQtMTEtMDFUMDA6MDA6MDBaIiAvPg0KICAgIDwveHM6YXBwaW5mbz4N
+aWNhdGlvbkRhdGU9IjIwMjQtMTItMDFUMDA6MDA6MDBaIiAvPg0KICAgIDwveHM6YXBwaW5mbz4N
 CiAgPC94czphbm5vdGF0aW9uPg0KICANCiAgPHhzOmVsZW1lbnQgbmFtZT0iQm9vbGVhbiIgdHlw
 ZT0ieHM6Ym9vbGVhbiIgLz4NCg0KICA8eHM6Y29tcGxleFR5cGUgbmFtZT0iTGlzdE9mQm9vbGVh
 biI+DQogICAgPHhzOnNlcXVlbmNlPg0KICAgICAgPHhzOmVsZW1lbnQgbmFtZT0iQm9vbGVhbiIg
