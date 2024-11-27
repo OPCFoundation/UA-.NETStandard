@@ -39,6 +39,8 @@ using MQTTnet.Protocol;
 using Opc.Ua.PubSub.Encoding;
 using Opc.Ua.PubSub.PublishedData;
 using DataSet = Opc.Ua.PubSub.PublishedData.DataSet;
+using JsonNetworkMessage = Opc.Ua.PubSub.Encoding.JsonNetworkMessage;
+using JsonDataSetMessage = Opc.Ua.PubSub.Encoding.JsonDataSetMessage;
 
 namespace Opc.Ua.PubSub.Transport
 {
@@ -955,7 +957,7 @@ namespace Opc.Ua.PubSub.Transport
             /// </summary>
             public override UaNetworkMessage CreateNewNetworkMessage()
             {
-                return new JsonNetworkMessage();
+                return new Encoding.JsonNetworkMessage();
             }
 
             /// <summary>
@@ -972,7 +974,7 @@ namespace Opc.Ua.PubSub.Transport
                 }
 
                 //Create list of dataSet messages to be sent
-                var jsonDataSetMessages = new List<JsonDataSetMessage>();
+                var jsonDataSetMessages = new List<Encoding.JsonDataSetMessage>();
                 var networkMessages = new List<UaNetworkMessage>();
 
                 foreach (DataSetWriterDataType dataSetWriter in writerGroupConfiguration.DataSetWriters)
@@ -994,7 +996,7 @@ namespace Opc.Ua.PubSub.Transport
 
                             if (ExtensionObject.ToEncodeable(dataSetWriter.MessageSettings) is JsonDataSetWriterMessageDataType jsonDataSetMessageSettings)
                             {
-                                var jsonDataSetMessage = new JsonDataSetMessage(dataSet) {
+                                var jsonDataSetMessage = new Encoding.JsonDataSetMessage(dataSet) {
                                     DataSetMessageContentMask = (JsonDataSetMessageContentMask)jsonDataSetMessageSettings.DataSetMessageContentMask
                                 };
 
@@ -1022,13 +1024,13 @@ namespace Opc.Ua.PubSub.Transport
                 }
 
                 // each entry of this list will generate a network message
-                var dataSetMessagesList = new List<List<JsonDataSetMessage>>();
+                var dataSetMessagesList = new List<List<Encoding.JsonDataSetMessage>>();
                 if ((((JsonNetworkMessageContentMask)jsonMessageSettings.NetworkMessageContentMask) & JsonNetworkMessageContentMask.SingleDataSetMessage) != 0)
                 {
                     // create a new network message for each dataset
-                    foreach (JsonDataSetMessage dataSetMessage in jsonDataSetMessages)
+                    foreach (Encoding.JsonDataSetMessage dataSetMessage in jsonDataSetMessages)
                     {
-                        dataSetMessagesList.Add(new List<JsonDataSetMessage>() { dataSetMessage });
+                        dataSetMessagesList.Add(new List<Encoding.JsonDataSetMessage>() { dataSetMessage });
                     }
                 }
                 else
@@ -1036,9 +1038,9 @@ namespace Opc.Ua.PubSub.Transport
                     dataSetMessagesList.Add(jsonDataSetMessages);
                 }
 
-                foreach (List<JsonDataSetMessage> dataSetMessagesToUse in dataSetMessagesList)
+                foreach (List<Encoding.JsonDataSetMessage> dataSetMessagesToUse in dataSetMessagesList)
                 {
-                    var jsonNetworkMessage = new JsonNetworkMessage(writerGroupConfiguration, dataSetMessagesToUse);
+                    var jsonNetworkMessage = new Encoding.JsonNetworkMessage(writerGroupConfiguration, dataSetMessagesToUse);
                     jsonNetworkMessage.SetNetworkMessageContentMask((JsonNetworkMessageContentMask)jsonMessageSettings?.NetworkMessageContentMask);
 
                     // Network message header
@@ -1062,7 +1064,7 @@ namespace Opc.Ua.PubSub.Transport
             public override UaNetworkMessage CreateDataSetMetaDataNetworkMessage(WriterGroupDataType writerGroup, UInt16 dataSetWriterId, DataSetMetaDataType dataSetMetaData)
             {
                 // return UADP metadata network message
-                return new JsonNetworkMessage(writerGroup, dataSetMetaData) {
+                return new Encoding.JsonNetworkMessage(writerGroup, dataSetMetaData) {
                     PublisherId = m_mqttConnection.PubSubConnectionConfiguration.PublisherId.Value.ToString(),
                     DataSetWriterId = dataSetWriterId
                 };
