@@ -1148,7 +1148,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             {
                 return GetUadpUaDataNetworkMessages(networkMessages.Cast<PubSubEncoding.UadpNetworkMessage>().ToList()) as List<T>;
             }
-            if (typeof(T) == typeof(JsonNetworkMessage))
+            if (typeof(T) == typeof(PubSubEncoding.JsonNetworkMessage))
             {
                 return GetJsonUaDataNetworkMessages(networkMessages.Cast<PubSubEncoding.JsonNetworkMessage>().ToList()) as List<T>;
             }
