@@ -408,6 +408,7 @@ namespace Opc.Ua
             if (!string.IsNullOrEmpty(fieldName))
             {
                 EscapeString(fieldName);
+                m_writer.Write(s_quotationColon);
             }
             else if (!m_commaRequired)
             {
@@ -435,6 +436,7 @@ namespace Opc.Ua
             if (!string.IsNullOrEmpty(fieldName))
             {
                 EscapeString(fieldName);
+                m_writer.Write(s_quotationColon);
             }
             else if (!m_commaRequired)
             {
@@ -630,8 +632,6 @@ namespace Opc.Ua
             {
                 WriteSpan(ref lastOffset, value, value.Length);
             }
-
-            m_writer.Write(s_quotationColon);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -686,7 +686,6 @@ namespace Opc.Ua
                     m_writer.Write(ch);
                 }
             }
-            m_writer.Write(s_quotationColon);
         }
 #endif
 
@@ -720,6 +719,7 @@ namespace Opc.Ua
                 }
 
                 EscapeString(fieldName);
+                m_writer.Write(s_quotationColon);
             }
             else
             {
@@ -759,12 +759,12 @@ namespace Opc.Ua
                 {
                     m_writer.Write(s_quotation);
                     m_writer.Write(fieldName);
-                    m_writer.Write(s_quotationColon);
                 }
                 else
                 {
                     EscapeString(fieldName);
                 }
+                m_writer.Write(s_quotationColon);
             }
             else
             {
@@ -782,12 +782,12 @@ namespace Opc.Ua
                     {
                         m_writer.Write(s_quotation);
                         m_writer.Write(value);
-                        m_writer.Write(s_quotation);
                     }
                     else
                     {
                         EscapeString(value);
                     }
+                    m_writer.Write(s_quotation);
                 }
                 else
                 {
@@ -1418,6 +1418,7 @@ namespace Opc.Ua
                 if (!string.IsNullOrEmpty(fieldName))
                 {
                     EscapeString(fieldName);
+                    m_writer.Write(s_quotationColon);
                 }
 
                 WriteVariantContents(value.Value, value.TypeInfo);
@@ -2697,12 +2698,12 @@ namespace Opc.Ua
                 {
                     m_writer.Write(s_quotation);
                     m_writer.Write(fieldName);
-                    m_writer.Write(s_quotationColon);
                 }
                 else
                 {
                     EscapeString(fieldName);
                 }
+                m_writer.Write(s_quotationColon);
             }
             else if (!m_commaRequired)
             {
