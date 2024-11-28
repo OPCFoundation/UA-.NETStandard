@@ -95,6 +95,7 @@ namespace Opc.Ua.Client.ComplexTypes
             encoder.PushNamespace(XmlNamespace);
 
             string fieldName = null;
+
             if (encoder.UseReversibleEncoding)
             {
                 encoder.WriteUInt32("SwitchField", m_switchField);
@@ -114,6 +115,12 @@ namespace Opc.Ua.Client.ComplexTypes
                     }
                     unionSelector++;
                 }
+
+                if (encoder is JsonEncoder je && (je.EncodingToUse == JsonEncodingType.Verbose || je.EncodingToUse == JsonEncodingType.Compact))
+                {
+                    fieldName = unionProperty.Name;
+                }
+
                 EncodeProperty(encoder, fieldName, unionProperty);
             }
             else if (!encoder.UseReversibleEncoding)
@@ -129,20 +136,71 @@ namespace Opc.Ua.Client.ComplexTypes
         {
             decoder.PushNamespace(XmlNamespace);
 
-            m_switchField = decoder.ReadUInt32("SwitchField");
+            string fieldName = "Value";
+            UInt32 unionSelector = 0;
 
-            UInt32 unionSelector = m_switchField;
+            if (decoder is JsonDecoder jd)
+            {
+                object token = null;
+                m_switchField = 0;
+
+                if (jd.ReadField("SwitchField", out token))
+                {
+                    m_switchField = decoder.ReadUInt32("SwitchField");
+                }
+
+                bool found = false;
+
+                foreach (var property in GetPropertyEnumerator())
+                {
+                    unionSelector++;
+
+                    if (jd.ReadField(property.Name, out token))
+                    {
+                        fieldName = property.Name;
+                        m_switchField = unionSelector;
+                        found = true;
+                        break;
+                    }
+
+                    if (m_switchField == unionSelector)
+                    {
+                        fieldName = property.Name;
+                        break;
+                    }
+                }
+
+                if (!found)
+                {
+                    if (jd.ReadField("Value", out token))
+                    {
+                        fieldName = "Value";
+                        found = true;
+                    }
+
+                    if (!found)
+                    {
+                        unionSelector = 0;
+                    }
+                }
+            }
+            else
+            {
+                unionSelector = m_switchField = decoder.ReadUInt32("SwitchField");
+            }
+
             if (unionSelector > 0)
             {
                 foreach (var property in GetPropertyEnumerator())
                 {
                     if (--unionSelector == 0)
                     {
-                        DecodeProperty(decoder, "Value", property);
+                        DecodeProperty(decoder, fieldName, property);
                         break;
                     }
                 }
             }
+
             decoder.PopNamespace();
         }
 

@@ -539,7 +539,7 @@ namespace Opc.Ua
         public EncodingType EncodingType => EncodingType.Json;
 
         /// <inheritdoc/>
-        public bool UseReversibleEncoding => EncodingToUse != JsonEncodingType.NonReversible;
+        public bool UseReversibleEncoding => EncodingToUse != JsonEncodingType.NonReversible && EncodingToUse != JsonEncodingType.Verbose;
 
         /// <summary>
         /// The message context associated with the encoder.
@@ -1371,18 +1371,22 @@ namespace Opc.Ua
             if (EncodingToUse == JsonEncodingType.Compact || EncodingToUse == JsonEncodingType.Verbose)
             {
                 PushStructure(fieldName);
-                WriteUInt32("Code", value.Code);
 
-                if (EncodingToUse == JsonEncodingType.Verbose)
+                if (value.Code != 0)
                 {
-                    string symbolicId = StatusCode.LookupSymbolicId(value.CodeBits);
+                    WriteUInt32("Code", value.Code);
 
-                    if (String.IsNullOrEmpty(symbolicId))
+                    if (EncodingToUse == JsonEncodingType.Verbose)
                     {
-                        symbolicId = $"0x{value.CodeBits:X8}";
-                    }
+                        string symbolicId = StatusCode.LookupSymbolicId(value.CodeBits);
 
-                    WriteSimpleField("Symbol", symbolicId, EscapeOptions.Quotes | EscapeOptions.NoFieldNameEscape);
+                        if (String.IsNullOrEmpty(symbolicId))
+                        {
+                            symbolicId = $"0x{value.CodeBits:X8}";
+                        }
+
+                        WriteSimpleField("Symbol", symbolicId, EscapeOptions.Quotes | EscapeOptions.NoFieldNameEscape);
+                    }
                 }
 
                 PopStructure();
