@@ -749,9 +749,9 @@ namespace Opc.Ua.PubSub.Transport
                     var x509Certificate2s = new List<X509Certificate2>();
                     if (mqttTlsOptions?.Certificates != null)
                     {
-                        foreach (X509Certificate x509cert in mqttTlsOptions?.Certificates.X509Certificates)
+                        foreach (X509Certificate2 x509cert in mqttTlsOptions?.Certificates.X509Certificates)
                         {
-                            x509Certificate2s.Add(new X509Certificate2(x509cert.Handle));
+                            x509Certificate2s.Add(X509CertificateLoader.LoadCertificate(x509cert.RawData));
                         }
                     }
 
@@ -852,7 +852,7 @@ namespace Opc.Ua.PubSub.Transport
         /// <param name="context">The context of the validation</param>
         private bool ValidateBrokerCertificate(MqttClientCertificateValidationEventArgs context)
         {
-            var brokerCertificate = new X509Certificate2(context.Certificate.GetRawCertData());
+            var brokerCertificate = X509CertificateLoader.LoadCertificate(context.Certificate.GetRawCertData());
 
             try
             {

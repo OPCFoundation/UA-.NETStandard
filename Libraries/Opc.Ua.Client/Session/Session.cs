@@ -1076,7 +1076,7 @@ namespace Opc.Ua.Client
                 endpoint.Description.ServerCertificate.Length > 0)
             {
                 configuration.CertificateValidator?.ValidateDomains(
-                    new X509Certificate2(endpoint.Description.ServerCertificate),
+                    X509CertificateLoader.LoadCertificate(endpoint.Description.ServerCertificate),
                     endpoint);
                 checkDomain = false;
             }
@@ -1440,7 +1440,7 @@ namespace Opc.Ua.Client
 
             byte[] serverCertificate = m_endpoint.Description?.ServerCertificate;
             m_sessionName = sessionConfiguration.SessionName;
-            m_serverCertificate = serverCertificate != null ? new X509Certificate2(serverCertificate) : null;
+            m_serverCertificate = serverCertificate != null ? X509CertificateLoader.LoadCertificate(serverCertificate) : null;
             m_identity = sessionConfiguration.Identity;
             m_checkDomain = sessionConfiguration.CheckDomain;
             m_serverNonce = sessionConfiguration.ServerNonce;
