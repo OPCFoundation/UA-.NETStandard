@@ -349,6 +349,9 @@ namespace Opc.Ua.Client.Tests
             Assert.True(Session.AddSubscription(subscription));
             subscription.Create();
 
+            // Give some time to allow for the true browse of items
+            await Task.Delay(500).ConfigureAwait(false);
+
             Dictionary<string, NodeId> desiredNodeIds = GetDesiredNodeIds(subscription.Id);
             Dictionary<string, object> initialValues = GetValues(desiredNodeIds);
 
