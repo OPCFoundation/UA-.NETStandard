@@ -16,7 +16,7 @@ jobs:
       versionSpec: '>=5.8.x'
   - task: UseDotNet@2
     displayName: 'Install .NET 9.0'
-    condition: eq(variables['poolImage'], 'windows-2022')
+    condition: eq(parameters['poolImage'], 'windows-2022')
     inputs:
       packageType: 'sdk'
       version: '9.0.x'
