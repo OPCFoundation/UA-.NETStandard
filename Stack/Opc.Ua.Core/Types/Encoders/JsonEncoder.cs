@@ -407,9 +407,7 @@ namespace Opc.Ua
 
             if (!string.IsNullOrEmpty(fieldName))
             {
-                m_writer.Write(s_quotation);
                 EscapeString(fieldName);
-                m_writer.Write(s_quotationColon);
             }
             else if (!m_commaRequired)
             {
@@ -436,9 +434,7 @@ namespace Opc.Ua
 
             if (!string.IsNullOrEmpty(fieldName))
             {
-                m_writer.Write(s_quotation);
                 EscapeString(fieldName);
-                m_writer.Write(s_quotationColon);
             }
             else if (!m_commaRequired)
             {
@@ -594,21 +590,22 @@ namespace Opc.Ua
         /// Using a span to escape the string, write strings to stream writer if possible.
         /// </summary>
         /// <param name="value"></param>
-        private void EscapeString(string value)
+        private void EscapeString(ReadOnlySpan<char> value)
         {
-            ReadOnlySpan<char> charSpan = value.AsSpan();
             int lastOffset = 0;
 
-            for (int i = 0; i < charSpan.Length; i++)
+            m_writer.Write(s_quotation);
+
+            for (int i = 0; i < value.Length; i++)
             {
                 bool found = false;
-                char ch = charSpan[i];
+                char ch = value[i];
 
                 for (int ii = 0; ii < m_specialChars.Length; ii++)
                 {
                     if (m_specialChars[ii] == ch)
                     {
-                        WriteSpan(ref lastOffset, charSpan, i);
+                        WriteSpan(ref lastOffset, value, i);
                         m_writer.Write('\\');
                         m_writer.Write(m_substitution[ii]);
                         found = true;
@@ -618,7 +615,7 @@ namespace Opc.Ua
 
                 if (!found && ch < 32)
                 {
-                    WriteSpan(ref lastOffset, charSpan, i);
+                    WriteSpan(ref lastOffset, value, i);
                     m_writer.Write('\\');
                     m_writer.Write('u');
                     m_writer.Write(((int)ch).ToString("X4", CultureInfo.InvariantCulture));
@@ -631,8 +628,10 @@ namespace Opc.Ua
             }
             else
             {
-                WriteSpan(ref lastOffset, charSpan, charSpan.Length);
+                WriteSpan(ref lastOffset, value, value.Length);
             }
+
+            m_writer.Write(s_quotationColon);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -658,6 +657,8 @@ namespace Opc.Ua
         /// <param name="value"></param>
         private void EscapeString(string value)
         {
+            m_writer.Write(s_quotation);
+
             foreach (char ch in value)
             {
                 bool found = false;
@@ -685,6 +686,7 @@ namespace Opc.Ua
                     m_writer.Write(ch);
                 }
             }
+            m_writer.Write(s_quotationColon);
         }
 #endif
 
@@ -717,9 +719,7 @@ namespace Opc.Ua
                     m_writer.Write(s_comma);
                 }
 
-                m_writer.Write(s_quotation);
                 EscapeString(fieldName);
-                m_writer.Write(s_quotationColon);
             }
             else
             {
@@ -755,16 +755,16 @@ namespace Opc.Ua
                     m_writer.Write(s_comma);
                 }
 
-                m_writer.Write(s_quotation);
                 if ((options & EscapeOptions.NoFieldNameEscape) == EscapeOptions.NoFieldNameEscape)
                 {
+                    m_writer.Write(s_quotation);
                     m_writer.Write(fieldName);
+                    m_writer.Write(s_quotationColon);
                 }
                 else
                 {
                     EscapeString(fieldName);
                 }
-                m_writer.Write(s_quotationColon);
             }
             else
             {
@@ -778,16 +778,16 @@ namespace Opc.Ua
             {
                 if ((options & EscapeOptions.Quotes) == EscapeOptions.Quotes)
                 {
-                    m_writer.Write(s_quotation);
                     if ((options & EscapeOptions.NoValueEscape) == EscapeOptions.NoValueEscape)
                     {
+                        m_writer.Write(s_quotation);
                         m_writer.Write(value);
+                        m_writer.Write(s_quotation);
                     }
                     else
                     {
                         EscapeString(value);
                     }
-                    m_writer.Write(s_quotation);
                 }
                 else
                 {
@@ -1417,9 +1417,7 @@ namespace Opc.Ua
 
                 if (!string.IsNullOrEmpty(fieldName))
                 {
-                    m_writer.Write(s_quotation);
                     EscapeString(fieldName);
-                    m_writer.Write(s_quotationColon);
                 }
 
                 WriteVariantContents(value.Value, value.TypeInfo);
@@ -2523,7 +2521,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Writes an Variant array to the stream.
+        /// Writes a Variant array to the stream.
         /// </summary>
         public void WriteObjectArray(string fieldName, IList<object> values)
         {
@@ -2684,7 +2682,7 @@ namespace Opc.Ua
         /// <summary>
         /// Push structure with an option to not escape a known fieldname.
         /// </summary>
-        private void PushStructure(string fieldName, EscapeOptions escapeOptions)
+        private void PushStructure(string fieldName, EscapeOptions escapeOptions = EscapeOptions.None)
         {
             m_nestingLevel++;
 
@@ -2695,16 +2693,16 @@ namespace Opc.Ua
 
             if (!string.IsNullOrEmpty(fieldName))
             {
-                m_writer.Write(s_quotation);
                 if ((escapeOptions & EscapeOptions.NoFieldNameEscape) != 0)
                 {
+                    m_writer.Write(s_quotation);
                     m_writer.Write(fieldName);
+                    m_writer.Write(s_quotationColon);
                 }
                 else
                 {
                     EscapeString(fieldName);
                 }
-                m_writer.Write(s_quotationColon);
             }
             else if (!m_commaRequired)
             {
