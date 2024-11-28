@@ -25,7 +25,9 @@
     <When  Condition="'$(CustomTestTarget)' == 'net462'">
       <PropertyGroup>
         <DisableECCTests>true</DisableECCTests>
-        <AnalysisLevel>preview-all</AnalysisLevel>
+        <AnalysisLevel>preview</AnalysisLevel>
+        <AnalysisMode>all</AnalysisMode>
+        <AnalysisModeStyle>default</AnalysisModeStyle>
         <AppTargetFrameworks>net462</AppTargetFrameworks>
         <AppTargetFramework>net462</AppTargetFramework>
         <TestsTargetFrameworks>net462</TestsTargetFrameworks>
@@ -37,7 +39,9 @@
     </When>
     <When  Condition="'$(CustomTestTarget)' == 'net472'">
       <PropertyGroup>
-        <AnalysisLevel>preview-all</AnalysisLevel>
+        <AnalysisLevel>preview</AnalysisLevel>
+        <AnalysisMode>all</AnalysisMode>
+        <AnalysisModeStyle>default</AnalysisModeStyle>
         <AppTargetFrameworks>net472</AppTargetFrameworks>
         <AppTargetFramework>net472</AppTargetFramework>
         <TestsTargetFrameworks>net472</TestsTargetFrameworks>
@@ -50,7 +54,9 @@
     <When  Condition="'$(CustomTestTarget)' == 'netstandard2.0'">
       <PropertyGroup>
         <DisableECCTests>true</DisableECCTests>
-        <AnalysisLevel>preview-all</AnalysisLevel>
+        <AnalysisLevel>preview</AnalysisLevel>
+        <AnalysisMode>all</AnalysisMode>
+        <AnalysisModeStyle>default</AnalysisModeStyle>
         <AppTargetFrameworks>net6.0</AppTargetFrameworks>
         <AppTargetFramework>net6.0</AppTargetFramework>
         <TestsTargetFrameworks>net6.0</TestsTargetFrameworks>
@@ -62,7 +68,9 @@
     </When>
     <When  Condition="'$(CustomTestTarget)' == 'netstandard2.1'">
       <PropertyGroup>
-        <AnalysisLevel>preview-all</AnalysisLevel>
+        <AnalysisLevel>preview</AnalysisLevel>
+        <AnalysisMode>all</AnalysisMode>
+        <AnalysisModeStyle>default</AnalysisModeStyle>
         <AppTargetFrameworks>net6.0</AppTargetFrameworks>
         <AppTargetFramework>net6.0</AppTargetFramework>
         <TestsTargetFrameworks>net6.0</TestsTargetFrameworks>
@@ -74,7 +82,9 @@
     </When>
     <When  Condition="'$(CustomTestTarget)' == 'net48'">
       <PropertyGroup>
-        <AnalysisLevel>preview-all</AnalysisLevel>
+        <AnalysisLevel>preview</AnalysisLevel>
+        <AnalysisMode>all</AnalysisMode>
+        <AnalysisModeStyle>default</AnalysisModeStyle>
         <AppTargetFrameworks>net48</AppTargetFrameworks>
         <AppTargetFramework>net48</AppTargetFramework>
         <TestsTargetFrameworks>net48</TestsTargetFrameworks>
@@ -86,7 +96,9 @@
     </When>
     <When  Condition="'$(CustomTestTarget)' == 'net6.0'">
       <PropertyGroup>
-        <AnalysisLevel>preview-all</AnalysisLevel>
+        <AnalysisLevel>preview</AnalysisLevel>
+        <AnalysisMode>all</AnalysisMode>
+        <AnalysisModeStyle>default</AnalysisModeStyle>
         <AppTargetFrameworks>net6.0</AppTargetFrameworks>
         <AppTargetFramework>net6.0</AppTargetFramework>
         <TestsTargetFrameworks>net6.0</TestsTargetFrameworks>
@@ -98,7 +110,9 @@
     </When>
     <When  Condition="'$(CustomTestTarget)' == 'net8.0'">
       <PropertyGroup>
-        <AnalysisLevel>preview-all</AnalysisLevel>
+        <AnalysisLevel>preview</AnalysisLevel>
+        <AnalysisMode>all</AnalysisMode>
+        <AnalysisModeStyle>default</AnalysisModeStyle>
         <AppTargetFrameworks>net8.0</AppTargetFrameworks>
         <AppTargetFramework>net8.0</AppTargetFramework>
         <TestsTargetFrameworks>net8.0</TestsTargetFrameworks>
@@ -113,7 +127,9 @@
     <!-- Visual Studio 2022, supports .NET Framework 4.7.2/4.8, .NET Standard2.0/2.1, .NET 6 and .NET 8-->
     <When  Condition="'$(VisualStudioVersion)' == '17.0'">
       <PropertyGroup>
-        <AnalysisLevel>preview-all</AnalysisLevel>
+        <AnalysisLevel>preview</AnalysisLevel>
+        <AnalysisMode>all</AnalysisMode>
+        <AnalysisModeStyle>default</AnalysisModeStyle>
         <AppTargetFrameworks>net8.0;net6.0;net48</AppTargetFrameworks>
         <AppTargetFramework>net8.0</AppTargetFramework>
         <TestsTargetFrameworks>net48;net8.0</TestsTargetFrameworks>
