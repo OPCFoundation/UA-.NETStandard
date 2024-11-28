@@ -1324,7 +1324,7 @@ namespace Opc.Ua.Bindings
 
             if (!m_requests.TryRemove(operation.RequestId, out _))
             {
-                Utils.LogError("Could not remove requestId {0} from list of pending operations.", operation.RequestId);
+                Utils.LogWarning("Could not remove requestId {0} from list of pending operations.", operation.RequestId);
             }
         }
 
