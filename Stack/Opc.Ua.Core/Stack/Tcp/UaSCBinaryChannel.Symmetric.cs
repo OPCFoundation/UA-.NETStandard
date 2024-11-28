@@ -585,7 +585,7 @@ namespace Opc.Ua.Bindings
                         int paddingStart = signatureStart - 1;
                         paddingCount = buffer.Array[paddingStart];
 
-                        for (int ii = paddingStart - paddingCount; ii <= paddingStart; ii++)
+                        for (int ii = paddingStart - paddingCount; ii < paddingStart; ii++)
                         {
                             if (buffer.Array[ii] != paddingCount)
                             {

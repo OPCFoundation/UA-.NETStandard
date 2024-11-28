@@ -4883,10 +4883,10 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Create a dictionary of attributes to read for a nodeclass.
         /// </summary>
-        private SortedDictionary<uint, DataValue> CreateAttributes(NodeClass nodeclass = NodeClass.Unspecified, bool optionalAttributes = true)
+        private Dictionary<uint, DataValue> CreateAttributes(NodeClass nodeclass = NodeClass.Unspecified, bool optionalAttributes = true)
         {
             // Attributes to read for all types of nodes
-            var attributes = new SortedDictionary<uint, DataValue>() {
+            var attributes = new Dictionary<uint, DataValue>() {
                 { Attributes.NodeId, null },
                 { Attributes.NodeClass, null },
                 { Attributes.BrowseName, null },
@@ -4944,7 +4944,7 @@ namespace Opc.Ua.Client
 
                 default:
                     // build complete list of attributes.
-                    attributes = new SortedDictionary<uint, DataValue> {
+                    attributes = new Dictionary<uint, DataValue> {
                         { Attributes.NodeId, null },
                         { Attributes.NodeClass, null },
                         { Attributes.BrowseName, null },
