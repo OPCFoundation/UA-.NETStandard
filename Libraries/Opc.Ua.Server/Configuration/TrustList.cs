@@ -347,7 +347,7 @@ namespace Opc.Ua.Server
                         issuerCertificates = new X509Certificate2Collection();
                         foreach (var cert in trustList.IssuerCertificates)
                         {
-                            issuerCertificates.Add(new X509Certificate2(cert));
+                            issuerCertificates.Add(X509CertificateLoader.LoadCertificate(cert));
                         }
                     }
                     if ((masks & TrustListMasks.IssuerCrls) != 0)
@@ -363,7 +363,7 @@ namespace Opc.Ua.Server
                         trustedCertificates = new X509Certificate2Collection();
                         foreach (var cert in trustList.TrustedCertificates)
                         {
-                            trustedCertificates.Add(new X509Certificate2(cert));
+                            trustedCertificates.Add(X509CertificateLoader.LoadCertificate(cert));
                         }
                     }
                     if ((masks & TrustListMasks.TrustedCrls) != 0)
@@ -461,7 +461,7 @@ namespace Opc.Ua.Server
                     X509Certificate2 cert = null;
                     try
                     {
-                        cert = new X509Certificate2(certificate);
+                        cert = X509CertificateLoader.LoadCertificate(certificate);
                     }
                     catch
                     {
