@@ -471,7 +471,7 @@ namespace Opc.Ua.Server
                         result = StatusCodes.BadCertificateInvalid;
                     }
 
-                    var storeIdentifier = isTrustedCertificate? m_trustedStore : m_issuerStore;
+                    var storeIdentifier = isTrustedCertificate ? m_trustedStore : m_issuerStore;
                     ICertificateStore store = storeIdentifier.OpenStore();
                     try
                     {

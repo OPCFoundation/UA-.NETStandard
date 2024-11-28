@@ -433,39 +433,39 @@ namespace Opc.Ua
             return X509Utils.CreateCertificateFromPKCS12(pfxData, passcode);
         }
 #endif
-#endregion
+        #endregion
 
-            #region Internal Methods
-            /// <summary>
-            /// Creates a self-signed, signed or CA certificate.
-            /// </summary>
-            /// <param name="applicationUri">The application uri (created if not specified).</param>
-            /// <param name="applicationName">Name of the application (optional if subjectName is specified).</param>
-            /// <param name="subjectName">The subject used to create the certificate (optional if applicationName is specified).</param>
-            /// <param name="domainNames">The domain names that can be used to access the server machine (defaults to local computer name if not specified).</param>
-            /// <param name="keySize">Size of the key (1024, 2048 or 4096).</param>
-            /// <param name="startTime">The start time.</param>
-            /// <param name="lifetimeInMonths">The lifetime of the key in months.</param>
-            /// <param name="hashSizeInBits">The hash size in bits.</param>
-            /// <param name="isCA">if set to <c>true</c> then a CA certificate is created.</param>
-            /// <param name="issuerCAKeyCert">The CA cert with the CA private key.</param>
-            /// <param name="publicKey">The public key if no new keypair is created.</param>
-            /// <param name="pathLengthConstraint">The path length constraint for CA certs.</param>
-            /// <returns>The certificate with a private key.</returns>
-            [Obsolete("Use the new CreateCertificate methods with CertificateBuilder.")]
+        #region Internal Methods
+        /// <summary>
+        /// Creates a self-signed, signed or CA certificate.
+        /// </summary>
+        /// <param name="applicationUri">The application uri (created if not specified).</param>
+        /// <param name="applicationName">Name of the application (optional if subjectName is specified).</param>
+        /// <param name="subjectName">The subject used to create the certificate (optional if applicationName is specified).</param>
+        /// <param name="domainNames">The domain names that can be used to access the server machine (defaults to local computer name if not specified).</param>
+        /// <param name="keySize">Size of the key (1024, 2048 or 4096).</param>
+        /// <param name="startTime">The start time.</param>
+        /// <param name="lifetimeInMonths">The lifetime of the key in months.</param>
+        /// <param name="hashSizeInBits">The hash size in bits.</param>
+        /// <param name="isCA">if set to <c>true</c> then a CA certificate is created.</param>
+        /// <param name="issuerCAKeyCert">The CA cert with the CA private key.</param>
+        /// <param name="publicKey">The public key if no new keypair is created.</param>
+        /// <param name="pathLengthConstraint">The path length constraint for CA certs.</param>
+        /// <returns>The certificate with a private key.</returns>
+        [Obsolete("Use the new CreateCertificate methods with CertificateBuilder.")]
         internal static X509Certificate2 CreateCertificate(
-            string applicationUri,
-            string applicationName,
-            string subjectName,
-            IList<String> domainNames,
-            ushort keySize,
-            DateTime startTime,
-            ushort lifetimeInMonths,
-            ushort hashSizeInBits,
-            bool isCA = false,
-            X509Certificate2 issuerCAKeyCert = null,
-            byte[] publicKey = null,
-            int pathLengthConstraint = 0)
+        string applicationUri,
+        string applicationName,
+        string subjectName,
+        IList<String> domainNames,
+        ushort keySize,
+        DateTime startTime,
+        ushort lifetimeInMonths,
+        ushort hashSizeInBits,
+        bool isCA = false,
+        X509Certificate2 issuerCAKeyCert = null,
+        byte[] publicKey = null,
+        int pathLengthConstraint = 0)
         {
             ICertificateBuilder builder = null;
             if (isCA)

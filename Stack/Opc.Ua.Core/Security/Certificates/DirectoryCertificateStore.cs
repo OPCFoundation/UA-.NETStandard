@@ -780,7 +780,7 @@ namespace Opc.Ua
 
             return Task.FromResult(false);
         }
-#endregion
+        #endregion
 
         #region Private Methods
         /// <summary>
@@ -1014,7 +1014,7 @@ namespace Opc.Ua
 
             return fileInfo;
         }
-#endregion
+        #endregion
 
         #region Private Class
         private class Entry

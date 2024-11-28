@@ -1529,7 +1529,7 @@ namespace Opc.Ua
                 }
             }
         }
-#endregion
+        #endregion
 
         #region Private Methods
         /// <summary>

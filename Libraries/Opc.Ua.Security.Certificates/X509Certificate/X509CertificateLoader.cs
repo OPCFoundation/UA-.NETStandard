@@ -35,7 +35,7 @@ using System.Security.Cryptography.X509Certificates;
 namespace System.Security.Cryptography.X509Certificates
 {
     /// <summary>
-    /// 
+    /// A helper to support the .NET 9 certificate loader primitives on older .NET versions.
     /// </summary>
     public static class X509CertificateLoader
     {

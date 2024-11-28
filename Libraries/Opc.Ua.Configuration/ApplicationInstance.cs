@@ -1033,7 +1033,7 @@ namespace Opc.Ua.Configuration
                 return false;
             }
         }
-#endregion
+        #endregion
 
         #region Private Fields
         private string m_applicationName;
