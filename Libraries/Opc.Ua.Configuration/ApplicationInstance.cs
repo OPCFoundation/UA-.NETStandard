@@ -631,7 +631,9 @@ namespace Opc.Ua.Configuration
             {
                 // validate certificate.
                 configuration.CertificateValidator.CertificateValidation += certValidator.OnCertificateValidation;
-                await configuration.CertificateValidator.ValidateAsync(certificate.HasPrivateKey ? new X509Certificate2(certificate.RawData) : certificate, ct).ConfigureAwait(false);
+                await configuration.CertificateValidator.ValidateAsync(
+                    certificate.HasPrivateKey ?
+                    X509CertificateLoader.LoadCertificate(certificate.RawData) : certificate, ct).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -995,7 +997,8 @@ namespace Opc.Ua.Configuration
                     }
 
                     // add new certificate.
-                    X509Certificate2 publicKey = new X509Certificate2(certificate.RawData);
+                    X509Certificate2 publicKey = X509CertificateLoader.LoadCertificate(certificate.RawData);
+
                     await store.Add(publicKey).ConfigureAwait(false);
 
                     Utils.LogInfo("Added application certificate to trusted peer store.");
@@ -1030,7 +1033,7 @@ namespace Opc.Ua.Configuration
                 return false;
             }
         }
-        #endregion
+#endregion
 
         #region Private Fields
         private string m_applicationName;

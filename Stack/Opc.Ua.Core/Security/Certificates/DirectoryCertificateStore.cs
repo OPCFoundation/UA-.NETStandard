@@ -450,7 +450,7 @@ namespace Opc.Ua
                 {
                     try
                     {
-                        var certificate = new X509Certificate2(file.FullName);
+                        var certificate = X509CertificateLoader.LoadCertificateFromFile(file.FullName);
 
                         if (!String.IsNullOrEmpty(thumbprint))
                         {
@@ -513,10 +513,11 @@ namespace Opc.Ua
                             {
                                 try
                                 {
-                                    certificate = new X509Certificate2(
+                                    certificate = X509CertificateLoader.LoadPkcs12FromFile(
                                         privateKeyFilePfx.FullName,
                                         password,
                                         flag);
+
                                     if (X509Utils.VerifyRSAKeyPair(certificate, certificate, true))
                                     {
                                         Utils.LogInfo(Utils.TraceMasks.Security, "Imported the PFX private key for [{0}].", certificate.Thumbprint);
@@ -779,7 +780,7 @@ namespace Opc.Ua
 
             return Task.FromResult(false);
         }
-        #endregion
+#endregion
 
         #region Private Methods
         /// <summary>
@@ -824,7 +825,7 @@ namespace Opc.Ua
                     try
                     {
                         var entry = new Entry {
-                            Certificate = new X509Certificate2(file.FullName),
+                            Certificate = X509CertificateLoader.LoadCertificateFromFile(file.FullName),
                             CertificateFile = file,
                             PrivateKeyFile = null,
                             CertificateWithPrivateKey = null,
@@ -1013,7 +1014,7 @@ namespace Opc.Ua
 
             return fileInfo;
         }
-        #endregion
+#endregion
 
         #region Private Class
         private class Entry

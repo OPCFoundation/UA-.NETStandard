@@ -510,7 +510,7 @@ namespace Opc.Ua
                     await InternalValidateAsync(chain, endpoint, ct).ConfigureAwait(false);
 
                     // add to list of validated certificates.
-                    m_validatedCertificates[certificate.Thumbprint] = new X509Certificate2(certificate.RawData);
+                    m_validatedCertificates[certificate.Thumbprint] = X509CertificateLoader.LoadCertificate(certificate.RawData);
 
                     return;
                 }
@@ -529,7 +529,7 @@ namespace Opc.Ua
             try
             {
                 Utils.LogCertificate(LogLevel.Warning, "Validation errors suppressed: ", certificate);
-                m_validatedCertificates[certificate.Thumbprint] = new X509Certificate2(certificate.RawData);
+                m_validatedCertificates[certificate.Thumbprint] = X509CertificateLoader.LoadCertificate(certificate.RawData);
             }
             finally
             {
@@ -554,7 +554,7 @@ namespace Opc.Ua
                     InternalValidateAsync(chain, endpoint).GetAwaiter().GetResult();
 
                     // add to list of validated certificates.
-                    m_validatedCertificates[certificate.Thumbprint] = new X509Certificate2(certificate.RawData);
+                    m_validatedCertificates[certificate.Thumbprint] = X509CertificateLoader.LoadCertificate(certificate.RawData);
 
                     return;
                 }
@@ -574,7 +574,7 @@ namespace Opc.Ua
             try
             {
                 Utils.LogCertificate(LogLevel.Warning, "Validation errors suppressed: ", certificate);
-                m_validatedCertificates[certificate.Thumbprint] = new X509Certificate2(certificate.RawData);
+                m_validatedCertificates[certificate.Thumbprint] = X509CertificateLoader.LoadCertificate(certificate.RawData);
             }
             finally
             {
@@ -1529,7 +1529,7 @@ namespace Opc.Ua
                 }
             }
         }
-        #endregion
+#endregion
 
         #region Private Methods
         /// <summary>
