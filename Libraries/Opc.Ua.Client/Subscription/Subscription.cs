@@ -161,7 +161,7 @@ namespace Opc.Ua.Client
             m_sequentialPublishing = false;
             m_lastSequenceNumberProcessed = 0;
             m_messageCache = new LinkedList<NotificationMessage>();
-            m_monitoredItems = new SortedDictionary<uint, MonitoredItem>();
+            m_monitoredItems = new Dictionary<uint, MonitoredItem>();
             m_deletedItems = new List<MonitoredItem>();
             m_messageWorkerEvent = new AsyncAutoResetEvent();
             m_messageWorkerCts = null;
@@ -2579,7 +2579,7 @@ namespace Opc.Ua.Client
             lock (m_cache)
             {
                 itemsToModify = new List<MonitoredItem>();
-                var updatedMonitoredItems = new SortedDictionary<uint, MonitoredItem>();
+                var updatedMonitoredItems = new Dictionary<uint, MonitoredItem>();
                 foreach (MonitoredItem monitoredItem in m_monitoredItems.Values)
                 {
                     var index = serverHandles.FindIndex(handle => handle == monitoredItem.Status.Id);
@@ -2803,7 +2803,7 @@ namespace Opc.Ua.Client
         private IList<uint> m_availableSequenceNumbers;
         private int m_maxMessageCount;
         private bool m_republishAfterTransfer;
-        private SortedDictionary<uint, MonitoredItem> m_monitoredItems;
+        private Dictionary<uint, MonitoredItem> m_monitoredItems;
         private bool m_disableMonitoredItemCache;
         private FastDataChangeNotificationEventHandler m_fastDataChangeCallback;
         private FastEventNotificationEventHandler m_fastEventCallback;

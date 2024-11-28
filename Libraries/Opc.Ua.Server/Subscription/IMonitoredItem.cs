@@ -53,6 +53,11 @@ namespace Opc.Ua.Server
         Session Session { get; }
 
         /// <summary>
+        /// The monitored items owner identity.
+        /// </summary>
+        IUserIdentity EffectiveIdentity { get; }
+
+        /// <summary>
         /// The identifier for the item that is unique within the server.
         /// </summary>
         uint Id { get; }

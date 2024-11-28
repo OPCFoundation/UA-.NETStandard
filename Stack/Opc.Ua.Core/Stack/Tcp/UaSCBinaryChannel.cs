@@ -150,7 +150,7 @@ namespace Opc.Ua.Bindings
         {
             if (disposing)
             {
-                // nothing to do.
+                DiscardTokens();
             }
         }
         #endregion

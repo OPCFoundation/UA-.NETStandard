@@ -193,7 +193,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             Cert = blob;
             try
             {
-                X509Certificate = new X509Certificate2(path);
+                X509Certificate = X509CertificateLoader.LoadCertificateFromFile(path);
             }
             catch
             { }

@@ -66,6 +66,12 @@ namespace Opc.Ua.Fuzzing
         }
 
         [Theory]
+        public void FuzzEmptyByteArray(FuzzTargetFunction fuzzableCode)
+        {
+            FuzzTarget(fuzzableCode, Array.Empty<byte>());
+        }
+
+        [Theory]
         public void FuzzCrashAssets(FuzzTargetFunction fuzzableCode)
         {
             // note: too many crash files can take forever to create

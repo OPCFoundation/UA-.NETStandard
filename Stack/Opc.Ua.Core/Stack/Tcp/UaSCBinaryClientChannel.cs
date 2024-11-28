@@ -81,6 +81,7 @@ namespace Opc.Ua.Bindings
             }
 
             m_requests = new ConcurrentDictionary<uint, WriteOperation>();
+            m_random = new Random();
             m_lastRequestId = 0;
             m_ConnectCallback = new EventHandler<IMessageSocketAsyncEventArgs>(OnConnectComplete);
             m_startHandshake = new TimerCallback(OnScheduledHandshake);
@@ -106,6 +107,10 @@ namespace Opc.Ua.Bindings
             {
                 Utils.SilentDispose(m_handshakeTimer);
                 m_handshakeTimer = null;
+                Utils.SilentDispose(m_requestedToken);
+                m_requestedToken = null;
+                m_requests?.Clear();
+                m_handshakeOperation = null;
             }
 
             base.Dispose(disposing);
@@ -161,8 +166,9 @@ namespace Opc.Ua.Bindings
                     Socket = m_socketFactory.Create(this, BufferManager, Quotas.MaxBufferSize);
                     Socket.BeginConnect(m_via, m_ConnectCallback, operation);
                 }
+
+                return operation;
             }
-            return m_handshakeOperation;
         }
 
         /// <summary>
@@ -504,7 +510,7 @@ namespace Opc.Ua.Bindings
                 decoder.Close();
             }
 
- 
+
             // ready to open the channel.
             State = TcpChannelState.Opening;
 
@@ -958,11 +964,17 @@ namespace Opc.Ua.Bindings
                     // close the socket and reconnect.
                     State = TcpChannelState.Closed;
 
-                    if (Socket != null)
+                    // dispose of the tokens.
+                    uint channelId = ChannelId;
+                    ChannelId = 0;
+                    DiscardTokens();
+
+                    var socket = Socket;
+                    if (socket != null)
                     {
-                        Utils.LogInfo("ChannelId {0}: CLIENTCHANNEL SOCKET CLOSED: {1:X8}", ChannelId, Socket.Handle);
-                        Socket.Close();
                         Socket = null;
+                        Utils.LogInfo("ChannelId {0}: CLIENTCHANNEL SOCKET CLOSED ON SCHEDULED HANDSHAKE: {1:X8}", channelId, socket.Handle);
+                        socket.Close();
                     }
 
                     // set the state.
@@ -997,6 +1009,7 @@ namespace Opc.Ua.Bindings
         {
             lock (DataLock)
             {
+                ServiceResult error = null;
                 try
                 {
                     if (m_handshakeOperation == null)
@@ -1007,17 +1020,14 @@ namespace Opc.Ua.Bindings
                     Utils.LogTrace("ChannelId {0}: OnHandshakeComplete", ChannelId);
 
                     m_handshakeOperation.End(Int32.MaxValue);
-                    m_handshakeOperation = null;
-                    m_reconnecting = false;
+
+                    return;
                 }
                 catch (Exception e)
                 {
                     Utils.LogError(e, "ChannelId {0}: Handshake Failed {1}", ChannelId, e.Message);
 
-                    m_handshakeOperation = null;
-                    m_reconnecting = false;
-
-                    ServiceResult error = ServiceResult.Create(e, StatusCodes.BadUnexpectedError, "Unexpected error reconnecting or renewing a token.");
+                    error = ServiceResult.Create(e, StatusCodes.BadUnexpectedError, "Unexpected error reconnecting or renewing a token.");
 
                     // check for expired channel or token.
                     if (error.Code == StatusCodes.BadTcpSecureChannelUnknown || error.Code == StatusCodes.BadSecurityChecksFailed)
@@ -1026,9 +1036,14 @@ namespace Opc.Ua.Bindings
                         Shutdown(error);
                         return;
                     }
-
-                    ForceReconnect(ServiceResult.Create(e, StatusCodes.BadUnexpectedError, "Unexpected error reconnecting or renewing a token."));
                 }
+                finally
+                {
+                    OperationCompleted(m_handshakeOperation);
+                    m_reconnecting = false;
+                }
+
+                ForceReconnect(error);
             }
         }
 
@@ -1134,13 +1149,10 @@ namespace Opc.Ua.Bindings
                 }
 
                 // cancel all requests.
-                List<WriteOperation> operations = new List<WriteOperation>(m_requests.Values);
-
-                foreach (WriteOperation operation in operations)
+                foreach (var operation in m_requests.ToArray())
                 {
-                    operation.Fault(new ServiceResult(StatusCodes.BadSecureChannelClosed, reason));
+                    operation.Value.Fault(new ServiceResult(StatusCodes.BadSecureChannelClosed, reason));
                 }
-
                 m_requests.Clear();
 
                 uint channelId = ChannelId;
@@ -1154,14 +1166,16 @@ namespace Opc.Ua.Bindings
 
                 // clear the handshake state.
                 m_handshakeOperation = null;
+                Utils.SilentDispose(m_requestedToken);
                 m_requestedToken = null;
                 m_reconnecting = false;
 
-                if (Socket != null)
+                var socket = Socket;
+                if (socket != null)
                 {
-                    Utils.LogInfo("ChannelId {0}: CLIENTCHANNEL SOCKET CLOSED: {1:X8}", channelId, Socket.Handle);
-                    Socket.Close();
                     Socket = null;
+                    Utils.LogInfo("ChannelId {0}: CLIENTCHANNEL SOCKET CLOSED SHUTDOWN: {1:X8}", channelId, socket.Handle);
+                    socket.Close();
                 }
 
                 // set the state.       
@@ -1192,17 +1206,14 @@ namespace Opc.Ua.Bindings
                 Utils.LogWarning("ChannelId {0}: Force reconnect reason={1}", Id, reason);
 
                 // cancel all requests.
-                List<WriteOperation> operations = new List<WriteOperation>(m_requests.Values);
-
-                foreach (WriteOperation operation in operations)
+                foreach (var operation in m_requests.ToArray())
                 {
-                    operation.Fault(new ServiceResult(StatusCodes.BadSecureChannelClosed, reason));
+                    operation.Value.Fault(new ServiceResult(StatusCodes.BadSecureChannelClosed, reason));
                 }
-
                 m_requests.Clear();
 
                 // halt any existing handshake.
-                if (m_handshakeOperation != null && !m_handshakeOperation.IsCompleted)
+                if (m_handshakeOperation?.IsCompleted == false)
                 {
                     m_handshakeOperation.Fault(reason);
                     return;
@@ -1220,6 +1231,7 @@ namespace Opc.Ua.Bindings
 
                 // clear the handshake state.
                 m_handshakeOperation = null;
+                Utils.SilentDispose(m_requestedToken);
                 m_requestedToken = null;
                 m_reconnecting = true;
 
@@ -1265,19 +1277,20 @@ namespace Opc.Ua.Bindings
                 m_handshakeTimer = null;
             }
 
-            // calculate renewal timing based on token lifetime.
-            DateTime expiryTime = token.CreatedAt.AddMilliseconds(token.Lifetime);
-
-            double timeToRenewal = ((expiryTime.Ticks - DateTime.UtcNow.Ticks) / TimeSpan.TicksPerMillisecond) * TcpMessageLimits.TokenRenewalPeriod;
-
+            // calculate renewal timing based on token lifetime + jitter. Do not rely on the server time!
+            int jitterResolution = (int)Math.Round(token.Lifetime * TcpMessageLimits.TokenRenewalJitterPeriod);
+            int jitter = m_random.Next(-jitterResolution, jitterResolution);
+            int timeToRenewal = (int)Math.Round(token.Lifetime * TcpMessageLimits.TokenRenewalPeriod) +
+                jitter - (HiResClock.TickCount - token.CreatedAtTickCount);
             if (timeToRenewal < 0)
             {
                 timeToRenewal = 0;
             }
 
-            Utils.LogInfo("ChannelId {0}: Token Expiry {1}, renewal scheduled in {2} ms.", ChannelId, expiryTime, (int)timeToRenewal);
+            Utils.LogInfo("ChannelId {0}: Token Expiry {1:HH:mm:ss.fff}, renewal scheduled at {2:HH:mm:ss.fff} in {3} ms.",
+                ChannelId, token.CreatedAt.AddMilliseconds(token.Lifetime), HiResClock.UtcTickCount(token.CreatedAtTickCount + timeToRenewal), timeToRenewal);
 
-            m_handshakeTimer = new Timer(m_startHandshake, token, (int)timeToRenewal, Timeout.Infinite);
+            m_handshakeTimer = new Timer(m_startHandshake, token, timeToRenewal, Timeout.Infinite);
         }
 
         /// <summary>
@@ -1289,7 +1302,7 @@ namespace Opc.Ua.Bindings
             operation.RequestId = Utils.IncrementIdentifier(ref m_lastRequestId);
             if (!m_requests.TryAdd(operation.RequestId, operation))
             {
-                throw new ServiceResultException(StatusCodes.BadUnexpectedError, "Could not add operation to list of pending operations.");
+                throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "Could not add request {0} to list of pending operations.", operation.RequestId);
             }
             return operation;
         }
@@ -1304,12 +1317,15 @@ namespace Opc.Ua.Bindings
                 return;
             }
 
-            if (m_handshakeOperation == operation)
+            if (Object.ReferenceEquals(m_handshakeOperation, operation))
             {
                 m_handshakeOperation = null;
             }
 
-            m_requests.TryRemove(operation.RequestId, out _);
+            if (!m_requests.TryRemove(operation.RequestId, out _))
+            {
+                Utils.LogWarning("Could not remove requestId {0} from list of pending operations.", operation.RequestId);
+            }
         }
 
         /// <summary>
@@ -1356,6 +1372,10 @@ namespace Opc.Ua.Bindings
                             request.Operation.Fault(StatusCodes.BadNoCommunication, "Error establishing a connection: " + e.Message);
                             continue;
                         }
+                        finally
+                        {
+                            OperationCompleted(operation);
+                        }
                     }
 
                     if (this.CurrentToken == null)
@@ -1390,9 +1410,10 @@ namespace Opc.Ua.Bindings
                 }
 
                 // check if a handshake is in progress.
-                if (m_handshakeOperation != null && !m_handshakeOperation.IsCompleted)
+                if (m_handshakeOperation?.IsCompleted == false)
                 {
                     m_handshakeOperation.Fault(ServiceResult.Create(StatusCodes.BadConnectionClosed, "Channel was closed by the user."));
+                    OperationCompleted(m_handshakeOperation);
                 }
 
                 Utils.LogTrace("ChannelId {0}: Close", ChannelId);
@@ -1437,6 +1458,7 @@ namespace Opc.Ua.Bindings
             if (m_handshakeOperation != null)
             {
                 m_handshakeOperation.Fault(error);
+                OperationCompleted(m_handshakeOperation);
                 return false;
             }
 
@@ -1517,7 +1539,6 @@ namespace Opc.Ua.Bindings
 
             // check if operation is still available.
             WriteOperation operation = null;
-
             if (!m_requests.TryGetValue(requestId, out operation))
             {
                 return false;
@@ -1605,6 +1626,7 @@ namespace Opc.Ua.Bindings
         private TimerCallback m_startHandshake;
         private AsyncCallback m_handshakeComplete;
         private List<QueuedOperation> m_queuedOperations;
+        private Random m_random;
         private readonly string g_ImplementationString = "UA.NETStandard ClientChannel {0} " + Utils.GetAssemblyBuildNumber();
         #endregion
     }

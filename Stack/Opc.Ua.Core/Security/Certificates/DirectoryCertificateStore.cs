@@ -20,7 +20,6 @@ using System.Text;
 using System.Threading.Tasks;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.Redaction;
-using System.Threading;
 
 namespace Opc.Ua
 {
@@ -450,7 +449,7 @@ namespace Opc.Ua
                 {
                     try
                     {
-                        var certificate = new X509Certificate2(file.FullName);
+                        var certificate = X509CertificateLoader.LoadCertificateFromFile(file.FullName);
 
                         if (!String.IsNullOrEmpty(thumbprint))
                         {
@@ -513,10 +512,11 @@ namespace Opc.Ua
                             {
                                 try
                                 {
-                                    certificate = new X509Certificate2(
+                                    certificate = X509CertificateLoader.LoadPkcs12FromFile(
                                         privateKeyFilePfx.FullName,
                                         password,
                                         flag);
+
                                     if (X509Utils.VerifyRSAKeyPair(certificate, certificate, true))
                                     {
                                         Utils.LogInfo(Utils.TraceMasks.Security, "Imported the PFX private key for [{0}].", certificate.Thumbprint);
@@ -620,7 +620,7 @@ namespace Opc.Ua
                     }
                     catch (Exception e)
                     {
-                        Utils.LogError(e, "Could not parse CRL file.");
+                        Utils.LogError(e, "Failed to parse CRL {0} in store {1}.", file.FullName, StorePath);
                         continue;
                     }
 
@@ -670,8 +670,16 @@ namespace Opc.Ua
             {
                 foreach (FileInfo file in m_crlSubdir.GetFiles("*" + kCrlExtension))
                 {
-                    var crl = new X509CRL(file.FullName);
-                    crls.Add(crl);
+                    try
+                    {
+                        var crl = new X509CRL(file.FullName);
+                        crls.Add(crl);
+                    }
+                    catch (Exception e)
+                    {
+                        Utils.LogError(e, "Failed to parse CRL {0} in store {1}.", file.FullName, StorePath);
+                    }
+
                 }
             }
 
@@ -824,7 +832,7 @@ namespace Opc.Ua
                     try
                     {
                         var entry = new Entry {
-                            Certificate = new X509Certificate2(file.FullName),
+                            Certificate = X509CertificateLoader.LoadCertificateFromFile(file.FullName),
                             CertificateFile = file,
                             PrivateKeyFile = null,
                             CertificateWithPrivateKey = null,
