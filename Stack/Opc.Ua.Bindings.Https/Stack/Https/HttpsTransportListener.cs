@@ -176,7 +176,7 @@ namespace Opc.Ua.Bindings
             m_listenerId = Guid.NewGuid().ToString();
 
             m_uri = baseAddress;
-            m_discovery =  m_uri.AbsolutePath?.TrimEnd('/') + ConfiguredEndpoint.DiscoverySuffix;
+            m_discovery = m_uri.AbsolutePath?.TrimEnd('/') + ConfiguredEndpoint.DiscoverySuffix;
             m_descriptions = settings.Descriptions;
             var configuration = settings.Configuration;
 
@@ -338,7 +338,7 @@ namespace Opc.Ua.Bindings
         {
             Dispose();
         }
-#endregion
+        #endregion
 
         #region Private Methods
         /// <summary>
@@ -373,20 +373,15 @@ namespace Opc.Ua.Bindings
                     return;
                 }
 
-                string path = context.Request.Path.Value?.TrimEnd('/') ?? string.Empty;
-                
-                bool isDiscoveryPath = m_discovery.EndsWith(path, StringComparison.OrdinalIgnoreCase);
-                bool validateClientTlsCertificate = !isDiscoveryPath && m_mutualTlsEnabled;
-
                 IServiceRequest input = (IServiceRequest)BinaryDecoder.DecodeMessage(buffer, null, m_quotas.MessageContext);
 
-                // Match tls client certificate against client application certificate provided in CreateSessionRequest
-                if (validateClientTlsCertificate &&
-                    input.TypeId == DataTypeIds.CreateSessionRequest)
+                if (m_mutualTlsEnabled && input.TypeId == DataTypeIds.CreateSessionRequest)
                 {
-                    byte[] tlsClientCertificate = context.Connection.ClientCertificate.RawData;
+                    // Match tls client certificate against client application certificate provided in CreateSessionRequest
+                    byte[] tlsClientCertificate = context.Connection.ClientCertificate?.RawData;
                     byte[] opcUaClientCertificate = ((CreateSessionRequest)input).ClientCertificate;
-                    if (!Utils.IsEqual(tlsClientCertificate, opcUaClientCertificate))
+
+                    if (tlsClientCertificate == null || !Utils.IsEqual(tlsClientCertificate, opcUaClientCertificate))
                     {
                         message = "Client TLS certificate does not match with ClientCertificate provided in CreateSessionRequest";
                         Utils.LogError(message);
@@ -553,18 +548,16 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
-        /// Validate TLS client certificate at TLS handshake
+        /// Validate TLS client certificate at TLS handshake.
         /// </summary>
         /// <param name="clientCertificate">Client certificate</param>
         /// <param name="chain">Certificate chain</param>
         /// <param name="sslPolicyErrors">SSl policy errors</param>
-        /// <returns></returns>
         private bool ValidateClientCertificate(
             X509Certificate2 clientCertificate,
             X509Chain chain,
             SslPolicyErrors sslPolicyErrors)
         {
-
             if (sslPolicyErrors == SslPolicyErrors.None)
             {
                 // certificate is valid
@@ -582,7 +575,6 @@ namespace Opc.Ua.Bindings
 
             return true;
         }
-
         #endregion
 
         #region Private Fields
