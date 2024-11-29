@@ -253,40 +253,7 @@ namespace Opc.Ua
         public const uint TrustListDataType = 12554;
 
         /// <remarks />
-        public const uint BaseConfigurationDataType = 15434;
-
-        /// <remarks />
-        public const uint BaseConfigurationRecordDataType = 15435;
-
-        /// <remarks />
-        public const uint CertificateGroupDataType = 15436;
-
-        /// <remarks />
-        public const uint ConfigurationUpdateTargetType = 15538;
-
-        /// <remarks />
-        public const uint ConfigurationUpdateType = 15539;
-
-        /// <remarks />
         public const uint TransactionErrorType = 32285;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationDataType = 15549;
-
-        /// <remarks />
-        public const uint ApplicationIdentityDataType = 15556;
-
-        /// <remarks />
-        public const uint EndpointDataType = 15557;
-
-        /// <remarks />
-        public const uint ServerEndpointDataType = 15558;
-
-        /// <remarks />
-        public const uint SecuritySettingsDataType = 15559;
-
-        /// <remarks />
-        public const uint UserTokenSettingsDataType = 15560;
 
         /// <remarks />
         public const uint DecimalDataType = 17861;
@@ -1496,33 +1463,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint ExceptionDeviationFormat = 890;
-
-        /// <remarks />
-        public const uint TestAbstractStructure = 15399;
-
-        /// <remarks />
-        public const uint TestConcreteStructure = 15400;
-
-        /// <remarks />
-        public const uint TestUnion = 19431;
-
-        /// <remarks />
-        public const uint TestOptionalFields = 19432;
-
-        /// <remarks />
-        public const uint TestEnumeration = 15432;
-
-        /// <remarks />
-        public const uint TestOptionSet = 19433;
-
-        /// <remarks />
-        public const uint TestScalarStructure = 15015;
-
-        /// <remarks />
-        public const uint TestArrayStructure = 15016;
-
-        /// <remarks />
-        public const uint TestStructure = 15017;
     }
     #endregion
 
@@ -2410,12 +2350,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint CertificateGroupFolderType_AdditionalGroup_Placeholder_TrustListOutOfDate_ShelvingState_OneShotShelve = 21637;
-
-        /// <remarks />
-        public const uint ConfigurationFileType_ConfirmUpdate = 15508;
-
-        /// <remarks />
-        public const uint ConfigurationFileType_CloseAndUpdate = 15505;
 
         /// <remarks />
         public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustList_Open = 16717;
@@ -4298,9 +4232,6 @@ namespace Opc.Ua
         public const uint ServerConfiguration_TransactionDiagnostics = 32336;
 
         /// <remarks />
-        public const uint ServerConfiguration_ConfigurationFile = 15892;
-
-        /// <remarks />
         public const uint KeyCredentialConfigurationFolderType_ServiceName_Placeholder = 17511;
 
         /// <remarks />
@@ -4895,37 +4826,7 @@ namespace Opc.Ua
         public const uint TrustListDataType_Encoding_DefaultBinary = 12680;
 
         /// <remarks />
-        public const uint BaseConfigurationDataType_Encoding_DefaultBinary = 16538;
-
-        /// <remarks />
-        public const uint BaseConfigurationRecordDataType_Encoding_DefaultBinary = 16539;
-
-        /// <remarks />
-        public const uint CertificateGroupDataType_Encoding_DefaultBinary = 16540;
-
-        /// <remarks />
-        public const uint ConfigurationUpdateTargetType_Encoding_DefaultBinary = 16541;
-
-        /// <remarks />
         public const uint TransactionErrorType_Encoding_DefaultBinary = 32382;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationDataType_Encoding_DefaultBinary = 16542;
-
-        /// <remarks />
-        public const uint ApplicationIdentityDataType_Encoding_DefaultBinary = 16543;
-
-        /// <remarks />
-        public const uint EndpointDataType_Encoding_DefaultBinary = 16544;
-
-        /// <remarks />
-        public const uint ServerEndpointDataType_Encoding_DefaultBinary = 16545;
-
-        /// <remarks />
-        public const uint SecuritySettingsDataType_Encoding_DefaultBinary = 16546;
-
-        /// <remarks />
-        public const uint UserTokenSettingsDataType_Encoding_DefaultBinary = 16547;
 
         /// <remarks />
         public const uint DecimalDataType_Encoding_DefaultBinary = 17863;
@@ -5145,42 +5046,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint PubSubConfigurationValueDataType_Encoding_DefaultBinary = 25532;
-
-        /// <remarks />
-        public const uint JsonNetworkMessage_Encoding_DefaultBinary = 19323;
-
-        /// <remarks />
-        public const uint JsonDataSetMessage_Encoding_DefaultBinary = 19324;
-
-        /// <remarks />
-        public const uint JsonDataSetMetaDataMessage_Encoding_DefaultBinary = 19325;
-
-        /// <remarks />
-        public const uint JsonApplicationDescriptionMessage_Encoding_DefaultBinary = 19326;
-
-        /// <remarks />
-        public const uint JsonServerEndpointsMessage_Encoding_DefaultBinary = 19327;
-
-        /// <remarks />
-        public const uint JsonStatusMessage_Encoding_DefaultBinary = 19328;
-
-        /// <remarks />
-        public const uint JsonPubSubConnectionMessage_Encoding_DefaultBinary = 19329;
-
-        /// <remarks />
-        public const uint JsonActionMetaDataMessage_Encoding_DefaultBinary = 19330;
-
-        /// <remarks />
-        public const uint JsonActionResponderMessage_Encoding_DefaultBinary = 19331;
-
-        /// <remarks />
-        public const uint JsonActionNetworkMessage_Encoding_DefaultBinary = 19332;
-
-        /// <remarks />
-        public const uint JsonActionRequestMessage_Encoding_DefaultBinary = 19333;
-
-        /// <remarks />
-        public const uint JsonActionResponseMessage_Encoding_DefaultBinary = 19334;
 
         /// <remarks />
         public const uint AliasNameDataType_Encoding_DefaultBinary = 23499;
@@ -5909,27 +5774,6 @@ namespace Opc.Ua
         public const uint Annotation_Encoding_DefaultBinary = 893;
 
         /// <remarks />
-        public const uint TestAbstractStructure_Encoding_DefaultBinary = 15401;
-
-        /// <remarks />
-        public const uint TestConcreteStructure_Encoding_DefaultBinary = 15402;
-
-        /// <remarks />
-        public const uint TestUnion_Encoding_DefaultBinary = 19435;
-
-        /// <remarks />
-        public const uint TestOptionalFields_Encoding_DefaultBinary = 19436;
-
-        /// <remarks />
-        public const uint TestScalarStructure_Encoding_DefaultBinary = 15024;
-
-        /// <remarks />
-        public const uint TestArrayStructure_Encoding_DefaultBinary = 15025;
-
-        /// <remarks />
-        public const uint TestStructure_Encoding_DefaultBinary = 15026;
-
-        /// <remarks />
         public const uint Union_Encoding_DefaultXml = 12758;
 
         /// <remarks />
@@ -5993,37 +5837,7 @@ namespace Opc.Ua
         public const uint TrustListDataType_Encoding_DefaultXml = 12676;
 
         /// <remarks />
-        public const uint BaseConfigurationDataType_Encoding_DefaultXml = 16587;
-
-        /// <remarks />
-        public const uint BaseConfigurationRecordDataType_Encoding_DefaultXml = 16588;
-
-        /// <remarks />
-        public const uint CertificateGroupDataType_Encoding_DefaultXml = 16589;
-
-        /// <remarks />
-        public const uint ConfigurationUpdateTargetType_Encoding_DefaultXml = 16590;
-
-        /// <remarks />
         public const uint TransactionErrorType_Encoding_DefaultXml = 32386;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationDataType_Encoding_DefaultXml = 16591;
-
-        /// <remarks />
-        public const uint ApplicationIdentityDataType_Encoding_DefaultXml = 16592;
-
-        /// <remarks />
-        public const uint EndpointDataType_Encoding_DefaultXml = 16593;
-
-        /// <remarks />
-        public const uint ServerEndpointDataType_Encoding_DefaultXml = 16594;
-
-        /// <remarks />
-        public const uint SecuritySettingsDataType_Encoding_DefaultXml = 16595;
-
-        /// <remarks />
-        public const uint UserTokenSettingsDataType_Encoding_DefaultXml = 16596;
 
         /// <remarks />
         public const uint DecimalDataType_Encoding_DefaultXml = 17862;
@@ -6243,42 +6057,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint PubSubConfigurationValueDataType_Encoding_DefaultXml = 25548;
-
-        /// <remarks />
-        public const uint JsonNetworkMessage_Encoding_DefaultXml = 19371;
-
-        /// <remarks />
-        public const uint JsonDataSetMessage_Encoding_DefaultXml = 19372;
-
-        /// <remarks />
-        public const uint JsonDataSetMetaDataMessage_Encoding_DefaultXml = 19373;
-
-        /// <remarks />
-        public const uint JsonApplicationDescriptionMessage_Encoding_DefaultXml = 19374;
-
-        /// <remarks />
-        public const uint JsonServerEndpointsMessage_Encoding_DefaultXml = 19375;
-
-        /// <remarks />
-        public const uint JsonStatusMessage_Encoding_DefaultXml = 19376;
-
-        /// <remarks />
-        public const uint JsonPubSubConnectionMessage_Encoding_DefaultXml = 19377;
-
-        /// <remarks />
-        public const uint JsonActionMetaDataMessage_Encoding_DefaultXml = 19378;
-
-        /// <remarks />
-        public const uint JsonActionResponderMessage_Encoding_DefaultXml = 19379;
-
-        /// <remarks />
-        public const uint JsonActionNetworkMessage_Encoding_DefaultXml = 19380;
-
-        /// <remarks />
-        public const uint JsonActionRequestMessage_Encoding_DefaultXml = 19381;
-
-        /// <remarks />
-        public const uint JsonActionResponseMessage_Encoding_DefaultXml = 19382;
 
         /// <remarks />
         public const uint AliasNameDataType_Encoding_DefaultXml = 23505;
@@ -7007,27 +6785,6 @@ namespace Opc.Ua
         public const uint Annotation_Encoding_DefaultXml = 892;
 
         /// <remarks />
-        public const uint TestAbstractStructure_Encoding_DefaultXml = 15403;
-
-        /// <remarks />
-        public const uint TestConcreteStructure_Encoding_DefaultXml = 15404;
-
-        /// <remarks />
-        public const uint TestUnion_Encoding_DefaultXml = 19437;
-
-        /// <remarks />
-        public const uint TestOptionalFields_Encoding_DefaultXml = 19438;
-
-        /// <remarks />
-        public const uint TestScalarStructure_Encoding_DefaultXml = 15232;
-
-        /// <remarks />
-        public const uint TestArrayStructure_Encoding_DefaultXml = 15233;
-
-        /// <remarks />
-        public const uint TestStructure_Encoding_DefaultXml = 15234;
-
-        /// <remarks />
         public const uint Union_Encoding_DefaultJson = 15085;
 
         /// <remarks />
@@ -7091,37 +6848,7 @@ namespace Opc.Ua
         public const uint TrustListDataType_Encoding_DefaultJson = 15044;
 
         /// <remarks />
-        public const uint BaseConfigurationDataType_Encoding_DefaultJson = 16632;
-
-        /// <remarks />
-        public const uint BaseConfigurationRecordDataType_Encoding_DefaultJson = 16633;
-
-        /// <remarks />
-        public const uint CertificateGroupDataType_Encoding_DefaultJson = 16634;
-
-        /// <remarks />
-        public const uint ConfigurationUpdateTargetType_Encoding_DefaultJson = 16635;
-
-        /// <remarks />
         public const uint TransactionErrorType_Encoding_DefaultJson = 32390;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationDataType_Encoding_DefaultJson = 16636;
-
-        /// <remarks />
-        public const uint ApplicationIdentityDataType_Encoding_DefaultJson = 16637;
-
-        /// <remarks />
-        public const uint EndpointDataType_Encoding_DefaultJson = 16642;
-
-        /// <remarks />
-        public const uint ServerEndpointDataType_Encoding_DefaultJson = 16643;
-
-        /// <remarks />
-        public const uint SecuritySettingsDataType_Encoding_DefaultJson = 16644;
-
-        /// <remarks />
-        public const uint UserTokenSettingsDataType_Encoding_DefaultJson = 16645;
 
         /// <remarks />
         public const uint DecimalDataType_Encoding_DefaultJson = 15045;
@@ -7341,42 +7068,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint PubSubConfigurationValueDataType_Encoding_DefaultJson = 25564;
-
-        /// <remarks />
-        public const uint JsonNetworkMessage_Encoding_DefaultJson = 19419;
-
-        /// <remarks />
-        public const uint JsonDataSetMessage_Encoding_DefaultJson = 19420;
-
-        /// <remarks />
-        public const uint JsonDataSetMetaDataMessage_Encoding_DefaultJson = 19421;
-
-        /// <remarks />
-        public const uint JsonApplicationDescriptionMessage_Encoding_DefaultJson = 19422;
-
-        /// <remarks />
-        public const uint JsonServerEndpointsMessage_Encoding_DefaultJson = 19423;
-
-        /// <remarks />
-        public const uint JsonStatusMessage_Encoding_DefaultJson = 19424;
-
-        /// <remarks />
-        public const uint JsonPubSubConnectionMessage_Encoding_DefaultJson = 19425;
-
-        /// <remarks />
-        public const uint JsonActionMetaDataMessage_Encoding_DefaultJson = 19426;
-
-        /// <remarks />
-        public const uint JsonActionResponderMessage_Encoding_DefaultJson = 19427;
-
-        /// <remarks />
-        public const uint JsonActionNetworkMessage_Encoding_DefaultJson = 19428;
-
-        /// <remarks />
-        public const uint JsonActionRequestMessage_Encoding_DefaultJson = 19429;
-
-        /// <remarks />
-        public const uint JsonActionResponseMessage_Encoding_DefaultJson = 19430;
 
         /// <remarks />
         public const uint AliasNameDataType_Encoding_DefaultJson = 23511;
@@ -8103,27 +7794,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint Annotation_Encoding_DefaultJson = 15382;
-
-        /// <remarks />
-        public const uint TestAbstractStructure_Encoding_DefaultJson = 15405;
-
-        /// <remarks />
-        public const uint TestConcreteStructure_Encoding_DefaultJson = 15431;
-
-        /// <remarks />
-        public const uint TestUnion_Encoding_DefaultJson = 19439;
-
-        /// <remarks />
-        public const uint TestOptionalFields_Encoding_DefaultJson = 19440;
-
-        /// <remarks />
-        public const uint TestScalarStructure_Encoding_DefaultJson = 15396;
-
-        /// <remarks />
-        public const uint TestArrayStructure_Encoding_DefaultJson = 15397;
-
-        /// <remarks />
-        public const uint TestStructure_Encoding_DefaultJson = 15398;
     }
     #endregion
 
@@ -8638,12 +8308,6 @@ namespace Opc.Ua
         public const uint EccCurve448ApplicationCertificateType = 23543;
 
         /// <remarks />
-        public const uint ConfigurationFileType = 15437;
-
-        /// <remarks />
-        public const uint ConfigurationUpdatedAuditEventType = 15541;
-
-        /// <remarks />
         public const uint TrustListUpdateRequestedAuditEventType = 32260;
 
         /// <remarks />
@@ -8654,9 +8318,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint ApplicationConfigurationFolderType = 16662;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFileType = 15550;
 
         /// <remarks />
         public const uint ServerConfigurationType = 12581;
@@ -15653,39 +15314,6 @@ namespace Opc.Ua
         public const uint CertificateGroupFolderType_AdditionalGroup_Placeholder_TrustListOutOfDate_UpdateFrequency = 21678;
 
         /// <remarks />
-        public const uint ConfigurationFileType_LastUpdateTime = 15438;
-
-        /// <remarks />
-        public const uint ConfigurationFileType_CurrentVersion = 15439;
-
-        /// <remarks />
-        public const uint ConfigurationFileType_ActivityTimeout = 15503;
-
-        /// <remarks />
-        public const uint ConfigurationFileType_SupportedDataType = 15504;
-
-        /// <remarks />
-        public const uint ConfigurationFileType_ConfirmUpdate_InputArguments = 15511;
-
-        /// <remarks />
-        public const uint ConfigurationFileType_ConfirmUpdate_OutputArguments = 15512;
-
-        /// <remarks />
-        public const uint ConfigurationFileType_CloseAndUpdate_InputArguments = 15506;
-
-        /// <remarks />
-        public const uint ConfigurationFileType_CloseAndUpdate_OutputArguments = 15507;
-
-        /// <remarks />
-        public const uint ConfigurationUpdateType_EnumValues = 15540;
-
-        /// <remarks />
-        public const uint ConfigurationUpdatedAuditEventType_OldVersion = 15542;
-
-        /// <remarks />
-        public const uint ConfigurationUpdatedAuditEventType_NewVersion = 15543;
-
-        /// <remarks />
         public const uint TrustListUpdatedAuditEventType_TrustListId = 32281;
 
         /// <remarks />
@@ -16974,21 +16602,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_Enabled = 18592;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFileType_AvailableNetworks = 15551;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFileType_AvailablePorts = 15552;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFileType_SecurityPolicyUris = 15553;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFileType_UserTokenTypes = 15554;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFileType_CertificateTypes = 15555;
 
         /// <remarks />
         public const uint ServerConfigurationType_CertificateGroups_DefaultApplicationGroup_TrustList_Size = 13953;
@@ -25310,12 +24923,6 @@ namespace Opc.Ua
         public const uint ExceptionDeviationFormat_EnumStrings = 7614;
 
         /// <remarks />
-        public const uint TestEnumeration_EnumValues = 15433;
-
-        /// <remarks />
-        public const uint TestOptionSet_OptionSetValues = 19441;
-
-        /// <remarks />
         public const uint OpcUa_BinarySchema = 7617;
 
         /// <remarks />
@@ -25388,37 +24995,7 @@ namespace Opc.Ua
         public const uint OpcUa_BinarySchema_TrustListDataType = 12681;
 
         /// <remarks />
-        public const uint OpcUa_BinarySchema_BaseConfigurationDataType = 16548;
-
-        /// <remarks />
-        public const uint OpcUa_BinarySchema_BaseConfigurationRecordDataType = 16551;
-
-        /// <remarks />
-        public const uint OpcUa_BinarySchema_CertificateGroupDataType = 16554;
-
-        /// <remarks />
-        public const uint OpcUa_BinarySchema_ConfigurationUpdateTargetType = 16557;
-
-        /// <remarks />
         public const uint OpcUa_BinarySchema_TransactionErrorType = 32383;
-
-        /// <remarks />
-        public const uint OpcUa_BinarySchema_ApplicationConfigurationDataType = 16564;
-
-        /// <remarks />
-        public const uint OpcUa_BinarySchema_ApplicationIdentityDataType = 16567;
-
-        /// <remarks />
-        public const uint OpcUa_BinarySchema_EndpointDataType = 16570;
-
-        /// <remarks />
-        public const uint OpcUa_BinarySchema_ServerEndpointDataType = 16578;
-
-        /// <remarks />
-        public const uint OpcUa_BinarySchema_SecuritySettingsDataType = 16581;
-
-        /// <remarks />
-        public const uint OpcUa_BinarySchema_UserTokenSettingsDataType = 16584;
 
         /// <remarks />
         public const uint OpcUa_BinarySchema_DataTypeSchemaHeader = 15741;
@@ -25635,42 +25212,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint OpcUa_BinarySchema_PubSubConfigurationValueDataType = 25542;
-
-        /// <remarks />
-        public const uint OpcUa_BinarySchema_JsonNetworkMessage = 19335;
-
-        /// <remarks />
-        public const uint OpcUa_BinarySchema_JsonDataSetMessage = 19338;
-
-        /// <remarks />
-        public const uint OpcUa_BinarySchema_JsonDataSetMetaDataMessage = 19341;
-
-        /// <remarks />
-        public const uint OpcUa_BinarySchema_JsonApplicationDescriptionMessage = 19344;
-
-        /// <remarks />
-        public const uint OpcUa_BinarySchema_JsonServerEndpointsMessage = 19347;
-
-        /// <remarks />
-        public const uint OpcUa_BinarySchema_JsonStatusMessage = 19350;
-
-        /// <remarks />
-        public const uint OpcUa_BinarySchema_JsonPubSubConnectionMessage = 19353;
-
-        /// <remarks />
-        public const uint OpcUa_BinarySchema_JsonActionMetaDataMessage = 19356;
-
-        /// <remarks />
-        public const uint OpcUa_BinarySchema_JsonActionResponderMessage = 19359;
-
-        /// <remarks />
-        public const uint OpcUa_BinarySchema_JsonActionNetworkMessage = 19362;
-
-        /// <remarks />
-        public const uint OpcUa_BinarySchema_JsonActionRequestMessage = 19365;
-
-        /// <remarks />
-        public const uint OpcUa_BinarySchema_JsonActionResponseMessage = 19368;
 
         /// <remarks />
         public const uint OpcUa_BinarySchema_AliasNameDataType = 23502;
@@ -25970,37 +25511,7 @@ namespace Opc.Ua
         public const uint OpcUa_XmlSchema_TrustListDataType = 12677;
 
         /// <remarks />
-        public const uint OpcUa_XmlSchema_BaseConfigurationDataType = 16597;
-
-        /// <remarks />
-        public const uint OpcUa_XmlSchema_BaseConfigurationRecordDataType = 16604;
-
-        /// <remarks />
-        public const uint OpcUa_XmlSchema_CertificateGroupDataType = 16607;
-
-        /// <remarks />
-        public const uint OpcUa_XmlSchema_ConfigurationUpdateTargetType = 16610;
-
-        /// <remarks />
         public const uint OpcUa_XmlSchema_TransactionErrorType = 32387;
-
-        /// <remarks />
-        public const uint OpcUa_XmlSchema_ApplicationConfigurationDataType = 16614;
-
-        /// <remarks />
-        public const uint OpcUa_XmlSchema_ApplicationIdentityDataType = 16617;
-
-        /// <remarks />
-        public const uint OpcUa_XmlSchema_EndpointDataType = 16620;
-
-        /// <remarks />
-        public const uint OpcUa_XmlSchema_ServerEndpointDataType = 16623;
-
-        /// <remarks />
-        public const uint OpcUa_XmlSchema_SecuritySettingsDataType = 16626;
-
-        /// <remarks />
-        public const uint OpcUa_XmlSchema_UserTokenSettingsDataType = 16629;
 
         /// <remarks />
         public const uint OpcUa_XmlSchema_DataTypeSchemaHeader = 16027;
@@ -26217,42 +25728,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint OpcUa_XmlSchema_PubSubConfigurationValueDataType = 25558;
-
-        /// <remarks />
-        public const uint OpcUa_XmlSchema_JsonNetworkMessage = 19383;
-
-        /// <remarks />
-        public const uint OpcUa_XmlSchema_JsonDataSetMessage = 19386;
-
-        /// <remarks />
-        public const uint OpcUa_XmlSchema_JsonDataSetMetaDataMessage = 19389;
-
-        /// <remarks />
-        public const uint OpcUa_XmlSchema_JsonApplicationDescriptionMessage = 19392;
-
-        /// <remarks />
-        public const uint OpcUa_XmlSchema_JsonServerEndpointsMessage = 19395;
-
-        /// <remarks />
-        public const uint OpcUa_XmlSchema_JsonStatusMessage = 19398;
-
-        /// <remarks />
-        public const uint OpcUa_XmlSchema_JsonPubSubConnectionMessage = 19401;
-
-        /// <remarks />
-        public const uint OpcUa_XmlSchema_JsonActionMetaDataMessage = 19404;
-
-        /// <remarks />
-        public const uint OpcUa_XmlSchema_JsonActionResponderMessage = 19407;
-
-        /// <remarks />
-        public const uint OpcUa_XmlSchema_JsonActionNetworkMessage = 19410;
-
-        /// <remarks />
-        public const uint OpcUa_XmlSchema_JsonActionRequestMessage = 19413;
-
-        /// <remarks />
-        public const uint OpcUa_XmlSchema_JsonActionResponseMessage = 19416;
 
         /// <remarks />
         public const uint OpcUa_XmlSchema_AliasNameDataType = 23508;
@@ -26892,40 +26367,7 @@ namespace Opc.Ua
         public static readonly NodeId TrustListDataType = new NodeId(Opc.Ua.DataTypes.TrustListDataType);
 
         /// <remarks />
-        public static readonly NodeId BaseConfigurationDataType = new NodeId(Opc.Ua.DataTypes.BaseConfigurationDataType);
-
-        /// <remarks />
-        public static readonly NodeId BaseConfigurationRecordDataType = new NodeId(Opc.Ua.DataTypes.BaseConfigurationRecordDataType);
-
-        /// <remarks />
-        public static readonly NodeId CertificateGroupDataType = new NodeId(Opc.Ua.DataTypes.CertificateGroupDataType);
-
-        /// <remarks />
-        public static readonly NodeId ConfigurationUpdateTargetType = new NodeId(Opc.Ua.DataTypes.ConfigurationUpdateTargetType);
-
-        /// <remarks />
-        public static readonly NodeId ConfigurationUpdateType = new NodeId(Opc.Ua.DataTypes.ConfigurationUpdateType);
-
-        /// <remarks />
         public static readonly NodeId TransactionErrorType = new NodeId(Opc.Ua.DataTypes.TransactionErrorType);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationDataType = new NodeId(Opc.Ua.DataTypes.ApplicationConfigurationDataType);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationIdentityDataType = new NodeId(Opc.Ua.DataTypes.ApplicationIdentityDataType);
-
-        /// <remarks />
-        public static readonly NodeId EndpointDataType = new NodeId(Opc.Ua.DataTypes.EndpointDataType);
-
-        /// <remarks />
-        public static readonly NodeId ServerEndpointDataType = new NodeId(Opc.Ua.DataTypes.ServerEndpointDataType);
-
-        /// <remarks />
-        public static readonly NodeId SecuritySettingsDataType = new NodeId(Opc.Ua.DataTypes.SecuritySettingsDataType);
-
-        /// <remarks />
-        public static readonly NodeId UserTokenSettingsDataType = new NodeId(Opc.Ua.DataTypes.UserTokenSettingsDataType);
 
         /// <remarks />
         public static readonly NodeId DecimalDataType = new NodeId(Opc.Ua.DataTypes.DecimalDataType);
@@ -28135,33 +27577,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId ExceptionDeviationFormat = new NodeId(Opc.Ua.DataTypes.ExceptionDeviationFormat);
-
-        /// <remarks />
-        public static readonly NodeId TestAbstractStructure = new NodeId(Opc.Ua.DataTypes.TestAbstractStructure);
-
-        /// <remarks />
-        public static readonly NodeId TestConcreteStructure = new NodeId(Opc.Ua.DataTypes.TestConcreteStructure);
-
-        /// <remarks />
-        public static readonly NodeId TestUnion = new NodeId(Opc.Ua.DataTypes.TestUnion);
-
-        /// <remarks />
-        public static readonly NodeId TestOptionalFields = new NodeId(Opc.Ua.DataTypes.TestOptionalFields);
-
-        /// <remarks />
-        public static readonly NodeId TestEnumeration = new NodeId(Opc.Ua.DataTypes.TestEnumeration);
-
-        /// <remarks />
-        public static readonly NodeId TestOptionSet = new NodeId(Opc.Ua.DataTypes.TestOptionSet);
-
-        /// <remarks />
-        public static readonly NodeId TestScalarStructure = new NodeId(Opc.Ua.DataTypes.TestScalarStructure);
-
-        /// <remarks />
-        public static readonly NodeId TestArrayStructure = new NodeId(Opc.Ua.DataTypes.TestArrayStructure);
-
-        /// <remarks />
-        public static readonly NodeId TestStructure = new NodeId(Opc.Ua.DataTypes.TestStructure);
     }
     #endregion
 
@@ -29049,12 +28464,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId CertificateGroupFolderType_AdditionalGroup_Placeholder_TrustListOutOfDate_ShelvingState_OneShotShelve = new NodeId(Opc.Ua.Methods.CertificateGroupFolderType_AdditionalGroup_Placeholder_TrustListOutOfDate_ShelvingState_OneShotShelve);
-
-        /// <remarks />
-        public static readonly NodeId ConfigurationFileType_ConfirmUpdate = new NodeId(Opc.Ua.Methods.ConfigurationFileType_ConfirmUpdate);
-
-        /// <remarks />
-        public static readonly NodeId ConfigurationFileType_CloseAndUpdate = new NodeId(Opc.Ua.Methods.ConfigurationFileType_CloseAndUpdate);
 
         /// <remarks />
         public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustList_Open = new NodeId(Opc.Ua.Methods.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustList_Open);
@@ -30937,9 +30346,6 @@ namespace Opc.Ua
         public static readonly NodeId ServerConfiguration_TransactionDiagnostics = new NodeId(Opc.Ua.Objects.ServerConfiguration_TransactionDiagnostics);
 
         /// <remarks />
-        public static readonly NodeId ServerConfiguration_ConfigurationFile = new NodeId(Opc.Ua.Objects.ServerConfiguration_ConfigurationFile);
-
-        /// <remarks />
         public static readonly NodeId KeyCredentialConfigurationFolderType_ServiceName_Placeholder = new NodeId(Opc.Ua.Objects.KeyCredentialConfigurationFolderType_ServiceName_Placeholder);
 
         /// <remarks />
@@ -31534,37 +30940,7 @@ namespace Opc.Ua
         public static readonly NodeId TrustListDataType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.TrustListDataType_Encoding_DefaultBinary);
 
         /// <remarks />
-        public static readonly NodeId BaseConfigurationDataType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.BaseConfigurationDataType_Encoding_DefaultBinary);
-
-        /// <remarks />
-        public static readonly NodeId BaseConfigurationRecordDataType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.BaseConfigurationRecordDataType_Encoding_DefaultBinary);
-
-        /// <remarks />
-        public static readonly NodeId CertificateGroupDataType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.CertificateGroupDataType_Encoding_DefaultBinary);
-
-        /// <remarks />
-        public static readonly NodeId ConfigurationUpdateTargetType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.ConfigurationUpdateTargetType_Encoding_DefaultBinary);
-
-        /// <remarks />
         public static readonly NodeId TransactionErrorType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.TransactionErrorType_Encoding_DefaultBinary);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationDataType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.ApplicationConfigurationDataType_Encoding_DefaultBinary);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationIdentityDataType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.ApplicationIdentityDataType_Encoding_DefaultBinary);
-
-        /// <remarks />
-        public static readonly NodeId EndpointDataType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.EndpointDataType_Encoding_DefaultBinary);
-
-        /// <remarks />
-        public static readonly NodeId ServerEndpointDataType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.ServerEndpointDataType_Encoding_DefaultBinary);
-
-        /// <remarks />
-        public static readonly NodeId SecuritySettingsDataType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.SecuritySettingsDataType_Encoding_DefaultBinary);
-
-        /// <remarks />
-        public static readonly NodeId UserTokenSettingsDataType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.UserTokenSettingsDataType_Encoding_DefaultBinary);
 
         /// <remarks />
         public static readonly NodeId DecimalDataType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.DecimalDataType_Encoding_DefaultBinary);
@@ -31784,42 +31160,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId PubSubConfigurationValueDataType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.PubSubConfigurationValueDataType_Encoding_DefaultBinary);
-
-        /// <remarks />
-        public static readonly NodeId JsonNetworkMessage_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.JsonNetworkMessage_Encoding_DefaultBinary);
-
-        /// <remarks />
-        public static readonly NodeId JsonDataSetMessage_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.JsonDataSetMessage_Encoding_DefaultBinary);
-
-        /// <remarks />
-        public static readonly NodeId JsonDataSetMetaDataMessage_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.JsonDataSetMetaDataMessage_Encoding_DefaultBinary);
-
-        /// <remarks />
-        public static readonly NodeId JsonApplicationDescriptionMessage_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.JsonApplicationDescriptionMessage_Encoding_DefaultBinary);
-
-        /// <remarks />
-        public static readonly NodeId JsonServerEndpointsMessage_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.JsonServerEndpointsMessage_Encoding_DefaultBinary);
-
-        /// <remarks />
-        public static readonly NodeId JsonStatusMessage_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.JsonStatusMessage_Encoding_DefaultBinary);
-
-        /// <remarks />
-        public static readonly NodeId JsonPubSubConnectionMessage_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.JsonPubSubConnectionMessage_Encoding_DefaultBinary);
-
-        /// <remarks />
-        public static readonly NodeId JsonActionMetaDataMessage_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.JsonActionMetaDataMessage_Encoding_DefaultBinary);
-
-        /// <remarks />
-        public static readonly NodeId JsonActionResponderMessage_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.JsonActionResponderMessage_Encoding_DefaultBinary);
-
-        /// <remarks />
-        public static readonly NodeId JsonActionNetworkMessage_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.JsonActionNetworkMessage_Encoding_DefaultBinary);
-
-        /// <remarks />
-        public static readonly NodeId JsonActionRequestMessage_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.JsonActionRequestMessage_Encoding_DefaultBinary);
-
-        /// <remarks />
-        public static readonly NodeId JsonActionResponseMessage_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.JsonActionResponseMessage_Encoding_DefaultBinary);
 
         /// <remarks />
         public static readonly NodeId AliasNameDataType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.AliasNameDataType_Encoding_DefaultBinary);
@@ -32548,27 +31888,6 @@ namespace Opc.Ua
         public static readonly NodeId Annotation_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.Annotation_Encoding_DefaultBinary);
 
         /// <remarks />
-        public static readonly NodeId TestAbstractStructure_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.TestAbstractStructure_Encoding_DefaultBinary);
-
-        /// <remarks />
-        public static readonly NodeId TestConcreteStructure_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.TestConcreteStructure_Encoding_DefaultBinary);
-
-        /// <remarks />
-        public static readonly NodeId TestUnion_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.TestUnion_Encoding_DefaultBinary);
-
-        /// <remarks />
-        public static readonly NodeId TestOptionalFields_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.TestOptionalFields_Encoding_DefaultBinary);
-
-        /// <remarks />
-        public static readonly NodeId TestScalarStructure_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.TestScalarStructure_Encoding_DefaultBinary);
-
-        /// <remarks />
-        public static readonly NodeId TestArrayStructure_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.TestArrayStructure_Encoding_DefaultBinary);
-
-        /// <remarks />
-        public static readonly NodeId TestStructure_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.TestStructure_Encoding_DefaultBinary);
-
-        /// <remarks />
         public static readonly NodeId Union_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.Union_Encoding_DefaultXml);
 
         /// <remarks />
@@ -32632,37 +31951,7 @@ namespace Opc.Ua
         public static readonly NodeId TrustListDataType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.TrustListDataType_Encoding_DefaultXml);
 
         /// <remarks />
-        public static readonly NodeId BaseConfigurationDataType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.BaseConfigurationDataType_Encoding_DefaultXml);
-
-        /// <remarks />
-        public static readonly NodeId BaseConfigurationRecordDataType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.BaseConfigurationRecordDataType_Encoding_DefaultXml);
-
-        /// <remarks />
-        public static readonly NodeId CertificateGroupDataType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.CertificateGroupDataType_Encoding_DefaultXml);
-
-        /// <remarks />
-        public static readonly NodeId ConfigurationUpdateTargetType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.ConfigurationUpdateTargetType_Encoding_DefaultXml);
-
-        /// <remarks />
         public static readonly NodeId TransactionErrorType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.TransactionErrorType_Encoding_DefaultXml);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationDataType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.ApplicationConfigurationDataType_Encoding_DefaultXml);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationIdentityDataType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.ApplicationIdentityDataType_Encoding_DefaultXml);
-
-        /// <remarks />
-        public static readonly NodeId EndpointDataType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.EndpointDataType_Encoding_DefaultXml);
-
-        /// <remarks />
-        public static readonly NodeId ServerEndpointDataType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.ServerEndpointDataType_Encoding_DefaultXml);
-
-        /// <remarks />
-        public static readonly NodeId SecuritySettingsDataType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.SecuritySettingsDataType_Encoding_DefaultXml);
-
-        /// <remarks />
-        public static readonly NodeId UserTokenSettingsDataType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.UserTokenSettingsDataType_Encoding_DefaultXml);
 
         /// <remarks />
         public static readonly NodeId DecimalDataType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.DecimalDataType_Encoding_DefaultXml);
@@ -32882,42 +32171,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId PubSubConfigurationValueDataType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.PubSubConfigurationValueDataType_Encoding_DefaultXml);
-
-        /// <remarks />
-        public static readonly NodeId JsonNetworkMessage_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.JsonNetworkMessage_Encoding_DefaultXml);
-
-        /// <remarks />
-        public static readonly NodeId JsonDataSetMessage_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.JsonDataSetMessage_Encoding_DefaultXml);
-
-        /// <remarks />
-        public static readonly NodeId JsonDataSetMetaDataMessage_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.JsonDataSetMetaDataMessage_Encoding_DefaultXml);
-
-        /// <remarks />
-        public static readonly NodeId JsonApplicationDescriptionMessage_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.JsonApplicationDescriptionMessage_Encoding_DefaultXml);
-
-        /// <remarks />
-        public static readonly NodeId JsonServerEndpointsMessage_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.JsonServerEndpointsMessage_Encoding_DefaultXml);
-
-        /// <remarks />
-        public static readonly NodeId JsonStatusMessage_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.JsonStatusMessage_Encoding_DefaultXml);
-
-        /// <remarks />
-        public static readonly NodeId JsonPubSubConnectionMessage_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.JsonPubSubConnectionMessage_Encoding_DefaultXml);
-
-        /// <remarks />
-        public static readonly NodeId JsonActionMetaDataMessage_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.JsonActionMetaDataMessage_Encoding_DefaultXml);
-
-        /// <remarks />
-        public static readonly NodeId JsonActionResponderMessage_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.JsonActionResponderMessage_Encoding_DefaultXml);
-
-        /// <remarks />
-        public static readonly NodeId JsonActionNetworkMessage_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.JsonActionNetworkMessage_Encoding_DefaultXml);
-
-        /// <remarks />
-        public static readonly NodeId JsonActionRequestMessage_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.JsonActionRequestMessage_Encoding_DefaultXml);
-
-        /// <remarks />
-        public static readonly NodeId JsonActionResponseMessage_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.JsonActionResponseMessage_Encoding_DefaultXml);
 
         /// <remarks />
         public static readonly NodeId AliasNameDataType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.AliasNameDataType_Encoding_DefaultXml);
@@ -33646,27 +32899,6 @@ namespace Opc.Ua
         public static readonly NodeId Annotation_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.Annotation_Encoding_DefaultXml);
 
         /// <remarks />
-        public static readonly NodeId TestAbstractStructure_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.TestAbstractStructure_Encoding_DefaultXml);
-
-        /// <remarks />
-        public static readonly NodeId TestConcreteStructure_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.TestConcreteStructure_Encoding_DefaultXml);
-
-        /// <remarks />
-        public static readonly NodeId TestUnion_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.TestUnion_Encoding_DefaultXml);
-
-        /// <remarks />
-        public static readonly NodeId TestOptionalFields_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.TestOptionalFields_Encoding_DefaultXml);
-
-        /// <remarks />
-        public static readonly NodeId TestScalarStructure_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.TestScalarStructure_Encoding_DefaultXml);
-
-        /// <remarks />
-        public static readonly NodeId TestArrayStructure_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.TestArrayStructure_Encoding_DefaultXml);
-
-        /// <remarks />
-        public static readonly NodeId TestStructure_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.TestStructure_Encoding_DefaultXml);
-
-        /// <remarks />
         public static readonly NodeId Union_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.Union_Encoding_DefaultJson);
 
         /// <remarks />
@@ -33730,37 +32962,7 @@ namespace Opc.Ua
         public static readonly NodeId TrustListDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.TrustListDataType_Encoding_DefaultJson);
 
         /// <remarks />
-        public static readonly NodeId BaseConfigurationDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.BaseConfigurationDataType_Encoding_DefaultJson);
-
-        /// <remarks />
-        public static readonly NodeId BaseConfigurationRecordDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.BaseConfigurationRecordDataType_Encoding_DefaultJson);
-
-        /// <remarks />
-        public static readonly NodeId CertificateGroupDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.CertificateGroupDataType_Encoding_DefaultJson);
-
-        /// <remarks />
-        public static readonly NodeId ConfigurationUpdateTargetType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.ConfigurationUpdateTargetType_Encoding_DefaultJson);
-
-        /// <remarks />
         public static readonly NodeId TransactionErrorType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.TransactionErrorType_Encoding_DefaultJson);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.ApplicationConfigurationDataType_Encoding_DefaultJson);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationIdentityDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.ApplicationIdentityDataType_Encoding_DefaultJson);
-
-        /// <remarks />
-        public static readonly NodeId EndpointDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.EndpointDataType_Encoding_DefaultJson);
-
-        /// <remarks />
-        public static readonly NodeId ServerEndpointDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.ServerEndpointDataType_Encoding_DefaultJson);
-
-        /// <remarks />
-        public static readonly NodeId SecuritySettingsDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.SecuritySettingsDataType_Encoding_DefaultJson);
-
-        /// <remarks />
-        public static readonly NodeId UserTokenSettingsDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.UserTokenSettingsDataType_Encoding_DefaultJson);
 
         /// <remarks />
         public static readonly NodeId DecimalDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.DecimalDataType_Encoding_DefaultJson);
@@ -33980,42 +33182,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId PubSubConfigurationValueDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.PubSubConfigurationValueDataType_Encoding_DefaultJson);
-
-        /// <remarks />
-        public static readonly NodeId JsonNetworkMessage_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.JsonNetworkMessage_Encoding_DefaultJson);
-
-        /// <remarks />
-        public static readonly NodeId JsonDataSetMessage_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.JsonDataSetMessage_Encoding_DefaultJson);
-
-        /// <remarks />
-        public static readonly NodeId JsonDataSetMetaDataMessage_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.JsonDataSetMetaDataMessage_Encoding_DefaultJson);
-
-        /// <remarks />
-        public static readonly NodeId JsonApplicationDescriptionMessage_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.JsonApplicationDescriptionMessage_Encoding_DefaultJson);
-
-        /// <remarks />
-        public static readonly NodeId JsonServerEndpointsMessage_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.JsonServerEndpointsMessage_Encoding_DefaultJson);
-
-        /// <remarks />
-        public static readonly NodeId JsonStatusMessage_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.JsonStatusMessage_Encoding_DefaultJson);
-
-        /// <remarks />
-        public static readonly NodeId JsonPubSubConnectionMessage_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.JsonPubSubConnectionMessage_Encoding_DefaultJson);
-
-        /// <remarks />
-        public static readonly NodeId JsonActionMetaDataMessage_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.JsonActionMetaDataMessage_Encoding_DefaultJson);
-
-        /// <remarks />
-        public static readonly NodeId JsonActionResponderMessage_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.JsonActionResponderMessage_Encoding_DefaultJson);
-
-        /// <remarks />
-        public static readonly NodeId JsonActionNetworkMessage_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.JsonActionNetworkMessage_Encoding_DefaultJson);
-
-        /// <remarks />
-        public static readonly NodeId JsonActionRequestMessage_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.JsonActionRequestMessage_Encoding_DefaultJson);
-
-        /// <remarks />
-        public static readonly NodeId JsonActionResponseMessage_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.JsonActionResponseMessage_Encoding_DefaultJson);
 
         /// <remarks />
         public static readonly NodeId AliasNameDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.AliasNameDataType_Encoding_DefaultJson);
@@ -34742,27 +33908,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId Annotation_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.Annotation_Encoding_DefaultJson);
-
-        /// <remarks />
-        public static readonly NodeId TestAbstractStructure_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.TestAbstractStructure_Encoding_DefaultJson);
-
-        /// <remarks />
-        public static readonly NodeId TestConcreteStructure_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.TestConcreteStructure_Encoding_DefaultJson);
-
-        /// <remarks />
-        public static readonly NodeId TestUnion_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.TestUnion_Encoding_DefaultJson);
-
-        /// <remarks />
-        public static readonly NodeId TestOptionalFields_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.TestOptionalFields_Encoding_DefaultJson);
-
-        /// <remarks />
-        public static readonly NodeId TestScalarStructure_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.TestScalarStructure_Encoding_DefaultJson);
-
-        /// <remarks />
-        public static readonly NodeId TestArrayStructure_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.TestArrayStructure_Encoding_DefaultJson);
-
-        /// <remarks />
-        public static readonly NodeId TestStructure_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.TestStructure_Encoding_DefaultJson);
     }
     #endregion
 
@@ -35277,12 +34422,6 @@ namespace Opc.Ua
         public static readonly NodeId EccCurve448ApplicationCertificateType = new NodeId(Opc.Ua.ObjectTypes.EccCurve448ApplicationCertificateType);
 
         /// <remarks />
-        public static readonly NodeId ConfigurationFileType = new NodeId(Opc.Ua.ObjectTypes.ConfigurationFileType);
-
-        /// <remarks />
-        public static readonly NodeId ConfigurationUpdatedAuditEventType = new NodeId(Opc.Ua.ObjectTypes.ConfigurationUpdatedAuditEventType);
-
-        /// <remarks />
         public static readonly NodeId TrustListUpdateRequestedAuditEventType = new NodeId(Opc.Ua.ObjectTypes.TrustListUpdateRequestedAuditEventType);
 
         /// <remarks />
@@ -35293,9 +34432,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId ApplicationConfigurationFolderType = new NodeId(Opc.Ua.ObjectTypes.ApplicationConfigurationFolderType);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFileType = new NodeId(Opc.Ua.ObjectTypes.ApplicationConfigurationFileType);
 
         /// <remarks />
         public static readonly NodeId ServerConfigurationType = new NodeId(Opc.Ua.ObjectTypes.ServerConfigurationType);
@@ -42292,39 +41428,6 @@ namespace Opc.Ua
         public static readonly NodeId CertificateGroupFolderType_AdditionalGroup_Placeholder_TrustListOutOfDate_UpdateFrequency = new NodeId(Opc.Ua.Variables.CertificateGroupFolderType_AdditionalGroup_Placeholder_TrustListOutOfDate_UpdateFrequency);
 
         /// <remarks />
-        public static readonly NodeId ConfigurationFileType_LastUpdateTime = new NodeId(Opc.Ua.Variables.ConfigurationFileType_LastUpdateTime);
-
-        /// <remarks />
-        public static readonly NodeId ConfigurationFileType_CurrentVersion = new NodeId(Opc.Ua.Variables.ConfigurationFileType_CurrentVersion);
-
-        /// <remarks />
-        public static readonly NodeId ConfigurationFileType_ActivityTimeout = new NodeId(Opc.Ua.Variables.ConfigurationFileType_ActivityTimeout);
-
-        /// <remarks />
-        public static readonly NodeId ConfigurationFileType_SupportedDataType = new NodeId(Opc.Ua.Variables.ConfigurationFileType_SupportedDataType);
-
-        /// <remarks />
-        public static readonly NodeId ConfigurationFileType_ConfirmUpdate_InputArguments = new NodeId(Opc.Ua.Variables.ConfigurationFileType_ConfirmUpdate_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ConfigurationFileType_ConfirmUpdate_OutputArguments = new NodeId(Opc.Ua.Variables.ConfigurationFileType_ConfirmUpdate_OutputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ConfigurationFileType_CloseAndUpdate_InputArguments = new NodeId(Opc.Ua.Variables.ConfigurationFileType_CloseAndUpdate_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ConfigurationFileType_CloseAndUpdate_OutputArguments = new NodeId(Opc.Ua.Variables.ConfigurationFileType_CloseAndUpdate_OutputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ConfigurationUpdateType_EnumValues = new NodeId(Opc.Ua.Variables.ConfigurationUpdateType_EnumValues);
-
-        /// <remarks />
-        public static readonly NodeId ConfigurationUpdatedAuditEventType_OldVersion = new NodeId(Opc.Ua.Variables.ConfigurationUpdatedAuditEventType_OldVersion);
-
-        /// <remarks />
-        public static readonly NodeId ConfigurationUpdatedAuditEventType_NewVersion = new NodeId(Opc.Ua.Variables.ConfigurationUpdatedAuditEventType_NewVersion);
-
-        /// <remarks />
         public static readonly NodeId TrustListUpdatedAuditEventType_TrustListId = new NodeId(Opc.Ua.Variables.TrustListUpdatedAuditEventType_TrustListId);
 
         /// <remarks />
@@ -43613,21 +42716,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_Enabled = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_Enabled);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFileType_AvailableNetworks = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFileType_AvailableNetworks);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFileType_AvailablePorts = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFileType_AvailablePorts);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFileType_SecurityPolicyUris = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFileType_SecurityPolicyUris);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFileType_UserTokenTypes = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFileType_UserTokenTypes);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFileType_CertificateTypes = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFileType_CertificateTypes);
 
         /// <remarks />
         public static readonly NodeId ServerConfigurationType_CertificateGroups_DefaultApplicationGroup_TrustList_Size = new NodeId(Opc.Ua.Variables.ServerConfigurationType_CertificateGroups_DefaultApplicationGroup_TrustList_Size);
@@ -51949,12 +51037,6 @@ namespace Opc.Ua
         public static readonly NodeId ExceptionDeviationFormat_EnumStrings = new NodeId(Opc.Ua.Variables.ExceptionDeviationFormat_EnumStrings);
 
         /// <remarks />
-        public static readonly NodeId TestEnumeration_EnumValues = new NodeId(Opc.Ua.Variables.TestEnumeration_EnumValues);
-
-        /// <remarks />
-        public static readonly NodeId TestOptionSet_OptionSetValues = new NodeId(Opc.Ua.Variables.TestOptionSet_OptionSetValues);
-
-        /// <remarks />
         public static readonly NodeId OpcUa_BinarySchema = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema);
 
         /// <remarks />
@@ -52027,37 +51109,7 @@ namespace Opc.Ua
         public static readonly NodeId OpcUa_BinarySchema_TrustListDataType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_TrustListDataType);
 
         /// <remarks />
-        public static readonly NodeId OpcUa_BinarySchema_BaseConfigurationDataType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_BaseConfigurationDataType);
-
-        /// <remarks />
-        public static readonly NodeId OpcUa_BinarySchema_BaseConfigurationRecordDataType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_BaseConfigurationRecordDataType);
-
-        /// <remarks />
-        public static readonly NodeId OpcUa_BinarySchema_CertificateGroupDataType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_CertificateGroupDataType);
-
-        /// <remarks />
-        public static readonly NodeId OpcUa_BinarySchema_ConfigurationUpdateTargetType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_ConfigurationUpdateTargetType);
-
-        /// <remarks />
         public static readonly NodeId OpcUa_BinarySchema_TransactionErrorType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_TransactionErrorType);
-
-        /// <remarks />
-        public static readonly NodeId OpcUa_BinarySchema_ApplicationConfigurationDataType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_ApplicationConfigurationDataType);
-
-        /// <remarks />
-        public static readonly NodeId OpcUa_BinarySchema_ApplicationIdentityDataType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_ApplicationIdentityDataType);
-
-        /// <remarks />
-        public static readonly NodeId OpcUa_BinarySchema_EndpointDataType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_EndpointDataType);
-
-        /// <remarks />
-        public static readonly NodeId OpcUa_BinarySchema_ServerEndpointDataType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_ServerEndpointDataType);
-
-        /// <remarks />
-        public static readonly NodeId OpcUa_BinarySchema_SecuritySettingsDataType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_SecuritySettingsDataType);
-
-        /// <remarks />
-        public static readonly NodeId OpcUa_BinarySchema_UserTokenSettingsDataType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_UserTokenSettingsDataType);
 
         /// <remarks />
         public static readonly NodeId OpcUa_BinarySchema_DataTypeSchemaHeader = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_DataTypeSchemaHeader);
@@ -52274,42 +51326,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId OpcUa_BinarySchema_PubSubConfigurationValueDataType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_PubSubConfigurationValueDataType);
-
-        /// <remarks />
-        public static readonly NodeId OpcUa_BinarySchema_JsonNetworkMessage = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_JsonNetworkMessage);
-
-        /// <remarks />
-        public static readonly NodeId OpcUa_BinarySchema_JsonDataSetMessage = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_JsonDataSetMessage);
-
-        /// <remarks />
-        public static readonly NodeId OpcUa_BinarySchema_JsonDataSetMetaDataMessage = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_JsonDataSetMetaDataMessage);
-
-        /// <remarks />
-        public static readonly NodeId OpcUa_BinarySchema_JsonApplicationDescriptionMessage = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_JsonApplicationDescriptionMessage);
-
-        /// <remarks />
-        public static readonly NodeId OpcUa_BinarySchema_JsonServerEndpointsMessage = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_JsonServerEndpointsMessage);
-
-        /// <remarks />
-        public static readonly NodeId OpcUa_BinarySchema_JsonStatusMessage = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_JsonStatusMessage);
-
-        /// <remarks />
-        public static readonly NodeId OpcUa_BinarySchema_JsonPubSubConnectionMessage = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_JsonPubSubConnectionMessage);
-
-        /// <remarks />
-        public static readonly NodeId OpcUa_BinarySchema_JsonActionMetaDataMessage = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_JsonActionMetaDataMessage);
-
-        /// <remarks />
-        public static readonly NodeId OpcUa_BinarySchema_JsonActionResponderMessage = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_JsonActionResponderMessage);
-
-        /// <remarks />
-        public static readonly NodeId OpcUa_BinarySchema_JsonActionNetworkMessage = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_JsonActionNetworkMessage);
-
-        /// <remarks />
-        public static readonly NodeId OpcUa_BinarySchema_JsonActionRequestMessage = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_JsonActionRequestMessage);
-
-        /// <remarks />
-        public static readonly NodeId OpcUa_BinarySchema_JsonActionResponseMessage = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_JsonActionResponseMessage);
 
         /// <remarks />
         public static readonly NodeId OpcUa_BinarySchema_AliasNameDataType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_AliasNameDataType);
@@ -52609,37 +51625,7 @@ namespace Opc.Ua
         public static readonly NodeId OpcUa_XmlSchema_TrustListDataType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_TrustListDataType);
 
         /// <remarks />
-        public static readonly NodeId OpcUa_XmlSchema_BaseConfigurationDataType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_BaseConfigurationDataType);
-
-        /// <remarks />
-        public static readonly NodeId OpcUa_XmlSchema_BaseConfigurationRecordDataType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_BaseConfigurationRecordDataType);
-
-        /// <remarks />
-        public static readonly NodeId OpcUa_XmlSchema_CertificateGroupDataType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_CertificateGroupDataType);
-
-        /// <remarks />
-        public static readonly NodeId OpcUa_XmlSchema_ConfigurationUpdateTargetType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_ConfigurationUpdateTargetType);
-
-        /// <remarks />
         public static readonly NodeId OpcUa_XmlSchema_TransactionErrorType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_TransactionErrorType);
-
-        /// <remarks />
-        public static readonly NodeId OpcUa_XmlSchema_ApplicationConfigurationDataType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_ApplicationConfigurationDataType);
-
-        /// <remarks />
-        public static readonly NodeId OpcUa_XmlSchema_ApplicationIdentityDataType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_ApplicationIdentityDataType);
-
-        /// <remarks />
-        public static readonly NodeId OpcUa_XmlSchema_EndpointDataType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_EndpointDataType);
-
-        /// <remarks />
-        public static readonly NodeId OpcUa_XmlSchema_ServerEndpointDataType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_ServerEndpointDataType);
-
-        /// <remarks />
-        public static readonly NodeId OpcUa_XmlSchema_SecuritySettingsDataType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_SecuritySettingsDataType);
-
-        /// <remarks />
-        public static readonly NodeId OpcUa_XmlSchema_UserTokenSettingsDataType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_UserTokenSettingsDataType);
 
         /// <remarks />
         public static readonly NodeId OpcUa_XmlSchema_DataTypeSchemaHeader = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_DataTypeSchemaHeader);
@@ -52856,42 +51842,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId OpcUa_XmlSchema_PubSubConfigurationValueDataType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_PubSubConfigurationValueDataType);
-
-        /// <remarks />
-        public static readonly NodeId OpcUa_XmlSchema_JsonNetworkMessage = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_JsonNetworkMessage);
-
-        /// <remarks />
-        public static readonly NodeId OpcUa_XmlSchema_JsonDataSetMessage = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_JsonDataSetMessage);
-
-        /// <remarks />
-        public static readonly NodeId OpcUa_XmlSchema_JsonDataSetMetaDataMessage = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_JsonDataSetMetaDataMessage);
-
-        /// <remarks />
-        public static readonly NodeId OpcUa_XmlSchema_JsonApplicationDescriptionMessage = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_JsonApplicationDescriptionMessage);
-
-        /// <remarks />
-        public static readonly NodeId OpcUa_XmlSchema_JsonServerEndpointsMessage = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_JsonServerEndpointsMessage);
-
-        /// <remarks />
-        public static readonly NodeId OpcUa_XmlSchema_JsonStatusMessage = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_JsonStatusMessage);
-
-        /// <remarks />
-        public static readonly NodeId OpcUa_XmlSchema_JsonPubSubConnectionMessage = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_JsonPubSubConnectionMessage);
-
-        /// <remarks />
-        public static readonly NodeId OpcUa_XmlSchema_JsonActionMetaDataMessage = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_JsonActionMetaDataMessage);
-
-        /// <remarks />
-        public static readonly NodeId OpcUa_XmlSchema_JsonActionResponderMessage = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_JsonActionResponderMessage);
-
-        /// <remarks />
-        public static readonly NodeId OpcUa_XmlSchema_JsonActionNetworkMessage = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_JsonActionNetworkMessage);
-
-        /// <remarks />
-        public static readonly NodeId OpcUa_XmlSchema_JsonActionRequestMessage = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_JsonActionRequestMessage);
-
-        /// <remarks />
-        public static readonly NodeId OpcUa_XmlSchema_JsonActionResponseMessage = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_JsonActionResponseMessage);
 
         /// <remarks />
         public static readonly NodeId OpcUa_XmlSchema_AliasNameDataType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_AliasNameDataType);
@@ -53740,12 +52690,6 @@ namespace Opc.Ua
         public const string ApplicationCertificateType = "ApplicationCertificateType";
 
         /// <remarks />
-        public const string ApplicationConfigurationDataType = "ApplicationConfigurationDataType";
-
-        /// <remarks />
-        public const string ApplicationConfigurationFileType = "ApplicationConfigurationFileType";
-
-        /// <remarks />
         public const string ApplicationConfigurationFolderType = "ApplicationConfigurationFolderType";
 
         /// <remarks />
@@ -53753,9 +52697,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public const string ApplicationDescription = "ApplicationDescription";
-
-        /// <remarks />
-        public const string ApplicationIdentityDataType = "ApplicationIdentityDataType";
 
         /// <remarks />
         public const string ApplicationInstanceCertificate = "ApplicationInstanceCertificate";
@@ -53989,12 +52930,6 @@ namespace Opc.Ua
         public const string AutoDelete = "AutoDelete";
 
         /// <remarks />
-        public const string AvailableNetworks = "AvailableNetworks";
-
-        /// <remarks />
-        public const string AvailablePorts = "AvailablePorts";
-
-        /// <remarks />
         public const string AvailableStates = "AvailableStates";
 
         /// <remarks />
@@ -54023,12 +52958,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public const string BaseConditionClassType = "BaseConditionClassType";
-
-        /// <remarks />
-        public const string BaseConfigurationDataType = "BaseConfigurationDataType";
-
-        /// <remarks />
-        public const string BaseConfigurationRecordDataType = "BaseConfigurationRecordDataType";
 
         /// <remarks />
         public const string BaseDataType = "BaseDataType";
@@ -54223,9 +53152,6 @@ namespace Opc.Ua
         public const string CertificateGroup = "CertificateGroup";
 
         /// <remarks />
-        public const string CertificateGroupDataType = "CertificateGroupDataType";
-
-        /// <remarks />
         public const string CertificateGroupFolderType = "CertificateGroupFolderType";
 
         /// <remarks />
@@ -54370,22 +53296,7 @@ namespace Opc.Ua
         public const string ConditionVariableType = "ConditionVariableType";
 
         /// <remarks />
-        public const string ConfigurationFile = "ConfigurationFile";
-
-        /// <remarks />
-        public const string ConfigurationFileType = "ConfigurationFileType";
-
-        /// <remarks />
         public const string ConfigurationProperties = "ConfigurationProperties";
-
-        /// <remarks />
-        public const string ConfigurationUpdatedAuditEventType = "ConfigurationUpdatedAuditEventType";
-
-        /// <remarks />
-        public const string ConfigurationUpdateTargetType = "ConfigurationUpdateTargetType";
-
-        /// <remarks />
-        public const string ConfigurationUpdateType = "ConfigurationUpdateType";
 
         /// <remarks />
         public const string ConfigurationVersion = "ConfigurationVersion";
@@ -54401,9 +53312,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public const string ConfirmedState = "ConfirmedState";
-
-        /// <remarks />
-        public const string ConfirmUpdate = "ConfirmUpdate";
 
         /// <remarks />
         public const string ConformanceUnits = "ConformanceUnits";
@@ -54569,9 +53477,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public const string CurrentTime = "CurrentTime";
-
-        /// <remarks />
-        public const string CurrentVersion = "CurrentVersion";
 
         /// <remarks />
         public const string CustomConfiguration = "CustomConfiguration";
@@ -55061,9 +53966,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public const string EndpointConfiguration = "EndpointConfiguration";
-
-        /// <remarks />
-        public const string EndpointDataType = "EndpointDataType";
 
         /// <remarks />
         public const string EndpointDescription = "EndpointDescription";
@@ -56617,9 +55519,6 @@ namespace Opc.Ua
         public const string NewValues = "NewValues";
 
         /// <remarks />
-        public const string NewVersion = "NewVersion";
-
-        /// <remarks />
         public const string NextSequenceNumber = "NextSequenceNumber";
 
         /// <remarks />
@@ -56741,9 +55640,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public const string OldValues = "OldValues";
-
-        /// <remarks />
-        public const string OldVersion = "OldVersion";
 
         /// <remarks />
         public const string OnDelay = "OnDelay";
@@ -57742,16 +56638,10 @@ namespace Opc.Ua
         public const string SecurityPolicyUri = "SecurityPolicyUri";
 
         /// <remarks />
-        public const string SecurityPolicyUris = "SecurityPolicyUris";
-
-        /// <remarks />
         public const string SecurityRejectedRequestsCount = "SecurityRejectedRequestsCount";
 
         /// <remarks />
         public const string SecurityRejectedSessionCount = "SecurityRejectedSessionCount";
-
-        /// <remarks />
-        public const string SecuritySettingsDataType = "SecuritySettingsDataType";
 
         /// <remarks />
         public const string SecurityTokenRequestType = "SecurityTokenRequestType";
@@ -57821,9 +56711,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public const string ServerDiagnosticsType = "ServerDiagnosticsType";
-
-        /// <remarks />
-        public const string ServerEndpointDataType = "ServerEndpointDataType";
 
         /// <remarks />
         public const string ServerId = "ServerId";
@@ -58231,9 +57118,6 @@ namespace Opc.Ua
         public const string SubscriptionId = "SubscriptionId";
 
         /// <remarks />
-        public const string SupportedDataType = "SupportedDataType";
-
-        /// <remarks />
         public const string SupportedPrivateKeyFormats = "SupportedPrivateKeyFormats";
 
         /// <remarks />
@@ -58345,34 +57229,7 @@ namespace Opc.Ua
         public const string TemporaryFileTransferType = "TemporaryFileTransferType";
 
         /// <remarks />
-        public const string TestAbstractStructure = "TestAbstractStructure";
-
-        /// <remarks />
-        public const string TestArrayStructure = "TestArrayStructure";
-
-        /// <remarks />
-        public const string TestConcreteStructure = "TestConcreteStructure";
-
-        /// <remarks />
-        public const string TestEnumeration = "TestEnumeration";
-
-        /// <remarks />
         public const string TestingConditionClassType = "TestingConditionClassType";
-
-        /// <remarks />
-        public const string TestOptionalFields = "TestOptionalFields";
-
-        /// <remarks />
-        public const string TestOptionSet = "TestOptionSet";
-
-        /// <remarks />
-        public const string TestScalarStructure = "TestScalarStructure";
-
-        /// <remarks />
-        public const string TestStructure = "TestStructure";
-
-        /// <remarks />
-        public const string TestUnion = "TestUnion";
 
         /// <remarks />
         public const string ThreeDCartesianCoordinates = "3DCartesianCoordinates";
@@ -58771,13 +57628,7 @@ namespace Opc.Ua
         public const string UserTokenPolicy = "UserTokenPolicy";
 
         /// <remarks />
-        public const string UserTokenSettingsDataType = "UserTokenSettingsDataType";
-
-        /// <remarks />
         public const string UserTokenType = "UserTokenType";
-
-        /// <remarks />
-        public const string UserTokenTypes = "UserTokenTypes";
 
         /// <remarks />
         public const string UserWritable = "UserWritable";

@@ -1865,15 +1865,7 @@ namespace Opc.Ua
         /// </summary>
         public void WriteEnumerated(string fieldName, int numeric)
         {
-            if (EncodingToUse == JsonEncodingType.Compact || EncodingToUse == JsonEncodingType.Verbose)
-            {
-                PushStructure(fieldName);
-                WriteInt32("Code", numeric);
-                PopStructure();
-                return;
-            }
-
-            bool writeNumber = EncodingToUse == JsonEncodingType.Reversible;
+            bool writeNumber = EncodingToUse == JsonEncodingType.Reversible || EncodingToUse == JsonEncodingType.Compact;
             var numericString = numeric.ToString(CultureInfo.InvariantCulture);
             WriteSimpleField(fieldName, numericString, writeNumber ? EscapeOptions.None : EscapeOptions.Quotes);
         }

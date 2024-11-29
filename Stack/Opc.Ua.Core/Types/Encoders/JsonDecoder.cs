@@ -1296,7 +1296,19 @@ namespace Opc.Ua
                     if (value.ContainsKey("Dimensions"))
                     {
                         var dimensions = ReadInt32Array("Dimensions");
-                        return new Variant(new Matrix(array.Value as Array, builtInType, dimensions.ToArray()));
+
+                        try
+                        {
+                            return new Variant(new Matrix(array.Value as Array, builtInType, dimensions.ToArray()));
+                        }
+                        catch (ArgumentException e)
+                        {
+                            throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded, e);
+                        }
+                        catch (Exception e)
+                        {
+                            throw new ServiceResultException(StatusCodes.BadDecodingError, e);
+                        }
                     }
 
                     return array;
@@ -1331,7 +1343,7 @@ namespace Opc.Ua
             try
             {
                 m_stack.Push(value);
-                BuiltInType builtInType = (value.ContainsKey("UaType"))? (BuiltInType)ReadByte("UaType") : (BuiltInType)ReadByte("Type");
+                BuiltInType builtInType = (value.ContainsKey("UaType")) ? (BuiltInType)ReadByte("UaType") : (BuiltInType)ReadByte("Type");
 
                 if (value.ContainsKey("Value"))
                 {
@@ -2566,8 +2578,19 @@ namespace Opc.Ua
                     var array2 = ReadArray("Array", 1, builtInType, systemType, encodeableTypeId);
                     m_stack.Pop();
 
-                    var matrix2 = new Matrix(array2, builtInType, dimensions2.ToArray());
-                    return matrix2.ToArray();
+                    try
+                    {
+                        var matrix2 = new Matrix(array2, builtInType, dimensions2.ToArray());
+                        return matrix2.ToArray();
+                    }
+                    catch (ArgumentException e)
+                    {
+                        throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded, e);
+                    }
+                    catch (Exception e)
+                    {
+                        throw new ServiceResultException(StatusCodes.BadDecodingError, e);
+                    }
                 }
 
                 if (!(token is List<object> array))
@@ -2597,131 +2620,143 @@ namespace Opc.Ua
                 }
 
                 Matrix matrix = null;
-                switch (builtInType)
-                {
-                    case BuiltInType.Boolean:
-                        matrix = new Matrix(elements.Cast<bool>().ToArray(), builtInType, dimensions.ToArray());
-                        break;
-                    case BuiltInType.SByte:
-                        matrix = new Matrix(elements.Cast<sbyte>().ToArray(), builtInType, dimensions.ToArray());
-                        break;
-                    case BuiltInType.Byte:
-                        matrix = new Matrix(elements.Cast<byte>().ToArray(), builtInType, dimensions.ToArray());
-                        break;
-                    case BuiltInType.Int16:
-                        matrix = new Matrix(elements.Cast<Int16>().ToArray(), builtInType, dimensions.ToArray());
-                        break;
-                    case BuiltInType.UInt16:
-                        matrix = new Matrix(elements.Cast<UInt16>().ToArray(), builtInType, dimensions.ToArray());
-                        break;
-                    case BuiltInType.Int32:
-                        matrix = new Matrix(elements.Cast<Int32>().ToArray(), builtInType, dimensions.ToArray());
-                        break;
-                    case BuiltInType.UInt32:
-                        matrix = new Matrix(elements.Cast<UInt32>().ToArray(), builtInType, dimensions.ToArray());
-                        break;
-                    case BuiltInType.Int64:
-                        matrix = new Matrix(elements.Cast<Int64>().ToArray(), builtInType, dimensions.ToArray());
-                        break;
-                    case BuiltInType.UInt64:
-                        matrix = new Matrix(elements.Cast<UInt64>().ToArray(), builtInType, dimensions.ToArray());
-                        break;
-                    case BuiltInType.Float:
-                        matrix = new Matrix(elements.Cast<float>().ToArray(), builtInType, dimensions.ToArray());
-                        break;
-                    case BuiltInType.Double:
-                        matrix = new Matrix(elements.Cast<double>().ToArray(), builtInType, dimensions.ToArray());
-                        break;
-                    case BuiltInType.String:
-                        matrix = new Matrix(elements.Cast<string>().ToArray(), builtInType, dimensions.ToArray());
-                        break;
-                    case BuiltInType.DateTime:
-                        matrix = new Matrix(elements.Cast<DateTime>().ToArray(), builtInType, dimensions.ToArray());
-                        break;
-                    case BuiltInType.Guid:
-                        matrix = new Matrix(elements.Cast<Uuid>().ToArray(), builtInType, dimensions.ToArray());
-                        break;
-                    case BuiltInType.ByteString:
-                        matrix = new Matrix(elements.Cast<byte[]>().ToArray(), builtInType, dimensions.ToArray());
-                        break;
-                    case BuiltInType.XmlElement:
-                        matrix = new Matrix(elements.Cast<XmlElement>().ToArray(), builtInType, dimensions.ToArray());
-                        break;
-                    case BuiltInType.NodeId:
-                        matrix = new Matrix(elements.Cast<NodeId>().ToArray(), builtInType, dimensions.ToArray());
-                        break;
-                    case BuiltInType.ExpandedNodeId:
-                        matrix = new Matrix(elements.Cast<ExpandedNodeId>().ToArray(), builtInType, dimensions.ToArray());
-                        break;
-                    case BuiltInType.StatusCode:
-                        matrix = new Matrix(elements.Cast<StatusCode>().ToArray(), builtInType, dimensions.ToArray());
-                        break;
-                    case BuiltInType.QualifiedName:
-                        matrix = new Matrix(elements.Cast<QualifiedName>().ToArray(), builtInType, dimensions.ToArray());
-                        break;
-                    case BuiltInType.LocalizedText:
-                        matrix = new Matrix(elements.Cast<LocalizedText>().ToArray(), builtInType, dimensions.ToArray());
-                        break;
-                    case BuiltInType.DataValue:
-                        matrix = new Matrix(elements.Cast<DataValue>().ToArray(), builtInType, dimensions.ToArray());
-                        break;
-                    case BuiltInType.Enumeration:
-                    {
-                        if (systemType?.IsEnum == true)
-                        {
-                            var newElements = Array.CreateInstance(systemType, elements.Count);
-                            int ii = 0;
-                            foreach (var element in elements)
-                            {
-                                newElements.SetValue(Convert.ChangeType(element, systemType, CultureInfo.InvariantCulture), ii++);
-                            }
-                            matrix = new Matrix(newElements, builtInType, dimensions.ToArray());
-                        }
-                        else
-                        {
-                            matrix = new Matrix(elements.Cast<Int32>().ToArray(), builtInType, dimensions.ToArray());
-                        }
-                        break;
-                    }
-                    case BuiltInType.Variant:
-                    {
-                        if (DetermineIEncodeableSystemType(ref systemType, encodeableTypeId))
-                        {
-                            Array newElements = Array.CreateInstance(systemType, elements.Count);
-                            for (int i = 0; i < elements.Count; i++)
-                            {
-                                newElements.SetValue(Convert.ChangeType(elements[i], systemType, CultureInfo.InvariantCulture), i);
-                            }
-                            matrix = new Matrix(newElements, builtInType, dimensions.ToArray());
-                            break;
-                        }
-                        matrix = new Matrix(elements.Cast<Variant>().ToArray(), builtInType, dimensions.ToArray());
-                        break;
-                    }
-                    case BuiltInType.ExtensionObject:
-                        matrix = new Matrix(elements.Cast<ExtensionObject>().ToArray(), builtInType, dimensions.ToArray());
-                        break;
-                    case BuiltInType.DiagnosticInfo:
-                        matrix = new Matrix(elements.Cast<DiagnosticInfo>().ToArray(), builtInType, dimensions.ToArray());
-                        break;
-                    default:
-                    {
-                        if (DetermineIEncodeableSystemType(ref systemType, encodeableTypeId))
-                        {
-                            Array newElements = Array.CreateInstance(systemType, elements.Count);
-                            for (int i = 0; i < elements.Count; i++)
-                            {
-                                newElements.SetValue(Convert.ChangeType(elements[i], systemType, CultureInfo.InvariantCulture), i);
-                            }
-                            matrix = new Matrix(newElements, builtInType, dimensions.ToArray());
-                            break;
-                        }
 
-                        throw ServiceResultException.Create(
-                            StatusCodes.BadDecodingError,
-                            "Cannot decode unknown type in Array object with BuiltInType: {0}.",
-                            builtInType);
+                try
+                {
+                    switch (builtInType)
+                    {
+                        case BuiltInType.Boolean:
+                            matrix = new Matrix(elements.Cast<bool>().ToArray(), builtInType, dimensions.ToArray());
+                            break;
+                        case BuiltInType.SByte:
+                            matrix = new Matrix(elements.Cast<sbyte>().ToArray(), builtInType, dimensions.ToArray());
+                            break;
+                        case BuiltInType.Byte:
+                            matrix = new Matrix(elements.Cast<byte>().ToArray(), builtInType, dimensions.ToArray());
+                            break;
+                        case BuiltInType.Int16:
+                            matrix = new Matrix(elements.Cast<Int16>().ToArray(), builtInType, dimensions.ToArray());
+                            break;
+                        case BuiltInType.UInt16:
+                            matrix = new Matrix(elements.Cast<UInt16>().ToArray(), builtInType, dimensions.ToArray());
+                            break;
+                        case BuiltInType.Int32:
+                            matrix = new Matrix(elements.Cast<Int32>().ToArray(), builtInType, dimensions.ToArray());
+                            break;
+                        case BuiltInType.UInt32:
+                            matrix = new Matrix(elements.Cast<UInt32>().ToArray(), builtInType, dimensions.ToArray());
+                            break;
+                        case BuiltInType.Int64:
+                            matrix = new Matrix(elements.Cast<Int64>().ToArray(), builtInType, dimensions.ToArray());
+                            break;
+                        case BuiltInType.UInt64:
+                            matrix = new Matrix(elements.Cast<UInt64>().ToArray(), builtInType, dimensions.ToArray());
+                            break;
+                        case BuiltInType.Float:
+                            matrix = new Matrix(elements.Cast<float>().ToArray(), builtInType, dimensions.ToArray());
+                            break;
+                        case BuiltInType.Double:
+                            matrix = new Matrix(elements.Cast<double>().ToArray(), builtInType, dimensions.ToArray());
+                            break;
+                        case BuiltInType.String:
+                            matrix = new Matrix(elements.Cast<string>().ToArray(), builtInType, dimensions.ToArray());
+                            break;
+                        case BuiltInType.DateTime:
+                            matrix = new Matrix(elements.Cast<DateTime>().ToArray(), builtInType, dimensions.ToArray());
+                            break;
+                        case BuiltInType.Guid:
+                            matrix = new Matrix(elements.Cast<Uuid>().ToArray(), builtInType, dimensions.ToArray());
+                            break;
+                        case BuiltInType.ByteString:
+                            matrix = new Matrix(elements.Cast<byte[]>().ToArray(), builtInType, dimensions.ToArray());
+                            break;
+                        case BuiltInType.XmlElement:
+                            matrix = new Matrix(elements.Cast<XmlElement>().ToArray(), builtInType, dimensions.ToArray());
+                            break;
+                        case BuiltInType.NodeId:
+                            matrix = new Matrix(elements.Cast<NodeId>().ToArray(), builtInType, dimensions.ToArray());
+                            break;
+                        case BuiltInType.ExpandedNodeId:
+                            matrix = new Matrix(elements.Cast<ExpandedNodeId>().ToArray(), builtInType, dimensions.ToArray());
+                            break;
+                        case BuiltInType.StatusCode:
+                            matrix = new Matrix(elements.Cast<StatusCode>().ToArray(), builtInType, dimensions.ToArray());
+                            break;
+                        case BuiltInType.QualifiedName:
+                            matrix = new Matrix(elements.Cast<QualifiedName>().ToArray(), builtInType, dimensions.ToArray());
+                            break;
+                        case BuiltInType.LocalizedText:
+                            matrix = new Matrix(elements.Cast<LocalizedText>().ToArray(), builtInType, dimensions.ToArray());
+                            break;
+                        case BuiltInType.DataValue:
+                            matrix = new Matrix(elements.Cast<DataValue>().ToArray(), builtInType, dimensions.ToArray());
+                            break;
+                        case BuiltInType.Enumeration:
+                        {
+                            if (systemType?.IsEnum == true)
+                            {
+                                var newElements = Array.CreateInstance(systemType, elements.Count);
+                                int ii = 0;
+                                foreach (var element in elements)
+                                {
+                                    newElements.SetValue(Convert.ChangeType(element, systemType, CultureInfo.InvariantCulture), ii++);
+                                }
+                                matrix = new Matrix(newElements, builtInType, dimensions.ToArray());
+                            }
+                            else
+                            {
+                                matrix = new Matrix(elements.Cast<Int32>().ToArray(), builtInType, dimensions.ToArray());
+                            }
+                            break;
+                        }
+                        case BuiltInType.Variant:
+                        {
+                            if (DetermineIEncodeableSystemType(ref systemType, encodeableTypeId))
+                            {
+                                Array newElements = Array.CreateInstance(systemType, elements.Count);
+                                for (int i = 0; i < elements.Count; i++)
+                                {
+                                    newElements.SetValue(Convert.ChangeType(elements[i], systemType, CultureInfo.InvariantCulture), i);
+                                }
+                                matrix = new Matrix(newElements, builtInType, dimensions.ToArray());
+                                break;
+                            }
+                            matrix = new Matrix(elements.Cast<Variant>().ToArray(), builtInType, dimensions.ToArray());
+                            break;
+                        }
+                        case BuiltInType.ExtensionObject:
+                            matrix = new Matrix(elements.Cast<ExtensionObject>().ToArray(), builtInType, dimensions.ToArray());
+                            break;
+                        case BuiltInType.DiagnosticInfo:
+                            matrix = new Matrix(elements.Cast<DiagnosticInfo>().ToArray(), builtInType, dimensions.ToArray());
+                            break;
+                        default:
+                        {
+                            if (DetermineIEncodeableSystemType(ref systemType, encodeableTypeId))
+                            {
+                                Array newElements = Array.CreateInstance(systemType, elements.Count);
+                                for (int i = 0; i < elements.Count; i++)
+                                {
+                                    newElements.SetValue(Convert.ChangeType(elements[i], systemType, CultureInfo.InvariantCulture), i);
+                                }
+                                matrix = new Matrix(newElements, builtInType, dimensions.ToArray());
+                                break;
+                            }
+
+                            throw ServiceResultException.Create(
+                                StatusCodes.BadDecodingError,
+                                "Cannot decode unknown type in Array object with BuiltInType: {0}.",
+                                builtInType);
+                        }
                     }
+                }
+                catch (ArgumentException e)
+                {
+                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded, e);
+                }
+                catch (Exception e)
+                {
+                    throw new ServiceResultException(StatusCodes.BadDecodingError, e);
                 }
 
                 return matrix.ToArray();
@@ -2741,6 +2776,11 @@ namespace Opc.Ua
 
                 foreach (var ii in context)
                 {
+                    if (ii.Key == "UaTypeId")
+                    {
+                        continue;
+                    }
+
                     return (uint)Enum.Parse(switches, ii.Key);
                 }
             }

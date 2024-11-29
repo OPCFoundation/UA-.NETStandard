@@ -289,6 +289,16 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                                 property.SetValue(typeInstance, new DiagnosticInfo());
                             }
                             break;
+                        case BuiltInType.Enumeration:
+                            if (typeInfo.ValueRank == ValueRanks.Scalar)
+                            {
+                                foreach (var ii in Enum.GetValues(property.PropertyType))
+                                {
+                                    property.SetValue(typeInstance, ii);
+                                    break;
+                                }
+                            }
+                            break;
                         default:
                             if (typeInfo.ValueRank == ValueRanks.Scalar)
                             {
