@@ -70,6 +70,16 @@ namespace Opc.Ua.Bindings
         #endregion
 
         #region ITransportChannel Members
+
+        /// <summary>
+        /// Called when the token changes
+        /// </summary>
+        public event ChannelTokenActivatedEventHandler OnTokenActivated
+        {
+            add => m_OnTokenActivated += value;
+            remove => m_OnTokenActivated -= value;
+        }
+
         /// <summary>
         /// A masking indicating which features are implemented.
         /// </summary>
@@ -482,6 +492,8 @@ namespace Opc.Ua.Bindings
                 channel.ReverseSocket = true;
             }
 
+            // Register the token changed event handler with the internal channel
+            channel.OnTokenActivated = m_OnTokenActivated;
             return channel;
         }
         #endregion
@@ -494,6 +506,7 @@ namespace Opc.Ua.Bindings
         private ChannelQuotas m_quotas;
         private BufferManager m_bufferManager;
         private UaSCUaBinaryClientChannel m_channel;
+        private event ChannelTokenActivatedEventHandler m_OnTokenActivated;
         private IMessageSocketFactory m_messageSocketFactory;
         #endregion
     }

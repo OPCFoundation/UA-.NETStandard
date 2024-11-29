@@ -88,6 +88,8 @@ namespace Opc.Ua.Bindings
 
             if (disposing)
             {
+                OnTokenActivated = null;
+
                 Utils.SilentDispose(m_handshakeTimer);
                 m_handshakeTimer = null;
             }
@@ -488,7 +490,7 @@ namespace Opc.Ua.Bindings
                 decoder.Close();
             }
 
- 
+
             // ready to open the channel.
             State = TcpChannelState.Opening;
 
@@ -567,7 +569,7 @@ namespace Opc.Ua.Bindings
         {
             Utils.LogTrace("ChannelId {0}: ProcessOpenSecureChannelResponse()", ChannelId);
 
-            // validate the channel state.            
+            // validate the channel state.
             if (State != TcpChannelState.Opening && State != TcpChannelState.Open)
             {
                 ForceReconnect(ServiceResult.Create(StatusCodes.BadTcpMessageTypeInvalid, "Server sent an unexpected OpenSecureChannel response."));
@@ -631,7 +633,7 @@ namespace Opc.Ua.Bindings
                     throw ServiceResultException.Create(StatusCodes.BadTypeMismatch, "Server did not return a valid OpenSecureChannelResponse.");
                 }
 
-                // the client needs to use the creation time assigned when it sent 
+                // the client needs to use the creation time assigned when it sent
                 // the request and ignores the creation time in the response because
                 // the server and client clocks may not be synchronized.
 
@@ -674,7 +676,7 @@ namespace Opc.Ua.Bindings
                 State = TcpChannelState.Open;
                 m_reconnecting = false;
 
-                // enable reconnects. DO NOT USE! 
+                // enable reconnects. DO NOT USE!
                 // m_waitBetweenReconnects = TcpMessageLimits.MinTimeBetweenReconnects;
                 m_waitBetweenReconnects = Timeout.Infinite;
 
@@ -1153,7 +1155,7 @@ namespace Opc.Ua.Bindings
                     Socket = null;
                 }
 
-                // set the state.       
+                // set the state.
                 ChannelStateChanged(TcpChannelState.Closed, reason);
             }
         }
@@ -1270,7 +1272,7 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
-        /// Creates an object to manage the state of an asynchronous operation. 
+        /// Creates an object to manage the state of an asynchronous operation.
         /// </summary>
         private WriteOperation BeginOperation(int timeout, AsyncCallback callback, object state)
         {
@@ -1410,7 +1412,7 @@ namespace Opc.Ua.Bindings
         {
             ServiceResult error;
 
-            // read request buffer sizes.            
+            // read request buffer sizes.
             using (var decoder = new BinaryDecoder(messageChunk, Quotas.MessageContext))
             {
                 ReadAndVerifyMessageTypeAndSize(decoder, TcpMessageType.Error, messageChunk.Count);

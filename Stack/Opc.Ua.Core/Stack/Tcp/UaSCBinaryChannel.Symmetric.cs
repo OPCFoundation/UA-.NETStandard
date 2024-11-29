@@ -37,6 +37,11 @@ namespace Opc.Ua.Bindings
         protected ChannelToken RenewedToken => m_renewedToken;
 
         /// <summary>
+        /// Called when the token changes
+        /// </summary>
+        protected internal ChannelTokenActivatedEventHandler OnTokenActivated { get; set; }
+
+        /// <summary>
         /// Creates a new token.
         /// </summary>
         protected ChannelToken CreateToken()
@@ -66,6 +71,8 @@ namespace Opc.Ua.Bindings
             m_currentToken = token;
             m_renewedToken = null;
 
+            OnTokenActivated?.Invoke(token, m_previousToken);
+
             Utils.LogInfo("ChannelId {0}: Token #{1} activated. CreatedAt={2:HH:mm:ss.fff}. Lifetime={3}.", Id, token.TokenId, token.CreatedAt, token.Lifetime);
         }
 
@@ -85,13 +92,15 @@ namespace Opc.Ua.Bindings
         {
             m_previousToken = null;
             m_currentToken = null;
+
+            OnTokenActivated?.Invoke(null, null);
         }
         #endregion
 
         #region Symmetric Cryptography Functions
         /// <summary>
         /// Indicates that an explicit signature is not present.
-        /// </summary>        
+        /// </summary>
         private bool UseAuthenticatedEncryption
         {
             get; set;
@@ -376,7 +385,7 @@ namespace Opc.Ua.Bindings
                 case SecurityPolicies.ECC_brainpoolP256r1:
                 case SecurityPolicies.ECC_brainpoolP384r1:
                 {
-                    // create encryptors. 
+                    // create encryptors.
                     SymmetricAlgorithm AesCbcEncryptorProvider = Aes.Create();
                     AesCbcEncryptorProvider.Mode = CipherMode.CBC;
                     AesCbcEncryptorProvider.Padding = PaddingMode.None;
@@ -1137,7 +1146,7 @@ namespace Opc.Ua.Bindings
             // Utils.Trace($"EncryptIV2={Utils.ToHexString(iv)}");
 
             int signatureLength = 16;
-            
+
             var plaintext = dataToEncrypt.Array;
             int headerSize = dataToEncrypt.Offset;
             int plainTextLength = dataToEncrypt.Offset + dataToEncrypt.Count - signatureLength;
@@ -1149,7 +1158,7 @@ namespace Opc.Ua.Bindings
                 signatureLength * 8,
                 iv,
                 null);
-            
+
             ChaCha20Poly1305 encryptor = new ChaCha20Poly1305();
             encryptor.Init(true, parameters);
             encryptor.ProcessAadBytes(plaintext, 0, headerSize);
@@ -1162,7 +1171,7 @@ namespace Opc.Ua.Bindings
             if (ciphertext.Length - headerSize != length)
             {
                 throw ServiceResultException.Create(
-                    StatusCodes.BadSecurityChecksFailed, 
+                    StatusCodes.BadSecurityChecksFailed,
                     $"Cipher text not the expected size. [{ciphertext.Length - headerSize} != {length}]");
             }
 
