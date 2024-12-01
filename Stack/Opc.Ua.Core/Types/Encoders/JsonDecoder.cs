@@ -1420,7 +1420,7 @@ namespace Opc.Ua
                 return extension;
             }
 
-            if (!(token is Dictionary<string, object> value))
+            if (!(token is Dictionary<string, object> value) || value.Count == 0)
             {
                 return extension;
             }
@@ -1452,15 +1452,28 @@ namespace Opc.Ua
                     typeId = absoluteId;
                 }
 
-                byte encoding = ReadByte((inlineValues) ? "UaEncoding" : "Encoding");
+                ExtensionObjectEncoding encoding = 0;
+                var encodingFieldName = (inlineValues) ? "UaEncoding" : "Encoding";
 
-                if (encoding == (byte)ExtensionObjectEncoding.Binary)
+                encoding = (ExtensionObjectEncoding)ReadByte(encodingFieldName);
+
+                if (value.ContainsKey(encodingFieldName))
+                {
+                    encoding = (ExtensionObjectEncoding)ReadByte(encodingFieldName);
+
+                    if (encoding == ExtensionObjectEncoding.None)
+                    {
+                        return extension;
+                    }
+                }
+
+                if (encoding == ExtensionObjectEncoding.Binary)
                 {
                     var bytes = ReadByteString((inlineValues) ? "UaBody" : "Body");
                     return new ExtensionObject(typeId, bytes ?? Array.Empty<byte>());
                 }
 
-                if (encoding == (byte)ExtensionObjectEncoding.Xml)
+                if (encoding == ExtensionObjectEncoding.Xml)
                 {
                     var xml = ReadXmlElement((inlineValues) ? "UaBody" : "Body");
                     if (xml == null)
@@ -1470,7 +1483,7 @@ namespace Opc.Ua
                     return new ExtensionObject(typeId, xml);
                 }
 
-                if (encoding == (byte)ExtensionObjectEncoding.Json)
+                if (encoding == ExtensionObjectEncoding.Json)
                 {
                     var json = ReadString((inlineValues) ? "UaBody" : "Body");
                     if (string.IsNullOrEmpty(json))

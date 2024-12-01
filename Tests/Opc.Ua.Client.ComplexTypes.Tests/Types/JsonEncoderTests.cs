@@ -422,20 +422,56 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                             }
                             else if (property.Name == "StatusCode")
                             {
-                                if (jsonEncoding == JsonEncodingType.Compact || jsonEncoding == JsonEncodingType.Reversible)
+                                if (jsonEncoding == JsonEncodingType.Reversible)
                                 {
                                     oText = "0";
                                     // default statuscode is not encoded
                                     continue;
                                 }
-                                else if (jsonEncoding == JsonEncodingType.Verbose)
+                                else
                                 {
                                     oText = "{}";
                                 }
+                                if (jsonEncoding == JsonEncodingType.Reversible || jsonEncoding == JsonEncodingType.NonReversible)
+                                {
+                                    continue;
+                                }
+                            }
+                            else if (property.Name == "ByteString" || property.Name == "XmlElement")
+                            {
+                                oText = "null";
+                                if (jsonEncoding == JsonEncodingType.Reversible || jsonEncoding == JsonEncodingType.NonReversible)
+                                {
+                                    continue;
+                                }
+                            }
+                            else if (property.Name == "LocalizedText")
+                            {
+                                if (jsonEncoding == JsonEncodingType.NonReversible)
+                                {
+                                    oText = "\"\"";
+                                }
                                 else
                                 {
-                                    oText = "{\"Code\": 0,\"Symbol\":\"Good\"}";
-                                    // default statuscode is not encoded
+                                    oText = "{}";
+                                }
+                                if (jsonEncoding == JsonEncodingType.Reversible || jsonEncoding == JsonEncodingType.NonReversible)
+                                {
+                                    continue;
+                                }
+                            }
+                            else if (property.Name == "NodeId" || property.Name == "ExpandedNodeId" || property.Name == "QualifiedName")
+                            {
+                                if (jsonEncoding == JsonEncodingType.Verbose)
+                                {
+                                    oText = "\"\"";
+                                }
+                                else
+                                {
+                                    oText = "{}";
+                                }
+                                if (jsonEncoding == JsonEncodingType.Reversible || jsonEncoding == JsonEncodingType.NonReversible)
+                                {
                                     continue;
                                 }
                             }

@@ -580,7 +580,7 @@ namespace Opc.Ua
         /// </summary>
         public bool IncludeDefaultNumberValues
         {
-            get => m_includeDefaultNumberValues;
+            get => m_includeDefaultNumberValues || m_includeDefaultValues;
             set => m_includeDefaultNumberValues = ThrowIfCompactOrVerbose(value);
         }
 
@@ -832,7 +832,6 @@ namespace Opc.Ua
         {
             if (fieldName != null && !IncludeDefaultNumberValues && !value)
             {
-                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
@@ -840,7 +839,7 @@ namespace Opc.Ua
             {
                 WriteSimpleField(fieldName, "true");
             }
-            else
+            else 
             {
                 WriteSimpleField(fieldName, "false");
             }
@@ -853,7 +852,6 @@ namespace Opc.Ua
         {
             if (fieldName != null && !IncludeDefaultNumberValues && value == 0)
             {
-                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
@@ -867,7 +865,6 @@ namespace Opc.Ua
         {
             if (fieldName != null && !IncludeDefaultNumberValues && value == 0)
             {
-                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
@@ -881,7 +878,6 @@ namespace Opc.Ua
         {
             if (fieldName != null && !IncludeDefaultNumberValues && value == 0)
             {
-                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
@@ -895,7 +891,6 @@ namespace Opc.Ua
         {
             if (fieldName != null && !IncludeDefaultNumberValues && value == 0)
             {
-                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
@@ -909,7 +904,6 @@ namespace Opc.Ua
         {
             if (fieldName != null && !IncludeDefaultNumberValues && value == 0)
             {
-                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
@@ -923,7 +917,6 @@ namespace Opc.Ua
         {
             if (fieldName != null && !IncludeDefaultNumberValues && value == 0)
             {
-                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
@@ -937,7 +930,6 @@ namespace Opc.Ua
         {
             if (fieldName != null && !IncludeDefaultNumberValues && value == 0)
             {
-                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
@@ -951,7 +943,6 @@ namespace Opc.Ua
         {
             if (fieldName != null && !IncludeDefaultNumberValues && value == 0)
             {
-                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
@@ -965,7 +956,6 @@ namespace Opc.Ua
         {
             if (fieldName != null && !IncludeDefaultNumberValues && (value > -Single.Epsilon) && (value < Single.Epsilon))
             {
-                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
@@ -994,7 +984,6 @@ namespace Opc.Ua
         {
             if (fieldName != null && !IncludeDefaultNumberValues && (value > -Double.Epsilon) && (value < Double.Epsilon))
             {
-                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
@@ -1023,7 +1012,6 @@ namespace Opc.Ua
         {
             if (fieldName != null && !IncludeDefaultValues && value == null)
             {
-                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
@@ -1037,7 +1025,6 @@ namespace Opc.Ua
         {
             if (fieldName != null && !IncludeDefaultValues && value == DateTime.MinValue)
             {
-                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
@@ -1062,7 +1049,6 @@ namespace Opc.Ua
         {
             if (fieldName != null && !IncludeDefaultValues && value == Uuid.Empty)
             {
-                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
@@ -1076,7 +1062,6 @@ namespace Opc.Ua
         {
             if (fieldName != null && !IncludeDefaultValues && value == Guid.Empty)
             {
-                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
@@ -1088,13 +1073,7 @@ namespace Opc.Ua
         /// </summary>
         public void WriteByteString(string fieldName, byte[] value)
         {
-            if (value == null)
-            {
-                WriteSimpleFieldNull(fieldName);
-                return;
-            }
-
-            WriteByteString(fieldName, value, 0, value.Length);
+            WriteByteString(fieldName, value, 0, (value == null) ? 0 : value.Length);
         }
 
         /// <summary>
@@ -1102,9 +1081,14 @@ namespace Opc.Ua
         /// </summary>
         public void WriteByteString(string fieldName, byte[] value, int index, int count)
         {
+            if (fieldName != null && !IncludeDefaultValues && value == null)
+            {
+                return;
+            }
+
             if (value == null)
             {
-                WriteSimpleFieldNull(fieldName);
+                WriteSimpleField(fieldName, s_null, EscapeOptions.NoValueEscape);
                 return;
             }
 
@@ -1112,6 +1096,12 @@ namespace Opc.Ua
             if (m_context.MaxByteStringLength > 0 && m_context.MaxByteStringLength < count)
             {
                 throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
+            }
+
+            if (value == null)
+            {
+                WriteSimpleField(fieldName, s_null, EscapeOptions.NoValueEscape);
+                return;
             }
 
             WriteSimpleField(fieldName, Convert.ToBase64String(value, index, count), EscapeOptions.Quotes | EscapeOptions.NoValueEscape);
@@ -1123,9 +1113,14 @@ namespace Opc.Ua
         /// </summary>
         public void WriteByteString(string fieldName, ReadOnlySpan<byte> value)
         {
+            if (fieldName != null && !IncludeDefaultValues && value == null)
+            {
+                return;
+            }
+
             if (value == null)
             {
-                WriteSimpleFieldNull(fieldName);
+                WriteSimpleField(fieldName, s_null, EscapeOptions.NoValueEscape);
                 return;
             }
 
@@ -1133,6 +1128,12 @@ namespace Opc.Ua
             if (m_context.MaxByteStringLength > 0 && m_context.MaxByteStringLength < value.Length)
             {
                 throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
+            }
+
+            if (value == null)
+            {
+                WriteSimpleField(fieldName, s_null,  EscapeOptions.NoValueEscape);
+                return;
             }
 
             WriteSimpleField(fieldName, Convert.ToBase64String(value), EscapeOptions.Quotes | EscapeOptions.NoValueEscape);
@@ -1144,9 +1145,14 @@ namespace Opc.Ua
         /// </summary>
         public void WriteXmlElement(string fieldName, XmlElement value)
         {
+            if (fieldName != null && !IncludeDefaultValues && value == null)
+            {
+                return;
+            }
+
             if (value == null)
             {
-                WriteSimpleFieldNull(fieldName);
+                WriteSimpleField(fieldName, s_null, EscapeOptions.NoValueEscape);
                 return;
             }
 
@@ -1265,30 +1271,35 @@ namespace Opc.Ua
         /// </summary>
         public void WriteNodeId(string fieldName, NodeId value)
         {
-            if (value == null || (NodeId.IsNull(value) && (value.IdType == IdType.Numeric)))
+            bool isNull = value == null || NodeId.IsNull(value);
+
+            if (fieldName != null && isNull && !IncludeDefaultValues)
             {
-                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
             if (m_encodeNodeIdAsString)
             {
-                WriteSimpleField(fieldName, value.Format(m_context, ForceNamespaceUri), EscapeOptions.Quotes);
+                WriteSimpleField(fieldName, isNull ? "" : value.Format(m_context, ForceNamespaceUri), EscapeOptions.Quotes);
                 return;
             }
 
             PushStructure(fieldName);
 
-            ushort namespaceIndex = value.NamespaceIndex;
-            if (ForceNamespaceUri && namespaceIndex > (ForceNamespaceUriForIndex1 ? 0 : 1))
+            if (!isNull)
             {
-                string namespaceUri = Context.NamespaceUris.GetString(namespaceIndex);
-                WriteNodeIdContents(value, namespaceUri);
+                ushort namespaceIndex = value.NamespaceIndex;
+                if (ForceNamespaceUri && namespaceIndex > (ForceNamespaceUriForIndex1 ? 0 : 1))
+                {
+                    string namespaceUri = Context.NamespaceUris.GetString(namespaceIndex);
+                    WriteNodeIdContents(value, namespaceUri);
+                }
+                else
+                {
+                    WriteNodeIdContents(value);
+                }
             }
-            else
-            {
-                WriteNodeIdContents(value);
-            }
+
             PopStructure();
         }
 
@@ -1297,53 +1308,57 @@ namespace Opc.Ua
         /// </summary>
         public void WriteExpandedNodeId(string fieldName, ExpandedNodeId value)
         {
-            if (value == null || value.InnerNodeId == null || (!UseReversibleEncoding && NodeId.IsNull(value)))
+            bool isNull = NodeId.IsNull(value);
+
+            if (fieldName != null && isNull && !IncludeDefaultValues)
             {
-                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
             if (m_encodeNodeIdAsString)
             {
-                WriteSimpleField(fieldName, value.Format(m_context, ForceNamespaceUri), EscapeOptions.Quotes);
+                WriteSimpleField(fieldName, isNull ? "" : value.Format(m_context, ForceNamespaceUri), EscapeOptions.Quotes);
                 return;
             }
 
             PushStructure(fieldName);
 
-            string namespaceUri = value.NamespaceUri;
-            ushort namespaceIndex = value.InnerNodeId.NamespaceIndex;
-            if (ForceNamespaceUri && namespaceUri == null && namespaceIndex > (ForceNamespaceUriForIndex1 ? 0 : 1))
+            if (!isNull)
             {
-                namespaceUri = Context.NamespaceUris.GetString(namespaceIndex);
-            }
-            WriteNodeIdContents(value.InnerNodeId, namespaceUri);
-
-            uint serverIndex = value.ServerIndex;
-
-            if (serverIndex >= 1)
-            {
-                if (EncodingToUse == JsonEncodingType.NonReversible)
+                string namespaceUri = value.NamespaceUri;
+                ushort namespaceIndex = value.InnerNodeId.NamespaceIndex;
+                if (ForceNamespaceUri && namespaceUri == null && namespaceIndex > (ForceNamespaceUriForIndex1 ? 0 : 1))
                 {
-                    var uri = m_context.ServerUris.GetString(serverIndex);
+                    namespaceUri = Context.NamespaceUris.GetString(namespaceIndex);
+                }
+                WriteNodeIdContents(value.InnerNodeId, namespaceUri);
 
-                    if (!string.IsNullOrEmpty(uri))
+                uint serverIndex = value.ServerIndex;
+
+                if (serverIndex >= 1)
+                {
+                    if (EncodingToUse == JsonEncodingType.NonReversible)
                     {
-                        WriteSimpleField("ServerUri", uri, EscapeOptions.Quotes | EscapeOptions.NoFieldNameEscape);
-                        PopStructure();
+                        var uri = m_context.ServerUris.GetString(serverIndex);
+
+                        if (!string.IsNullOrEmpty(uri))
+                        {
+                            WriteSimpleField("ServerUri", uri, EscapeOptions.Quotes | EscapeOptions.NoFieldNameEscape);
+                            PopStructure();
+                        }
+
+                        return;
                     }
 
-                    return;
-                }
+                    if (m_serverMappings != null && m_serverMappings.Length > serverIndex)
+                    {
+                        serverIndex = m_serverMappings[serverIndex];
+                    }
 
-                if (m_serverMappings != null && m_serverMappings.Length > serverIndex)
-                {
-                    serverIndex = m_serverMappings[serverIndex];
-                }
-
-                if (serverIndex != 0)
-                {
-                    WriteUInt32("ServerUri", serverIndex);
+                    if (serverIndex != 0)
+                    {
+                        WriteUInt32("ServerUri", serverIndex);
+                    }
                 }
             }
 
@@ -1356,9 +1371,10 @@ namespace Opc.Ua
         /// </summary>
         public void WriteStatusCode(string fieldName, StatusCode value)
         {
-            if (fieldName != null && !IncludeDefaultValues && value == StatusCodes.Good)
+            bool isNull = value == StatusCodes.Good;
+
+            if (fieldName != null && isNull && !IncludeDefaultValues)
             {
-                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
@@ -1368,41 +1384,20 @@ namespace Opc.Ua
                 return;
             }
 
-            if (EncodingToUse == JsonEncodingType.Compact || EncodingToUse == JsonEncodingType.Verbose)
-            {
-                PushStructure(fieldName);
-
-                if (value.Code != 0)
-                {
-                    WriteUInt32("Code", value.Code);
-
-                    if (EncodingToUse == JsonEncodingType.Verbose)
-                    {
-                        string symbolicId = StatusCode.LookupSymbolicId(value.CodeBits);
-
-                        if (String.IsNullOrEmpty(symbolicId))
-                        {
-                            symbolicId = $"0x{value.CodeBits:X8}";
-                        }
-
-                        WriteSimpleField("Symbol", symbolicId, EscapeOptions.Quotes | EscapeOptions.NoFieldNameEscape);
-                    }
-                }
-
-                PopStructure();
-                return;
-            }
-
-            // NonReversible
             PushStructure(fieldName);
 
-            if (value != StatusCodes.Good)
+            if (!isNull)
             {
-                WriteSimpleField("Code", value.Code.ToString(CultureInfo.InvariantCulture), EscapeOptions.NoFieldNameEscape);
-                string symbolicId = StatusCode.LookupSymbolicId(value.CodeBits);
-                if (!string.IsNullOrEmpty(symbolicId))
+                WriteUInt32("Code", value.Code);
+
+                if (EncodingToUse == JsonEncodingType.NonReversible || EncodingToUse == JsonEncodingType.Verbose)
                 {
-                    WriteSimpleField("Symbol", symbolicId, EscapeOptions.Quotes | EscapeOptions.NoFieldNameEscape);
+                    string symbolicId = StatusCode.LookupSymbolicId(value.CodeBits);
+
+                    if (!String.IsNullOrEmpty(symbolicId))
+                    {
+                        WriteSimpleField("Symbol", symbolicId, EscapeOptions.Quotes | EscapeOptions.NoFieldNameEscape);
+                    }
                 }
             }
 
@@ -1422,22 +1417,26 @@ namespace Opc.Ua
         /// </summary>
         public void WriteQualifiedName(string fieldName, QualifiedName value)
         {
-            if (QualifiedName.IsNull(value))
+            bool isNull = QualifiedName.IsNull(value);
+
+            if (fieldName != null && isNull && !IncludeDefaultValues)
             {
-                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
             if (m_encodeNodeIdAsString)
             {
-                WriteSimpleField(fieldName, value.Format(m_context, ForceNamespaceUri), EscapeOptions.Quotes);
+                WriteSimpleField(fieldName, isNull ? "" : value.Format(m_context, ForceNamespaceUri), EscapeOptions.Quotes);
                 return;
             }
 
             PushStructure(fieldName);
 
-            WriteString("Name", value.Name);
-            WriteNamespaceIndex("Uri", value.NamespaceIndex);
+            if (!isNull)
+            {
+                WriteString("Name", value.Name);
+                WriteNamespaceIndex("Uri", value.NamespaceIndex);
+            }
 
             PopStructure();
         }
@@ -1447,29 +1446,32 @@ namespace Opc.Ua
         /// </summary>
         public void WriteLocalizedText(string fieldName, LocalizedText value)
         {
-            if (LocalizedText.IsNullOrEmpty(value))
+            bool isNull = LocalizedText.IsNullOrEmpty(value);
+
+            if (fieldName != null && isNull && !IncludeDefaultValues)
             {
-                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
-            if (EncodingToUse != JsonEncodingType.NonReversible)
+            if (EncodingToUse == JsonEncodingType.NonReversible)
             {
-                PushStructure(fieldName);
+                WriteSimpleField(fieldName, isNull ? "" : value.Text, EscapeOptions.Quotes);
+                return;
+            }
 
+            PushStructure(fieldName);
+
+            if (!isNull)
+            {
                 WriteSimpleField("Text", value.Text, EscapeOptions.Quotes | EscapeOptions.NoFieldNameEscape);
 
                 if (!string.IsNullOrEmpty(value.Locale))
                 {
                     WriteSimpleField("Locale", value.Locale, EscapeOptions.Quotes | EscapeOptions.NoFieldNameEscape);
                 }
+            }
 
-                PopStructure();
-            }
-            else
-            {
-                WriteSimpleField(fieldName, value.Text, EscapeOptions.Quotes);
-            }
+            PopStructure();
         }
 
         /// <summary>
@@ -1477,17 +1479,28 @@ namespace Opc.Ua
         /// </summary>
         public void WriteVariant(string fieldName, Variant value)
         {
+            bool isNull = (value.TypeInfo == null || value.TypeInfo.BuiltInType == BuiltInType.Null || value.Value == null);
+
             if (EncodingToUse == JsonEncodingType.Compact || EncodingToUse == JsonEncodingType.Verbose)
             {
+                if (fieldName != null && isNull && EncodingToUse == JsonEncodingType.Compact)
+                {
+                    return;
+                }
+
                 PushStructure(fieldName);
-                WriteVariantIntoObject("Value", value);
+
+                if (!isNull)
+                {
+                    WriteVariantIntoObject("Value", value);
+                }
+
                 PopStructure();
                 return;
             }
 
-            if (Variant.Null == value)
+            if (fieldName != null && isNull && !IncludeDefaultValues)
             {
-                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
@@ -1495,11 +1508,10 @@ namespace Opc.Ua
 
             try
             {
-                bool isNull = (value.TypeInfo == null || value.TypeInfo.BuiltInType == BuiltInType.Null || value.Value == null);
-
                 if (!isNull && EncodingToUse != JsonEncodingType.NonReversible)
                 {
                     PushStructure(fieldName);
+
                     // encode enums as int32.
                     byte encodingByte = (byte)value.TypeInfo.BuiltInType;
 
@@ -1510,7 +1522,7 @@ namespace Opc.Ua
 
                     if (!SuppressArtifacts)
                     {
-                        WriteByte((EncodingToUse != JsonEncodingType.Reversible) ? "UaType" : "Type", encodingByte);
+                        WriteByte("Type", encodingByte);
                     }
 
                     fieldName = "Body";
@@ -1550,7 +1562,6 @@ namespace Opc.Ua
         {
             if (Variant.Null == value)
             {
-                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
@@ -1608,15 +1619,16 @@ namespace Opc.Ua
         /// </summary>
         public void WriteDataValue(string fieldName, DataValue value)
         {
-            if (value == null)
+            bool isNull = value == null;
+
+            if (fieldName != null && isNull && !IncludeDefaultValues)
             {
-                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
             PushStructure(fieldName);
 
-            if (value != null)
+            if (!isNull)
             {
                 if (value.WrappedValue.TypeInfo != null && value.WrappedValue.TypeInfo.BuiltInType != BuiltInType.Null)
                 {
@@ -1665,9 +1677,10 @@ namespace Opc.Ua
         /// </summary>
         public void WriteExtensionObject(string fieldName, ExtensionObject value)
         {
-            if (value == null || value.Encoding == ExtensionObjectEncoding.None)
+            bool isNull = value == null || value.Encoding == ExtensionObjectEncoding.None;
+
+            if (fieldName != null && isNull && !IncludeDefaultValues)
             {
-                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
@@ -1697,7 +1710,7 @@ namespace Opc.Ua
             {
                 if (encodeable != null)
                 {
-                    if (!SuppressArtifacts)
+                    if (!SuppressArtifacts && !NodeId.IsNull(localTypeId))
                     {
                         WriteNodeId("UaTypeId", localTypeId);
                     }
@@ -1708,7 +1721,7 @@ namespace Opc.Ua
                 {
                     if (value.Body is JObject json)
                     {
-                        if (!SuppressArtifacts)
+                        if (!SuppressArtifacts && !NodeId.IsNull(localTypeId))
                         {
                             WriteNodeId("UaTypeId", localTypeId);
                         }
@@ -1718,7 +1731,7 @@ namespace Opc.Ua
                     }
                     else if (value.Encoding == ExtensionObjectEncoding.Binary)
                     {
-                        if (!SuppressArtifacts)
+                        if (!SuppressArtifacts && !NodeId.IsNull(localTypeId))
                         {
                             WriteNodeId("UaTypeId", localTypeId);
                         }
@@ -1728,7 +1741,7 @@ namespace Opc.Ua
                     }
                     else if (value.Encoding == ExtensionObjectEncoding.Xml)
                     {
-                        if (!SuppressArtifacts)
+                        if (!SuppressArtifacts && !NodeId.IsNull(localTypeId))
                         {
                             WriteNodeId("UaTypeId", localTypeId);
                         }
@@ -1788,9 +1801,10 @@ namespace Opc.Ua
         /// </summary>
         public void WriteEncodeable(string fieldName, IEncodeable value, System.Type systemType)
         {
-            if (value == null)
+            bool isNull = value == null;
+
+            if (fieldName != null && isNull && !IncludeDefaultValues)
             {
-                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
@@ -3233,9 +3247,16 @@ namespace Opc.Ua
         /// </summary>
         private void WriteDiagnosticInfo(string fieldName, DiagnosticInfo value, int depth)
         {
-            if (value == null || value.IsNullDiagnosticInfo)
+            bool isNull = (value == null || value.IsNullDiagnosticInfo);
+
+            if (fieldName != null && isNull && !IncludeDefaultValues)
             {
-                WriteSimpleFieldNull(fieldName);
+                return;
+            }
+
+            if (value == null)
+            {
+                WriteSimpleField(fieldName, s_null, EscapeOptions.NoValueEscape);
                 return;
             }
 

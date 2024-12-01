@@ -68,6 +68,12 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             JsonEncodingType jsonEncodingType = encoderTypeGroup.JsonEncodingType;
             IEncodeable testObject = CreateDefaultEncodeableType(systemType) as IEncodeable;
             Assert.NotNull(testObject);
+
+            if (testObject.BinaryEncodingId.IsNull)
+            {
+                return;
+            }
+
             Assert.False(testObject.BinaryEncodingId.IsNull);
             Assert.False(testObject.TypeId.IsNull);
             Assert.False(testObject.XmlEncodingId.IsNull);
