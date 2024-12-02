@@ -1822,9 +1822,20 @@ namespace Opc.Ua.Client
             // stop the publish timer.
             lock (m_cache)
             {
+                int oldKeepAliveInterval = m_keepAliveInterval;
+                m_keepAliveInterval = CalculateKeepAliveInterval();
+
+                //don`t create new KeepAliveTimer if interval did not change and timers are still running
+                if (oldKeepAliveInterval == m_keepAliveInterval
+                    && m_publishTimer != null
+                    && m_messageWorkerTask != null
+                    && !m_messageWorkerTask.IsCompleted)
+                {
+                    return;
+                }
+
                 Utils.SilentDispose(m_publishTimer);
                 m_publishTimer = null;
-                m_keepAliveInterval = CalculateKeepAliveInterval();
                 Interlocked.Exchange(ref m_lastNotificationTime, DateTime.UtcNow.Ticks);
                 m_lastNotificationTickCount = HiResClock.TickCount;
 #if NET6_0_OR_GREATER
@@ -2055,7 +2066,7 @@ namespace Opc.Ua.Client
         private int CalculateKeepAliveInterval()
         {
             int keepAliveInterval = (int)(Math.Min(m_currentPublishingInterval * (m_currentKeepAliveCount + 1), Int32.MaxValue));
-            if (m_keepAliveInterval < kMinKeepAliveTimerInterval)
+            if (keepAliveInterval < kMinKeepAliveTimerInterval)
             {
                 keepAliveInterval = (int)(Math.Min(m_publishingInterval * (m_keepAliveCount + 1), Int32.MaxValue));
                 keepAliveInterval = Math.Max(kMinKeepAliveTimerInterval, keepAliveInterval);
