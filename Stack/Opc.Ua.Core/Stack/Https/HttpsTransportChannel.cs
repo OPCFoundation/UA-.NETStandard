@@ -109,6 +109,13 @@ namespace Opc.Ua.Bindings
         public ChannelToken CurrentToken => null;
 
         /// <inheritdoc/>
+        public event ChannelTokenActivatedEventHandler OnTokenActivated
+        {
+            add { }
+            remove { }
+        }
+
+        /// <inheritdoc/>
         public int OperationTimeout
         {
             get => m_operationTimeout;
