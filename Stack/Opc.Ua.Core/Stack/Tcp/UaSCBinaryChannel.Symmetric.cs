@@ -38,6 +38,11 @@ namespace Opc.Ua.Bindings
         protected ChannelToken RenewedToken => m_renewedToken;
 
         /// <summary>
+        /// Called when the token changes
+        /// </summary>
+        protected internal Action<ChannelToken, ChannelToken> OnTokenActivated { get; set; }
+
+        /// <summary>
         /// Creates a new token.
         /// </summary>
         protected ChannelToken CreateToken()
@@ -70,6 +75,8 @@ namespace Opc.Ua.Bindings
             Utils.SilentDispose(m_renewedToken);
             m_renewedToken = null;
 
+            OnTokenActivated?.Invoke(token, m_previousToken);
+
             Utils.LogInfo("ChannelId {0}: Token #{1} activated. CreatedAt={2:HH:mm:ss.fff}-{3}. Lifetime={4}.",
                 Id, token.TokenId, token.CreatedAt, token.CreatedAtTickCount, token.Lifetime);
         }
@@ -96,6 +103,8 @@ namespace Opc.Ua.Bindings
             m_currentToken = null;
             Utils.SilentDispose(m_renewedToken);
             m_renewedToken = null;
+
+            OnTokenActivated?.Invoke(null, null);
         }
         #endregion
 
