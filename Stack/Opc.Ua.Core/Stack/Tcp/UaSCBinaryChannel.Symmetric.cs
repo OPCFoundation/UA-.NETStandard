@@ -39,7 +39,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Called when the token changes
         /// </summary>
-        protected internal ChannelTokenActivatedEventHandler OnTokenActivated { get; set; }
+        protected internal Action<ChannelToken, ChannelToken> OnTokenActivated { get; set; }
 
         /// <summary>
         /// Creates a new token.

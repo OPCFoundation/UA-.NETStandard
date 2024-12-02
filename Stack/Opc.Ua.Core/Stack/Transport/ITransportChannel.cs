@@ -20,9 +20,13 @@ namespace Opc.Ua
     /// <summary>
     /// Callback when the token is activated
     /// </summary>
+    /// <param name="source"></param>
     /// <param name="currentToken"></param>
     /// <param name="previousToken"></param>
-    public delegate void ChannelTokenActivatedEventHandler(ChannelToken currentToken, ChannelToken previousToken);
+    public delegate void ChannelTokenActivatedEventHandler(
+        ITransportChannel source,
+        ChannelToken currentToken,
+        ChannelToken previousToken);
 
     /// <summary>
     /// This is an interface to a channel which supports
