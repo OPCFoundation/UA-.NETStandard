@@ -1822,17 +1822,22 @@ namespace Opc.Ua.Client
             // stop the publish timer.
             lock (m_cache)
             {
+                int oldKeepAliveInterval = m_keepAliveInterval;
+                m_keepAliveInterval = CalculateKeepAliveInterval();
+
+                //don`t create new KeepAliveTimer if interval did not change and timers are still running
+                if (oldKeepAliveInterval == m_keepAliveInterval
+                    && m_publishTimer != null
+                    && m_messageWorkerTask != null
+                    && !m_messageWorkerTask.IsCompleted)
+                {
+                    return;
+                }
+
                 Utils.SilentDispose(m_publishTimer);
                 m_publishTimer = null;
-
                 Interlocked.Exchange(ref m_lastNotificationTime, DateTime.UtcNow.Ticks);
                 m_lastNotificationTickCount = HiResClock.TickCount;
-                m_keepAliveInterval = (int)(Math.Min(m_currentPublishingInterval * (m_currentKeepAliveCount + 1), Int32.MaxValue));
-                if (m_keepAliveInterval < kMinKeepAliveTimerInterval)
-                {
-                    m_keepAliveInterval = (int)(Math.Min(m_publishingInterval * (m_keepAliveCount + 1), Int32.MaxValue));
-                    m_keepAliveInterval = Math.Max(kMinKeepAliveTimerInterval, m_keepAliveInterval);
-                }
 #if NET6_0_OR_GREATER
                 var publishTimer = new PeriodicTimer(TimeSpan.FromMilliseconds(m_keepAliveInterval));
                 _ = Task.Run(() => OnKeepAliveAsync(publishTimer));
@@ -2020,9 +2025,10 @@ namespace Opc.Ua.Client
             {
                 m_currentPublishingEnabled = m_publishingEnabled;
                 m_transferId = m_id = subscriptionId;
-                StartKeepAliveTimer();
                 m_changeMask |= SubscriptionChangeMask.Created;
             }
+
+            StartKeepAliveTimer();
 
             if (m_keepAliveCount != revisedKeepAliveCount)
             {
@@ -2051,6 +2057,21 @@ namespace Opc.Ua.Client
             {
                 Utils.LogInfo("For subscription {0}, the priority was set to 0.", Id);
             }
+        }
+
+        /// <summary>
+        /// Calculate the KeepAliveInterval based on <see cref="m_currentPublishingInterval"/> and <see cref="m_currentKeepAliveCount"/>
+        /// </summary>
+        /// <returns></returns>
+        private int CalculateKeepAliveInterval()
+        {
+            int keepAliveInterval = (int)(Math.Min(m_currentPublishingInterval * (m_currentKeepAliveCount + 1), Int32.MaxValue));
+            if (keepAliveInterval < kMinKeepAliveTimerInterval)
+            {
+                keepAliveInterval = (int)(Math.Min(m_publishingInterval * (m_keepAliveCount + 1), Int32.MaxValue));
+                keepAliveInterval = Math.Max(kMinKeepAliveTimerInterval, keepAliveInterval);
+            }
+            return keepAliveInterval;
         }
 
         /// <summary>
