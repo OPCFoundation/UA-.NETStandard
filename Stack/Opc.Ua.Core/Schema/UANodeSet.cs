@@ -354,6 +354,112 @@ namespace Opc.Ua.Export {
     [System.Diagnostics.DebuggerStepThroughAttribute()]
     [System.ComponentModel.DesignerCategoryAttribute("code")]
     [System.Xml.Serialization.XmlTypeAttribute(Namespace="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd")]
+    public partial class NodeToDelete {
+        
+        private bool deleteReverseReferencesField;
+        
+        private string valueField;
+        
+        public NodeToDelete() {
+            this.deleteReverseReferencesField = true;
+        }
+        
+        /// <remarks/>
+        [System.Xml.Serialization.XmlAttributeAttribute()]
+        [System.ComponentModel.DefaultValueAttribute(true)]
+        public bool DeleteReverseReferences {
+            get {
+                return this.deleteReverseReferencesField;
+            }
+            set {
+                this.deleteReverseReferencesField = value;
+            }
+        }
+        
+        /// <remarks/>
+        [System.Xml.Serialization.XmlTextAttribute()]
+        public string Value {
+            get {
+                return this.valueField;
+            }
+            set {
+                this.valueField = value;
+            }
+        }
+    }
+    
+    /// <remarks/>
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("xsd", "4.8.3928.0")]
+    [System.SerializableAttribute()]
+    [System.Diagnostics.DebuggerStepThroughAttribute()]
+    [System.ComponentModel.DesignerCategoryAttribute("code")]
+    [System.Xml.Serialization.XmlTypeAttribute(Namespace="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd")]
+    public partial class ReferenceChange {
+        
+        private string sourceField;
+        
+        private string referenceTypeField;
+        
+        private bool isForwardField;
+        
+        private string valueField;
+        
+        public ReferenceChange() {
+            this.isForwardField = true;
+        }
+        
+        /// <remarks/>
+        [System.Xml.Serialization.XmlAttributeAttribute()]
+        public string Source {
+            get {
+                return this.sourceField;
+            }
+            set {
+                this.sourceField = value;
+            }
+        }
+        
+        /// <remarks/>
+        [System.Xml.Serialization.XmlAttributeAttribute()]
+        public string ReferenceType {
+            get {
+                return this.referenceTypeField;
+            }
+            set {
+                this.referenceTypeField = value;
+            }
+        }
+        
+        /// <remarks/>
+        [System.Xml.Serialization.XmlAttributeAttribute()]
+        [System.ComponentModel.DefaultValueAttribute(true)]
+        public bool IsForward {
+            get {
+                return this.isForwardField;
+            }
+            set {
+                this.isForwardField = value;
+            }
+        }
+        
+        /// <remarks/>
+        [System.Xml.Serialization.XmlTextAttribute()]
+        public string Value {
+            get {
+                return this.valueField;
+            }
+            set {
+                this.valueField = value;
+            }
+        }
+    }
+    
+    /// <remarks/>
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("xsd", "4.8.3928.0")]
+    [System.SerializableAttribute()]
+    [System.Diagnostics.DebuggerStepThroughAttribute()]
+    [System.ComponentModel.DesignerCategoryAttribute("code")]
+    [System.Xml.Serialization.XmlTypeAttribute(Namespace="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd")]
     public partial class DataTypeField {
         
         private LocalizedText[] displayNameField;
@@ -1609,6 +1715,184 @@ namespace Opc.Ua.Export {
             }
             set {
                 this.valueField = value;
+            }
+        }
+    }
+    
+    /// <remarks/>
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("xsd", "4.8.3928.0")]
+    [System.SerializableAttribute()]
+    [System.Diagnostics.DebuggerStepThroughAttribute()]
+    [System.ComponentModel.DesignerCategoryAttribute("code")]
+    [System.Xml.Serialization.XmlTypeAttribute(AnonymousType=true, Namespace="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd")]
+    [System.Xml.Serialization.XmlRootAttribute(Namespace="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd", IsNullable=false)]
+    public partial class UANodeSetChanges {
+        
+        private string[] namespaceUrisField;
+        
+        private string[] serverUrisField;
+        
+        private NodeIdAlias[] aliasesField;
+        
+        private System.Xml.XmlElement[] extensionsField;
+        
+        private UANode[] nodesToAddField;
+        
+        private ReferenceChange[] referencesToAddField;
+        
+        private NodeToDelete[] nodesToDeleteField;
+        
+        private ReferenceChange[] referencesToDeleteField;
+        
+        private System.DateTime lastModifiedField;
+        
+        private bool lastModifiedFieldSpecified;
+        
+        private string transactionIdField;
+        
+        private bool acceptAllOrNothingField;
+        
+        public UANodeSetChanges() {
+            this.acceptAllOrNothingField = false;
+        }
+        
+        /// <remarks/>
+        [System.Xml.Serialization.XmlArrayItemAttribute("Uri", IsNullable=false)]
+        public string[] NamespaceUris {
+            get {
+                return this.namespaceUrisField;
+            }
+            set {
+                this.namespaceUrisField = value;
+            }
+        }
+        
+        /// <remarks/>
+        [System.Xml.Serialization.XmlArrayItemAttribute("Uri", IsNullable=false)]
+        public string[] ServerUris {
+            get {
+                return this.serverUrisField;
+            }
+            set {
+                this.serverUrisField = value;
+            }
+        }
+        
+        /// <remarks/>
+        [System.Xml.Serialization.XmlArrayItemAttribute("Alias", IsNullable=false)]
+        public NodeIdAlias[] Aliases {
+            get {
+                return this.aliasesField;
+            }
+            set {
+                this.aliasesField = value;
+            }
+        }
+        
+        /// <remarks/>
+        [System.Xml.Serialization.XmlArrayItemAttribute("Extension", IsNullable=false)]
+        public System.Xml.XmlElement[] Extensions {
+            get {
+                return this.extensionsField;
+            }
+            set {
+                this.extensionsField = value;
+            }
+        }
+        
+        /// <remarks/>
+        [System.Xml.Serialization.XmlArrayItemAttribute(typeof(UADataType), IsNullable=false)]
+        [System.Xml.Serialization.XmlArrayItemAttribute(typeof(UAMethod), IsNullable=false)]
+        [System.Xml.Serialization.XmlArrayItemAttribute(typeof(UAObject), IsNullable=false)]
+        [System.Xml.Serialization.XmlArrayItemAttribute(typeof(UAObjectType), IsNullable=false)]
+        [System.Xml.Serialization.XmlArrayItemAttribute(typeof(UAReferenceType), IsNullable=false)]
+        [System.Xml.Serialization.XmlArrayItemAttribute(typeof(UAVariable), IsNullable=false)]
+        [System.Xml.Serialization.XmlArrayItemAttribute(typeof(UAVariableType), IsNullable=false)]
+        [System.Xml.Serialization.XmlArrayItemAttribute(typeof(UAView), IsNullable=false)]
+        public UANode[] NodesToAdd {
+            get {
+                return this.nodesToAddField;
+            }
+            set {
+                this.nodesToAddField = value;
+            }
+        }
+        
+        /// <remarks/>
+        [System.Xml.Serialization.XmlArrayItemAttribute("Reference", IsNullable=false)]
+        public ReferenceChange[] ReferencesToAdd {
+            get {
+                return this.referencesToAddField;
+            }
+            set {
+                this.referencesToAddField = value;
+            }
+        }
+        
+        /// <remarks/>
+        [System.Xml.Serialization.XmlArrayItemAttribute("Node", IsNullable=false)]
+        public NodeToDelete[] NodesToDelete {
+            get {
+                return this.nodesToDeleteField;
+            }
+            set {
+                this.nodesToDeleteField = value;
+            }
+        }
+        
+        /// <remarks/>
+        [System.Xml.Serialization.XmlArrayItemAttribute("Reference", IsNullable=false)]
+        public ReferenceChange[] ReferencesToDelete {
+            get {
+                return this.referencesToDeleteField;
+            }
+            set {
+                this.referencesToDeleteField = value;
+            }
+        }
+        
+        /// <remarks/>
+        [System.Xml.Serialization.XmlAttributeAttribute()]
+        public System.DateTime LastModified {
+            get {
+                return this.lastModifiedField;
+            }
+            set {
+                this.lastModifiedField = value;
+            }
+        }
+        
+        /// <remarks/>
+        [System.Xml.Serialization.XmlIgnoreAttribute()]
+        public bool LastModifiedSpecified {
+            get {
+                return this.lastModifiedFieldSpecified;
+            }
+            set {
+                this.lastModifiedFieldSpecified = value;
+            }
+        }
+        
+        /// <remarks/>
+        [System.Xml.Serialization.XmlAttributeAttribute()]
+        public string TransactionId {
+            get {
+                return this.transactionIdField;
+            }
+            set {
+                this.transactionIdField = value;
+            }
+        }
+        
+        /// <remarks/>
+        [System.Xml.Serialization.XmlAttributeAttribute()]
+        [System.ComponentModel.DefaultValueAttribute(false)]
+        public bool AcceptAllOrNothing {
+            get {
+                return this.acceptAllOrNothingField;
+            }
+            set {
+                this.acceptAllOrNothingField = value;
             }
         }
     }

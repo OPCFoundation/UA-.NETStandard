@@ -63,21 +63,23 @@
     </xs:complexType>
   </xs:element>
 
-  <xs:complexType name="UANodeSetChanges">
-    <xs:sequence>
-      <xs:element name="NamespaceUris" type="UriTable" minOccurs="0" />
-      <xs:element name="ServerUris" type="UriTable" minOccurs="0" />
-      <xs:element name="Aliases" type="AliasTable" minOccurs="0" />
-      <xs:element name="Extensions" type="ListOfExtensions" minOccurs="0" />
-      <xs:element name="NodesToAdd" type="NodesToAdd" minOccurs="0" />
-      <xs:element name="ReferencesToAdd" type="ReferencesToChange" minOccurs="0" />
-      <xs:element name="NodesToDelete" type="NodesToDelete" minOccurs="0" />
-      <xs:element name="ReferencesToDelete" type="ReferencesToChange" minOccurs="0" />
-    </xs:sequence>
-    <xs:attribute name="LastModified" type="xs:dateTime" />
-    <xs:attribute name="TransactionId" type="xs:string" use="required" />
-    <xs:attribute name="AcceptAllOrNothing" type="xs:boolean" default="false" />
-  </xs:complexType>
+  <xs:element name="UANodeSetChanges">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="NamespaceUris" type="UriTable" minOccurs="0" />
+        <xs:element name="ServerUris" type="UriTable" minOccurs="0" />
+        <xs:element name="Aliases" type="AliasTable" minOccurs="0" />
+        <xs:element name="Extensions" type="ListOfExtensions" minOccurs="0" />
+        <xs:element name="NodesToAdd" type="NodesToAdd" minOccurs="0" />
+        <xs:element name="ReferencesToAdd" type="ReferencesToChange" minOccurs="0" />
+        <xs:element name="NodesToDelete" type="NodesToDelete" minOccurs="0" />
+        <xs:element name="ReferencesToDelete" type="ReferencesToChange" minOccurs="0" />
+      </xs:sequence>
+      <xs:attribute name="LastModified" type="xs:dateTime" />
+      <xs:attribute name="TransactionId" type="xs:string" use="required" />
+      <xs:attribute name="AcceptAllOrNothing" type="xs:boolean" default="false" />
+    </xs:complexType>
+  </xs:element>
 
   <xs:element name="UANodeSetChangesStatus">
     <xs:complexType>
