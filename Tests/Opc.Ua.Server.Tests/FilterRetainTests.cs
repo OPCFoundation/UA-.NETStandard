@@ -26,6 +26,15 @@ namespace Opc.Ua.Server.Tests
         private SystemContext m_systemContext = null;
         private FilterContext m_filterContext = null;
 
+        private LocalizedText InService = new LocalizedText("en", "In Service");
+        private LocalizedText OutOfService = new LocalizedText("en", "Out of Service");
+
+        private LocalizedText Suppressed = new LocalizedText("en-US", "Suppressed");
+        private LocalizedText Unsuppressed = new LocalizedText("en-US", "Unsuppressed");
+
+        private LocalizedText Active = new LocalizedText("en-US", "Active");
+        private LocalizedText Inactive = new LocalizedText("en-US", "Inactive");
+
         [Test]
         [TestCase(false, Description = "Should not pass filter")]
         [TestCase(true, Description = "Should pass filter")]
@@ -192,48 +201,97 @@ namespace Opc.Ua.Server.Tests
             ExclusiveLevelAlarmState alarm = GetExclusiveLevelAlarm(
                 addFilterRetain: true, supportsFilteredRetain);
 
-            //includes an event filter that excludes suppressed or out of service conditions
+            SystemContext systemContext = GetSystemContext();
 
+            alarm.SetSuppressedState(systemContext, suppressed: false);
+            alarm.OutOfServiceState.Value = InService;
+        
 
             FilterContext filterContext = GetFilterContext();
             EventFilter filter = new EventFilter();
             filter.SelectClauses = GetSelectFields();
-            filter.WhereClause = GetHighOnlyFilter();
+            filter.WhereClause = GetStateFilter();
             filter.Validate(filterContext);
 
             MonitoredItem monitoredItem = CreateMonitoredItem(filter);
 
-            SystemContext systemContext = GetSystemContext();
-            alarm.SetLimitState(systemContext, LimitAlarmStates.Inactive);
-            CanSendFilteredAlarm(monitoredItem, filterContext, filter, alarm, expected: false);
+            // 16 States in Table B.3
 
+            // 1 Alarm Goes Active
             alarm.SetLimitState(systemContext, LimitAlarmStates.High);
-            CanSendFilteredAlarm(monitoredItem, filterContext, filter, alarm, expected: true);
+            bool expected = true;
+            CanSendFilteredAlarm(monitoredItem, filterContext, filter, alarm, expected);
 
-            alarm.SetLimitState(systemContext, LimitAlarmStates.HighHigh);
-            CanSendFilteredAlarm(monitoredItem, filterContext, filter, alarm, expected: supportsFilteredRetain);
-
-            alarm.SetLimitState(systemContext, LimitAlarmStates.High);
-            CanSendFilteredAlarm(monitoredItem, filterContext, filter, alarm, expected: true);
-
-            alarm.SetLimitState(systemContext, LimitAlarmStates.Inactive);
-            CanSendFilteredAlarm(monitoredItem, filterContext, filter, alarm, expected: supportsFilteredRetain);
-
-            alarm.SetLimitState(systemContext, LimitAlarmStates.Low);
-            CanSendFilteredAlarm(monitoredItem, filterContext, filter, alarm, expected: false);
-
-
-
-        }
-
-        [Test]
-        public void CheckThisOut()
-        {
-//            if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+            // 2 Placed Out of Service
+            alarm.OutOfServiceState.Value = OutOfService;
+            if ( !supportsFilteredRetain )
             {
-                Assert.Ignore("Reverse connect fails on mac OS.");
+                expected = false;
             }
-            Assert.Fail("HopeItDoesn't");
+            CanSendFilteredAlarm(monitoredItem, filterContext, filter, alarm, expected);
+
+            // 3 Alarm Suppressed; No event since OutOfService
+            alarm.SetSuppressedState(systemContext, suppressed: true);
+            expected = false;
+            CanSendFilteredAlarm(monitoredItem, filterContext, filter, alarm, expected);
+
+            // 4 Alarm goes inactive; No event since OutOfService
+            alarm.SetLimitState(systemContext, LimitAlarmStates.Inactive);
+            CanSendFilteredAlarm(monitoredItem, filterContext, filter, alarm, expected);
+
+            // 5 Alarm not Suppressed; No event since not active
+            alarm.SetSuppressedState(systemContext, suppressed: false);
+            CanSendFilteredAlarm(monitoredItem, filterContext, filter, alarm, expected);
+
+            // 6 Alarm goes active; No event since OutOfService
+            alarm.SetLimitState(systemContext, LimitAlarmStates.High);
+            CanSendFilteredAlarm(monitoredItem, filterContext, filter, alarm, expected);
+
+            // 7 Alarm no longer OutOfService; Event generated
+            alarm.OutOfServiceState.Value = InService;
+            expected = true;
+            CanSendFilteredAlarm(monitoredItem, filterContext, filter, alarm, expected);
+
+            // 8 Alarm goes inactive
+            alarm.SetLimitState(systemContext, LimitAlarmStates.Inactive);
+            if ( !supportsFilteredRetain )
+            {
+                expected = false;
+            }
+            CanSendFilteredAlarm(monitoredItem, filterContext, filter, alarm, expected);
+
+            // 9 Alarm Suppressed; No event since not active
+            alarm.SetSuppressedState(systemContext, suppressed: true);
+            expected = false;
+            CanSendFilteredAlarm(monitoredItem, filterContext, filter, alarm, expected);
+
+            // 10 Alarm goes active; No event since Suppressed
+            alarm.SetLimitState(systemContext, LimitAlarmStates.High);
+            CanSendFilteredAlarm(monitoredItem, filterContext, filter, alarm, expected);
+
+            // 11 Alarm goes inactive; No event since Suppressed
+            alarm.SetLimitState(systemContext, LimitAlarmStates.Inactive);
+            CanSendFilteredAlarm(monitoredItem, filterContext, filter, alarm, expected);
+
+            // 12 Alarm no longer Suppressed
+            alarm.SetSuppressedState(systemContext, suppressed: false);
+            CanSendFilteredAlarm(monitoredItem, filterContext, filter, alarm, expected);
+
+            // 13 Placed OutOfService
+            alarm.OutOfServiceState.Value = OutOfService;
+            CanSendFilteredAlarm(monitoredItem, filterContext, filter, alarm, expected);
+
+            // 14 Alarm goes active; No event since OutOfService
+            alarm.SetLimitState(systemContext, LimitAlarmStates.High);
+            CanSendFilteredAlarm(monitoredItem, filterContext, filter, alarm, expected);
+
+            // 15 Alarm goes inactive; No event since OutOfService
+            alarm.SetLimitState(systemContext, LimitAlarmStates.Inactive);
+            CanSendFilteredAlarm(monitoredItem, filterContext, filter, alarm, expected);
+
+            // 16 Alarm no longer OutOfService
+            alarm.OutOfServiceState.Value = InService;
+            CanSendFilteredAlarm(monitoredItem, filterContext, filter, alarm, expected);
         }
 
         private void CanSendFilteredAlarm(
@@ -369,9 +427,9 @@ namespace Opc.Ua.Server.Tests
 
         private ContentFilter GetStateFilter()
         {
-            //includes an event filter that excludes suppressed or out of service conditions
-
             ContentFilter whereClause = new ContentFilter();
+
+            #region OutofServerState Index 2
 
             SimpleAttributeOperand notOutOfServiceState = new SimpleAttributeOperand() {
                 AttributeId = Attributes.Value,
@@ -381,7 +439,15 @@ namespace Opc.Ua.Server.Tests
             };
 
             LiteralOperand desiredOutOfServiceValue = new LiteralOperand();
-            desiredOutOfServiceValue.Value = new Variant(new LocalizedText("en", "In Service"));
+            desiredOutOfServiceValue.Value = new Variant(InService);
+
+            whereClause.Push(FilterOperator.Equals, new FilterOperand[] {
+                notOutOfServiceState,
+                desiredOutOfServiceValue });
+
+            #endregion
+
+            #region SuppressedState Index 1
 
             SimpleAttributeOperand notSuppressed = new SimpleAttributeOperand() {
                 AttributeId = Attributes.Value,
@@ -390,15 +456,44 @@ namespace Opc.Ua.Server.Tests
                     BrowseNames.SuppressedState })
             };
 
-
             LiteralOperand desiredSuppressedValue = new LiteralOperand();
-            desiredSuppressedValue.Value = new Variant(new LocalizedText("en", "Unsuppressed"));
+            desiredSuppressedValue.Value = new Variant(Unsuppressed);
 
+            whereClause.Push(FilterOperator.Equals, new FilterOperand[] {
+                notSuppressed,
+                desiredSuppressedValue });
 
-            LiteralOperand desiredEventLevel = new LiteralOperand();
-            desiredEventLevel.Value = new Variant(new NodeId(Opc.Ua.Objects.ExclusiveLimitStateMachineType_High));
+            #endregion
 
-            whereClause.Push(FilterOperator.Equals, new FilterOperand[] { notOutOfServiceState, desiredEventLevel });
+            #region Add Active State
+
+            #region Active Index 0
+
+            SimpleAttributeOperand activeState = new SimpleAttributeOperand() {
+                AttributeId = Attributes.Value,
+                TypeDefinitionId = null,
+                BrowsePath = new QualifiedNameCollection(new QualifiedName[] {
+                    BrowseNames.ActiveState })
+            };
+
+            LiteralOperand activeValue = new LiteralOperand();
+            activeValue.Value = new Variant(Active);
+
+            whereClause.Push(FilterOperator.Equals, new FilterOperand[] {
+                activeState,
+                activeValue });
+
+            #endregion
+
+            whereClause.Push(FilterOperator.And, new ElementOperand[] {
+                new ElementOperand(1),
+                new ElementOperand(2) });
+
+            #endregion
+
+            whereClause.Push(FilterOperator.And, new ElementOperand[] {
+                new ElementOperand(0),
+                new ElementOperand(1) });
 
             return whereClause;
         }

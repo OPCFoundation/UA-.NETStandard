@@ -1029,7 +1029,7 @@ namespace Opc.Ua.Server
                 // apply filter.
                 if (!bypassFilter)
                 {
-                    if (!filter.WhereClause.Evaluate(context, instance))
+                    if ( !CanSendFilteredAlarm( context, filter, instance ) )
                     {
                         return;
                     }
