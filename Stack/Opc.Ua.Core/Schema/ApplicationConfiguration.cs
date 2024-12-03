@@ -2878,6 +2878,7 @@ namespace Opc.Ua
 
     #region CertificateTrustList Class
     [DataContract(Namespace = Namespaces.OpcUaConfig)]
+    [KnownType(typeof(CertificateTrustList))]
     public partial class CertificateTrustList : CertificateStoreIdentifier
     {
         #region Constructors
