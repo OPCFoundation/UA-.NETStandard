@@ -1067,6 +1067,83 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="context"></param>
+        /// <param name="filter"></param>
+        /// <param name="instance"></param>
+        /// <returns></returns>
+        protected bool CanSendFilteredAlarm(FilterContext context, EventFilter filter, IFilterTarget instance)
+        {
+            bool canSend = filter.WhereClause.Evaluate(context, instance);
+
+            NodeId conditionId = null;
+            InstanceStateSnapshot instanceStateSnapshot = instance as InstanceStateSnapshot;
+            if (instanceStateSnapshot != null)
+            {
+                ConditionState alarmCondition = null;
+                alarmCondition = instanceStateSnapshot.Handle as ConditionState;
+
+                if (alarmCondition != null &&
+                    alarmCondition.SupportsFilteredRetain != null &&
+                    alarmCondition.SupportsFilteredRetain.Value &&
+                    filter.SelectClauses != null)
+                {
+                    int lastIndex = filter.SelectClauses.Count - 1;
+                    object value = instance.GetAttributeValue(
+                        context,
+                        filter.SelectClauses[lastIndex].TypeDefinitionId,
+                        filter.SelectClauses[lastIndex].BrowsePath,
+                        filter.SelectClauses[lastIndex].AttributeId,
+                        filter.SelectClauses[lastIndex].ParsedIndexRange);
+
+                    if (value != null)
+                    {
+                        conditionId = value as NodeId;
+                    }
+                }
+            }
+
+            // ConditionId is valid only if FilteredRetain is set for the alarm condition
+            if (conditionId != null)
+            {
+                HashSet<string> conditionIds = GetFilteredRetainConditionIds();
+
+                string key = conditionId.ToString();
+
+                if (conditionIds.Contains(key))
+                {
+                    if ( !canSend )
+                    {
+                        // Can send, but only this once
+                        conditionIds.Remove(key);
+                        canSend = true;
+                    }
+                }
+                else
+                {
+                    if ( canSend )
+                    {
+                        conditionIds.Add(key);
+                    }
+                }
+            }
+
+            return canSend;
+        }
+
+        private HashSet<string> GetFilteredRetainConditionIds()
+        {
+            if (FilteredRetainConditionIds == null)
+            {
+                FilteredRetainConditionIds = new HashSet<string>();
+            }
+
+            return FilteredRetainConditionIds;
+        }
+
+
+        /// <summary>
         /// Whether the item has notifications that are ready to publish.
         /// </summary>
         [Obsolete("Not used - Use IsReadyToPublish")]
@@ -1860,6 +1937,9 @@ namespace Opc.Ua.Server
         private IAggregateCalculator m_calculator;
         private bool m_triggered;
         private bool m_resendData;
+        HashSet<string> FilteredRetainConditionIds = null;
+
+
         #endregion
     }
 }
