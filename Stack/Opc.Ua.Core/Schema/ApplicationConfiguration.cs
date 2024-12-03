@@ -1509,6 +1509,7 @@ namespace Opc.Ua
             m_maxTrustListSize = 0;
             m_multicastDnsEnabled = false;
             m_auditingEnabled = false;
+            m_httpsMutualTls = true;
         }
 
         /// <summary>
@@ -1942,6 +1943,17 @@ namespace Opc.Ua
             get { return m_auditingEnabled; }
             set { m_auditingEnabled = value; }
         }
+
+        /// <summary>
+        /// Whether mTLS is required/enforced by the HttpsTransportListener
+        /// </summary>
+        /// <value><c>true</c> if mutual TLS is enabled; otherwise, <c>false</c>.</value>
+        [DataMember(IsRequired = false, Order = 38)]
+        public bool HttpsMutualTls
+        {
+            get { return m_httpsMutualTls; }
+            set { m_httpsMutualTls = value; }
+        }
         #endregion
 
         #region Private Members
@@ -1980,6 +1992,7 @@ namespace Opc.Ua
         private ReverseConnectServerConfiguration m_reverseConnect;
         private OperationLimits m_operationLimits;
         private bool m_auditingEnabled;
+        private bool m_httpsMutualTls;
         #endregion
     }
     #endregion
