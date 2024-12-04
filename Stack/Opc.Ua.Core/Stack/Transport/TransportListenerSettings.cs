@@ -69,7 +69,7 @@ namespace Opc.Ua
         /// This is a thread safe object that may be updated by the application at any time.
         /// This table is used to lookup the NamespaceURI for the DataTypeEncodingId when decoding ExtensionObjects.
         /// If the NamespaceURI can be found the decoder will use the Factory to create an instance of a .NET object.
-        /// The raw data is passed to application if the NamespaceURI cannot be found or there is no .NET class 
+        /// The raw data is passed to application if the NamespaceURI cannot be found or there is no .NET class
         /// associated with the DataTypeEncodingId then.
         /// </remarks>
         /// <seealso cref="Factory" />
@@ -97,6 +97,18 @@ namespace Opc.Ua
         {
             get { return m_channelFactory; }
             set { m_channelFactory = value; }
+        }
+
+        /// <summary>
+        /// Defines the way the transport layer should process the payload data.
+        /// </summary>
+        /// <remarks>
+        /// Data Efficiency vs. Urgency
+        /// </remarks>
+        public MessageTransportMode TransportMode
+        {
+            get => m_transportMode;
+            set => m_transportMode = value;
         }
 
         /// <summary>
@@ -128,6 +140,8 @@ namespace Opc.Ua
         private IEncodeableFactory m_channelFactory;
         private bool m_reverseConnectListener;
         private int m_maxChannelCount;
+        private MessageTransportMode m_transportMode;
+
         #endregion
     }
 }

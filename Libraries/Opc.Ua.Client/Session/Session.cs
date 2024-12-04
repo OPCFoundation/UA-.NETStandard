@@ -1,7 +1,7 @@
 /* ========================================================================
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
- * OPC Foundation MIT License 1.00 
+ * OPC Foundation MIT License 1.00
  *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
@@ -177,6 +177,7 @@ namespace Opc.Ua.Client
             // save configuration information.
             m_configuration = configuration;
             m_endpoint = endpoint;
+            m_transportMode = configuration.ClientConfiguration.MessageTransportMode;
 
             // update the default subscription.
             m_defaultSubscription.MinLifetimeInterval = (uint)configuration.ClientConfiguration.MinSubscriptionLifetime;
@@ -228,6 +229,7 @@ namespace Opc.Ua.Client
             m_factory = EncodeableFactory.GlobalFactory;
             m_configuration = null;
             m_instanceCertificate = null;
+            m_transportMode = MessageTransportMode.DataEfficient;
             m_endpoint = null;
             m_subscriptions = new List<Subscription>();
             m_dictionaries = new Dictionary<NodeId, DataDictionary>();
@@ -1040,17 +1042,20 @@ namespace Opc.Ua.Client
                 clientCertificateChain = await LoadCertificateChainAsync(configuration, clientCertificate).ConfigureAwait(false);
             }
 
+            MessageTransportMode transportMode = configuration.ClientConfiguration.MessageTransportMode;
+
             // initialize the channel which will be created with the server.
             ITransportChannel channel;
             if (connection != null)
             {
-                channel = SessionChannel.CreateUaBinaryChannel(
+                channel = UaChannelBase.CreateUaBinaryChannel(
                     configuration,
                     connection,
                     endpointDescription,
                     endpointConfiguration,
                     clientCertificate,
                     clientCertificateChain,
+                    transportMode,
                     messageContext);
             }
             else
@@ -1061,6 +1066,7 @@ namespace Opc.Ua.Client
                      endpointConfiguration,
                      clientCertificate,
                      clientCertificateChain,
+                     transportMode,
                      messageContext);
             }
 
@@ -1258,8 +1264,8 @@ namespace Opc.Ua.Client
                 template.ConfiguredEndpoint.Description,
                 template.ConfiguredEndpoint.Configuration,
                 template.m_instanceCertificate,
-                template.m_configuration.SecurityConfiguration.SendCertificateChain ?
-                    template.m_instanceCertificateChain : null,
+                template.m_configuration.SecurityConfiguration.SendCertificateChain ? template.m_instanceCertificateChain : null,
+                template.m_transportMode,
                 messageContext);
 
             // create the session object.
@@ -1306,6 +1312,7 @@ namespace Opc.Ua.Client
                 template.m_instanceCertificate,
                 template.m_configuration.SecurityConfiguration.SendCertificateChain ?
                     template.m_instanceCertificateChain : null,
+                template.m_transportMode,
                 messageContext);
 
             // create the session object.
@@ -1407,7 +1414,7 @@ namespace Opc.Ua.Client
         {
 
             Nonce serverNonce = Nonce.CreateNonce(m_endpoint.Description?.SecurityPolicyUri, m_serverNonce);
-           
+
             var sessionConfiguration = new SessionConfiguration(this, serverNonce, m_userTokenSecurityPolicyUri, m_eccServerEphemeralKey, AuthenticationToken);
 
             if (stream != null)
@@ -5799,6 +5806,7 @@ namespace Opc.Ua.Client
                         m_endpoint.Configuration,
                         m_instanceCertificate,
                         m_configuration.SecurityConfiguration.SendCertificateChain ? m_instanceCertificateChain : null,
+                        m_transportMode,
                         MessageContext);
 
                     // disposes the existing channel.
@@ -5827,6 +5835,7 @@ namespace Opc.Ua.Client
                         m_endpoint.Configuration,
                         m_instanceCertificate,
                         m_configuration.SecurityConfiguration.SendCertificateChain ? m_instanceCertificateChain : null,
+                        m_transportMode,
                         MessageContext);
 
                     // disposes the existing channel.
@@ -6600,6 +6609,11 @@ namespace Opc.Ua.Client
         protected X509Certificate2 m_instanceCertificate;
 
         /// <summary>
+        /// The transport mode used for the message.
+        /// </summary>
+        protected MessageTransportMode m_transportMode;
+
+        /// <summary>
         /// The Instance Certificate Chain.
         /// </summary>
         protected X509Certificate2Collection m_instanceCertificateChain;
@@ -6669,6 +6683,7 @@ namespace Opc.Ua.Client
         private uint m_serverMaxByteStringLength = 0;
         private ContinuationPointPolicy m_continuationPointPolicy
             = ContinuationPointPolicy.Default;
+
 
         private class AsyncRequestState
         {
