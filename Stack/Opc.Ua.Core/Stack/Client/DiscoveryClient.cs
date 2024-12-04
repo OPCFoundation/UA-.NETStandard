@@ -249,8 +249,8 @@ namespace Opc.Ua
         private EndpointDescriptionCollection PatchEndpointUrls(EndpointDescriptionCollection endpoints)
         {
             // if a server is behind a firewall, can only be accessed with a FQDN or IP address
-            // it may return URLs that are not accessible to the client. This problem can be avoided 
-            // by assuming that the domain in the URL used to call GetEndpoints can be used to 
+            // it may return URLs that are not accessible to the client. This problem can be avoided
+            // by assuming that the domain in the URL used to call GetEndpoints can be used to
             // access any of the endpoints. This code patches the returned endpoints accordingly.
             Uri endpointUrl = Utils.ParseUri(this.Endpoint.EndpointUrl);
             if (endpointUrl != null)
@@ -292,17 +292,19 @@ namespace Opc.Ua
     public partial class DiscoveryChannel
     {
         #region Constructors
+
         /// <summary>
         /// Creates a new transport channel that supports the ISessionChannel service contract.
         /// </summary>
         /// <param name="discoveryUrl">The discovery url.</param>
         /// <param name="endpointConfiguration">The configuration to use with the endpoint.</param>
+        /// <param name="transportMode"></param>
         /// <param name="messageContext">The message context to use when serializing the messages.</param>
         /// <param name="clientCertificate">The client certificate to use.</param>
         /// <returns></returns>
-        public static ITransportChannel Create(
-            Uri discoveryUrl,
+        public static ITransportChannel Create(Uri discoveryUrl,
             EndpointConfiguration endpointConfiguration,
+            MessageTransportMode transportMode,
             IServiceMessageContext messageContext,
             X509Certificate2 clientCertificate = null)
         {
@@ -320,6 +322,7 @@ namespace Opc.Ua
                 endpoint,
                 endpointConfiguration,
                 clientCertificate,
+                transportMode,
                 messageContext);
 
             return channel;
@@ -343,6 +346,7 @@ namespace Opc.Ua
             };
             endpoint.Server.ApplicationUri = endpoint.EndpointUrl;
             endpoint.Server.ApplicationType = ApplicationType.DiscoveryServer;
+            MessageTransportMode transportMode = configuration.ClientConfiguration.MessageTransportMode;
 
             ITransportChannel channel = CreateUaBinaryChannel(
                 configuration,
@@ -351,6 +355,7 @@ namespace Opc.Ua
                 endpointConfiguration,
                 clientCertificate,
                 (X509Certificate2Collection)null,
+                transportMode,
                 messageContext);
 
             return channel;
@@ -374,6 +379,7 @@ namespace Opc.Ua
             };
             endpoint.Server.ApplicationUri = endpoint.EndpointUrl;
             endpoint.Server.ApplicationType = ApplicationType.DiscoveryServer;
+            MessageTransportMode transportMode = configuration?.ClientConfiguration?.MessageTransportMode ?? default;
 
             ITransportChannel channel = CreateUaBinaryChannel(
                 configuration,
@@ -381,6 +387,7 @@ namespace Opc.Ua
                 endpointConfiguration,
                 clientCertificate,
                 (X509Certificate2Collection)null,
+                transportMode,
                 messageContext);
 
             return channel;

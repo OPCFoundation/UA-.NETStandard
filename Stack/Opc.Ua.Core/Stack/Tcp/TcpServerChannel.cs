@@ -37,11 +37,13 @@ namespace Opc.Ua.Bindings
             BufferManager bufferManager,
             ChannelQuotas quotas,
             CertificateTypesProvider serverCertificateTypesProvider,
-            EndpointDescriptionCollection endpoints)
+            EndpointDescriptionCollection endpoints,
+            MessageTransportMode transportMode)
         :
             base(contextId, listener, bufferManager, quotas, serverCertificateTypesProvider, endpoints)
         {
             m_queuedResponses = new SortedDictionary<uint, IServiceResponse>();
+            m_transportMode = transportMode;
         }
         #endregion
 
@@ -95,7 +97,7 @@ namespace Opc.Ua.Bindings
             var ar = new ReverseConnectAsyncResult(callback, callbackData, timeout);
 
             var tcpMessageSocketFactory = new TcpMessageSocketFactory();
-            ar.Socket = Socket = tcpMessageSocketFactory.Create(this, BufferManager, ReceiveBufferSize);
+            ar.Socket = Socket = tcpMessageSocketFactory.Create(this, BufferManager, ReceiveBufferSize, m_transportMode);
 
             var connectComplete = new EventHandler<IMessageSocketAsyncEventArgs>(OnReverseConnectComplete);
             Socket.BeginConnect(endpointUrl, connectComplete, ar);
@@ -684,7 +686,7 @@ namespace Opc.Ua.Bindings
                 // send the response.
                 SendOpenSecureChannelResponse(requestId, CurrentToken, request);
 
-                // notify reverse 
+                // notify reverse
                 CompleteReverseHello(null);
 
                 // notify any monitors.
@@ -1130,6 +1132,7 @@ namespace Opc.Ua.Bindings
 
         #region Private Fields
         private SortedDictionary<uint, IServiceResponse> m_queuedResponses;
+        private readonly MessageTransportMode m_transportMode;
         private readonly string m_ImplementationString = ".NET Standard ServerChannel UA-TCP " + Utils.GetAssemblyBuildNumber();
         private ReverseConnectAsyncResult m_pendingReverseHello;
         #endregion

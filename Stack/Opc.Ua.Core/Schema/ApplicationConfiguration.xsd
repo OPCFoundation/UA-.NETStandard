@@ -169,6 +169,7 @@
           <xs:element name="OperationLimits" type="OperationLimits" minOccurs="0" />
           <xs:element name="AuditingEnabled" type="xs:boolean" minOccurs="0" />
           <xs:element name="HttpsMutualTls" type="xs:boolean" minOccurs="0" />
+          <xs:element name="MessageTransportMode" type="MessageTransportMode" default="DataEfficient" minOccurs="0" />
         </xs:sequence>
       </xs:extension>
     </xs:complexContent>
@@ -214,6 +215,13 @@
       <xs:element name="MaxMonitoredItemsPerCall" type="xs:int" minOccurs="0" />
     </xs:sequence>
   </xs:complexType>
+    
+  <xs:simpleType name="MessageTransportMode">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="DataEfficient" />
+      <xs:enumeration value="TimeCritical" />
+    </xs:restriction>
+  </xs:simpleType>
 
   <xs:complexType name="DiscoveryServerConfiguration">
     <xs:complexContent mixed="false">
@@ -249,6 +257,7 @@
       <xs:element name="MinSubscriptionLifetime" type="xs:int" minOccurs="0" />
       <xs:element name="ReverseConnect" type="ReverseConnectClientConfiguration" minOccurs="0" />
       <xs:element name="OperationLimits" type="OperationLimits" minOccurs="0" />
+      <xs:element name="MessageTransportMode" type="MessageTransportMode" minOccurs="0" />
     </xs:sequence>
   </xs:complexType>
 

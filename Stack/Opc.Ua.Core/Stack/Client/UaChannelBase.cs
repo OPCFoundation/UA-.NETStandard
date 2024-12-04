@@ -715,13 +715,13 @@ namespace Opc.Ua
         /// <summary>
         /// Creates a new UA-binary transport channel if requested. Null otherwise.
         /// </summary>
-        public static ITransportChannel CreateUaBinaryChannel(
-            ApplicationConfiguration configuration,
+        public static ITransportChannel CreateUaBinaryChannel(ApplicationConfiguration configuration,
             ITransportWaitingConnection connection,
             EndpointDescription description,
             EndpointConfiguration endpointConfiguration,
             X509Certificate2 clientCertificate,
             X509Certificate2Collection clientCertificateChain,
+            MessageTransportMode transportMode,
             IServiceMessageContext messageContext)
         {
             // initialize the channel which will be created with the server.
@@ -739,7 +739,8 @@ namespace Opc.Ua
                 Description = description,
                 Configuration = endpointConfiguration,
                 ClientCertificate = clientCertificate,
-                ClientCertificateChain = clientCertificateChain
+                ClientCertificateChain = clientCertificateChain,
+                TransportMode = transportMode,
             };
 
             if (description.ServerCertificate != null && description.ServerCertificate.Length > 0)
@@ -768,16 +769,17 @@ namespace Opc.Ua
         /// <param name="description">The description for the endpoint.</param>
         /// <param name="endpointConfiguration">The configuration to use with the endpoint.</param>
         /// <param name="clientCertificate">The client certificate.</param>
+        /// <param name="transportMode">The transport mode of messages.</param>
         /// <param name="messageContext">The message context to use when serializing the messages.</param>
         /// <returns></returns>
-        public static ITransportChannel CreateUaBinaryChannel(
-            ApplicationConfiguration configuration,
+        public static ITransportChannel CreateUaBinaryChannel(ApplicationConfiguration configuration,
             EndpointDescription description,
             EndpointConfiguration endpointConfiguration,
             X509Certificate2 clientCertificate,
+            MessageTransportMode transportMode,
             IServiceMessageContext messageContext)
         {
-            return CreateUaBinaryChannel(configuration, description, endpointConfiguration, clientCertificate, null, messageContext);
+            return CreateUaBinaryChannel(configuration, description, endpointConfiguration, clientCertificate, null, transportMode, messageContext);
         }
 
         /// <summary>
@@ -788,14 +790,15 @@ namespace Opc.Ua
         /// <param name="endpointConfiguration">The configuration to use with the endpoint.</param>
         /// <param name="clientCertificate">The client certificate.</param>
         /// <param name="clientCertificateChain">The client certificate chain.</param>
+        /// <param name="transportMode"></param>
         /// <param name="messageContext">The message context to use when serializing the messages.</param>
         /// <returns></returns>
-        public static ITransportChannel CreateUaBinaryChannel(
-            ApplicationConfiguration configuration,
+        public static ITransportChannel CreateUaBinaryChannel(ApplicationConfiguration configuration,
             EndpointDescription description,
             EndpointConfiguration endpointConfiguration,
             X509Certificate2 clientCertificate,
             X509Certificate2Collection clientCertificateChain,
+            MessageTransportMode transportMode,
             IServiceMessageContext messageContext)
         {
             string uriScheme = new Uri(description.EndpointUrl).Scheme;
@@ -835,7 +838,8 @@ namespace Opc.Ua
                 Description = description,
                 Configuration = endpointConfiguration,
                 ClientCertificate = clientCertificate,
-                ClientCertificateChain = clientCertificateChain
+                ClientCertificateChain = clientCertificateChain,
+                TransportMode = transportMode,
             };
 
             if (description.ServerCertificate != null && description.ServerCertificate.Length > 0)
