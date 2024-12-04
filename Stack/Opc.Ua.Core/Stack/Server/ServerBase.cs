@@ -571,6 +571,64 @@ namespace Opc.Ua
         {
             return null;
         }
+
+        /// <summary>
+        /// Specifies if the server requires encryption; if so the server needs to send its certificate to the clients and validate the client certificates
+        /// </summary>
+        /// <param name="description">The description.</param>
+        public static bool RequireEncryption(EndpointDescription description)
+        {
+            bool requireEncryption = false;
+
+            if (description != null)
+            {
+                requireEncryption = description.SecurityPolicyUri != SecurityPolicies.None;
+
+                if (!requireEncryption)
+                {
+                    foreach (UserTokenPolicy userTokenPolicy in description.UserIdentityTokens)
+                    {
+                        if (userTokenPolicy.SecurityPolicyUri != SecurityPolicies.None)
+                        {
+                            requireEncryption = true;
+                            break;
+                        }
+                    }
+                }
+            }
+            return requireEncryption;
+        }
+
+        /// <summary>
+        /// Sets the Server Certificate in an Endpoint description if the description requires encryption
+        /// </summary>
+        /// <param name="description">the endpoint Description to set the server certificate</param>
+        /// <param name="sendCertificateChain">true if the certificate chain shall be sent</param>
+        /// <param name="instanceCertificate">the instance certificate</param>
+        /// <param name="instanceCertificateChainBlob">the instance certificate chain as a DER encoded blob</param>
+        /// <param name="checkRequireEncryption">only set certificate if the endpoint does require Encryption</param>
+        public static void SetServerCertificateInEndpointDescription(
+            EndpointDescription description,
+            bool sendCertificateChain,
+            X509Certificate2 instanceCertificate,
+            byte[] instanceCertificateChainBlob,
+            bool checkRequireEncryption = true)
+        {
+            if (!checkRequireEncryption || RequireEncryption(description))
+            {
+                // check if complete chain should be sent.
+                if (sendCertificateChain &&
+                    instanceCertificateChainBlob != null &&
+                    instanceCertificateChainBlob.Length > 0)
+                {
+                    description.ServerCertificate = instanceCertificateChainBlob;
+                }
+                else
+                {
+                    description.ServerCertificate = instanceCertificate.RawData;
+                }
+            }
+        }
         #endregion
 
         #region BaseAddress Class
@@ -752,62 +810,45 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Specifies if the server requires encryption; if so the server needs to send its certificate to the clients and validate the client certificates
-        /// </summary>
-        /// <param name="description">The description.</param>
-        public static bool RequireEncryption(EndpointDescription description)
-        {
-            bool requireEncryption = false;
-
-            if (description != null)
-            {
-                requireEncryption = description.SecurityPolicyUri != SecurityPolicies.None;
-
-                if (!requireEncryption)
-                {
-                    foreach (UserTokenPolicy userTokenPolicy in description.UserIdentityTokens)
-                    {
-                        if (userTokenPolicy.SecurityPolicyUri != SecurityPolicies.None)
-                        {
-                            requireEncryption = true;
-                            break;
-                        }
-                    }
-                }
-            }
-            return requireEncryption;
-        }
-
-        /// <summary>
         /// Called after the application certificate update.
         /// </summary>
         protected virtual void OnCertificateUpdate(object sender, CertificateUpdateEventArgs e)
         {
-            // disconnect all sessions
-            InstanceCertificateChain = null;
             InstanceCertificate = e.SecurityConfiguration.ApplicationCertificate.Certificate;
-            if (Configuration.SecurityConfiguration.SendCertificateChain)
+            InstanceCertificateChain = new X509Certificate2Collection(InstanceCertificate);
+
+            var issuers = new List<CertificateIdentifier>();
+            var validationErrors = new Dictionary<X509Certificate2, ServiceResultException>();
+            Configuration.CertificateValidator.GetIssuersNoExceptionsOnGetIssuer(InstanceCertificateChain, issuers, validationErrors).GetAwaiter().GetResult();
+            foreach (var error in validationErrors)
             {
-                InstanceCertificateChain = new X509Certificate2Collection(InstanceCertificate);
-                var issuers = new List<CertificateIdentifier>();
-                var validationErrors = new Dictionary<X509Certificate2, ServiceResultException>();
-                Configuration.CertificateValidator.GetIssuersNoExceptionsOnGetIssuer(InstanceCertificateChain, issuers, validationErrors).GetAwaiter().GetResult();
-                foreach (var error in validationErrors)
+                if (error.Value != null)
                 {
-                    if (error.Value != null)
-                    {
-                        Utils.LogCertificate("OnCertificateUpdate: GetIssuers Validation Error: {0}", error.Key, error.Value.Result);
-                    }
+                    Utils.LogCertificate("OnCertificateUpdate: GetIssuers Validation Error: {0}", error.Key, error.Value.Result);
                 }
-                for (int i = 0; i < issuers.Count; i++)
-                {
-                    InstanceCertificateChain.Add(issuers[i].Certificate);
-                }
+            }
+            for (int i = 0; i < issuers.Count; i++)
+            {
+                InstanceCertificateChain.Add(issuers[i].Certificate);
+            }
+
+            byte[] instanceCertificateChainBlob = Utils.CreateCertificateChainBlob(InstanceCertificateChain);
+
+            //update certificate in the endpoint descriptions
+            foreach (EndpointDescription endpointDescription in m_endpoints)
+            {
+                SetServerCertificateInEndpointDescription(
+                    endpointDescription,
+                    Configuration.SecurityConfiguration.SendCertificateChain,
+                    InstanceCertificate,
+                    instanceCertificateChainBlob);
             }
 
             foreach (var listener in TransportListeners)
             {
-                listener.CertificateUpdate(e.CertificateValidator, InstanceCertificate, InstanceCertificateChain);
+                listener.CertificateUpdate(e.CertificateValidator,
+                                           InstanceCertificate,
+                                           InstanceCertificateChain);
             }
         }
 
@@ -843,6 +884,10 @@ namespace Opc.Ua
                 if (m_configuration is ApplicationConfiguration applicationConfiguration)
                 {
                     settings.MaxChannelCount = applicationConfiguration.ServerConfiguration.MaxChannelCount;
+                    if (Utils.IsUriHttpsScheme(endpointUri.AbsoluteUri))
+                    {
+                        settings.HttpsMutualTls = applicationConfiguration.ServerConfiguration.HttpsMutualTls;
+                    }
                 }
 
                 listener.Open(
@@ -1099,8 +1144,8 @@ namespace Opc.Ua
             string url = baseAddress.Url.ToString();
 
             if ((baseAddress.ProfileUri == Profiles.HttpsBinaryTransport) &&
-                url.StartsWith(Utils.UriSchemeHttp, StringComparison.Ordinal) &&
-                (!(url.EndsWith(ConfiguredEndpoint.DiscoverySuffix, StringComparison.OrdinalIgnoreCase))))
+                 Utils.IsUriHttpRelatedScheme(url) &&
+                (!url.EndsWith(ConfiguredEndpoint.DiscoverySuffix, StringComparison.OrdinalIgnoreCase)))
             {
                 url += ConfiguredEndpoint.DiscoverySuffix;
             }
