@@ -884,6 +884,10 @@ namespace Opc.Ua
                 if (m_configuration is ApplicationConfiguration applicationConfiguration)
                 {
                     settings.MaxChannelCount = applicationConfiguration.ServerConfiguration.MaxChannelCount;
+                    if (Utils.IsUriHttpsScheme(endpointUri.AbsoluteUri))
+                    {
+                        settings.HttpsMutualTls = applicationConfiguration.ServerConfiguration.HttpsMutualTls;
+                    }
                 }
 
                 listener.Open(
@@ -1140,8 +1144,8 @@ namespace Opc.Ua
             string url = baseAddress.Url.ToString();
 
             if ((baseAddress.ProfileUri == Profiles.HttpsBinaryTransport) &&
-                url.StartsWith(Utils.UriSchemeHttp, StringComparison.Ordinal) &&
-                (!(url.EndsWith(ConfiguredEndpoint.DiscoverySuffix, StringComparison.OrdinalIgnoreCase))))
+                 Utils.IsUriHttpRelatedScheme(url) &&
+                (!url.EndsWith(ConfiguredEndpoint.DiscoverySuffix, StringComparison.OrdinalIgnoreCase)))
             {
                 url += ConfiguredEndpoint.DiscoverySuffix;
             }

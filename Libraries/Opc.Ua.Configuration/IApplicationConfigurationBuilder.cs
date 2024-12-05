@@ -266,6 +266,9 @@ namespace Opc.Ua.Configuration
         /// <inheritdoc cref="ServerConfiguration.AuditingEnabled"/>
         IApplicationConfigurationBuilderServerOptions SetAuditingEnabled(bool auditingEnabled);
 
+        /// <inheritdoc cref="ServerConfiguration.HttpsMutualTls"/>
+        IApplicationConfigurationBuilderServerOptions SetHttpsMutualTls(bool mTlsEnabled);
+
         /// <inheritdoc cref="ServerConfiguration.DurableSubscriptionsEnabled"/>
         IApplicationConfigurationBuilderServerOptions SetDurableSubscriptionsEnabled(bool durableSubscriptionsEnabled);
 

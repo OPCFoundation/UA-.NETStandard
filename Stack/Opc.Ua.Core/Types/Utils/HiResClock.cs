@@ -82,6 +82,16 @@ namespace Opc.Ua
         public static int TickCount => Environment.TickCount;
 
         /// <summary>
+        /// Returns the Utc time with respect to the current tick count.
+        /// </summary>
+        public static DateTime UtcTickCount(int tickCount)
+        {
+            DateTime utcNow = DateTime.UtcNow;
+            int delta = tickCount - TickCount;
+            return utcNow.AddMilliseconds(delta);
+        }
+
+        /// <summary>
         /// Disables the hires clock.
         /// </summary>
         public static bool Disabled

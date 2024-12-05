@@ -345,6 +345,18 @@ namespace Opc.Ua.Sample
         }
 
         /// <summary>
+        /// The monitored items owner identity.
+        /// </summary>
+        public IUserIdentity EffectiveIdentity
+        {
+            get
+            {
+                ISubscription subscription = m_subscription;
+                return subscription?.EffectiveIdentity;
+            }
+        }
+
+        /// <summary>
         /// The identifier for the subscription that the monitored item belongs to.
         /// </summary>
         public uint SubscriptionId

@@ -156,7 +156,7 @@ namespace Opc.Ua.Client.Tests
 
                     if (endpoint.ServerCertificate != null)
                     {
-                        using (var cert = new X509Certificate2(endpoint.ServerCertificate))
+                        using (var cert = X509CertificateLoader.LoadCertificate(endpoint.ServerCertificate))
                         {
                             TestContext.Out.WriteLine("  [{0}]", cert.Thumbprint);
                         }
