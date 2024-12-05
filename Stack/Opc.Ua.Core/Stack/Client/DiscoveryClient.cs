@@ -292,21 +292,21 @@ namespace Opc.Ua
     public partial class DiscoveryChannel
     {
         #region Constructors
-
         /// <summary>
         /// Creates a new transport channel that supports the ISessionChannel service contract.
         /// </summary>
         /// <param name="discoveryUrl">The discovery url.</param>
         /// <param name="endpointConfiguration">The configuration to use with the endpoint.</param>
-        /// <param name="transportMode"></param>
         /// <param name="messageContext">The message context to use when serializing the messages.</param>
         /// <param name="clientCertificate">The client certificate to use.</param>
+        /// <param name="transportMode">The transport mode to use when sending messages.</param>
         /// <returns></returns>
-        public static ITransportChannel Create(Uri discoveryUrl,
+        public static ITransportChannel Create(
+            Uri discoveryUrl,
             EndpointConfiguration endpointConfiguration,
-            MessageTransportMode transportMode,
             IServiceMessageContext messageContext,
-            X509Certificate2 clientCertificate = null)
+            X509Certificate2 clientCertificate = null,
+            MessageTransportMode transportMode = MessageTransportMode.DataEfficient)
         {
             // create a default description.
             EndpointDescription endpoint = new EndpointDescription {
@@ -322,7 +322,6 @@ namespace Opc.Ua
                 endpoint,
                 endpointConfiguration,
                 clientCertificate,
-                transportMode,
                 messageContext);
 
             return channel;
@@ -346,7 +345,8 @@ namespace Opc.Ua
             };
             endpoint.Server.ApplicationUri = endpoint.EndpointUrl;
             endpoint.Server.ApplicationType = ApplicationType.DiscoveryServer;
-            MessageTransportMode transportMode = configuration.ClientConfiguration.MessageTransportMode;
+            MessageTransportMode transportMode = configuration?.ClientConfiguration?.MessageTransportMode ??
+                                                 MessageTransportMode.DataEfficient;
 
             ITransportChannel channel = CreateUaBinaryChannel(
                 configuration,
@@ -355,7 +355,6 @@ namespace Opc.Ua
                 endpointConfiguration,
                 clientCertificate,
                 (X509Certificate2Collection)null,
-                transportMode,
                 messageContext);
 
             return channel;
@@ -379,7 +378,8 @@ namespace Opc.Ua
             };
             endpoint.Server.ApplicationUri = endpoint.EndpointUrl;
             endpoint.Server.ApplicationType = ApplicationType.DiscoveryServer;
-            MessageTransportMode transportMode = configuration?.ClientConfiguration?.MessageTransportMode ?? default;
+            MessageTransportMode transportMode = configuration?.ClientConfiguration?.MessageTransportMode ??
+                                                 MessageTransportMode.DataEfficient;
 
             ITransportChannel channel = CreateUaBinaryChannel(
                 configuration,
@@ -387,7 +387,6 @@ namespace Opc.Ua
                 endpointConfiguration,
                 clientCertificate,
                 (X509Certificate2Collection)null,
-                transportMode,
                 messageContext);
 
             return channel;
