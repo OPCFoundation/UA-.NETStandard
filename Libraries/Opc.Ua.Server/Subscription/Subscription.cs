@@ -46,6 +46,11 @@ namespace Opc.Ua.Server
         Session Session { get; }
 
         /// <summary>
+        /// The subscriptions owner identity.
+        /// </summary>
+        IUserIdentity EffectiveIdentity { get; }
+
+        /// <summary>
         /// The identifier for the item that is unique within the server.
         /// </summary>
         uint Id { get; }
@@ -212,6 +217,14 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// The subscriptions owner identity.
+        /// </summary>
+        public IUserIdentity EffectiveIdentity
+        {
+            get { return (m_session != null) ? m_session.EffectiveIdentity : m_savedOwnerIdentity; }
+        }
+
+        /// <summary>
         /// Queues an item that is ready to publish.
         /// </summary>
         public void ItemReadyToPublish(IMonitoredItem monitoredItem)
@@ -257,15 +270,7 @@ namespace Opc.Ua.Server
                 }
             }
         }
-
-        /// <summary>
-        /// The owner identity.
-        /// </summary>
-        public UserIdentityToken OwnerIdentity
-        {
-            get { return (m_session != null) ? m_session.IdentityToken : m_savedOwnerIdentity; }
-        }
-
+              
         /// <summary>
         /// True if the subscription is set to durable and supports long lifetime and queue size
         /// </summary>
@@ -602,7 +607,7 @@ namespace Opc.Ua.Server
             {
                 if (m_session != null)
                 {
-                    m_savedOwnerIdentity = m_session.IdentityToken;
+                    m_savedOwnerIdentity = m_session.EffectiveIdentity;
                     m_session = null;
                 }
             }
@@ -2461,7 +2466,7 @@ namespace Opc.Ua.Server
         private IServerInternal m_server;
         private Session m_session;
         private uint m_id;
-        private UserIdentityToken m_savedOwnerIdentity;
+        private IUserIdentity m_savedOwnerIdentity;
         private double m_publishingInterval;
         private uint m_maxLifetimeCount;
         private uint m_maxKeepAliveCount;

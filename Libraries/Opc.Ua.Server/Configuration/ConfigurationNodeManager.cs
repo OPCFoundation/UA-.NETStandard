@@ -385,12 +385,12 @@ namespace Opc.Ua.Server
                     {
                         foreach (byte[] issuerRawCert in issuerCertificates)
                         {
-                            var newIssuerCert = new X509Certificate2(issuerRawCert);
+                            var newIssuerCert = X509CertificateLoader.LoadCertificate(issuerRawCert);
                             newIssuerCollection.Add(newIssuerCert);
                         }
                     }
 
-                    newCert = new X509Certificate2(certificate);
+                    newCert = X509CertificateLoader.LoadCertificate(certificate);
                 }
                 catch
                 {
@@ -499,7 +499,7 @@ namespace Opc.Ua.Server
                             var passwordProvider = m_configuration.SecurityConfiguration.CertificatePasswordProvider;
                             appStore.Add(updateCertificate.CertificateWithPrivateKey, passwordProvider?.GetPassword(certificateGroup.ApplicationCertificate)).Wait();
                             // keep only track of cert without private key
-                            var certOnly = new X509Certificate2(updateCertificate.CertificateWithPrivateKey.RawData);
+                            var certOnly = X509CertificateLoader.LoadCertificate(updateCertificate.CertificateWithPrivateKey.RawData);
                             updateCertificate.CertificateWithPrivateKey.Dispose();
                             updateCertificate.CertificateWithPrivateKey = certOnly;
                         }

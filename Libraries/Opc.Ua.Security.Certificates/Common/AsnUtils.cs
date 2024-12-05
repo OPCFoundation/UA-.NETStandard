@@ -50,24 +50,35 @@ namespace Opc.Ua.Security.Certificates
                 return String.Empty;
             }
 
-            var builder = new StringBuilder(buffer.Length * 2);
-
-            if (invertEndian)
+#if NET6_0_OR_GREATER
+            if (!invertEndian)
             {
-                for (int ii = buffer.Length - 1; ii >= 0; ii--)
-                {
-                    builder.AppendFormat(CultureInfo.InvariantCulture, "{0:X2}", buffer[ii]);
-                }
+                return Convert.ToHexString(buffer);
             }
             else
+#endif
             {
-                for (int ii = 0; ii < buffer.Length; ii++)
-                {
-                    builder.AppendFormat(CultureInfo.InvariantCulture, "{0:X2}", buffer[ii]);
-                }
-            }
+                StringBuilder builder = new StringBuilder(buffer.Length * 2);
 
-            return builder.ToString();
+#if !NET6_0_OR_GREATER
+                if (!invertEndian)
+                {
+                    for (int ii = 0; ii < buffer.Length; ii++)
+                    {
+                        builder.AppendFormat(CultureInfo.InvariantCulture, "{0:X2}", buffer[ii]);
+                    }
+                }
+                else
+#endif
+                {
+                    for (int ii = buffer.Length - 1; ii >= 0; ii--)
+                    {
+                        builder.AppendFormat(CultureInfo.InvariantCulture, "{0:X2}", buffer[ii]);
+                    }
+                }
+
+                return builder.ToString();
+            }
         }
 
         /// <summary>
@@ -85,6 +96,9 @@ namespace Opc.Ua.Security.Certificates
                 return Array.Empty<byte>();
             }
 
+#if NET6_0_OR_GREATER
+            return Convert.FromHexString(buffer);
+#else
             const string digits = "0123456789ABCDEF";
 
             byte[] bytes = new byte[(buffer.Length / 2) + (buffer.Length % 2)];
@@ -120,6 +134,7 @@ namespace Opc.Ua.Security.Certificates
             }
 
             return bytes;
+#endif
         }
 
         /// <summary>
