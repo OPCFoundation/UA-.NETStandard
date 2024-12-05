@@ -5799,7 +5799,6 @@ namespace Opc.Ua.Client
                         m_endpoint.Configuration,
                         m_instanceCertificate,
                         m_configuration.SecurityConfiguration.SendCertificateChain ? m_instanceCertificateChain : null,
-                        m_transportMode,
                         MessageContext);
 
                     // disposes the existing channel.

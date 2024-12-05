@@ -1548,8 +1548,8 @@ namespace Opc.Ua.Client
                 sessionTemplate.m_endpoint.Description,
                 sessionTemplate.m_endpoint.Configuration,
                 sessionTemplate.m_instanceCertificate,
-                sessionTemplate.m_configuration.SecurityConfiguration.SendCertificateChain ? sessionTemplate.m_instanceCertificateChain : null,
-                sessionTemplate.m_transportMode,
+                sessionTemplate.m_configuration.SecurityConfiguration.SendCertificateChain ?
+                    sessionTemplate.m_instanceCertificateChain : null,
                 messageContext);
 
             // create the session object.
