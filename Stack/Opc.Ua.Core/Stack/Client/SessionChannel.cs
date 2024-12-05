@@ -77,7 +77,6 @@ namespace Opc.Ua
         /// <param name="endpointConfiguration">The configuration to use with the endpoint.</param>
         /// <param name="clientCertificate">The client certificate.</param>
         /// <param name="clientCertificateChain">The client certificate chain.</param>
-        /// <param name="transportMode"></param>
         /// <param name="messageContext">The message context to use when serializing the messages.</param>
         /// <returns></returns>
         public static ITransportChannel Create(ApplicationConfiguration configuration,
@@ -86,7 +85,6 @@ namespace Opc.Ua
             EndpointConfiguration endpointConfiguration,
             X509Certificate2 clientCertificate,
             X509Certificate2Collection clientCertificateChain,
-            MessageTransportMode transportMode,
             IServiceMessageContext messageContext)
         {
             // create a UA binary channel.

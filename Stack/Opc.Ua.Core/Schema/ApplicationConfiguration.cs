@@ -2041,17 +2041,6 @@ namespace Opc.Ua
             get { return m_httpsMutualTls; }
             set { m_httpsMutualTls = value; }
         }
-
-        /// <summary>
-        /// The message transport mode.
-        /// </summary>
-        /// <value>The message transport mode.</value>
-        [DataMember(IsRequired = false, Order = 38)]
-        public MessageTransportMode MessageTransportMode
-        {
-            get { return m_messageTransportMode; }
-            set { m_messageTransportMode = value; }
-        }
         #endregion
 
         #region Private Members
@@ -2091,7 +2080,6 @@ namespace Opc.Ua
         private OperationLimits m_operationLimits;
         private bool m_auditingEnabled;
         private bool m_httpsMutualTls;
-        private MessageTransportMode m_messageTransportMode;
         #endregion
     }
     #endregion
