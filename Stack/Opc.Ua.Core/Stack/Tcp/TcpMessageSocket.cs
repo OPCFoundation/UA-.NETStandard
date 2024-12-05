@@ -106,11 +106,7 @@ namespace Opc.Ua.Bindings
             }
         }
 
-        /// <summary>
-        /// The method should be called by a derived class to signalize the completion of the socket operation.
-        /// </summary>
-        /// <param name="sender">the sender of the operation</param>
-        /// <param name="e">the socket argument</param>
+        /// <inheritdoc/>
         protected void OnComplete(object sender, SocketAsyncEventArgs e)
         {
             if (e.UserToken == null)
@@ -118,7 +114,7 @@ namespace Opc.Ua.Bindings
                 return;
             }
 
-            m_InternalComplete?.Invoke(this, e.UserToken as IMessageSocketAsyncEventArgs);
+            m_InternalComplete(this, e.UserToken as IMessageSocketAsyncEventArgs);
         }
 
         /// <inheritdoc/>
@@ -220,14 +216,12 @@ namespace Opc.Ua.Bindings
     /// </summary>
     public class TcpMessageSocketFactory : IMessageSocketFactory
     {
-        /// <summary>
-        /// The method creates a new instance of a UA-TCP message socket
-        /// </summary>
-        /// <returns> the message socket</returns>
-        public IMessageSocket Create(IMessageSink sink,
+        /// <inheritdoc />
+        public IMessageSocket Create(
+            IMessageSink sink,
             BufferManager bufferManager,
             int receiveBufferSize,
-            MessageTransportMode transportMode)
+            MessageTransportMode transportMode = MessageTransportMode.DataEfficient)
         {
             return new TcpMessageSocket(sink, bufferManager, receiveBufferSize, transportMode);
         }
@@ -252,7 +246,7 @@ namespace Opc.Ua.Bindings
             IMessageSink sink,
             BufferManager bufferManager,
             int receiveBufferSize,
-            MessageTransportMode transportMode)
+            MessageTransportMode transportMode = MessageTransportMode.DataEfficient)
         {
             if (bufferManager == null) throw new ArgumentNullException(nameof(bufferManager));
 
@@ -273,7 +267,8 @@ namespace Opc.Ua.Bindings
             IMessageSink sink,
             Socket socket,
             BufferManager bufferManager,
-            int receiveBufferSize)
+            int receiveBufferSize,
+            MessageTransportMode transportMode = MessageTransportMode.DataEfficient)
         {
             if (socket == null) throw new ArgumentNullException(nameof(socket));
             if (bufferManager == null) throw new ArgumentNullException(nameof(bufferManager));
@@ -282,7 +277,7 @@ namespace Opc.Ua.Bindings
             m_socket = socket;
             m_bufferManager = bufferManager;
             m_receiveBufferSize = receiveBufferSize;
-            m_transportMode = MessageTransportMode.DataEfficient;
+            m_transportMode = transportMode;
             m_incomingMessageSize = -1;
             m_readComplete = OnReadComplete;
         }
@@ -463,10 +458,7 @@ namespace Opc.Ua.Bindings
                     // after processing the ReadComplete and let the outer call handle it
                     if (!innerCall && !ServiceResult.IsBad(error))
                     {
-                        while (ReadNext())
-                        {
-                            // Read the next block
-                        }
+                        while (ReadNext()) ;
                     }
                 }
                 catch (Exception ex)

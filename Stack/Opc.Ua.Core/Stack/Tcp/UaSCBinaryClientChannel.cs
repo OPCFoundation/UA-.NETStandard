@@ -30,7 +30,8 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Creates a channel for for a client.
         /// </summary>
-        public UaSCUaBinaryClientChannel(string contextId,
+        public UaSCUaBinaryClientChannel(
+            string contextId,
             BufferManager bufferManager,
             IMessageSocketFactory socketFactory,
             ChannelQuotas quotas,
@@ -38,7 +39,7 @@ namespace Opc.Ua.Bindings
             X509Certificate2Collection clientCertificateChain,
             X509Certificate2 serverCertificate,
             EndpointDescription endpoint,
-            MessageTransportMode transportMode)
+            MessageTransportMode transportMode = MessageTransportMode.DataEfficient)
         :
             base(
                 contextId,

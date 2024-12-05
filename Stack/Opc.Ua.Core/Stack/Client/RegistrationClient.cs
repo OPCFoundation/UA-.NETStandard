@@ -29,13 +29,12 @@ namespace Opc.Ua
         /// <param name="description">The description.</param>
         /// <param name="endpointConfiguration">The endpoint configuration.</param>
         /// <param name="instanceCertificate">The instance certificate.</param>
-        /// <param name="transportMode">The transport mode to use with thic client.</param>
-        /// <returns>the registration client</returns>
-        public static RegistrationClient Create(ApplicationConfiguration configuration,
+        /// <returns></returns>
+        public static RegistrationClient Create(
+            ApplicationConfiguration configuration,
             EndpointDescription description,
             EndpointConfiguration endpointConfiguration,
-            X509Certificate2 instanceCertificate,
-            MessageTransportMode transportMode)
+            X509Certificate2 instanceCertificate)
         {
             if (configuration == null) throw new ArgumentNullException(nameof(configuration));
             if (description == null) throw new ArgumentNullException(nameof(description));
@@ -45,7 +44,6 @@ namespace Opc.Ua
                 description,
                 endpointConfiguration,
                 instanceCertificate,
-                transportMode,
                 new ServiceMessageContext());
 
             return new RegistrationClient(channel);
@@ -60,7 +58,6 @@ namespace Opc.Ua
     public partial class RegistrationChannel
     {
         #region Constructors
-
         /// <summary>
         /// Creates a new transport channel that supports the IRegistrationChannel service contract.
         /// </summary>
@@ -68,14 +65,13 @@ namespace Opc.Ua
         /// <param name="description">The description for the endpoint.</param>
         /// <param name="endpointConfiguration">The configuration to use with the endpoint.</param>
         /// <param name="clientCertificate">The client certificate.</param>
-        /// <param name="transportMode"></param>
         /// <param name="messageContext">The message context to use when serializing the messages.</param>
         /// <returns></returns>
-        public static ITransportChannel Create(ApplicationConfiguration configuration,
+        public static ITransportChannel Create(
+            ApplicationConfiguration configuration,
             EndpointDescription description,
             EndpointConfiguration endpointConfiguration,
             X509Certificate2 clientCertificate,
-            MessageTransportMode transportMode,
             IServiceMessageContext messageContext)
         {
             // create a UA binary channel.
@@ -84,7 +80,6 @@ namespace Opc.Ua
                 description,
                 endpointConfiguration,
                 clientCertificate,
-                transportMode,
                 messageContext);
 
             // create a registration channel.
@@ -97,7 +92,7 @@ namespace Opc.Ua
                     Configuration = endpointConfiguration,
                     Description = description,
                     ClientCertificate = clientCertificate,
-                    TransportMode = transportMode
+                    TransportMode = configuration?.ClientConfiguration?.MessageTransportMode ?? MessageTransportMode.DataEfficient
                 };
                 channel.Initialize(endpointUrl, settings);
             }

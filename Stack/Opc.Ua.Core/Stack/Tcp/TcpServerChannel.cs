@@ -38,7 +38,7 @@ namespace Opc.Ua.Bindings
             ChannelQuotas quotas,
             CertificateTypesProvider serverCertificateTypesProvider,
             EndpointDescriptionCollection endpoints,
-            MessageTransportMode transportMode)
+            MessageTransportMode transportMode = MessageTransportMode.DataEfficient)
         :
             base(contextId, listener, bufferManager, quotas, serverCertificateTypesProvider, endpoints)
         {
