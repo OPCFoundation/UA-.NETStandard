@@ -28,17 +28,15 @@ namespace Opc.Ua
         /// <param name="description">The description for the endpoint.</param>
         /// <param name="endpointConfiguration">The configuration to use with the endpoint.</param>
         /// <param name="clientCertificate">The client certificate.</param>
-        /// <param name="transportMode">The transport mode of messages.</param>
         /// <param name="messageContext">The message context to use when serializing the messages.</param>
         /// <returns></returns>
         public static ITransportChannel Create(ApplicationConfiguration configuration,
             EndpointDescription description,
             EndpointConfiguration endpointConfiguration,
             X509Certificate2 clientCertificate,
-            MessageTransportMode transportMode,
             IServiceMessageContext messageContext)
         {
-            return Create(configuration, description, endpointConfiguration, clientCertificate, null, transportMode, messageContext);
+            return Create(configuration, description, endpointConfiguration, clientCertificate, null, messageContext);
         }
 
         /// <summary>
@@ -49,7 +47,6 @@ namespace Opc.Ua
         /// <param name="endpointConfiguration">The configuration to use with the endpoint.</param>
         /// <param name="clientCertificate">The client certificate.</param>
         /// <param name="clientCertificateChain">The client certificate chain.</param>
-        /// <param name="transportMode">The transport mode of messages.</param>
         /// <param name="messageContext">The message context to use when serializing the messages.</param>
         /// <returns></returns>
         public static ITransportChannel Create(ApplicationConfiguration configuration,
@@ -57,7 +54,6 @@ namespace Opc.Ua
             EndpointConfiguration endpointConfiguration,
             X509Certificate2 clientCertificate,
             X509Certificate2Collection clientCertificateChain,
-            MessageTransportMode transportMode,
             IServiceMessageContext messageContext)
         {
             // create a UA binary channel.
@@ -67,7 +63,6 @@ namespace Opc.Ua
                 endpointConfiguration,
                 clientCertificate,
                 clientCertificateChain,
-                transportMode,
                 messageContext);
 
             return channel;
@@ -102,7 +97,6 @@ namespace Opc.Ua
                 endpointConfiguration,
                 clientCertificate,
                 clientCertificateChain,
-                transportMode,
                 messageContext);
 
             return channel;

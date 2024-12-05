@@ -299,14 +299,12 @@ namespace Opc.Ua
         /// <param name="endpointConfiguration">The configuration to use with the endpoint.</param>
         /// <param name="messageContext">The message context to use when serializing the messages.</param>
         /// <param name="clientCertificate">The client certificate to use.</param>
-        /// <param name="transportMode">The transport mode to use when sending messages.</param>
         /// <returns></returns>
         public static ITransportChannel Create(
             Uri discoveryUrl,
             EndpointConfiguration endpointConfiguration,
             IServiceMessageContext messageContext,
-            X509Certificate2 clientCertificate = null,
-            MessageTransportMode transportMode = MessageTransportMode.DataEfficient)
+            X509Certificate2 clientCertificate = null)
         {
             // create a default description.
             EndpointDescription endpoint = new EndpointDescription {
@@ -345,8 +343,6 @@ namespace Opc.Ua
             };
             endpoint.Server.ApplicationUri = endpoint.EndpointUrl;
             endpoint.Server.ApplicationType = ApplicationType.DiscoveryServer;
-            MessageTransportMode transportMode = configuration?.ClientConfiguration?.MessageTransportMode ??
-                                                 MessageTransportMode.DataEfficient;
 
             ITransportChannel channel = CreateUaBinaryChannel(
                 configuration,
@@ -378,8 +374,6 @@ namespace Opc.Ua
             };
             endpoint.Server.ApplicationUri = endpoint.EndpointUrl;
             endpoint.Server.ApplicationType = ApplicationType.DiscoveryServer;
-            MessageTransportMode transportMode = configuration?.ClientConfiguration?.MessageTransportMode ??
-                                                 MessageTransportMode.DataEfficient;
 
             ITransportChannel channel = CreateUaBinaryChannel(
                 configuration,

@@ -267,8 +267,7 @@ namespace Opc.Ua.Bindings
             IMessageSink sink,
             Socket socket,
             BufferManager bufferManager,
-            int receiveBufferSize,
-            MessageTransportMode transportMode = MessageTransportMode.DataEfficient)
+            int receiveBufferSize)
         {
             if (socket == null) throw new ArgumentNullException(nameof(socket));
             if (bufferManager == null) throw new ArgumentNullException(nameof(bufferManager));
@@ -277,7 +276,7 @@ namespace Opc.Ua.Bindings
             m_socket = socket;
             m_bufferManager = bufferManager;
             m_receiveBufferSize = receiveBufferSize;
-            m_transportMode = transportMode;
+            m_transportMode = MessageTransportMode.DataEfficient;
             m_incomingMessageSize = -1;
             m_readComplete = OnReadComplete;
         }
