@@ -2526,19 +2526,22 @@ namespace Opc.Ua
 
     #region MessageTransportMode Enumeration
     /// <summary>
-    /// The type of binary encoding support allowed by a channel.
+    /// The mode of message transportation.
     /// </summary>
+    /// <remarks>
+    /// When using TCP this <see cref="MessageTransportMode"/> affects the configuration of the <seealso cref="System.Net.Sockets.Socket"/>.
+    /// </remarks>
     [DataContract(Namespace = Namespaces.OpcUaConfig)]
     public enum MessageTransportMode
     {
         /// <summary>
-        /// The UA binary encoding may be used.
+        /// This mode signalizes, that delay in message transportation is accepted.
         /// </summary>
         [EnumMember()]
         DataEfficient,
 
         /// <summary>
-        /// The UA binary encoding must be used.
+        /// This mode signalizes, that delay in message transportation is not accepted.
         /// </summary>
         [EnumMember()]
         TimeCritical
