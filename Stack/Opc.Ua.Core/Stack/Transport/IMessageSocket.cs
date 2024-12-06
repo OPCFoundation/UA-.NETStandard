@@ -81,7 +81,7 @@ namespace Opc.Ua.Bindings
         /// <param name="buffer">The data buffer to use with an asynchronous socket method.</param>
         /// <param name="offset">The offset, in bytes, in the data buffer where the operation starts.</param>
         /// <param name="count">The maximum amount of data, in bytes, to send or receive in the buffer.</param>
-        /// 
+        ///
         void SetBuffer(byte[] buffer, int offset, int count);
     }
 
@@ -109,7 +109,7 @@ namespace Opc.Ua.Bindings
 
 
     /// <summary>
-    /// This is an interface to a message socket which supports a factory 
+    /// This is an interface to a message socket which supports a factory
     /// </summary>
     public interface IMessageSocketFactory
     {
@@ -117,10 +117,10 @@ namespace Opc.Ua.Bindings
         /// Creates an unconnected socket.
         /// </summary>
         /// <returns>the message socket</returns>
-        IMessageSocket Create(
-            IMessageSink sink,
+        IMessageSocket Create(IMessageSink sink,
             BufferManager bufferManager,
-            int receiveBufferSize);
+            int receiveBufferSize,
+            MessageTransportMode transportMode = MessageTransportMode.DataEfficient);
 
         /// <summary>
         /// Gets the implementation description.

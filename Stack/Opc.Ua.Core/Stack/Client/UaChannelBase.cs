@@ -739,7 +739,8 @@ namespace Opc.Ua
                 Description = description,
                 Configuration = endpointConfiguration,
                 ClientCertificate = clientCertificate,
-                ClientCertificateChain = clientCertificateChain
+                ClientCertificateChain = clientCertificateChain,
+                TransportMode = configuration?.ClientConfiguration?.MessageTransportMode ?? MessageTransportMode.DataEfficient,
             };
 
             if (description.ServerCertificate != null && description.ServerCertificate.Length > 0)
@@ -835,7 +836,8 @@ namespace Opc.Ua
                 Description = description,
                 Configuration = endpointConfiguration,
                 ClientCertificate = clientCertificate,
-                ClientCertificateChain = clientCertificateChain
+                ClientCertificateChain = clientCertificateChain,
+                TransportMode = configuration?.ClientConfiguration?.MessageTransportMode ?? MessageTransportMode.DataEfficient
             };
 
             if (description.ServerCertificate != null && description.ServerCertificate.Length > 0)

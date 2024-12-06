@@ -1,7 +1,7 @@
 /* ========================================================================
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
- * OPC Foundation MIT License 1.00 
+ * OPC Foundation MIT License 1.00
  *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
@@ -1044,7 +1044,7 @@ namespace Opc.Ua.Client
             ITransportChannel channel;
             if (connection != null)
             {
-                channel = SessionChannel.CreateUaBinaryChannel(
+                channel = UaChannelBase.CreateUaBinaryChannel(
                     configuration,
                     connection,
                     endpointDescription,
@@ -1407,7 +1407,7 @@ namespace Opc.Ua.Client
         {
 
             Nonce serverNonce = Nonce.CreateNonce(m_endpoint.Description?.SecurityPolicyUri, m_serverNonce);
-           
+
             var sessionConfiguration = new SessionConfiguration(this, serverNonce, m_userTokenSecurityPolicyUri, m_eccServerEphemeralKey, AuthenticationToken);
 
             if (stream != null)
@@ -6669,6 +6669,7 @@ namespace Opc.Ua.Client
         private uint m_serverMaxByteStringLength = 0;
         private ContinuationPointPolicy m_continuationPointPolicy
             = ContinuationPointPolicy.Default;
+
 
         private class AsyncRequestState
         {
