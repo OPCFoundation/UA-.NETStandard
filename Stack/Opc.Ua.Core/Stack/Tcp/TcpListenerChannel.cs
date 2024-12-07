@@ -11,6 +11,7 @@
 */
 
 using System;
+using System.Net;
 using System.Net.Sockets;
 using System.Security.Cryptography.X509Certificates;
 using Microsoft.Extensions.Logging;
@@ -252,6 +253,18 @@ namespace Opc.Ua.Bindings
 
                 if (close)
                 {
+                    // mark the RemoteAddress as potential problematic if Basic128Rsa15
+                    if ((SecurityPolicyUri == SecurityPolicies.Basic128Rsa15) &&
+                        (reason.StatusCode == StatusCodes.BadSecurityChecksFailed || reason.StatusCode == StatusCodes.BadTcpMessageTypeInvalid))
+                    {
+                        var tcpTransportListener = m_listener as TcpTransportListener;
+                        if (tcpTransportListener != null)
+                        {
+                            tcpTransportListener.MarkAsPotentialProblematic
+                                (((IPEndPoint)Socket.RemoteEndpoint).Address);
+                        }
+                    }
+
                     // close channel immediately.
                     ChannelFaulted();
                 }

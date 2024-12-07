@@ -59,10 +59,11 @@ namespace Opc.Ua
         public static X509Certificate2 Create(ReadOnlyMemory<byte> encodedData, bool useCache)
         {
 #if NET6_0_OR_GREATER
-            var certificate = new X509Certificate2(encodedData.Span);
+            var certificate = X509CertificateLoader.LoadCertificate(encodedData.Span);
 #else
-            var certificate = new X509Certificate2(encodedData.ToArray());
+            var certificate = X509CertificateLoader.LoadCertificate(encodedData.ToArray());
 #endif
+
             if (useCache)
             {
                 return Load(certificate, false);
@@ -414,7 +415,7 @@ namespace Opc.Ua
             string password = null)
         {
             RSA rsaPrivateKey = PEMReader.ImportPrivateKeyFromPEM(pemDataBlob, password);
-            return new X509Certificate2(certificate.RawData).CopyWithPrivateKey(rsaPrivateKey);
+            return X509CertificateLoader.LoadCertificate(certificate.RawData).CopyWithPrivateKey(rsaPrivateKey);
         }
 #else
         /// <summary>

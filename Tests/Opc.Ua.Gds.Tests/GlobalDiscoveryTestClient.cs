@@ -211,7 +211,7 @@ namespace Opc.Ua.Gds.Tests
         #region Private Methods
         private async Task ApplyNewApplicationInstanceCertificateAsync(byte[] certificate, byte[] privateKey)
         {
-            using (var x509 = new X509Certificate2(certificate))
+            using (var x509 = X509CertificateLoader.LoadCertificate(certificate))
             {
                 var certWithPrivateKey = CertificateFactory.CreateCertificateWithPEMPrivateKey(x509, privateKey);
                 m_client.Configuration.SecurityConfiguration.ApplicationCertificate = new CertificateIdentifier(certWithPrivateKey);

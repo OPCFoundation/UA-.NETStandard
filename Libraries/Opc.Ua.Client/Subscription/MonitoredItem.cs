@@ -251,7 +251,6 @@ namespace Opc.Ua.Client
                             QueueSize = Int32.MaxValue;
                         }
 
-                        m_eventCache = new MonitoredItemEventCache(100);
                         m_attributeId = Attributes.EventNotifier;
                     }
                     else
@@ -268,8 +267,11 @@ namespace Opc.Ua.Client
                             QueueSize = 1;
                         }
 
-                        m_dataCache = new MonitoredItemDataCache(1);
+                        m_attributeId = Attributes.Value;
                     }
+
+                    m_dataCache = null;
+                    m_eventCache = null;
                 }
 
                 m_nodeClass = value;
@@ -489,6 +491,8 @@ namespace Opc.Ua.Client
             {
                 lock (m_cache)
                 {
+                    EnsureCacheIsInitialized();
+
                     if (m_dataCache != null)
                     {
                         m_dataCache.SetQueueSize(value);
@@ -613,6 +617,8 @@ namespace Opc.Ua.Client
         {
             lock (m_cache)
             {
+                EnsureCacheIsInitialized();
+
                 // only validate timestamp on first sample
                 bool validateTimestamp = m_lastNotification == null;
 
@@ -620,9 +626,7 @@ namespace Opc.Ua.Client
 
                 if (m_dataCache != null)
                 {
-                    MonitoredItemNotification datachange = newValue as MonitoredItemNotification;
-
-                    if (datachange != null)
+                    if (newValue is MonitoredItemNotification datachange)
                     {
                         if (datachange.Value != null)
                         {
@@ -658,9 +662,7 @@ namespace Opc.Ua.Client
 
                 if (m_eventCache != null)
                 {
-                    EventFieldList eventchange = newValue as EventFieldList;
-
-                    if (eventchange != null)
+                    if (newValue is EventFieldList eventchange)
                     {
                         m_eventCache?.OnNotification(eventchange);
                     }
@@ -1035,6 +1037,26 @@ namespace Opc.Ua.Client
 
         #region Private Methods
         /// <summary>
+        /// To save memory the cache is by default not initialized
+        /// until <see cref="SaveValueInCache(IEncodeable)"/> is called.
+        /// 
+        /// </summary>
+        private void EnsureCacheIsInitialized()
+        {
+            if (m_dataCache == null && m_eventCache == null)
+            {
+                if ((m_nodeClass & (NodeClass.Object | NodeClass.View)) != 0)
+                {
+                    m_eventCache = new MonitoredItemEventCache(100);
+                }
+                else
+                {
+                    m_dataCache = new MonitoredItemDataCache(1);
+                }
+            }
+        }
+
+        /// <summary>
         /// Throws an exception if the flter cannot be used with the node class.
         /// </summary>
         private void ValidateFilter(NodeClass nodeClass, MonitoringFilter filter)
@@ -1160,18 +1182,28 @@ namespace Opc.Ua.Client
     #endregion
 
     /// <summary>
-    /// An item in the cache
+    /// A client cache which can hold the last monitored items in a queue.
+    /// By default (1) only the last value is cached.
     /// </summary>
     public class MonitoredItemDataCache
     {
+        private const int kDefaultMaxCapacity = 100;
+
         #region Constructors
         /// <summary>
         /// Constructs a cache for a monitored item.
         /// </summary>
-        public MonitoredItemDataCache(int queueSize)
+        public MonitoredItemDataCache(int queueSize = 1)
         {
             m_queueSize = queueSize;
-            m_values = new Queue<DataValue>();
+            if (queueSize > 1)
+            {
+                m_values = new Queue<DataValue>(Math.Min(queueSize + 1, kDefaultMaxCapacity));
+            }
+            else
+            {
+                m_queueSize = 1;
+            }
         }
         #endregion
 
@@ -1191,13 +1223,20 @@ namespace Opc.Ua.Client
         /// </summary>
         public IList<DataValue> Publish()
         {
-            DataValue[] values = new DataValue[m_values.Count];
-
-            for (int ii = 0; ii < values.Length; ii++)
+            DataValue[] values;
+            if (m_values != null)
             {
-                values[ii] = m_values.Dequeue();
+                values = new DataValue[m_values.Count];
+                for (int ii = 0; ii < values.Length; ii++)
+                {
+                    values[ii] = m_values.Dequeue();
+                }
             }
-
+            else
+            {
+                values = new DataValue[1];
+                values[0] = m_lastValue;
+            }
             return values;
         }
 
@@ -1206,14 +1245,16 @@ namespace Opc.Ua.Client
         /// </summary>
         public void OnNotification(MonitoredItemNotification notification)
         {
-            m_values.Enqueue(notification.Value);
             m_lastValue = notification.Value;
-
             CoreClientUtils.EventLog.NotificationValue(notification.ClientHandle, m_lastValue.WrappedValue);
 
-            while (m_values.Count > m_queueSize)
+            if (m_values != null)
             {
-                m_values.Dequeue();
+                m_values.Enqueue(notification.Value);
+                while (m_values.Count > m_queueSize)
+                {
+                    m_values.Dequeue();
+                }
             }
         }
 
@@ -1227,9 +1268,14 @@ namespace Opc.Ua.Client
                 return;
             }
 
-            if (queueSize < 1)
+            if (queueSize <= 1)
             {
                 queueSize = 1;
+                m_values = null;
+            }
+            else if (m_values == null)
+            {
+                m_values = new Queue<DataValue>(Math.Min(queueSize + 1, kDefaultMaxCapacity));
             }
 
             m_queueSize = queueSize;
@@ -1244,7 +1290,7 @@ namespace Opc.Ua.Client
         #region Private Fields
         private int m_queueSize;
         private DataValue m_lastValue;
-        private readonly Queue<DataValue> m_values;
+        private Queue<DataValue> m_values;
         #endregion
     }
 
