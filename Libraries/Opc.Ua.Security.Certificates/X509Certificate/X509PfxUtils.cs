@@ -175,7 +175,7 @@ namespace Opc.Ua.Security.Certificates
                 try
                 {
                     // merge first cert with private key into X509Certificate2
-                    certificate = new X509Certificate2(
+                    certificate = X509CertificateLoader.LoadPkcs12(
                         rawData,
                         password ?? string.Empty,
                         flag);
