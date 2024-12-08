@@ -794,7 +794,7 @@ namespace Opc.Ua.Gds.Tests
                 }
                 else
                 {
-                    csrCertificate = CertificateFactory.CreateCertificateWithPEMPrivateKey(new X509Certificate2(application.Certificate), application.PrivateKey, application.PrivateKeyPassword);
+                    csrCertificate = CertificateFactory.CreateCertificateWithPEMPrivateKey(X509CertificateLoader.LoadCertificate(application.Certificate), application.PrivateKey, application.PrivateKeyPassword);
                 }
                 byte[] certificateRequest = CertificateFactory.CreateSigningRequest(csrCertificate, application.DomainNames);
                 csrCertificate.Dispose();
@@ -1089,7 +1089,7 @@ namespace Opc.Ua.Gds.Tests
             }
             else
             {
-                csrCertificate = CertificateFactory.CreateCertificateWithPEMPrivateKey(new X509Certificate2(application.Certificate), application.PrivateKey, application.PrivateKeyPassword);
+                csrCertificate = CertificateFactory.CreateCertificateWithPEMPrivateKey(X509CertificateLoader.LoadCertificate(application.Certificate), application.PrivateKey, application.PrivateKeyPassword);
             }
             byte[] certificateRequest = CertificateFactory.CreateSigningRequest(csrCertificate, application.DomainNames);
             csrCertificate.Dispose();
@@ -1430,6 +1430,7 @@ namespace Opc.Ua.Gds.Tests
         [Test, Order(920)]
         public void UnregisterUnregisteredGoodApplications()
         {
+            AssertIgnoreTestWithoutGoodRegistration();
             ConnectGDS(true);
             foreach (var application in m_goodApplicationTestSet)
             {

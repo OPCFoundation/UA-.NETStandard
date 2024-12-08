@@ -24,6 +24,7 @@ using System.Threading;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Bindings;
 using System.Net.Sockets;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua
 {
@@ -571,6 +572,61 @@ namespace Opc.Ua
         {
             return null;
         }
+
+        /// <summary>
+        /// Specifies if the server requires encryption; if so the server needs to send its certificate to the clients and validate the client certificates
+        /// </summary>
+        /// <param name="description">The description.</param>
+        public static bool RequireEncryption(EndpointDescription description)
+        {
+            bool requireEncryption = false;
+
+            if (description != null)
+            {
+                requireEncryption = description.SecurityPolicyUri != SecurityPolicies.None;
+
+                if (!requireEncryption)
+                {
+                    foreach (UserTokenPolicy userTokenPolicy in description.UserIdentityTokens)
+                    {
+                        if (userTokenPolicy.SecurityPolicyUri != SecurityPolicies.None)
+                        {
+                            requireEncryption = true;
+                            break;
+                        }
+                    }
+                }
+            }
+            return requireEncryption;
+        }
+
+        /// <summary>
+        /// Sets the Server Certificate in an Endpoint description if the description requires encryption.
+        /// </summary>
+        /// <param name="description">the endpoint Description to set the server certificate</param>
+        /// <param name="sendCertificateChain">true if the certificate chain shall be sent</param>
+        /// <param name="certificateTypesProvider">The provider to get the server certificate per certificate type.</param>
+        /// <param name="checkRequireEncryption">only set certificate if the endpoint does require Encryption</param>
+        public static void SetServerCertificateInEndpointDescription(
+            EndpointDescription description,
+            bool sendCertificateChain,
+            CertificateTypesProvider certificateTypesProvider,
+            bool checkRequireEncryption = true)
+        {
+            if (!checkRequireEncryption || RequireEncryption(description))
+            {
+                X509Certificate2 serverCertificate = certificateTypesProvider.GetInstanceCertificate(description.SecurityPolicyUri);
+                // check if complete chain should be sent.
+                if (sendCertificateChain)
+                {
+                    description.ServerCertificate = certificateTypesProvider.LoadCertificateChainRaw(serverCertificate);
+                }
+                else
+                {
+                    description.ServerCertificate = serverCertificate.RawData;
+                }
+            }
+        }
         #endregion
 
         #region BaseAddress Class
@@ -630,35 +686,19 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// The server's application instance certificate.
+        /// The server's application instance certificate types provider.
         /// </summary>
-        /// <value>The instance X.509 certificate.</value>
-        protected X509Certificate2 InstanceCertificate
+        /// <value>The provider for the X.509 certificates.</value>
+        public CertificateTypesProvider InstanceCertificateTypesProvider
         {
             get
             {
-                return (X509Certificate2)m_instanceCertificate;
+                return m_instanceCertificateTypesProvider;
             }
 
             private set
             {
-                m_instanceCertificate = value;
-            }
-        }
-
-        /// <summary>
-        /// Gets the instance certificate chain.
-        /// </summary>
-        protected X509Certificate2Collection InstanceCertificateChain
-        {
-            get
-            {
-                return m_instanceCertificateChain;
-            }
-
-            private set
-            {
-                m_instanceCertificateChain = value;
+                m_instanceCertificateTypesProvider = value;
             }
         }
 
@@ -752,62 +792,14 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Specifies if the server requires encryption; if so the server needs to send its certificate to the clients and validate the client certificates
-        /// </summary>
-        /// <param name="description">The description.</param>
-        public static bool RequireEncryption(EndpointDescription description)
-        {
-            bool requireEncryption = false;
-
-            if (description != null)
-            {
-                requireEncryption = description.SecurityPolicyUri != SecurityPolicies.None;
-
-                if (!requireEncryption)
-                {
-                    foreach (UserTokenPolicy userTokenPolicy in description.UserIdentityTokens)
-                    {
-                        if (userTokenPolicy.SecurityPolicyUri != SecurityPolicies.None)
-                        {
-                            requireEncryption = true;
-                            break;
-                        }
-                    }
-                }
-            }
-            return requireEncryption;
-        }
-
-        /// <summary>
         /// Called after the application certificate update.
         /// </summary>
         protected virtual void OnCertificateUpdate(object sender, CertificateUpdateEventArgs e)
         {
-            // disconnect all sessions
-            InstanceCertificateChain = null;
-            InstanceCertificate = e.SecurityConfiguration.ApplicationCertificate.Certificate;
-            if (Configuration.SecurityConfiguration.SendCertificateChain)
-            {
-                InstanceCertificateChain = new X509Certificate2Collection(InstanceCertificate);
-                var issuers = new List<CertificateIdentifier>();
-                var validationErrors = new Dictionary<X509Certificate2, ServiceResultException>();
-                Configuration.CertificateValidator.GetIssuersNoExceptionsOnGetIssuer(InstanceCertificateChain, issuers, validationErrors).GetAwaiter().GetResult();
-                foreach (var error in validationErrors)
-                {
-                    if (error.Value != null)
-                    {
-                        Utils.LogCertificate("OnCertificateUpdate: GetIssuers Validation Error: {0}", error.Key, error.Value.Result);
-                    }
-                }
-                for (int i = 0; i < issuers.Count; i++)
-                {
-                    InstanceCertificateChain.Add(issuers[i].Certificate);
-                }
-            }
-
+            InstanceCertificateTypesProvider.Update(e.SecurityConfiguration);
             foreach (var listener in TransportListeners)
             {
-                listener.CertificateUpdate(e.CertificateValidator, InstanceCertificate, InstanceCertificateChain);
+                listener.CertificateUpdate(e.CertificateValidator, InstanceCertificateTypesProvider);
             }
         }
 
@@ -833,7 +825,7 @@ namespace Opc.Ua
                 TransportListenerSettings settings = new TransportListenerSettings {
                     Descriptions = endpoints,
                     Configuration = endpointConfiguration,
-                    ServerCertificate = InstanceCertificate,
+                    ServerCertificateTypesProvider = InstanceCertificateTypesProvider,
                     CertificateValidator = certificateValidator,
                     NamespaceUris = MessageContext.NamespaceUris,
                     Factory = MessageContext.Factory,
@@ -843,6 +835,10 @@ namespace Opc.Ua
                 if (m_configuration is ApplicationConfiguration applicationConfiguration)
                 {
                     settings.MaxChannelCount = applicationConfiguration.ServerConfiguration.MaxChannelCount;
+                    if (Utils.IsUriHttpsScheme(endpointUri.AbsoluteUri))
+                    {
+                        settings.HttpsMutualTls = applicationConfiguration.ServerConfiguration.HttpsMutualTls;
+                    }
                 }
 
                 listener.Open(
@@ -1099,8 +1095,8 @@ namespace Opc.Ua
             string url = baseAddress.Url.ToString();
 
             if ((baseAddress.ProfileUri == Profiles.HttpsBinaryTransport) &&
-                url.StartsWith(Utils.UriSchemeHttp, StringComparison.Ordinal) &&
-                (!(url.EndsWith(ConfiguredEndpoint.DiscoverySuffix, StringComparison.OrdinalIgnoreCase))))
+                 Utils.IsUriHttpRelatedScheme(url) &&
+                (!url.EndsWith(ConfiguredEndpoint.DiscoverySuffix, StringComparison.OrdinalIgnoreCase)))
             {
                 url += ConfiguredEndpoint.DiscoverySuffix;
             }
@@ -1354,47 +1350,40 @@ namespace Opc.Ua
             }
 
             // load the instance certificate.
-            if (configuration.SecurityConfiguration.ApplicationCertificate != null)
-            {
-                InstanceCertificate = configuration.SecurityConfiguration.ApplicationCertificate.Find(true).GetAwaiter().GetResult();
-            }
+            X509Certificate2 defaultInstanceCertificate = null;
+            InstanceCertificateTypesProvider = new CertificateTypesProvider(configuration);
+            InstanceCertificateTypesProvider.InitializeAsync().GetAwaiter().GetResult();
 
-            if (InstanceCertificate == null)
+            foreach (var securityPolicy in configuration.ServerConfiguration.SecurityPolicies)
             {
-                throw new ServiceResultException(
-                    StatusCodes.BadConfigurationError,
-                    "Server does not have an instance certificate assigned.");
-            }
-
-            if (!InstanceCertificate.HasPrivateKey)
-            {
-                throw new ServiceResultException(
-                    StatusCodes.BadConfigurationError,
-                    "Server does not have access to the private key for the instance certificate.");
-            }
-
-            // load certificate chain.
-            InstanceCertificateChain = new X509Certificate2Collection(InstanceCertificate);
-            var issuers = new List<CertificateIdentifier>();
-            var validationErrors = new Dictionary<X509Certificate2, ServiceResultException>();
-            configuration.CertificateValidator.GetIssuersNoExceptionsOnGetIssuer(InstanceCertificateChain, issuers, validationErrors).Wait();
-
-            if (validationErrors.Count > 0)
-            {
-                Utils.LogWarning("Issuer validation errors ignored on startup:");
-                // only list warning for errors to avoid that the server can not start
-                foreach (var error in validationErrors)
+                if (securityPolicy.SecurityMode == MessageSecurityMode.None)
                 {
-                    if (error.Value != null)
-                    {
-                        Utils.LogCertificate(LogLevel.Warning, "- " + error.Value.Message, error.Key);
-                    }
+                    continue;
                 }
-            }
 
-            for (int i = 0; i < issuers.Count; i++)
-            {
-                InstanceCertificateChain.Add(issuers[i].Certificate);
+                var instanceCertificate = InstanceCertificateTypesProvider.GetInstanceCertificate(securityPolicy.SecurityPolicyUri);
+
+                if (instanceCertificate == null)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadConfigurationError,
+                        "Server does not have an instance certificate assigned.");
+                }
+
+                if (!instanceCertificate.HasPrivateKey)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadConfigurationError,
+                        "Server does not have access to the private key for the instance certificate.");
+                }
+
+                if (defaultInstanceCertificate == null)
+                {
+                    defaultInstanceCertificate = instanceCertificate;
+                }
+
+                // preload chain 
+                InstanceCertificateTypesProvider.LoadCertificateChainAsync(instanceCertificate).GetAwaiter().GetResult();
             }
 
             // use the message context from the configuration to ensure the channels are using the same one.
@@ -1405,7 +1394,10 @@ namespace Opc.Ua
             // assign a unique identifier if none specified.
             if (String.IsNullOrEmpty(configuration.ApplicationUri))
             {
-                configuration.ApplicationUri = X509Utils.GetApplicationUriFromCertificate(InstanceCertificate);
+                var instanceCertificate = InstanceCertificateTypesProvider.GetInstanceCertificate(
+                    configuration.ServerConfiguration.SecurityPolicies[0].SecurityPolicyUri);
+
+                configuration.ApplicationUri = X509Utils.GetApplicationUriFromCertificate(instanceCertificate);
 
                 if (String.IsNullOrEmpty(configuration.ApplicationUri))
                 {
@@ -1421,9 +1413,9 @@ namespace Opc.Ua
             MessageContext.NamespaceUris.Append(configuration.ApplicationUri);
 
             // assign an instance name.
-            if (String.IsNullOrEmpty(configuration.ApplicationName) && InstanceCertificate != null)
+            if (String.IsNullOrEmpty(configuration.ApplicationName) && defaultInstanceCertificate != null)
             {
-                configuration.ApplicationName = InstanceCertificate.GetNameInfo(X509NameType.DnsName, false);
+                configuration.ApplicationName = defaultInstanceCertificate.GetNameInfo(X509NameType.DnsName, false);
             }
 
             // save the certificate validator.
@@ -1484,7 +1476,7 @@ namespace Opc.Ua
         {
             request.CallSynchronously();
         }
-        #endregion
+#endregion
 
         #region RequestQueue Class
         /// <summary>
@@ -1714,7 +1706,7 @@ namespace Opc.Ua
                 }
             }
 #endif
-            #endregion
+#endregion
 
             #region Private Fields
             private ServerBase m_server;
@@ -1728,7 +1720,7 @@ namespace Opc.Ua
             private Queue<IEndpointIncomingRequest> m_queue;
             private int m_totalThreadCount;
 #endif
-            #endregion
+#endregion
 
         }
         #endregion
@@ -1737,8 +1729,7 @@ namespace Opc.Ua
         private object m_messageContext;
         private object m_serverError;
         private object m_certificateValidator;
-        private object m_instanceCertificate;
-        private X509Certificate2Collection m_instanceCertificateChain;
+        private CertificateTypesProvider m_instanceCertificateTypesProvider;
         private object m_serverProperties;
         private object m_configuration;
         private object m_serverDescription;

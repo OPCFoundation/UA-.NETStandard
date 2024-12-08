@@ -32,7 +32,7 @@ namespace Opc.Ua
 
             UriBuilder parsedUrl = new UriBuilder(url);
 
-            if (parsedUrl.Scheme.StartsWith(Utils.UriSchemeHttp, StringComparison.Ordinal))
+            if (Utils.IsUriHttpRelatedScheme(parsedUrl.Scheme))
             {
                 if (!parsedUrl.Path.EndsWith(ConfiguredEndpoint.DiscoverySuffix, StringComparison.OrdinalIgnoreCase))
                 {
@@ -91,6 +91,7 @@ namespace Opc.Ua
         /// <summary>
         /// Finds the user token policy with the specified id.
         /// </summary>
+        [Obsolete]
         public UserTokenPolicy FindUserTokenPolicy(string policyId)
         {
             foreach (UserTokenPolicy policy in m_userIdentityTokens)
@@ -105,8 +106,51 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Finds the user token policy with the specified id and securtyPolicyUri
+        /// </summary>
+        public UserTokenPolicy FindUserTokenPolicy(string policyId, string tokenSecurityPolicyUri)
+        {
+            UserTokenPolicy sameEncryptionAlgorithm = null;
+            UserTokenPolicy unspecifiedSecPolicy = null;
+            // The specified security policies take precedence
+            foreach (UserTokenPolicy policy in m_userIdentityTokens)
+            {
+                if (policy.PolicyId == policyId)
+                {
+                    if (policy.SecurityPolicyUri == tokenSecurityPolicyUri)
+                    {
+                        return policy;
+                    }
+                    else if (
+                        policy.SecurityPolicyUri != null && tokenSecurityPolicyUri != null &&
+                        (EccUtils.IsEccPolicy(policy.SecurityPolicyUri) && EccUtils.IsEccPolicy(tokenSecurityPolicyUri)) ||
+                        (!EccUtils.IsEccPolicy(policy.SecurityPolicyUri) && !EccUtils.IsEccPolicy(tokenSecurityPolicyUri))
+                        )
+                    {
+                        if (sameEncryptionAlgorithm == null)
+                        {
+                            sameEncryptionAlgorithm = policy;
+                        }
+                    }
+                    else if (policy.SecurityPolicyUri == null)
+                    {
+                        unspecifiedSecPolicy = policy;
+                    }
+                }
+            }
+            // The first token with the same encryption algorithm (RSA/ECC) follows
+            if (sameEncryptionAlgorithm != null)
+            {
+                return sameEncryptionAlgorithm;
+            }
+            // The first token with unspecified security policy follows / no policy
+            return unspecifiedSecPolicy;
+        }
+
+        /// <summary>
         /// Finds a token policy that matches the user identity specified.
         /// </summary>
+        [Obsolete]
         public UserTokenPolicy FindUserTokenPolicy(UserTokenType tokenType, XmlQualifiedName issuedTokenType)
         {
             if (issuedTokenType == null)
@@ -120,6 +164,22 @@ namespace Opc.Ua
         /// <summary>
         /// Finds a token policy that matches the user identity specified.
         /// </summary>
+        public UserTokenPolicy FindUserTokenPolicy(UserTokenType tokenType,
+            XmlQualifiedName issuedTokenType,
+            string tokenSecurityPolicyUri)
+        {
+            if (issuedTokenType == null)
+            {
+                return FindUserTokenPolicy(tokenType, (string)null, tokenSecurityPolicyUri);
+            }
+
+            return FindUserTokenPolicy(tokenType, issuedTokenType.Namespace, tokenSecurityPolicyUri);
+        }
+
+        /// <summary>
+        /// Finds a token policy that matches the user identity specified.
+        /// </summary>
+        [Obsolete]
         public UserTokenPolicy FindUserTokenPolicy(UserTokenType tokenType, string issuedTokenType)
         {
             // construct issuer type.
@@ -145,6 +205,57 @@ namespace Opc.Ua
 
             // no policy found
             return null;
+        }
+
+        /// <summary>
+        /// Finds a token policy that matches the user identity specified.
+        /// </summary>
+        public UserTokenPolicy FindUserTokenPolicy(UserTokenType tokenType,
+            string issuedTokenType,
+            string tokenSecurityPolicyUri)
+        {
+            // construct issuer type.
+            string issuedTokenTypeText = issuedTokenType;
+
+            UserTokenPolicy sameEncryptionAlgorithm = null;
+            UserTokenPolicy unspecifiedSecPolicy = null;
+            // The specified security policies take precedence
+            foreach (UserTokenPolicy policy in m_userIdentityTokens)
+            {
+                if ((policy.TokenType == tokenType) && (issuedTokenTypeText == policy.IssuedTokenType))
+                {
+                    if ((policy.SecurityPolicyUri == tokenSecurityPolicyUri) || (tokenType == UserTokenType.Anonymous))
+                    {
+                        return policy;
+                    }
+                    else if (
+                        policy.SecurityPolicyUri != null && tokenSecurityPolicyUri != null &&
+                        (EccUtils.IsEccPolicy(policy.SecurityPolicyUri) && EccUtils.IsEccPolicy(tokenSecurityPolicyUri)) ||
+                        (!EccUtils.IsEccPolicy(policy.SecurityPolicyUri) && !EccUtils.IsEccPolicy(tokenSecurityPolicyUri))
+                        )
+                    {
+                        if (sameEncryptionAlgorithm == null)
+                        {
+                            sameEncryptionAlgorithm = policy;
+                        }
+                    }
+                    else if (policy.SecurityPolicyUri == null)
+                    {
+                        if (sameEncryptionAlgorithm == null)
+                        {
+                            unspecifiedSecPolicy = policy;
+                        }
+                    }
+                }
+            }
+            // The first token with the same encryption algorithm (RSA/ECC) follows
+            if (sameEncryptionAlgorithm != null)
+            {
+                return sameEncryptionAlgorithm;
+            }
+            // The first token with unspecified security policy follows / no policy
+            return unspecifiedSecPolicy;
+
         }
         #endregion
 

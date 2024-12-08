@@ -66,7 +66,7 @@ namespace Opc.Ua.Server
             m_subscriptions = new Dictionary<uint, Subscription>();
             m_publishQueues = new Dictionary<NodeId, SessionPublishQueue>();
             m_statusMessages = new Dictionary<NodeId, Queue<StatusMessage>>();
-            m_lastSubscriptionId = BitConverter.ToInt64(Utils.Nonce.CreateNonce(sizeof(long)), 0);
+            m_lastSubscriptionId = BitConverter.ToInt64(Nonce.CreateRandomNonceData(sizeof(long)), 0);
 
             // create a event to signal shutdown.
             m_shutdownEvent = new ManualResetEvent(true);
@@ -1223,11 +1223,11 @@ namespace Opc.Ua.Server
                     }
 
                     // get the identity of the current or last owner
-                    UserIdentityToken ownerIdentity = subscription.OwnerIdentity;
+                    UserIdentityToken ownerIdentity = subscription.EffectiveIdentity.GetIdentityToken();
 
                     // Validate the identity of the user who owns/owned the subscription
                     // is the same as the new owner.
-                    bool validIdentity = Utils.IsEqualUserIdentity(ownerIdentity, context.Session.IdentityToken);
+                    bool validIdentity = Utils.IsEqualUserIdentity(ownerIdentity, context.Session.EffectiveIdentity.GetIdentityToken());
 
                     // Test if anonymous user is using a
                     // secure session using Sign or SignAndEncrypt

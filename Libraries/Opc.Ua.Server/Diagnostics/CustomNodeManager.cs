@@ -3752,7 +3752,7 @@ namespace Opc.Ua.Server
         /// <returns></returns>
         public ServiceResult ValidateRolePermissions(OperationContext operationContext, NodeId nodeId, PermissionType requestedPermission)
         {
-            if (operationContext.Session == null || requestedPermission == PermissionType.None)
+            if (requestedPermission == PermissionType.None)
             {
                 // no permission is required hence the validation passes.
                 return StatusCodes.Good;

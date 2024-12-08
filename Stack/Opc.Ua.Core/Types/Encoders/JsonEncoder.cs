@@ -407,7 +407,6 @@ namespace Opc.Ua
 
             if (!string.IsNullOrEmpty(fieldName))
             {
-                m_writer.Write(s_quotation);
                 EscapeString(fieldName);
                 m_writer.Write(s_quotationColon);
             }
@@ -436,7 +435,6 @@ namespace Opc.Ua
 
             if (!string.IsNullOrEmpty(fieldName))
             {
-                m_writer.Write(s_quotation);
                 EscapeString(fieldName);
                 m_writer.Write(s_quotationColon);
             }
@@ -594,21 +592,22 @@ namespace Opc.Ua
         /// Using a span to escape the string, write strings to stream writer if possible.
         /// </summary>
         /// <param name="value"></param>
-        private void EscapeString(string value)
+        private void EscapeString(ReadOnlySpan<char> value)
         {
-            ReadOnlySpan<char> charSpan = value.AsSpan();
             int lastOffset = 0;
 
-            for (int i = 0; i < charSpan.Length; i++)
+            m_writer.Write(s_quotation);
+
+            for (int i = 0; i < value.Length; i++)
             {
                 bool found = false;
-                char ch = charSpan[i];
+                char ch = value[i];
 
                 for (int ii = 0; ii < m_specialChars.Length; ii++)
                 {
                     if (m_specialChars[ii] == ch)
                     {
-                        WriteSpan(ref lastOffset, charSpan, i);
+                        WriteSpan(ref lastOffset, value, i);
                         m_writer.Write('\\');
                         m_writer.Write(m_substitution[ii]);
                         found = true;
@@ -618,7 +617,7 @@ namespace Opc.Ua
 
                 if (!found && ch < 32)
                 {
-                    WriteSpan(ref lastOffset, charSpan, i);
+                    WriteSpan(ref lastOffset, value, i);
                     m_writer.Write('\\');
                     m_writer.Write('u');
                     m_writer.Write(((int)ch).ToString("X4", CultureInfo.InvariantCulture));
@@ -631,7 +630,7 @@ namespace Opc.Ua
             }
             else
             {
-                WriteSpan(ref lastOffset, charSpan, charSpan.Length);
+                WriteSpan(ref lastOffset, value, value.Length);
             }
         }
 
@@ -658,6 +657,8 @@ namespace Opc.Ua
         /// <param name="value"></param>
         private void EscapeString(string value)
         {
+            m_writer.Write(s_quotation);
+
             foreach (char ch in value)
             {
                 bool found = false;
@@ -717,7 +718,6 @@ namespace Opc.Ua
                     m_writer.Write(s_comma);
                 }
 
-                m_writer.Write(s_quotation);
                 EscapeString(fieldName);
                 m_writer.Write(s_quotationColon);
             }
@@ -755,9 +755,9 @@ namespace Opc.Ua
                     m_writer.Write(s_comma);
                 }
 
-                m_writer.Write(s_quotation);
                 if ((options & EscapeOptions.NoFieldNameEscape) == EscapeOptions.NoFieldNameEscape)
                 {
+                    m_writer.Write(s_quotation);
                     m_writer.Write(fieldName);
                 }
                 else
@@ -778,9 +778,9 @@ namespace Opc.Ua
             {
                 if ((options & EscapeOptions.Quotes) == EscapeOptions.Quotes)
                 {
-                    m_writer.Write(s_quotation);
                     if ((options & EscapeOptions.NoValueEscape) == EscapeOptions.NoValueEscape)
                     {
+                        m_writer.Write(s_quotation);
                         m_writer.Write(value);
                     }
                     else
@@ -1011,26 +1011,7 @@ namespace Opc.Ua
         /// Writes a UTC date/time to the stream.
         /// </summary>
         public void WriteDateTime(string fieldName, DateTime value)
-        {
-            if (fieldName != null && !IncludeDefaultValues && value == DateTime.MinValue)
-            {
-                WriteSimpleFieldNull(fieldName);
-                return;
-            }
-
-            if (value <= DateTime.MinValue)
-            {
-                WriteSimpleField(fieldName, "\"0001-01-01T00:00:00Z\"");
-            }
-            else if (value >= DateTime.MaxValue)
-            {
-                WriteSimpleField(fieldName, "\"9999-12-31T23:59:59Z\"");
-            }
-            else
-            {
-                WriteSimpleField(fieldName, ConvertUniversalTimeToString(value), EscapeOptions.Quotes | EscapeOptions.NoValueEscape);
-            }
-        }
+            => WriteDateTime(fieldName, value, EscapeOptions.None);
 
         /// <summary>
         /// Writes a GUID to the stream.
@@ -1332,31 +1313,7 @@ namespace Opc.Ua
         /// Writes an StatusCode to the stream.
         /// </summary>
         public void WriteStatusCode(string fieldName, StatusCode value)
-        {
-            if (fieldName != null && !IncludeDefaultValues && value == StatusCodes.Good)
-            {
-                WriteSimpleFieldNull(fieldName);
-                return;
-            }
-
-            if (EncodingToUse == JsonEncodingType.Reversible || EncodingToUse == JsonEncodingType.Compact)
-            {
-                WriteUInt32(fieldName, value.Code);
-                return;
-            }
-
-            if (value != StatusCodes.Good)
-            {
-                PushStructure(fieldName);
-                WriteSimpleField("Code", value.Code.ToString(CultureInfo.InvariantCulture), EscapeOptions.NoFieldNameEscape);
-                string symbolicId = StatusCode.LookupSymbolicId(value.CodeBits);
-                if (!string.IsNullOrEmpty(symbolicId))
-                {
-                    WriteSimpleField("Symbol", symbolicId, EscapeOptions.Quotes | EscapeOptions.NoFieldNameEscape);
-                }
-                PopStructure();
-            }
-        }
+            => WriteStatusCode(fieldName, value, EscapeOptions.None);
 
         /// <summary>
         /// Writes a DiagnosticInfo to the stream.
@@ -1460,7 +1417,6 @@ namespace Opc.Ua
 
                 if (!string.IsNullOrEmpty(fieldName))
                 {
-                    m_writer.Write(s_quotation);
                     EscapeString(fieldName);
                     m_writer.Write(s_quotationColon);
                 }
@@ -1505,12 +1461,12 @@ namespace Opc.Ua
 
                 if (value.StatusCode != StatusCodes.Good)
                 {
-                    WriteStatusCode("StatusCode", value.StatusCode);
+                    WriteStatusCode("StatusCode", value.StatusCode, EscapeOptions.NoFieldNameEscape);
                 }
 
                 if (value.SourceTimestamp != DateTime.MinValue)
                 {
-                    WriteDateTime("SourceTimestamp", value.SourceTimestamp);
+                    WriteDateTime("SourceTimestamp", value.SourceTimestamp, EscapeOptions.NoFieldNameEscape);
 
                     if (value.SourcePicoseconds != 0)
                     {
@@ -1520,7 +1476,7 @@ namespace Opc.Ua
 
                 if (value.ServerTimestamp != DateTime.MinValue)
                 {
-                    WriteDateTime("ServerTimestamp", value.ServerTimestamp);
+                    WriteDateTime("ServerTimestamp", value.ServerTimestamp, EscapeOptions.NoFieldNameEscape);
 
                     if (value.ServerPicoseconds != 0)
                     {
@@ -2566,7 +2522,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Writes an Variant array to the stream.
+        /// Writes a Variant array to the stream.
         /// </summary>
         public void WriteObjectArray(string fieldName, IList<object> values)
         {
@@ -2725,6 +2681,101 @@ namespace Opc.Ua
 
         #region Private Methods
         /// <summary>
+        /// Push structure with an option to not escape a known fieldname.
+        /// </summary>
+        private void PushStructure(string fieldName, EscapeOptions escapeOptions = EscapeOptions.None)
+        {
+            m_nestingLevel++;
+
+            if (m_commaRequired)
+            {
+                m_writer.Write(s_comma);
+            }
+
+            if (!string.IsNullOrEmpty(fieldName))
+            {
+                if ((escapeOptions & EscapeOptions.NoFieldNameEscape) != 0)
+                {
+                    m_writer.Write(s_quotation);
+                    m_writer.Write(fieldName);
+                }
+                else
+                {
+                    EscapeString(fieldName);
+                }
+                m_writer.Write(s_quotationColon);
+            }
+            else if (!m_commaRequired)
+            {
+                if (m_nestingLevel == 1 && !m_topLevelIsArray)
+                {
+                    m_levelOneSkipped = true;
+                    return;
+                }
+            }
+
+            m_commaRequired = false;
+            m_writer.Write(s_leftCurlyBrace);
+        }
+
+        /// <summary>
+        /// Writes an StatusCode to the stream.
+        /// </summary>
+        private void WriteStatusCode(string fieldName, StatusCode value, EscapeOptions escapeOptions)
+        {
+            if (fieldName != null && !IncludeDefaultValues && value == StatusCodes.Good)
+            {
+                WriteSimpleFieldNull(fieldName);
+                return;
+            }
+
+            if (EncodingToUse == JsonEncodingType.Reversible || EncodingToUse == JsonEncodingType.Compact)
+            {
+                WriteUInt32(fieldName, value.Code);
+                return;
+            }
+
+            // Verbose and NonReversible
+            PushStructure(fieldName, escapeOptions);
+            if (value != StatusCodes.Good)
+            {
+                WriteSimpleField("Code", value.Code.ToString(CultureInfo.InvariantCulture), EscapeOptions.NoFieldNameEscape | EscapeOptions.NoValueEscape);
+                string symbolicId = StatusCode.LookupSymbolicId(value.CodeBits);
+                if (!string.IsNullOrEmpty(symbolicId))
+                {
+                    WriteSimpleField("Symbol", symbolicId, EscapeOptions.Quotes | EscapeOptions.NoFieldNameEscape | EscapeOptions.NoValueEscape);
+                }
+            }
+            PopStructure();
+        }
+
+        /// <summary>
+        /// Writes a UTC date/time to the stream. Reduce escape overhead for fieldname.
+        /// </summary>
+        private void WriteDateTime(string fieldName, DateTime value, EscapeOptions escapeOptions)
+        {
+            if (fieldName != null && !IncludeDefaultValues && value == DateTime.MinValue)
+            {
+                WriteSimpleFieldNull(fieldName);
+                return;
+            }
+
+            escapeOptions |= EscapeOptions.NoValueEscape;
+            if (value <= DateTime.MinValue)
+            {
+                WriteSimpleField(fieldName, "\"0001-01-01T00:00:00Z\"", escapeOptions);
+            }
+            else if (value >= DateTime.MaxValue)
+            {
+                WriteSimpleField(fieldName, "\"9999-12-31T23:59:59Z\"", escapeOptions);
+            }
+            else
+            {
+                WriteSimpleField(fieldName, ConvertUniversalTimeToString(value), escapeOptions | EscapeOptions.Quotes);
+            }
+        }
+
+        /// <summary>
         /// Returns true if a simple field can be written.
         /// </summary>
         private bool CheckForSimpleFieldNull<T>(string fieldName, IList<T> values)
@@ -2824,7 +2875,7 @@ namespace Opc.Ua
 
                 if (value.InnerStatusCode != StatusCodes.Good)
                 {
-                    WriteStatusCode("InnerStatusCode", value.InnerStatusCode);
+                    WriteStatusCode("InnerStatusCode", value.InnerStatusCode, EscapeOptions.NoFieldNameEscape);
                 }
 
                 if (value.InnerDiagnosticInfo != null)

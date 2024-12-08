@@ -43,8 +43,8 @@ namespace Opc.Ua.PubSub.Transport
     {
         #region Private menbers
 
-        private X509Certificate m_caCertificate;
-        private X509Certificate m_clientCertificate;
+        private X509Certificate2 m_caCertificate;
+        private X509Certificate2 m_clientCertificate;
 
         #endregion Private menbers
 
@@ -64,11 +64,11 @@ namespace Opc.Ua.PubSub.Transport
 
             if (!string.IsNullOrEmpty(CaCertificatePath))
             {
-                m_caCertificate = X509Certificate.CreateFromCertFile(CaCertificatePath);
+                m_caCertificate = X509CertificateLoader.LoadCertificateFromFile(CaCertificatePath);
             }
             if (!string.IsNullOrEmpty(clientCertificatePath))
             {
-                m_clientCertificate = new X509Certificate2(clientCertificatePath, ClientCertificatePassword);
+                m_clientCertificate = X509CertificateLoader.LoadPkcs12FromFile(clientCertificatePath, ClientCertificatePassword);
             }
 
             KeyValuePairs = new KeyValuePairCollection();
@@ -105,11 +105,11 @@ namespace Opc.Ua.PubSub.Transport
 
             if (!string.IsNullOrEmpty(CaCertificatePath))
             {
-                m_caCertificate = X509Certificate.CreateFromCertFile(CaCertificatePath);
+                m_caCertificate = X509CertificateLoader.LoadCertificateFromFile(CaCertificatePath);
             }
             if (!string.IsNullOrEmpty(ClientCertificatePath))
             {
-                m_clientCertificate = new X509Certificate2(ClientCertificatePath, ClientCertificatePassword);
+                m_clientCertificate = X509CertificateLoader.LoadPkcs12FromFile(ClientCertificatePath, ClientCertificatePassword);
             }
 
         }

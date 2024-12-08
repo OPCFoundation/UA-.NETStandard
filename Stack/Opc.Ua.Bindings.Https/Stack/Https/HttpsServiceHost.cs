@@ -13,7 +13,9 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Security.Cryptography.X509Certificates;
+using Opc.Ua.Security.Certificates;
 
 
 namespace Opc.Ua.Bindings
@@ -46,8 +48,7 @@ namespace Opc.Ua.Bindings
             IList<string> baseAddresses,
             ApplicationDescription serverDescription,
             List<ServerSecurityPolicy> securityPolicies,
-            X509Certificate2 instanceCertificate,
-            X509Certificate2Collection instanceCertificateChain
+            CertificateTypesProvider certificateTypesProvider
             )
         {
             // generate a unique host name.
@@ -73,6 +74,11 @@ namespace Opc.Ua.Bindings
                     continue;
                 }
 
+                if (!baseAddresses[ii].StartsWith(UriScheme, StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
                 UriBuilder uri = new UriBuilder(baseAddresses[ii]);
 
                 if (uri.Path[uri.Path.Length - 1] != '/')
@@ -87,47 +93,54 @@ namespace Opc.Ua.Bindings
 
                 uris.Add(uri.Uri);
 
-                // Only support one policy with HTTPS
-                // So pick the first policy with security mode sign and encrypt
                 ServerSecurityPolicy bestPolicy = null;
-                foreach (ServerSecurityPolicy policy in securityPolicies)
+                bool httpsMutualTls = configuration.ServerConfiguration.HttpsMutualTls;
+                if (!httpsMutualTls)
                 {
-                    if (policy.SecurityMode != MessageSecurityMode.SignAndEncrypt)
-                    {
-                        continue;
-                    }
-
-                    bestPolicy = policy;
-                    break;
+                    // Only use security None without mutual TLS authentication!
+                    // When the mutual TLS authentication is not used, anonymous access is disabled
+                    // Then the only protection against unauthorized access is user authorization
+                    bestPolicy = new ServerSecurityPolicy() {
+                        SecurityMode = MessageSecurityMode.None,
+                        SecurityPolicyUri = SecurityPolicies.None
+                    };
                 }
-
-                // Pick the first policy from the list if no policies with sign and encrypt defined
-                if (bestPolicy == null)
+                else
                 {
-                    bestPolicy = securityPolicies[0];
-                }
-
-                EndpointDescription description = new EndpointDescription();
-
-                description.EndpointUrl = uri.ToString();
-                description.Server = serverDescription;
-
-                if (instanceCertificate != null)
-                {
-                    description.ServerCertificate = instanceCertificate.RawData;
-                    // check if complete chain should be sent.
-                    if (configuration.SecurityConfiguration.SendCertificateChain &&
-                        instanceCertificateChain != null &&
-                        instanceCertificateChain.Count > 1)
+                    // Only support one secure policy with HTTPS and mutual authentication
+                    // So pick the first policy with security mode sign and encrypt
+                    foreach (ServerSecurityPolicy policy in securityPolicies)
                     {
-                        List<byte> serverCertificateChain = new List<byte>();
-
-                        for (int i = 0; i < instanceCertificateChain.Count; i++)
+                        if (policy.SecurityMode != MessageSecurityMode.SignAndEncrypt)
                         {
-                            serverCertificateChain.AddRange(instanceCertificateChain[i].RawData);
+                            continue;
                         }
 
-                        description.ServerCertificate = serverCertificateChain.ToArray();
+                        bestPolicy = policy;
+                        break;
+                    }
+
+                    // Pick the first policy from the list if no policies with sign and encrypt defined
+                    if (bestPolicy == null)
+                    {
+                        bestPolicy = securityPolicies[0];
+                    }
+                }
+
+                var description = new EndpointDescription {
+                    EndpointUrl = uri.ToString(),
+                    Server = serverDescription
+                };
+
+                if (certificateTypesProvider != null)
+                {
+                    var instanceCertificate = certificateTypesProvider.GetInstanceCertificate(bestPolicy.SecurityPolicyUri);
+                    description.ServerCertificate = instanceCertificate.RawData;
+
+                    // check if complete chain should be sent.
+                    if (certificateTypesProvider.SendCertificateChain)
+                    {
+                        description.ServerCertificate = certificateTypesProvider.LoadCertificateChainRaw(instanceCertificate);
                     }
                 }
 
@@ -136,6 +149,12 @@ namespace Opc.Ua.Bindings
                 description.SecurityLevel = ServerSecurityPolicy.CalculateSecurityLevel(bestPolicy.SecurityMode, bestPolicy.SecurityPolicyUri);
                 description.UserIdentityTokens = serverBase.GetUserTokenPolicies(configuration, description);
                 description.TransportProfileUri = Profiles.HttpsBinaryTransport;
+
+                // if no mutual TLS authentication is used, anonymous user tokens are not allowed
+                if (!httpsMutualTls)
+                {
+                    description.UserIdentityTokens = new UserTokenPolicyCollection(description.UserIdentityTokens.Where(token => token.TokenType != UserTokenType.Anonymous));
+                }
 
                 ITransportListener listener = Create();
                 if (listener != null)
@@ -151,11 +170,11 @@ namespace Opc.Ua.Bindings
             }
 
             // create the host.
-            ServiceHost serviceHost = serverBase.CreateServiceHost(serverBase, uris.ToArray());
+            hosts[hostName] = serverBase.CreateServiceHost(serverBase, uris.ToArray());
 
-            hosts[hostName] = serviceHost;
 
             return endpoints;
-        }
-    }
+
+        }    
+    } 
 }

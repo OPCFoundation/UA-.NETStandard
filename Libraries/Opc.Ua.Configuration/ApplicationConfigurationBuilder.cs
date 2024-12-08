@@ -28,12 +28,12 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using System.Xml;
+
 
 namespace Opc.Ua.Configuration
 {
@@ -104,11 +104,65 @@ namespace Opc.Ua.Configuration
             var rejectedRootType = CertificateStoreIdentifier.DetermineStoreType(rejectedRoot);
             ApplicationConfiguration.SecurityConfiguration = new SecurityConfiguration {
                 // app cert store
+#pragma warning disable CS0618 // Type or member is obsolete
                 ApplicationCertificate = new CertificateIdentifier() {
+#pragma warning restore CS0618 // Type or member is obsolete
                     StoreType = appStoreType,
                     StorePath = DefaultCertificateStorePath(TrustlistType.Application, appRoot),
                     SubjectName = Utils.ReplaceDCLocalhost(subjectName)
                 },
+                // App trusted & issuer
+                TrustedPeerCertificates = new CertificateTrustList() {
+                    StoreType = pkiRootType,
+                    StorePath = DefaultCertificateStorePath(TrustlistType.Trusted, pkiRoot)
+                },
+                TrustedIssuerCertificates = new CertificateTrustList() {
+                    StoreType = pkiRootType,
+                    StorePath = DefaultCertificateStorePath(TrustlistType.Issuer, pkiRoot)
+                },
+                // Https trusted & issuer
+                TrustedHttpsCertificates = new CertificateTrustList() {
+                    StoreType = pkiRootType,
+                    StorePath = DefaultCertificateStorePath(TrustlistType.TrustedHttps, pkiRoot)
+                },
+                HttpsIssuerCertificates = new CertificateTrustList() {
+                    StoreType = pkiRootType,
+                    StorePath = DefaultCertificateStorePath(TrustlistType.IssuerHttps, pkiRoot)
+                },
+                // User trusted & issuer
+                TrustedUserCertificates = new CertificateTrustList() {
+                    StoreType = pkiRootType,
+                    StorePath = DefaultCertificateStorePath(TrustlistType.TrustedUser, pkiRoot)
+                },
+                UserIssuerCertificates = new CertificateTrustList() {
+                    StoreType = pkiRootType,
+                    StorePath = DefaultCertificateStorePath(TrustlistType.IssuerUser, pkiRoot)
+                },
+                // rejected store
+                RejectedCertificateStore = new CertificateTrustList() {
+                    StoreType = rejectedRootType,
+                    StorePath = DefaultCertificateStorePath(TrustlistType.Rejected, rejectedRoot)
+                },
+            };
+            SetSecureDefaults(ApplicationConfiguration.SecurityConfiguration);
+
+            return this;
+        }
+
+        /// <inheritdoc/>
+        public IApplicationConfigurationBuilderSecurityOptions AddSecurityConfiguration(
+            CertificateIdentifierCollection applicationCertificates,
+            string pkiRoot = null,
+            string rejectedRoot = null
+            )
+        {
+            pkiRoot = DefaultPKIRoot(pkiRoot);
+            rejectedRoot = rejectedRoot == null ? pkiRoot : DefaultPKIRoot(rejectedRoot);
+            var pkiRootType = CertificateStoreIdentifier.DetermineStoreType(pkiRoot);
+            var rejectedRootType = CertificateStoreIdentifier.DetermineStoreType(rejectedRoot);
+            ApplicationConfiguration.SecurityConfiguration = new SecurityConfiguration {
+                // app cert store
+                ApplicationCertificates = applicationCertificates,
                 // App trusted & issuer
                 TrustedPeerCertificates = new CertificateTrustList() {
                     StoreType = pkiRootType,
@@ -154,7 +208,7 @@ namespace Opc.Ua.Configuration
             string trustedRoot,
             string issuerRoot,
             string rejectedRoot = null
-            )
+        )
         {
             string appStoreType = CertificateStoreIdentifier.DetermineStoreType(appRoot);
             string issuerRootType = CertificateStoreIdentifier.DetermineStoreType(issuerRoot);
@@ -163,7 +217,9 @@ namespace Opc.Ua.Configuration
             string rejectedRootType = CertificateStoreIdentifier.DetermineStoreType(rejectedRoot);
             ApplicationConfiguration.SecurityConfiguration = new SecurityConfiguration {
                 // app cert store
+                #pragma warning disable CS0618 // Type or member is obsolete
                 ApplicationCertificate = new CertificateIdentifier() {
+                #pragma warning restore CS0618 // Type or member is obsolete
                     StoreType = appStoreType,
                     StorePath = DefaultCertificateStorePath(TrustlistType.Application, appRoot),
                     SubjectName = Utils.ReplaceDCLocalhost(subjectName)
@@ -192,7 +248,7 @@ namespace Opc.Ua.Configuration
         public IApplicationConfigurationBuilderSecurityOptionStores AddSecurityConfigurationUserStore(
             string trustedRoot,
             string issuerRoot
-            )
+        )
         {
             string trustedRootType = CertificateStoreIdentifier.DetermineStoreType(trustedRoot);
             string issuerRootType = CertificateStoreIdentifier.DetermineStoreType(issuerRoot);
@@ -208,7 +264,6 @@ namespace Opc.Ua.Configuration
             };
             return this;
         }
-
         /// <inheritdoc/>
         public IApplicationConfigurationBuilderSecurityOptionStores AddSecurityConfigurationHttpsStore(
             string trustedRoot,
@@ -262,7 +317,7 @@ namespace Opc.Ua.Configuration
             await ApplicationConfiguration.Validate(ApplicationInstance.ApplicationType).ConfigureAwait(false);
 
             await ApplicationConfiguration.CertificateValidator.
-                Update(ApplicationConfiguration.SecurityConfiguration).ConfigureAwait(false);
+                UpdateAsync(ApplicationConfiguration.SecurityConfiguration).ConfigureAwait(false);
 
             return ApplicationConfiguration;
         }
@@ -350,9 +405,23 @@ namespace Opc.Ua.Configuration
         }
 
         /// <inheritdoc/>
+        public IApplicationConfigurationBuilderServerSelected AddEccSignPolicies()
+        {
+            AddEccSecurityPolicies(true);
+            return this;
+        }
+
+        /// <inheritdoc/>
+        public IApplicationConfigurationBuilderServerSelected AddEccSignAndEncryptPolicies()
+        {
+            AddEccSecurityPolicies(false);
+            return this;
+        }
+
+        /// <inheritdoc/>
         public IApplicationConfigurationBuilderServerSelected AddPolicy(MessageSecurityMode securityMode, string securityPolicy)
         {
-            if (SecurityPolicies.GetDisplayName(securityPolicy) == null) throw new ArgumentException("Unknown security policy", nameof(securityPolicy));
+            if (!SecurityPolicies.IsValidSecurityPolicyUri(securityPolicy)) throw new ArgumentException("Unknown security policy", nameof(securityPolicy));
             if (securityMode == MessageSecurityMode.None || securityPolicy.Equals(SecurityPolicies.None)) throw new ArgumentException("Use AddUnsecurePolicyNone to add no security policy.");
             InternalAddPolicy(ApplicationConfiguration.ServerConfiguration.SecurityPolicies, securityMode, securityPolicy);
             return this;
@@ -370,6 +439,13 @@ namespace Opc.Ua.Configuration
         {
             if (userTokenPolicy == null) throw new ArgumentNullException(nameof(userTokenPolicy));
             ApplicationConfiguration.ServerConfiguration.UserTokenPolicies.Add(userTokenPolicy);
+            return this;
+        }
+
+        /// <inheritdoc/>
+        public IApplicationConfigurationBuilderSecurityOptions SetApplicationCertificates(CertificateIdentifierCollection certIdList)
+        {
+            ApplicationConfiguration.SecurityConfiguration.ApplicationCertificates = certIdList;
             return this;
         }
 
@@ -780,6 +856,13 @@ namespace Opc.Ua.Configuration
         }
 
         /// <inheritdoc/>
+        public IApplicationConfigurationBuilderServerOptions SetHttpsMutualTls(bool mutualTlsEnabeld)
+        {
+            ApplicationConfiguration.ServerConfiguration.HttpsMutualTls = mutualTlsEnabeld;
+            return this;
+        }
+
+        /// <inheritdoc/>
         public IApplicationConfigurationBuilderClientOptions SetDefaultSessionTimeout(int defaultSessionTimeout)
         {
             ApplicationConfiguration.ClientConfiguration.DefaultSessionTimeout = defaultSessionTimeout;
@@ -856,6 +939,74 @@ namespace Opc.Ua.Configuration
             return this;
         }
         #endregion
+
+        #region Public Static Methods
+
+        /// <summary>
+        /// Create ApplicationCertificates from a PKI root.
+        /// </summary>
+        /// <param name="storeType">The cert store type: ex: "Directory"</param>
+        /// <param name="storePath">The PKI root.</param>
+        /// <param name="subjectName">The subject name.</param>
+        /// <returns>The application certificates.</returns>
+
+        public static CertificateIdentifierCollection CreateDefaultApplicationCertificates(
+            string subjectName,
+            string storeType = null,
+            string storePath = null)
+        {
+            CertificateIdentifierCollection certificateIdentifiers = new CertificateIdentifierCollection{
+                new CertificateIdentifier {
+                    StoreType = storeType,
+                    StorePath = storePath,
+                    SubjectName = subjectName,
+                    CertificateType = ObjectTypeIds.RsaSha256ApplicationCertificateType
+                }
+            };
+#if ECC_SUPPORT
+            certificateIdentifiers.AddRange(
+                    new CertificateIdentifierCollection
+                    {
+            new CertificateIdentifier {
+                    StoreType = storeType,
+                    StorePath = storePath,
+                    SubjectName = subjectName,
+                    CertificateType = ObjectTypeIds.EccNistP256ApplicationCertificateType
+                },
+                new CertificateIdentifier {
+                    StoreType = storeType,
+                    StorePath = storePath,
+                    SubjectName = subjectName,
+                    CertificateType = ObjectTypeIds.EccNistP384ApplicationCertificateType
+                }
+            });
+
+            if (!RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+            {
+                certificateIdentifiers.AddRange(
+                    new CertificateIdentifierCollection
+                    {
+                        new CertificateIdentifier
+                        {
+                            StoreType = storeType,
+                            StorePath = storePath,
+                            SubjectName = subjectName,
+                            CertificateType = ObjectTypeIds.EccBrainpoolP256r1ApplicationCertificateType
+                        },
+                        new CertificateIdentifier
+                        {
+                            StoreType = storeType,
+                            StorePath = storePath,
+                            SubjectName = subjectName,
+                            CertificateType = ObjectTypeIds.EccBrainpoolP384r1ApplicationCertificateType
+                        }
+                    });
+            }
+#endif
+            return certificateIdentifiers;
+
+        }
+#endregion
 
         #region Private Methods
         /// <summary>
@@ -977,20 +1128,10 @@ namespace Opc.Ua.Configuration
         private void AddSecurityPolicies(bool includeSign = false, bool deprecated = false, bool policyNone = false)
         {
             // create list of supported policies
-            string[] defaultPolicyUris = SecurityPolicies.GetDefaultUris();
+            var defaultPolicyUris = SecurityPolicies.GetDefaultUris().ToList();
             if (deprecated)
             {
-                string[] names = SecurityPolicies.GetDisplayNames();
-                var deprecatedPolicyList = new List<string>();
-                foreach (string name in names)
-                {
-                    string uri = SecurityPolicies.GetUri(name);
-                    if (uri != null)
-                    {
-                        deprecatedPolicyList.Add(uri);
-                    }
-                }
-                defaultPolicyUris = deprecatedPolicyList.ToArray();
+                defaultPolicyUris.AddRange(SecurityPolicies.GetDefaultDeprecatedUris());
             }
 
             foreach (MessageSecurityMode securityMode in typeof(MessageSecurityMode).GetEnumValues())
@@ -1007,6 +1148,23 @@ namespace Opc.Ua.Configuration
                     {
                         InternalAddPolicy(policies, securityMode, policyUri);
                     }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Add default Ecc policies.
+        /// </summary>
+        private void AddEccSecurityPolicies(bool sign = false)
+        {
+            // create list of supported policies
+            var defaultPolicyUris = SecurityPolicies.GetDefaultEccUris();
+            MessageSecurityMode securityMode = sign ? MessageSecurityMode.Sign : MessageSecurityMode.SignAndEncrypt;
+            {
+                var policies = ApplicationConfiguration.ServerConfiguration.SecurityPolicies;
+                foreach (var policyUri in defaultPolicyUris)
+                {
+                    InternalAddPolicy(policies, securityMode, policyUri);
                 }
             }
         }
