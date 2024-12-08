@@ -119,7 +119,7 @@ namespace Opc.Ua.Gds.Server
                     Configuration.CACertificateLifetime
                     );
                 X509Certificate2 newCertificate = await CreateCACertificateAsync(SubjectName).ConfigureAwait(false);
-                Certificate = new X509Certificate2(newCertificate.RawData);
+                Certificate = X509CertificateLoader.LoadCertificate(newCertificate.RawData);
                 Utils.LogCertificate(Utils.TraceMasks.Security, "Created CA certificate: ", Certificate);
             }
         }
@@ -184,10 +184,8 @@ namespace Opc.Ua.Gds.Server
                     throw new ServiceResultException(StatusCodes.BadInvalidArgument, "Invalid private key format");
                 }
 
-
-                var publicKey = new X509Certificate2(certificate.RawData);
-
-                certificate?.Dispose();
+                var publicKey = X509CertificateLoader.LoadCertificate(certificate.RawData);
+                Utils.SilentDispose(certificate);
 
                 return new X509Certificate2KeyPair(publicKey, privateKeyFormat, privateKey);
             }
@@ -377,8 +375,8 @@ namespace Opc.Ua.Gds.Server
 
             await certificate.AddToStoreAsync(AuthoritiesStore).ConfigureAwait(false);
 
-            // save only public key
-            Certificate = new X509Certificate2(certificate.RawData);
+                // save only public key
+                Certificate = X509CertificateLoader.LoadCertificate(newCertificate.RawData);
 
             // initialize revocation list
             X509CRL crl = await RevokeCertificateAsync(AuthoritiesStore, certificate, null).ConfigureAwait(false);
@@ -397,7 +395,7 @@ namespace Opc.Ua.Gds.Server
                 }
             }
 
-            certificate?.Dispose();
+            Utils.SilentDispose(certificate);
 
             return Certificate;
 
@@ -579,7 +577,7 @@ namespace Opc.Ua.Gds.Server
                         X509Certificate2Collection certs = await trustedOrIssuerStore.FindByThumbprint(certificate.Thumbprint).ConfigureAwait(false);
                         if (certs.Count == 0)
                         {
-                            using (var x509 = new X509Certificate2(certificate.RawData))
+                            using (var x509 = X509CertificateLoader.LoadCertificate(certificate.RawData))
                             {
                                 await trustedOrIssuerStore.Add(x509).ConfigureAwait(false);
                             }

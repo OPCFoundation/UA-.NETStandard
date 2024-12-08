@@ -138,6 +138,7 @@ namespace Opc.Ua.Client
             m_keepAliveInterval = template.KeepAliveInterval;
             m_checkDomain = template.m_checkDomain;
             m_continuationPointPolicy = template.m_continuationPointPolicy;
+            ReturnDiagnostics = template.ReturnDiagnostics;
             if (template.OperationTimeout > 0)
             {
                 OperationTimeout = template.OperationTimeout;
@@ -1027,7 +1028,7 @@ namespace Opc.Ua.Client
                 endpoint.Description.ServerCertificate.Length > 0)
             {
                 configuration.CertificateValidator?.ValidateDomains(
-                    new X509Certificate2(endpoint.Description.ServerCertificate),
+                    X509CertificateLoader.LoadCertificate(endpoint.Description.ServerCertificate),
                     endpoint);
                 checkDomain = false;
             }
@@ -1391,7 +1392,7 @@ namespace Opc.Ua.Client
 
             byte[] serverCertificate = m_endpoint.Description?.ServerCertificate;
             m_sessionName = sessionConfiguration.SessionName;
-            m_serverCertificate = serverCertificate != null ? new X509Certificate2(serverCertificate) : null;
+            m_serverCertificate = serverCertificate != null ? X509CertificateLoader.LoadCertificate(serverCertificate) : null;
             m_identity = sessionConfiguration.Identity;
             m_checkDomain = sessionConfiguration.CheckDomain;
             m_serverNonce = sessionConfiguration.ServerNonce.Data;
@@ -1646,19 +1647,19 @@ namespace Opc.Ua.Client
                     }
                     property.SetValue(operationLimits, value);
                 }
-
                 OperationLimits = operationLimits;
-                if (values[maxBrowseContinuationPointIndex] != null
-                    && ServiceResult.IsNotBad(errors[maxBrowseContinuationPointIndex]))
+
+                if (values[maxBrowseContinuationPointIndex] is UInt16 serverMaxContinuationPointsPerBrowse &&
+                    ServiceResult.IsNotBad(errors[maxBrowseContinuationPointIndex]))
                 {
-                    ServerMaxContinuationPointsPerBrowse = (UInt16)values[maxBrowseContinuationPointIndex];
-                }
-                if (values[maxByteStringLengthIndex] != null
-                    && ServiceResult.IsNotBad(errors[maxByteStringLengthIndex]))
-                {
-                    ServerMaxByteStringLength = (UInt32)values[maxByteStringLengthIndex];
+                    ServerMaxContinuationPointsPerBrowse = serverMaxContinuationPointsPerBrowse;
                 }
 
+                if (values[maxByteStringLengthIndex] is UInt32 serverMaxByteStringLength &&
+                    ServiceResult.IsNotBad(errors[maxByteStringLengthIndex]))
+                {
+                    ServerMaxByteStringLength = serverMaxByteStringLength;
+                }
             }
             catch (Exception ex)
             {
@@ -4868,10 +4869,10 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Create a dictionary of attributes to read for a nodeclass.
         /// </summary>
-        private SortedDictionary<uint, DataValue> CreateAttributes(NodeClass nodeclass = NodeClass.Unspecified, bool optionalAttributes = true)
+        private Dictionary<uint, DataValue> CreateAttributes(NodeClass nodeclass = NodeClass.Unspecified, bool optionalAttributes = true)
         {
             // Attributes to read for all types of nodes
-            var attributes = new SortedDictionary<uint, DataValue>() {
+            var attributes = new Dictionary<uint, DataValue>() {
                 { Attributes.NodeId, null },
                 { Attributes.NodeClass, null },
                 { Attributes.BrowseName, null },
@@ -4929,7 +4930,7 @@ namespace Opc.Ua.Client
 
                 default:
                     // build complete list of attributes.
-                    attributes = new SortedDictionary<uint, DataValue> {
+                    attributes = new Dictionary<uint, DataValue> {
                         { Attributes.NodeId, null },
                         { Attributes.NodeClass, null },
                         { Attributes.BrowseName, null },

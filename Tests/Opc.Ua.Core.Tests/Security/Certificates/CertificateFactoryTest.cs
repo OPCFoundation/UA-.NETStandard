@@ -111,7 +111,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 {
                     rsa.ExportParameters(false);
                 }
-                var plainCert = new X509Certificate2(cert.RawData);
+                var plainCert = X509CertificateLoader.LoadCertificate(cert.RawData);
                 Assert.NotNull(plainCert);
                 VerifyApplicationCert(app, plainCert);
                 X509Utils.VerifyRSAKeyPair(cert, cert, true);
@@ -143,7 +143,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 Assert.NotNull(cert);
                 Assert.NotNull(cert.RawData);
                 Assert.True(cert.HasPrivateKey);
-                using (var plainCert = new X509Certificate2(cert.RawData))
+                using (var plainCert = X509CertificateLoader.LoadCertificate(cert.RawData))
                 {
                     Assert.NotNull(plainCert);
                     VerifyApplicationCert(app, plainCert, issuerCertificate);
@@ -171,7 +171,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.NotNull(cert);
             Assert.NotNull(cert.RawData);
             Assert.True(cert.HasPrivateKey);
-            var plainCert = new X509Certificate2(cert.RawData);
+            var plainCert = X509CertificateLoader.LoadCertificate(cert.RawData);
             Assert.NotNull(plainCert);
             VerifyCACert(plainCert, subject, pathLengthConstraint);
             X509Utils.VerifyRSAKeyPair(cert, cert, true);
@@ -220,7 +220,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                         Assert.NotNull(rsa);
                     }
 
-                    using (var plainCert = new X509Certificate2(issuerCertificate.RawData))
+                    using (var plainCert = X509CertificateLoader.LoadCertificate(issuerCertificate.RawData))
                     {
                         Assert.NotNull(plainCert);
                         VerifyCACert(plainCert, issuerCertificate.Subject, pathLengthConstraint);
@@ -285,7 +285,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
                 byte[] singleBlob = AsnUtils.ParseX509Blob(certBlob).ToArray();
                 Assert.NotNull(singleBlob);
-                var certX = new X509Certificate2(singleBlob);
+                var certX = X509CertificateLoader.LoadCertificate(singleBlob);
                 Assert.NotNull(certX);
                 Assert.AreEqual(certArray[0].RawData, singleBlob);
                 Assert.AreEqual(singleBlob, certX.RawData);

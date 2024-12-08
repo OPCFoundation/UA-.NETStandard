@@ -417,7 +417,7 @@ namespace Opc.Ua.Server
 
                 try
                 {
-                    newCert = new X509Certificate2(certificate);
+                    newCert = X509CertificateLoader.LoadCertificate(certificate);
                 }
                 catch
                 {
@@ -446,7 +446,7 @@ namespace Opc.Ua.Server
                     {
                         foreach (byte[] issuerRawCert in issuerCertificates)
                         {
-                            var newIssuerCert = new X509Certificate2(issuerRawCert);
+                            var newIssuerCert = X509CertificateLoader.LoadCertificate(issuerRawCert);
                             newIssuerCollection.Add(newIssuerCert);
                         }
                     }
@@ -480,8 +480,6 @@ namespace Opc.Ua.Server
                     {
                         // verify cert with issuer chain
                         CertificateValidator certValidator = new CertificateValidator();
-                        // TODO: why?
-                        //                        certValidator.MinimumCertificateKeySize = 1024;
                         CertificateTrustList issuerStore = new CertificateTrustList();
                         CertificateIdentifierCollection issuerCollection = new CertificateIdentifierCollection();
                         foreach (var issuerCert in newIssuerCollection)
@@ -561,7 +559,7 @@ namespace Opc.Ua.Server
                             var passwordProvider = m_configuration.SecurityConfiguration.CertificatePasswordProvider;
                             appStore.Add(updateCertificate.CertificateWithPrivateKey, passwordProvider?.GetPassword(existingCertIdentifier)).Wait();
                             // keep only track of cert without private key
-                            var certOnly = new X509Certificate2(updateCertificate.CertificateWithPrivateKey.RawData);
+                            var certOnly = X509CertificateLoader.LoadCertificate(updateCertificate.CertificateWithPrivateKey.RawData);
                             updateCertificate.CertificateWithPrivateKey.Dispose();
                             updateCertificate.CertificateWithPrivateKey = certOnly;
                         }

@@ -398,6 +398,19 @@ namespace Opc.Ua.Server
                 }
             }
         }
+        /// <summary>
+        /// The monitored items owner identity.
+        /// </summary>
+        public IUserIdentity EffectiveIdentity
+        {
+            get
+            {
+                lock (m_lock)
+                {
+                    return m_subscription?.EffectiveIdentity;
+                }
+            }
+        }
 
         /// <summary>
         /// The identifier for the item that is unique within the server.

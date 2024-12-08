@@ -193,6 +193,16 @@ namespace Opc.Ua
             m_writer.Write(buffer, offset, count);
         }
 
+#if NETSTANDARD2_1_OR_GREATER || NET6_0_OR_GREATER
+        /// <summary>
+        /// Writes raw bytes to the stream.
+        /// </summary>
+        public void WriteRawBytes(ReadOnlySpan<byte> buffer)
+        {
+            m_writer.Write(buffer);
+        }
+#endif
+
         /// <summary>
         /// Encodes a message in a buffer.
         /// </summary>

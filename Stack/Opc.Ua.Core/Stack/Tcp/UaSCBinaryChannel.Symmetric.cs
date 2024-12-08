@@ -15,6 +15,7 @@ using System.IO;
 using System.Security.Cryptography;
 using System.Text;
 using System.Diagnostics.CodeAnalysis;
+using System.Diagnostics;
 
 namespace Opc.Ua.Bindings
 {
@@ -37,19 +38,25 @@ namespace Opc.Ua.Bindings
         protected ChannelToken RenewedToken => m_renewedToken;
 
         /// <summary>
+        /// Called when the token changes
+        /// </summary>
+        protected internal Action<ChannelToken, ChannelToken> OnTokenActivated { get; set; }
+
+        /// <summary>
         /// Creates a new token.
         /// </summary>
         protected ChannelToken CreateToken()
         {
-            ChannelToken token = new ChannelToken();
+            ChannelToken token = new ChannelToken {
+                ChannelId = m_channelId,
+                TokenId = 0,
+                CreatedAt = DateTime.UtcNow,
+                CreatedAtTickCount = HiResClock.TickCount,
+                Lifetime = Quotas.SecurityTokenLifetime
+            };
 
-            token.ChannelId = m_channelId;
-            token.TokenId = 0;
-            token.CreatedAt = DateTime.UtcNow;
-            token.Lifetime = (int)Quotas.SecurityTokenLifetime;
-
-            Utils.LogInfo("ChannelId {0}: Token #{1} created. CreatedAt={2:HH:mm:ss.fff}. Lifetime={3}.",
-                Id, token.TokenId, token.CreatedAt, token.Lifetime);
+            Utils.LogInfo("ChannelId {0}: New Token created. CreatedAt={1:HH:mm:ss.fff}-{2}. Lifetime={3}.",
+                Id, token.CreatedAt, token.CreatedAtTickCount, token.Lifetime);
 
             return token;
         }
@@ -62,20 +69,27 @@ namespace Opc.Ua.Bindings
             // compute the keys for the token.
             ComputeKeys(token);
 
+            Utils.SilentDispose(m_previousToken);
             m_previousToken = m_currentToken;
             m_currentToken = token;
+            Utils.SilentDispose(m_renewedToken);
             m_renewedToken = null;
 
-            Utils.LogInfo("ChannelId {0}: Token #{1} activated. CreatedAt={2:HH:mm:ss.fff}. Lifetime={3}.", Id, token.TokenId, token.CreatedAt, token.Lifetime);
+            OnTokenActivated?.Invoke(token, m_previousToken);
+
+            Utils.LogInfo("ChannelId {0}: Token #{1} activated. CreatedAt={2:HH:mm:ss.fff}-{3}. Lifetime={4}.",
+                Id, token.TokenId, token.CreatedAt, token.CreatedAtTickCount, token.Lifetime);
         }
 
         /// <summary>
-        /// Sets the renewed token
+        /// Sets the renewed token.
         /// </summary>
         protected void SetRenewedToken(ChannelToken token)
         {
+            Utils.SilentDispose(m_renewedToken);
             m_renewedToken = token;
-            Utils.LogInfo("ChannelId {0}: Renewed Token #{1} set. CreatedAt={2:HH:mm:ss.fff}. Lifetime ={3}.", Id, token.TokenId, token.CreatedAt, token.Lifetime);
+            Utils.LogInfo("ChannelId {0}: Renewed Token #{1} set. CreatedAt={2:HH:mm:ss.fff}-{3}. Lifetime={4}.",
+                Id, token.TokenId, token.CreatedAt, token.CreatedAtTickCount, token.Lifetime);
         }
 
         /// <summary>
@@ -83,8 +97,14 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected void DiscardTokens()
         {
+            Utils.SilentDispose(m_previousToken);
             m_previousToken = null;
+            Utils.SilentDispose(m_currentToken);
             m_currentToken = null;
+            Utils.SilentDispose(m_renewedToken);
+            m_renewedToken = null;
+
+            OnTokenActivated?.Invoke(null, null);
         }
         #endregion
 
@@ -92,10 +112,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Indicates that an explicit signature is not present.
         /// </summary>        
-        private bool UseAuthenticatedEncryption
-        {
-            get; set;
-        }
+        private bool AuthenticatedEncryption => m_authenticatedEncryption;
 
         /// <summary>
         /// The byte length of the MAC (a.k.a signature) attached to each message.
@@ -112,7 +129,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected void CalculateSymmetricKeySizes()
         {
-            UseAuthenticatedEncryption = false;
+            m_authenticatedEncryption = false;
 
             switch (SecurityPolicyUri)
             {
@@ -174,7 +191,7 @@ namespace Opc.Ua.Bindings
                 case SecurityPolicies.ECC_curve25519:
                 case SecurityPolicies.ECC_curve448:
                 {
-                    UseAuthenticatedEncryption = true;
+                    m_authenticatedEncryption = true;
                     m_hmacHashSize = 16;
                     m_signatureKeySize = 32;
                     m_encryptionKeySize = 32;
@@ -203,6 +220,7 @@ namespace Opc.Ua.Bindings
                 }
             }
         }
+
         private void DeriveKeysWithPSHA(HashAlgorithmName algorithmName, byte[] secret, byte[] seed, ChannelToken token, bool isServer)
         {
             int length = m_signatureKeySize + m_encryptionKeySize + m_encryptionBlockSize;
@@ -262,14 +280,6 @@ namespace Opc.Ua.Bindings
                 token.ClientInitializationVector = iv;
             }
         }
-
-        static readonly byte[] s_HkdfClientLabel = new UTF8Encoding().GetBytes("opcua-client");
-        static readonly byte[] s_HkdfServerLabel = new UTF8Encoding().GetBytes("opcua-server");
-        static readonly byte[] s_HkdfAes128SignOnlyKeyLength = BitConverter.GetBytes((ushort)32);
-        static readonly byte[] s_HkdfAes256SignOnlyKeyLength = BitConverter.GetBytes((ushort)48);
-        static readonly byte[] s_HkdfAes128SignAndEncryptKeyLength = BitConverter.GetBytes((ushort)64);
-        static readonly byte[] s_HkdfAes256SignAndEncryptKeyLength = BitConverter.GetBytes((ushort)96);
-        static readonly byte[] s_HkdfChaCha20Poly1305KeyLength = BitConverter.GetBytes((ushort)76);
 #endif
 
         /// <summary>
@@ -286,16 +296,10 @@ namespace Opc.Ua.Bindings
 
             byte[] serverSecret = token.ServerNonce;
             byte[] clientSecret = token.ClientNonce;
-            HashAlgorithmName algorithmName = HashAlgorithmName.SHA256;
 
+            HashAlgorithmName algorithmName = HashAlgorithmName.SHA256;
             switch (SecurityPolicyUri)
             {
-                default:
-                {
-                    DeriveKeysWithPSHA(algorithmName, serverSecret, clientSecret, token, false);
-                    DeriveKeysWithPSHA(algorithmName, clientSecret, serverSecret, token, true);
-                    break;
-                }
 #if ECC_SUPPORT
                 case SecurityPolicies.ECC_nistP256:
                 case SecurityPolicies.ECC_brainpoolP256r1:
@@ -305,11 +309,13 @@ namespace Opc.Ua.Bindings
                     var serverSalt = Utils.Append(length, s_HkdfServerLabel, serverSecret, clientSecret);
                     var clientSalt = Utils.Append(length, s_HkdfClientLabel, clientSecret, serverSecret);
 
+#if DEBUG
                     Utils.LogTrace("Length={0}", Utils.ToHexString(length));
                     Utils.LogTrace("ClientSecret={0}", Utils.ToHexString(clientSecret));
                     Utils.LogTrace("ServerSecret={0}", Utils.ToHexString(clientSecret));
                     Utils.LogTrace("ServerSalt={0}", Utils.ToHexString(serverSalt));
                     Utils.LogTrace("ClientSalt={0}", Utils.ToHexString(clientSalt));
+#endif
 
                     DeriveKeysWithHKDF(algorithmName, serverSalt, token, true);
                     DeriveKeysWithHKDF(algorithmName, clientSalt, token, false);
@@ -324,11 +330,13 @@ namespace Opc.Ua.Bindings
                     var serverSalt = Utils.Append(length, s_HkdfServerLabel, serverSecret, clientSecret);
                     var clientSalt = Utils.Append(length, s_HkdfClientLabel, clientSecret, serverSecret);
 
+#if DEBUG
                     Utils.LogTrace("Length={0}", Utils.ToHexString(length));
                     Utils.LogTrace("ClientSecret={0}", Utils.ToHexString(clientSecret));
                     Utils.LogTrace("ServerSecret={0}", Utils.ToHexString(clientSecret));
                     Utils.LogTrace("ServerSalt={0}", Utils.ToHexString(serverSalt));
                     Utils.LogTrace("ClientSalt={0}", Utils.ToHexString(clientSalt));
+#endif
 
                     DeriveKeysWithHKDF(algorithmName, serverSalt, token, true);
                     DeriveKeysWithHKDF(algorithmName, clientSalt, token, false);
@@ -343,25 +351,29 @@ namespace Opc.Ua.Bindings
                     var serverSalt = Utils.Append(length, s_HkdfServerLabel, serverSecret, clientSecret);
                     var clientSalt = Utils.Append(length, s_HkdfClientLabel, clientSecret, serverSecret);
 
+#if DEBUG
                     Utils.LogTrace("Length={0}", Utils.ToHexString(length));
                     Utils.LogTrace("ClientSecret={0}", Utils.ToHexString(clientSecret));
                     Utils.LogTrace("ServerSecret={0}", Utils.ToHexString(clientSecret));
                     Utils.LogTrace("ServerSalt={0}", Utils.ToHexString(serverSalt));
                     Utils.LogTrace("ClientSalt={0}", Utils.ToHexString(clientSalt));
+#endif
 
                     DeriveKeysWithHKDF(algorithmName, serverSalt, token, true);
                     DeriveKeysWithHKDF(algorithmName, clientSalt, token, false);
                     break;
                 }
 #endif
+
                 case SecurityPolicies.Basic128Rsa15:
                 case SecurityPolicies.Basic256:
-                {
                     algorithmName = HashAlgorithmName.SHA1;
+                    goto default;
+
+                default:
                     DeriveKeysWithPSHA(algorithmName, serverSecret, clientSecret, token, false);
                     DeriveKeysWithPSHA(algorithmName, clientSecret, serverSecret, token, true);
                     break;
-                }
             }
 
             switch (SecurityPolicyUri)
@@ -377,19 +389,19 @@ namespace Opc.Ua.Bindings
                 case SecurityPolicies.ECC_brainpoolP384r1:
                 {
                     // create encryptors. 
-                    SymmetricAlgorithm AesCbcEncryptorProvider = Aes.Create();
-                    AesCbcEncryptorProvider.Mode = CipherMode.CBC;
-                    AesCbcEncryptorProvider.Padding = PaddingMode.None;
-                    AesCbcEncryptorProvider.Key = token.ClientEncryptingKey;
-                    AesCbcEncryptorProvider.IV = token.ClientInitializationVector;
-                    token.ClientEncryptor = AesCbcEncryptorProvider;
+                    SymmetricAlgorithm aesCbcEncryptorProvider = Aes.Create();
+                    aesCbcEncryptorProvider.Mode = CipherMode.CBC;
+                    aesCbcEncryptorProvider.Padding = PaddingMode.None;
+                    aesCbcEncryptorProvider.Key = token.ClientEncryptingKey;
+                    aesCbcEncryptorProvider.IV = token.ClientInitializationVector;
+                    token.ClientEncryptor = aesCbcEncryptorProvider;
 
-                    SymmetricAlgorithm AesCbcDecryptorProvider = Aes.Create();
-                    AesCbcDecryptorProvider.Mode = CipherMode.CBC;
-                    AesCbcDecryptorProvider.Padding = PaddingMode.None;
-                    AesCbcDecryptorProvider.Key = token.ServerEncryptingKey;
-                    AesCbcDecryptorProvider.IV = token.ServerInitializationVector;
-                    token.ServerEncryptor = AesCbcDecryptorProvider;
+                    SymmetricAlgorithm aesCbcDecryptorProvider = Aes.Create();
+                    aesCbcDecryptorProvider.Mode = CipherMode.CBC;
+                    aesCbcDecryptorProvider.Padding = PaddingMode.None;
+                    aesCbcDecryptorProvider.Key = token.ServerEncryptingKey;
+                    aesCbcDecryptorProvider.IV = token.ServerInitializationVector;
+                    token.ServerEncryptor = aesCbcDecryptorProvider;
                     break;
                 }
 
@@ -447,20 +459,18 @@ namespace Opc.Ua.Bindings
                     break;
                 }
             }
-
-
         }
 
         /// <summary>
         /// Secures the message using the security token.
         /// </summary>
         protected BufferCollection WriteSymmetricMessage(
-            uint messageType,
-            uint requestId,
-            ChannelToken token,
-            object messageBody,
-            bool isRequest,
-            out bool limitsExceeded)
+                    uint messageType,
+                    uint requestId,
+                    ChannelToken token,
+                    object messageBody,
+                    bool isRequest,
+                    out bool limitsExceeded)
         {
             limitsExceeded = false;
             bool success = false;
@@ -476,7 +486,7 @@ namespace Opc.Ua.Bindings
                 int headerSize = TcpMessageLimits.SymmetricHeaderSize + TcpMessageLimits.SequenceHeaderSize;
 
                 // no padding byte.
-                if (UseAuthenticatedEncryption)
+                if (AuthenticatedEncryption)
                 {
                     maxPayloadSize++;
                 }
@@ -489,7 +499,6 @@ namespace Opc.Ua.Bindings
                     maxPayloadSize);
 
                 // check for encodeable body.
-
                 if (messageBody is IEncodeable encodeable)
                 {
                     // debug code used to verify that message aborts are handled correctly.
@@ -523,6 +532,9 @@ namespace Opc.Ua.Bindings
 
                 BufferCollection chunksToSend = new BufferCollection(chunksToProcess.Capacity);
 
+#if NETSTANDARD2_1_OR_GREATER || NET6_0_OR_GREATER
+                Span<byte> paddingBuffer = stackalloc byte[EncryptionBlockSize];
+#endif
                 int messageSize = 0;
 
                 for (int ii = 0; ii < chunksToProcess.Count; ii++)
@@ -537,28 +549,24 @@ namespace Opc.Ua.Bindings
                     }
 
                     MemoryStream strm = new MemoryStream(chunkToProcess.Array, 0, SendBufferSize);
-                    BinaryEncoder encoder = new BinaryEncoder(strm, Quotas.MessageContext, false);
-
-                    try
+                    using (BinaryEncoder encoder = new BinaryEncoder(strm, Quotas.MessageContext, false))
                     {
-
                         // check if the message needs to be aborted.
                         if (MessageLimitsExceeded(isRequest, messageSize + chunkToProcess.Count - headerSize, ii + 1))
                         {
                             encoder.WriteUInt32(null, messageType | TcpMessageType.Abort);
 
                             // replace the body in the chunk with an error message.
-                            BinaryEncoder errorEncoder = new BinaryEncoder(
+                            using (BinaryEncoder errorEncoder = new BinaryEncoder(
                                 chunkToProcess.Array,
                                 chunkToProcess.Offset,
                                 chunkToProcess.Count,
-                                Quotas.MessageContext);
-
-                            WriteErrorMessageBody(errorEncoder, (isRequest) ? StatusCodes.BadRequestTooLarge : StatusCodes.BadResponseTooLarge);
-
-                            int size = errorEncoder.Close();
-                            errorEncoder.Dispose();
-                            chunkToProcess = new ArraySegment<byte>(chunkToProcess.Array, chunkToProcess.Offset, size);
+                                Quotas.MessageContext))
+                            {
+                                WriteErrorMessageBody(errorEncoder, (isRequest) ? StatusCodes.BadRequestTooLarge : StatusCodes.BadResponseTooLarge);
+                                int size = errorEncoder.Close();
+                                chunkToProcess = new ArraySegment<byte>(chunkToProcess.Array, chunkToProcess.Offset, size);
+                            }
 
                             limitsExceeded = true;
                         }
@@ -584,14 +592,16 @@ namespace Opc.Ua.Bindings
                         // calculate the padding.
                         int padding = 0;
 
-                        if (SecurityMode == MessageSecurityMode.SignAndEncrypt && !UseAuthenticatedEncryption)
+                        if (SecurityMode == MessageSecurityMode.SignAndEncrypt && !AuthenticatedEncryption)
                         {
                             // reserve one byte for the padding size.
                             count++;
 
-                            if (count % EncryptionBlockSize != 0)
+                            // use padding as helper to calc the real padding
+                            padding = count % EncryptionBlockSize;
+                            if (padding != 0)
                             {
-                                padding = EncryptionBlockSize - (count % EncryptionBlockSize);
+                                padding = EncryptionBlockSize - padding;
                             }
 
                             count += padding;
@@ -615,18 +625,29 @@ namespace Opc.Ua.Bindings
                         messageSize += chunkToProcess.Count;
 
                         // write padding.
-                        if (SecurityMode == MessageSecurityMode.SignAndEncrypt && !UseAuthenticatedEncryption)
+                        if (SecurityMode == MessageSecurityMode.SignAndEncrypt && !AuthenticatedEncryption)
                         {
-                            for (int jj = 0; jj <= padding; jj++)
+#if NETSTANDARD2_1_OR_GREATER || NET6_0_OR_GREATER
+                            if (padding > 1)
                             {
-                                encoder.WriteByte(null, (byte)padding);
+                                Span<byte> buffer = paddingBuffer.Slice(0, padding + 1);
+                                buffer.Fill((byte)padding);
+                                encoder.WriteRawBytes(buffer);
+                            }
+                            else
+#endif
+                            {
+                                for (int jj = 0; jj <= padding; jj++)
+                                {
+                                    encoder.WriteByte(null, (byte)padding);
+                                }
                             }
                         }
 
                         // calculate and write signature.
                         if (SecurityMode != MessageSecurityMode.None)
                         {
-                            if (UseAuthenticatedEncryption)
+                            if (AuthenticatedEncryption)
                             {
                                 strm.Seek(SymmetricSignatureSize, SeekOrigin.Current);
                             }
@@ -641,8 +662,8 @@ namespace Opc.Ua.Bindings
                             }
                         }
 
-                        if ((SecurityMode == MessageSecurityMode.SignAndEncrypt && !UseAuthenticatedEncryption) ||
-                            (SecurityMode != MessageSecurityMode.None && UseAuthenticatedEncryption))
+                        if ((SecurityMode == MessageSecurityMode.SignAndEncrypt && !AuthenticatedEncryption) ||
+                            (SecurityMode != MessageSecurityMode.None && AuthenticatedEncryption))
                         {
                             // encrypt the data.
                             ArraySegment<byte> dataToEncrypt = new ArraySegment<byte>(chunkToProcess.Array, TcpMessageLimits.SymmetricHeaderSize, encoder.Position - TcpMessageLimits.SymmetricHeaderSize);
@@ -651,10 +672,6 @@ namespace Opc.Ua.Bindings
 
                         // add the header into chunk.
                         chunksToSend.Add(new ArraySegment<byte>(chunkToProcess.Array, 0, encoder.Position));
-                    }
-                    finally
-                    {
-                        encoder.Dispose();
                     }
                 }
 
@@ -706,10 +723,9 @@ namespace Opc.Ua.Bindings
                 }
 
                 // check if activation of the new token should be forced.
-                if (RenewedToken != null && CurrentToken.ActivationRequired)
+                else if (RenewedToken != null && CurrentToken.ActivationRequired)
                 {
                     ActivateToken(RenewedToken);
-
                     Utils.LogInfo("ChannelId {0}: Token #{1} activated forced.", Id, CurrentToken.TokenId);
                 }
 
@@ -722,7 +738,7 @@ namespace Opc.Ua.Bindings
                 }
 
                 // find the token.
-                if (currentToken.TokenId != tokenId && PreviousToken != null && PreviousToken.TokenId != tokenId)
+                if (currentToken.TokenId != tokenId && (PreviousToken == null || PreviousToken.TokenId != tokenId))
                 {
                     throw ServiceResultException.Create(
                         StatusCodes.BadTcpSecureChannelUnknown,
@@ -744,8 +760,8 @@ namespace Opc.Ua.Bindings
                 if (token.Expired)
                 {
                     throw ServiceResultException.Create(StatusCodes.BadTcpSecureChannelUnknown,
-                        "Channel{0}: Token #{1} has expired. Lifetime={2:HH:mm:ss.fff}",
-                        Id, token.TokenId, token.CreatedAt);
+                        "Channel{0}: Token #{1} has expired. Lifetime={2:HH:mm:ss.fff}-{3}",
+                        Id, token.TokenId, token.CreatedAt, token.CreatedAtTickCount);
                 }
 
                 int headerSize = decoder.Position;
@@ -756,15 +772,14 @@ namespace Opc.Ua.Bindings
                     Decrypt(token, new ArraySegment<byte>(buffer.Array, buffer.Offset + headerSize, buffer.Count - headerSize), isRequest);
                 }
 
+                int paddingCount = 0;
                 if (SecurityMode != MessageSecurityMode.None)
                 {
+                    int signatureStart = buffer.Offset + buffer.Count - SymmetricSignatureSize;
+
                     // extract signature.
                     byte[] signature = new byte[SymmetricSignatureSize];
-
-                    for (int ii = 0; ii < SymmetricSignatureSize; ii++)
-                    {
-                        signature[ii] = buffer.Array[buffer.Offset + buffer.Count - SymmetricSignatureSize + ii];
-                    }
+                    Array.Copy(buffer.Array, signatureStart, signature, 0, signature.Length);
 
                     // verify the signature.
                     if (!Verify(token, signature, new ArraySegment<byte>(buffer.Array, buffer.Offset, buffer.Count - SymmetricSignatureSize), isRequest))
@@ -772,26 +787,24 @@ namespace Opc.Ua.Bindings
                         Utils.LogError("ChannelId {0}: Could not verify signature on message.", Id);
                         throw ServiceResultException.Create(StatusCodes.BadSecurityChecksFailed, "Could not verify the signature on the message.");
                     }
-                }
 
-                int paddingCount = 0;
-
-                if (SecurityMode == MessageSecurityMode.SignAndEncrypt)
-                {
-                    // verify padding.
-                    int paddingStart = buffer.Offset + buffer.Count - SymmetricSignatureSize - 1;
-                    paddingCount = buffer.Array[paddingStart];
-
-                    for (int ii = paddingStart - paddingCount; ii < paddingStart; ii++)
+                    if (SecurityMode == MessageSecurityMode.SignAndEncrypt)
                     {
-                        if (buffer.Array[ii] != paddingCount)
-                        {
-                            throw ServiceResultException.Create(StatusCodes.BadSecurityChecksFailed, "Could not verify the padding in the message.");
-                        }
-                    }
+                        // verify padding.
+                        int paddingStart = signatureStart - 1;
+                        paddingCount = buffer.Array[paddingStart];
 
-                    // add byte for size.
-                    paddingCount++;
+                        for (int ii = paddingStart - paddingCount; ii < paddingStart; ii++)
+                        {
+                            if (buffer.Array[ii] != paddingCount)
+                            {
+                                throw ServiceResultException.Create(StatusCodes.BadSecurityChecksFailed, "Could not verify the padding in the message.");
+                            }
+                        }
+
+                        // add byte for size.
+                        paddingCount++;
+                    }
                 }
 
                 // extract request id and sequence number.
@@ -854,12 +867,12 @@ namespace Opc.Ua.Bindings
                 case SecurityPolicies.Basic128Rsa15:
                 case SecurityPolicies.Basic256:
                 case SecurityPolicies.Basic256Sha256:
-                case SecurityPolicies.ECC_nistP384:
-                case SecurityPolicies.ECC_brainpoolP256r1:
-                case SecurityPolicies.ECC_brainpoolP384r1:
                 case SecurityPolicies.Aes128_Sha256_RsaOaep:
                 case SecurityPolicies.Aes256_Sha256_RsaPss:
                 case SecurityPolicies.ECC_nistP256:
+                case SecurityPolicies.ECC_nistP384:
+                case SecurityPolicies.ECC_brainpoolP256r1:
+                case SecurityPolicies.ECC_brainpoolP384r1:
                 {
                     return SymmetricVerify(token, signature, dataToVerify, useClientKeys);
                 }
@@ -885,16 +898,17 @@ namespace Opc.Ua.Bindings
                 case SecurityPolicies.Basic256:
                 case SecurityPolicies.Basic256Sha256:
                 case SecurityPolicies.Basic128Rsa15:
+                case SecurityPolicies.Aes128_Sha256_RsaOaep:
+                case SecurityPolicies.Aes256_Sha256_RsaPss:
                 case SecurityPolicies.ECC_nistP256:
                 case SecurityPolicies.ECC_nistP384:
                 case SecurityPolicies.ECC_brainpoolP256r1:
                 case SecurityPolicies.ECC_brainpoolP384r1:
-                case SecurityPolicies.Aes128_Sha256_RsaOaep:
-                case SecurityPolicies.Aes256_Sha256_RsaPss:
                 {
                     SymmetricEncrypt(token, dataToEncrypt, useClientKeys);
                     break;
                 }
+
 #if CURVE25519
                 case SecurityPolicies.ECC_curve25519:
                 case SecurityPolicies.ECC_curve448:
@@ -910,7 +924,6 @@ namespace Opc.Ua.Bindings
                     break;
                 }
 #endif
-                //case SecurityPolicies.Aes128_Gcm256_RsaOaep:
                 default:
                 {
                     throw new NotSupportedException(SecurityPolicyUri);
@@ -943,6 +956,7 @@ namespace Opc.Ua.Bindings
                     SymmetricDecrypt(token, dataToDecrypt, useClientKeys);
                     break;
                 }
+
 #if CURVE25519
                 case SecurityPolicies.ECC_curve25519:
                 case SecurityPolicies.ECC_curve448:
@@ -957,7 +971,7 @@ namespace Opc.Ua.Bindings
                     break;
                 }
 #endif
-                //case SecurityPolicies.Aes128_Gcm256_RsaOaep:
+
                 default:
                 {
                     throw new NotSupportedException(SecurityPolicyUri);
@@ -965,15 +979,37 @@ namespace Opc.Ua.Bindings
             }
         }
 
-
+#if NETSTANDARD2_1_OR_GREATER || NET6_0_OR_GREATER
         /// <summary>
-        /// Signs the message using SHA1 HMAC
+        /// Signs the message using HMAC.
+        /// </summary>
+        private static byte[] SymmetricSign(ChannelToken token, ReadOnlySpan<byte> dataToSign, bool useClientKeys)
+        {
+            // get HMAC object.
+            HMAC hmac = (useClientKeys) ? token.ClientHmac : token.ServerHmac;
+
+            // compute hash.
+            int hashSizeInBytes = hmac.HashSize >> 3;
+            byte[] signature = new byte[hashSizeInBytes];
+            bool result = hmac.TryComputeHash(dataToSign, signature, out int bytesWritten);
+
+            // check result
+            if (!result || bytesWritten != hashSizeInBytes)
+            {
+                ServiceResultException.Create(StatusCodes.BadSecurityChecksFailed, "The computed hash doesn't match the expected size.");
+            }
+
+            // return signature.
+            return signature;
+        }
+#else
+        /// <summary>
+        /// Signs the message using HMAC.
         /// </summary>
         private static byte[] SymmetricSign(ChannelToken token, ArraySegment<byte> dataToSign, bool useClientKeys)
         {
             // get HMAC object.
             HMAC hmac = (useClientKeys) ? token.ClientHmac : token.ServerHmac;
-
             // compute hash.
             MemoryStream istrm = new MemoryStream(dataToSign.Array, dataToSign.Offset, dataToSign.Count, false);
             byte[] signature = hmac.ComputeHash(istrm);
@@ -982,7 +1018,34 @@ namespace Opc.Ua.Bindings
             // return signature.
             return signature;
         }
+#endif
 
+#if NETSTANDARD2_1_OR_GREATER || NET6_0_OR_GREATER
+        /// <summary>
+        /// Verifies a HMAC for a message.
+        /// </summary>
+        private bool SymmetricVerify(
+            ChannelToken token,
+            ReadOnlySpan<byte> signature,
+            ReadOnlySpan<byte> dataToVerify,
+            bool useClientKeys)
+        {
+            // get HMAC object.
+            HMAC hmac = (useClientKeys) ? token.ClientHmac : token.ServerHmac;
+
+            // compute hash.
+            int hashSizeInBytes = hmac.HashSize >> 3;
+            Span<byte> computedSignature = stackalloc byte[hashSizeInBytes];
+            bool result = hmac.TryComputeHash(dataToVerify, computedSignature, out int bytesWritten);
+            Debug.Assert(bytesWritten == hashSizeInBytes);
+            // compare signatures.
+            if (!result || !computedSignature.SequenceEqual(signature))
+            {
+                string expectedSignature = Utils.ToHexString(computedSignature.ToArray());
+                string messageType = Encoding.UTF8.GetString(dataToVerify.Slice(0, 4));
+                int messageLength = BitConverter.ToInt32(dataToVerify.Slice(4));
+                string actualSignature = Utils.ToHexString(signature);
+#else
         /// <summary>
         /// Verifies a HMAC for a message.
         /// </summary>
@@ -995,31 +1058,27 @@ namespace Opc.Ua.Bindings
             // get HMAC object.
             HMAC hmac = (useClientKeys) ? token.ClientHmac : token.ServerHmac;
 
-            // compute hash.
             MemoryStream istrm = new MemoryStream(dataToVerify.Array, dataToVerify.Offset, dataToVerify.Count, false);
             byte[] computedSignature = hmac.ComputeHash(istrm);
             istrm.Dispose();
-
             // compare signatures.
-            for (int ii = 0; ii < signature.Length; ii++)
+            if (!Utils.IsEqual(computedSignature, signature))
             {
-                if (computedSignature[ii] != signature[ii])
-                {
-                    string messageType = Encoding.UTF8.GetString(dataToVerify.Array, dataToVerify.Offset, 4);
-                    int messageLength = BitConverter.ToInt32(dataToVerify.Array, dataToVerify.Offset + 4);
-                    string expectedSignature = Utils.ToHexString(computedSignature);
-                    string actualSignature = Utils.ToHexString(signature);
+                string expectedSignature = Utils.ToHexString(computedSignature);
+                string messageType = Encoding.UTF8.GetString(dataToVerify.Array, dataToVerify.Offset, 4);
+                int messageLength = BitConverter.ToInt32(dataToVerify.Array, dataToVerify.Offset + 4);
+                string actualSignature = Utils.ToHexString(signature);
+#endif
 
-                    var message = new StringBuilder();
-                    message.AppendLine("Channel{0}: Could not validate signature.");
-                    message.AppendLine("ChannelId={1}, TokenId={2}, MessageType={3}, Length={4}");
-                    message.AppendLine("ExpectedSignature={5}");
-                    message.AppendLine("ActualSignature={6}");
-                    Utils.LogError(message.ToString(), Id, token.ChannelId, token.TokenId,
-                        messageType, messageLength, expectedSignature, actualSignature);
+                var message = new StringBuilder();
+                message.AppendLine("Channel{0}: Could not validate signature.");
+                message.AppendLine("ChannelId={1}, TokenId={2}, MessageType={3}, Length={4}");
+                message.AppendLine("ExpectedSignature={5}");
+                message.AppendLine("ActualSignature={6}");
+                Utils.LogError(message.ToString(), Id, token.ChannelId, token.TokenId,
+                    messageType, messageLength, expectedSignature, actualSignature);
 
-                    return false;
-                }
+                return false;
             }
 
             return true;
@@ -1051,7 +1110,6 @@ namespace Opc.Ua.Bindings
                 {
                     throw ServiceResultException.Create(StatusCodes.BadSecurityChecksFailed, "Input data is not an even number of encryption blocks.");
                 }
-
                 encryptor.TransformBlock(blockToEncrypt, start, count, blockToEncrypt, start);
             }
         }
@@ -1086,18 +1144,6 @@ namespace Opc.Ua.Bindings
 
                 decryptor.TransformBlock(blockToDecrypt, start, count, blockToDecrypt, start);
             }
-        }
-
-        private static void ApplyChaCha20Poly1305Mask(ChannelToken token, uint lastSequenceNumber, byte[] iv)
-        {
-            iv[0] ^= (byte)((token.TokenId & 0x000000FF));
-            iv[1] ^= (byte)((token.TokenId & 0x0000FF00) >> 8);
-            iv[2] ^= (byte)((token.TokenId & 0x00FF0000) >> 16);
-            iv[3] ^= (byte)((token.TokenId & 0xFF000000) >> 24);
-            iv[4] ^= (byte)((lastSequenceNumber & 0x000000FF));
-            iv[5] ^= (byte)((lastSequenceNumber & 0x0000FF00) >> 8);
-            iv[6] ^= (byte)((lastSequenceNumber & 0x00FF0000) >> 16);
-            iv[7] ^= (byte)((lastSequenceNumber & 0xFF000000) >> 24);
         }
 
 #if CURVE25519
@@ -1344,7 +1390,29 @@ namespace Opc.Ua.Bindings
                 }
             }
         }
+
+        private static void ApplyChaCha20Poly1305Mask(ChannelToken token, uint lastSequenceNumber, byte[] iv)
+        {
+            iv[0] ^= (byte)((token.TokenId & 0x000000FF));
+            iv[1] ^= (byte)((token.TokenId & 0x0000FF00) >> 8);
+            iv[2] ^= (byte)((token.TokenId & 0x00FF0000) >> 16);
+            iv[3] ^= (byte)((token.TokenId & 0xFF000000) >> 24);
+            iv[4] ^= (byte)((lastSequenceNumber & 0x000000FF));
+            iv[5] ^= (byte)((lastSequenceNumber & 0x0000FF00) >> 8);
+            iv[6] ^= (byte)((lastSequenceNumber & 0x00FF0000) >> 16);
+            iv[7] ^= (byte)((lastSequenceNumber & 0xFF000000) >> 24);
+        }
 #endif
+        #endregion
+
+        #region Private Static Fields
+        private static readonly byte[] s_HkdfClientLabel = new UTF8Encoding().GetBytes("opcua-client");
+        private static readonly byte[] s_HkdfServerLabel = new UTF8Encoding().GetBytes("opcua-server");
+        private static readonly byte[] s_HkdfAes128SignOnlyKeyLength = BitConverter.GetBytes((ushort)32);
+        private static readonly byte[] s_HkdfAes256SignOnlyKeyLength = BitConverter.GetBytes((ushort)48);
+        private static readonly byte[] s_HkdfAes128SignAndEncryptKeyLength = BitConverter.GetBytes((ushort)64);
+        private static readonly byte[] s_HkdfAes256SignAndEncryptKeyLength = BitConverter.GetBytes((ushort)96);
+        private static readonly byte[] s_HkdfChaCha20Poly1305KeyLength = BitConverter.GetBytes((ushort)76);
         #endregion
 
         #region Private Fields
@@ -1355,6 +1423,7 @@ namespace Opc.Ua.Bindings
         private int m_signatureKeySize;
         private int m_encryptionKeySize;
         private int m_encryptionBlockSize;
+        private bool m_authenticatedEncryption;
         #endregion
     }
 }

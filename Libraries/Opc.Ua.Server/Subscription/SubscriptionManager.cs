@@ -1223,11 +1223,11 @@ namespace Opc.Ua.Server
                     }
 
                     // get the identity of the current or last owner
-                    UserIdentityToken ownerIdentity = subscription.OwnerIdentity;
+                    UserIdentityToken ownerIdentity = subscription.EffectiveIdentity.GetIdentityToken();
 
                     // Validate the identity of the user who owns/owned the subscription
                     // is the same as the new owner.
-                    bool validIdentity = Utils.IsEqualUserIdentity(ownerIdentity, context.Session.IdentityToken);
+                    bool validIdentity = Utils.IsEqualUserIdentity(ownerIdentity, context.Session.EffectiveIdentity.GetIdentityToken());
 
                     // Test if anonymous user is using a
                     // secure session using Sign or SignAndEncrypt

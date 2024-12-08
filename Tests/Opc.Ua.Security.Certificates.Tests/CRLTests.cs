@@ -174,7 +174,7 @@ namespace Opc.Ua.Security.Certificates.Tests
                 Assert.AreEqual(2, x509Crl.CrlExtensions.Count);
             }
 
-            using (var issuerPubKey = new X509Certificate2(m_issuerCert.RawData))
+            using (var issuerPubKey = X509CertificateLoader.LoadCertificate(m_issuerCert.RawData))
             {
                 Assert.True(x509Crl.VerifySignature(issuerPubKey, true));
             }
@@ -219,7 +219,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             Assert.AreEqual(serial, x509Crl.RevokedCertificates[0].UserCertificate);
             Assert.AreEqual(serstring, x509Crl.RevokedCertificates[1].SerialNumber);
             Assert.AreEqual(2, x509Crl.CrlExtensions.Count);
-            using (var issuerPubKey = new X509Certificate2(m_issuerCert.RawData))
+            using (var issuerPubKey = X509CertificateLoader.LoadCertificate(m_issuerCert.RawData))
             {
                 Assert.True(x509Crl.VerifySignature(issuerPubKey, true));
             }

@@ -856,6 +856,13 @@ namespace Opc.Ua.Configuration
         }
 
         /// <inheritdoc/>
+        public IApplicationConfigurationBuilderServerOptions SetHttpsMutualTls(bool mutualTlsEnabeld)
+        {
+            ApplicationConfiguration.ServerConfiguration.HttpsMutualTls = mutualTlsEnabeld;
+            return this;
+        }
+
+        /// <inheritdoc/>
         public IApplicationConfigurationBuilderClientOptions SetDefaultSessionTimeout(int defaultSessionTimeout)
         {
             ApplicationConfiguration.ClientConfiguration.DefaultSessionTimeout = defaultSessionTimeout;
