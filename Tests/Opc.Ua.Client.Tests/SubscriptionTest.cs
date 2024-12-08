@@ -479,33 +479,54 @@ namespace Opc.Ua.Client.Tests
         [Test, Combinatorial, Order(350), Explicit]
         public Task ReconnectWithSavedSessionSecretsSync(
             [Values(SecurityPolicies.None,
-            SecurityPolicies.Basic256Sha256,
-            SecurityPolicies.ECC_brainpoolP256r1,
-            SecurityPolicies.ECC_brainpoolP384r1,
-            SecurityPolicies.ECC_brainpoolP256r1,
-            SecurityPolicies.ECC_nistP384)] string securityPolicy,
+#if ECC_SUPPORT
+                SecurityPolicies.ECC_nistP256,
+                SecurityPolicies.ECC_nistP384,
+                SecurityPolicies.ECC_brainpoolP256r1,
+                SecurityPolicies.ECC_brainpoolP384r1,
+#endif
+                SecurityPolicies.Basic256Sha256)] string securityPolicy,
             [Values(true, false)] bool anonymous,
             [Values(true, false)] bool sequentialPublishing,
             [Values(true, false)] bool sendInitialValues)
             => ReconnectWithSavedSessionSecretsAsync(securityPolicy, anonymous, sequentialPublishing, sendInitialValues, false);
+
+#if ECC_SUPPORT
+        /// <summary>
+        /// Open a session on a channel, then reconnect (activate)
+        /// the same session on a new channel with saved session secrets.
+        /// Use only asnc methods. Test the ECC profiles.
+        /// </summary>
+        [Test, Combinatorial, Order(351), Explicit]
+        public Task ReconnectWithSavedSessionSecretsOnlyECCAsync(
+            [Values(
+                SecurityPolicies.ECC_nistP256,
+                SecurityPolicies.ECC_nistP384,
+                SecurityPolicies.ECC_brainpoolP256r1,
+                SecurityPolicies.ECC_brainpoolP384r1)] string securityPolicy,
+            [Values(true, false)] bool anonymous,
+            [Values(true, false)] bool sequentialPublishing,
+            [Values(true, false)] bool sendInitialValues)
+            => ReconnectWithSavedSessionSecretsAsync(securityPolicy, anonymous, sequentialPublishing, sendInitialValues, true);
+#endif
 
         /// <summary>
         /// Open a session on a channel, then reconnect (activate)
         /// the same session on a new channel with saved session secrets.
         /// Use only asnc methods.
         /// </summary>
-        [Test, Combinatorial, Order(351)]
+        [Test, Combinatorial, Order(352)]
         public Task ReconnectWithSavedSessionSecretsOnlyAsync(
             [Values(SecurityPolicies.None,
-            SecurityPolicies.Basic256Sha256,
-            SecurityPolicies.ECC_brainpoolP256r1,
-            SecurityPolicies.ECC_brainpoolP384r1,
-            SecurityPolicies.ECC_brainpoolP256r1,
-            SecurityPolicies.ECC_nistP384)] string securityPolicy,
+#if ECC_SUPPORT
+                SecurityPolicies.ECC_nistP256,
+#endif
+                SecurityPolicies.Basic256Sha256)] string securityPolicy,
             [Values(true, false)] bool anonymous,
             [Values(true, false)] bool sequentialPublishing,
             [Values(true, false)] bool sendInitialValues)
             => ReconnectWithSavedSessionSecretsAsync(securityPolicy, anonymous, sequentialPublishing, sendInitialValues, true);
+
 
         public async Task ReconnectWithSavedSessionSecretsAsync(string securityPolicy, bool anonymous, bool sequentialPublishing, bool sendInitialValues, bool asyncTest)
         {
