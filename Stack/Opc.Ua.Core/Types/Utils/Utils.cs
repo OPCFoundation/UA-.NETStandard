@@ -13,21 +13,21 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Text;
-using System.Xml;
+using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.Globalization;
-using System.Security.Cryptography.X509Certificates;
-using System.Reflection;
-using System.Runtime.Serialization;
 using System.IO;
 using System.Linq;
-using System.Threading.Tasks;
-using System.Diagnostics;
-using System.Security.Cryptography;
 using System.Net;
-using System.Collections.ObjectModel;
-using Opc.Ua.Security.Certificates;
+using System.Reflection;
 using System.Runtime.InteropServices;
+using System.Runtime.Serialization;
+using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
+using System.Text;
+using System.Threading.Tasks;
+using System.Xml;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua
 {
@@ -161,6 +161,16 @@ namespace Opc.Ua
         {
             return url.StartsWith(Utils.UriSchemeHttps, StringComparison.Ordinal) ||
                 url.StartsWith(Utils.UriSchemeOpcHttps, StringComparison.Ordinal);
+        }
+
+        /// <summary>
+        /// Returns <c>true</c> if the url starts with http, opc.https or https.
+        /// </summary>
+        /// <param name="url">The url</param>
+        public static bool IsUriHttpRelatedScheme(string url)
+        {
+            return url.StartsWith(Utils.UriSchemeHttps, StringComparison.Ordinal) ||
+                 IsUriHttpsScheme(url);
         }
         #endregion
 
@@ -1265,12 +1275,32 @@ namespace Opc.Ua
         /// </summary>
         public static string EscapeUri(string uri)
         {
-            if (!String.IsNullOrWhiteSpace(uri))
+            if (!string.IsNullOrWhiteSpace(uri))
             {
-                var builder = new UriBuilder(uri.Replace(";", "%3b"));
-                return builder.Uri.AbsoluteUri;
-            }
+                // always use back compat: for not well formed Uri, fall back to legacy formatting behavior - see #2793, #2826
+                // problem with Uri.TryCreate(uri.Replace(";", "%3b"), UriKind.Absolute, out Uri validUri);
+                // -> uppercase letters will later be lowercase (and therefore the uri will later be non-matching)
+                var buffer = new StringBuilder();
+                foreach (char ch in uri)
+                {
+                    switch (ch)
+                    {
+                        case ';':
+                        case '%':
+                        {
+                            buffer.AppendFormat(CultureInfo.InvariantCulture, "%{0:X2}", Convert.ToInt16(ch));
+                            break;
+                        }
 
+                        default:
+                        {
+                            buffer.Append(ch);
+                            break;
+                        }
+                    }
+                }
+                return buffer.ToString();
+            }
             return String.Empty;
         }
 
@@ -1524,12 +1554,34 @@ namespace Opc.Ua
         /// <summary>
         /// Converts a buffer to a hexadecimal string.
         /// </summary>
+#if NETSTANDARD2_1_OR_GREATER || NET6_0_OR_GREATER
         public static string ToHexString(byte[] buffer, bool invertEndian = false)
         {
             if (buffer == null || buffer.Length == 0)
             {
                 return String.Empty;
             }
+
+            return ToHexString(new ReadOnlySpan<byte>(buffer), invertEndian);
+        }
+
+        /// <summary>
+        /// Converts a buffer to a hexadecimal string.
+        /// </summary>
+        public static string ToHexString(ReadOnlySpan<byte> buffer, bool invertEndian = false)
+        {
+            if (buffer.Length == 0)
+            {
+                return String.Empty;
+            }
+#else
+        public static string ToHexString(byte[] buffer, bool invertEndian = false)
+        {
+            if (buffer == null || buffer.Length == 0)
+            {
+                return String.Empty;
+            }
+#endif
 
 #if NET6_0_OR_GREATER
             if (!invertEndian)
@@ -2850,6 +2902,39 @@ namespace Opc.Ua
             return certificateChain;
         }
 
+
+        /// <summary>
+        /// Creates a DER blob from a X509Certificate2Collection.
+        /// </summary>
+        /// <param name="certificates">The certificates to be returned as raw data.</param>
+        /// <returns>
+        /// A DER blob containing zero or more certificates.
+        /// </returns>
+        public static byte[] CreateCertificateChainBlob(X509Certificate2Collection certificates)
+        {
+            if (certificates == null || certificates.Count == 0)
+            {
+                return Array.Empty<byte>();
+            }
+
+            int totalSize = 0;
+
+            foreach (X509Certificate2 cert in certificates)
+            {
+                totalSize += cert.RawData.Length;
+            }
+
+            byte[] blobData = new byte[totalSize];
+            int offset = 0;
+
+            foreach (X509Certificate2 cert in certificates)
+            {
+                Array.Copy(cert.RawData, 0, blobData, offset, cert.RawData.Length);
+                offset += cert.RawData.Length;
+            }
+
+            return blobData;
+        }
         /// <summary>
         /// Compare Nonce for equality.
         /// </summary>
@@ -2958,8 +3043,10 @@ namespace Opc.Ua
         {
             if (secret == null) throw new ArgumentNullException(nameof(secret));
             // create the hmac.
-            HMACSHA1 hmac = new HMACSHA1(secret);
-            return PSHA(hmac, label, data, offset, length);
+            using (HMACSHA1 hmac = new HMACSHA1(secret))
+            {
+                return PSHA(hmac, label, data, offset, length);
+            }
         }
 
         /// <summary>
@@ -2969,9 +3056,31 @@ namespace Opc.Ua
         {
             if (secret == null) throw new ArgumentNullException(nameof(secret));
             // create the hmac.
-            HMACSHA256 hmac = new HMACSHA256(secret);
+            using (HMACSHA256 hmac = new HMACSHA256(secret))
+            {
+                return PSHA(hmac, label, data, offset, length);
+            }
+        }
+
+        /// <summary>
+        /// Generates a Pseudo random sequence of bits using the P_SHA1 alhorithm.
+        /// </summary>
+        [System.Diagnostics.CodeAnalysis.SuppressMessage(
+            "Security", "CA5350:Do Not Use Weak Cryptographic Algorithms",
+            Justification = "SHA1 is needed for deprecated security profiles.")]
+        public static byte[] PSHA1(HMACSHA1 hmac, string label, byte[] data, int offset, int length)
+        {
             return PSHA(hmac, label, data, offset, length);
         }
+
+        /// <summary>
+        /// Generates a Pseudo random sequence of bits using the P_SHA256 alhorithm.
+        /// </summary>
+        public static byte[] PSHA256(HMACSHA256 hmac, string label, byte[] data, int offset, int length)
+        {
+            return PSHA(hmac, label, data, offset, length);
+        }
+
 
         /// <summary>
         /// Generates a Pseudo random sequence of bits using the HMAC algorithm.
@@ -3021,7 +3130,6 @@ namespace Opc.Ua
             byte[] output = new byte[length];
 
             int position = 0;
-
             do
             {
                 byte[] hash = hmac.ComputeHash(prfSeed);
