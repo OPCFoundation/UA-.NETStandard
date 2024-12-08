@@ -118,7 +118,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     CertificateStoreType.X509Store,
                     storePath
                 );
-            using (var publicKey = X509CertificateLoader.LoadCertificate(appCertificate.RawData))
+            using (var publicKey = new X509Certificate2(appCertificate.RawData))
             {
                 Assert.NotNull(publicKey);
                 Assert.False(publicKey.HasPrivateKey);
@@ -163,7 +163,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 certificateStoreIdentifier, password
                 );
 
-            using (var publicKey = X509CertificateLoader.LoadCertificate(appCertificate.RawData))
+            using (var publicKey = new X509Certificate2(appCertificate.RawData))
             {
                 Assert.NotNull(publicKey);
                 Assert.False(publicKey.HasPrivateKey);

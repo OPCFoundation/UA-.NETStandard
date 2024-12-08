@@ -11,11 +11,9 @@
 */
 
 using System;
-using System.Net;
 using System.Net.Sockets;
 using System.Security.Cryptography.X509Certificates;
 using Microsoft.Extensions.Logging;
-using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Bindings
 {
@@ -33,10 +31,26 @@ namespace Opc.Ua.Bindings
             ITcpChannelListener listener,
             BufferManager bufferManager,
             ChannelQuotas quotas,
-            CertificateTypesProvider serverCertificateTypeProvider,
+            X509Certificate2 serverCertificate,
             EndpointDescriptionCollection endpoints)
         :
-            base(contextId, bufferManager, quotas, serverCertificateTypeProvider, endpoints, MessageSecurityMode.None, SecurityPolicies.None)
+            this(contextId, listener, bufferManager, quotas, serverCertificate, null, endpoints)
+        {
+        }
+
+        /// <summary>
+        /// Attaches the object to an existing socket.
+        /// </summary>
+        public TcpListenerChannel(
+            string contextId,
+            ITcpChannelListener listener,
+            BufferManager bufferManager,
+            ChannelQuotas quotas,
+            X509Certificate2 serverCertificate,
+            X509Certificate2Collection serverCertificateChain,
+            EndpointDescriptionCollection endpoints)
+        :
+            base(contextId, bufferManager, quotas, serverCertificate, serverCertificateChain, endpoints, MessageSecurityMode.None, SecurityPolicies.None)
         {
             m_listener = listener;
         }
@@ -253,18 +267,6 @@ namespace Opc.Ua.Bindings
 
                 if (close)
                 {
-                    // mark the RemoteAddress as potential problematic if Basic128Rsa15
-                    if ((SecurityPolicyUri == SecurityPolicies.Basic128Rsa15) &&
-                        (reason.StatusCode == StatusCodes.BadSecurityChecksFailed || reason.StatusCode == StatusCodes.BadTcpMessageTypeInvalid))
-                    {
-                        var tcpTransportListener = m_listener as TcpTransportListener;
-                        if (tcpTransportListener != null)
-                        {
-                            tcpTransportListener.MarkAsPotentialProblematic
-                                (((IPEndPoint)Socket.RemoteEndpoint).Address);
-                        }
-                    }
-
                     // close channel immediately.
                     ChannelFaulted();
                 }

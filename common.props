@@ -7,6 +7,7 @@
     <Copyright>Copyright © 2004-2024 OPC Foundation, Inc</Copyright>
     <Company>OPC Foundation</Company>
     <Authors>OPC Foundation</Authors>
+    <NoWarn>NU5125;CA2254;CA1307</NoWarn>
     <NeutralLanguage>en-US</NeutralLanguage>
     <HighEntropyVA>true</HighEntropyVA>
     <IsPackable>false</IsPackable>

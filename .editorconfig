@@ -342,9 +342,6 @@ dotnet_diagnostic.CA1819.severity                                             = 
 # CA1721: The property name is confusing given the existence of another method with the same name.
 dotnet_diagnostic.CA1721.severity                                             = silent
 
-# CA2014: Do not use stackalloc in loops
-dotnet_diagnostic.CA2014.severity                                             = error
-
 # exclude generated code
 [**/Generated/*.cs]
 generated_code = true

@@ -347,7 +347,7 @@ namespace Opc.Ua.Server
                         issuerCertificates = new X509Certificate2Collection();
                         foreach (var cert in trustList.IssuerCertificates)
                         {
-                            issuerCertificates.Add(X509CertificateLoader.LoadCertificate(cert));
+                            issuerCertificates.Add(new X509Certificate2(cert));
                         }
                     }
                     if ((masks & TrustListMasks.IssuerCrls) != 0)
@@ -363,7 +363,7 @@ namespace Opc.Ua.Server
                         trustedCertificates = new X509Certificate2Collection();
                         foreach (var cert in trustList.TrustedCertificates)
                         {
-                            trustedCertificates.Add(X509CertificateLoader.LoadCertificate(cert));
+                            trustedCertificates.Add(new X509Certificate2(cert));
                         }
                     }
                     if ((masks & TrustListMasks.TrustedCrls) != 0)
@@ -461,7 +461,7 @@ namespace Opc.Ua.Server
                     X509Certificate2 cert = null;
                     try
                     {
-                        cert = X509CertificateLoader.LoadCertificate(certificate);
+                        cert = new X509Certificate2(certificate);
                     }
                     catch
                     {
@@ -471,7 +471,7 @@ namespace Opc.Ua.Server
                         result = StatusCodes.BadCertificateInvalid;
                     }
 
-                    var storeIdentifier = isTrustedCertificate ? m_trustedStore : m_issuerStore;
+                    var storeIdentifier = isTrustedCertificate? m_trustedStore : m_issuerStore;
                     ICertificateStore store = storeIdentifier.OpenStore();
                     try
                     {
@@ -539,7 +539,7 @@ namespace Opc.Ua.Server
                                 foreach (var cert in certCollection)
                                 {
                                     if (X509Utils.CompareDistinguishedName(cert.SubjectName, crl.IssuerName) &&
-                                   crl.VerifySignature(cert, false))
+                                        crl.VerifySignature(cert, false))
                                     {
                                         crlsToDelete.Add(crl);
                                         break;

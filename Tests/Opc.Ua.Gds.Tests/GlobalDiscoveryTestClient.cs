@@ -92,11 +92,6 @@ namespace Opc.Ua.Gds.Tests
                 AdminPassword = "demo"
             };
 
-            CertificateIdentifierCollection applicationCerts = ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
-                "CN=Global Discovery Test Client, O=OPC Foundation, DC=localhost",
-                CertificateStoreType.Directory,
-                pkiRoot);
-
             // build the application configuration.
             Configuration = await m_application
                 .Build(
@@ -106,7 +101,7 @@ namespace Opc.Ua.Gds.Tests
                 .SetDefaultSessionTimeout(600000)
                 .SetMinSubscriptionLifetime(10000)
                 .AddSecurityConfiguration(
-                    applicationCerts,
+                    "CN=Global Discovery Test Client, O=OPC Foundation, DC=localhost",
                     pkiRoot)
                 .SetAutoAcceptUntrustedCertificates(true)
                 .SetRejectSHA1SignedCertificates(false)
@@ -118,7 +113,7 @@ namespace Opc.Ua.Gds.Tests
                 .Create().ConfigureAwait(false);
 #endif
             // check the application certificate.
-            bool haveAppCertificate = await m_application.CheckApplicationInstanceCertificates(true).ConfigureAwait(false);
+            bool haveAppCertificate = await m_application.CheckApplicationInstanceCertificate(true, 0).ConfigureAwait(false);
             if (!haveAppCertificate)
             {
                 throw new Exception("Application instance certificate invalid!");
@@ -211,7 +206,7 @@ namespace Opc.Ua.Gds.Tests
         #region Private Methods
         private async Task ApplyNewApplicationInstanceCertificateAsync(byte[] certificate, byte[] privateKey)
         {
-            using (var x509 = X509CertificateLoader.LoadCertificate(certificate))
+            using (var x509 = new X509Certificate2(certificate))
             {
                 var certWithPrivateKey = CertificateFactory.CreateCertificateWithPEMPrivateKey(x509, privateKey);
                 m_client.Configuration.SecurityConfiguration.ApplicationCertificate = new CertificateIdentifier(certWithPrivateKey);

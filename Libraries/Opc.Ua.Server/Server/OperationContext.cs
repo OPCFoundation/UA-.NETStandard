@@ -127,7 +127,6 @@ namespace Opc.Ua.Server
             if (monitoredItem == null) throw new ArgumentNullException(nameof(monitoredItem));
             
             m_channelContext = null;
-            m_identity = monitoredItem.EffectiveIdentity;
             m_session = monitoredItem.Session;
 
             if (m_session != null)

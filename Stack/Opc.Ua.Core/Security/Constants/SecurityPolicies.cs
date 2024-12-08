@@ -13,7 +13,6 @@
 using System;
 using System.Collections.Generic;
 using System.Reflection;
-using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 
@@ -61,89 +60,20 @@ namespace Opc.Ua
         public const string Aes256_Sha256_RsaPss = BaseUri + "Aes256_Sha256_RsaPss";
 
         /// <summary>
-        /// The URI for the ECC_nistP256 security policy.
-        /// </summary>
-        public const string ECC_nistP256 = BaseUri + "ECC_nistP256";
-
-        /// <summary>
-        /// The URI for the ECC_nistP384 security policy.
-        /// </summary>
-        public const string ECC_nistP384 = BaseUri + "ECC_nistP384";
-
-        /// <summary>
-        /// The URI for the ECC_brainpoolP256r1 security policy.
-        /// </summary>
-        public const string ECC_brainpoolP256r1 = BaseUri + "ECC_brainpoolP256r1";
-
-        /// <summary>
-        /// The URI for the ECC_brainpoolP384r1 security policy.
-        /// </summary>
-        public const string ECC_brainpoolP384r1 = BaseUri + "ECC_brainpoolP384r1";
-
-        /// <summary>
-        /// The URI for the ECC_curve25519 security policy.
-        /// </summary>
-        public const string ECC_curve25519 = BaseUri + "ECC_curve25519";
-
-        /// <summary>
-        /// The URI for the ECC_curve448 security policy.
-        /// </summary>
-        public const string ECC_curve448 = BaseUri + "ECC_curve448";
-
-        /// <summary>
         /// The URI for the Https security policy.
         /// </summary>
         public const string Https = BaseUri + "Https";
         #endregion
 
         #region Static Methods
-        private static bool IsPlatformSupportedName(string name)
+        private static bool IsPlatformSupportedUri(string name)
         {
-            // all RSA
-            if (name.Equals(nameof(None), StringComparison.Ordinal) ||
-                name.Equals(nameof(Basic256), StringComparison.Ordinal) ||
-                name.Equals(nameof(Basic128Rsa15), StringComparison.Ordinal) ||
-                name.Equals(nameof(Basic256Sha256), StringComparison.Ordinal) ||
-                name.Equals(nameof(Aes128_Sha256_RsaOaep), StringComparison.Ordinal))
-            {
-                return true;
-            }
-
             if (name.Equals(nameof(Aes256_Sha256_RsaPss), StringComparison.Ordinal) &&
-                RsaUtils.IsSupportingRSAPssSign.Value)
+                !RsaUtils.IsSupportingRSAPssSign.Value)
             {
-                return true;
+                return false;
             }
-
-#if ECC_SUPPORT
-            // ECC policy
-            if (name.Equals(nameof(ECC_nistP256), StringComparison.Ordinal))
-            {
-                return Utils.IsSupportedCertificateType(ObjectTypeIds.EccNistP256ApplicationCertificateType);
-            }
-            if (name.Equals(nameof(ECC_nistP384), StringComparison.Ordinal))
-            {
-                return Utils.IsSupportedCertificateType(ObjectTypeIds.EccNistP384ApplicationCertificateType);
-            }
-            if (name.Equals(nameof(ECC_brainpoolP256r1), StringComparison.Ordinal))
-            {
-                return Utils.IsSupportedCertificateType(ObjectTypeIds.EccBrainpoolP256r1ApplicationCertificateType);
-            }
-            if (name.Equals(nameof(ECC_brainpoolP384r1), StringComparison.Ordinal))
-            {
-                return Utils.IsSupportedCertificateType(ObjectTypeIds.EccBrainpoolP384r1ApplicationCertificateType);
-            }
-
-            // ECC policy
-            if (name.Equals(nameof(ECC_curve25519), StringComparison.Ordinal) ||
-                name.Equals(nameof(ECC_curve448), StringComparison.Ordinal))
-            {
-#if CURVE25519
-                return true;
-#endif
-            }
-#endif
-            return false;
+            return true;
         }
 
         /// <summary>
@@ -154,7 +84,7 @@ namespace Opc.Ua
             FieldInfo[] fields = typeof(SecurityPolicies).GetFields(BindingFlags.Public | BindingFlags.Static);
             foreach (FieldInfo field in fields)
             {
-                if (field.Name == displayName && IsPlatformSupportedName(field.Name))
+                if (field.Name == displayName && IsPlatformSupportedUri(field.Name))
                 {
                     return (string)field.GetValue(typeof(SecurityPolicies));
                 }
@@ -173,37 +103,13 @@ namespace Opc.Ua
             foreach (FieldInfo field in fields)
             {
                 if (policyUri == (string)field.GetValue(typeof(SecurityPolicies)) &&
-                    IsPlatformSupportedName(field.Name))
+                    IsPlatformSupportedUri(field.Name))
                 {
                     return field.Name;
                 }
             }
 
             return null;
-        }
-
-        /// <summary>
-        /// If a security policy is known and spelled according to the spec.
-        /// </summary>
-        /// <remarks>
-        /// This functions returns only information if a security policy Uri is
-        /// valid and existing according to the spec.
-        /// It does not provide the information if the policy is supported
-        /// by the application or by the platform.
-        /// </remarks>
-        public static bool IsValidSecurityPolicyUri(string policyUri)
-        {
-            FieldInfo[] fields = typeof(SecurityPolicies).GetFields(BindingFlags.Public | BindingFlags.Static);
-
-            foreach (FieldInfo field in fields)
-            {
-                if (policyUri == (string)field.GetValue(typeof(SecurityPolicies)))
-                {
-                    return true;
-                }
-            }
-
-            return false;
         }
 
         /// <summary>
@@ -214,10 +120,10 @@ namespace Opc.Ua
             FieldInfo[] fields = typeof(SecurityPolicies).GetFields(BindingFlags.Public | BindingFlags.Static);
             var names = new List<string>();
 
-            // skip base Uri, ignore Https
+            // skip base Uri
             for (int ii = 1; ii < fields.Length - 1; ii++)
             {
-                if (IsPlatformSupportedName(fields[ii].Name))
+                if (IsPlatformSupportedUri(fields[ii].Name))
                 {
                     names.Add(fields[ii].Name);
                 }
@@ -227,28 +133,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Returns the deprecated RSA security policy uri.
-        /// </summary>
-        public static string[] GetDefaultDeprecatedUris()
-        {
-            string[] defaultNames = {
-                nameof(Basic128Rsa15),
-                nameof(Basic256)
-            };
-            var defaultUris = new List<string>();
-            foreach (var name in defaultNames)
-            {
-                var uri = GetUri(name);
-                if (uri != null)
-                {
-                    defaultUris.Add(uri);
-                }
-            }
-            return defaultUris.ToArray();
-        }
-
-        /// <summary>
-        /// Returns the default RSA security policy uri.
+        /// Returns the default security policy uri.
         /// </summary>
         public static string[] GetDefaultUris()
         {
@@ -256,29 +141,6 @@ namespace Opc.Ua
                 nameof(Basic256Sha256),
                 nameof(Aes128_Sha256_RsaOaep),
                 nameof(Aes256_Sha256_RsaPss) };
-            var defaultUris = new List<string>();
-            foreach (var name in defaultNames)
-            {
-                var uri = GetUri(name);
-                if (uri != null)
-                {
-                    defaultUris.Add(uri);
-                }
-            }
-            return defaultUris.ToArray();
-        }
-
-        /// <summary>
-        /// Returns the default ECC security policy uri.
-        /// </summary>
-        public static string[] GetDefaultEccUris()
-        {
-            string[] defaultNames = {
-                nameof(ECC_nistP256),
-                nameof(ECC_nistP384),
-                nameof(ECC_brainpoolP256r1),
-                nameof(ECC_brainpoolP384r1)
-                };
             var defaultUris = new List<string>();
             foreach (var name in defaultNames)
             {
@@ -339,21 +201,11 @@ namespace Opc.Ua
                     break;
                 }
 
-                case SecurityPolicies.ECC_nistP256:
-                case SecurityPolicies.ECC_nistP384:
-                case SecurityPolicies.ECC_brainpoolP256r1:
-                case SecurityPolicies.ECC_brainpoolP384r1:
-                {
-                    return encryptedData;
-                }
-
                 case SecurityPolicies.None:
                 {
                     break;
                 }
 
-                case SecurityPolicies.ECC_curve25519:
-                case SecurityPolicies.ECC_curve448:
                 default:
                 {
                     throw ServiceResultException.Create(
@@ -415,10 +267,6 @@ namespace Opc.Ua
                     break;
                 }
 
-                case SecurityPolicies.ECC_nistP256:
-                case SecurityPolicies.ECC_nistP384:
-                case SecurityPolicies.ECC_brainpoolP256r1:
-                case SecurityPolicies.ECC_brainpoolP384r1:
                 case SecurityPolicies.None:
                 {
                     if (String.IsNullOrEmpty(dataToDecrypt.Algorithm))
@@ -428,8 +276,6 @@ namespace Opc.Ua
                     break;
                 }
 
-                case SecurityPolicies.ECC_curve25519:
-                case SecurityPolicies.ECC_curve448:
                 default:
                 {
                     throw ServiceResultException.Create(
@@ -490,24 +336,6 @@ namespace Opc.Ua
                     break;
                 }
 
-#if ECC_SUPPORT
-                case SecurityPolicies.ECC_nistP256:
-                case SecurityPolicies.ECC_brainpoolP256r1:
-                {
-                    signatureData.Algorithm = null;
-                    signatureData.Signature = EccUtils.Sign(new ArraySegment<byte>(dataToSign), certificate, HashAlgorithmName.SHA256);
-                    break;
-                }
-
-                case SecurityPolicies.ECC_nistP384:
-                case SecurityPolicies.ECC_brainpoolP384r1:
-                {
-                    signatureData.Algorithm = null;
-                    signatureData.Signature = EccUtils.Sign(new ArraySegment<byte>(dataToSign), certificate, HashAlgorithmName.SHA384);
-                    break;
-                }
-#endif
-
                 case SecurityPolicies.None:
                 {
                     signatureData.Algorithm = null;
@@ -515,8 +343,6 @@ namespace Opc.Ua
                     break;
                 }
 
-                case SecurityPolicies.ECC_curve25519:
-                case SecurityPolicies.ECC_curve448:
                 default:
                 {
                     throw ServiceResultException.Create(
@@ -592,27 +418,13 @@ namespace Opc.Ua
                         signature.Algorithm,
                         SecurityAlgorithms.RsaPssSha256);
                 }
-#if ECC_SUPPORT
-                case SecurityPolicies.ECC_nistP256:
-                case SecurityPolicies.ECC_brainpoolP256r1:
-                {
-                    return EccUtils.Verify(new ArraySegment<byte>(dataToVerify), signature.Signature, certificate, HashAlgorithmName.SHA256);
-                }
 
-                case SecurityPolicies.ECC_nistP384:
-                case SecurityPolicies.ECC_brainpoolP384r1:
-                {
-                    return EccUtils.Verify(new ArraySegment<byte>(dataToVerify), signature.Signature, certificate, HashAlgorithmName.SHA384);
-                }
-#endif
                 // always accept signatures if security is not used.
                 case SecurityPolicies.None:
                 {
                     return true;
                 }
 
-                case SecurityPolicies.ECC_curve25519:
-                case SecurityPolicies.ECC_curve448:
                 default:
                 {
                     throw ServiceResultException.Create(

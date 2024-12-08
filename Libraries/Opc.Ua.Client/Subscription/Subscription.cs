@@ -161,7 +161,7 @@ namespace Opc.Ua.Client
             m_sequentialPublishing = false;
             m_lastSequenceNumberProcessed = 0;
             m_messageCache = new LinkedList<NotificationMessage>();
-            m_monitoredItems = new Dictionary<uint, MonitoredItem>();
+            m_monitoredItems = new SortedDictionary<uint, MonitoredItem>();
             m_deletedItems = new List<MonitoredItem>();
             m_messageWorkerEvent = new AsyncAutoResetEvent();
             m_messageWorkerCts = null;
@@ -1664,33 +1664,6 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Tells the server to refresh all conditions being monitored by the subscription for a specific
-        /// monitoredItem for events.
-        /// </summary>
-        public bool ConditionRefresh2(uint monitoredItemId)
-        {
-            VerifySubscriptionState(true);
-
-            try
-            {
-                object[] inputArguments = new object[] { m_id, monitoredItemId };
-
-                m_session.Call(
-                    ObjectTypeIds.ConditionType,
-                    MethodIds.ConditionType_ConditionRefresh2,
-                    inputArguments);
-
-                return true;
-            }
-            catch (ServiceResultException sre)
-            {
-                Utils.LogError(sre, "SubscriptionId {0}: Item {1} Failed to call ConditionRefresh2 on server",
-                    m_id, monitoredItemId);
-            }
-            return false;
-        }
-
-        /// <summary>
         /// Call the ResendData method on the server for this subscription.
         /// </summary>
         public bool ResendData()
@@ -1849,22 +1822,17 @@ namespace Opc.Ua.Client
             // stop the publish timer.
             lock (m_cache)
             {
-                int oldKeepAliveInterval = m_keepAliveInterval;
-                m_keepAliveInterval = CalculateKeepAliveInterval();
-
-                //don`t create new KeepAliveTimer if interval did not change and timers are still running
-                if (oldKeepAliveInterval == m_keepAliveInterval
-                    && m_publishTimer != null
-                    && m_messageWorkerTask != null
-                    && !m_messageWorkerTask.IsCompleted)
-                {
-                    return;
-                }
-
                 Utils.SilentDispose(m_publishTimer);
                 m_publishTimer = null;
+
                 Interlocked.Exchange(ref m_lastNotificationTime, DateTime.UtcNow.Ticks);
                 m_lastNotificationTickCount = HiResClock.TickCount;
+                m_keepAliveInterval = (int)(Math.Min(m_currentPublishingInterval * (m_currentKeepAliveCount + 1), Int32.MaxValue));
+                if (m_keepAliveInterval < kMinKeepAliveTimerInterval)
+                {
+                    m_keepAliveInterval = (int)(Math.Min(m_publishingInterval * (m_keepAliveCount + 1), Int32.MaxValue));
+                    m_keepAliveInterval = Math.Max(kMinKeepAliveTimerInterval, m_keepAliveInterval);
+                }
 #if NET6_0_OR_GREATER
                 var publishTimer = new PeriodicTimer(TimeSpan.FromMilliseconds(m_keepAliveInterval));
                 _ = Task.Run(() => OnKeepAliveAsync(publishTimer));
@@ -2052,10 +2020,9 @@ namespace Opc.Ua.Client
             {
                 m_currentPublishingEnabled = m_publishingEnabled;
                 m_transferId = m_id = subscriptionId;
+                StartKeepAliveTimer();
                 m_changeMask |= SubscriptionChangeMask.Created;
             }
-
-            StartKeepAliveTimer();
 
             if (m_keepAliveCount != revisedKeepAliveCount)
             {
@@ -2084,21 +2051,6 @@ namespace Opc.Ua.Client
             {
                 Utils.LogInfo("For subscription {0}, the priority was set to 0.", Id);
             }
-        }
-
-        /// <summary>
-        /// Calculate the KeepAliveInterval based on <see cref="m_currentPublishingInterval"/> and <see cref="m_currentKeepAliveCount"/>
-        /// </summary>
-        /// <returns></returns>
-        private int CalculateKeepAliveInterval()
-        {
-            int keepAliveInterval = (int)(Math.Min(m_currentPublishingInterval * (m_currentKeepAliveCount + 1), Int32.MaxValue));
-            if (keepAliveInterval < kMinKeepAliveTimerInterval)
-            {
-                keepAliveInterval = (int)(Math.Min(m_publishingInterval * (m_keepAliveCount + 1), Int32.MaxValue));
-                keepAliveInterval = Math.Max(kMinKeepAliveTimerInterval, keepAliveInterval);
-            }
-            return keepAliveInterval;
         }
 
         /// <summary>
@@ -2627,7 +2579,7 @@ namespace Opc.Ua.Client
             lock (m_cache)
             {
                 itemsToModify = new List<MonitoredItem>();
-                var updatedMonitoredItems = new Dictionary<uint, MonitoredItem>();
+                var updatedMonitoredItems = new SortedDictionary<uint, MonitoredItem>();
                 foreach (MonitoredItem monitoredItem in m_monitoredItems.Values)
                 {
                     var index = serverHandles.FindIndex(handle => handle == monitoredItem.Status.Id);
@@ -2851,7 +2803,7 @@ namespace Opc.Ua.Client
         private IList<uint> m_availableSequenceNumbers;
         private int m_maxMessageCount;
         private bool m_republishAfterTransfer;
-        private Dictionary<uint, MonitoredItem> m_monitoredItems;
+        private SortedDictionary<uint, MonitoredItem> m_monitoredItems;
         private bool m_disableMonitoredItemCache;
         private FastDataChangeNotificationEventHandler m_fastDataChangeCallback;
         private FastEventNotificationEventHandler m_fastEventCallback;

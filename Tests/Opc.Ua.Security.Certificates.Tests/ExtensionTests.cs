@@ -56,7 +56,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             CertificateAsset certAsset
             )
         {
-            using (var x509Cert = X509CertificateLoader.LoadCertificate(certAsset.Cert))
+            using (var x509Cert = new X509Certificate2(certAsset.Cert))
             {
                 Assert.NotNull(x509Cert);
                 TestContext.Out.WriteLine("CertificateAsset:");

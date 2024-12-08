@@ -368,8 +368,6 @@ namespace Opc.Ua.Server
                     requireEncryption = true;
                 }
 
-                X509Certificate2Collection clientIssuerCertificates = null;
-
                 // validate client application instance certificate.
                 X509Certificate2 parsedClientCertificate = null;
 
@@ -379,15 +377,6 @@ namespace Opc.Ua.Server
                     {
                         X509Certificate2Collection clientCertificateChain = Utils.ParseCertificateChainBlob(clientCertificate);
                         parsedClientCertificate = clientCertificateChain[0];
-
-                        if (clientCertificateChain.Count > 1)
-                        {
-                            clientIssuerCertificates = new X509Certificate2Collection();
-                            for (int i = 1; i < clientCertificateChain.Count; i++)
-                            {
-                                clientIssuerCertificates.Add(clientCertificateChain[i]);
-                            }
-                        }
 
                         if (context.SecurityPolicyUri != SecurityPolicies.None)
                         {
@@ -434,19 +423,15 @@ namespace Opc.Ua.Server
                     }
                 }
 
-                // load the certificate for the security profile
-                X509Certificate2 instanceCertificate = InstanceCertificateTypesProvider.GetInstanceCertificate(context.SecurityPolicyUri);
-
                 // create the session.
                 session = ServerInternal.SessionManager.CreateSession(
                     context,
-                    instanceCertificate,
+                    requireEncryption ? InstanceCertificate : null,
                     sessionName,
                     clientNonce,
                     clientDescription,
                     endpointUrl,
                     parsedClientCertificate,
-                    clientIssuerCertificates,
                     requestedSessionTimeout,
                     maxResponseMessageSize,
                     out sessionId,
@@ -463,7 +448,7 @@ namespace Opc.Ua.Server
                             EndpointUrl = new Uri(endpointUrl)
                         };
 
-                        CertificateValidator.ValidateDomains(instanceCertificate, configuredEndpoint, true);
+                        CertificateValidator.ValidateDomains(InstanceCertificate, configuredEndpoint, true);
                     }
                     catch (ServiceResultException sre) when (sre.StatusCode == StatusCodes.BadCertificateHostNameInvalid)
                     {
@@ -472,27 +457,28 @@ namespace Opc.Ua.Server
                     }
                 }
 
-#if ECC_SUPPORT 
-                var parameters = ExtensionObject.ToEncodeable(requestHeader.AdditionalHeader) as AdditionalParametersType;
-
-                if (parameters != null)
-                {
-                    parameters = CreateSessionProcessAdditionalParameters(session, parameters);
-                }
-#endif
                 lock (m_lock)
                 {
                     // return the application instance certificate for the server.
                     if (requireEncryption)
                     {
                         // check if complete chain should be sent.
-                        if (InstanceCertificateTypesProvider.SendCertificateChain)
+                        if (Configuration.SecurityConfiguration.SendCertificateChain &&
+                            InstanceCertificateChain != null &&
+                            InstanceCertificateChain.Count > 1)
                         {
-                            serverCertificate = InstanceCertificateTypesProvider.LoadCertificateChainRaw(instanceCertificate);
+                            List<byte> serverCertificateChain = new List<byte>();
+
+                            for (int i = 0; i < InstanceCertificateChain.Count; i++)
+                            {
+                                serverCertificateChain.AddRange(InstanceCertificateChain[i].RawData);
+                            }
+
+                            serverCertificate = serverCertificateChain.ToArray();
                         }
                         else
                         {
-                            serverCertificate = instanceCertificate.RawData;
+                            serverCertificate = InstanceCertificate.RawData;
                         }
                     }
 
@@ -509,7 +495,7 @@ namespace Opc.Ua.Server
                     if (parsedClientCertificate != null && clientNonce != null)
                     {
                         byte[] dataToSign = Utils.Append(parsedClientCertificate.RawData, clientNonce);
-                        serverSignature = SecurityPolicies.Sign(instanceCertificate, context.SecurityPolicyUri, dataToSign);
+                        serverSignature = SecurityPolicies.Sign(InstanceCertificate, context.SecurityPolicyUri, dataToSign);
                     }
                 }
 
@@ -524,16 +510,7 @@ namespace Opc.Ua.Server
                 // report audit for successful create session
                 ServerInternal.ReportAuditCreateSessionEvent(context?.AuditEntryId, session, revisedSessionTimeout);
 
-                ResponseHeader responseHeader = CreateResponse(requestHeader, StatusCodes.Good);
-
-#if ECC_SUPPORT 
-                if (parameters != null)
-                {
-                    responseHeader.AdditionalHeader = new ExtensionObject(parameters);
-                }
-#endif
-
-                return responseHeader;
+                return CreateResponse(requestHeader, StatusCodes.Good);
             }
             catch (ServiceResultException e)
             {
@@ -566,68 +543,6 @@ namespace Opc.Ua.Server
                 OnRequestComplete(context);
             }
         }
-
-#if ECC_SUPPORT
-        /// <summary>
-        /// Process additional parameters during the ECC session creation and set the session's UserToken security policy
-        /// </summary>
-        /// <param name="session">The session</param>
-        /// <param name="parameters">The additional parameters for the session</param>
-        /// <returns>An AdditionalParametersType object containing the processed parameters</returns>
-        protected virtual AdditionalParametersType CreateSessionProcessAdditionalParameters(Session session, AdditionalParametersType parameters)
-        {
-            AdditionalParametersType response = null;
-
-            if (parameters != null && parameters.Parameters != null)
-            {
-                response = new AdditionalParametersType();
-
-                foreach (var ii in parameters.Parameters)
-                {
-                    if (ii.Key == "ECDHPolicyUri")
-                    {
-                        var policyUri = ii.Value.ToString();
-
-                        if (EccUtils.IsEccPolicy(policyUri))
-                        {
-                            session.SetEccUserTokenSecurityPolicy(policyUri);
-                            var key = session.GetNewEccKey();
-                            response.Parameters.Add(new KeyValuePair() { Key = "ECDHKey", Value = new ExtensionObject(key) });
-                        }
-                        else
-                        {
-                            response.Parameters.Add(new KeyValuePair() { Key = "ECDHKey", Value = StatusCodes.BadSecurityPolicyRejected });
-                        }
-                    }
-                }
-            }
-
-            return response;
-        }
-
-        /// <summary>
-        /// Process additional parameters during ECC session activation 
-        /// </summary>
-        /// <param name="session">The session</param>
-        /// <param name="parameters">The additional parameters for the session</param>
-        /// <returns>An AdditionalParametersType object containing the processed parameters</returns>
-        protected virtual AdditionalParametersType ActivateSessionProcessAdditionalParameters(Session session, AdditionalParametersType parameters)
-        {
-            AdditionalParametersType response = null;
-
-            var key = session.GetNewEccKey();
-
-            if (key != null)
-            {
-                response = new AdditionalParametersType();
-                response.Parameters.Add(new KeyValuePair() { Key = "ECDHKey", Value = new ExtensionObject(key) });
-            }
-
-            return response;
-        }
-
-#endif
-
 
         /// <summary>
         /// Invokes the ActivateSession service.
@@ -736,26 +651,13 @@ namespace Opc.Ua.Server
                     // TBD - call Node Manager and Subscription Manager.
                 }
 
-                Session session = ServerInternal.SessionManager.GetSession(requestHeader.AuthenticationToken);
-#if ECC_SUPPORT
-                var parameters = ExtensionObject.ToEncodeable(requestHeader.AdditionalHeader) as AdditionalParametersType;
-                parameters = ActivateSessionProcessAdditionalParameters(session, parameters);
-#endif
-
                 Utils.LogInfo("Server - SESSION ACTIVATED.");
 
                 // report the audit event for session activate
+                Session session = ServerInternal.SessionManager.GetSession(requestHeader.AuthenticationToken);
                 ServerInternal.ReportAuditActivateSessionEvent(context?.AuditEntryId, session, softwareCertificates);
 
-                ResponseHeader responseHeader = CreateResponse(requestHeader, StatusCodes.Good);
-
-#if ECC_SUPPORT
-                if (parameters != null)
-                {
-                    responseHeader.AdditionalHeader = new ExtensionObject(parameters);
-                }
-#endif
-                return responseHeader;
+                return CreateResponse(requestHeader, StatusCodes.Good);
             }
             catch (ServiceResultException e)
             {
@@ -2303,9 +2205,9 @@ namespace Opc.Ua.Server
                 OnRequestComplete(context);
             }
         }
-#endregion
+        #endregion
 
-#region Public Methods used by the Host Process
+        #region Public Methods used by the Host Process
         /// <summary>
         /// The state object associated with the server.
         /// It provides the shared components for the Server.
@@ -2356,7 +2258,7 @@ namespace Opc.Ua.Server
             var registrationCertificateValidator = new CertificateValidationEventHandler(RegistrationValidator_CertificateValidation);
             configuration.CertificateValidator = new CertificateValidator();
             configuration.CertificateValidator.CertificateValidation += registrationCertificateValidator;
-            configuration.CertificateValidator.UpdateAsync(configuration.SecurityConfiguration).GetAwaiter().GetResult();
+            configuration.CertificateValidator.Update(configuration.SecurityConfiguration).GetAwaiter().GetResult();
 
             try
             {
@@ -2394,12 +2296,11 @@ namespace Opc.Ua.Server
                                 requestHeader.Timestamp = DateTime.UtcNow;
 
                                 // create the client.
-                                var instanceCertificate = InstanceCertificateTypesProvider.GetInstanceCertificate(null);
                                 client = RegistrationClient.Create(
                                     configuration,
                                     endpoint.Description,
                                     endpoint.Configuration,
-                                    instanceCertificate);
+                                    base.InstanceCertificate);
 
                                 client.OperationTimeout = 10000;
 
@@ -2426,7 +2327,7 @@ namespace Opc.Ua.Server
                                 {
                                     client.RegisterServer(requestHeader, m_registrationInfo);
                                 }
-
+                                
                                 m_registeredWithDiscoveryServer = m_registrationInfo.IsOnline;
                                 return true;
                             }
@@ -2556,9 +2457,9 @@ namespace Opc.Ua.Server
                 Utils.LogError(e, "Unexpected exception handling registration timer.");
             }
         }
-#endregion
+        #endregion
 
-#region Protected Members used for Request Processing
+        #region Protected Members used for Request Processing
         /// <summary>
         /// The synchronization object.
         /// </summary>
@@ -2814,9 +2715,9 @@ namespace Opc.Ua.Server
                 m_serverInternal.RequestManager.RequestCompleted(context);
             }
         }
-#endregion
+        #endregion
 
-#region Protected Members used for Initialization
+        #region Protected Members used for Initialization
         /// <summary>
         /// Raised when the configuration changes.
         /// </summary>
@@ -2858,7 +2759,7 @@ namespace Opc.Ua.Server
                 Configuration.SecurityConfiguration.TrustedPeerCertificates = configuration.SecurityConfiguration.TrustedPeerCertificates;
                 Configuration.SecurityConfiguration.RejectedCertificateStore = configuration.SecurityConfiguration.RejectedCertificateStore;
 
-                Configuration.CertificateValidator.UpdateAsync(Configuration.SecurityConfiguration).Wait();
+                Configuration.CertificateValidator.Update(Configuration.SecurityConfiguration).Wait();
 
                 // update trace configuration.
                 Configuration.TraceConfiguration = configuration.TraceConfiguration;
@@ -2955,7 +2856,8 @@ namespace Opc.Ua.Server
                         configuration.ServerConfiguration.BaseAddresses,
                         serverDescription,
                         configuration.ServerConfiguration.SecurityPolicies,
-                        InstanceCertificateTypesProvider
+                        InstanceCertificate,
+                        InstanceCertificateChain
                         );
                     endpoints.AddRange(endpointsForHost);
                 }
@@ -3002,16 +2904,13 @@ namespace Opc.Ua.Server
                 {
                     Utils.LogInfo(TraceMasks.StartStop, "Server - Start application {0}.", configuration.ApplicationName);
 
-                    // Setup the minimum nonce length
-                    Nonce.SetMinNonceValue((uint)configuration.SecurityConfiguration.NonceLength);
-
                     // create the datastore for the instance.
                     m_serverInternal = new ServerInternalData(
                         ServerProperties,
                         configuration,
                         MessageContext,
                         new CertificateValidator(),
-                        InstanceCertificateTypesProvider);
+                        InstanceCertificate);
 
                     // create the manager responsible for providing localized string resources.                    
                     Utils.LogInfo(TraceMasks.StartStop, "Server - CreateResourceManager.");
@@ -3183,7 +3082,7 @@ namespace Opc.Ua.Server
             // attempt graceful shutdown the server.
             try
             {
-
+                
                 if (m_maxRegistrationInterval > 0 && m_registeredWithDiscoveryServer)
                 {
                     // unregister from Discovery Server if registered before
@@ -3446,7 +3345,7 @@ namespace Opc.Ua.Server
         {
             m_nodeManagerFactories.Remove(nodeManagerFactory);
         }
-#endregion
+        #endregion
 
         #region Private Methods
         /// <summary>
@@ -3468,9 +3367,9 @@ namespace Opc.Ua.Server
 
         #region Private Properties
         private OperationLimitsState OperationLimits => ServerInternal.ServerObject.ServerCapabilities.OperationLimits;
-#endregion
+        #endregion
 
-#region Private Fields
+        #region Private Fields
         private readonly object m_lock = new object();
         private readonly object m_registrationLock = new object();
         private ServerInternalData m_serverInternal;

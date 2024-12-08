@@ -13,23 +13,21 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
-using System.Diagnostics;
+using System.Text;
+using System.Xml;
 using System.Globalization;
+using System.Security.Cryptography.X509Certificates;
+using System.Reflection;
+using System.Runtime.Serialization;
 using System.IO;
 using System.Linq;
-using System.Net;
-using System.Reflection;
-using System.Runtime.InteropServices;
-using System.Runtime.Serialization;
-using System.Security.Cryptography;
-using System.Security.Cryptography.X509Certificates;
-using System.Text;
 using System.Threading.Tasks;
-using System.Xml;
+using System.Diagnostics;
+using System.Security.Cryptography;
+using System.Net;
+using System.Collections.ObjectModel;
 using Opc.Ua.Security.Certificates;
-
-using NewNonceImplementation = Opc.Ua.Nonce;
+using System.Runtime.InteropServices;
 
 namespace Opc.Ua
 {
@@ -163,16 +161,6 @@ namespace Opc.Ua
         {
             return url.StartsWith(Utils.UriSchemeHttps, StringComparison.Ordinal) ||
                 url.StartsWith(Utils.UriSchemeOpcHttps, StringComparison.Ordinal);
-        }
-
-        /// <summary>
-        /// Returns <c>true</c> if the url starts with http, opc.https or https.
-        /// </summary>
-        /// <param name="url">The url</param>
-        public static bool IsUriHttpRelatedScheme(string url)
-        {
-            return url.StartsWith(Utils.UriSchemeHttps, StringComparison.Ordinal) ||
-                 IsUriHttpsScheme(url);
         }
         #endregion
 
@@ -1277,32 +1265,12 @@ namespace Opc.Ua
         /// </summary>
         public static string EscapeUri(string uri)
         {
-            if (!string.IsNullOrWhiteSpace(uri))
+            if (!String.IsNullOrWhiteSpace(uri))
             {
-                // always use back compat: for not well formed Uri, fall back to legacy formatting behavior - see #2793, #2826
-                // problem with Uri.TryCreate(uri.Replace(";", "%3b"), UriKind.Absolute, out Uri validUri);
-                // -> uppercase letters will later be lowercase (and therefore the uri will later be non-matching)
-                var buffer = new StringBuilder();
-                foreach (char ch in uri)
-                {
-                    switch (ch)
-                    {
-                        case ';':
-                        case '%':
-                        {
-                            buffer.AppendFormat(CultureInfo.InvariantCulture, "%{0:X2}", Convert.ToInt16(ch));
-                            break;
-                        }
-
-                        default:
-                        {
-                            buffer.Append(ch);
-                            break;
-                        }
-                    }
-                }
-                return buffer.ToString();
+                var builder = new UriBuilder(uri.Replace(";", "%3b"));
+                return builder.Uri.AbsoluteUri;
             }
+
             return String.Empty;
         }
 
@@ -1556,34 +1524,12 @@ namespace Opc.Ua
         /// <summary>
         /// Converts a buffer to a hexadecimal string.
         /// </summary>
-#if NETSTANDARD2_1_OR_GREATER || NET6_0_OR_GREATER
         public static string ToHexString(byte[] buffer, bool invertEndian = false)
         {
             if (buffer == null || buffer.Length == 0)
             {
                 return String.Empty;
             }
-
-            return ToHexString(new ReadOnlySpan<byte>(buffer), invertEndian);
-        }
-
-        /// <summary>
-        /// Converts a buffer to a hexadecimal string.
-        /// </summary>
-        public static string ToHexString(ReadOnlySpan<byte> buffer, bool invertEndian = false)
-        {
-            if (buffer.Length == 0)
-            {
-                return String.Empty;
-            }
-#else
-        public static string ToHexString(byte[] buffer, bool invertEndian = false)
-        {
-            if (buffer == null || buffer.Length == 0)
-            {
-                return String.Empty;
-            }
-#endif
 
 #if NET6_0_OR_GREATER
             if (!invertEndian)
@@ -2904,88 +2850,101 @@ namespace Opc.Ua
             return certificateChain;
         }
 
-
-        /// <summary>
-        /// Creates a DER blob from a X509Certificate2Collection.
-        /// </summary>
-        /// <param name="certificates">The certificates to be returned as raw data.</param>
-        /// <returns>
-        /// A DER blob containing zero or more certificates.
-        /// </returns>
-        public static byte[] CreateCertificateChainBlob(X509Certificate2Collection certificates)
-        {
-            if (certificates == null || certificates.Count == 0)
-            {
-                return Array.Empty<byte>();
-            }
-
-            int totalSize = 0;
-
-            foreach (X509Certificate2 cert in certificates)
-            {
-                totalSize += cert.RawData.Length;
-            }
-
-            byte[] blobData = new byte[totalSize];
-            int offset = 0;
-
-            foreach (X509Certificate2 cert in certificates)
-            {
-                Array.Copy(cert.RawData, 0, blobData, offset, cert.RawData.Length);
-                offset += cert.RawData.Length;
-            }
-
-            return blobData;
-        }
         /// <summary>
         /// Compare Nonce for equality.
         /// </summary>
-        [Obsolete("Use equivalent methods from the Opc.Ua.Nonce class")]
         public static bool CompareNonce(byte[] a, byte[] b)
         {
-            return NewNonceImplementation.CompareNonce(a, b);
+            if (a == null || b == null) return false;
+            if (a.Length != b.Length) return false;
+
+            byte result = 0;
+            for (int i = 0; i < a.Length; i++)
+                result |= (byte)(a[i] ^ b[i]);
+
+            return result == 0;
         }
 
         /// <summary>
         /// Cryptographic Nonce helper functions.
         /// </summary>
-        [Obsolete("Use equivalent methods from the Opc.Ua.Nonce class")]
         public static class Nonce
         {
+            static readonly RandomNumberGenerator m_rng = RandomNumberGenerator.Create();
+
             /// <summary>
             /// Generates a Nonce for cryptographic functions.
             /// </summary>
-            [Obsolete("Use equivalent CreateRandomNonceData method from the Opc.Ua.Nonce class")]
             public static byte[] CreateNonce(uint length)
             {
-                return NewNonceImplementation.CreateRandomNonceData(length);
+                byte[] randomBytes = new byte[length];
+                m_rng.GetBytes(randomBytes);
+                return randomBytes;
             }
 
             /// <summary>
             /// Returns the length of the symmetric encryption key for a security policy.
             /// </summary>
-            [Obsolete("Use equivalent method from the Opc.Ua.Nonce class")]
             public static uint GetNonceLength(string securityPolicyUri)
             {
-                return NewNonceImplementation.GetNonceLength(securityPolicyUri);
+                switch (securityPolicyUri)
+                {
+                    case SecurityPolicies.Basic128Rsa15:
+                    {
+                        return 16;
+                    }
+
+                    case SecurityPolicies.Basic256:
+                    case SecurityPolicies.Basic256Sha256:
+                    case SecurityPolicies.Aes128_Sha256_RsaOaep:
+                    case SecurityPolicies.Aes256_Sha256_RsaPss:
+                    {
+                        return 32;
+                    }
+
+                    default:
+                    case SecurityPolicies.None:
+                    {
+                        return 0;
+                    }
+                }
             }
 
             /// <summary>
             /// Validates the nonce for a message security mode and security policy.
             /// </summary>
-            [Obsolete("Use equivalent method from the Opc.Ua.Nonce class")]
             public static bool ValidateNonce(byte[] nonce, MessageSecurityMode securityMode, string securityPolicyUri)
             {
-                return NewNonceImplementation.ValidateNonce(nonce, securityMode, GetNonceLength(securityPolicyUri));
+                return ValidateNonce(nonce, securityMode, GetNonceLength(securityPolicyUri));
             }
 
             /// <summary>
             /// Validates the nonce for a message security mode and a minimum length.
             /// </summary>
-            [Obsolete("Use equivalent method from the Opc.Ua.Nonce class")]
             public static bool ValidateNonce(byte[] nonce, MessageSecurityMode securityMode, uint minNonceLength)
             {
-                return NewNonceImplementation.ValidateNonce(nonce,securityMode, minNonceLength);
+                // no nonce needed for no security.
+                if (securityMode == MessageSecurityMode.None)
+                {
+                    return true;
+                }
+
+                // check the length.
+                if (nonce == null || nonce.Length < minNonceLength)
+                {
+                    return false;
+                }
+
+                // try to catch programming errors by rejecting nonces with all zeros.
+                for (int ii = 0; ii < nonce.Length; ii++)
+                {
+                    if (nonce[ii] != 0)
+                    {
+                        return true;
+                    }
+                }
+
+                return false;
             }
         }
 
@@ -2999,10 +2958,8 @@ namespace Opc.Ua
         {
             if (secret == null) throw new ArgumentNullException(nameof(secret));
             // create the hmac.
-            using (HMACSHA1 hmac = new HMACSHA1(secret))
-            {
-                return PSHA(hmac, label, data, offset, length);
-            }
+            HMACSHA1 hmac = new HMACSHA1(secret);
+            return PSHA(hmac, label, data, offset, length);
         }
 
         /// <summary>
@@ -3012,36 +2969,14 @@ namespace Opc.Ua
         {
             if (secret == null) throw new ArgumentNullException(nameof(secret));
             // create the hmac.
-            using (HMACSHA256 hmac = new HMACSHA256(secret))
-            {
-                return PSHA(hmac, label, data, offset, length);
-            }
-        }
-
-        /// <summary>
-        /// Generates a Pseudo random sequence of bits using the P_SHA1 alhorithm.
-        /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage(
-            "Security", "CA5350:Do Not Use Weak Cryptographic Algorithms",
-            Justification = "SHA1 is needed for deprecated security profiles.")]
-        public static byte[] PSHA1(HMACSHA1 hmac, string label, byte[] data, int offset, int length)
-        {
+            HMACSHA256 hmac = new HMACSHA256(secret);
             return PSHA(hmac, label, data, offset, length);
         }
-
-        /// <summary>
-        /// Generates a Pseudo random sequence of bits using the P_SHA256 alhorithm.
-        /// </summary>
-        public static byte[] PSHA256(HMACSHA256 hmac, string label, byte[] data, int offset, int length)
-        {
-            return PSHA(hmac, label, data, offset, length);
-        }
-
 
         /// <summary>
         /// Generates a Pseudo random sequence of bits using the HMAC algorithm.
         /// </summary>
-        public static byte[] PSHA(HMAC hmac, string label, byte[] data, int offset, int length)
+        private static byte[] PSHA(HMAC hmac, string label, byte[] data, int offset, int length)
         {
             if (hmac == null) throw new ArgumentNullException(nameof(hmac));
             if (offset < 0) throw new ArgumentOutOfRangeException(nameof(offset));
@@ -3086,6 +3021,7 @@ namespace Opc.Ua
             byte[] output = new byte[length];
 
             int position = 0;
+
             do
             {
                 byte[] hash = hmac.ComputeHash(prfSeed);
@@ -3116,32 +3052,6 @@ namespace Opc.Ua
             return output;
         }
 
-
-        /// <summary>
-        /// Creates an HMAC.
-        /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Security",
-            "CA5350:Do Not Use Weak Cryptographic Algorithms", Justification = "<Pending>")]
-        public static HMAC CreateHMAC(HashAlgorithmName algorithmName, byte[] secret)
-        {
-            if (algorithmName == HashAlgorithmName.SHA256)
-            {
-                return new HMACSHA256(secret);
-            }
-
-            if (algorithmName == HashAlgorithmName.SHA384)
-            {
-                return new HMACSHA384(secret);
-            }
-
-            if (algorithmName == HashAlgorithmName.SHA1)
-            {
-                return new HMACSHA1(secret);
-            }
-
-            throw new NotImplementedException();
-        }
-
         /// <summary>
         /// Checks if the target is in the list. Comparisons ignore case.
         /// </summary>
@@ -3164,75 +3074,6 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Returns if the certificate type is supported on the platform OS.
-        /// </summary>
-        /// <param name="certificateType">The certificate type to check.</param>
-        public static bool IsSupportedCertificateType(NodeId certificateType)
-        {
-            if (certificateType.Identifier is uint identifier)
-            {
-                switch (identifier)
-                {
-#if ECC_SUPPORT
-                    case ObjectTypes.EccApplicationCertificateType:
-                        return true;
-                    case ObjectTypes.EccBrainpoolP256r1ApplicationCertificateType:
-                        return s_eccCurveSupportCache[ECCurve.NamedCurves.brainpoolP256r1.Oid.FriendlyName].Value;
-                    case ObjectTypes.EccBrainpoolP384r1ApplicationCertificateType:
-                        return s_eccCurveSupportCache[ECCurve.NamedCurves.brainpoolP384r1.Oid.FriendlyName].Value;
-                    case ObjectTypes.EccNistP256ApplicationCertificateType:
-                        return s_eccCurveSupportCache[ECCurve.NamedCurves.nistP256.Oid.FriendlyName].Value;
-                    case ObjectTypes.EccNistP384ApplicationCertificateType:
-                        return s_eccCurveSupportCache[ECCurve.NamedCurves.nistP384.Oid.FriendlyName].Value;
-                    //case ObjectTypes.EccCurve25519ApplicationCertificateType:
-                    //case ObjectTypes.EccCurve448ApplicationCertificateType:
-#endif
-                    case ObjectTypes.ApplicationCertificateType:
-                    case ObjectTypes.RsaMinApplicationCertificateType:
-                    case ObjectTypes.RsaSha256ApplicationCertificateType:
-                    case ObjectTypes.HttpsCertificateType:
-                        return true;
-                }
-            }
-            return false;
-        }
-#if ECC_SUPPORT
-        /// <summary>
-        /// Check if known curve is supported by platform
-        /// </summary>
-        /// <param name="eCCurve"></param>
-        private static bool IsCurveSupported(ECCurve eCCurve)
-        {
-            try
-            {
-                // Create a ECDsa object and generate a new keypair on the given curve
-                using (ECDsa eCDsa = ECDsa.Create(eCCurve))
-                {
-                    ECParameters parameters = eCDsa.ExportParameters(false);
-                    return parameters.Q.X != null && parameters.Q.Y != null;
-                }
-            }
-            catch (Exception ex) when (
-                ex is PlatformNotSupportedException ||
-                ex is ArgumentException ||
-                ex is CryptographicException)
-            {
-                return false;
-            }
-        }
-
-        /// <summary>
-        /// Lazy helper for checking ECC eliptic curve support for running OS
-        /// </summary>
-        private static readonly Dictionary<string, Lazy<bool>> s_eccCurveSupportCache = new Dictionary<string, Lazy<bool>>{
-            { ECCurve.NamedCurves.nistP256.Oid.FriendlyName, new Lazy<bool>(() => IsCurveSupported(ECCurve.NamedCurves.nistP256)) },
-            { ECCurve.NamedCurves.nistP384.Oid.FriendlyName, new Lazy<bool>(() => IsCurveSupported(ECCurve.NamedCurves.nistP384)) },
-            { ECCurve.NamedCurves.brainpoolP256r1.Oid.FriendlyName, new Lazy<bool>(() => IsCurveSupported(ECCurve.NamedCurves.brainpoolP256r1)) },
-            { ECCurve.NamedCurves.brainpoolP384r1.Oid.FriendlyName, new Lazy<bool>(() => IsCurveSupported(ECCurve.NamedCurves.brainpoolP384r1)) },
-        };
-#endif
-
-        /// <summary>
         /// Lazy helper to allow runtime check for Mono.
         /// </summary>
         private static readonly Lazy<bool> s_isRunningOnMonoValue = new Lazy<bool>(() => {
@@ -3247,6 +3088,6 @@ namespace Opc.Ua
         {
             return s_isRunningOnMonoValue.Value;
         }
-#endregion
+        #endregion
     }
 }

@@ -59,7 +59,7 @@ Download and install the [OPC UA Compliance Test Tool](https://opcfoundation.org
 Note: Access to the UACTT is granted to OPC Foundation Corporate Members.
 
 ### UACTT sample configuration
-A sample configuration for the UACTT Version [1.04.9.398](https://opcfoundation.org/developer-tools/certification-test-tools/opc-ua-compliance-test-tool-uactt/) can be found in [UAReferenceServer.ctt.xml](./UAReferenceServer.ctt.xml). Originally the reference server was certified only against the **Standard UA Server** profile, the **Method Server Facet** and the **DataAccess Server Facet**, in addition to all security related profiles. During release testing all Conformance Units should be enabled / checked. 
+A sample configuration for the UACTT Version [1.04.9.398](https://opcfoundation.org/developer-tools/certification-test-tools/opc-ua-compliance-test-tool-uactt/) can be found in [UAReferenceServer.ctt.xml](../UAReferenceServer.ctt.xml). Originally the reference server was certified only against the **Standard UA Server** profile, the **Method Server Facet** and the **DataAccess Server Facet**, in addition to all security related profiles. During release testing all Conformance Units should be enabled / checked. 
 
 ### Enabling Alarms & Conditions
 

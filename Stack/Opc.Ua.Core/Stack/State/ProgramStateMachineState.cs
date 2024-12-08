@@ -118,11 +118,11 @@ namespace Opc.Ua
             { Methods.ProgramStateMachineType_Reset, Objects.ProgramStateMachineType_Halted, Objects.ProgramStateMachineType_HaltedToReady },
             { Methods.ProgramStateMachineType_Start, Objects.ProgramStateMachineType_Ready, Objects.ProgramStateMachineType_ReadyToRunning },
             { Methods.ProgramStateMachineType_Suspend,Objects.ProgramStateMachineType_Running,  Objects.ProgramStateMachineType_RunningToSuspended },
+            { Methods.ProgramStateMachineType_Reset, Objects.ProgramStateMachineType_Running, Objects.ProgramStateMachineType_RunningToReady },
             { Methods.ProgramStateMachineType_Halt, Objects.ProgramStateMachineType_Running, Objects.ProgramStateMachineType_RunningToHalted },
             { Methods.ProgramStateMachineType_Resume, Objects.ProgramStateMachineType_Suspended, Objects.ProgramStateMachineType_SuspendedToRunning },
             { Methods.ProgramStateMachineType_Reset, Objects.ProgramStateMachineType_Suspended, Objects.ProgramStateMachineType_SuspendedToReady },
-            { Methods.ProgramStateMachineType_Halt, Objects.ProgramStateMachineType_Suspended, Objects.ProgramStateMachineType_SuspendedToHalted },
-            { Methods.ProgramStateMachineType_Halt, Objects.ProgramStateMachineType_Ready, Objects.ProgramStateMachineType_ReadyToHalted }
+            { Methods.ProgramStateMachineType_Halt, Objects.ProgramStateMachineType_Suspended, Objects.ProgramStateMachineType_SuspendedToHalted }
         };
 
 

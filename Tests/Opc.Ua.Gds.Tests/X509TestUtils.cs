@@ -42,7 +42,7 @@ namespace Opc.Ua.Gds.Tests
     {
         public static void VerifyApplicationCertIntegrity(byte[] certificate, byte[] privateKey, string privateKeyPassword, string privateKeyFormat, byte[][] issuerCertificates)
         {
-            X509Certificate2 newCert = X509CertificateLoader.LoadCertificate(certificate);
+            X509Certificate2 newCert = new X509Certificate2(certificate);
             Assert.IsNotNull(newCert);
             X509Certificate2 newPrivateKeyCert = null;
             if (privateKeyFormat == "PFX")
@@ -64,7 +64,7 @@ namespace Opc.Ua.Gds.Tests
             CertificateIdentifierCollection issuerCertIdCollection = new CertificateIdentifierCollection();
             foreach (var issuer in issuerCertificates)
             {
-                var issuerCert = X509CertificateLoader.LoadCertificate(issuer);
+                var issuerCert = new X509Certificate2(issuer);
                 Assert.IsNotNull(issuerCert);
                 issuerCertIdCollection.Add(new CertificateIdentifier(issuerCert));
             }
@@ -85,8 +85,8 @@ namespace Opc.Ua.Gds.Tests
 
         public static void VerifySignedApplicationCert(ApplicationTestData testApp, byte[] rawSignedCert, byte[][] rawIssuerCerts)
         {
-            X509Certificate2 signedCert = X509CertificateLoader.LoadCertificate(rawSignedCert);
-            X509Certificate2 issuerCert = X509CertificateLoader.LoadCertificate(rawIssuerCerts[0]);
+            X509Certificate2 signedCert = new X509Certificate2(rawSignedCert);
+            X509Certificate2 issuerCert = new X509Certificate2(rawIssuerCerts[0]);
 
             TestContext.Out.WriteLine($"Signed cert: {signedCert}");
             TestContext.Out.WriteLine($"Issuer cert: {issuerCert}");

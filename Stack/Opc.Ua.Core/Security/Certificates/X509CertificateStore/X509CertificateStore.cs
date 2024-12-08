@@ -15,6 +15,7 @@
 */
 
 using System;
+using System.IO;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading.Tasks;
@@ -153,7 +154,7 @@ namespace Opc.Ua
                     else if (certificate.HasPrivateKey && m_noPrivateKeys)
                     {
                         // ensure no private key is added to store
-                        using (var publicKey = X509CertificateLoader.LoadCertificate(certificate.RawData))
+                        using (var publicKey = new X509Certificate2(certificate.RawData))
                         {
                             store.Add(publicKey);
                         }
@@ -215,15 +216,7 @@ namespace Opc.Ua
 
         /// <inheritdoc/>
         /// <remarks>The LoadPrivateKey special handling is not necessary in this store.</remarks>
-        [Obsolete("Method is deprecated. Use only for RSA certificates, the replacing LoadPrivateKey with certificateType parameter should be used.")]
         public Task<X509Certificate2> LoadPrivateKey(string thumbprint, string subjectName, string password)
-        {
-            return Task.FromResult<X509Certificate2>(null);
-        }
-
-        /// <inheritdoc/>
-        /// <remarks>The LoadPrivateKey special handling is not necessary in this store.</remarks>
-        public Task<X509Certificate2> LoadPrivateKey(string thumbprint, string subjectName, NodeId certificateType, string password)
         {
             return Task.FromResult<X509Certificate2>(null);
         }
@@ -231,8 +224,6 @@ namespace Opc.Ua
         /// <inheritdoc/>
         /// <remarks>CRLs are only supported on Windows Platform.</remarks>
         public bool SupportsCRLs => PlatformHelper.IsWindowsWithCrlSupport();
-
-
 
         /// <inheritdoc/>
         /// <remarks>CRLs are only supported on Windows Platform.</remarks>
@@ -260,6 +251,7 @@ namespace Opc.Ua
 
             foreach (X509CRL crl in crls)
             {
+
                 if (!X509Utils.CompareDistinguishedName(crl.IssuerName, issuer.SubjectName))
                 {
                     continue;
@@ -307,15 +299,8 @@ namespace Opc.Ua
                 byte[][] rawCrls = store.EnumerateCrls();
                 foreach (byte[] rawCrl in rawCrls)
                 {
-                    try
-                    {
-                        var crl = new X509CRL(rawCrl);
-                        crls.Add(crl);
-                    }
-                    catch (Exception e)
-                    {
-                        Utils.LogError(e, "Failed to parse CRL in store {0}.", store.Name);
-                    }
+                    var crl = new X509CRL(rawCrl);
+                    crls.Add(crl);
                 }
             }
             return Task.FromResult(crls);

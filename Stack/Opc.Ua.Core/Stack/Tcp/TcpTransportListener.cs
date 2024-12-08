@@ -13,14 +13,12 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
-using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Bindings
 {
@@ -37,235 +35,6 @@ namespace Opc.Ua.Bindings
         {
             return new TcpTransportListener();
         }
-    }
-
-    /// <summary>
-    /// Represents a potential problematic ActiveClient
-    /// </summary>
-    public class ActiveClient
-    {
-        #region Properties
-        /// <summary>
-        /// Time of the last recorded problematic action
-        /// </summary>
-        public int LastActionTicks
-        {
-            get
-            {
-                return m_lastActionTicks;
-            }
-            set
-            {
-                m_lastActionTicks = value;
-            }
-        }
-
-        /// <summary>
-        /// Counter for number of recorded potential problematic actions
-        /// </summary>
-        public int ActiveActionCount
-        {
-            get
-            {
-                return m_actionCount;
-            }
-            set
-            {
-                m_actionCount = value;
-            }
-        }
-
-        /// <summary>
-        /// Ticks until the client is Blocked
-        /// </summary>
-        public int BlockedUntilTicks
-        {
-            get
-            {
-                return m_blockedUntilTicks;
-            }
-            set
-            {
-                m_blockedUntilTicks = value;
-            }
-        }
-        #endregion
-
-        #region Private members
-        int m_lastActionTicks;
-        int m_actionCount;
-        int m_blockedUntilTicks;
-        #endregion
-    }
-
-    /// <summary>
-    /// Manages clients with potential problematic activities
-    /// </summary>
-    public class ActiveClientTracker : IDisposable
-    {
-        #region Public
-        /// <summary>
-        /// Constructor
-        /// </summary>
-        public ActiveClientTracker()
-        {
-            m_cleanupTimer = new Timer(CleanupExpiredEntries, null, m_kCleanupIntervalMs, m_kCleanupIntervalMs);
-        }
-
-        /// <summary>
-        /// Checks if an IP address is currently blocked
-        /// </summary>
-        /// <param name="ipAddress"></param>
-        /// <returns></returns>
-        public bool IsBlocked(IPAddress ipAddress)
-        {
-            if (m_activeClients.TryGetValue(ipAddress, out ActiveClient client))
-            {
-                int currentTicks = HiResClock.TickCount;
-                return IsBlockedTicks(client.BlockedUntilTicks, currentTicks);
-            }
-            return false;
-        }
-
-        /// <summary>
-        /// Adds a potential problematic action entry for a client
-        /// </summary>
-        /// <param name="ipAddress"></param>
-        public void AddClientAction(IPAddress ipAddress)
-        {
-            int currentTicks = HiResClock.TickCount;
-
-            m_activeClients.AddOrUpdate(ipAddress,
-                // If client is new , create a new entry
-                key => new ActiveClient
-                {
-                    LastActionTicks = currentTicks,
-                    ActiveActionCount = 1,
-                    BlockedUntilTicks = 0
-                },
-                // If the client exists, update its entry
-                (key, existingEntry) =>
-                {
-                    // If IP currently blocked simply do nothing
-                    if (IsBlockedTicks(existingEntry.BlockedUntilTicks, currentTicks))
-                    {
-                        return existingEntry;
-                    }
-
-                    // Elapsed time since last recorded action
-                    int elapsedSinceLastRecAction = currentTicks - existingEntry.LastActionTicks;
-
-                    if (elapsedSinceLastRecAction <= m_kActionsIntervalMs)
-                    {
-                        existingEntry.ActiveActionCount++;
-
-                        if (existingEntry.ActiveActionCount > m_kNrActionsTillBlock)
-                        {
-                            // Block the IP
-                            existingEntry.BlockedUntilTicks = currentTicks + m_kBlockDurationMs;
-                            Utils.LogError("RemoteClient IPAddress: {0} blocked for {1} ms due to exceeding {2} actions under {3} ms ",
-                                ipAddress.ToString(),
-                                m_kBlockDurationMs,
-                                m_kNrActionsTillBlock,
-                                m_kActionsIntervalMs);
-
-                        }
-                    }
-                    else
-                    {
-                        // Reset the count as the last action was outside the interval
-                        existingEntry.ActiveActionCount = 1;
-                    }
-
-                    existingEntry.LastActionTicks = currentTicks;
-
-                    return existingEntry;
-                }
-            );
-        }
-
-        /// <summary>
-        /// Dispose the cleanup timer
-        /// </summary>
-        public void Dispose()
-        {
-            m_cleanupTimer?.Dispose();
-        }
-
-        #endregion
-        #region Private methods
-
-        /// <summary>
-        /// Periodically cleans up expired active client entries to avoid memory leak and unblock clients whose duration has expired.
-        /// </summary>
-        /// <param name="state"></param>
-        private void CleanupExpiredEntries(object state)
-        {
-            int currentTicks = HiResClock.TickCount;
-
-            foreach (var entry in m_activeClients)
-            {
-                IPAddress clientIp = entry.Key;
-                ActiveClient rClient = entry.Value;
-
-                // Unblock client if blocking duration has been exceeded
-                if (rClient.BlockedUntilTicks != 0 && !IsBlockedTicks(rClient.BlockedUntilTicks, currentTicks))
-                {
-                    rClient.BlockedUntilTicks = 0;
-                    rClient.ActiveActionCount = 0;
-                    Utils.LogDebug("Active Client with IP {0} is now unblocked, blocking duration of {1} ms has been exceeded",
-                        clientIp.ToString(),
-                        m_kBlockDurationMs);
-                }
-
-                // Remove clients that haven't had any potential problematic actions in the last m_kEntryExpirationMs interval 
-                int elapsedSinceBadActionTicks = currentTicks - rClient.LastActionTicks;
-                if (elapsedSinceBadActionTicks > m_kEntryExpirationMs)
-                {
-                    // Even if TryRemove fails it will most probably succeed at the next execution
-                    if (m_activeClients.TryRemove(clientIp, out _))
-                    {
-                        Utils.LogDebug("Active Client with IP {0} is not tracked any longer, hasn't had actions for more than {1} ms",
-                            clientIp.ToString(),
-                            m_kEntryExpirationMs);
-                    }
-                }
-            }
-        }
-
-        /// <summary>
-        /// Determines if the IP is currently blocked based on the block expiration ticks and current ticks
-        /// </summary>
-        /// <param name="blockedUntilTicks"></param>
-        /// <param name="currentTicks"></param>
-        /// <returns></returns>
-        private bool IsBlockedTicks(int blockedUntilTicks, int currentTicks)
-        {
-            if (blockedUntilTicks == 0)
-            {
-                return false;
-            }
-            // C# signed arithmetic 
-            int diff = blockedUntilTicks - currentTicks;
-            // If currentTicks < blockedUntilTicks then it is still blocked
-            // Works even if TickCount has wrapped around due to C# signed integer arithmetic
-            return diff > 0;
-        }
-
-
-        #endregion
-        #region Private members
-        private ConcurrentDictionary<IPAddress, ActiveClient> m_activeClients = new ConcurrentDictionary<IPAddress, ActiveClient>();
-
-        private const int m_kActionsIntervalMs = 10_000;
-        private const int m_kNrActionsTillBlock = 3;
-
-        private const int m_kBlockDurationMs = 30_000; // 30 seconds
-        private const int m_kCleanupIntervalMs = 15_000;
-        private const int m_kEntryExpirationMs = 600_000; // 10 minutes
-
-        private Timer m_cleanupTimer;
-        #endregion
     }
 
     /// <summary>
@@ -361,8 +130,7 @@ namespace Opc.Ua.Bindings
 
             // initialize the quotas.
             m_quotas = new ChannelQuotas();
-            var messageContext = new ServiceMessageContext()
-            {
+            var messageContext = new ServiceMessageContext() {
                 NamespaceUris = settings.NamespaceUris,
                 ServerUris = new StringTable(),
                 Factory = settings.Factory
@@ -387,7 +155,8 @@ namespace Opc.Ua.Bindings
             m_quotas.CertificateValidator = settings.CertificateValidator;
 
             // save the server certificate.
-            m_serverCertificateTypesProvider = settings.ServerCertificateTypesProvider;
+            m_serverCertificate = settings.ServerCertificate;
+            m_serverCertificateChain = settings.ServerCertificateChain;
 
             m_bufferManager = new BufferManager("Server", m_quotas.MaxBufferSize);
             m_channels = new ConcurrentDictionary<uint, TcpListenerChannel>();
@@ -472,10 +241,8 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public void ChannelClosed(uint channelId)
         {
-            TcpListenerChannel channel = null;
-            if (m_channels?.TryRemove(channelId, out channel) == true)
+            if (m_channels?.TryRemove(channelId, out _) == true)
             {
-                Utils.SilentDispose(channel);
                 Utils.LogInfo("ChannelId {0}: closed", channelId);
             }
             else
@@ -502,7 +269,7 @@ namespace Opc.Ua.Bindings
                 this,
                 m_bufferManager,
                 m_quotas,
-                m_serverCertificateTypesProvider,
+                m_serverCertificate,
                 m_descriptions);
 
             uint channelId = GetNextChannelId();
@@ -540,16 +307,10 @@ namespace Opc.Ua.Bindings
                     channel.SetReportCloseSecureChannelAuditCallback(new ReportAuditCloseSecureChannelEventHandler(OnReportAuditCloseSecureChannelEvent));
                     channel.SetReportCertificateAuditCallback(new ReportAuditCertificateEventHandler(OnReportAuditCertificateEvent));
                 }
-
-                channel = null;
             }
             catch (Exception e)
             {
                 ConnectionStatusChanged?.Invoke(this, new ConnectionStatusEventArgs(channel.ReverseConnectionUrl, new ServiceResult(e), true));
-            }
-            finally
-            {
-                Utils.SilentDispose(channel);
             }
         }
         #endregion
@@ -562,12 +323,6 @@ namespace Opc.Ua.Bindings
         {
             lock (m_lock)
             {
-                // Track potential problematic client behavior only if Basic128Rsa15 security policy is offered
-                if (m_descriptions != null && m_descriptions.Any(d => d.SecurityPolicyUri == SecurityPolicies.Basic128Rsa15))
-                {
-                    m_activeClientTracker = new ActiveClientTracker();
-                }
-
                 // ensure a valid port.
                 int port = m_uri.Port;
 
@@ -722,40 +477,32 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public void CertificateUpdate(
             ICertificateValidator validator,
-            CertificateTypesProvider certificateTypesProvider
-            )
+            X509Certificate2 serverCertificate,
+            X509Certificate2Collection serverCertificateChain)
         {
             m_quotas.CertificateValidator = validator;
-            m_serverCertificateTypesProvider = certificateTypesProvider;
+            m_serverCertificate = serverCertificate;
+            m_serverCertificateChain = serverCertificateChain;
             foreach (var description in m_descriptions)
             {
-                // TODO: why only if SERVERCERT != null
-                if (description.ServerCertificate != null)
+                // check if complete chain should be sent.
+                if (m_serverCertificateChain != null &&
+                    m_serverCertificateChain.Count > 1)
                 {
-                    X509Certificate2 serverCertificate = certificateTypesProvider.GetInstanceCertificate(description.SecurityPolicyUri);
-                    if (certificateTypesProvider.SendCertificateChain)
+                    var byteServerCertificateChain = new List<byte>();
+
+                    for (int i = 0; i < m_serverCertificateChain.Count; i++)
                     {
-                        byte[] serverCertificateChainRaw = certificateTypesProvider.LoadCertificateChainRaw(serverCertificate);
-                        description.ServerCertificate = serverCertificateChainRaw;
+                        byteServerCertificateChain.AddRange(m_serverCertificateChain[i].RawData);
                     }
-                    else
-                    {
-                        description.ServerCertificate = serverCertificate.RawData;
-                    }
+
+                    description.ServerCertificate = byteServerCertificateChain.ToArray();
+                }
+                else if (description.ServerCertificate != null)
+                {
+                    description.ServerCertificate = serverCertificate.RawData;
                 }
             }
-        }
-        #endregion
-
-        #region Internal
-        /// <summary>
-        /// Mark a remote endpoint as potential problematic
-        /// </summary>
-        /// <param name="remoteEndpoint"></param>
-        internal void MarkAsPotentialProblematic(IPAddress remoteEndpoint)
-        {
-            Utils.LogDebug("MarkClientAsPotentialProblematic address: {0} ", remoteEndpoint.ToString());
-            m_activeClientTracker?.AddClientAction(remoteEndpoint);
         }
         #endregion
 
@@ -765,26 +512,10 @@ namespace Opc.Ua.Bindings
         /// </summary>
         private void OnAccept(object sender, SocketAsyncEventArgs e)
         {
-
             TcpListenerChannel channel = null;
             bool repeatAccept = false;
             do
             {
-                bool isBlocked = false;
-
-                // Track potential problematic client behavior only if Basic128Rsa15 security policy is offered
-                if (m_activeClientTracker != null)
-                {
-                    // Filter out the Remote IP addresses which are detected with potential problematic behavior
-                    IPAddress ipAddress = ((IPEndPoint)e?.AcceptSocket?.RemoteEndPoint)?.Address;
-                    if (ipAddress != null && m_activeClientTracker.IsBlocked(ipAddress))
-                    {
-                        Utils.LogDebug("OnAccept: RemoteEndpoint address: {0} refused access for behaving as potential problematic ",
-                            ((IPEndPoint)e.AcceptSocket.RemoteEndPoint).Address.ToString());
-                        isBlocked = true;
-                    }
-                }
-
                 repeatAccept = false;
                 lock (m_lock)
                 {
@@ -796,7 +527,7 @@ namespace Opc.Ua.Bindings
                     }
 
                     var channels = m_channels;
-                    if (channels != null && !isBlocked)
+                    if (channels != null)
                     {
                         // TODO: .Count is flagged as hotpath, implement separate counter
                         int channelCount = channels.Count;
@@ -811,7 +542,6 @@ namespace Opc.Ua.Bindings
                         // check if the accept socket has been created.
                         if (serveChannel && e.AcceptSocket != null && e.SocketError == SocketError.Success)
                         {
-                            channel = null;
                             try
                             {
                                 if (m_reverseConnectListener)
@@ -832,7 +562,8 @@ namespace Opc.Ua.Bindings
                                         this,
                                         m_bufferManager,
                                         m_quotas,
-                                        m_serverCertificateTypesProvider,
+                                        m_serverCertificate,
+                                        m_serverCertificateChain,
                                         m_descriptions);
                                 }
 
@@ -856,16 +587,10 @@ namespace Opc.Ua.Bindings
 
                                 // start accepting messages on the channel.
                                 channel.Attach(channelId, e.AcceptSocket);
-
-                                channel = null;
                             }
                             catch (Exception ex)
                             {
                                 Utils.LogError(ex, "Unexpected error accepting a new connection.");
-                            }
-                            finally
-                            {
-                                Utils.SilentDispose(channel);
                             }
                         }
                     }
@@ -1079,7 +804,8 @@ namespace Opc.Ua.Bindings
         private EndpointDescriptionCollection m_descriptions;
         private BufferManager m_bufferManager;
         private ChannelQuotas m_quotas;
-        private CertificateTypesProvider m_serverCertificateTypesProvider;
+        private X509Certificate2 m_serverCertificate;
+        private X509Certificate2Collection m_serverCertificateChain;
         private int m_lastChannelId;
         private Socket m_listeningSocket;
         private Socket m_listeningSocketIPv6;
@@ -1089,8 +815,6 @@ namespace Opc.Ua.Bindings
         private int m_inactivityDetectPeriod;
         private Timer m_inactivityDetectionTimer;
         private int m_maxChannelCount;
-
-        private ActiveClientTracker m_activeClientTracker;
         #endregion
     }
 

@@ -234,7 +234,7 @@ namespace Opc.Ua.Gds.Server
         {
             if (certificate != null && certificate.Length > 0)
             {
-                using (var x509 = X509CertificateLoader.LoadCertificate(certificate))
+                using (var x509 = new X509Certificate2(certificate))
                 {
                     foreach (var certificateGroup in m_certificateGroups.Values)
                     {
@@ -258,7 +258,7 @@ namespace Opc.Ua.Gds.Server
 
                 if (certificateGroup != null)
                 {
-                    using (X509Certificate2 x509 = X509CertificateLoader.LoadCertificate(certificate))
+                    using (X509Certificate2 x509 = new X509Certificate2(certificate))
                     {
                         try
                         {
@@ -689,7 +689,7 @@ namespace Opc.Ua.Gds.Server
                     }
                 }
 
-                using (var x509 = X509CertificateLoader.LoadCertificate(certificate))
+                using (var x509 = new X509Certificate2(certificate))
                 {
                     if (chain.Build(x509))
                     {
@@ -1305,7 +1305,7 @@ namespace Opc.Ua.Gds.Server
             }
             else
             {
-                certificate = X509CertificateLoader.LoadCertificate(signedCertificate);
+                certificate = new X509Certificate2(signedCertificate);
             }
 
             // TODO: return chain, verify issuer chain cert is up to date, otherwise update local chain

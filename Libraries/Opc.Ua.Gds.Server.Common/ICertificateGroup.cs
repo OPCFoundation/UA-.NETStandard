@@ -44,7 +44,7 @@ namespace Opc.Ua.Gds.Server
         {
             if (certificate.HasPrivateKey)
             {
-                certificate = X509CertificateLoader.LoadCertificate(certificate.RawData);
+                certificate = new X509Certificate2(certificate.RawData);
             }
             Certificate = certificate;
             PrivateKeyFormat = privateKeyFormat;

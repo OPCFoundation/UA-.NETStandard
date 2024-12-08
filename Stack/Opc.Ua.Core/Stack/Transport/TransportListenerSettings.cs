@@ -11,7 +11,6 @@
 */
 
 using System.Security.Cryptography.X509Certificates;
-using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua
 {
@@ -40,14 +39,25 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Gets or sets the server certificate type provider.
+        /// Gets or sets the server certificate.
         /// </summary>
-        public CertificateTypesProvider ServerCertificateTypesProvider
+        public X509Certificate2 ServerCertificate
         {
-            get { return m_serverCertificateTypes; }
-            set { m_serverCertificateTypes = value; }
+            get { return m_serverCertificate; }
+            set { m_serverCertificate = value; }
         }
 
+        /// <summary>
+        /// Gets or sets the server certificate chain.
+        /// </summary>
+        /// <value>
+        /// The server certificate chain.
+        /// </value>
+        public X509Certificate2Collection ServerCertificateChain
+        {
+            get { return m_serverCertificateChain; }
+            set { m_serverCertificateChain = value; }
+        }
 
         /// <summary>
         /// Gets or Sets the certificate validator.
@@ -117,29 +127,18 @@ namespace Opc.Ua
             get { return m_maxChannelCount; }
             set { m_maxChannelCount = value; }
         }
-
-        /// <summary>
-        /// Indicates if Http listener requires mutual TLS
-        /// Handled only by HttpsTransportListner
-        /// In case true, the client should provide it's own valid TLS certificate to the TLS layer for the connection to succeed.
-        /// </summary>
-        public bool HttpsMutualTls
-        {
-            get { return m_httpMutualTls; }
-            set { m_httpMutualTls = value; }
-        }
         #endregion
 
         #region Private Fields
         private EndpointDescriptionCollection m_descriptions;
         private EndpointConfiguration m_configuration;
-        private CertificateTypesProvider m_serverCertificateTypes;
+        private X509Certificate2 m_serverCertificate;
+        private X509Certificate2Collection m_serverCertificateChain;
         private ICertificateValidator m_certificateValidator;
         private NamespaceTable m_namespaceUris;
         private IEncodeableFactory m_channelFactory;
         private bool m_reverseConnectListener;
         private int m_maxChannelCount;
-        private bool m_httpMutualTls;
         #endregion
     }
 }

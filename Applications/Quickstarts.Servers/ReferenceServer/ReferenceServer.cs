@@ -53,7 +53,6 @@ namespace Quickstarts.ReferenceServer
         public ITokenValidator TokenValidator { get; set; }
 
         #endregion
-
         #region Overridden Methods
         /// <summary>
         /// Creates the node managers for the server.
@@ -212,7 +211,7 @@ namespace Quickstarts.ReferenceServer
                         configuration.SecurityConfiguration.UserIssuerCertificates != null)
                     {
                         CertificateValidator certificateValidator = new CertificateValidator();
-                        certificateValidator.UpdateAsync(configuration.SecurityConfiguration).Wait();
+                        certificateValidator.Update(configuration.SecurityConfiguration).Wait();
                         certificateValidator.Update(configuration.SecurityConfiguration.UserIssuerCertificates,
                             configuration.SecurityConfiguration.TrustedUserCertificates,
                             configuration.SecurityConfiguration.RejectedCertificateStore);
@@ -248,7 +247,7 @@ namespace Quickstarts.ReferenceServer
             {
                 VerifyUserTokenCertificate(x509Token.Certificate);
                 // set AuthenticatedUser role for accepted certificate authentication
-                args.Identity = new RoleBasedIdentity(new UserIdentity(x509Token),
+                args.Identity =  new RoleBasedIdentity(new UserIdentity(x509Token),
                     new List<Role>() { Role.AuthenticatedUser });
                 Utils.LogInfo(Utils.TraceMasks.Security, "X509 Token Accepted: {0}", args.Identity?.DisplayName);
 
@@ -326,7 +325,7 @@ namespace Quickstarts.ReferenceServer
                     new LocalizedText(info)));
             }
             return new RoleBasedIdentity(new UserIdentity(userNameToken),
-                   new List<Role>() { Role.AuthenticatedUser });
+                   new List<Role>() { Role.AuthenticatedUser});
         }
 
         /// <summary>

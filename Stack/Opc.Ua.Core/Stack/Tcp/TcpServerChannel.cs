@@ -17,7 +17,6 @@ using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using Opc.Ua.Security.Certificates;
 using static Opc.Ua.Utils;
 
 namespace Opc.Ua.Bindings
@@ -36,10 +35,27 @@ namespace Opc.Ua.Bindings
             ITcpChannelListener listener,
             BufferManager bufferManager,
             ChannelQuotas quotas,
-            CertificateTypesProvider serverCertificateTypesProvider,
+            X509Certificate2 serverCertificate,
             EndpointDescriptionCollection endpoints)
         :
-            base(contextId, listener, bufferManager, quotas, serverCertificateTypesProvider, endpoints)
+            this(contextId, listener, bufferManager, quotas, serverCertificate, null, endpoints)
+        {
+            m_queuedResponses = new SortedDictionary<uint, IServiceResponse>();
+        }
+
+        /// <summary>
+        /// Attaches the object to an existing socket.
+        /// </summary>
+        public TcpServerChannel(
+            string contextId,
+            ITcpChannelListener listener,
+            BufferManager bufferManager,
+            ChannelQuotas quotas,
+            X509Certificate2 serverCertificate,
+            X509Certificate2Collection serverCertificateChain,
+            EndpointDescriptionCollection endpoints)
+        :
+            base(contextId, listener, bufferManager, quotas, serverCertificate, serverCertificateChain, endpoints)
         {
             m_queuedResponses = new SortedDictionary<uint, IServiceResponse>();
         }
@@ -51,10 +67,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected override void Dispose(bool disposing)
         {
-            lock (DataLock)
-            {
-                base.Dispose(disposing);
-            }
+            base.Dispose(disposing);
         }
         #endregion
 
@@ -536,7 +549,6 @@ namespace Opc.Ua.Bindings
 
             BufferCollection chunksToProcess = null;
             OpenSecureChannelRequest request = null;
-            ChannelToken token = null;
             try
             {
                 bool firstCall = ClientCertificate == null;
@@ -577,12 +589,14 @@ namespace Opc.Ua.Bindings
                 }
 
                 // create a new token.
-                token = CreateToken();
+                ChannelToken token = CreateToken();
+
                 token.TokenId = GetNewTokenId();
-                token.ServerNonce = CreateNonce(ServerCertificate);
+                token.ServerNonce = CreateNonce();
                 // check the client nonce.
                 token.ClientNonce = request.ClientNonce;
-                if (!ValidateNonce(ClientCertificate, token.ClientNonce))
+
+                if (!ValidateNonce(token.ClientNonce))
                 {
                     throw ServiceResultException.Create(StatusCodes.BadNonceInvalid, "Client nonce is not the correct length or not random enough.");
                 }
@@ -622,8 +636,6 @@ namespace Opc.Ua.Bindings
                             ClientCertificate,
                             token,
                             request);
-
-                        token = null;
 
                         Utils.LogInfo(
                             "{0} ReconnectToExistingChannel Socket={1:X8}, ChannelId={2}, TokenId={3}",
@@ -676,13 +688,10 @@ namespace Opc.Ua.Bindings
                     ActivateToken(token);
                 }
 
-                // ensure the token is not disposed
-                token = null;
-
                 State = TcpChannelState.Open;
 
                 // send the response.
-                SendOpenSecureChannelResponse(requestId, CurrentToken, request);
+                SendOpenSecureChannelResponse(requestId, token, request);
 
                 // notify reverse 
                 CompleteReverseHello(null);
@@ -709,7 +718,6 @@ namespace Opc.Ua.Bindings
             }
             finally
             {
-                Utils.SilentDispose(token);
                 if (chunksToProcess != null)
                 {
                     chunksToProcess.Release(BufferManager, "ProcessOpenSecureChannelRequest");
@@ -1110,7 +1118,7 @@ namespace Opc.Ua.Bindings
         private bool ValidateDiscoveryServiceCall(ChannelToken token, uint requestId, ArraySegment<byte> messageBody, out BufferCollection chunksToProcess)
         {
             chunksToProcess = null;
-            using (var decoder = new BinaryDecoder(messageBody, Quotas.MessageContext))
+            using (var decoder = new BinaryDecoder(messageBody.AsMemory().ToArray(), Quotas.MessageContext))
             {
                 // read the type of the message before more chunks are processed.
                 NodeId typeId = decoder.ReadNodeId(null);
@@ -1126,6 +1134,7 @@ namespace Opc.Ua.Bindings
                 return true;
             }
         }
+
         #endregion
 
         #region Private Fields

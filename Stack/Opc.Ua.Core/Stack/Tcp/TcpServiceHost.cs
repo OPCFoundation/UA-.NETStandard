@@ -13,7 +13,6 @@
 using System;
 using System.Collections.Generic;
 using System.Security.Cryptography.X509Certificates;
-using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Bindings
 {
@@ -43,7 +42,8 @@ namespace Opc.Ua.Bindings
             IList<string> baseAddresses,
             ApplicationDescription serverDescription,
             List<ServerSecurityPolicy> securityPolicies,
-            CertificateTypesProvider instanceCertificateTypesProvider)
+            X509Certificate2 instanceCertificate,
+            X509Certificate2Collection instanceCertificateChain)
         {
             // generate a unique host name.
             string hostName = "/Tcp";
@@ -76,30 +76,47 @@ namespace Opc.Ua.Bindings
                     uri.Host = computerName;
                 }
 
-                bool sendCertificateChain = instanceCertificateTypesProvider.SendCertificateChain;
                 ITransportListener listener = this.Create();
                 if (listener != null)
                 {
-                    var listenerEndpoints = new EndpointDescriptionCollection();
+                    EndpointDescriptionCollection listenerEndpoints = new EndpointDescriptionCollection();
                     uris.Add(uri.Uri);
 
                     foreach (ServerSecurityPolicy policy in securityPolicies)
                     {
                         // create the endpoint description.
-                        EndpointDescription description = new EndpointDescription {
-                            EndpointUrl = uri.ToString(),
-                            Server = serverDescription,
-                            TransportProfileUri = Profiles.UaTcpTransport,
-                            SecurityMode = policy.SecurityMode,
-                            SecurityPolicyUri = policy.SecurityPolicyUri,
-                            SecurityLevel = ServerSecurityPolicy.CalculateSecurityLevel(policy.SecurityMode, policy.SecurityPolicyUri)
-                        };
-                        description.UserIdentityTokens = serverBase.GetUserTokenPolicies(configuration, description);
+                        EndpointDescription description = new EndpointDescription();
 
-                        ServerBase.SetServerCertificateInEndpointDescription(
-                            description,
-                            sendCertificateChain,
-                            instanceCertificateTypesProvider);
+                        description.EndpointUrl = uri.ToString();
+                        description.Server = serverDescription;
+
+                        description.SecurityMode = policy.SecurityMode;
+                        description.SecurityPolicyUri = policy.SecurityPolicyUri;
+                        description.SecurityLevel = ServerSecurityPolicy.CalculateSecurityLevel(policy.SecurityMode, policy.SecurityPolicyUri);
+                        description.UserIdentityTokens = serverBase.GetUserTokenPolicies(configuration, description);
+                        description.TransportProfileUri = Profiles.UaTcpTransport;
+
+                        bool requireEncryption = ServerBase.RequireEncryption(description);
+
+                        if (requireEncryption)
+                        {
+                            description.ServerCertificate = instanceCertificate.RawData;
+
+                            // check if complete chain should be sent.
+                            if (configuration.SecurityConfiguration.SendCertificateChain &&
+                                instanceCertificateChain != null &&
+                                instanceCertificateChain.Count > 1)
+                            {
+                                List<byte> serverCertificateChain = new List<byte>();
+
+                                for (int i = 0; i < instanceCertificateChain.Count; i++)
+                                {
+                                    serverCertificateChain.AddRange(instanceCertificateChain[i].RawData);
+                                }
+
+                                description.ServerCertificate = serverCertificateChain.ToArray();
+                            }
+                        }
 
                         listenerEndpoints.Add(description);
                     }

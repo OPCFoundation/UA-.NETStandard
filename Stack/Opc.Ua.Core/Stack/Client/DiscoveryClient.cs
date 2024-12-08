@@ -109,7 +109,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Creates a binding to use for discovering servers.
+        /// Creates a binding for to use for discovering servers.
         /// </summary>
         /// <param name="discoveryUrl">The discovery URL.</param>
         /// <param name="endpointConfiguration">The endpoint configuration.</param>
@@ -130,7 +130,6 @@ namespace Opc.Ua
 
             try
             {
-                // Will always use the first certificate
                 clientCertificate = applicationConfiguration?.SecurityConfiguration?.ApplicationCertificate?.Find(true).Result;
             }
             catch

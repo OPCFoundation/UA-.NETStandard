@@ -12,7 +12,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Runtime.Serialization;
 using System.Security.Cryptography.X509Certificates;
 using Opc.Ua.Bindings;
@@ -774,7 +773,6 @@ namespace Opc.Ua
         /// </summary>
         private void Initialize()
         {
-            m_applicationCertificates = new CertificateIdentifierCollection();
             m_trustedIssuerCertificates = new CertificateTrustList();
             m_trustedPeerCertificates = new CertificateTrustList();
             m_nonceLength = 32;
@@ -786,7 +784,6 @@ namespace Opc.Ua
             m_addAppCertToTrustedStore = true;
             m_sendCertificateChain = true;
             m_suppressNonceValidationErrors = false;
-            m_isDeprecatedConfiguration = false;
         }
 
         /// <summary>
@@ -799,84 +796,17 @@ namespace Opc.Ua
         #region Persistent Properties
         /// <summary>
         /// The application instance certificate.
-        /// Kept for backward compatibility with configuration files which only support RSA certificates.
         /// </summary>
         /// <value>The application certificate.</value>
         /// <remarks>
         /// This certificate must contain the application uri.
         /// For servers, URLs for each supported protocol must also be present.
         /// </remarks>
-        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 0)]
+        [DataMember(IsRequired = true, EmitDefaultValue = false, Order = 0)]
         public CertificateIdentifier ApplicationCertificate
         {
-            get
-            {
-                if (m_applicationCertificates.Count > 0)
-                {
-                    return m_applicationCertificates[0];
-                }
-                return null;
-            }
-            set
-            {
-                if (m_applicationCertificates.Count > 0)
-                {
-                    if (value == null)
-                    {
-                        m_applicationCertificates.RemoveAt(0);
-                    }
-                    else
-                    {
-                        m_applicationCertificates[0] = value;
-                    }
-                }
-                else
-                {
-                    m_applicationCertificates.Add(value);
-                }
-                SupportedSecurityPolicies = BuildSupportedSecurityPolicies();
-
-                m_applicationCertificates[0].CertificateType = ObjectTypeIds.RsaSha256ApplicationCertificateType;
-                m_isDeprecatedConfiguration = true;
-            }
-        }
-
-        /// <summary>
-        /// The application instance certificates in use for the application.
-        /// </summary>
-        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 1)]
-        public CertificateIdentifierCollection ApplicationCertificates
-        {
-            get => m_applicationCertificates;
-            set
-            {
-                m_applicationCertificates = value ?? new CertificateIdentifierCollection();
-
-                m_isDeprecatedConfiguration = false;
-
-                // Remove any unsupported certificate types.
-                for (int i = m_applicationCertificates.Count - 1; i >= 0; i--)
-                {
-                    if (!Utils.IsSupportedCertificateType(m_applicationCertificates[i].CertificateType))
-                    {
-                        m_applicationCertificates.RemoveAt(i);
-                    }
-                }
-
-                // Remove any duplicates
-                for (int i = 0; i < m_applicationCertificates.Count; i++)
-                {
-                    for (int j = m_applicationCertificates.Count - 1; j > i; j--)
-                    {
-                        if (m_applicationCertificates[i].CertificateType == m_applicationCertificates[j].CertificateType)
-                        {
-                            m_applicationCertificates.RemoveAt(j);
-                        }
-                    }
-                }
-
-                SupportedSecurityPolicies = BuildSupportedSecurityPolicies();
-            }
+            get { return m_applicationCertificate; }
+            set { m_applicationCertificate = value; }
         }
 
         /// <summary>
@@ -1008,7 +938,6 @@ namespace Opc.Ua
 
         /// <summary>
         /// Gets or sets a value indicating which minimum certificate key strength is accepted.
-        /// The value is ignored for certificates with a ECDSA signature.
         /// </summary>
         /// <remarks>
         /// This value can be set to 1024, 2048 or 4096 by servers
@@ -1162,31 +1091,16 @@ namespace Opc.Ua
             get { return m_suppressNonceValidationErrors; }
             set { m_suppressNonceValidationErrors = value; }
         }
-
-
         #endregion
 
-        #region Non-Persistent Properties
-        /// <summary>
-        /// The type of Configuration (deprecated or not)
-        /// </summary>
-        public bool IsDeprecatedConfiguration
-        {
-            get { return m_isDeprecatedConfiguration; }
-            set { m_isDeprecatedConfiguration = value; }
-        }
-
-        #endregion
-
-        #region Private Fields       
-        private CertificateIdentifierCollection m_applicationCertificates;
+        #region Private Fields
+        private CertificateIdentifier m_applicationCertificate;
         private CertificateTrustList m_trustedIssuerCertificates;
         private CertificateTrustList m_trustedPeerCertificates;
         private CertificateTrustList m_httpsIssuerCertificates;
         private CertificateTrustList m_trustedHttpsCertificates;
         private CertificateTrustList m_userIssuerCertificates;
         private CertificateTrustList m_trustedUserCertificates;
-        // TODO: is this really necessary?
         private int m_nonceLength;
         private CertificateStoreIdentifier m_rejectedCertificateStore;
         private int m_maxRejectedCertificates;
@@ -1199,7 +1113,6 @@ namespace Opc.Ua
         private bool m_addAppCertToTrustedStore;
         private bool m_sendCertificateChain;
         private bool m_suppressNonceValidationErrors;
-        private bool m_isDeprecatedConfiguration;
         #endregion
     }
     #endregion
@@ -1596,7 +1509,6 @@ namespace Opc.Ua
             m_maxTrustListSize = 0;
             m_multicastDnsEnabled = false;
             m_auditingEnabled = false;
-            m_httpsMutualTls = true;
         }
 
         /// <summary>
@@ -2030,17 +1942,6 @@ namespace Opc.Ua
             get { return m_auditingEnabled; }
             set { m_auditingEnabled = value; }
         }
-
-        /// <summary>
-        /// Whether mTLS is required/enforced by the HttpsTransportListener
-        /// </summary>
-        /// <value><c>true</c> if mutual TLS is enabled; otherwise, <c>false</c>.</value>
-        [DataMember(IsRequired = false, Order = 38)]
-        public bool HttpsMutualTls
-        {
-            get { return m_httpsMutualTls; }
-            set { m_httpsMutualTls = value; }
-        }
         #endregion
 
         #region Private Members
@@ -2079,7 +1980,6 @@ namespace Opc.Ua
         private ReverseConnectServerConfiguration m_reverseConnect;
         private OperationLimits m_operationLimits;
         private bool m_auditingEnabled;
-        private bool m_httpsMutualTls;
         #endregion
     }
     #endregion
@@ -2965,7 +2865,6 @@ namespace Opc.Ua
 
     #region CertificateTrustList Class
     [DataContract(Namespace = Namespaces.OpcUaConfig)]
-    [KnownType(typeof(CertificateTrustList))]
     public partial class CertificateTrustList : CertificateStoreIdentifier
     {
         #region Constructors
@@ -3027,7 +2926,7 @@ namespace Opc.Ua
     #endregion
 
     #region CertificateIdentifierCollection Class
-    [CollectionDataContract(Name = "ApplicationCertificates", Namespace = Namespaces.OpcUaConfig, ItemName = "CertificateIdentifier")]
+    [CollectionDataContract(Name = "ListOfCertificateIdentifier", Namespace = Namespaces.OpcUaConfig, ItemName = "CertificateIdentifier")]
     public partial class CertificateIdentifierCollection : List<CertificateIdentifier>
     {
         /// <summary>
@@ -3109,7 +3008,7 @@ namespace Opc.Ua
         /// The type of certificate store.
         /// </summary>
         /// <value>The type of the store - defined in the <see cref="CertificateStoreType"/>.</value>
-        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 10)]
+        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 0)]
         public string StoreType
         {
             get
@@ -3132,7 +3031,7 @@ namespace Opc.Ua
         /// The path that identifies the certificate store.
         /// </summary>
         /// <value>The store path in the form <c>StoreName\\Store Location</c> .</value>
-        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 15)]
+        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 1)]
         public string StorePath
         {
             get
@@ -3169,7 +3068,7 @@ namespace Opc.Ua
         /// </summary>
         /// <value>The name of the store.</value>
         /// <seealso cref="System.Security.Cryptography.X509Certificates.StoreName"/>
-        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 20)]
+        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 2)]
         [Obsolete("Use StoreType/StorePath instead")]
         public string StoreName
         {
@@ -3182,7 +3081,7 @@ namespace Opc.Ua
         /// </summary>
         /// <value>The store location.</value>
         /// <seealso cref="System.Security.Cryptography.X509Certificates.StoreLocation"/>
-        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 30)]
+        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 3)]
         [Obsolete("Use StoreType/StorePath instead")]
         public string StoreLocation
         {
@@ -3237,7 +3136,7 @@ namespace Opc.Ua
         /// </remarks>
         /// <seealso cref="System.Security.Cryptography.X509Certificates.X500DistinguishedName"/>
         /// <seealso cref="System.Security.Cryptography.AsnEncodedData"/>
-        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 40)]
+        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 4)]
         public string SubjectName
         {
             get
@@ -3269,7 +3168,7 @@ namespace Opc.Ua
         /// </summary>
         /// <value>The thumbprint of a certificate..</value>
         /// <seealso cref="X509Certificate2"/>
-        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 50)]
+        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 5)]
         public string Thumbprint
         {
             get
@@ -3300,7 +3199,7 @@ namespace Opc.Ua
         /// Gets the DER encoded certificate data or create embedded in this instance certificate using the DER encoded certificate data.
         /// </summary>
         /// <value>A byte array containing the X.509 certificate data.</value>
-        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 60)]
+        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 6)]
         public byte[] RawData
         {
             get
@@ -3331,33 +3230,11 @@ namespace Opc.Ua
         /// Gets or sets the XML encoded validation options - use to serialize the validation options.
         /// </summary>
         /// <value>The XML encoded validation options.</value>
-        [DataMember(Name = "ValidationOptions", IsRequired = false, EmitDefaultValue = false, Order = 70)]
+        [DataMember(Name = "ValidationOptions", IsRequired = false, EmitDefaultValue = false, Order = 7)]
         private int XmlEncodedValidationOptions
         {
             get { return (int)m_validationOptions; }
             set { m_validationOptions = (CertificateValidationOptions)value; }
-        }
-
-        /// <summary>
-        /// Gets or sets the certificate type.
-        /// </summary>
-        /// <value>The NodeId of the certificate type, e.g. EccNistP256ApplicationCertificateType.</value>
-        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 80)]
-        public NodeId CertificateType
-        {
-            get => m_certificateType;
-            set => m_certificateType = value;
-        }
-
-        /// <summary>
-        /// The string representation of the certificate
-        /// </summary>
-        /// <value>Rsa, RsaMin, RsaSha256, NistP256, NistP384, BrainpoolP256r1, BrainpoolP384r1, Curve25519, Curve448</value>
-        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 90)]
-        public string CertificateTypeString
-        {
-            get => EncodeCertificateType(m_certificateType);
-            set => m_certificateType = DecodeCertificateType(value);
         }
         #endregion
 
@@ -3369,7 +3246,6 @@ namespace Opc.Ua
         private string m_subjectName;
         private string m_thumbprint;
         private X509Certificate2 m_certificate;
-        private NodeId m_certificateType;
         private CertificateValidationOptions m_validationOptions;
         #endregion
     }

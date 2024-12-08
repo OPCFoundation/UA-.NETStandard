@@ -10,11 +10,11 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.IO.RecyclableMemoryStream" Version="3.0.1" />
-    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
     <PackageReference Include="Moq" Version="4.20.72" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
     <PackageReference Include="NUnit" Version="4.2.2" />
-    <PackageReference Include="NUnit.Console" Version="3.18.3" />
+    <PackageReference Include="NUnit.Console" Version="3.18.2" />
     <PackageReference Include="NUnit3TestAdapter" Version="4.6.0">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
@@ -30,7 +30,7 @@
   <Choose>
     <When Condition="'$(TargetFramework)' == 'net462'">
     </When>
-    <When Condition="'$(TargetFramework)' == 'netcoreapp2.1'">
+    <When Condition="'$(TargetFramework)' == 'netstandard2.0'">
     </When>
     <Otherwise>
       <PropertyGroup Condition="'$(DisableECCTests)' != 'true'">

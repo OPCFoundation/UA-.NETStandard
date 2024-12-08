@@ -198,13 +198,6 @@ namespace Opc.Ua
         /// </summary>
         public ChannelToken CurrentToken => null;
 
-        /// <inheritdoc/>
-        public event ChannelTokenActivatedEventHandler OnTokenActivated
-        {
-            add { }
-            remove { }
-        }
-
         /// <summary>
         /// Gets or sets the default timeout for requests send via the channel.
         /// </summary>
@@ -692,7 +685,7 @@ namespace Opc.Ua
         #endregion
         }
         #endregion
-
+        
         /// <summary>
         /// Processes the request.
         /// </summary>

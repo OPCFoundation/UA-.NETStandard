@@ -721,7 +721,7 @@ namespace Opc.Ua.Gds.Client
                 X509Certificate2Collection collection = new X509Certificate2Collection();
                 foreach (var rawCertificate in rawCertificates)
                 {
-                    collection.Add(X509CertificateLoader.LoadCertificate(rawCertificate));
+                    collection.Add(new X509Certificate2(rawCertificate));
                 }
                 return collection;
             }

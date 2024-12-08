@@ -3233,7 +3233,7 @@ namespace Opc.Ua.Server
         /// <returns></returns>
         protected internal static ServiceResult ValidateRolePermissions(OperationContext context, NodeMetadata nodeMetadata, PermissionType requestedPermission)
         {
-            if (nodeMetadata == null || requestedPermission == PermissionType.None)
+            if (context.Session == null || nodeMetadata == null || requestedPermission == PermissionType.None)
             {
                 // no permission is required hence the validation passes
                 return StatusCodes.Good;
@@ -3323,7 +3323,7 @@ namespace Opc.Ua.Server
                 }
             }
 
-            var currentRoleIds = context.UserIdentity.GrantedRoleIds;
+            var currentRoleIds = context.Session.Identity.GrantedRoleIds;
             if (currentRoleIds == null || currentRoleIds.Count == 0)
             {
                 return ServiceResult.Create(StatusCodes.BadUserAccessDenied, "Current user has no granted role.");

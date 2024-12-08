@@ -30,9 +30,6 @@
 using System;
 using System.Diagnostics;
 using System.IO;
-using System.Linq;
-using System.Net.Http;
-using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using NUnit.Framework;
@@ -94,12 +91,6 @@ namespace Opc.Ua.Client.Tests
 
             pkiRoot = pkiRoot ?? Path.Combine("%LocalApplicationData%", "OPC", "pki");
 
-            CertificateIdentifierCollection applicationCerts = ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
-                "CN=" + clientName + ", O=OPC Foundation, DC=localhost",
-                CertificateStoreType.Directory,
-                pkiRoot
-                );
-
             // build the application configuration.
             Config = await application
                 .Build(
@@ -115,18 +106,17 @@ namespace Opc.Ua.Client.Tests
                     MaxNodesPerWrite = kDefaultOperationLimits
                 })
                 .AddSecurityConfiguration(
-                    applicationCerts,
+                    "CN=" + clientName + ", O=OPC Foundation, DC=localhost",
                     pkiRoot)
-
-                // .SetApplicationCertificates(applicationCerts)
                 .SetAutoAcceptUntrustedCertificates(true)
                 .SetRejectSHA1SignedCertificates(false)
+                .SetMinimumCertificateKeySize(1024)
                 .SetOutputFilePath(Path.Combine(pkiRoot, "Logs", "Opc.Ua.Client.Tests.log.txt"))
                 .SetTraceMasks(TraceMasks)
                 .Create().ConfigureAwait(false);
 
             // check the application certificate.
-            bool haveAppCertificate = await application.CheckApplicationInstanceCertificates(true).ConfigureAwait(false);
+            bool haveAppCertificate = await application.CheckApplicationInstanceCertificate(true, 0).ConfigureAwait(false);
             if (!haveAppCertificate)
             {
                 throw new Exception("Application instance certificate invalid!");
@@ -218,15 +208,7 @@ namespace Opc.Ua.Client.Tests
         /// </summary>
         public async Task<ISession> ConnectAsync(Uri url, string securityProfile, EndpointDescriptionCollection endpoints = null, IUserIdentity userIdentity = null)
         {
-            string uri = url.AbsoluteUri;
-            Uri getEndpointsUrl = url;
-            if (uri.StartsWith(Utils.UriSchemeHttp, StringComparison.Ordinal) ||
-                Utils.IsUriHttpsScheme(uri))
-            {
-                getEndpointsUrl = CoreClientUtils.GetDiscoveryUrl(uri);
-            }
-            
-            return await ConnectAsync(await GetEndpointAsync(getEndpointsUrl, securityProfile, endpoints).ConfigureAwait(false), userIdentity).ConfigureAwait(false);
+            return await ConnectAsync(await GetEndpointAsync(url, securityProfile, endpoints).ConfigureAwait(false), userIdentity).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -322,8 +304,7 @@ namespace Opc.Ua.Client.Tests
                 if (endpoint.EndpointUrl.StartsWith(url.Scheme))
                 {
                     // skip unsupported security policies
-                    if (!configuration.SecurityConfiguration.SupportedSecurityPolicies.
-                            Contains(endpoint.SecurityPolicyUri))
+                    if (SecurityPolicies.GetDisplayName(endpoint.SecurityPolicyUri) == null)
                     {
                         continue;
                     }

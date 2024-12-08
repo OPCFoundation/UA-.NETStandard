@@ -31,7 +31,6 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Security.Cryptography.X509Certificates;
-using Opc.Ua.Security.Certificates;
 
 #pragma warning disable 0618
 
@@ -66,13 +65,13 @@ namespace Opc.Ua.Server
         /// <param name="configuration">The configuration.</param>
         /// <param name="messageContext">The message context.</param>
         /// <param name="certificateValidator">The certificate validator.</param>
-        /// <param name="instanceCertificateProvider">The certificate type provider.</param>
+        /// <param name="instanceCertificate">The instance certificate.</param>
         public ServerInternalData(
             ServerProperties serverDescription,
             ApplicationConfiguration configuration,
             IServiceMessageContext messageContext,
             CertificateValidator certificateValidator,
-            CertificateTypesProvider instanceCertificateProvider)
+            X509Certificate2 instanceCertificate)
         {
             m_serverDescription = serverDescription;
             m_configuration = configuration;
@@ -449,8 +448,7 @@ namespace Opc.Ua.Server
                     if (m_serverStatus.Value.State == ServerState.Running)
                         return true;
 
-                    if (m_serverStatus.Value.State == ServerState.Shutdown &&
-                        m_serverStatus.Value.SecondsTillShutdown > 0)
+                    if (m_serverStatus.Value.State == ServerState.Shutdown && m_serverStatus.Value.SecondsTillShutdown > 0)
                         return true;
 
                     return false;

@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2024 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -253,22 +253,7 @@ namespace Opc.Ua.Server
                 lock (NodeManager.Lock)
                 {
                     // enqueue event
-                    if (context?.SessionId != null && monitoredItem?.Session?.Id?.Identifier != null)
-                    {
-                        if (monitoredItem.Session.Id.Identifier.Equals(context.SessionId.Identifier))
-                        {
-                            monitoredItem?.QueueEvent(e);
-                        }
-                        else
-                        {
-                            continue;
-                        }
-                    }
-                    else
-                    {
-                        monitoredItem?.QueueEvent(e);
-                    }
-
+                    monitoredItem?.QueueEvent(e);
                 }
             }
         }        
@@ -294,15 +279,6 @@ namespace Opc.Ua.Server
 
                     if (monitoredItem.AttributeId == Attributes.Value && (changes & NodeStateChangeMasks.Value) != 0)
                     {
-                        // validate if the monitored item has the required role permissions to read the value
-                        ServiceResult validationResult = NodeManager.ValidateRolePermissions(new OperationContext(monitoredItem), node.NodeId, PermissionType.Read);
-
-                        if (ServiceResult.IsBad(validationResult))
-                        {
-                            // skip if the monitored item does not have permission to read
-                            continue;
-                        }
-
                         QueueValue(context, node, monitoredItem);
                         continue;
                     }

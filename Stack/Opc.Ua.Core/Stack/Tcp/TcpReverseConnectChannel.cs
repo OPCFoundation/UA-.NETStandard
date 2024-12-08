@@ -32,7 +32,7 @@ namespace Opc.Ua.Bindings
             ChannelQuotas quotas,
             EndpointDescriptionCollection endpoints)
         :
-            base(contextId, listener, bufferManager, quotas, null, endpoints)
+            base(contextId, listener, bufferManager, quotas, null, null, endpoints)
         {
         }
         #endregion

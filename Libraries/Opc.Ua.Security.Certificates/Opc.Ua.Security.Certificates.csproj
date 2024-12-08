@@ -18,12 +18,12 @@
   <Choose>
     <When Condition="'$(TargetFramework)' == 'net462'">
       <ItemGroup>
-        <PackageReference Include="BouncyCastle.Cryptography" Version="2.5.0" />
+        <PackageReference Include="BouncyCastle.Cryptography" Version="2.4.0" />
       </ItemGroup>
     </When>
     <When Condition="'$(TargetFramework)' == 'netstandard2.0'">
       <ItemGroup>
-        <PackageReference Include="BouncyCastle.Cryptography" Version="2.5.0" />
+        <PackageReference Include="BouncyCastle.Cryptography" Version="2.4.0" />
       </ItemGroup>
     </When>
     <Otherwise>
@@ -46,11 +46,11 @@
   </ItemGroup>
 
   <ItemGroup Condition="'$(TargetFramework)' == 'net472'">
-    <PackageReference Include="BouncyCastle.Cryptography" Version="2.5.0" />
+    <PackageReference Include="BouncyCastle.Cryptography" Version="2.4.0" />
   </ItemGroup>
 
   <ItemGroup Condition="'$(TargetFramework)' == 'net48'">
-    <PackageReference Include="BouncyCastle.Cryptography" Version="2.5.0" />
+    <PackageReference Include="BouncyCastle.Cryptography" Version="2.4.0" />
   </ItemGroup>
 
   <Target Name="GetPackagingOutputs" />

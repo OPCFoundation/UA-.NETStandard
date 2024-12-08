@@ -15,7 +15,6 @@ using System.Collections.Generic;
 using System.Reflection;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
-using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Bindings
 {
@@ -94,7 +93,8 @@ namespace Opc.Ua.Bindings
         /// <param name="baseAddresses">The base addreses for the service host.</param>
         /// <param name="serverDescription">The server description.</param>
         /// <param name="securityPolicies">The list of supported security policies.</param>
-        /// <param name="instanceCertificateTypesProvider">The provider for application certificates.</param>
+        /// <param name="instanceCertificate">The server certificate.</param>
+        /// <param name="instanceCertificateChain">The cert cahin of the server certificate.</param>
         List<EndpointDescription> CreateServiceHost(
             ServerBase serverBase,
             IDictionary<string, ServiceHost> hosts,
@@ -102,7 +102,8 @@ namespace Opc.Ua.Bindings
             IList<string> baseAddresses,
             ApplicationDescription serverDescription,
             List<ServerSecurityPolicy> securityPolicies,
-            CertificateTypesProvider instanceCertificateTypesProvider
+            X509Certificate2 instanceCertificate,
+            X509Certificate2Collection instanceCertificateChain
             );
     }
 

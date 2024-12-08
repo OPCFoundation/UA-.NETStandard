@@ -15,7 +15,6 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Runtime.Serialization;
-using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
@@ -131,7 +130,7 @@ namespace Opc.Ua
                 {
                     string discoveryUrl = endpoint.Description.EndpointUrl;
 
-                    if (Utils.IsUriHttpRelatedScheme(discoveryUrl))
+                    if (discoveryUrl.StartsWith(Utils.UriSchemeHttp, StringComparison.Ordinal))
                     {
                         discoveryUrl += ConfiguredEndpoint.DiscoverySuffix;
                     }
@@ -531,7 +530,7 @@ namespace Opc.Ua
                 }
 
                 if (endpointUrl != null &&
-                    Utils.IsUriHttpRelatedScheme(endpointUrl) &&
+                    endpointUrl.StartsWith(Utils.UriSchemeHttp, StringComparison.Ordinal) &&
                     endpointUrl.EndsWith(ConfiguredEndpoint.DiscoverySuffix, StringComparison.OrdinalIgnoreCase))
                 {
                     endpointUrl = endpointUrl.Substring(0, endpointUrl.Length - ConfiguredEndpoint.DiscoverySuffix.Length);
@@ -816,7 +815,7 @@ namespace Opc.Ua
 
                 if (baseUrl != null)
                 {
-                    if (Utils.IsUriHttpRelatedScheme(baseUrl) &&
+                    if (baseUrl.StartsWith(Utils.UriSchemeHttp, StringComparison.Ordinal) &&
                         baseUrl.EndsWith(DiscoverySuffix, StringComparison.Ordinal))
                     {
                         baseUrl = baseUrl.Substring(0, baseUrl.Length - DiscoverySuffix.Length);
@@ -1209,7 +1208,7 @@ namespace Opc.Ua
             // attempt to construct a discovery url by appending 'discovery' to the endpoint.
             if (discoveryUrls == null || discoveryUrls.Count == 0)
             {
-                if (Utils.IsUriHttpRelatedScheme(endpointUrl.Scheme))
+                if (endpointUrl.Scheme.StartsWith(Utils.UriSchemeHttp, StringComparison.Ordinal))
                 {
                     return new Uri(Utils.Format("{0}{1}", endpointUrl, DiscoverySuffix));
                 }

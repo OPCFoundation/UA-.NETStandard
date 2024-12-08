@@ -20,6 +20,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.Redaction;
+using System.Threading;
 
 namespace Opc.Ua
 {
@@ -422,18 +423,9 @@ namespace Opc.Ua
         public bool SupportsLoadPrivateKey => true;
 
         /// <summary>
-        /// Loads the private key certificate with RSA signature from a PFX file in the certificate store.
+        /// Loads the private key from a PFX/PEM file in the certificate store.
         /// </summary>
-        [Obsolete("Method is deprecated. Use only for RSA certificates, the replacing LoadPrivateKey with certificateType parameter should be used.")]
-        public Task<X509Certificate2> LoadPrivateKey(string thumbprint, string subjectName, string password)
-        {
-            return LoadPrivateKey(thumbprint, subjectName, null, password);
-        }
-
-        /// <summary>
-        /// Loads the private key from a PFX file in the certificate store.
-        /// </summary>
-        public async Task<X509Certificate2> LoadPrivateKey(string thumbprint, string subjectName, NodeId certificateType, string password)
+        public async Task<X509Certificate2> LoadPrivateKey(string thumbprint, string subjectName, string password)
         {
             if (NoPrivateKeys || m_privateKeySubdir == null ||
                 m_certificateSubdir == null || !m_certificateSubdir.Exists)
@@ -458,7 +450,7 @@ namespace Opc.Ua
                 {
                     try
                     {
-                        var certificate = X509CertificateLoader.LoadCertificateFromFile(file.FullName);
+                        var certificate = new X509Certificate2(file.FullName);
 
                         if (!String.IsNullOrEmpty(thumbprint))
                         {
@@ -484,7 +476,8 @@ namespace Opc.Ua
                             }
                         }
 
-                        if (!CertificateIdentifier.ValidateCertificateType(certificate, certificateType))
+                        // skip if not RSA certificate
+                        if (X509Utils.GetRSAPublicKeySize(certificate) < 0)
                         {
                             continue;
                         }
@@ -520,11 +513,11 @@ namespace Opc.Ua
                             {
                                 try
                                 {
-                                    certificate = X509CertificateLoader.LoadPkcs12FromFile(
+                                    certificate = new X509Certificate2(
                                         privateKeyFilePfx.FullName,
                                         password,
                                         flag);
-                                    if (X509Utils.VerifyKeyPair(certificate, certificate, true))
+                                    if (X509Utils.VerifyRSAKeyPair(certificate, certificate, true))
                                     {
                                         Utils.LogInfo(Utils.TraceMasks.Security, "Imported the PFX private key for [{0}].", certificate.Thumbprint);
                                         return certificate;
@@ -545,7 +538,7 @@ namespace Opc.Ua
                             {
                                 byte[] pemDataBlob = File.ReadAllBytes(privateKeyFilePem.FullName);
                                 certificate = CertificateFactory.CreateCertificateWithPEMPrivateKey(certificate, pemDataBlob, password);
-                                if (X509Utils.VerifyKeyPair(certificate, certificate, true))
+                                if (X509Utils.VerifyRSAKeyPair(certificate, certificate, true))
                                 {
                                     Utils.LogInfo(Utils.TraceMasks.Security, "Imported the PEM private key for [{0}].", certificate.Thumbprint);
                                     return certificate;
@@ -627,7 +620,7 @@ namespace Opc.Ua
                     }
                     catch (Exception e)
                     {
-                        Utils.LogError(e, "Failed to parse CRL {0} in store {1}.", file.FullName, StorePath);
+                        Utils.LogError(e, "Could not parse CRL file.");
                         continue;
                     }
 
@@ -677,16 +670,8 @@ namespace Opc.Ua
             {
                 foreach (FileInfo file in m_crlSubdir.GetFiles("*" + kCrlExtension))
                 {
-                    try
-                    {
-                        var crl = new X509CRL(file.FullName);
-                        crls.Add(crl);
-                    }
-                    catch (Exception e)
-                    {
-                        Utils.LogError(e, "Failed to parse CRL {0} in store {1}.", file.FullName, StorePath);
-                    }
-
+                    var crl = new X509CRL(file.FullName);
+                    crls.Add(crl);
                 }
             }
 
@@ -839,7 +824,7 @@ namespace Opc.Ua
                     try
                     {
                         var entry = new Entry {
-                            Certificate = X509CertificateLoader.LoadCertificateFromFile(file.FullName),
+                            Certificate = new X509Certificate2(file.FullName),
                             CertificateFile = file,
                             PrivateKeyFile = null,
                             CertificateWithPrivateKey = null,
@@ -956,14 +941,6 @@ namespace Opc.Ua
                 }
 
                 fileName.Append(ch);
-            }
-
-            var signatureQualifier = X509Utils.GetECDsaQualifier(certificate);
-            if (!string.IsNullOrEmpty(signatureQualifier))
-            {
-                fileName.Append(" [");
-                fileName.Append(signatureQualifier);
-                fileName.Append(']');
             }
 
             fileName.Append(" [");

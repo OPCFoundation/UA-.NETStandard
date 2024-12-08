@@ -374,19 +374,13 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                                 if (jsonEncoding == JsonEncodingType.Compact || jsonEncoding == JsonEncodingType.Reversible)
                                 {
                                     oText = "0";
-                                    // default statuscode is not encoded
-                                    continue;
-                                }
-                                else if (jsonEncoding == JsonEncodingType.Verbose)
-                                {
-                                    oText = "{}";
                                 }
                                 else
                                 {
                                     oText = "{\"Code\": 0,\"Symbol\":\"Good\"}";
                                     // default statuscode is not encoded
-                                    continue;
                                 }
+                                continue;
                             }
                             else if (property.Name == "Guid")
                             {

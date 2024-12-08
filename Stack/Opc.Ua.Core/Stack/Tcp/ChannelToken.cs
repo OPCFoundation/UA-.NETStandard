@@ -11,7 +11,6 @@
 */
 
 using System;
-using System.Diagnostics;
 using System.Security.Cryptography;
 
 namespace Opc.Ua.Bindings
@@ -19,7 +18,7 @@ namespace Opc.Ua.Bindings
     /// <summary>
     /// Represents a security token associate with a channel.
     /// </summary>
-    public sealed class ChannelToken : IDisposable
+    public class ChannelToken
     {
         #region Constructors
         /// <summary>
@@ -27,49 +26,6 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public ChannelToken()
         {
-        }
-        #endregion
-
-        #region IDisposable
-        /// <summary>
-        /// The private version of the Dispose.
-        /// </summary>
-        private void Dispose(bool disposing)
-        {
-            if (!m_disposed)
-            {
-                if (disposing)
-                {
-                    Utils.SilentDispose(m_clientHmac);
-                    Utils.SilentDispose(m_serverHmac);
-                    Utils.SilentDispose(m_clientEncryptor);
-                    Utils.SilentDispose(m_serverEncryptor);
-                }
-                m_clientHmac = null;
-                m_serverHmac = null;
-                m_clientEncryptor = null;
-                m_serverEncryptor = null;
-                m_disposed = true;
-            }
-        }
-
-#if DEBUG
-        /// <summary>
-        /// The finalizer is used to catch issues with the dispose.
-        /// </summary>
-        ~ChannelToken()
-        {
-            Dispose(disposing: false);
-        }
-#endif
-
-        /// <summary>
-        /// Disposes the channel tokens.
-        /// </summary>
-        public void Dispose()
-        {
-            Dispose(disposing: true);
-            GC.SuppressFinalize(this);
         }
         #endregion
 
@@ -102,16 +58,6 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
-        /// When the token was created (refers to the local tick count).
-        /// Used for calculation of renewals. Uses <see cref="Opc.Ua.HiResClock.TickCount"/>.
-        /// </summary>
-        public int CreatedAtTickCount
-        {
-            get { return m_createdAtTickCount; }
-            set { m_createdAtTickCount = value; }
-        }
-
-        /// <summary>
         /// The lifetime of the token in milliseconds.
         /// </summary>
         public int Lifetime
@@ -127,7 +73,12 @@ namespace Opc.Ua.Bindings
         {
             get
             {
-                return (HiResClock.TickCount - m_createdAtTickCount) > m_lifetime;
+                if (DateTime.UtcNow > m_createdAt.AddMilliseconds(m_lifetime))
+                {
+                    return true;
+                }
+
+                return false;
             }
         }
 
@@ -138,7 +89,12 @@ namespace Opc.Ua.Bindings
         {
             get
             {
-                return (HiResClock.TickCount - m_createdAtTickCount) > (int)Math.Round(m_lifetime * TcpMessageLimits.TokenActivationPeriod);
+                if (DateTime.UtcNow > m_createdAt.AddMilliseconds(m_lifetime * TcpMessageLimits.TokenActivationPeriod))
+                {
+                    return true;
+                }
+
+                return false;
             }
         }
 
@@ -257,13 +213,12 @@ namespace Opc.Ua.Bindings
             get { return m_serverHmac; }
             set { m_serverHmac = value; }
         }
-        #endregion
+        #endregion       
 
         #region Private Fields
         private uint m_channelId;
         private uint m_tokenId;
         private DateTime m_createdAt;
-        private int m_createdAtTickCount;
         private int m_lifetime;
         private byte[] m_clientNonce;
         private byte[] m_serverNonce;
@@ -277,7 +232,6 @@ namespace Opc.Ua.Bindings
         private HMAC m_serverHmac;
         private SymmetricAlgorithm m_clientEncryptor;
         private SymmetricAlgorithm m_serverEncryptor;
-        private bool m_disposed;
         #endregion
     }
 }

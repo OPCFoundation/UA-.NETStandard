@@ -149,7 +149,7 @@ namespace Opc.Ua.Security.Certificates
             {
                 return X509Utils.CreatePfxWithPrivateKey(
                     x509, friendlyName,
-                    X509Utils.GetRsaPrivateKeyParameter(privateKey),
+                    X509Utils.GetPrivateKeyParameter(privateKey),
                     passcode,
                     new SecureRandom(cfrg));
             }
@@ -170,8 +170,8 @@ namespace Opc.Ua.Security.Certificates
                 SecureRandom random = new SecureRandom(cfrg);
 
                 // try to get signing/private key from certificate passed in
-                AsymmetricKeyParameter signingKey = X509Utils.GetRsaPrivateKeyParameter(certificate);
-                RsaKeyParameters publicKey = X509Utils.GetRsaPublicKeyParameter(certificate);
+                AsymmetricKeyParameter signingKey = X509Utils.GetPrivateKeyParameter(certificate);
+                RsaKeyParameters publicKey = X509Utils.GetPublicKeyParameter(certificate);
 
                 ISignatureFactory signatureFactory =
                     new Asn1SignatureFactory(X509Utils.GetRSAHashAlgorithm(X509Defaults.HashAlgorithmName), signingKey, random);
@@ -326,7 +326,7 @@ namespace Opc.Ua.Security.Certificates
             BigInteger issuerSerialNumber;
             if (IssuerCAKeyCert != null)
             {
-                issuerPublicKey = X509Utils.GetRsaPublicKeyParameter(IssuerCAKeyCert);
+                issuerPublicKey = X509Utils.GetPublicKeyParameter(IssuerCAKeyCert);
                 issuerSerialNumber = X509Utils.GetSerialNumber(IssuerCAKeyCert);
             }
             else
@@ -405,7 +405,7 @@ namespace Opc.Ua.Security.Certificates
             CreateMandatoryFields(cg);
 
             // set public key
-            AsymmetricKeyParameter subjectPublicKey = X509Utils.GetRsaPublicKeyParameter(m_rsaPublicKey);
+            AsymmetricKeyParameter subjectPublicKey = X509Utils.GetPublicKeyParameter(m_rsaPublicKey);
             cg.SetPublicKey(subjectPublicKey);
 
             CreateExtensions(cg, subjectPublicKey);
@@ -413,7 +413,7 @@ namespace Opc.Ua.Security.Certificates
             // sign certificate by issuer
             if (signatureFactory == null)
             {
-                AsymmetricKeyParameter signingKey = X509Utils.GetRsaPrivateKeyParameter(IssuerCAKeyCert);
+                AsymmetricKeyParameter signingKey = X509Utils.GetPrivateKeyParameter(IssuerCAKeyCert);
                 signatureFactory = new Asn1SignatureFactory(X509Utils.GetRSAHashAlgorithm(HashAlgorithmName), signingKey);
             }
             Org.BouncyCastle.X509.X509Certificate x509 = cg.Generate(signatureFactory);
@@ -459,8 +459,8 @@ namespace Opc.Ua.Security.Certificates
                 AsymmetricKeyParameter subjectPrivateKey = null;
                 using (var rsa = new RSACryptoServiceProvider(m_keySize == 0 ? X509Defaults.RSAKeySize : m_keySize))
                 {
-                    subjectPublicKey = X509Utils.GetRsaPublicKeyParameter(rsa);
-                    subjectPrivateKey = X509Utils.GetRsaPrivateKeyParameter(rsa);
+                    subjectPublicKey = X509Utils.GetPublicKeyParameter(rsa);
+                    subjectPrivateKey = X509Utils.GetPrivateKeyParameter(rsa);
                 }
 
                 cg.SetPublicKey(subjectPublicKey);
@@ -473,7 +473,7 @@ namespace Opc.Ua.Security.Certificates
                     if (IssuerCAKeyCert != null)
                     {
                         // signed by issuer
-                        signingKey = X509Utils.GetRsaPrivateKeyParameter(IssuerCAKeyCert);
+                        signingKey = X509Utils.GetPrivateKeyParameter(IssuerCAKeyCert);
                     }
                     else
                     {

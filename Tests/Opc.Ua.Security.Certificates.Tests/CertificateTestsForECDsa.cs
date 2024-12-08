@@ -29,16 +29,12 @@
 
 #if ECC_SUPPORT
 using System;
-using System.Linq;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using NUnit.Framework;
 using Opc.Ua.Tests;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
-#if NETFRAMEWORK
-using Org.BouncyCastle.X509;
-#endif
+ using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Security.Certificates.Tests
 {
@@ -99,7 +95,7 @@ namespace Opc.Ua.Security.Certificates.Tests
                     .SetECCurve(eCCurveHash.Curve)
                     .CreateForECDsa())
                 {
-
+                    
                     Assert.NotNull(cert);
                     WriteCertificate(cert, $"Default cert with ECDsa {eCCurveHash.Curve.Oid.FriendlyName} {eCCurveHash.HashAlgorithmName} signature.");
                     Assert.AreEqual(eCCurveHash.HashAlgorithmName, Oids.GetHashAlgorithmName(cert.SignatureAlgorithm.Value));
@@ -308,7 +304,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             {
                 var generator = X509SignatureGenerator.CreateForECDsa(ecdsaPrivateKey);
                 var cert = CertificateBuilder.Create("CN=App Cert")
-                    .SetIssuer(X509CertificateLoader.LoadCertificate(signingCert.RawData))
+                    .SetIssuer(new X509Certificate2(signingCert.RawData))
                     .CreateForRSA(generator);
                 Assert.NotNull(cert);
                 WriteCertificate(cert, "Default signed ECDsa cert");
@@ -320,7 +316,7 @@ namespace Opc.Ua.Security.Certificates.Tests
                 var generator = X509SignatureGenerator.CreateForECDsa(ecdsaPrivateKey);
                 var cert = CertificateBuilder.Create("CN=App Cert")
                     .SetHashAlgorithm(ecCurveHashPair.HashAlgorithmName)
-                    .SetIssuer(X509CertificateLoader.LoadCertificate(signingCert.RawData))
+                    .SetIssuer(new X509Certificate2(signingCert.RawData))
                     .SetECDsaPublicKey(ecdsaPublicKey)
                     .CreateForECDsa(generator);
                 Assert.NotNull(cert);
@@ -332,7 +328,7 @@ namespace Opc.Ua.Security.Certificates.Tests
                 var generator = X509SignatureGenerator.CreateForECDsa(ecdsaPrivateKey);
                 var cert = CertificateBuilder.Create("CN=App Cert")
                     .SetHashAlgorithm(ecCurveHashPair.HashAlgorithmName)
-                    .SetIssuer(X509CertificateLoader.LoadCertificate(signingCert.RawData))
+                    .SetIssuer(new X509Certificate2(signingCert.RawData))
                     .SetECCurve(ecCurveHashPair.Curve)
                     .CreateForECDsa(generator);
                 Assert.NotNull(cert);
@@ -352,39 +348,6 @@ namespace Opc.Ua.Security.Certificates.Tests
                 }
             });
         }
-
-        [Theory]
-        public void SetECDsaPublicKeyByteArray(
-            ECCurveHashPair ecCurveHashPair
-            )
-        {
-            // default signing cert with custom key
-            X509Certificate2 signingCert = CertificateBuilder.Create(Subject)
-                .SetCAConstraint()
-                .SetHashAlgorithm(HashAlgorithmName.SHA512)
-                .SetECCurve(ecCurveHashPair.Curve)
-                .CreateForECDsa();
-
-            WriteCertificate(signingCert, $"Signing ECDsa {signingCert.GetECDsaPublicKey().KeySize} cert");
-
-
-            using (ECDsa ecdsaPrivateKey = signingCert.GetECDsaPrivateKey())
-            using (ECDsa ecdsaPublicKey = signingCert.GetECDsaPublicKey())
-            {
-                byte[] pubKeyBytes = GetPublicKey(ecdsaPublicKey);
-
-                var generator = X509SignatureGenerator.CreateForECDsa(ecdsaPrivateKey);
-                var cert = CertificateBuilder.Create("CN=App Cert")
-                    .SetHashAlgorithm(ecCurveHashPair.HashAlgorithmName)
-                    .SetIssuer(X509CertificateLoader.LoadCertificate(signingCert.RawData))
-                    .SetECDsaPublicKey(pubKeyBytes)
-                    .CreateForECDsa(generator);
-                Assert.NotNull(cert);
-                WriteCertificate(cert, "Default signed ECDsa cert with Public Key");
-            }
-
-        }
-
         #endregion
 
         #region Private Methods
@@ -419,21 +382,9 @@ namespace Opc.Ua.Security.Certificates.Tests
             {
 #if !NETFRAMEWORK
                 PEMWriter.ExportPrivateKeyAsPEM(certificate, password);
-#if NETCOREAPP3_1 || NET5_0_OR_GREATER
                 PEMWriter.ExportECDsaPrivateKeyAsPEM(certificate);
 #endif
-#endif
             }
-        }
-
-        private static byte[] GetPublicKey(ECDsa ecdsa)
-        {
-#if NETFRAMEWORK    
-            var pubKeyParams = BouncyCastle.X509Utils.GetECPublicKeyParameters(ecdsa);
-            return SubjectPublicKeyInfoFactory.CreateSubjectPublicKeyInfo(pubKeyParams).ToAsn1Object().GetDerEncoded();
-#elif NETCOREAPP3_1 || NET5_0_OR_GREATER
-            return ecdsa.ExportSubjectPublicKeyInfo();
-#endif
         }
         #endregion
 
@@ -442,3 +393,4 @@ namespace Opc.Ua.Security.Certificates.Tests
     }
 }
 #endif
+

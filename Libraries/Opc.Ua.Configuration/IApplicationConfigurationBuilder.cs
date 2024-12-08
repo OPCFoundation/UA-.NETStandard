@@ -29,7 +29,6 @@
 
 using System.Threading.Tasks;
 using System.Xml;
-using System;
 
 namespace Opc.Ua.Configuration
 {
@@ -266,9 +265,6 @@ namespace Opc.Ua.Configuration
 
         /// <inheritdoc cref="ServerConfiguration.AuditingEnabled"/>
         IApplicationConfigurationBuilderServerOptions SetAuditingEnabled(bool auditingEnabled);
-
-        /// <inheritdoc cref="ServerConfiguration.HttpsMutualTls"/>
-        IApplicationConfigurationBuilderServerOptions SetHttpsMutualTls(bool mTlsEnabled);
     }
 
     /// <summary>
@@ -358,22 +354,6 @@ namespace Opc.Ua.Configuration
         IApplicationConfigurationBuilderServerSelected AddSignAndEncryptPolicies(bool addPolicies = true);
 
         /// <summary>
-        /// Add the ECCsign security policies to the server configuration.
-        /// </summary>
-        /// <remarks>
-        /// The policies are only added if the platform supports the ECC policies.
-        /// </remarks>
-        IApplicationConfigurationBuilderServerSelected AddEccSignPolicies();
-
-        /// <summary>
-        /// Add the ECC sign and encrypt security policies to the server configuration.
-        /// </summary>
-        /// <remarks>
-        /// The policies are only added if the platform supports the ECC policies.
-        /// </remarks>
-        IApplicationConfigurationBuilderServerSelected AddEccSignAndEncryptPolicies();
-
-        /// <summary>
         /// Add the specified security policy with the specified security mode.
         /// </summary>
         /// <param name="securityMode">The message security mode to add the policy to.</param>
@@ -411,29 +391,10 @@ namespace Opc.Ua.Configuration
         /// <param name="pkiRoot">The path to the pki root. By default all cert stores use the pki root.</param>
         /// <param name="appRoot">The path to the app cert store, if different than the pki root.</param>
         /// <param name="rejectedRoot">The path to the rejected certificate store.</param>
-        [Obsolete("Use AddSecurityConfiguration(CertificateIdentifierCollection certIdList, string pkiRoot = null, string rejectedRoot = null) instead.")]
         IApplicationConfigurationBuilderSecurityOptions AddSecurityConfiguration(
             string subjectName,
             string pkiRoot = null,
             string appRoot = null,
-            string rejectedRoot = null
-            );
-        
-        /// <summary>
-        /// Add the security configuration.
-        /// </summary>
-        /// <remarks>
-        /// The pki root path default to the certificate store
-        /// location as defined in <see cref="CertificateStoreIdentifier.DefaultPKIRoot"/>
-        /// A <see cref="CertificateStoreType"/> defaults to the corresponding default store location.
-        /// </remarks>
-        /// <param name="certIdList">A list of Certificate identifiers</param>
-        /// <param name="pkiRoot">The path to the pki root. By default all cert stores use the pki root.</param>
-        /// <param name="rejectedRoot">The path to the rejected certificate store.</param>
-
-        IApplicationConfigurationBuilderSecurityOptions AddSecurityConfiguration(
-            CertificateIdentifierCollection certIdList,
-            string pkiRoot = null,
             string rejectedRoot = null
             );
 
@@ -490,16 +451,6 @@ namespace Opc.Ua.Configuration
         IApplicationConfigurationBuilderExtension,
         IApplicationConfigurationBuilderCreate
     {
-        /// <summary>
-        /// The certificate types that should be supported.
-        /// </summary>
-        /// <remarks>
-        /// At this time the following types are supported, if the platform OS and .NET version can handle it.
-        /// Rsa,nistP256,nistP384,brainpoolP256r1,brainpoolP384r1
-        /// </remarks>
-        /// <param name="certIdList">A list of Certificate identifiers</param>
-        IApplicationConfigurationBuilderSecurityOptions SetApplicationCertificates(CertificateIdentifierCollection certIdList);
-
         /// <summary>
         /// The number of rejected certificates to keep in the store.
         /// </summary>

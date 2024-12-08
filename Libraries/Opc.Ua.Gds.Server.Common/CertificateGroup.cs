@@ -119,7 +119,7 @@ namespace Opc.Ua.Gds.Server
                     Configuration.CACertificateLifetime
                     );
                 X509Certificate2 newCertificate = await CreateCACertificateAsync(SubjectName).ConfigureAwait(false);
-                Certificate = X509CertificateLoader.LoadCertificate(newCertificate.RawData);
+                Certificate = new X509Certificate2(newCertificate.RawData);
                 Utils.LogCertificate(Utils.TraceMasks.Security, "Created CA certificate: ", Certificate);
             }
         }
@@ -173,7 +173,7 @@ namespace Opc.Ua.Gds.Server
                 {
                     throw new ServiceResultException(StatusCodes.BadInvalidArgument, "Invalid private key format");
                 }
-                return new X509Certificate2KeyPair(X509CertificateLoader.LoadCertificate(certificate.RawData), privateKeyFormat, privateKey);
+                return new X509Certificate2KeyPair(new X509Certificate2(certificate.RawData), privateKeyFormat, privateKey);
             }
         }
 
@@ -336,7 +336,7 @@ namespace Opc.Ua.Gds.Server
             {
 
                 // save only public key
-                Certificate = X509CertificateLoader.LoadCertificate(newCertificate.RawData);
+                Certificate = new X509Certificate2(newCertificate.RawData);
 
                 // initialize revocation list
                 X509CRL crl = await RevokeCertificateAsync(AuthoritiesStore, newCertificate, null).ConfigureAwait(false);
@@ -494,7 +494,7 @@ namespace Opc.Ua.Gds.Server
                         X509Certificate2Collection certs = await trustedOrIssuerStore.FindByThumbprint(certificate.Thumbprint).ConfigureAwait(false);
                         if (certs.Count == 0)
                         {
-                            using (var x509 = X509CertificateLoader.LoadCertificate(certificate.RawData))
+                            using (var x509 = new X509Certificate2(certificate.RawData))
                             {
                                 await trustedOrIssuerStore.Add(x509).ConfigureAwait(false);
                             }

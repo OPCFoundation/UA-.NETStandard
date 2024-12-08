@@ -36,14 +36,8 @@ using System.Text;
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Diagnosers;
 using Microsoft.IO;
-using Newtonsoft.Json;
 using NUnit.Framework;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
-
-#if NET6_0_OR_GREATER
-using System.Text.Encodings.Web;
-using System.Text.Json;
-#endif
 
 namespace Opc.Ua.Core.Tests.Types.Encoders
 {
@@ -220,37 +214,6 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             m_streamWriter.Flush();
         }
 
-        /// <summary>
-        /// Using NewtonSoft, which first converts to string.
-        /// </summary>
-        [Benchmark]
-        public void EscapeStringNewtonSoft()
-        {
-            m_memoryStream.Position = 0;
-            int repeats = InnerLoops;
-            while (repeats-- > 0)
-            {
-                EscapeStringNewtonSoft(m_testString);
-            }
-            m_streamWriter.Flush();
-        }
-
-#if NET6_0_OR_GREATER
-        /// <summary>
-        /// A new implementation using ReadOnlySpan and Dictionary.
-        /// </summary>
-        [Benchmark]
-        public void EscapeStringSystemTextJson()
-        {
-            m_memoryStream.Position = 0;
-            int repeats = InnerLoops;
-            while (repeats-- > 0)
-            {
-                EscapeStringSystemTextJson(m_testString);
-            }
-        }
-#endif
-
         [Theory]
         [TestCase("No Escape chars", 0)]
         [TestCase("control chars escaped, 1 char space", 1)]
@@ -262,30 +225,26 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [TestCase("binary chars escaped, 3 char spaces", 7)]
         [TestCase("binary chars escaped, 5 char spaces", 8)]
         [TestCase("all escape chars and long string", 9)]
-        [NonParallelizable]
         public void EscapeStringValidation(string name, int index)
         {
-            m_memoryStream = new RecyclableMemoryStream(m_memoryManager);
-            m_streamWriter = new StreamWriter(m_memoryStream, new UTF8Encoding(false), m_streamSize, false);
-
             m_testString = EscapeTestStrings[index];
             TestContext.Out.WriteLine(m_testString);
             var testArray = m_testString.ToCharArray();
 
             m_memoryStream.Position = 0;
-            EscapedStringLegacy(m_testString);
+            EscapeStringLegacy();
             m_streamWriter.Flush();
             byte[] resultLegacy = m_memoryStream.ToArray();
             TestContext.Out.WriteLine(Encoding.UTF8.GetString(resultLegacy));
 
             m_memoryStream.Position = 0;
-            EscapedStringLegacyPlus(m_testString);
+            EscapeStringLegacyPlus();
             m_streamWriter.Flush();
             byte[] resultLegacyPlus = m_memoryStream.ToArray();
             TestContext.Out.WriteLine(Encoding.UTF8.GetString(resultLegacyPlus));
 
             m_memoryStream.Position = 0;
-            EscapeString(m_testString);
+            EscapeStringStringBuilder();
             m_streamWriter.Flush();
             byte[] result = m_memoryStream.ToArray();
             TestContext.Out.WriteLine(Encoding.UTF8.GetString(result));
@@ -326,21 +285,6 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             byte[] resultSpanDict = m_memoryStream.ToArray();
             TestContext.Out.WriteLine(Encoding.UTF8.GetString(resultSpanDict));
 
-            m_memoryStream = new RecyclableMemoryStream(m_memoryManager);
-            m_streamWriter = new StreamWriter(m_memoryStream, new UTF8Encoding(false), m_streamSize, false);
-            EscapeStringNewtonSoft(m_testString);
-            m_streamWriter.Flush();
-            byte[] resultNewtonSoft = m_memoryStream.ToArray();
-            TestContext.Out.WriteLine(Encoding.UTF8.GetString(resultNewtonSoft));
-
-#if NET6_0_OR_GREATER
-            m_memoryStream = new RecyclableMemoryStream(m_memoryManager);
-            EscapeStringSystemTextJson(m_testString);
-            byte[] resultSystemTextJson = m_memoryStream.ToArray();
-            TestContext.Out.WriteLine(Encoding.UTF8.GetString(resultSystemTextJson));
-            Assert.IsTrue(Utils.IsEqual(resultLegacy, resultSystemTextJson));
-#endif
-
             Assert.IsTrue(Utils.IsEqual(resultLegacy, result));
             Assert.IsTrue(Utils.IsEqual(resultLegacy, resultLegacyPlus));
             Assert.IsTrue(Utils.IsEqual(resultLegacy, resultSpan));
@@ -349,7 +293,6 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             Assert.IsTrue(Utils.IsEqual(resultLegacy, resultSpanCharsInlineConst));
             Assert.IsTrue(Utils.IsEqual(resultLegacy, resultSpanIndex));
             Assert.IsTrue(Utils.IsEqual(resultLegacy, resultSpanDict));
-            Assert.IsTrue(Utils.IsEqual(resultLegacy, resultNewtonSoft));
         }
 
         #region Test Setup
@@ -827,21 +770,6 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 #endif
             }
         }
-
-        private void EscapeStringNewtonSoft(string value)
-        {
-            string newtonSoftConvertedText = JsonConvert.ToString(value);
-            newtonSoftConvertedText = newtonSoftConvertedText.Substring(1, newtonSoftConvertedText.Length - 2);
-            m_streamWriter.Write(newtonSoftConvertedText);
-        }
-
-#if NET6_0_OR_GREATER
-        private void EscapeStringSystemTextJson(string value)
-        {
-            var jsonEncodedText = JsonEncodedText.Encode(m_testString, JavaScriptEncoder.UnsafeRelaxedJsonEscaping);
-            m_memoryStream.Write(jsonEncodedText.EncodedUtf8Bytes);
-        }
-#endif
 
         private void EscapeString(string value)
         {
