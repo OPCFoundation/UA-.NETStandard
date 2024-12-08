@@ -368,15 +368,15 @@ namespace Opc.Ua.Gds.Server
                       .SetRSAKeySize(Configuration.CACertificateKeySize)
                       .CreateForRSA();
 #else
-            certificate =  builder.SetHashAlgorithm(X509Utils.GetRSAHashAlgorithmName(Configuration.CACertificateHashSize))
+            certificate = builder.SetHashAlgorithm(X509Utils.GetRSAHashAlgorithmName(Configuration.CACertificateHashSize))
                       .SetRSAKeySize(Configuration.CACertificateKeySize)
                       .CreateForRSA();
 #endif
 
             await certificate.AddToStoreAsync(AuthoritiesStore).ConfigureAwait(false);
 
-                // save only public key
-                Certificate = X509CertificateLoader.LoadCertificate(newCertificate.RawData);
+            // save only public key
+            Certificate = X509CertificateLoader.LoadCertificate(certificate.RawData);
 
             // initialize revocation list
             X509CRL crl = await RevokeCertificateAsync(AuthoritiesStore, certificate, null).ConfigureAwait(false);
