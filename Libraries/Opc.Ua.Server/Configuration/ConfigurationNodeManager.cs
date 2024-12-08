@@ -682,7 +682,7 @@ namespace Opc.Ua.Server
                     catch (Exception ex)
                     {
                         Utils.LogCritical(ex, "Failed to sucessfully Apply Changes: Error updating application instance certificates. Server could be in faulted state.");
-                        throw ex;
+                        throw;
                     }
                 }
                 );
