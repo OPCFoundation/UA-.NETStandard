@@ -1,4 +1,3 @@
-
 /* ========================================================================
  * Copyright (c) 2005-2022 The OPC Foundation, Inc. All rights reserved.
  *
@@ -224,10 +223,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// The root notifiers for the node manager.
         /// </summary>
-        protected List<NodeState> RootNotifiers
-        {
-            get { return m_rootNotifiers; }
-        }
+        protected NodeIdDictionary<NodeState> RootNotifiers => m_rootNotifiers;
 
         /// <summary>
         /// Gets the table of nodes being monitored.
@@ -349,6 +345,7 @@ namespace Opc.Ua.Server
 
             lock (Lock)
             {
+
                 if (m_predefinedNodes == null)
                 {
                     m_predefinedNodes = new NodeIdDictionary<NodeState>();
@@ -569,33 +566,28 @@ namespace Opc.Ua.Server
             {
                 AddTypesToTypeTree(type);
             }
-            lock (Lock)
+
+            // update the root notifiers.
+            NodeState rootNotifier = null;
+            if (m_rootNotifiers?.TryGetValue(activeNode.NodeId, out rootNotifier) == true)
             {
-                // update the root notifiers.
-                if (m_rootNotifiers != null)
+                //update entry only if it was not changed or deleted by another thread in an atomic operation
+                if (m_rootNotifiers.TryUpdate(activeNode.NodeId, activeNode, rootNotifier))
                 {
-                    for (int ii = 0; ii < m_rootNotifiers.Count; ii++)
+                    // need to prevent recursion with the server object.
+                    if (activeNode.NodeId != ObjectIds.Server)
                     {
-                        if (m_rootNotifiers[ii].NodeId == activeNode.NodeId)
+                        activeNode.OnReportEvent = OnReportEvent;
+
+                        if (!activeNode.ReferenceExists(ReferenceTypeIds.HasNotifier, true, ObjectIds.Server))
                         {
-                            m_rootNotifiers[ii] = activeNode;
-
-                            // need to prevent recursion with the server object.
-                            if (activeNode.NodeId != ObjectIds.Server)
-                            {
-                                activeNode.OnReportEvent = OnReportEvent;
-
-                                if (!activeNode.ReferenceExists(ReferenceTypeIds.HasNotifier, true, ObjectIds.Server))
-                                {
-                                    activeNode.AddReference(ReferenceTypeIds.HasNotifier, true, ObjectIds.Server);
-                                }
-                            }
-
-                            break;
+                            activeNode.AddReference(ReferenceTypeIds.HasNotifier, true, ObjectIds.Server);
                         }
                     }
                 }
+
             }
+
 
             List<BaseInstanceState> children = new List<BaseInstanceState>();
             activeNode.GetChildren(context, children);
@@ -1989,7 +1981,7 @@ namespace Opc.Ua.Server
 
                 if (propertyState != null && property != null && propertyState.NodeId == property.NodeId && !Utils.IsEqual(newPropertyValue, previousPropertyValue))
                 {
-                    foreach (var monitoredItem in monitoredNode.DataChangeMonitoredItems)
+                    foreach (var monitoredItem in monitoredNode.DataChangeMonitoredItems.Values)
                     {
                         if (monitoredItem.AttributeId == Attributes.Value)
                         {
@@ -3100,21 +3092,20 @@ namespace Opc.Ua.Server
         {
             ServerSystemContext systemContext = SystemContext.Copy(context);
 
-            lock (Lock)
+            // A client has subscribed to the Server object which means all events produced
+            // by this manager must be reported. This is done by incrementing the monitoring
+            // reference count for all root notifiers.
+            // No Lock needed for the loop a concurrent dictionary takes a snapshot for enumerating values
+            foreach (var rootNotifier in m_rootNotifiers?.Values)
             {
-                // A client has subscribed to the Server object which means all events produced
-                // by this manager must be reported. This is done by incrementing the monitoring
-                // reference count for all root notifiers.
-                if (m_rootNotifiers != null)
+                lock (Lock)
                 {
-                    for (int ii = 0; ii < m_rootNotifiers.Count; ii++)
-                    {
-                        SubscribeToEvents(systemContext, m_rootNotifiers[ii], monitoredItem, unsubscribe);
-                    }
+                    SubscribeToEvents(systemContext, rootNotifier, monitoredItem, unsubscribe);
                 }
-
-                return ServiceResult.Good;
             }
+
+            return ServiceResult.Good;
+
         }
 
         #region SubscribeToEvents Support Functions
@@ -3128,39 +3119,25 @@ namespace Opc.Ua.Server
         /// </remarks>
         protected virtual void AddRootNotifier(NodeState notifier)
         {
-            lock (Lock)
+            if (m_rootNotifiers == null)
             {
-                if (m_rootNotifiers == null)
-                {
-                    m_rootNotifiers = new List<NodeState>();
-                }
+                m_rootNotifiers = new NodeIdDictionary<NodeState>();
+            }
+            bool notifierAlreadyExists = false;
+            m_rootNotifiers.AddOrUpdate(notifier.NodeId, notifier, (key, oldNotifier) => {
+                notifierAlreadyExists = oldNotifier == notifier;
+                return notifier;
+            });
 
-                bool mustAdd = true;
+            if (notifierAlreadyExists)
+            {
+                return;
+            }
 
-                for (int ii = 0; ii < m_rootNotifiers.Count; ii++)
-                {
-                    if (Object.ReferenceEquals(notifier, m_rootNotifiers[ii]))
-                    {
-                        return;
-                    }
-
-                    if (m_rootNotifiers[ii].NodeId == notifier.NodeId)
-                    {
-                        m_rootNotifiers[ii] = notifier;
-                        mustAdd = false;
-                        break;
-                    }
-                }
-
-                if (mustAdd)
-                {
-                    m_rootNotifiers.Add(notifier);
-                }
-
-                // need to prevent recursion with the server object.
-                if (notifier.NodeId != ObjectIds.Server)
-                {
-                    notifier.OnReportEvent = OnReportEvent;
+            // need to prevent recursion with the server object.
+            if (notifier.NodeId != ObjectIds.Server)
+            {
+                notifier.OnReportEvent = OnReportEvent;
 
                     if (!notifier.ReferenceExists(ReferenceTypeIds.HasNotifier, true, ObjectIds.Server))
                     {
@@ -3194,21 +3171,11 @@ namespace Opc.Ua.Server
         /// <param name="notifier">The notifier.</param>
         protected virtual void RemoveRootNotifier(NodeState notifier)
         {
-            lock (Lock)
+            NodeState removedNotifier = null;
+            if (m_rootNotifiers?.TryRemove(notifier.NodeId, out removedNotifier) == true)
             {
-                if (m_rootNotifiers != null)
-                {
-                    for (int ii = 0; ii < m_rootNotifiers.Count; ii++)
-                    {
-                        if (Object.ReferenceEquals(notifier, m_rootNotifiers[ii]))
-                        {
-                            notifier.OnReportEvent = null;
-                            notifier.RemoveReference(ReferenceTypeIds.HasNotifier, true, ObjectIds.Server);
-                            m_rootNotifiers.RemoveAt(ii);
-                            break;
-                        }
-                    }
-                }
+                removedNotifier.OnReportEvent = null;
+                removedNotifier.RemoveReference(ReferenceTypeIds.HasNotifier, true, ObjectIds.Server);
             }
         }
 
@@ -3281,12 +3248,11 @@ namespace Opc.Ua.Server
                 MonitoredNodes[source.NodeId] = monitoredNode = new MonitoredNode2(this, source);
             }
 
-            if (monitoredNode.EventMonitoredItems != null)
-            {
-                // remove existing monitored items with the same Id prior to insertion in order to avoid duplicates
-                // this is necessary since the SubscribeToEvents method is called also from ModifyMonitoredItemsForEvents
-                monitoredNode.EventMonitoredItems.RemoveAll(e => e.Id == monitoredItem.Id);
-            }
+
+            // remove existing monitored items with the same Id prior to insertion in order to avoid duplicates
+            // this is necessary since the SubscribeToEvents method is called also from ModifyMonitoredItemsForEvents
+            monitoredNode.EventMonitoredItems?.TryRemove(monitoredItem.Id, out _);
+
 
             // this links the node to specified monitored item and ensures all events
             // reported by the node are added to the monitored item's queue.
@@ -3345,30 +3311,25 @@ namespace Opc.Ua.Server
                 List<IFilterTarget> events = new List<IFilterTarget>();
                 List<NodeState> nodesToRefresh = new List<NodeState>();
 
-                lock (Lock)
+                // check for server subscription.
+                if (monitoredItem.NodeId == ObjectIds.Server)
                 {
-                    // check for server subscription.
-                    if (monitoredItem.NodeId == ObjectIds.Server)
-                    {
-                        if (m_rootNotifiers != null)
-                        {
-                            nodesToRefresh.AddRange(m_rootNotifiers);
-                        }
-                    }
-                    else
-                    {
-                        // check for existing monitored node.
-                        MonitoredNode2 monitoredNode = null;
-
-                        if (!MonitoredNodes.TryGetValue(monitoredItem.NodeId, out monitoredNode))
-                        {
-                            continue;
-                        }
-
-                        // get the refresh events.
-                        nodesToRefresh.Add(monitoredNode.Node);
-                    }
+                    nodesToRefresh.AddRange(m_rootNotifiers?.Values.ToList());
                 }
+                else
+                {
+                    // check for existing monitored node.
+                    MonitoredNode2 monitoredNode = null;
+
+                    if (!MonitoredNodes.TryGetValue(monitoredItem.NodeId, out monitoredNode))
+                    {
+                        continue;
+                    }
+
+                    // get the refresh events.
+                    nodesToRefresh.Add(monitoredNode.Node);
+                }
+
 
                 // block and wait for the refresh.
                 for (int jj = 0; jj < nodesToRefresh.Count; jj++)
@@ -3452,16 +3413,17 @@ namespace Opc.Ua.Server
                 return;
             }
 
-            // validates the nodes (reads values from the underlying data source if required).
-            for (int ii = 0; ii < nodesToValidate.Count; ii++)
+            lock (Lock)
             {
-                NodeHandle handle = nodesToValidate[ii];
-
-                MonitoringFilterResult filterResult = null;
-                IMonitoredItem monitoredItem = null;
-
-                lock (Lock)
+                // validates the nodes (reads values from the underlying data source if required).
+                for (int ii = 0; ii < nodesToValidate.Count; ii++)
                 {
+                    NodeHandle handle = nodesToValidate[ii];
+
+                    MonitoringFilterResult filterResult = null;
+                    IMonitoredItem monitoredItem = null;
+
+
                     // validate node.
                     NodeState source = ValidateNode(systemContext, handle, operationCache);
 
@@ -3484,19 +3446,19 @@ namespace Opc.Ua.Server
                         ref globalIdCounter,
                         out filterResult,
                         out monitoredItem);
+
+                    // save any filter error details.
+                    filterErrors[handle.Index] = filterResult;
+
+                    if (ServiceResult.IsBad(errors[handle.Index]))
+                    {
+                        continue;
+                    }
+
+                    // save the monitored item.
+                    monitoredItems[handle.Index] = monitoredItem;
+                    createdItems.Add(monitoredItem);
                 }
-
-                // save any filter error details.
-                filterErrors[handle.Index] = filterResult;
-
-                if (ServiceResult.IsBad(errors[handle.Index]))
-                {
-                    continue;
-                }
-
-                // save the monitored item.
-                monitoredItems[handle.Index] = monitoredItem;
-                createdItems.Add(monitoredItem);
             }
 
             // do any post processing.
@@ -4623,32 +4585,23 @@ namespace Opc.Ua.Server
         /// </summary>
         protected NodeState LookupNodeInComponentCache(ISystemContext context, NodeHandle handle)
         {
-            lock (Lock)
+            bool componentPathExists = !string.IsNullOrEmpty(handle.ComponentPath);
+            NodeId nodeId = componentPathExists ? handle.RootId : handle.NodeId;
+
+            CacheEntry entry = null;
+            if (m_componentCache?.TryGetValue(nodeId, out entry) == true)
             {
-                if (m_componentCache == null)
+                if (componentPathExists)
                 {
-                    return null;
-                }
-
-                CacheEntry entry = null;
-
-                if (!String.IsNullOrEmpty(handle.ComponentPath))
-                {
-                    if (m_componentCache.TryGetValue(handle.RootId, out entry))
-                    {
-                        return entry.Entry.FindChildBySymbolicName(context, handle.ComponentPath);
-                    }
+                    return entry.Entry.FindChildBySymbolicName(context, handle.ComponentPath);
                 }
                 else
                 {
-                    if (m_componentCache.TryGetValue(handle.NodeId, out entry))
-                    {
-                        return entry.Entry;
-                    }
+                    return entry.Entry;
                 }
-
-                return null;
             }
+
+            return null;
         }
 
         /// <summary>
@@ -4656,33 +4609,18 @@ namespace Opc.Ua.Server
         /// </summary>
         protected void RemoveNodeFromComponentCache(ISystemContext context, NodeHandle handle)
         {
-            lock (Lock)
+            bool componentPathExists = !string.IsNullOrEmpty(handle.ComponentPath);
+            NodeId nodeId = componentPathExists ? handle.RootId : handle.NodeId;
+
+            CacheEntry entry = null;
+            if (m_componentCache?.TryGetValue(nodeId, out entry) == true)
             {
-                if (handle == null)
+                int refCount = Interlocked.Decrement(ref entry.RefCount);
+
+                if (refCount == 0)
                 {
-                    return;
-                }
-
-                if (m_componentCache != null)
-                {
-                    NodeId nodeId = handle.NodeId;
-
-                    if (!String.IsNullOrEmpty(handle.ComponentPath))
-                    {
-                        nodeId = handle.RootId;
-                    }
-
-                    CacheEntry entry = null;
-
-                    if (m_componentCache.TryGetValue(nodeId, out entry))
-                    {
-                        entry.RefCount--;
-
-                        if (entry.RefCount == 0)
-                        {
-                            m_componentCache.Remove(nodeId);
-                        }
-                    }
+                    //this will only remove the value if it was not changed by another thread
+                    m_componentCache.TryRemove(nodeId, entry);
                 }
             }
         }
@@ -4692,65 +4630,51 @@ namespace Opc.Ua.Server
         /// </summary>
         protected NodeState AddNodeToComponentCache(ISystemContext context, NodeHandle handle, NodeState node)
         {
-            lock (Lock)
+            if (handle == null)
             {
-                if (handle == null)
-                {
-                    return node;
-                }
-
-                if (m_componentCache == null)
-                {
-                    m_componentCache = new NodeIdDictionary<CacheEntry>();
-                }
-
-                // check if a component is actually specified.
-                if (!String.IsNullOrEmpty(handle.ComponentPath))
-                {
-                    CacheEntry entry = null;
-
-                    if (m_componentCache.TryGetValue(handle.RootId, out entry))
-                    {
-                        entry.RefCount++;
-
-                        if (!String.IsNullOrEmpty(handle.ComponentPath))
-                        {
-                            return entry.Entry.FindChildBySymbolicName(context, handle.ComponentPath);
-                        }
-
-                        return entry.Entry;
-                    }
-
-                    NodeState root = node.GetHierarchyRoot();
-
-                    if (root != null)
-                    {
-                        entry = new CacheEntry();
-                        entry.RefCount = 1;
-                        entry.Entry = root;
-                        m_componentCache.Add(handle.RootId, entry);
-                    }
-                }
-
-                // simply add the node to the cache.
-                else
-                {
-                    CacheEntry entry = null;
-
-                    if (m_componentCache.TryGetValue(handle.NodeId, out entry))
-                    {
-                        entry.RefCount++;
-                        return entry.Entry;
-                    }
-
-                    entry = new CacheEntry();
-                    entry.RefCount = 1;
-                    entry.Entry = node;
-                    m_componentCache.Add(handle.NodeId, entry);
-                }
-
                 return node;
             }
+
+            if (m_componentCache == null)
+            {
+                m_componentCache = new NodeIdDictionary<CacheEntry>();
+            }
+
+            // check if a component is actually specified.
+            if (!string.IsNullOrEmpty(handle.ComponentPath))
+            {
+                CacheEntry cacheEntry = m_componentCache.AddOrUpdate(
+                    handle.RootId,
+                    new CacheEntry {
+                        RefCount = 1,
+                        Entry = node.GetHierarchyRoot()
+                    },
+                    (nodeId, entry) => {
+                        Interlocked.Increment(ref entry.RefCount);
+                        return entry;
+                    }
+                );
+
+                return cacheEntry.Entry.FindChildBySymbolicName(context, handle.ComponentPath);
+            }
+            // simply add the node to the cache.
+            else
+            {
+                m_componentCache.AddOrUpdate(
+                    handle.NodeId,
+                    new CacheEntry {
+                        RefCount = 1,
+                        Entry = node
+                    },
+                    (nodeId, entry) => {
+                        Interlocked.Increment(ref entry.RefCount);
+                        return entry;
+                    }
+                );
+            }
+
+            return node;
+
         }
         #endregion
 
@@ -4763,7 +4687,7 @@ namespace Opc.Ua.Server
         private NodeIdDictionary<MonitoredNode2> m_monitoredNodes;
         private NodeIdDictionary<CacheEntry> m_componentCache;
         private NodeIdDictionary<NodeState> m_predefinedNodes;
-        private List<NodeState> m_rootNotifiers;
+        private NodeIdDictionary<NodeState> m_rootNotifiers;
         private uint m_maxQueueSize;
         private string m_aliasRoot;
         #endregion
