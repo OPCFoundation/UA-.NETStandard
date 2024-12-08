@@ -161,8 +161,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             => m_innerStore.LoadPrivateKey(thumbprint, subjectName, password);
 
         /// <inheritdoc/>
-        public Task<X509Certificate2> LoadPrivateKey(string thumbprint, string subjectName, NodeId certificateType, string password)
-            => m_innerStore.LoadPrivateKey(thumbprint, subjectName, certificateType, password);
+        public Task<X509Certificate2> LoadPrivateKey(string thumbprint, string subjectName, string applicationUri, NodeId certificateType, string password)
+            => m_innerStore.LoadPrivateKey(thumbprint, subjectName, applicationUri, certificateType, password);
 
         /// <inheritdoc/>
         public Task AddRejected(X509Certificate2Collection certificates, int maxCertificates)
