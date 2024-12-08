@@ -70,12 +70,10 @@ namespace Opc.Ua.Server
             // set defaults.
             m_maxQueueSize = 1000;
 
-            if (configuration != null)
+
+            if (configuration?.ServerConfiguration != null)
             {
-                if (configuration.ServerConfiguration != null)
-                {
-                    m_maxQueueSize = (uint)configuration.ServerConfiguration.MaxNotificationQueueSize;
-                }
+                m_maxQueueSize = (uint)configuration.ServerConfiguration.MaxNotificationQueueSize;
             }
 
             // save a reference to the UA server instance that owns the node manager.
@@ -125,17 +123,16 @@ namespace Opc.Ua.Server
         {
             if (disposing)
             {
-                lock (m_lock)
+                if (m_predefinedNodes != null)
                 {
-                    if (m_predefinedNodes != null)
-                    {
-                        foreach (NodeState node in m_predefinedNodes.Values)
-                        {
-                            Utils.SilentDispose(node);
-                        }
+                    NodeState[] nodes = m_predefinedNodes.Values.ToArray();
+                    m_predefinedNodes.Clear();
 
-                        m_predefinedNodes.Clear();
+                    foreach (NodeState node in nodes)
+                    {
+                        Utils.SilentDispose(node);
                     }
+
                 }
             }
         }
@@ -220,26 +217,17 @@ namespace Opc.Ua.Server
         /// <summary>
         /// The predefined nodes managed by the node manager.
         /// </summary>
-        protected NodeIdDictionary<NodeState> PredefinedNodes
-        {
-            get { return m_predefinedNodes; }
-        }
+        protected ConcurrentNodeIdDictionary<NodeState> PredefinedNodes => m_predefinedNodes;
 
         /// <summary>
         /// The root notifiers for the node manager.
         /// </summary>
-        protected List<NodeState> RootNotifiers
-        {
-            get { return m_rootNotifiers; }
-        }
+        protected List<NodeState> RootNotifiers => m_rootNotifiers;
 
         /// <summary>
         /// Gets the table of nodes being monitored.
         /// </summary>
-        protected Dictionary<NodeId, MonitoredNode2> MonitoredNodes
-        {
-            get { return m_monitoredNodes; }
-        }
+        protected Dictionary<NodeId, MonitoredNode2> MonitoredNodes => m_monitoredNodes;
 
         /// <summary>
         /// Sets the namespaces supported by the NodeManager.
@@ -325,22 +313,13 @@ namespace Opc.Ua.Server
         /// </summary>
         public NodeState Find(NodeId nodeId)
         {
-            lock (Lock)
+            if (m_predefinedNodes == null || !m_predefinedNodes.TryGetValue(nodeId, out NodeState node))
             {
-                if (PredefinedNodes == null)
-                {
-                    return null;
-                }
-
-                NodeState node = null;
-
-                if (!PredefinedNodes.TryGetValue(nodeId, out node))
-                {
-                    return null;
-                }
-
-                return node;
+                return null;
             }
+
+            return node;
+
         }
 
         /// <summary>
@@ -361,35 +340,33 @@ namespace Opc.Ua.Server
         {
             ServerSystemContext contextToUse = (ServerSystemContext)m_systemContext.Copy(context);
 
-            lock (Lock)
+            if (m_predefinedNodes == null)
             {
-                if (m_predefinedNodes == null)
-                {
-                    m_predefinedNodes = new NodeIdDictionary<NodeState>();
-                }
-
-                instance.ReferenceTypeId = referenceTypeId;
-
-                NodeState parent = null;
-
-                if (parentId != null)
-                {
-                    if (!m_predefinedNodes.TryGetValue(parentId, out parent))
-                    {
-                        throw ServiceResultException.Create(
-                            StatusCodes.BadNodeIdUnknown,
-                            "Cannot find parent with id: {0}",
-                            parentId);
-                    }
-
-                    parent.AddChild(instance);
-                }
-
-                instance.Create(contextToUse, null, browseName, null, true);
-                AddPredefinedNode(contextToUse, instance);
-
-                return instance.NodeId;
+                m_predefinedNodes = new ConcurrentNodeIdDictionary<NodeState>();
             }
+
+            instance.ReferenceTypeId = referenceTypeId;
+
+            NodeState parent = null;
+
+            if (parentId != null)
+            {
+                if (!m_predefinedNodes.TryGetValue(parentId, out parent))
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadNodeIdUnknown,
+                        "Cannot find parent with id: {0}",
+                        parentId);
+                }
+
+                parent.AddChild(instance);
+            }
+
+            instance.Create(contextToUse, null, browseName, null, true);
+            AddPredefinedNode(contextToUse, instance);
+
+            return instance.NodeId;
+
         }
 
         /// <summary>
@@ -404,23 +381,22 @@ namespace Opc.Ua.Server
             bool found = false;
             List<LocalReference> referencesToRemove = new List<LocalReference>();
 
-            lock (Lock)
+
+            if (m_predefinedNodes == null)
             {
-                if (m_predefinedNodes == null)
-                {
-                    return false;
-                }
-
-                NodeState node = null;
-
-                if (PredefinedNodes.TryGetValue(nodeId, out node))
-                {
-                    RemovePredefinedNode(contextToUse, node, referencesToRemove);
-                    found = true;
-                }
-
-                RemoveRootNotifier(node);
+                return false;
             }
+
+            NodeState node = null;
+
+            if (m_predefinedNodes.TryGetValue(nodeId, out node))
+            {
+                RemovePredefinedNode(contextToUse, node, referencesToRemove);
+                found = true;
+            }
+
+            RemoveRootNotifier(node);
+
 
             // must release the lock before removing cross references to other node managers.
             if (referencesToRemove.Count > 0)
@@ -504,7 +480,7 @@ namespace Opc.Ua.Server
         {
             if (m_predefinedNodes == null)
             {
-                m_predefinedNodes = new NodeIdDictionary<NodeState>();
+                m_predefinedNodes = new ConcurrentNodeIdDictionary<NodeState>();
             }
 
             // load the predefined nodes from an XML document.
@@ -571,7 +547,7 @@ namespace Opc.Ua.Server
         {
             if (m_predefinedNodes == null)
             {
-                m_predefinedNodes = new NodeIdDictionary<NodeState>();
+                m_predefinedNodes = new ConcurrentNodeIdDictionary<NodeState>();
             }
 
             // assign a default value to any variable in namespace 0
@@ -586,7 +562,7 @@ namespace Opc.Ua.Server
             }
 
             NodeState activeNode = AddBehaviourToPredefinedNode(context, node);
-            m_predefinedNodes[activeNode.NodeId] = activeNode;
+            m_predefinedNodes.AddOrUpdate(activeNode.NodeId, activeNode, (key, _) => activeNode);
 
             BaseTypeState type = activeNode as BaseTypeState;
 
@@ -641,8 +617,7 @@ namespace Opc.Ua.Server
             {
                 return;
             }
-
-            m_predefinedNodes.Remove(node.NodeId);
+            m_predefinedNodes.TryRemove(node.NodeId, out _);
             node.UpdateChangeMasks(NodeStateChangeMasks.Deleted);
             node.ClearChangeMasks(context, false);
             OnNodeRemoved(node);
@@ -719,7 +694,7 @@ namespace Opc.Ua.Server
                 return;
             }
 
-            foreach (NodeState source in m_predefinedNodes.Values)
+            foreach (NodeState source in m_predefinedNodes.Values.ToArray())
             {
 
                 IList<IReference> references = new List<IReference>();
@@ -841,16 +816,13 @@ namespace Opc.Ua.Server
         /// </summary>
         protected void AddTypesToTypeTree(NodeId typeId)
         {
-            NodeState node = null;
-
-            if (!PredefinedNodes.TryGetValue(typeId, out node))
+            if (!m_predefinedNodes.TryGetValue(typeId, out NodeState node))
             {
                 return;
             }
 
-            BaseTypeState type = node as BaseTypeState;
 
-            if (type == null)
+            if (!(node is BaseTypeState type))
             {
                 return;
             }
@@ -869,9 +841,7 @@ namespace Opc.Ua.Server
                 return null;
             }
 
-            NodeState node = null;
-
-            if (!PredefinedNodes.TryGetValue(nodeId, out node))
+            if (!m_predefinedNodes.TryGetValue(nodeId, out NodeState node))
             {
                 return null;
             }
@@ -893,16 +863,14 @@ namespace Opc.Ua.Server
         /// </summary>
         public virtual void DeleteAddressSpace()
         {
-            lock (m_lock)
+            if (m_predefinedNodes != null)
             {
-                if (m_predefinedNodes != null)
-                {
-                    foreach (NodeState node in m_predefinedNodes.Values)
-                    {
-                        Utils.SilentDispose(node);
-                    }
+                var nodes = m_predefinedNodes.Values.ToArray();
+                m_predefinedNodes.Clear();
 
-                    m_predefinedNodes.Clear();
+                foreach (NodeState node in nodes)
+                {
+                    Utils.SilentDispose(node);
                 }
             }
         }
@@ -917,10 +885,7 @@ namespace Opc.Ua.Server
         /// </remarks>
         public virtual object GetManagerHandle(NodeId nodeId)
         {
-            lock (m_lock)
-            {
-                return GetManagerHandle(m_systemContext, nodeId, null);
-            }
+            return GetManagerHandle(m_systemContext, nodeId, null);
         }
 
         /// <summary>
@@ -937,11 +902,11 @@ namespace Opc.Ua.Server
 
             if (m_predefinedNodes?.TryGetValue(nodeId, out node) == true)
             {
-                NodeHandle handle = new NodeHandle();
-
-                handle.NodeId = nodeId;
-                handle.Node = node;
-                handle.Validated = true;
+                var handle = new NodeHandle {
+                    NodeId = nodeId,
+                    Node = node,
+                    Validated = true
+                };
 
                 return handle;
             }
@@ -1131,9 +1096,7 @@ namespace Opc.Ua.Server
                 SetDefaultPermissions(systemContext, target, metadata);
 
                 // get instance references.
-                BaseInstanceState instance = target as BaseInstanceState;
-
-                if (instance != null)
+                if (target is BaseInstanceState instance)
                 {
                     metadata.TypeDefinition = instance.TypeDefinitionId;
                     metadata.ModellingRule = instance.ModellingRuleId;
@@ -4760,7 +4723,7 @@ namespace Opc.Ua.Server
         private ushort[] m_namespaceIndexes;
         private Dictionary<NodeId, MonitoredNode2> m_monitoredNodes;
         private Dictionary<NodeId, CacheEntry> m_componentCache;
-        private NodeIdDictionary<NodeState> m_predefinedNodes;
+        private ConcurrentNodeIdDictionary<NodeState> m_predefinedNodes;
         private List<NodeState> m_rootNotifiers;
         private uint m_maxQueueSize;
         private string m_aliasRoot;

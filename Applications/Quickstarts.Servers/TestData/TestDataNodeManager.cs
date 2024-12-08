@@ -185,7 +185,7 @@ namespace TestData
                     new NodeId(Objects.Data_Conditions, m_typeNamespaceIndex),
                     typeof(NodeState));
 
-                foreach (NodeState node in PredefinedNodes.Values)
+                foreach (NodeState node in PredefinedNodes.Values.ToArray())
                 {
                     ConditionState condition = node as ConditionState;
                     if (condition != null && !Object.ReferenceEquals(condition.Parent, conditionsFolder))
