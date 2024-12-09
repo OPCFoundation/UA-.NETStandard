@@ -511,7 +511,7 @@ namespace Opc.Ua
                 // see https://github.com/dotnet/runtime/issues/29144
                 string passcode = GeneratePasscode();
                 X509KeyStorageFlags storageFlags = persisted ? X509KeyStorageFlags.PersistKeySet : X509KeyStorageFlags.Exportable;
-                return new X509Certificate2(certificate.Export(X509ContentType.Pfx, passcode), passcode, storageFlags);
+                return X509CertificateLoader.LoadPkcs12(certificate.Export(X509ContentType.Pfx, passcode), passcode, storageFlags);
             }
             return certificate;
         }

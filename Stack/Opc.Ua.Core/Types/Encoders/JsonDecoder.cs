@@ -83,7 +83,7 @@ namespace Opc.Ua
         /// <summary>
         /// Create a JSON decoder to decode a <see cref="Type"/>from a <see cref="JsonTextReader"/>.
         /// </summary>
-        /// <param name="systemType">The system type of the encoded JSON stram.</param>
+        /// <param name="systemType">The system type of the encoded JSON stream.</param>
         /// <param name="reader">The text reader.</param>
         /// <param name="context">The service message context to use.</param>
         public JsonDecoder(Type systemType, JsonTextReader reader, IServiceMessageContext context)
@@ -2975,7 +2975,7 @@ namespace Opc.Ua
                     if (handler?.Invoke(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out number) == false)
                     {
                         int lastIndex = text.LastIndexOf('_');
-                        if (lastIndex == -1)
+                        if (lastIndex != -1)
                         {
                             text = text.Substring(lastIndex + 1);
                             retry = true;
@@ -3407,7 +3407,7 @@ namespace Opc.Ua
                         EncodeAsJson(writer, element);
                     }
 
-                    writer.WriteStartArray();
+                    writer.WriteEndArray();
                     return;
                 }
 

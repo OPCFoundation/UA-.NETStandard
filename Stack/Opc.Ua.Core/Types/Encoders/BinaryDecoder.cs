@@ -901,7 +901,7 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < length; ii++)
             {
-                values.Add(ReadInt32(null));
+                values.Add(SafeReadInt32());
             }
 
             return values;
@@ -945,7 +945,7 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < length; ii++)
             {
-                values.Add(ReadInt64(null));
+                values.Add(SafeReadInt64());
             }
 
             return values;
@@ -967,7 +967,7 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < length; ii++)
             {
-                values.Add(ReadUInt64(null));
+                values.Add(SafeReadUInt64());
             }
 
             return values;
@@ -989,7 +989,7 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < length; ii++)
             {
-                values.Add(ReadFloat(null));
+                values.Add(SafeReadFloat());
             }
 
             return values;
@@ -1011,7 +1011,7 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < length; ii++)
             {
-                values.Add(ReadDouble(null));
+                values.Add(SafeReadDouble());
             }
 
             return values;
@@ -1386,15 +1386,15 @@ namespace Opc.Ua
                 switch (builtInType)
                 {
                     case BuiltInType.Boolean:
-                        return ReadBooleanArray(fieldName).ToArray();
+                        return ReadBooleanArray(fieldName)?.ToArray();
                     case BuiltInType.SByte:
-                        return ReadSByteArray(fieldName).ToArray();
+                        return ReadSByteArray(fieldName)?.ToArray();
                     case BuiltInType.Byte:
-                        return ReadByteArray(fieldName).ToArray();
+                        return ReadByteArray(fieldName)?.ToArray();
                     case BuiltInType.Int16:
-                        return ReadInt16Array(fieldName).ToArray();
+                        return ReadInt16Array(fieldName)?.ToArray();
                     case BuiltInType.UInt16:
-                        return ReadUInt16Array(fieldName).ToArray();
+                        return ReadUInt16Array(fieldName)?.ToArray();
                     case BuiltInType.Enumeration:
                     {
                         DetermineIEncodeableSystemType(ref systemType, encodeableTypeId);
@@ -1406,51 +1406,51 @@ namespace Opc.Ua
                         goto case BuiltInType.Int32;
                     }
                     case BuiltInType.Int32:
-                        return ReadInt32Array(fieldName).ToArray();
+                        return ReadInt32Array(fieldName)?.ToArray();
                     case BuiltInType.UInt32:
-                        return ReadUInt32Array(fieldName).ToArray();
+                        return ReadUInt32Array(fieldName)?.ToArray();
                     case BuiltInType.Int64:
-                        return ReadInt64Array(fieldName).ToArray();
+                        return ReadInt64Array(fieldName)?.ToArray();
                     case BuiltInType.UInt64:
-                        return ReadUInt64Array(fieldName).ToArray();
+                        return ReadUInt64Array(fieldName)?.ToArray();
                     case BuiltInType.Float:
-                        return ReadFloatArray(fieldName).ToArray();
+                        return ReadFloatArray(fieldName)?.ToArray();
                     case BuiltInType.Double:
-                        return ReadDoubleArray(fieldName).ToArray();
+                        return ReadDoubleArray(fieldName)?.ToArray();
                     case BuiltInType.String:
-                        return ReadStringArray(fieldName).ToArray();
+                        return ReadStringArray(fieldName)?.ToArray();
                     case BuiltInType.DateTime:
-                        return ReadDateTimeArray(fieldName).ToArray();
+                        return ReadDateTimeArray(fieldName)?.ToArray();
                     case BuiltInType.Guid:
-                        return ReadGuidArray(fieldName).ToArray();
+                        return ReadGuidArray(fieldName)?.ToArray();
                     case BuiltInType.ByteString:
-                        return ReadByteStringArray(fieldName).ToArray();
+                        return ReadByteStringArray(fieldName)?.ToArray();
                     case BuiltInType.XmlElement:
-                        return ReadXmlElementArray(fieldName).ToArray();
+                        return ReadXmlElementArray(fieldName)?.ToArray();
                     case BuiltInType.NodeId:
-                        return ReadNodeIdArray(fieldName).ToArray();
+                        return ReadNodeIdArray(fieldName)?.ToArray();
                     case BuiltInType.ExpandedNodeId:
-                        return ReadExpandedNodeIdArray(fieldName).ToArray();
+                        return ReadExpandedNodeIdArray(fieldName)?.ToArray();
                     case BuiltInType.StatusCode:
-                        return ReadStatusCodeArray(fieldName).ToArray();
+                        return ReadStatusCodeArray(fieldName)?.ToArray();
                     case BuiltInType.QualifiedName:
-                        return ReadQualifiedNameArray(fieldName).ToArray();
+                        return ReadQualifiedNameArray(fieldName)?.ToArray();
                     case BuiltInType.LocalizedText:
-                        return ReadLocalizedTextArray(fieldName).ToArray();
+                        return ReadLocalizedTextArray(fieldName)?.ToArray();
                     case BuiltInType.DataValue:
-                        return ReadDataValueArray(fieldName).ToArray();
+                        return ReadDataValueArray(fieldName)?.ToArray();
                     case BuiltInType.Variant:
                     {
                         if (DetermineIEncodeableSystemType(ref systemType, encodeableTypeId))
                         {
                             return ReadEncodeableArray(fieldName, systemType, encodeableTypeId);
                         }
-                        return ReadVariantArray(fieldName).ToArray();
+                        return ReadVariantArray(fieldName)?.ToArray();
                     }
                     case BuiltInType.ExtensionObject:
-                        return ReadExtensionObjectArray(fieldName).ToArray();
+                        return ReadExtensionObjectArray(fieldName)?.ToArray();
                     case BuiltInType.DiagnosticInfo:
-                        return ReadDiagnosticInfoArray(fieldName).ToArray();
+                        return ReadDiagnosticInfoArray(fieldName)?.ToArray();
                     default:
                     {
                         if (DetermineIEncodeableSystemType(ref systemType, encodeableTypeId))
@@ -1553,22 +1553,22 @@ namespace Opc.Ua
                 // read the fields of the diagnostic info structure.
                 if ((encodingByte & (byte)DiagnosticInfoEncodingBits.SymbolicId) != 0)
                 {
-                    value.SymbolicId = ReadInt32(null);
+                    value.SymbolicId = SafeReadInt32();
                 }
 
                 if ((encodingByte & (byte)DiagnosticInfoEncodingBits.NamespaceUri) != 0)
                 {
-                    value.NamespaceUri = ReadInt32(null);
+                    value.NamespaceUri = SafeReadInt32();
                 }
 
                 if ((encodingByte & (byte)DiagnosticInfoEncodingBits.Locale) != 0)
                 {
-                    value.Locale = ReadInt32(null);
+                    value.Locale = SafeReadInt32();
                 }
 
                 if ((encodingByte & (byte)DiagnosticInfoEncodingBits.LocalizedText) != 0)
                 {
-                    value.LocalizedText = ReadInt32(null);
+                    value.LocalizedText = SafeReadInt32();
                 }
 
                 if ((encodingByte & (byte)DiagnosticInfoEncodingBits.AdditionalInfo) != 0)
@@ -1610,7 +1610,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Reads and returns an array of elements of the specified length and builtInType 
+        /// Reads and returns an array of elements of the specified length and builtInType
         /// </summary>
         private Array ReadArrayElements(int length, BuiltInType builtInType)
         {
@@ -1623,7 +1623,7 @@ namespace Opc.Ua
 
                     for (int ii = 0; ii < values.Length; ii++)
                     {
-                        values[ii] = ReadBoolean(null);
+                        values[ii] = SafeReadBoolean();
                     }
 
                     array = values;
@@ -1662,7 +1662,7 @@ namespace Opc.Ua
 
                     for (int ii = 0; ii < values.Length; ii++)
                     {
-                        values[ii] = ReadInt16(null);
+                        values[ii] = SafeReadInt16();
                     }
 
                     array = values;
@@ -1675,7 +1675,7 @@ namespace Opc.Ua
 
                     for (int ii = 0; ii < values.Length; ii++)
                     {
-                        values[ii] = ReadUInt16(null);
+                        values[ii] = SafeReadUInt16();
                     }
 
                     array = values;
@@ -1689,7 +1689,7 @@ namespace Opc.Ua
 
                     for (int ii = 0; ii < values.Length; ii++)
                     {
-                        values[ii] = ReadInt32(null);
+                        values[ii] = SafeReadInt32();
                     }
                     array = values;
                     break;
@@ -1714,7 +1714,7 @@ namespace Opc.Ua
 
                     for (int ii = 0; ii < values.Length; ii++)
                     {
-                        values[ii] = ReadInt64(null);
+                        values[ii] = SafeReadInt64();
                     }
 
                     array = values;
@@ -1727,7 +1727,7 @@ namespace Opc.Ua
 
                     for (int ii = 0; ii < values.Length; ii++)
                     {
-                        values[ii] = ReadUInt64(null);
+                        values[ii] = SafeReadUInt64();
                     }
 
                     array = values;
@@ -1740,7 +1740,7 @@ namespace Opc.Ua
 
                     for (int ii = 0; ii < values.Length; ii++)
                     {
-                        values[ii] = ReadFloat(null);
+                        values[ii] = SafeReadFloat();
                     }
 
                     array = values;
@@ -1753,7 +1753,7 @@ namespace Opc.Ua
 
                     for (int ii = 0; ii < values.Length; ii++)
                     {
-                        values[ii] = ReadDouble(null);
+                        values[ii] = SafeReadDouble();
                     }
 
                     array = values;
@@ -2102,15 +2102,16 @@ namespace Opc.Ua
                 return extension;
             }
 
-            // get the length.
-            int length = ReadInt32(null);
+            // Get the length.
+            // Allow a length of -1 to support legacy devices that don't fill the length correctly
+            int length = SafeReadInt32();
 
             // save the current position.
             int start = Position;
 
             // create instance of type.
             IEncodeable encodeable = null;
-            if (systemType != null && length >= 0)
+            if (systemType != null && length >= -1)
             {
                 encodeable = Activator.CreateInstance(systemType) as IEncodeable;
 
@@ -2138,7 +2139,7 @@ namespace Opc.Ua
 
                     // verify the decoder did not exceed the length of the encodeable object
                     int used = Position - start;
-                    if (length != used)
+                    if (length >= 0 && length != used)
                     {
                         errorMessage = "Length mismatch";
                         exception = null;
@@ -2217,11 +2218,14 @@ namespace Opc.Ua
             }
 
             // any unread data indicates a decoding error.
-            long unused = length - (Position - start);
-            if (unused > 0)
+            if (length >= 0)
             {
-                throw ServiceResultException.Create(StatusCodes.BadDecodingError,
-                    "Cannot skip {0} bytes of unknown extension object body with type '{1}'.", unused, extension.TypeId);
+                long unused = length - (Position - start);
+                if (unused > 0)
+                {
+                    throw ServiceResultException.Create(StatusCodes.BadDecodingError,
+                        "Cannot skip {0} bytes of unknown extension object body with type '{1}'.", unused, extension.TypeId);
+                }
             }
 
             if (encodeable != null)
@@ -2313,7 +2317,7 @@ namespace Opc.Ua
 
                     case BuiltInType.Boolean:
                     {
-                        value.Set(ReadBoolean(null));
+                        value.Set(SafeReadBoolean());
                         break;
                     }
 
@@ -2331,20 +2335,20 @@ namespace Opc.Ua
 
                     case BuiltInType.Int16:
                     {
-                        value.Set(ReadInt16(null));
+                        value.Set(SafeReadInt16());
                         break;
                     }
 
                     case BuiltInType.UInt16:
                     {
-                        value.Set(ReadUInt16(null));
+                        value.Set(SafeReadUInt16());
                         break;
                     }
 
                     case BuiltInType.Int32:
                     case BuiltInType.Enumeration:
                     {
-                        value.Set(ReadInt32(null));
+                        value.Set(SafeReadInt32());
                         break;
                     }
 
@@ -2356,25 +2360,25 @@ namespace Opc.Ua
 
                     case BuiltInType.Int64:
                     {
-                        value.Set(ReadInt64(null));
+                        value.Set(SafeReadInt64());
                         break;
                     }
 
                     case BuiltInType.UInt64:
                     {
-                        value.Set(ReadUInt64(null));
+                        value.Set(SafeReadUInt64());
                         break;
                     }
 
                     case BuiltInType.Float:
                     {
-                        value.Set(ReadFloat(null));
+                        value.Set(SafeReadFloat());
                         break;
                     }
 
                     case BuiltInType.Double:
                     {
-                        value.Set(ReadDouble(null));
+                        value.Set(SafeReadDouble());
                         break;
                     }
 

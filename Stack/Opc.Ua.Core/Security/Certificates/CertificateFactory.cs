@@ -58,10 +58,11 @@ namespace Opc.Ua
         public static X509Certificate2 Create(ReadOnlyMemory<byte> encodedData, bool useCache)
         {
 #if NET6_0_OR_GREATER
-            var certificate = new X509Certificate2(encodedData.Span);
+            var certificate = X509CertificateLoader.LoadCertificate(encodedData.Span);
 #else
-            var certificate = new X509Certificate2(encodedData.ToArray());
+            var certificate = X509CertificateLoader.LoadCertificate(encodedData.ToArray());
 #endif
+
             if (useCache)
             {
                 return Load(certificate, false);
@@ -368,7 +369,7 @@ namespace Opc.Ua
             string password = null)
         {
             RSA rsaPrivateKey = PEMReader.ImportPrivateKeyFromPEM(pemDataBlob, password);
-            return new X509Certificate2(certificate.RawData).CopyWithPrivateKey(rsaPrivateKey);
+            return X509CertificateLoader.LoadCertificate(certificate.RawData).CopyWithPrivateKey(rsaPrivateKey);
         }
 #else
         /// <summary>
@@ -453,18 +454,18 @@ namespace Opc.Ua
         /// <returns>The certificate with a private key.</returns>
         [Obsolete("Use the new CreateCertificate methods with CertificateBuilder.")]
         internal static X509Certificate2 CreateCertificate(
-            string applicationUri,
-            string applicationName,
-            string subjectName,
-            IList<String> domainNames,
-            ushort keySize,
-            DateTime startTime,
-            ushort lifetimeInMonths,
-            ushort hashSizeInBits,
-            bool isCA = false,
-            X509Certificate2 issuerCAKeyCert = null,
-            byte[] publicKey = null,
-            int pathLengthConstraint = 0)
+        string applicationUri,
+        string applicationName,
+        string subjectName,
+        IList<String> domainNames,
+        ushort keySize,
+        DateTime startTime,
+        ushort lifetimeInMonths,
+        ushort hashSizeInBits,
+        bool isCA = false,
+        X509Certificate2 issuerCAKeyCert = null,
+        byte[] publicKey = null,
+        int pathLengthConstraint = 0)
         {
             ICertificateBuilder builder = null;
             if (isCA)
