@@ -1075,13 +1075,13 @@ namespace Opc.Ua.Server
         /// <returns></returns>
         protected bool CanSendFilteredAlarm(FilterContext context, EventFilter filter, IFilterTarget instance)
         {
-            bool canSend = filter.WhereClause.Evaluate(context, instance);
+            bool passedFilter = filter.WhereClause.Evaluate(context, instance);
 
+            ConditionState alarmCondition = null;
             NodeId conditionId = null;
             InstanceStateSnapshot instanceStateSnapshot = instance as InstanceStateSnapshot;
             if (instanceStateSnapshot != null)
             {
-                ConditionState alarmCondition = null;
                 alarmCondition = instanceStateSnapshot.Handle as ConditionState;
 
                 if (alarmCondition != null &&
@@ -1104,27 +1104,34 @@ namespace Opc.Ua.Server
                 }
             }
 
+            bool canSend = passedFilter;
+
             // ConditionId is valid only if FilteredRetain is set for the alarm condition
-            if (conditionId != null)
+            if (conditionId != null && alarmCondition != null)
             {
                 HashSet<string> conditionIds = GetFilteredRetainConditionIds();
 
                 string key = conditionId.ToString();
 
-                if (conditionIds.Contains(key))
+                bool saved = conditionIds.Contains(key);
+
+                if ( saved )
                 {
-                    if ( !canSend )
+                    conditionIds.Remove(key);
+                }
+
+                if ( passedFilter )
+                {
+//                    if (alarmCondition.Retain.Value)
                     {
-                        // Can send, but only this once
-                        conditionIds.Remove(key);
-                        canSend = true;
+                        conditionIds.Add(key);
                     }
                 }
                 else
                 {
-                    if ( canSend )
+                    if ( saved )
                     {
-                        conditionIds.Add(key);
+                        canSend = true;
                     }
                 }
             }

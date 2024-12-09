@@ -1,3 +1,6 @@
+
+#define AddActiveState
+
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -124,15 +127,19 @@ namespace Opc.Ua.Server.Tests
 
             SystemContext systemContext = GetSystemContext();
             alarm.SetLimitState(systemContext, LimitAlarmStates.Inactive);
+            alarm.Retain.Value = false;
             CanSendFilteredAlarm(monitoredItem, filterContext, filter, alarm, expected: false);
 
             alarm.SetLimitState(systemContext, LimitAlarmStates.High);
+            alarm.Retain.Value = true;
             CanSendFilteredAlarm(monitoredItem, filterContext, filter, alarm, expected: true);
 
             alarm.SetLimitState(systemContext, LimitAlarmStates.HighHigh);
+            alarm.Retain.Value = true;
             CanSendFilteredAlarm(monitoredItem, filterContext, filter, alarm, expected: supportsFilteredRetain);
 
             alarm.SetLimitState(systemContext, LimitAlarmStates.Inactive);
+            alarm.Retain.Value = false;
             CanSendFilteredAlarm(monitoredItem, filterContext, filter, alarm, expected: false);
         }
 
@@ -150,12 +157,15 @@ namespace Opc.Ua.Server.Tests
             SystemContext systemContext = GetSystemContext();
             FilterContext filterContext = GetFilterContext();
             alarm.SetLimitState(systemContext, LimitAlarmStates.Inactive);
+            alarm.Retain.Value = false;
             CanSendFilteredAlarm(monitoredItem, filterContext, filter, alarm, expected: false);
 
             alarm.SetLimitState(systemContext, LimitAlarmStates.High);
+            alarm.Retain.Value = true;
             CanSendFilteredAlarm(monitoredItem, filterContext, filter, alarm, expected: true);
 
             alarm.SetLimitState(systemContext, LimitAlarmStates.Inactive);
+            alarm.Retain.Value = false;
             CanSendFilteredAlarm(monitoredItem, filterContext, filter, alarm, expected: supportsFilteredRetain);
         }
 
@@ -173,21 +183,27 @@ namespace Opc.Ua.Server.Tests
             SystemContext systemContext = GetSystemContext();
             FilterContext filterContext = GetFilterContext();
             alarm.SetLimitState(systemContext, LimitAlarmStates.Inactive);
+            alarm.Retain.Value = false;
             CanSendFilteredAlarm(monitoredItem, filterContext, filter, alarm, expected: false);
 
             alarm.SetLimitState(systemContext, LimitAlarmStates.High);
+            alarm.Retain.Value = true;
             CanSendFilteredAlarm(monitoredItem, filterContext, filter, alarm, expected: true);
 
             alarm.SetLimitState(systemContext, LimitAlarmStates.HighHigh);
+            alarm.Retain.Value = true;
             CanSendFilteredAlarm(monitoredItem, filterContext, filter, alarm, expected: supportsFilteredRetain);
 
             alarm.SetLimitState(systemContext, LimitAlarmStates.High);
+            alarm.Retain.Value = true;
             CanSendFilteredAlarm(monitoredItem, filterContext, filter, alarm, expected: true);
 
             alarm.SetLimitState(systemContext, LimitAlarmStates.Inactive);
+            alarm.Retain.Value = false;
             CanSendFilteredAlarm(monitoredItem, filterContext, filter, alarm, expected: supportsFilteredRetain);
 
             alarm.SetLimitState(systemContext, LimitAlarmStates.Low);
+            alarm.Retain.Value = true;
             CanSendFilteredAlarm(monitoredItem, filterContext, filter, alarm, expected: false);
         }
 
@@ -218,11 +234,14 @@ namespace Opc.Ua.Server.Tests
             // 16 States in Table B.3
 
             // 1 Alarm Goes Active
+            Debug.WriteLine("// 1 Alarm Goes Active");
             alarm.SetLimitState(systemContext, LimitAlarmStates.High);
+            alarm.Retain.Value = true;
             bool expected = true;
             CanSendFilteredAlarm(monitoredItem, filterContext, filter, alarm, expected);
 
             // 2 Placed Out of Service
+            Debug.WriteLine("// 2 Placed Out of Service");
             alarm.OutOfServiceState.Value = OutOfService;
             if ( !supportsFilteredRetain )
             {
@@ -231,29 +250,38 @@ namespace Opc.Ua.Server.Tests
             CanSendFilteredAlarm(monitoredItem, filterContext, filter, alarm, expected);
 
             // 3 Alarm Suppressed; No event since OutOfService
+            Debug.WriteLine("// 3 Alarm Suppressed; No event since OutOfService");
             alarm.SetSuppressedState(systemContext, suppressed: true);
             expected = false;
             CanSendFilteredAlarm(monitoredItem, filterContext, filter, alarm, expected);
 
             // 4 Alarm goes inactive; No event since OutOfService
+            Debug.WriteLine("// 4 Alarm goes inactive; No event since OutOfService");
             alarm.SetLimitState(systemContext, LimitAlarmStates.Inactive);
+            alarm.Retain.Value = false;
             CanSendFilteredAlarm(monitoredItem, filterContext, filter, alarm, expected);
 
             // 5 Alarm not Suppressed; No event since not active
+            Debug.WriteLine("// 5 Alarm not Suppressed; No event since not active");
             alarm.SetSuppressedState(systemContext, suppressed: false);
             CanSendFilteredAlarm(monitoredItem, filterContext, filter, alarm, expected);
 
             // 6 Alarm goes active; No event since OutOfService
+            Debug.WriteLine("// 6 Alarm goes active; No event since OutOfService");
             alarm.SetLimitState(systemContext, LimitAlarmStates.High);
+            alarm.Retain.Value = true;
             CanSendFilteredAlarm(monitoredItem, filterContext, filter, alarm, expected);
 
             // 7 Alarm no longer OutOfService; Event generated
+            Debug.WriteLine("// 7 Alarm no longer OutOfService; Event generated");
             alarm.OutOfServiceState.Value = InService;
             expected = true;
             CanSendFilteredAlarm(monitoredItem, filterContext, filter, alarm, expected);
 
             // 8 Alarm goes inactive
+            Debug.WriteLine("// 8 Alarm goes inactive");
             alarm.SetLimitState(systemContext, LimitAlarmStates.Inactive);
+            alarm.Retain.Value = false;
             if ( !supportsFilteredRetain )
             {
                 expected = false;
@@ -261,35 +289,47 @@ namespace Opc.Ua.Server.Tests
             CanSendFilteredAlarm(monitoredItem, filterContext, filter, alarm, expected);
 
             // 9 Alarm Suppressed; No event since not active
+            Debug.WriteLine("// 9 Alarm Suppressed; No event since not active");
             alarm.SetSuppressedState(systemContext, suppressed: true);
             expected = false;
             CanSendFilteredAlarm(monitoredItem, filterContext, filter, alarm, expected);
 
             // 10 Alarm goes active; No event since Suppressed
+            Debug.WriteLine("// 10 Alarm goes active; No event since Suppressed");
             alarm.SetLimitState(systemContext, LimitAlarmStates.High);
+            alarm.Retain.Value = true;
             CanSendFilteredAlarm(monitoredItem, filterContext, filter, alarm, expected);
 
             // 11 Alarm goes inactive; No event since Suppressed
+            Debug.WriteLine("// 11 Alarm goes inactive; No event since Suppressed");
             alarm.SetLimitState(systemContext, LimitAlarmStates.Inactive);
+            alarm.Retain.Value = false;
             CanSendFilteredAlarm(monitoredItem, filterContext, filter, alarm, expected);
 
             // 12 Alarm no longer Suppressed
+            Debug.WriteLine("// 12 Alarm no longer Suppressed");
             alarm.SetSuppressedState(systemContext, suppressed: false);
             CanSendFilteredAlarm(monitoredItem, filterContext, filter, alarm, expected);
 
             // 13 Placed OutOfService
+            Debug.WriteLine("// 13 Placed OutOfService");
             alarm.OutOfServiceState.Value = OutOfService;
             CanSendFilteredAlarm(monitoredItem, filterContext, filter, alarm, expected);
 
             // 14 Alarm goes active; No event since OutOfService
+            Debug.WriteLine("// 14 Alarm goes active; No event since OutOfService");
             alarm.SetLimitState(systemContext, LimitAlarmStates.High);
+            alarm.Retain.Value = true;
             CanSendFilteredAlarm(monitoredItem, filterContext, filter, alarm, expected);
 
             // 15 Alarm goes inactive; No event since OutOfService
+            Debug.WriteLine("// 15 Alarm goes inactive; No event since OutOfService");
             alarm.SetLimitState(systemContext, LimitAlarmStates.Inactive);
+            alarm.Retain.Value = false;
             CanSendFilteredAlarm(monitoredItem, filterContext, filter, alarm, expected);
 
             // 16 Alarm no longer OutOfService
+            Debug.WriteLine("// 16 Alarm no longer OutOfService");
             alarm.OutOfServiceState.Value = InService;
             CanSendFilteredAlarm(monitoredItem, filterContext, filter, alarm, expected);
         }
@@ -308,7 +348,7 @@ namespace Opc.Ua.Server.Tests
 
             BindingFlags eFlags = BindingFlags.Instance | BindingFlags.NonPublic;
             MethodInfo methodInfo = typeof(MonitoredItem).GetMethod("CanSendFilteredAlarm", eFlags);
-
+            Debug.WriteLine("Expecting " + expected.ToString());
             object result = methodInfo.Invoke(monitoredItem, new object[] { context, filter, eventSnapshot });
 
             Assert.That(result, Is.Not.Null);
@@ -465,6 +505,8 @@ namespace Opc.Ua.Server.Tests
 
             #endregion
 
+#if AddActiveState
+
             #region Add Active State
 
             #region Active Index 0
@@ -490,6 +532,7 @@ namespace Opc.Ua.Server.Tests
                 new ElementOperand(2) });
 
             #endregion
+#endif
 
             whereClause.Push(FilterOperator.And, new ElementOperand[] {
                 new ElementOperand(0),
