@@ -36,7 +36,7 @@
 >
   <xs:annotation>
     <xs:appinfo>
-      <Model ModelUri="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd" Version="1.05.02" PublicationDate="2022-10-01T00:00:00Z" />
+      <Model ModelUri="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd" Version="1.05.04" PublicationDate="2024-12-01T00:00:00Z" />
     </xs:appinfo>
   </xs:annotation>
 
