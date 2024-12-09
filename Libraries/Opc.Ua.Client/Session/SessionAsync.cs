@@ -531,8 +531,13 @@ namespace Opc.Ua.Client
                             failedSubscriptions++;
                         }
                     }
-
-                    Utils.LogInfo("Session TRANSFER ASYNC of {0} subscriptions completed. {1} failed.", subscriptions.Count, failedSubscriptions);
+                }
+                catch( Exception ex)
+                {
+                    // Archie For Debugging only
+                    Utils.LogError("Session TRANSFER ASYNC of {0} subscriptions Failed due to unexpected Exception {1}",
+                        subscriptions.Count, ex.Message);
+                    failedSubscriptions++;
                 }
                 finally
                 {
