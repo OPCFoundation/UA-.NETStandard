@@ -34,7 +34,7 @@ using Mono.Options;
 using Opc.Ua;
 using Opc.Ua.PubSub;
 using Opc.Ua.PubSub.Configuration;
-using Opc.Ua.PubSub.Encoding;
+using Encoding = Opc.Ua.PubSub.Encoding;
 using Opc.Ua.PubSub.PublishedData;
 using Opc.Ua.PubSub.Transport;
 
@@ -212,15 +212,15 @@ namespace Quickstarts.ConsoleReferenceSubscriber
             {
                 Console.WriteLine("DataReceived event:");
 
-                if (e.NetworkMessage is UadpNetworkMessage)
+                if (e.NetworkMessage is Encoding.UadpNetworkMessage)
                 {
                     Console.WriteLine("UADP Network DataSetMessage ({0} DataSets): Source={1}, SequenceNumber={2}",
-                            e.NetworkMessage.DataSetMessages.Count, e.Source, ((UadpNetworkMessage)e.NetworkMessage).SequenceNumber);
+                            e.NetworkMessage.DataSetMessages.Count, e.Source, ((Encoding.UadpNetworkMessage)e.NetworkMessage).SequenceNumber);
                 }
-                else if (e.NetworkMessage is JsonNetworkMessage)
+                else if (e.NetworkMessage is Encoding.JsonNetworkMessage)
                 {
                     Console.WriteLine("JSON Network DataSetMessage ({0} DataSets): Source={1}, MessageId={2}",
-                            e.NetworkMessage.DataSetMessages.Count, e.Source, ((JsonNetworkMessage)e.NetworkMessage).MessageId);
+                            e.NetworkMessage.DataSetMessages.Count, e.Source, ((Encoding.JsonNetworkMessage)e.NetworkMessage).MessageId);
                 }
 
                 foreach (UaDataSetMessage dataSetMessage in e.NetworkMessage.DataSetMessages)
@@ -248,20 +248,20 @@ namespace Quickstarts.ConsoleReferenceSubscriber
             lock (m_lock)
             {
                 Console.WriteLine("MetaDataDataReceived event:");
-                if (e.NetworkMessage is JsonNetworkMessage)
+                if (e.NetworkMessage is Encoding.JsonNetworkMessage)
                 {
                     Console.WriteLine("JSON Network MetaData Message: Source={0}, PublisherId={1}, DataSetWriterId={2} Fields count={3}\n",
                          e.Source,
-                         ((JsonNetworkMessage)e.NetworkMessage).PublisherId,
-                         ((JsonNetworkMessage)e.NetworkMessage).DataSetWriterId,
+                         ((Encoding.JsonNetworkMessage)e.NetworkMessage).PublisherId,
+                         ((Encoding.JsonNetworkMessage)e.NetworkMessage).DataSetWriterId,
                          e.NetworkMessage.DataSetMetaData.Fields.Count);
                 }
-                if (e.NetworkMessage is UadpNetworkMessage)
+                if (e.NetworkMessage is Encoding.UadpNetworkMessage)
                 {
                     Console.WriteLine("UADP Network MetaData Message: Source={0}, PublisherId={1}, DataSetWriterId={2} Fields count={3}\n",
                          e.Source,
-                         ((UadpNetworkMessage)e.NetworkMessage).PublisherId,
-                         ((UadpNetworkMessage)e.NetworkMessage).DataSetWriterId,
+                         ((Encoding.UadpNetworkMessage)e.NetworkMessage).PublisherId,
+                         ((Encoding.UadpNetworkMessage)e.NetworkMessage).DataSetWriterId,
                          e.NetworkMessage.DataSetMetaData.Fields.Count);
                 }
 
@@ -326,8 +326,6 @@ namespace Quickstarts.ConsoleReferenceSubscriber
             readerGroup1.Name = "ReaderGroup 1";
             readerGroup1.Enabled = true;
             readerGroup1.MaxNetworkMessageSize = 1500;
-            readerGroup1.MessageSettings = new ExtensionObject(new ReaderGroupMessageDataType());
-            readerGroup1.TransportSettings = new ExtensionObject(new ReaderGroupTransportDataType());
 
             #region Define DataSetReader 'Simple' for PublisherId = (UInt16)1, DataSetWriterId = 1
             DataSetReaderDataType dataSetReaderSimple = new DataSetReaderDataType();
@@ -338,7 +336,6 @@ namespace Quickstarts.ConsoleReferenceSubscriber
             dataSetReaderSimple.Enabled = true;
             dataSetReaderSimple.DataSetFieldContentMask = (uint)DataSetFieldContentMask.RawData;
             dataSetReaderSimple.KeyFrameCount = 1;
-            dataSetReaderSimple.TransportSettings = new ExtensionObject(new DataSetReaderTransportDataType());
 
             UadpDataSetReaderMessageDataType uadpDataSetReaderMessage = new UadpDataSetReaderMessageDataType() {
                 GroupVersion = 0,
@@ -385,7 +382,6 @@ namespace Quickstarts.ConsoleReferenceSubscriber
             dataSetReaderAllTypes.Enabled = true;
             dataSetReaderAllTypes.DataSetFieldContentMask = (uint)DataSetFieldContentMask.RawData;
             dataSetReaderAllTypes.KeyFrameCount = 1;
-            dataSetReaderAllTypes.TransportSettings = new ExtensionObject(new DataSetReaderTransportDataType());
 
             uadpDataSetReaderMessage = new UadpDataSetReaderMessageDataType() {
                 GroupVersion = 0,
@@ -468,8 +464,6 @@ namespace Quickstarts.ConsoleReferenceSubscriber
             readerGroup1.Name = "ReaderGroup 1";
             readerGroup1.Enabled = true;
             readerGroup1.MaxNetworkMessageSize = 1500;
-            readerGroup1.MessageSettings = new ExtensionObject(new ReaderGroupMessageDataType());
-            readerGroup1.TransportSettings = new ExtensionObject(new ReaderGroupTransportDataType());
 
             #region Define DataSetReader1 'Simple' for PublisherId = (UInt16)2, DataSetWriterId = 1
 
@@ -625,8 +619,6 @@ namespace Quickstarts.ConsoleReferenceSubscriber
             readerGroup1.Name = "ReaderGroup 1";
             readerGroup1.Enabled = true;
             readerGroup1.MaxNetworkMessageSize = 1500;
-            readerGroup1.MessageSettings = new ExtensionObject(new ReaderGroupMessageDataType());
-            readerGroup1.TransportSettings = new ExtensionObject(new ReaderGroupTransportDataType());
 
             #region Define DataSetReader 'Simple' for PublisherId = (UInt16)1, DataSetWriterId = 1
             DataSetReaderDataType dataSetReaderSimple = new DataSetReaderDataType();
