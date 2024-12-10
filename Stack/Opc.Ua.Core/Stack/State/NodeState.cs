@@ -3669,7 +3669,7 @@ namespace Opc.Ua
 
                     if (ServiceResult.IsGood(result))
                     {
-                        value = (ushort)accessRestrictions;
+                        value = accessRestrictions.HasValue ? (ushort)accessRestrictions : (object)null;
                     }
 
                     if (value != null || result != null)
