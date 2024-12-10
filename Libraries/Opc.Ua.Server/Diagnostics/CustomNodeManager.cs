@@ -388,15 +388,15 @@ namespace Opc.Ua.Server
                 return false;
             }
 
-            NodeState node = null;
 
-            if (m_predefinedNodes.TryGetValue(nodeId, out node))
+            if (m_predefinedNodes.TryGetValue(nodeId, out NodeState node))
             {
                 RemovePredefinedNode(contextToUse, node, referencesToRemove);
                 found = true;
+
+                RemoveRootNotifier(node);
             }
 
-            RemoveRootNotifier(node);
 
             if (referencesToRemove.Count > 0)
             {
