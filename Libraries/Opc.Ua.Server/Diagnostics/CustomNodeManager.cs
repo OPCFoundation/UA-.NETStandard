@@ -312,13 +312,12 @@ namespace Opc.Ua.Server
         /// </summary>
         public NodeState Find(NodeId nodeId)
         {
-            if (m_predefinedNodes == null || !m_predefinedNodes.TryGetValue(nodeId, out NodeState node))
+            if (m_predefinedNodes?.TryGetValue(nodeId, out NodeState node) == true)
             {
-                return null;
+                return node;
             }
 
-            return node;
-
+            return null;
         }
 
         /// <summary>
@@ -337,9 +336,10 @@ namespace Opc.Ua.Server
             QualifiedName browseName,
             BaseInstanceState instance)
         {
+            ServerSystemContext contextToUse = m_systemContext.Copy(context);
+
             lock (Lock)
             {
-                ServerSystemContext contextToUse = m_systemContext.Copy(context);
 
                 if (m_predefinedNodes == null)
                 {
@@ -383,20 +383,14 @@ namespace Opc.Ua.Server
             List<LocalReference> referencesToRemove = new List<LocalReference>();
 
 
-            if (m_predefinedNodes == null)
+            if (m_predefinedNodes == null || !m_predefinedNodes.TryGetValue(nodeId, out NodeState node))
             {
                 return false;
             }
+            found = true;
 
-
-            if (m_predefinedNodes.TryGetValue(nodeId, out NodeState node))
-            {
-                RemovePredefinedNode(contextToUse, node, referencesToRemove);
-                found = true;
-
-                RemoveRootNotifier(node);
-            }
-
+            RemovePredefinedNode(contextToUse, node, referencesToRemove);
+            RemoveRootNotifier(node);
 
             if (referencesToRemove.Count > 0)
             {
@@ -588,12 +582,11 @@ namespace Opc.Ua.Server
                                 activeNode.AddReference(ReferenceTypeIds.HasNotifier, true, ObjectIds.Server);
                             }
                         }
-
                         break;
                     }
                 }
-
             }
+
 
             List<BaseInstanceState> children = new List<BaseInstanceState>();
             activeNode.GetChildren(context, children);
@@ -612,19 +605,16 @@ namespace Opc.Ua.Server
             NodeState node,
             List<LocalReference> referencesToRemove)
         {
-            if (m_predefinedNodes == null)
+            if (m_predefinedNodes == null || !m_predefinedNodes.TryRemove(node.NodeId, out _))
             {
                 return;
             }
-            m_predefinedNodes.TryRemove(node.NodeId, out _);
             node.UpdateChangeMasks(NodeStateChangeMasks.Deleted);
             node.ClearChangeMasks(context, false);
             OnNodeRemoved(node);
 
             // remove from the parent.
-            BaseInstanceState instance = node as BaseInstanceState;
-
-            if (instance != null && instance.Parent != null)
+            if (node is BaseInstanceState instance && instance.Parent != null)
             {
                 instance.Parent.RemoveChild(instance);
             }
@@ -3200,21 +3190,15 @@ namespace Opc.Ua.Server
         {
             lock (Lock)
             {
-                if (m_rootNotifiers != null)
+                if (m_rootNotifiers == null)
                 {
                     return;
                 }
-                for (int ii = 0; ii < m_rootNotifiers.Count; ii++)
+                if (m_rootNotifiers.Remove(notifier))
                 {
-                    if (ReferenceEquals(notifier, m_rootNotifiers[ii]))
-                    {
-                        notifier.OnReportEvent = null;
-                        notifier.RemoveReference(ReferenceTypeIds.HasNotifier, true, ObjectIds.Server);
-                        m_rootNotifiers.RemoveAt(ii);
-                        break;
-                    }
+                    notifier.OnReportEvent = null;
+                    notifier.RemoveReference(ReferenceTypeIds.HasNotifier, true, ObjectIds.Server);
                 }
-
             }
         }
 
