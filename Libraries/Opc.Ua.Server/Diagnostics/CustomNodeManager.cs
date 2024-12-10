@@ -132,7 +132,6 @@ namespace Opc.Ua.Server
                     {
                         Utils.SilentDispose(node);
                     }
-
                 }
             }
         }
@@ -338,35 +337,37 @@ namespace Opc.Ua.Server
             QualifiedName browseName,
             BaseInstanceState instance)
         {
-            ServerSystemContext contextToUse = (ServerSystemContext)m_systemContext.Copy(context);
-
-            if (m_predefinedNodes == null)
+            lock (Lock)
             {
-                m_predefinedNodes = new ConcurrentNodeIdDictionary<NodeState>();
-            }
+                ServerSystemContext contextToUse = m_systemContext.Copy(context);
 
-            instance.ReferenceTypeId = referenceTypeId;
-
-            NodeState parent = null;
-
-            if (parentId != null)
-            {
-                if (!m_predefinedNodes.TryGetValue(parentId, out parent))
+                if (m_predefinedNodes == null)
                 {
-                    throw ServiceResultException.Create(
-                        StatusCodes.BadNodeIdUnknown,
-                        "Cannot find parent with id: {0}",
-                        parentId);
+                    m_predefinedNodes = new ConcurrentNodeIdDictionary<NodeState>();
                 }
 
-                parent.AddChild(instance);
+                instance.ReferenceTypeId = referenceTypeId;
+
+                NodeState parent = null;
+
+                if (parentId != null)
+                {
+                    if (!m_predefinedNodes.TryGetValue(parentId, out parent))
+                    {
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadNodeIdUnknown,
+                            "Cannot find parent with id: {0}",
+                            parentId);
+                    }
+
+                    parent.AddChild(instance);
+                }
+
+                instance.Create(contextToUse, null, browseName, null, true);
+                AddPredefinedNode(contextToUse, instance);
+
+                return instance.NodeId;
             }
-
-            instance.Create(contextToUse, null, browseName, null, true);
-            AddPredefinedNode(contextToUse, instance);
-
-            return instance.NodeId;
-
         }
 
         /// <summary>
@@ -397,8 +398,6 @@ namespace Opc.Ua.Server
 
             RemoveRootNotifier(node);
 
-
-            // must release the lock before removing cross references to other node managers.
             if (referencesToRemove.Count > 0)
             {
                 Server.NodeManager.RemoveReferences(referencesToRemove);
@@ -570,7 +569,6 @@ namespace Opc.Ua.Server
             {
                 AddTypesToTypeTree(type);
             }
-
             // update the root notifiers.
             if (m_rootNotifiers != null)
             {
@@ -594,6 +592,7 @@ namespace Opc.Ua.Server
                         break;
                     }
                 }
+
             }
 
             List<BaseInstanceState> children = new List<BaseInstanceState>();
@@ -694,8 +693,9 @@ namespace Opc.Ua.Server
                 return;
             }
 
-            foreach (NodeState source in m_predefinedNodes.Values.ToArray())
+            foreach (KeyValuePair<NodeId, NodeState> kvp in m_predefinedNodes)
             {
+                NodeState source = kvp.Value;
 
                 IList<IReference> references = new List<IReference>();
                 source.GetReferences(SystemContext, references);
@@ -3198,11 +3198,15 @@ namespace Opc.Ua.Server
         /// <param name="notifier">The notifier.</param>
         protected virtual void RemoveRootNotifier(NodeState notifier)
         {
-            if (m_rootNotifiers != null)
+            lock (Lock)
             {
+                if (m_rootNotifiers != null)
+                {
+                    return;
+                }
                 for (int ii = 0; ii < m_rootNotifiers.Count; ii++)
                 {
-                    if (Object.ReferenceEquals(notifier, m_rootNotifiers[ii]))
+                    if (ReferenceEquals(notifier, m_rootNotifiers[ii]))
                     {
                         notifier.OnReportEvent = null;
                         notifier.RemoveReference(ReferenceTypeIds.HasNotifier, true, ObjectIds.Server);
@@ -3210,6 +3214,7 @@ namespace Opc.Ua.Server
                         break;
                     }
                 }
+
             }
         }
 

@@ -185,10 +185,9 @@ namespace TestData
                     new NodeId(Objects.Data_Conditions, m_typeNamespaceIndex),
                     typeof(NodeState));
 
-                foreach (NodeState node in PredefinedNodes.Values.ToArray())
+                foreach (KeyValuePair<NodeId, NodeState> kvp in PredefinedNodes)
                 {
-                    ConditionState condition = node as ConditionState;
-                    if (condition != null && !Object.ReferenceEquals(condition.Parent, conditionsFolder))
+                    if (kvp.Value is ConditionState condition && !ReferenceEquals(condition.Parent, conditionsFolder))
                     {
                         condition.AddNotifier(SystemContext, null, true, conditionsFolder);
                         conditionsFolder.AddNotifier(SystemContext, null, false, condition);
