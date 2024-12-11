@@ -104,10 +104,10 @@ namespace Opc.Ua.Client
             }
 
             INode node;
+
+            m_cacheLock.EnterReadLock();
             try
             {
-                m_cacheLock.EnterReadLock();
-
                 // check if node already exists.
                 node = m_nodes.Find(nodeId);
             }
@@ -155,10 +155,10 @@ namespace Opc.Ua.Client
             for (ii = 0; ii < count; ii++)
             {
                 INode node;
+
+                m_cacheLock.EnterReadLock();
                 try
                 {
-                    m_cacheLock.EnterReadLock();
-
                     // check if node already exists.
                     node = m_nodes.Find(nodeIds[ii]);
                 }
@@ -235,10 +235,10 @@ namespace Opc.Ua.Client
             }
 
             IList<IReference> references;
+
+            m_cacheLock.EnterReadLock();
             try
             {
-                m_cacheLock.EnterReadLock();
-
                 // find all references.
                 references = source.ReferenceTable.Find(referenceTypeId, isInverse, includeSubtypes, m_typeTree);
             }
@@ -285,10 +285,9 @@ namespace Opc.Ua.Client
             }
 
             IList<IReference> references;
+            m_cacheLock.EnterReadLock();
             try
             {
-                m_cacheLock.EnterReadLock();
-
                 // find all references.
                 references = source.ReferenceTable.Find(referenceTypeId, isInverse, includeSubtypes, m_typeTree);
             }
@@ -325,10 +324,9 @@ namespace Opc.Ua.Client
                 return false;
             }
 
+            m_cacheLock.EnterReadLock();
             try
             {
-                m_cacheLock.EnterReadLock();
-
                 return m_typeTree.IsKnown(typeId);
             }
             finally
@@ -347,10 +345,9 @@ namespace Opc.Ua.Client
                 return false;
             }
 
+            m_cacheLock.EnterReadLock();
             try
             {
-                m_cacheLock.EnterReadLock();
-
                 return m_typeTree.IsKnown(typeId);
             }
             finally
@@ -369,10 +366,9 @@ namespace Opc.Ua.Client
                 return null;
             }
 
+            m_cacheLock.EnterReadLock();
             try
             {
-                m_cacheLock.EnterReadLock();
-
                 return m_typeTree.FindSuperType(typeId);
             }
             finally
@@ -392,10 +388,9 @@ namespace Opc.Ua.Client
                 return null;
             }
 
+            m_cacheLock.EnterReadLock();
             try
             {
-                m_cacheLock.EnterReadLock();
-
                 return m_typeTree.FindSuperType(typeId);
             }
             finally
@@ -409,18 +404,18 @@ namespace Opc.Ua.Client
         public IList<NodeId> FindSubTypes(ExpandedNodeId typeId)
         {
             ILocalNode type = Find(typeId) as ILocalNode;
+            List<NodeId> subtypes = new List<NodeId>();
 
             if (type == null)
             {
-                return new List<NodeId>();
+                return subtypes;
             }
 
-            List<NodeId> subtypes = new List<NodeId>();
             IList<IReference> references;
+
+            m_cacheLock.EnterReadLock();
             try
             {
-                m_cacheLock.EnterReadLock();
-
                 references = type.References.Find(ReferenceTypeIds.HasSubtype, false, true, m_typeTree);
             }
             finally
@@ -459,10 +454,10 @@ namespace Opc.Ua.Client
             while (supertype != null)
             {
                 ExpandedNodeId currentId;
+
+                m_cacheLock.EnterReadLock();
                 try
                 {
-                    m_cacheLock.EnterReadLock();
-
                     currentId = supertype.References.FindTarget(ReferenceTypeIds.HasSubtype, true, true, m_typeTree, 0);
                 }
                 finally
@@ -501,10 +496,10 @@ namespace Opc.Ua.Client
             while (supertype != null)
             {
                 ExpandedNodeId currentId;
+
+                m_cacheLock.EnterReadLock();
                 try
                 {
-                    m_cacheLock.EnterReadLock();
-
                     currentId = supertype.References.FindTarget(ReferenceTypeIds.HasSubtype, true, true, m_typeTree, 0);
                 }
                 finally
@@ -526,10 +521,9 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public QualifiedName FindReferenceTypeName(NodeId referenceTypeId)
         {
+            m_cacheLock.EnterReadLock();
             try
             {
-                m_cacheLock.EnterReadLock();
-
                 return m_typeTree.FindReferenceTypeName(referenceTypeId);
             }
             finally
@@ -541,10 +535,9 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public NodeId FindReferenceType(QualifiedName browseName)
         {
+            m_cacheLock.EnterReadLock();
             try
             {
-                m_cacheLock.EnterReadLock();
-
                 return m_typeTree.FindReferenceType(browseName);
             }
             finally
@@ -564,10 +557,10 @@ namespace Opc.Ua.Client
             }
 
             IList<IReference> references;
+
+            m_cacheLock.EnterReadLock();
             try
             {
-                m_cacheLock.EnterReadLock();
-
                 references = encoding.References.Find(ReferenceTypeIds.HasEncoding, true, true, m_typeTree);
             }
             finally
@@ -611,10 +604,10 @@ namespace Opc.Ua.Client
             }
 
             IList<IReference> references;
+
+            m_cacheLock.EnterReadLock();
             try
             {
-                m_cacheLock.EnterReadLock();
-
                 references = encoding.References.Find(ReferenceTypeIds.HasEncoding, true, true, m_typeTree);
             }
             finally
@@ -706,10 +699,10 @@ namespace Opc.Ua.Client
             }
 
             IList<IReference> references;
+
+            m_cacheLock.EnterReadLock();
             try
             {
-                m_cacheLock.EnterReadLock();
-
                 references = encoding.References.Find(ReferenceTypeIds.HasEncoding, true, true, m_typeTree);
             }
             finally
@@ -736,10 +729,10 @@ namespace Opc.Ua.Client
             }
 
             IList<IReference> references;
+
+            m_cacheLock.EnterReadLock();
             try
             {
-                m_cacheLock.EnterReadLock();
-
                 references = encoding.References.Find(ReferenceTypeIds.HasEncoding, true, true, m_typeTree);
             }
             finally
@@ -769,10 +762,9 @@ namespace Opc.Ua.Client
             var assembly = typeof(ArgumentCollection).GetTypeInfo().Assembly;
             predefinedNodes.LoadFromBinaryResource(context, "Opc.Ua.Stack.Generated.Opc.Ua.PredefinedNodes.uanodes", assembly, true);
 
+            m_cacheLock.EnterWriteLock();
             try
             {
-                m_cacheLock.EnterWriteLock();
-
                 for (int ii = 0; ii < predefinedNodes.Count; ii++)
                 {
                     BaseTypeState type = predefinedNodes[ii] as BaseTypeState;
@@ -795,11 +787,10 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public void Clear()
         {
-            m_uaTypesLoaded = false;
+            m_cacheLock.EnterWriteLock();
             try
             {
-                m_cacheLock.EnterWriteLock();
-
+                m_uaTypesLoaded = false;
                 m_nodes.Clear();
             }
             finally
@@ -826,10 +817,9 @@ namespace Opc.Ua.Client
                 // fetch references from server.
                 ReferenceDescriptionCollection references = m_session.FetchReferences(localId);
 
+                m_cacheLock.EnterUpgradeableReadLock();
                 try
                 {
-                    m_cacheLock.EnterUpgradeableReadLock();
-
                     foreach (ReferenceDescription reference in references)
                     {
                         // create a placeholder for the node if it does not already exist.
@@ -896,10 +886,9 @@ namespace Opc.Ua.Client
 
                     foreach (ReferenceDescription reference in references)
                     {
+                        m_cacheLock.EnterUpgradeableReadLock();
                         try
                         {
-                            m_cacheLock.EnterUpgradeableReadLock();
-
                             // create a placeholder for the node if it does not already exist.
                             if (!m_nodes.Exists(reference.NodeId))
                             {
@@ -976,10 +965,10 @@ namespace Opc.Ua.Client
             }
 
             IList<IReference> references;
+
+            m_cacheLock.EnterReadLock();
             try
             {
-                m_cacheLock.EnterReadLock();
-
                 references = source.ReferenceTable.Find(referenceTypeId, isInverse, includeSubtypes, m_typeTree);
             }
             finally
@@ -1026,10 +1015,10 @@ namespace Opc.Ua.Client
                 foreach (var referenceTypeId in referenceTypeIds)
                 {
                     IList<IReference> references;
+
+                    m_cacheLock.EnterReadLock();
                     try
                     {
-                        m_cacheLock.EnterReadLock();
-
                         references = node.ReferenceTable.Find(referenceTypeId, isInverse, includeSubtypes, m_typeTree);
                     }
                     finally
@@ -1077,10 +1066,10 @@ namespace Opc.Ua.Client
             NodeId modellingRule = target.ModellingRule;
 
             IList<IReference> references;
+
+            m_cacheLock.EnterReadLock();
             try
             {
-                m_cacheLock.EnterReadLock();
-
                 references = target.ReferenceTable.Find(ReferenceTypeIds.Aggregates, true, true, m_typeTree);
             }
             finally
@@ -1167,10 +1156,9 @@ namespace Opc.Ua.Client
         #region Private Methods
         private void InternalWriteLockedAttach(ILocalNode node)
         {
+            m_cacheLock.EnterWriteLock();
             try
             {
-                m_cacheLock.EnterWriteLock();
-
                 // add to cache.
                 m_nodes.Attach(node);
             }
