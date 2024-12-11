@@ -3667,9 +3667,9 @@ namespace Opc.Ua
                         result = onReadAccessRestrictions(context, this, ref accessRestrictions);
                     }
 
-                    if (ServiceResult.IsGood(result))
+                    if (ServiceResult.IsGood(result) && accessRestrictions != null)
                     {
-                        value = accessRestrictions;
+                        value = (ushort)accessRestrictions;
                     }
 
                     if (value != null || result != null)

@@ -13,6 +13,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Security.Cryptography.X509Certificates;
 
 
@@ -92,30 +93,44 @@ namespace Opc.Ua.Bindings
 
                 uris.Add(uri.Uri);
 
-                // Only support one policy with HTTPS
-                // So pick the first policy with security mode sign and encrypt
                 ServerSecurityPolicy bestPolicy = null;
-                foreach (ServerSecurityPolicy policy in securityPolicies)
+                bool httpsMutualTls = configuration.ServerConfiguration.HttpsMutualTls;
+                if (!httpsMutualTls)
                 {
-                    if (policy.SecurityMode != MessageSecurityMode.SignAndEncrypt)
+                    // Only use security None without mutual TLS authentication!
+                    // When the mutual TLS authentication is not used, anonymous access is disabled
+                    // Then the only protection against unauthorized access is user authorization
+                    bestPolicy = new ServerSecurityPolicy() {
+                        SecurityMode = MessageSecurityMode.None,
+                        SecurityPolicyUri = SecurityPolicies.None
+                    };
+                }
+                else
+                {
+                    // Only support one secure policy with HTTPS and mutual authentication
+                    // So pick the first policy with security mode sign and encrypt
+                    foreach (ServerSecurityPolicy policy in securityPolicies)
                     {
-                        continue;
+                        if (policy.SecurityMode != MessageSecurityMode.SignAndEncrypt)
+                        {
+                            continue;
+                        }
+
+                        bestPolicy = policy;
+                        break;
                     }
 
-                    bestPolicy = policy;
-                    break;
+                    // Pick the first policy from the list if no policies with sign and encrypt defined
+                    if (bestPolicy == null)
+                    {
+                        bestPolicy = securityPolicies[0];
+                    }
                 }
 
-                // Pick the first policy from the list if no policies with sign and encrypt defined
-                if (bestPolicy == null)
-                {
-                    bestPolicy = securityPolicies[0];
-                }
-
-                EndpointDescription description = new EndpointDescription();
-
-                description.EndpointUrl = uri.ToString();
-                description.Server = serverDescription;
+                var description = new EndpointDescription {
+                    EndpointUrl = uri.ToString(),
+                    Server = serverDescription
+                };
 
                 if (instanceCertificate != null)
                 {
@@ -141,6 +156,12 @@ namespace Opc.Ua.Bindings
                 description.SecurityLevel = ServerSecurityPolicy.CalculateSecurityLevel(bestPolicy.SecurityMode, bestPolicy.SecurityPolicyUri);
                 description.UserIdentityTokens = serverBase.GetUserTokenPolicies(configuration, description);
                 description.TransportProfileUri = Profiles.HttpsBinaryTransport;
+
+                // if no mutual TLS authentication is used, anonymous user tokens are not allowed
+                if (!httpsMutualTls)
+                {
+                    description.UserIdentityTokens = new UserTokenPolicyCollection(description.UserIdentityTokens.Where(token => token.TokenType != UserTokenType.Anonymous));
+                }
 
                 ITransportListener listener = Create();
                 if (listener != null)

@@ -304,7 +304,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             {
                 var generator = X509SignatureGenerator.CreateForECDsa(ecdsaPrivateKey);
                 var cert = CertificateBuilder.Create("CN=App Cert")
-                    .SetIssuer(new X509Certificate2(signingCert.RawData))
+                    .SetIssuer(X509CertificateLoader.LoadCertificate(signingCert.RawData))
                     .CreateForRSA(generator);
                 Assert.NotNull(cert);
                 WriteCertificate(cert, "Default signed ECDsa cert");
@@ -316,7 +316,7 @@ namespace Opc.Ua.Security.Certificates.Tests
                 var generator = X509SignatureGenerator.CreateForECDsa(ecdsaPrivateKey);
                 var cert = CertificateBuilder.Create("CN=App Cert")
                     .SetHashAlgorithm(ecCurveHashPair.HashAlgorithmName)
-                    .SetIssuer(new X509Certificate2(signingCert.RawData))
+                    .SetIssuer(X509CertificateLoader.LoadCertificate(signingCert.RawData))
                     .SetECDsaPublicKey(ecdsaPublicKey)
                     .CreateForECDsa(generator);
                 Assert.NotNull(cert);
@@ -328,7 +328,7 @@ namespace Opc.Ua.Security.Certificates.Tests
                 var generator = X509SignatureGenerator.CreateForECDsa(ecdsaPrivateKey);
                 var cert = CertificateBuilder.Create("CN=App Cert")
                     .SetHashAlgorithm(ecCurveHashPair.HashAlgorithmName)
-                    .SetIssuer(new X509Certificate2(signingCert.RawData))
+                    .SetIssuer(X509CertificateLoader.LoadCertificate(signingCert.RawData))
                     .SetECCurve(ecCurveHashPair.Curve)
                     .CreateForECDsa(generator);
                 Assert.NotNull(cert);

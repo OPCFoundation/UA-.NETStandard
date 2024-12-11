@@ -12,7 +12,7 @@
   A build with all custom targets which are not part of a regular build
   is scheduled once a week in the DevOps build pipeline.
   Uncomment the following lines to test a custom test target 
-  supported values: net462, netstandard2.0, netstandard2.1, net472, net48, net6.0, net8.0
+  supported values: net462, netstandard2.0, netstandard2.1, net472, net48, net6.0, net8.0, net9.0
    -->
   <!--
   <PropertyGroup>
@@ -25,7 +25,9 @@
     <When  Condition="'$(CustomTestTarget)' == 'net462'">
       <PropertyGroup>
         <DisableECCTests>true</DisableECCTests>
-        <AnalysisLevel>preview-all</AnalysisLevel>
+        <AnalysisLevel>preview</AnalysisLevel>
+        <AnalysisMode>all</AnalysisMode>
+        <AnalysisModeStyle>default</AnalysisModeStyle>
         <AppTargetFrameworks>net462</AppTargetFrameworks>
         <AppTargetFramework>net462</AppTargetFramework>
         <TestsTargetFrameworks>net462</TestsTargetFrameworks>
@@ -37,7 +39,9 @@
     </When>
     <When  Condition="'$(CustomTestTarget)' == 'net472'">
       <PropertyGroup>
-        <AnalysisLevel>preview-all</AnalysisLevel>
+        <AnalysisLevel>preview</AnalysisLevel>
+        <AnalysisMode>all</AnalysisMode>
+        <AnalysisModeStyle>default</AnalysisModeStyle>
         <AppTargetFrameworks>net472</AppTargetFrameworks>
         <AppTargetFramework>net472</AppTargetFramework>
         <TestsTargetFrameworks>net472</TestsTargetFrameworks>
@@ -50,7 +54,9 @@
     <When  Condition="'$(CustomTestTarget)' == 'netstandard2.0'">
       <PropertyGroup>
         <DisableECCTests>true</DisableECCTests>
-        <AnalysisLevel>preview-all</AnalysisLevel>
+        <AnalysisLevel>preview</AnalysisLevel>
+        <AnalysisMode>all</AnalysisMode>
+        <AnalysisModeStyle>default</AnalysisModeStyle>
         <AppTargetFrameworks>net6.0</AppTargetFrameworks>
         <AppTargetFramework>net6.0</AppTargetFramework>
         <TestsTargetFrameworks>net6.0</TestsTargetFrameworks>
@@ -62,7 +68,9 @@
     </When>
     <When  Condition="'$(CustomTestTarget)' == 'netstandard2.1'">
       <PropertyGroup>
-        <AnalysisLevel>preview-all</AnalysisLevel>
+        <AnalysisLevel>preview</AnalysisLevel>
+        <AnalysisMode>all</AnalysisMode>
+        <AnalysisModeStyle>default</AnalysisModeStyle>
         <AppTargetFrameworks>net6.0</AppTargetFrameworks>
         <AppTargetFramework>net6.0</AppTargetFramework>
         <TestsTargetFrameworks>net6.0</TestsTargetFrameworks>
@@ -74,7 +82,9 @@
     </When>
     <When  Condition="'$(CustomTestTarget)' == 'net48'">
       <PropertyGroup>
-        <AnalysisLevel>preview-all</AnalysisLevel>
+        <AnalysisLevel>preview</AnalysisLevel>
+        <AnalysisMode>all</AnalysisMode>
+        <AnalysisModeStyle>default</AnalysisModeStyle>
         <AppTargetFrameworks>net48</AppTargetFrameworks>
         <AppTargetFramework>net48</AppTargetFramework>
         <TestsTargetFrameworks>net48</TestsTargetFrameworks>
@@ -86,7 +96,9 @@
     </When>
     <When  Condition="'$(CustomTestTarget)' == 'net6.0'">
       <PropertyGroup>
-        <AnalysisLevel>preview-all</AnalysisLevel>
+        <AnalysisLevel>preview</AnalysisLevel>
+        <AnalysisMode>all</AnalysisMode>
+        <AnalysisModeStyle>default</AnalysisModeStyle>
         <AppTargetFrameworks>net6.0</AppTargetFrameworks>
         <AppTargetFramework>net6.0</AppTargetFramework>
         <TestsTargetFrameworks>net6.0</TestsTargetFrameworks>
@@ -98,7 +110,9 @@
     </When>
     <When  Condition="'$(CustomTestTarget)' == 'net8.0'">
       <PropertyGroup>
-        <AnalysisLevel>preview-all</AnalysisLevel>
+        <AnalysisLevel>preview</AnalysisLevel>
+        <AnalysisMode>all</AnalysisMode>
+        <AnalysisModeStyle>default</AnalysisModeStyle>
         <AppTargetFrameworks>net8.0</AppTargetFrameworks>
         <AppTargetFramework>net8.0</AppTargetFramework>
         <TestsTargetFrameworks>net8.0</TestsTargetFrameworks>
@@ -108,19 +122,35 @@
         <HttpsTargetFrameworks>net8.0</HttpsTargetFrameworks>
       </PropertyGroup>
     </When>
+    <When  Condition="'$(CustomTestTarget)' == 'net9.0'">
+      <PropertyGroup>
+        <AnalysisLevel>preview</AnalysisLevel>
+        <AnalysisMode>all</AnalysisMode>
+        <AnalysisModeStyle>default</AnalysisModeStyle>
+        <AppTargetFrameworks>net9.0</AppTargetFrameworks>
+        <AppTargetFramework>net9.0</AppTargetFramework>
+        <TestsTargetFrameworks>net9.0</TestsTargetFrameworks>
+        <LibTargetFrameworks>net9.0</LibTargetFrameworks>
+        <LibCoreTargetFrameworks>net9.0</LibCoreTargetFrameworks>
+        <LibxTargetFrameworks>net9.0</LibxTargetFrameworks>
+        <HttpsTargetFrameworks>net9.0</HttpsTargetFrameworks>
+      </PropertyGroup>
+    </When>
     <!-- Note: .NET Core 2.x and 3.x is end of life, removed netcoreapp2.1/3.1 from any target. -->
     <!-- Note: .NET Framework 4.6.2 deprecated for 1.4.372, removed net462 from any target except complex types. -->
-    <!-- Visual Studio 2022, supports .NET Framework 4.7.2/4.8, .NET Standard2.0/2.1, .NET 6 and .NET 8-->
+    <!-- Visual Studio 2022, supports .NET Framework 4.7.2/4.8, .NET Standard2.0/2.1, .NET 6/8/9-->
     <When  Condition="'$(VisualStudioVersion)' == '17.0'">
       <PropertyGroup>
-        <AnalysisLevel>preview-all</AnalysisLevel>
-        <AppTargetFrameworks>net8.0;net6.0;net48</AppTargetFrameworks>
-        <AppTargetFramework>net8.0</AppTargetFramework>
-        <TestsTargetFrameworks>net48;net8.0</TestsTargetFrameworks>
-        <LibTargetFrameworks>net472;net48;netstandard2.0;netstandard2.1;net6.0;net8.0</LibTargetFrameworks>
-        <LibCoreTargetFrameworks>net472;net48;netstandard2.0;netstandard2.1;net6.0;net8.0</LibCoreTargetFrameworks>
-        <LibxTargetFrameworks>net462;net472;net48;netstandard2.1;net6.0;net8.0</LibxTargetFrameworks>
-        <HttpsTargetFrameworks>net472;net48;netstandard2.0;netstandard2.1;net6.0;net8.0</HttpsTargetFrameworks>
+        <AnalysisLevel>preview</AnalysisLevel>
+        <AnalysisMode>all</AnalysisMode>
+        <AnalysisModeStyle>default</AnalysisModeStyle>
+        <AppTargetFrameworks>net9.0;net6.0;net48</AppTargetFrameworks>
+        <AppTargetFramework>net9.0</AppTargetFramework>
+        <TestsTargetFrameworks>net48;net9.0</TestsTargetFrameworks>
+        <LibTargetFrameworks>net472;net48;netstandard2.0;netstandard2.1;net6.0;net8.0;net9.0</LibTargetFrameworks>
+        <LibCoreTargetFrameworks>net472;net48;netstandard2.0;netstandard2.1;net6.0;net8.0;net9.0</LibCoreTargetFrameworks>
+        <LibxTargetFrameworks>net462;net472;net48;netstandard2.1;net6.0;net8.0;net9.0</LibxTargetFrameworks>
+        <HttpsTargetFrameworks>net472;net48;netstandard2.0;netstandard2.1;net6.0;net8.0;net9.0</HttpsTargetFrameworks>
       </PropertyGroup>
     </When>
     <!-- Visual Studio 2019, supports .NET Framework 4.8 and .NET Core 3.1 -->

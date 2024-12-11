@@ -158,7 +158,16 @@ namespace Opc.Ua.Client.Tests
             }
             else
             {
-                ServerUrl = new Uri(UriScheme + "://localhost:" + ServerFixturePort.ToString(CultureInfo.InvariantCulture));
+                string url = UriScheme + "://localhost:" + ServerFixturePort.ToString(CultureInfo.InvariantCulture);
+
+                if (UriScheme.StartsWith(Utils.UriSchemeHttp, StringComparison.Ordinal) ||
+                    Utils.IsUriHttpsScheme(UriScheme))
+                {
+                    url = url + ConfiguredEndpoint.DiscoverySuffix;
+                }
+
+                ServerUrl = new Uri(url);
+                
             }
 
             if (SingleSession)
