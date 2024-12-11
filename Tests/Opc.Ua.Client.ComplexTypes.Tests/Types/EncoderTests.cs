@@ -87,18 +87,21 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         [Theory]
         [Category("ComplexTypes")]
         public void ReEncodeComplexType(
+            [ValueSource(nameof(EncodingTypesReversibleCompact))]
+            EncodingTypeGroup encoderTypeGroup,
             MemoryStreamType memoryStreamType,
-            EncodingType encoderType,
             StructureType structureType
             )
         {
+            EncodingType encoderType = encoderTypeGroup.EncoderType;
+            JsonEncodingType jsonEncodingType = encoderTypeGroup.JsonEncodingType;
             ExpandedNodeId nodeId;
             Type complexType;
             (nodeId, complexType) = TypeDictionary[structureType];
             object emittedType = Activator.CreateInstance(complexType);
             var baseType = emittedType as BaseComplexType;
             FillStructWithValues(baseType, true);
-            EncodeDecodeComplexType(EncoderContext, memoryStreamType, encoderType, structureType, nodeId, emittedType);
+            EncodeDecodeComplexType(EncoderContext, memoryStreamType, encoderType, jsonEncodingType, structureType, nodeId, emittedType);
         }
 
         /// <summary>
@@ -108,12 +111,15 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         [Theory]
         [Category("ComplexTypes")]
         public void ReEncodeStructureWithOptionalFieldsComplexType(
+            [ValueSource(nameof(EncodingTypesReversibleCompact))]
+            EncodingTypeGroup encoderTypeGroup,
             MemoryStreamType memoryStreamType,
-            EncodingType encoderType,
             StructureFieldParameter structureFieldParameter
             )
         {
             ExpandedNodeId nodeId;
+            EncodingType encoderType = encoderTypeGroup.EncoderType;
+            JsonEncodingType jsonEncodingType = encoderTypeGroup.JsonEncodingType;
             Type complexType;
             (nodeId, complexType) = TypeDictionary[StructureType.StructureWithOptionalFields];
             object emittedType = Activator.CreateInstance(complexType);
@@ -121,17 +127,17 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             var builtInType = structureFieldParameter.BuiltInType;
             TestContext.Out.WriteLine($"Optional Field: {structureFieldParameter.BuiltInType} is the only value.");
             baseType[structureFieldParameter.Name] = DataGenerator.GetRandom(builtInType);
-            EncodeDecodeComplexType(EncoderContext, memoryStreamType, encoderType, StructureType.StructureWithOptionalFields, nodeId, emittedType);
+            EncodeDecodeComplexType(EncoderContext, memoryStreamType, encoderType, jsonEncodingType, StructureType.StructureWithOptionalFields, nodeId, emittedType);
             TestContext.Out.WriteLine($"Optional Field: {structureFieldParameter.BuiltInType} is null.");
             baseType[structureFieldParameter.Name] = null;
-            EncodeDecodeComplexType(EncoderContext, memoryStreamType, encoderType, StructureType.StructureWithOptionalFields, nodeId, emittedType);
+            EncodeDecodeComplexType(EncoderContext, memoryStreamType, encoderType, jsonEncodingType, StructureType.StructureWithOptionalFields, nodeId, emittedType);
             TestContext.Out.WriteLine($"Optional Field: {structureFieldParameter.BuiltInType} is null, all other fields have random values.");
             FillStructWithValues(baseType, true);
             baseType[structureFieldParameter.Name] = null;
-            EncodeDecodeComplexType(EncoderContext, memoryStreamType, encoderType, StructureType.StructureWithOptionalFields, nodeId, emittedType);
+            EncodeDecodeComplexType(EncoderContext, memoryStreamType, encoderType, jsonEncodingType, StructureType.StructureWithOptionalFields, nodeId, emittedType);
             TestContext.Out.WriteLine($"Optional Field: {structureFieldParameter.BuiltInType} has random value.");
             baseType[structureFieldParameter.Name] = DataGenerator.GetRandom(builtInType);
-            EncodeDecodeComplexType(EncoderContext, memoryStreamType, encoderType, StructureType.StructureWithOptionalFields, nodeId, emittedType);
+            EncodeDecodeComplexType(EncoderContext, memoryStreamType, encoderType, jsonEncodingType, StructureType.StructureWithOptionalFields, nodeId, emittedType);
         }
 
         /// <summary>
@@ -141,11 +147,14 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         [Theory]
         [Category("ComplexTypes")]
         public void ReEncodeUnionComplexType(
+            [ValueSource(nameof(EncodingTypesReversibleCompact))]
+            EncodingTypeGroup encoderTypeGroup,
             MemoryStreamType memoryStreamType,
-            EncodingType encoderType,
             StructureFieldParameter structureFieldParameter
             )
         {
+            EncodingType encoderType = encoderTypeGroup.EncoderType;
+            JsonEncodingType jsonEncodingType = encoderTypeGroup.JsonEncodingType;
             ExpandedNodeId nodeId;
             Type complexType;
             (nodeId, complexType) = TypeDictionary[StructureType.Union];
@@ -154,10 +163,10 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             var builtInType = structureFieldParameter.BuiltInType;
             TestContext.Out.WriteLine($"Union Field: {structureFieldParameter.BuiltInType} is random.");
             baseType[structureFieldParameter.Name] = DataGenerator.GetRandom(builtInType);
-            EncodeDecodeComplexType(EncoderContext, memoryStreamType, encoderType, StructureType.Union, nodeId, emittedType);
+            EncodeDecodeComplexType(EncoderContext, memoryStreamType, encoderType, jsonEncodingType, StructureType.Union, nodeId, emittedType);
             TestContext.Out.WriteLine($"Union Field: {structureFieldParameter.BuiltInType} is null.");
             baseType[structureFieldParameter.Name] = null;
-            EncodeDecodeComplexType(EncoderContext, memoryStreamType, encoderType, StructureType.Union, nodeId, emittedType);
+            EncodeDecodeComplexType(EncoderContext, memoryStreamType, encoderType, jsonEncodingType, StructureType.Union, nodeId, emittedType);
         }
         #endregion Test Methods
     }

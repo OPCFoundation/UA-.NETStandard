@@ -50,6 +50,7 @@ namespace Opc.Ua.Security.Certificates
         public X509CRL(string filePath) : this()
         {
             RawData = File.ReadAllBytes(filePath);
+            EnsureDecoded();
         }
 
         /// <summary>
@@ -58,6 +59,7 @@ namespace Opc.Ua.Security.Certificates
         public X509CRL(byte[] crl) : this()
         {
             RawData = crl;
+            EnsureDecoded();
         }
 
         /// <summary>
@@ -78,6 +80,7 @@ namespace Opc.Ua.Security.Certificates
                 m_crlExtensions.Add(extension);
             }
             RawData = crl.RawData;
+            EnsureDecoded();
         }
 
         /// <summary>
@@ -99,7 +102,6 @@ namespace Opc.Ua.Security.Certificates
         {
             get
             {
-                EnsureDecoded();
                 return m_issuerName;
             }
         }
@@ -112,7 +114,6 @@ namespace Opc.Ua.Security.Certificates
         {
             get
             {
-                EnsureDecoded();
                 return m_thisUpdate;
             }
         }
@@ -122,7 +123,6 @@ namespace Opc.Ua.Security.Certificates
         {
             get
             {
-                EnsureDecoded();
                 return m_nextUpdate;
             }
         }
@@ -132,7 +132,6 @@ namespace Opc.Ua.Security.Certificates
         {
             get
             {
-                EnsureDecoded();
                 return m_hashAlgorithmName;
             }
         }
@@ -142,7 +141,6 @@ namespace Opc.Ua.Security.Certificates
         {
             get
             {
-                EnsureDecoded();
                 return m_revokedCertificates.AsReadOnly();
             }
         }
@@ -152,7 +150,6 @@ namespace Opc.Ua.Security.Certificates
         {
             get
             {
-                EnsureDecoded();
                 return m_crlExtensions;
             }
         }

@@ -13,21 +13,21 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Text;
-using System.Xml;
+using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.Globalization;
-using System.Security.Cryptography.X509Certificates;
-using System.Reflection;
-using System.Runtime.Serialization;
 using System.IO;
 using System.Linq;
-using System.Threading.Tasks;
-using System.Diagnostics;
-using System.Security.Cryptography;
 using System.Net;
-using System.Collections.ObjectModel;
-using Opc.Ua.Security.Certificates;
+using System.Reflection;
 using System.Runtime.InteropServices;
+using System.Runtime.Serialization;
+using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
+using System.Text;
+using System.Threading.Tasks;
+using System.Xml;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua
 {
@@ -161,6 +161,16 @@ namespace Opc.Ua
         {
             return url.StartsWith(Utils.UriSchemeHttps, StringComparison.Ordinal) ||
                 url.StartsWith(Utils.UriSchemeOpcHttps, StringComparison.Ordinal);
+        }
+
+        /// <summary>
+        /// Returns <c>true</c> if the url starts with http, opc.https or https.
+        /// </summary>
+        /// <param name="url">The url</param>
+        public static bool IsUriHttpRelatedScheme(string url)
+        {
+            return url.StartsWith(Utils.UriSchemeHttps, StringComparison.Ordinal) ||
+                 IsUriHttpsScheme(url);
         }
         #endregion
 
@@ -1261,6 +1271,53 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Escapes a URI string using the percent encoding.
+        /// </summary>
+        public static string EscapeUri(string uri)
+        {
+            if (!string.IsNullOrWhiteSpace(uri))
+            {
+                // always use back compat: for not well formed Uri, fall back to legacy formatting behavior - see #2793, #2826
+                // problem with Uri.TryCreate(uri.Replace(";", "%3b"), UriKind.Absolute, out Uri validUri);
+                // -> uppercase letters will later be lowercase (and therefore the uri will later be non-matching)
+                var buffer = new StringBuilder();
+                foreach (char ch in uri)
+                {
+                    switch (ch)
+                    {
+                        case ';':
+                        case '%':
+                        {
+                            buffer.AppendFormat(CultureInfo.InvariantCulture, "%{0:X2}", Convert.ToInt16(ch));
+                            break;
+                        }
+
+                        default:
+                        {
+                            buffer.Append(ch);
+                            break;
+                        }
+                    }
+                }
+                return buffer.ToString();
+            }
+            return String.Empty;
+        }
+
+        /// <summary>
+        /// Unescapes a URI string using the percent encoding.
+        /// </summary>
+        public static string UnescapeUri(string uri)
+        {
+            if (!string.IsNullOrWhiteSpace(uri))
+            {
+                return Uri.UnescapeDataString(uri);
+            }
+
+            return String.Empty;
+        }
+
+        /// <summary>
         /// Parses a URI string. Returns null if it is invalid.
         /// </summary>
         public static Uri ParseUri(string uri)
@@ -1497,6 +1554,7 @@ namespace Opc.Ua
         /// <summary>
         /// Converts a buffer to a hexadecimal string.
         /// </summary>
+#if NETSTANDARD2_1_OR_GREATER || NET6_0_OR_GREATER
         public static string ToHexString(byte[] buffer, bool invertEndian = false)
         {
             if (buffer == null || buffer.Length == 0)
@@ -1504,24 +1562,56 @@ namespace Opc.Ua
                 return String.Empty;
             }
 
-            StringBuilder builder = new StringBuilder(buffer.Length * 2);
+            return ToHexString(new ReadOnlySpan<byte>(buffer), invertEndian);
+        }
 
-            if (invertEndian)
+        /// <summary>
+        /// Converts a buffer to a hexadecimal string.
+        /// </summary>
+        public static string ToHexString(ReadOnlySpan<byte> buffer, bool invertEndian = false)
+        {
+            if (buffer.Length == 0)
             {
-                for (int ii = buffer.Length - 1; ii >= 0; ii--)
-                {
-                    builder.AppendFormat(CultureInfo.InvariantCulture, "{0:X2}", buffer[ii]);
-                }
+                return String.Empty;
+            }
+#else
+        public static string ToHexString(byte[] buffer, bool invertEndian = false)
+        {
+            if (buffer == null || buffer.Length == 0)
+            {
+                return String.Empty;
+            }
+#endif
+
+#if NET6_0_OR_GREATER
+            if (!invertEndian)
+            {
+                return Convert.ToHexString(buffer);
             }
             else
+#endif
             {
-                for (int ii = 0; ii < buffer.Length; ii++)
-                {
-                    builder.AppendFormat(CultureInfo.InvariantCulture, "{0:X2}", buffer[ii]);
-                }
-            }
+                StringBuilder builder = new StringBuilder(buffer.Length * 2);
 
-            return builder.ToString();
+#if !NET6_0_OR_GREATER
+                if (!invertEndian)
+                {
+                    for (int ii = 0; ii < buffer.Length; ii++)
+                    {
+                        builder.AppendFormat(CultureInfo.InvariantCulture, "{0:X2}", buffer[ii]);
+                    }
+                }
+                else
+#endif
+                {
+                    for (int ii = buffer.Length - 1; ii >= 0; ii--)
+                    {
+                        builder.AppendFormat(CultureInfo.InvariantCulture, "{0:X2}", buffer[ii]);
+                    }
+                }
+
+                return builder.ToString();
+            }
         }
 
         /// <summary>
@@ -1529,6 +1619,9 @@ namespace Opc.Ua
         /// </summary>
         public static byte[] FromHexString(string buffer)
         {
+#if NET6_0_OR_GREATER
+            return Convert.FromHexString(buffer);
+#else
             if (buffer == null)
             {
                 return null;
@@ -1575,6 +1668,7 @@ namespace Opc.Ua
             }
 
             return bytes;
+#endif
         }
 
         /// <summary>
@@ -1724,6 +1818,12 @@ namespace Opc.Ua
 
             // strings are special a reference type that does not need to be copied.
             if (type == typeof(string))
+            {
+                return value;
+            }
+
+            // Guid are special a reference type that does not need to be copied.
+            if (type == typeof(Guid))
             {
                 return value;
             }
@@ -2595,6 +2695,18 @@ namespace Opc.Ua
             return 0;
         }
 
+        private static readonly DateTime kBaseDateTime = new DateTime(2000, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+
+        /// <summary>
+        /// Return the current time in milliseconds since 1/1/2000.
+        /// </summary>
+        /// <returns>The current time in milliseconds since 1/1/2000.</returns>
+        public static uint GetVersionTime()
+        {
+            var ticks = (DateTime.UtcNow - kBaseDateTime).TotalMilliseconds;
+            return (uint)ticks;
+        }
+
         /// <summary>
         /// Returns the linker timestamp for an assembly.
         /// </summary>
@@ -2712,24 +2824,23 @@ namespace Opc.Ua
         /// <summary>
         /// Creates a X509 certificate object from the DER encoded bytes.
         /// </summary>
-        public static X509Certificate2 ParseCertificateBlob(byte[] certificateData)
+        public static X509Certificate2 ParseCertificateBlob(ReadOnlyMemory<byte> certificateData)
         {
-
             // macOS X509Certificate2 constructor throws exception if a certchain is encoded
             // use AsnParser on macOS to parse for byteblobs,
 #if !NETFRAMEWORK
             bool useAsnParser = RuntimeInformation.IsOSPlatform(OSPlatform.OSX);
-#else
-            bool useAsnParser = false;
 #endif
             try
             {
+#if !NETFRAMEWORK
                 if (useAsnParser)
                 {
                     var certBlob = AsnUtils.ParseX509Blob(certificateData);
                     return CertificateFactory.Create(certBlob, true);
                 }
                 else
+#endif
                 {
                     return CertificateFactory.Create(certificateData, true);
                 }
@@ -2748,30 +2859,32 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="certificateData">The certificate data.</param>
         /// <returns></returns>
-        public static X509Certificate2Collection ParseCertificateChainBlob(byte[] certificateData)
+        public static X509Certificate2Collection ParseCertificateChainBlob(ReadOnlyMemory<byte> certificateData)
         {
             X509Certificate2Collection certificateChain = new X509Certificate2Collection();
-            List<byte> certificatesBytes = new List<byte>(certificateData);
+
             // macOS X509Certificate2 constructor throws exception if a certchain is encoded
             // use AsnParser on macOS to parse for byteblobs,
 #if !NETFRAMEWORK
             bool useAsnParser = RuntimeInformation.IsOSPlatform(OSPlatform.OSX);
-#else
-            bool useAsnParser = false;
 #endif
-            while (certificatesBytes.Count > 0)
+            int offset = 0;
+            int length = certificateData.Length;
+            while (offset < length)
             {
                 X509Certificate2 certificate;
                 try
                 {
+#if !NETFRAMEWORK
                     if (useAsnParser)
                     {
-                        var certBlob = AsnUtils.ParseX509Blob(certificatesBytes.ToArray());
+                        var certBlob = AsnUtils.ParseX509Blob(certificateData.Slice(offset));
                         certificate = CertificateFactory.Create(certBlob, true);
                     }
                     else
+#endif
                     {
-                        certificate = CertificateFactory.Create(certificatesBytes.ToArray(), true);
+                        certificate = CertificateFactory.Create(certificateData.Slice(offset), true);
                     }
                 }
                 catch (Exception e)
@@ -2783,12 +2896,45 @@ namespace Opc.Ua
                 }
 
                 certificateChain.Add(certificate);
-                certificatesBytes.RemoveRange(0, certificate.RawData.Length);
+                offset += certificate.RawData.Length;
             }
 
             return certificateChain;
         }
 
+
+        /// <summary>
+        /// Creates a DER blob from a X509Certificate2Collection.
+        /// </summary>
+        /// <param name="certificates">The certificates to be returned as raw data.</param>
+        /// <returns>
+        /// A DER blob containing zero or more certificates.
+        /// </returns>
+        public static byte[] CreateCertificateChainBlob(X509Certificate2Collection certificates)
+        {
+            if (certificates == null || certificates.Count == 0)
+            {
+                return Array.Empty<byte>();
+            }
+
+            int totalSize = 0;
+
+            foreach (X509Certificate2 cert in certificates)
+            {
+                totalSize += cert.RawData.Length;
+            }
+
+            byte[] blobData = new byte[totalSize];
+            int offset = 0;
+
+            foreach (X509Certificate2 cert in certificates)
+            {
+                Array.Copy(cert.RawData, 0, blobData, offset, cert.RawData.Length);
+                offset += cert.RawData.Length;
+            }
+
+            return blobData;
+        }
         /// <summary>
         /// Compare Nonce for equality.
         /// </summary>
@@ -2897,8 +3043,10 @@ namespace Opc.Ua
         {
             if (secret == null) throw new ArgumentNullException(nameof(secret));
             // create the hmac.
-            HMACSHA1 hmac = new HMACSHA1(secret);
-            return PSHA(hmac, label, data, offset, length);
+            using (HMACSHA1 hmac = new HMACSHA1(secret))
+            {
+                return PSHA(hmac, label, data, offset, length);
+            }
         }
 
         /// <summary>
@@ -2908,9 +3056,31 @@ namespace Opc.Ua
         {
             if (secret == null) throw new ArgumentNullException(nameof(secret));
             // create the hmac.
-            HMACSHA256 hmac = new HMACSHA256(secret);
+            using (HMACSHA256 hmac = new HMACSHA256(secret))
+            {
+                return PSHA(hmac, label, data, offset, length);
+            }
+        }
+
+        /// <summary>
+        /// Generates a Pseudo random sequence of bits using the P_SHA1 alhorithm.
+        /// </summary>
+        [System.Diagnostics.CodeAnalysis.SuppressMessage(
+            "Security", "CA5350:Do Not Use Weak Cryptographic Algorithms",
+            Justification = "SHA1 is needed for deprecated security profiles.")]
+        public static byte[] PSHA1(HMACSHA1 hmac, string label, byte[] data, int offset, int length)
+        {
             return PSHA(hmac, label, data, offset, length);
         }
+
+        /// <summary>
+        /// Generates a Pseudo random sequence of bits using the P_SHA256 alhorithm.
+        /// </summary>
+        public static byte[] PSHA256(HMACSHA256 hmac, string label, byte[] data, int offset, int length)
+        {
+            return PSHA(hmac, label, data, offset, length);
+        }
+
 
         /// <summary>
         /// Generates a Pseudo random sequence of bits using the HMAC algorithm.
@@ -2960,7 +3130,6 @@ namespace Opc.Ua
             byte[] output = new byte[length];
 
             int position = 0;
-
             do
             {
                 byte[] hash = hmac.ComputeHash(prfSeed);

@@ -14,7 +14,9 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Net;
+using System.Net.Security;
 using System.Security.Authentication;
+using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
@@ -23,6 +25,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Server.Kestrel.Https;
 using Microsoft.Extensions.Hosting;
+using Opc.Ua.Security.Certificates;
 
 
 namespace Opc.Ua.Bindings
@@ -173,6 +176,7 @@ namespace Opc.Ua.Bindings
             m_listenerId = Guid.NewGuid().ToString();
 
             m_uri = baseAddress;
+            m_discovery = m_uri.AbsolutePath?.TrimEnd('/') + ConfiguredEndpoint.DiscoverySuffix;
             m_descriptions = settings.Descriptions;
             var configuration = settings.Configuration;
 
@@ -204,6 +208,7 @@ namespace Opc.Ua.Bindings
             m_serverCertificate = settings.ServerCertificate;
             m_serverCertificateChain = settings.ServerCertificateChain;
 
+            m_mutualTlsEnabled = settings.HttpsMutualTls;
             // start the listener
             Start();
         }
@@ -262,17 +267,30 @@ namespace Opc.Ua.Bindings
         {
             Startup.Listener = this;
             m_hostBuilder = new WebHostBuilder();
+
+            // prepare the server TLS certificate
+            var serverCertificate = m_serverCertificate;
+#if NETCOREAPP3_1_OR_GREATER || NETSTANDARD2_1 || NET472_OR_GREATER || NET5_0_OR_GREATER
+            try
+            {
+                // Create a copy of the certificate with the private key on platforms
+                // which default to the ephemeral KeySet. Also a new certificate must be reloaded.
+                // If the key fails to copy, its probably a non exportable key from the X509Store.
+                // Then we can use the original certificate, the private key is already in the key store.
+                serverCertificate = X509Utils.CreateCopyWithPrivateKey(m_serverCertificate, false);
+            }
+            catch (CryptographicException ce)
+            {
+                Utils.LogTrace("Copy of the private key for https was denied: {0}", ce.Message);
+            }
+#endif
+
             var httpsOptions = new HttpsConnectionAdapterOptions() {
                 CheckCertificateRevocation = false,
-                ClientCertificateMode = ClientCertificateMode.NoCertificate,
+                ClientCertificateMode = m_mutualTlsEnabled ? ClientCertificateMode.AllowCertificate : ClientCertificateMode.NoCertificate,
                 // note: this is the TLS certificate!
-#if NETCOREAPP3_1_OR_GREATER || NETSTANDARD2_1 || NET472_OR_GREATER || NET5_0_OR_GREATER
-                // Create a copy of the certificate with the private key on platforms
-                // which default to the ephemeral KeySet.
-                ServerCertificate = X509Utils.CreateCopyWithPrivateKey(m_serverCertificate, false)
-#else
-                ServerCertificate = m_serverCertificate
-#endif
+                ServerCertificate = serverCertificate,
+                ClientCertificateValidation = ValidateClientCertificate,
             };
 
 #if NET462
@@ -356,6 +374,21 @@ namespace Opc.Ua.Bindings
                 }
 
                 IServiceRequest input = (IServiceRequest)BinaryDecoder.DecodeMessage(buffer, null, m_quotas.MessageContext);
+
+                if (m_mutualTlsEnabled && input.TypeId == DataTypeIds.CreateSessionRequest)
+                {
+                    // Match tls client certificate against client application certificate provided in CreateSessionRequest
+                    byte[] tlsClientCertificate = context.Connection.ClientCertificate?.RawData;
+                    byte[] opcUaClientCertificate = ((CreateSessionRequest)input).ClientCertificate;
+
+                    if (tlsClientCertificate == null || !Utils.IsEqual(tlsClientCertificate, opcUaClientCertificate))
+                    {
+                        message = "Client TLS certificate does not match with ClientCertificate provided in CreateSessionRequest";
+                        Utils.LogError(message);
+                        await WriteResponseAsync(context.Response, message, HttpStatusCode.Unauthorized).ConfigureAwait(false);
+                        return;
+                    }
+                }
 
                 // extract the JWT token from the HTTP headers.
                 if (input.RequestHeader == null)
@@ -450,6 +483,8 @@ namespace Opc.Ua.Bindings
             await WriteResponseAsync(context.Response, message, HttpStatusCode.InternalServerError).ConfigureAwait(false);
         }
 
+
+
         /// <summary>
         /// Called when a UpdateCertificate event occured.
         /// </summary>
@@ -463,25 +498,16 @@ namespace Opc.Ua.Bindings
             m_quotas.CertificateValidator = validator;
             m_serverCertificate = serverCertificate;
             m_serverCertificateChain = serverCertificateChain;
-            foreach (var description in m_descriptions)
+
+            byte[] serverCertificateChainBlob = Utils.CreateCertificateChainBlob(serverCertificateChain);
+
+            foreach (EndpointDescription description in m_descriptions)
             {
-                // check if complete chain should be sent.
-                if (m_serverCertificateChain != null &&
-                    m_serverCertificateChain.Count > 1)
-                {
-                    var byteServerCertificateChain = new List<byte>();
-
-                    for (int i = 0; i < m_serverCertificateChain.Count; i++)
-                    {
-                        byteServerCertificateChain.AddRange(m_serverCertificateChain[i].RawData);
-                    }
-
-                    description.ServerCertificate = byteServerCertificateChain.ToArray();
-                }
-                else if (description.ServerCertificate != null)
-                {
-                    description.ServerCertificate = serverCertificate.RawData;
-                }
+                ServerBase.SetServerCertificateInEndpointDescription(description,
+                                                                     serverCertificateChain != null,
+                                                                     serverCertificate,
+                                                                     serverCertificateChainBlob,
+                                                                     false);
             }
 
             Start();
@@ -520,11 +546,41 @@ namespace Opc.Ua.Bindings
                 return memory.ToArray();
             }
         }
+
+        /// <summary>
+        /// Validate TLS client certificate at TLS handshake.
+        /// </summary>
+        /// <param name="clientCertificate">Client certificate</param>
+        /// <param name="chain">Certificate chain</param>
+        /// <param name="sslPolicyErrors">SSl policy errors</param>
+        private bool ValidateClientCertificate(
+            X509Certificate2 clientCertificate,
+            X509Chain chain,
+            SslPolicyErrors sslPolicyErrors)
+        {
+            if (sslPolicyErrors == SslPolicyErrors.None)
+            {
+                // certificate is valid
+                return true;
+            }
+
+            try
+            {
+                m_quotas.CertificateValidator.Validate(clientCertificate);
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+
+            return true;
+        }
         #endregion
 
         #region Private Fields
         private string m_listenerId;
         private Uri m_uri;
+        private string m_discovery;
         private readonly string m_uriScheme;
         private EndpointDescriptionCollection m_descriptions;
         private ChannelQuotas m_quotas;
@@ -533,6 +589,7 @@ namespace Opc.Ua.Bindings
         private IWebHost m_host;
         private X509Certificate2 m_serverCertificate;
         private X509Certificate2Collection m_serverCertificateChain;
+        private bool m_mutualTlsEnabled;
         #endregion
     }
 }

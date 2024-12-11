@@ -639,10 +639,12 @@ namespace Opc.Ua.Client
                     .GetValue(null))
                     );
 
-                // add the server capability MaxContinuationPointPerBrowse. Add further capabilities
-                // later (when support form them will be implemented and in a more generic fashion)
+                // add the server capability MaxContinuationPointPerBrowse and MaxByteStringLength
                 nodeIds.Add(VariableIds.Server_ServerCapabilities_MaxBrowseContinuationPoints);
                 int maxBrowseContinuationPointIndex = nodeIds.Count - 1;
+
+                nodeIds.Add(VariableIds.Server_ServerCapabilities_MaxByteStringLength);
+                int maxByteStringLengthIndex = nodeIds.Count - 1;
 
                 (DataValueCollection values, IList<ServiceResult> errors) = await ReadValuesAsync(nodeIds, ct).ConfigureAwait(false);
 
@@ -667,12 +669,18 @@ namespace Opc.Ua.Client
                     }
                     property.SetValue(operationLimits, value);
                 }
-
                 OperationLimits = operationLimits;
-                if (values[maxBrowseContinuationPointIndex].Value != null
-                    && ServiceResult.IsNotBad(errors[maxBrowseContinuationPointIndex]))
+
+                if (values[maxBrowseContinuationPointIndex].Value is UInt16 serverMaxContinuationPointsPerBrowse &&
+                    ServiceResult.IsNotBad(errors[maxBrowseContinuationPointIndex]))
                 {
-                    ServerMaxContinuationPointsPerBrowse = (UInt16)values[maxBrowseContinuationPointIndex].Value;
+                    ServerMaxContinuationPointsPerBrowse = serverMaxContinuationPointsPerBrowse;
+                }
+
+                if (values[maxByteStringLengthIndex].Value is UInt32 serverMaxByteStringLength &&
+                    ServiceResult.IsNotBad(errors[maxByteStringLengthIndex]))
+                {
+                    ServerMaxByteStringLength = serverMaxByteStringLength;
                 }
             }
             catch (Exception ex)

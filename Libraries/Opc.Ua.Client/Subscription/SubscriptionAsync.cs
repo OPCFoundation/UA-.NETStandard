@@ -454,8 +454,32 @@ namespace Opc.Ua.Client
 
             var methodsToCall = new CallMethodRequestCollection();
             methodsToCall.Add(new CallMethodRequest() {
+                ObjectId = ObjectTypeIds.ConditionType,
                 MethodId = MethodIds.ConditionType_ConditionRefresh,
                 InputArguments = new VariantCollection() { new Variant(m_id) }
+            });
+
+            var response = await m_session.CallAsync(
+                null,
+                methodsToCall,
+                ct).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Tells the server to refresh all conditions being monitored by the subscription for a specific
+        /// monitoredItem for events.
+        /// </summary>
+        public async Task ConditionRefresh2Async(uint monitoredItemId, CancellationToken ct = default)
+        {
+            VerifySubscriptionState(true);
+
+            var methodsToCall = new CallMethodRequestCollection();
+            methodsToCall.Add(new CallMethodRequest() {
+                ObjectId = ObjectTypeIds.ConditionType,
+                MethodId = MethodIds.ConditionType_ConditionRefresh2,
+                InputArguments = new VariantCollection() {
+                    new Variant(m_id),
+                    new Variant( monitoredItemId ) }
             });
 
             var response = await m_session.CallAsync(

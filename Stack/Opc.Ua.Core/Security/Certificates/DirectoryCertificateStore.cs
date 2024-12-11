@@ -20,7 +20,6 @@ using System.Text;
 using System.Threading.Tasks;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.Redaction;
-using System.Threading;
 
 namespace Opc.Ua
 {
@@ -109,7 +108,7 @@ namespace Opc.Ua
                     NoPrivateKeys = noPrivateKeys;
                     StorePath = location;
                     m_directory = directory;
-                    if (m_noSubDirs)
+                    if (m_noSubDirs || m_directory == null)
                     {
                         m_certificateSubdir = m_directory;
                         m_crlSubdir = m_directory;
@@ -125,39 +124,6 @@ namespace Opc.Ua
                     // force load
                     ClearCertificates();
                     m_lastDirectoryCheck = DateTime.MinValue;
-
-                    // create folders if they do not exist
-                    try
-                    {
-                        if (!m_directory.Exists)
-                        {
-                            m_directory.Create();
-                        }
-
-                        if (!m_certificateSubdir.Exists)
-                        {
-                            m_certificateSubdir.Create();
-                        }
-
-                        if (noPrivateKeys)
-                        {
-                            if (!m_crlSubdir.Exists)
-                            {
-                                m_crlSubdir.Create();
-                            }
-                        }
-                        else
-                        {
-                            if (!m_privateKeySubdir.Exists)
-                            {
-                                m_privateKeySubdir.Create();
-                            }
-                        }
-                    }
-                    catch (IOException ex)
-                    {
-                        Utils.LogError("Failed to create certificate store: {0}", ex.Message);
-                    }
                 }
             }
         }
@@ -483,7 +449,7 @@ namespace Opc.Ua
                 {
                     try
                     {
-                        var certificate = new X509Certificate2(file.FullName);
+                        var certificate = X509CertificateLoader.LoadCertificateFromFile(file.FullName);
 
                         if (!String.IsNullOrEmpty(thumbprint))
                         {
@@ -546,10 +512,11 @@ namespace Opc.Ua
                             {
                                 try
                                 {
-                                    certificate = new X509Certificate2(
+                                    certificate = X509CertificateLoader.LoadPkcs12FromFile(
                                         privateKeyFilePfx.FullName,
                                         password,
                                         flag);
+
                                     if (X509Utils.VerifyRSAKeyPair(certificate, certificate, true))
                                     {
                                         Utils.LogInfo(Utils.TraceMasks.Security, "Imported the PFX private key for [{0}].", certificate.Thumbprint);
@@ -653,7 +620,7 @@ namespace Opc.Ua
                     }
                     catch (Exception e)
                     {
-                        Utils.LogError(e, "Could not parse CRL file.");
+                        Utils.LogError(e, "Failed to parse CRL {0} in store {1}.", file.FullName, StorePath);
                         continue;
                     }
 
@@ -703,8 +670,16 @@ namespace Opc.Ua
             {
                 foreach (FileInfo file in m_crlSubdir.GetFiles("*" + kCrlExtension))
                 {
-                    var crl = new X509CRL(file.FullName);
-                    crls.Add(crl);
+                    try
+                    {
+                        var crl = new X509CRL(file.FullName);
+                        crls.Add(crl);
+                    }
+                    catch (Exception e)
+                    {
+                        Utils.LogError(e, "Failed to parse CRL {0} in store {1}.", file.FullName, StorePath);
+                    }
+
                 }
             }
 
@@ -825,7 +800,7 @@ namespace Opc.Ua
                 DateTime now = DateTime.UtcNow;
 
                 // refresh the directories.
-                m_certificateSubdir.Refresh();
+                m_certificateSubdir?.Refresh();
 
                 if (!NoPrivateKeys)
                 {
@@ -833,9 +808,8 @@ namespace Opc.Ua
                 }
 
                 // check if store exists.
-                if (!m_certificateSubdir.Exists)
+                if (m_certificateSubdir?.Exists != true)
                 {
-                    m_certificateSubdir.Create();
                     ClearCertificates();
                     return m_certificates;
                 }
@@ -858,7 +832,7 @@ namespace Opc.Ua
                     try
                     {
                         var entry = new Entry {
-                            Certificate = new X509Certificate2(file.FullName),
+                            Certificate = X509CertificateLoader.LoadCertificateFromFile(file.FullName),
                             CertificateFile = file,
                             PrivateKeyFile = null,
                             CertificateWithPrivateKey = null,
