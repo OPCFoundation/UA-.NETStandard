@@ -706,7 +706,7 @@ namespace Opc.Ua
             }
 
             // copy out arguments.
-            if (ServiceResult.IsGood(result))
+            if (ServiceResult.IsGoodOrUncertain(result))
             {
                 for (int ii = 0; ii < outputs.Count; ii++)
                 {

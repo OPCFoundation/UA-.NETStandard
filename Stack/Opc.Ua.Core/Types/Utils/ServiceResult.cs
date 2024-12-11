@@ -525,6 +525,19 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Returns true if the status code is good or uncertain.
+        /// </summary>
+        public static bool IsGoodOrUncertain(ServiceResult status)
+        {
+            if (status != null)
+            {
+                return StatusCode.IsGood(status.m_code) || StatusCode.IsUncertain(status.m_code);
+            }
+
+            return false;
+        }
+
+        /// <summary>
         /// Returns true if the status is good or uncertain.
         /// </summary>
         public static bool IsNotUncertain(ServiceResult status)
