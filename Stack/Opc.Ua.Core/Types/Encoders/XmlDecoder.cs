@@ -2642,6 +2642,12 @@ namespace Opc.Ua
             throw ServiceResultException.Create(StatusCodes.BadDecodingError,
                 "Invalid ValueRank {0} for Array", valueRank);
         }
+
+        /// <inheritdoc/>
+        public uint ReadSwitchField(Type switches) => ReadUInt32("SwitchField");
+
+        /// <inheritdoc/>
+        public uint ReadEncodingMask(Type masks) => ReadUInt32("EncodingMask");
         #endregion
 
         #region Private Methods

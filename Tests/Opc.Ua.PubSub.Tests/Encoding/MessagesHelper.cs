@@ -31,7 +31,7 @@ using System;
 using System.Linq;
 using System.Collections.Generic;
 using System.Xml;
-using Opc.Ua.PubSub.Encoding;
+using PubSubEncoding = Opc.Ua.PubSub.Encoding;
 using System.ComponentModel;
 using System.Threading;
 using Opc.Ua.PubSub.PublishedData;
@@ -121,9 +121,6 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             writerGroup.PublishingInterval = 5000;
             writerGroup.KeepAliveTime = 5000;
             writerGroup.MaxNetworkMessageSize = 1500;
-
-            writerGroup.MessageSettings = new ExtensionObject(new WriterGroupMessageDataType());
-            writerGroup.TransportSettings = new ExtensionObject(new WriterGroupTransportDataType());
 
             return writerGroup;
         }
@@ -888,8 +885,6 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             readerGroup1.Name = "ReaderGroup 1";
             readerGroup1.Enabled = true;
             readerGroup1.MaxNetworkMessageSize = 1500;
-            readerGroup1.MessageSettings = new ExtensionObject(new ReaderGroupMessageDataType());
-            readerGroup1.TransportSettings = new ExtensionObject(new ReaderGroupTransportDataType());
             #endregion
 
             for (ushort dataSetWriterId = 1; dataSetWriterId <= dataSetMetaDataArray.Length; dataSetWriterId++)
@@ -921,7 +916,6 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                             NetworkMessageContentMask = (uint)networkMessageContentMask,
                             DataSetMessageContentMask = (uint)dataSetMessageContentMask,
                         };
-                        dataSetReaderTransportSettings = new DataSetReaderTransportDataType();
                         break;
                     case Profiles.PubSubMqttUadpTransport:
                         dataSetReaderMessageSettings = new UadpDataSetReaderMessageDataType() {
@@ -1150,13 +1144,13 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         /// <returns></returns>
         public static List<T> GetUaDataNetworkMessages<T>(IList<T> networkMessages) where T : UaNetworkMessage
         {
-            if(typeof(T) == typeof(UadpNetworkMessage))
+            if(typeof(T) == typeof(PubSubEncoding.UadpNetworkMessage))
             {
-                return GetUadpUaDataNetworkMessages(networkMessages.Cast<UadpNetworkMessage>().ToList()) as List<T>;
+                return GetUadpUaDataNetworkMessages(networkMessages.Cast<PubSubEncoding.UadpNetworkMessage>().ToList()) as List<T>;
             }
-            if (typeof(T) == typeof(JsonNetworkMessage))
+            if (typeof(T) == typeof(PubSubEncoding.JsonNetworkMessage))
             {
-                return GetJsonUaDataNetworkMessages(networkMessages.Cast<JsonNetworkMessage>().ToList()) as List<T>;
+                return GetJsonUaDataNetworkMessages(networkMessages.Cast<PubSubEncoding.JsonNetworkMessage>().ToList()) as List<T>;
             }
             return null;
         }
@@ -1166,7 +1160,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         /// </summary>
         /// <param name="networkMessages"></param>
         /// <returns></returns>
-        public static List<JsonNetworkMessage> GetJsonUaDataNetworkMessages(IList<JsonNetworkMessage> networkMessages)
+        public static List<PubSubEncoding.JsonNetworkMessage> GetJsonUaDataNetworkMessages(IList<PubSubEncoding.JsonNetworkMessage> networkMessages)
         {
             if (networkMessages != null)
             {
@@ -1180,7 +1174,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         /// </summary>
         /// <param name="networkMessages"></param>
         /// <returns></returns>
-        public static List<UadpNetworkMessage> GetUadpUaDataNetworkMessages(IList<UadpNetworkMessage> networkMessages)
+        public static List<PubSubEncoding.UadpNetworkMessage> GetUadpUaDataNetworkMessages(IList<PubSubEncoding.UadpNetworkMessage> networkMessages)
         {
             if (networkMessages != null)
             {
@@ -1194,7 +1188,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         /// </summary>
         /// <param name="networkMessages"></param>
         /// <returns></returns>
-        public static List<JsonNetworkMessage> GetJsonUaMetaDataNetworkMessages(IList<JsonNetworkMessage> networkMessages)
+        public static List<PubSubEncoding.JsonNetworkMessage> GetJsonUaMetaDataNetworkMessages(IList<PubSubEncoding.JsonNetworkMessage> networkMessages)
         {
             if (networkMessages != null)
             {
@@ -1208,7 +1202,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         /// </summary>
         /// <param name="networkMessages"></param>
         /// <returns></returns>
-        public static List<UadpNetworkMessage> GetUadpUaMetaDataNetworkMessages(IList<UadpNetworkMessage> networkMessages)
+        public static List<PubSubEncoding.UadpNetworkMessage> GetUadpUaMetaDataNetworkMessages(IList<PubSubEncoding.UadpNetworkMessage> networkMessages)
         {
             if (networkMessages != null)
             {

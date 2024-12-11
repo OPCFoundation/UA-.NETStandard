@@ -282,7 +282,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 }
                 else
                 {
-                    typeId = $"\"TypeId\":\"{nodeId.Format(EncoderContext, true)}\",";
+                    typeId = $"\"UaTypeId\":\"{nodeId.Format(EncoderContext, true)}\",";
                 }
             }
 
@@ -297,7 +297,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             {
                 if (data.Body is UnionComplexType)
                 {
-                    if (jsonEncoding != JsonEncodingType.NonReversible)
+                    if (jsonEncoding == JsonEncodingType.Reversible)
                     {
                         var union = data.Body as UnionComplexType;
                         var json = $"{{\"{builtInType}\" :{{";
@@ -313,32 +313,83 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                         json += "}}}";
                         expected = json;
                     }
-                    else
+                    else if (jsonEncoding == JsonEncodingType.NonReversible)
                     {
                         expected = "{\"Union\" :" + expected + "}";
                     }
-                }
-                else if (data.Body is OptionalFieldsComplexType)
-                {
-                    if (jsonEncoding != JsonEncodingType.NonReversible)
+                    else
                     {
-                        var optional = data.Body as OptionalFieldsComplexType;
+                        var union = data.Body as UnionComplexType;
                         var json = $"{{\"{builtInType}\" :{{";
+
                         if (!data.TypeId.IsNull)
                         {
                             json += typeId;
                         }
-                        json += $"\"Body\":{{\"EncodingMask\" : {optional.EncodingMask}";
+
+                        if (jsonEncoding != JsonEncodingType.Verbose)
+                        {
+                            json += $"\"SwitchField\" : {union.SwitchField}";
+
+                            if (!expectedIsEmpty)
+                            {
+                                json += ",";
+                            }
+                        }
+
                         if (!expectedIsEmpty)
                         {
-                            json += $", \"{builtInType}\":" + expected;
+                            json += $"\"{builtInType}\":" + expected;
                         }
-                        json += "}}}";
+
+                        json += "}}";
                         expected = json;
+                    }
+                }
+                else if (data.Body is OptionalFieldsComplexType)
+                {
+                    if (jsonEncoding == JsonEncodingType.NonReversible)
+                    {
+                        expected = $"{{\"{builtInType}\" :" + expected + "}";
                     }
                     else
                     {
-                        expected = $"{{\"{builtInType}\" :" + expected + "}";
+                        var optional = data.Body as OptionalFieldsComplexType;
+                        var json = $"{{\"{builtInType}\" :{{";
+
+                        if (!data.TypeId.IsNull)
+                        {
+                            json += typeId;
+                        }
+
+                        if (jsonEncoding == JsonEncodingType.Reversible)
+                        {
+                            json += $"\"Body\":{{";
+                        }
+
+                        if (jsonEncoding != JsonEncodingType.Verbose)
+                        {
+                            json += $"\"EncodingMask\" : {optional.EncodingMask}";
+
+                            if (!expectedIsEmpty)
+                            {
+                                json += ",";
+                            }
+                        }
+
+                        if (!expectedIsEmpty)
+                        {
+                            json += $"\"{builtInType}\":" + expected;
+                        }
+
+                        json += "}}";
+
+                        if (jsonEncoding == JsonEncodingType.Reversible)
+                        {
+                            json += "}";
+                        }
+
+                        expected = json;
                     }
                 }
                 else if (data.Body is BaseComplexType)
@@ -371,20 +422,56 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                             }
                             else if (property.Name == "StatusCode")
                             {
-                                if (jsonEncoding == JsonEncodingType.Compact || jsonEncoding == JsonEncodingType.Reversible)
+                                if (jsonEncoding == JsonEncodingType.Reversible)
                                 {
                                     oText = "0";
                                     // default statuscode is not encoded
                                     continue;
                                 }
-                                else if (jsonEncoding == JsonEncodingType.Verbose)
+                                else
                                 {
                                     oText = "{}";
                                 }
+                                if (jsonEncoding == JsonEncodingType.Reversible || jsonEncoding == JsonEncodingType.NonReversible)
+                                {
+                                    continue;
+                                }
+                            }
+                            else if (property.Name == "ByteString" || property.Name == "XmlElement")
+                            {
+                                oText = "null";
+                                if (jsonEncoding == JsonEncodingType.Reversible || jsonEncoding == JsonEncodingType.NonReversible)
+                                {
+                                    continue;
+                                }
+                            }
+                            else if (property.Name == "LocalizedText")
+                            {
+                                if (jsonEncoding == JsonEncodingType.NonReversible)
+                                {
+                                    oText = "\"\"";
+                                }
                                 else
                                 {
-                                    oText = "{\"Code\": 0,\"Symbol\":\"Good\"}";
-                                    // default statuscode is not encoded
+                                    oText = "{}";
+                                }
+                                if (jsonEncoding == JsonEncodingType.Reversible || jsonEncoding == JsonEncodingType.NonReversible)
+                                {
+                                    continue;
+                                }
+                            }
+                            else if (property.Name == "NodeId" || property.Name == "ExpandedNodeId" || property.Name == "QualifiedName")
+                            {
+                                if (jsonEncoding == JsonEncodingType.Verbose)
+                                {
+                                    oText = "\"\"";
+                                }
+                                else
+                                {
+                                    oText = "{}";
+                                }
+                                if (jsonEncoding == JsonEncodingType.Reversible || jsonEncoding == JsonEncodingType.NonReversible)
+                                {
                                     continue;
                                 }
                             }
@@ -409,19 +496,30 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                             }
                         }
                     }
-                    if (jsonEncoding != JsonEncodingType.NonReversible)
+
+                    if (jsonEncoding == JsonEncodingType.NonReversible)
+                    {
+                        expected = "{" + body + "}";
+                    }
+                    else
                     {
                         var json = $"{{\"{builtInType}\" :{{";
+
                         if (!data.TypeId.IsNull)
                         {
                             json += typeId;
                         }
-                        json += "\"Body\":{" + body + "}}}";
+
+                        if (jsonEncoding == JsonEncodingType.Reversible)
+                        {
+                            json += "\"Body\":{" + body + "}}}";
+                        }
+                        else
+                        {
+                            json += body + "}}";
+                        }
+
                         expected = json;
-                    }
-                    else
-                    {
-                        expected = "{" + body + "}";
                     }
                 }
             }

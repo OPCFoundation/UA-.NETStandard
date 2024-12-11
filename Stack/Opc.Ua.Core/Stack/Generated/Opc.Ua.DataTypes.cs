@@ -1831,7 +1831,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_x, value.m_x)) return false;
             if (!Utils.IsEqual(m_y, value.m_y)) return false;
             if (!Utils.IsEqual(m_z, value.m_z)) return false;
@@ -2209,7 +2208,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_x, value.m_x)) return false;
             if (!Utils.IsEqual(m_y, value.m_y)) return false;
             if (!Utils.IsEqual(m_z, value.m_z)) return false;
@@ -2587,7 +2585,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_a, value.m_a)) return false;
             if (!Utils.IsEqual(m_b, value.m_b)) return false;
             if (!Utils.IsEqual(m_c, value.m_c)) return false;
@@ -2978,7 +2975,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_cartesianCoordinates, value.m_cartesianCoordinates)) return false;
             if (!Utils.IsEqual(m_orientation, value.m_orientation)) return false;
 
@@ -3207,6 +3203,10 @@ namespace Opc.Ua
         /// <remarks />
         [EnumMember(Value = "X509Subject_8")]
         X509Subject = 8,
+
+        /// <remarks />
+        [EnumMember(Value = "TrustedApplication_9")]
+        TrustedApplication = 9,
     }
 
     #region IdentityCriteriaTypeCollection Class
@@ -5834,7 +5834,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_structureDefinition, value.m_structureDefinition)) return false;
 
             return base.IsEqual(encodeable);
@@ -6041,7 +6040,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_enumDefinition, value.m_enumDefinition)) return false;
             if (!Utils.IsEqual(m_builtInType, value.m_builtInType)) return false;
 
@@ -6239,7 +6237,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_baseDataType, value.m_baseDataType)) return false;
             if (!Utils.IsEqual(m_builtInType, value.m_builtInType)) return false;
 
@@ -6460,7 +6457,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_schemaLocation, value.m_schemaLocation)) return false;
             if (!Utils.IsEqual(m_fileHeader, value.m_fileHeader)) return false;
             if (!Utils.IsEqual(m_body, value.m_body)) return false;
@@ -7393,7 +7389,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_name, value.m_name)) return false;
             if (!Utils.IsEqual(m_description, value.m_description)) return false;
             if (!Utils.IsEqual(m_fields, value.m_fields)) return false;
@@ -8868,7 +8863,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_publishedData, value.m_publishedData)) return false;
 
             return base.IsEqual(encodeable);
@@ -9098,7 +9092,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_eventNotifier, value.m_eventNotifier)) return false;
             if (!Utils.IsEqual(m_selectedFields, value.m_selectedFields)) return false;
             if (!Utils.IsEqual(m_filter, value.m_filter)) return false;
@@ -9288,7 +9281,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_cyclicDataSet, value.m_cyclicDataSet)) return false;
 
             return base.IsEqual(encodeable);
@@ -9374,6 +9366,910 @@ namespace Opc.Ua
             for (int ii = 0; ii < this.Count; ii++)
             {
                 clone.Add((PublishedDataSetCustomSourceDataType)Utils.Clone(this[ii]));
+            }
+
+            return clone;
+        }
+    }
+    #endregion
+    #endif
+    #endregion
+
+    #region ActionTargetDataType Class
+    #if (!OPCUA_EXCLUDE_ActionTargetDataType)
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
+    public partial class ActionTargetDataType : IEncodeable, IJsonEncodeable
+    {
+        #region Constructors
+        /// <remarks />
+        public ActionTargetDataType()
+        {
+            Initialize();
+        }
+            
+        [OnDeserializing]
+        private void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+            
+        private void Initialize()
+        {
+            m_actionTargetId = (ushort)0;
+            m_name = null;
+            m_description = null;
+        }
+        #endregion
+
+        #region Public Properties
+        /// <remarks />
+        [DataMember(Name = "ActionTargetId", IsRequired = false, Order = 1)]
+        public ushort ActionTargetId
+        {
+            get { return m_actionTargetId;  }
+            set { m_actionTargetId = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "Name", IsRequired = false, Order = 2)]
+        public string Name
+        {
+            get { return m_name;  }
+            set { m_name = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "Description", IsRequired = false, Order = 3)]
+        public LocalizedText Description
+        {
+            get { return m_description;  }
+            set { m_description = value; }
+        }
+        #endregion
+
+        #region IEncodeable Members
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId TypeId => DataTypeIds.ActionTargetDataType; 
+
+        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.ActionTargetDataType_Encoding_DefaultBinary;
+
+        /// <summary cref="IEncodeable.XmlEncodingId" />
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ActionTargetDataType_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.ActionTargetDataType_Encoding_DefaultJson; 
+
+        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        public virtual void Encode(IEncoder encoder)
+        {
+            encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            encoder.WriteUInt16("ActionTargetId", ActionTargetId);
+            encoder.WriteString("Name", Name);
+            encoder.WriteLocalizedText("Description", Description);
+
+            encoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        public virtual void Decode(IDecoder decoder)
+        {
+            decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            ActionTargetId = decoder.ReadUInt16("ActionTargetId");
+            Name = decoder.ReadString("Name");
+            Description = decoder.ReadLocalizedText("Description");
+
+            decoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        public virtual bool IsEqual(IEncodeable encodeable)
+        {
+            if (Object.ReferenceEquals(this, encodeable))
+            {
+                return true;
+            }
+
+            ActionTargetDataType value = encodeable as ActionTargetDataType;
+
+            if (value == null)
+            {
+                return false;
+            }
+
+            if (!Utils.IsEqual(m_actionTargetId, value.m_actionTargetId)) return false;
+            if (!Utils.IsEqual(m_name, value.m_name)) return false;
+            if (!Utils.IsEqual(m_description, value.m_description)) return false;
+
+            return true;
+        }
+
+        /// <summary cref="ICloneable.Clone" />
+        public virtual object Clone()
+        {
+            return (ActionTargetDataType)this.MemberwiseClone();
+        }
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            ActionTargetDataType clone = (ActionTargetDataType)base.MemberwiseClone();
+
+            clone.m_actionTargetId = (ushort)Utils.Clone(this.m_actionTargetId);
+            clone.m_name = (string)Utils.Clone(this.m_name);
+            clone.m_description = (LocalizedText)Utils.Clone(this.m_description);
+
+            return clone;
+        }
+        #endregion
+
+        #region Private Fields
+        private ushort m_actionTargetId;
+        private string m_name;
+        private LocalizedText m_description;
+        #endregion
+    }
+
+    #region ActionTargetDataTypeCollection Class
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [CollectionDataContract(Name = "ListOfActionTargetDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ActionTargetDataType")]
+    public partial class ActionTargetDataTypeCollection : List<ActionTargetDataType>, ICloneable
+    {
+        #region Constructors
+        /// <remarks />
+        public ActionTargetDataTypeCollection() {}
+
+        /// <remarks />
+        public ActionTargetDataTypeCollection(int capacity) : base(capacity) {}
+
+        /// <remarks />
+        public ActionTargetDataTypeCollection(IEnumerable<ActionTargetDataType> collection) : base(collection) {}
+        #endregion
+
+        #region Static Operators
+        /// <remarks />
+        public static implicit operator ActionTargetDataTypeCollection(ActionTargetDataType[] values)
+        {
+            if (values != null)
+            {
+                return new ActionTargetDataTypeCollection(values);
+            }
+
+            return new ActionTargetDataTypeCollection();
+        }
+
+        /// <remarks />
+        public static explicit operator ActionTargetDataType[](ActionTargetDataTypeCollection values)
+        {
+            if (values != null)
+            {
+                return values.ToArray();
+            }
+
+            return null;
+        }
+        #endregion
+
+        #region ICloneable Methods
+        /// <remarks />
+        public object Clone()
+        {
+            return (ActionTargetDataTypeCollection)this.MemberwiseClone();
+        }
+        #endregion
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            ActionTargetDataTypeCollection clone = new ActionTargetDataTypeCollection(this.Count);
+
+            for (int ii = 0; ii < this.Count; ii++)
+            {
+                clone.Add((ActionTargetDataType)Utils.Clone(this[ii]));
+            }
+
+            return clone;
+        }
+    }
+    #endregion
+    #endif
+    #endregion
+
+    #region PublishedActionDataType Class
+    #if (!OPCUA_EXCLUDE_PublishedActionDataType)
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
+    public partial class PublishedActionDataType : Opc.Ua.PublishedDataSetSourceDataType
+    {
+        #region Constructors
+        /// <remarks />
+        public PublishedActionDataType()
+        {
+            Initialize();
+        }
+
+        [OnDeserializing]
+        private void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+
+        private void Initialize()
+        {
+            m_requestDataSetMetaData = new DataSetMetaDataType();
+            m_actionTargets = new ActionTargetDataTypeCollection();
+        }
+        #endregion
+
+        #region Public Properties
+        /// <remarks />
+        [DataMember(Name = "RequestDataSetMetaData", IsRequired = false, Order = 1)]
+        public DataSetMetaDataType RequestDataSetMetaData
+        {
+            get
+            {
+                return m_requestDataSetMetaData;
+            }
+
+            set
+            {
+                m_requestDataSetMetaData = value;
+
+                if (value == null)
+                {
+                    m_requestDataSetMetaData = new DataSetMetaDataType();
+                }
+            }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "ActionTargets", IsRequired = false, Order = 2)]
+        public ActionTargetDataTypeCollection ActionTargets
+        {
+            get
+            {
+                return m_actionTargets;
+            }
+
+            set
+            {
+                m_actionTargets = value;
+
+                if (value == null)
+                {
+                    m_actionTargets = new ActionTargetDataTypeCollection();
+                }
+            }
+        }
+        #endregion
+
+        #region IEncodeable Members
+        /// <summary cref="IEncodeable.TypeId" />
+        public override ExpandedNodeId TypeId => DataTypeIds.PublishedActionDataType; 
+
+        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        public override ExpandedNodeId BinaryEncodingId => ObjectIds.PublishedActionDataType_Encoding_DefaultBinary;
+
+        /// <summary cref="IEncodeable.XmlEncodingId" />
+        public override ExpandedNodeId XmlEncodingId => ObjectIds.PublishedActionDataType_Encoding_DefaultXml;
+            
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public override ExpandedNodeId JsonEncodingId => ObjectIds.PublishedActionDataType_Encoding_DefaultJson; 
+
+        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        public override void Encode(IEncoder encoder)
+        {
+            base.Encode(encoder);
+
+            encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            encoder.WriteEncodeable("RequestDataSetMetaData", RequestDataSetMetaData, typeof(DataSetMetaDataType));
+            encoder.WriteEncodeableArray("ActionTargets", ActionTargets.ToArray(), typeof(ActionTargetDataType));
+
+            encoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        public override void Decode(IDecoder decoder)
+        {
+            base.Decode(decoder);
+
+            decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            RequestDataSetMetaData = (DataSetMetaDataType)decoder.ReadEncodeable("RequestDataSetMetaData", typeof(DataSetMetaDataType));
+            ActionTargets = (ActionTargetDataTypeCollection)decoder.ReadEncodeableArray("ActionTargets", typeof(ActionTargetDataType));
+
+            decoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        public override bool IsEqual(IEncodeable encodeable)
+        {
+            if (Object.ReferenceEquals(this, encodeable))
+            {
+                return true;
+            }
+
+            PublishedActionDataType value = encodeable as PublishedActionDataType;
+
+            if (value == null)
+            {
+                return false;
+            }
+
+            if (!Utils.IsEqual(m_requestDataSetMetaData, value.m_requestDataSetMetaData)) return false;
+            if (!Utils.IsEqual(m_actionTargets, value.m_actionTargets)) return false;
+
+            return base.IsEqual(encodeable);
+        }    
+
+        /// <summary cref="ICloneable.Clone" />
+        public override object Clone()
+        {
+            return (PublishedActionDataType)this.MemberwiseClone();
+        }
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            PublishedActionDataType clone = (PublishedActionDataType)base.MemberwiseClone();
+
+            clone.m_requestDataSetMetaData = (DataSetMetaDataType)Utils.Clone(this.m_requestDataSetMetaData);
+            clone.m_actionTargets = (ActionTargetDataTypeCollection)Utils.Clone(this.m_actionTargets);
+
+            return clone;
+        }
+        #endregion
+
+        #region Private Fields
+        private DataSetMetaDataType m_requestDataSetMetaData;
+        private ActionTargetDataTypeCollection m_actionTargets;
+        #endregion
+    }
+
+    #region PublishedActionDataTypeCollection Class
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [CollectionDataContract(Name = "ListOfPublishedActionDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "PublishedActionDataType")]
+    public partial class PublishedActionDataTypeCollection : List<PublishedActionDataType>, ICloneable
+    {
+        #region Constructors
+        /// <remarks />
+        public PublishedActionDataTypeCollection() {}
+
+        /// <remarks />
+        public PublishedActionDataTypeCollection(int capacity) : base(capacity) {}
+
+        /// <remarks />
+        public PublishedActionDataTypeCollection(IEnumerable<PublishedActionDataType> collection) : base(collection) {}
+        #endregion
+
+        #region Static Operators
+        /// <remarks />
+        public static implicit operator PublishedActionDataTypeCollection(PublishedActionDataType[] values)
+        {
+            if (values != null)
+            {
+                return new PublishedActionDataTypeCollection(values);
+            }
+
+            return new PublishedActionDataTypeCollection();
+        }
+
+        /// <remarks />
+        public static explicit operator PublishedActionDataType[](PublishedActionDataTypeCollection values)
+        {
+            if (values != null)
+            {
+                return values.ToArray();
+            }
+
+            return null;
+        }
+        #endregion
+
+        #region ICloneable Methods
+        /// <remarks />
+        public object Clone()
+        {
+            return (PublishedActionDataTypeCollection)this.MemberwiseClone();
+        }
+        #endregion
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            PublishedActionDataTypeCollection clone = new PublishedActionDataTypeCollection(this.Count);
+
+            for (int ii = 0; ii < this.Count; ii++)
+            {
+                clone.Add((PublishedActionDataType)Utils.Clone(this[ii]));
+            }
+
+            return clone;
+        }
+    }
+    #endregion
+    #endif
+    #endregion
+
+    #region ActionState Enumeration
+    #if (!OPCUA_EXCLUDE_ActionState)
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
+    public enum ActionState
+    {
+        /// <remarks />
+        [EnumMember(Value = "Idle_0")]
+        Idle = 0,
+
+        /// <remarks />
+        [EnumMember(Value = "Executing_1")]
+        Executing = 1,
+
+        /// <remarks />
+        [EnumMember(Value = "Done_2")]
+        Done = 2,
+    }
+
+    #region ActionStateCollection Class
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [CollectionDataContract(Name = "ListOfActionState", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ActionState")]
+    public partial class ActionStateCollection : List<ActionState>, ICloneable
+    {
+        #region Constructors
+        /// <remarks />
+        public ActionStateCollection() {}
+
+        /// <remarks />
+        public ActionStateCollection(int capacity) : base(capacity) {}
+
+        /// <remarks />
+        public ActionStateCollection(IEnumerable<ActionState> collection) : base(collection) {}
+        #endregion
+
+        #region Static Operators
+        /// <remarks />
+        public static implicit operator ActionStateCollection(ActionState[] values)
+        {
+            if (values != null)
+            {
+                return new ActionStateCollection(values);
+            }
+
+            return new ActionStateCollection();
+        }
+
+        /// <remarks />
+        public static explicit operator ActionState[](ActionStateCollection values)
+        {
+            if (values != null)
+            {
+                return values.ToArray();
+            }
+
+            return null;
+        }
+        #endregion
+
+        #region ICloneable Methods
+        /// <remarks />
+        public object Clone()
+        {
+            return (ActionStateCollection)this.MemberwiseClone();
+        }
+        #endregion
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            ActionStateCollection clone = new ActionStateCollection(this.Count);
+
+            for (int ii = 0; ii < this.Count; ii++)
+            {
+                clone.Add((ActionState)Utils.Clone(this[ii]));
+            }
+
+            return clone;
+        }
+    }
+    #endregion
+    #endif
+    #endregion
+
+    #region ActionMethodDataType Class
+    #if (!OPCUA_EXCLUDE_ActionMethodDataType)
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
+    public partial class ActionMethodDataType : IEncodeable, IJsonEncodeable
+    {
+        #region Constructors
+        /// <remarks />
+        public ActionMethodDataType()
+        {
+            Initialize();
+        }
+            
+        [OnDeserializing]
+        private void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+            
+        private void Initialize()
+        {
+            m_objectId = null;
+            m_methodId = null;
+        }
+        #endregion
+
+        #region Public Properties
+        /// <remarks />
+        [DataMember(Name = "ObjectId", IsRequired = false, Order = 1)]
+        public NodeId ObjectId
+        {
+            get { return m_objectId;  }
+            set { m_objectId = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "MethodId", IsRequired = false, Order = 2)]
+        public NodeId MethodId
+        {
+            get { return m_methodId;  }
+            set { m_methodId = value; }
+        }
+        #endregion
+
+        #region IEncodeable Members
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId TypeId => DataTypeIds.ActionMethodDataType; 
+
+        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.ActionMethodDataType_Encoding_DefaultBinary;
+
+        /// <summary cref="IEncodeable.XmlEncodingId" />
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ActionMethodDataType_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.ActionMethodDataType_Encoding_DefaultJson; 
+
+        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        public virtual void Encode(IEncoder encoder)
+        {
+            encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            encoder.WriteNodeId("ObjectId", ObjectId);
+            encoder.WriteNodeId("MethodId", MethodId);
+
+            encoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        public virtual void Decode(IDecoder decoder)
+        {
+            decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            ObjectId = decoder.ReadNodeId("ObjectId");
+            MethodId = decoder.ReadNodeId("MethodId");
+
+            decoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        public virtual bool IsEqual(IEncodeable encodeable)
+        {
+            if (Object.ReferenceEquals(this, encodeable))
+            {
+                return true;
+            }
+
+            ActionMethodDataType value = encodeable as ActionMethodDataType;
+
+            if (value == null)
+            {
+                return false;
+            }
+
+            if (!Utils.IsEqual(m_objectId, value.m_objectId)) return false;
+            if (!Utils.IsEqual(m_methodId, value.m_methodId)) return false;
+
+            return true;
+        }
+
+        /// <summary cref="ICloneable.Clone" />
+        public virtual object Clone()
+        {
+            return (ActionMethodDataType)this.MemberwiseClone();
+        }
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            ActionMethodDataType clone = (ActionMethodDataType)base.MemberwiseClone();
+
+            clone.m_objectId = (NodeId)Utils.Clone(this.m_objectId);
+            clone.m_methodId = (NodeId)Utils.Clone(this.m_methodId);
+
+            return clone;
+        }
+        #endregion
+
+        #region Private Fields
+        private NodeId m_objectId;
+        private NodeId m_methodId;
+        #endregion
+    }
+
+    #region ActionMethodDataTypeCollection Class
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [CollectionDataContract(Name = "ListOfActionMethodDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ActionMethodDataType")]
+    public partial class ActionMethodDataTypeCollection : List<ActionMethodDataType>, ICloneable
+    {
+        #region Constructors
+        /// <remarks />
+        public ActionMethodDataTypeCollection() {}
+
+        /// <remarks />
+        public ActionMethodDataTypeCollection(int capacity) : base(capacity) {}
+
+        /// <remarks />
+        public ActionMethodDataTypeCollection(IEnumerable<ActionMethodDataType> collection) : base(collection) {}
+        #endregion
+
+        #region Static Operators
+        /// <remarks />
+        public static implicit operator ActionMethodDataTypeCollection(ActionMethodDataType[] values)
+        {
+            if (values != null)
+            {
+                return new ActionMethodDataTypeCollection(values);
+            }
+
+            return new ActionMethodDataTypeCollection();
+        }
+
+        /// <remarks />
+        public static explicit operator ActionMethodDataType[](ActionMethodDataTypeCollection values)
+        {
+            if (values != null)
+            {
+                return values.ToArray();
+            }
+
+            return null;
+        }
+        #endregion
+
+        #region ICloneable Methods
+        /// <remarks />
+        public object Clone()
+        {
+            return (ActionMethodDataTypeCollection)this.MemberwiseClone();
+        }
+        #endregion
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            ActionMethodDataTypeCollection clone = new ActionMethodDataTypeCollection(this.Count);
+
+            for (int ii = 0; ii < this.Count; ii++)
+            {
+                clone.Add((ActionMethodDataType)Utils.Clone(this[ii]));
+            }
+
+            return clone;
+        }
+    }
+    #endregion
+    #endif
+    #endregion
+
+    #region PublishedActionMethodDataType Class
+    #if (!OPCUA_EXCLUDE_PublishedActionMethodDataType)
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
+    public partial class PublishedActionMethodDataType : Opc.Ua.PublishedActionDataType
+    {
+        #region Constructors
+        /// <remarks />
+        public PublishedActionMethodDataType()
+        {
+            Initialize();
+        }
+
+        [OnDeserializing]
+        private void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+
+        private void Initialize()
+        {
+            m_actionMethods = new ActionMethodDataTypeCollection();
+        }
+        #endregion
+
+        #region Public Properties
+        /// <remarks />
+        [DataMember(Name = "ActionMethods", IsRequired = false, Order = 1)]
+        public ActionMethodDataTypeCollection ActionMethods
+        {
+            get
+            {
+                return m_actionMethods;
+            }
+
+            set
+            {
+                m_actionMethods = value;
+
+                if (value == null)
+                {
+                    m_actionMethods = new ActionMethodDataTypeCollection();
+                }
+            }
+        }
+        #endregion
+
+        #region IEncodeable Members
+        /// <summary cref="IEncodeable.TypeId" />
+        public override ExpandedNodeId TypeId => DataTypeIds.PublishedActionMethodDataType; 
+
+        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        public override ExpandedNodeId BinaryEncodingId => ObjectIds.PublishedActionMethodDataType_Encoding_DefaultBinary;
+
+        /// <summary cref="IEncodeable.XmlEncodingId" />
+        public override ExpandedNodeId XmlEncodingId => ObjectIds.PublishedActionMethodDataType_Encoding_DefaultXml;
+            
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public override ExpandedNodeId JsonEncodingId => ObjectIds.PublishedActionMethodDataType_Encoding_DefaultJson; 
+
+        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        public override void Encode(IEncoder encoder)
+        {
+            base.Encode(encoder);
+
+            encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            encoder.WriteEncodeableArray("ActionMethods", ActionMethods.ToArray(), typeof(ActionMethodDataType));
+
+            encoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        public override void Decode(IDecoder decoder)
+        {
+            base.Decode(decoder);
+
+            decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            ActionMethods = (ActionMethodDataTypeCollection)decoder.ReadEncodeableArray("ActionMethods", typeof(ActionMethodDataType));
+
+            decoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        public override bool IsEqual(IEncodeable encodeable)
+        {
+            if (Object.ReferenceEquals(this, encodeable))
+            {
+                return true;
+            }
+
+            PublishedActionMethodDataType value = encodeable as PublishedActionMethodDataType;
+
+            if (value == null)
+            {
+                return false;
+            }
+
+            if (!Utils.IsEqual(m_actionMethods, value.m_actionMethods)) return false;
+
+            return base.IsEqual(encodeable);
+        }    
+
+        /// <summary cref="ICloneable.Clone" />
+        public override object Clone()
+        {
+            return (PublishedActionMethodDataType)this.MemberwiseClone();
+        }
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            PublishedActionMethodDataType clone = (PublishedActionMethodDataType)base.MemberwiseClone();
+
+            clone.m_actionMethods = (ActionMethodDataTypeCollection)Utils.Clone(this.m_actionMethods);
+
+            return clone;
+        }
+        #endregion
+
+        #region Private Fields
+        private ActionMethodDataTypeCollection m_actionMethods;
+        #endregion
+    }
+
+    #region PublishedActionMethodDataTypeCollection Class
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [CollectionDataContract(Name = "ListOfPublishedActionMethodDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "PublishedActionMethodDataType")]
+    public partial class PublishedActionMethodDataTypeCollection : List<PublishedActionMethodDataType>, ICloneable
+    {
+        #region Constructors
+        /// <remarks />
+        public PublishedActionMethodDataTypeCollection() {}
+
+        /// <remarks />
+        public PublishedActionMethodDataTypeCollection(int capacity) : base(capacity) {}
+
+        /// <remarks />
+        public PublishedActionMethodDataTypeCollection(IEnumerable<PublishedActionMethodDataType> collection) : base(collection) {}
+        #endregion
+
+        #region Static Operators
+        /// <remarks />
+        public static implicit operator PublishedActionMethodDataTypeCollection(PublishedActionMethodDataType[] values)
+        {
+            if (values != null)
+            {
+                return new PublishedActionMethodDataTypeCollection(values);
+            }
+
+            return new PublishedActionMethodDataTypeCollection();
+        }
+
+        /// <remarks />
+        public static explicit operator PublishedActionMethodDataType[](PublishedActionMethodDataTypeCollection values)
+        {
+            if (values != null)
+            {
+                return values.ToArray();
+            }
+
+            return null;
+        }
+        #endregion
+
+        #region ICloneable Methods
+        /// <remarks />
+        public object Clone()
+        {
+            return (PublishedActionMethodDataTypeCollection)this.MemberwiseClone();
+        }
+        #endregion
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            PublishedActionMethodDataTypeCollection clone = new PublishedActionMethodDataTypeCollection(this.Count);
+
+            for (int ii = 0; ii < this.Count; ii++)
+            {
+                clone.Add((PublishedActionMethodDataType)Utils.Clone(this[ii]));
             }
 
             return clone;
@@ -10610,7 +11506,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_writerGroupId, value.m_writerGroupId)) return false;
             if (!Utils.IsEqual(m_publishingInterval, value.m_publishingInterval)) return false;
             if (!Utils.IsEqual(m_keepAliveTime, value.m_keepAliveTime)) return false;
@@ -11822,7 +12717,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_url, value.m_url)) return false;
 
             return base.IsEqual(encodeable);
@@ -12040,7 +12934,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_transportSettings, value.m_transportSettings)) return false;
             if (!Utils.IsEqual(m_messageSettings, value.m_messageSettings)) return false;
             if (!Utils.IsEqual(m_dataSetReaders, value.m_dataSetReaders)) return false;
@@ -13511,7 +14404,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_targetVariables, value.m_targetVariables)) return false;
 
             return base.IsEqual(encodeable);
@@ -14069,7 +14961,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_parentNodeName, value.m_parentNodeName)) return false;
             if (!Utils.IsEqual(m_rolePermissions, value.m_rolePermissions)) return false;
 
@@ -14487,7 +15378,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_dataSetName, value.m_dataSetName)) return false;
 
             return base.IsEqual(encodeable);
@@ -14728,7 +15618,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_name, value.m_name)) return false;
             if (!Utils.IsEqual(m_dataSetFolder, value.m_dataSetFolder)) return false;
             if (!Utils.IsEqual(m_dataSetMetaData, value.m_dataSetMetaData)) return false;
@@ -15725,7 +16614,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_subscribedDataSets, value.m_subscribedDataSets)) return false;
             if (!Utils.IsEqual(m_dataSetClasses, value.m_dataSetClasses)) return false;
             if (!Utils.IsEqual(m_defaultSecurityKeyServices, value.m_defaultSecurityKeyServices)) return false;
@@ -16195,7 +17083,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_groupVersion, value.m_groupVersion)) return false;
             if (!Utils.IsEqual(m_dataSetOrdering, value.m_dataSetOrdering)) return false;
             if (!Utils.IsEqual(m_networkMessageContentMask, value.m_networkMessageContentMask)) return false;
@@ -16528,7 +17415,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_dataSetMessageContentMask, value.m_dataSetMessageContentMask)) return false;
             if (!Utils.IsEqual(m_configuredSize, value.m_configuredSize)) return false;
             if (!Utils.IsEqual(m_networkMessageNumber, value.m_networkMessageNumber)) return false;
@@ -16809,7 +17695,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_groupVersion, value.m_groupVersion)) return false;
             if (!Utils.IsEqual(m_networkMessageNumber, value.m_networkMessageNumber)) return false;
             if (!Utils.IsEqual(m_dataSetOffset, value.m_dataSetOffset)) return false;
@@ -17125,7 +18010,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_networkMessageContentMask, value.m_networkMessageContentMask)) return false;
 
             return base.IsEqual(encodeable);
@@ -17261,8 +18145,8 @@ namespace Opc.Ua
         DataSetWriterName = 64,
 
         /// <remarks />
-        [EnumMember(Value = "ReversibleFieldEncoding_128")]
-        ReversibleFieldEncoding = 128,
+        [EnumMember(Value = "FieldEncoding1_128")]
+        FieldEncoding1 = 128,
 
         /// <remarks />
         [EnumMember(Value = "PublisherId_256")]
@@ -17275,6 +18159,10 @@ namespace Opc.Ua
         /// <remarks />
         [EnumMember(Value = "MinorVersion_1024")]
         MinorVersion = 1024,
+
+        /// <remarks />
+        [EnumMember(Value = "FieldEncoding2_2048")]
+        FieldEncoding2 = 2048,
     }
 
     #region JsonDataSetMessageContentMaskCollection Class
@@ -17433,7 +18321,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_dataSetMessageContentMask, value.m_dataSetMessageContentMask)) return false;
 
             return base.IsEqual(encodeable);
@@ -17628,7 +18515,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_networkMessageContentMask, value.m_networkMessageContentMask)) return false;
             if (!Utils.IsEqual(m_dataSetMessageContentMask, value.m_dataSetMessageContentMask)) return false;
 
@@ -18151,7 +19037,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_priorityLabel, value.m_priorityLabel)) return false;
 
             return base.IsEqual(encodeable);
@@ -18505,7 +19390,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_priorityLabel, value.m_priorityLabel)) return false;
 
             return base.IsEqual(encodeable);
@@ -18689,7 +19573,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_discoveryAddress, value.m_discoveryAddress)) return false;
 
             return base.IsEqual(encodeable);
@@ -18906,7 +19789,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_discoveryAnnounceRate, value.m_discoveryAnnounceRate)) return false;
             if (!Utils.IsEqual(m_discoveryMaxMessageSize, value.m_discoveryMaxMessageSize)) return false;
             if (!Utils.IsEqual(m_qosCategory, value.m_qosCategory)) return false;
@@ -19110,7 +19992,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_messageRepeatCount, value.m_messageRepeatCount)) return false;
             if (!Utils.IsEqual(m_messageRepeatDelay, value.m_messageRepeatDelay)) return false;
 
@@ -19341,7 +20222,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_address, value.m_address)) return false;
             if (!Utils.IsEqual(m_qosCategory, value.m_qosCategory)) return false;
             if (!Utils.IsEqual(m_datagramQos, value.m_datagramQos)) return false;
@@ -19570,7 +20450,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_address, value.m_address)) return false;
             if (!Utils.IsEqual(m_qosCategory, value.m_qosCategory)) return false;
             if (!Utils.IsEqual(m_datagramQos, value.m_datagramQos)) return false;
@@ -19665,6 +20544,253 @@ namespace Opc.Ua
             for (int ii = 0; ii < this.Count; ii++)
             {
                 clone.Add((DatagramDataSetReaderTransportDataType)Utils.Clone(this[ii]));
+            }
+
+            return clone;
+        }
+    }
+    #endregion
+    #endif
+    #endregion
+
+    #region DtlsPubSubConnectionDataType Class
+    #if (!OPCUA_EXCLUDE_DtlsPubSubConnectionDataType)
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
+    public partial class DtlsPubSubConnectionDataType : IEncodeable, IJsonEncodeable
+    {
+        #region Constructors
+        /// <remarks />
+        public DtlsPubSubConnectionDataType()
+        {
+            Initialize();
+        }
+            
+        [OnDeserializing]
+        private void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+            
+        private void Initialize()
+        {
+            m_clientCipherSuite = null;
+            m_serverCipherSuites = new StringCollection();
+            m_zeroRTT = true;
+            m_certificateGroupId = null;
+            m_verifyClientCertificate = true;
+        }
+        #endregion
+
+        #region Public Properties
+        /// <remarks />
+        [DataMember(Name = "ClientCipherSuite", IsRequired = false, Order = 1)]
+        public string ClientCipherSuite
+        {
+            get { return m_clientCipherSuite;  }
+            set { m_clientCipherSuite = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "ServerCipherSuites", IsRequired = false, Order = 2)]
+        public StringCollection ServerCipherSuites
+        {
+            get
+            {
+                return m_serverCipherSuites;
+            }
+
+            set
+            {
+                m_serverCipherSuites = value;
+
+                if (value == null)
+                {
+                    m_serverCipherSuites = new StringCollection();
+                }
+            }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "ZeroRTT", IsRequired = false, Order = 3)]
+        public bool ZeroRTT
+        {
+            get { return m_zeroRTT;  }
+            set { m_zeroRTT = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "CertificateGroupId", IsRequired = false, Order = 4)]
+        public NodeId CertificateGroupId
+        {
+            get { return m_certificateGroupId;  }
+            set { m_certificateGroupId = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "VerifyClientCertificate", IsRequired = false, Order = 5)]
+        public bool VerifyClientCertificate
+        {
+            get { return m_verifyClientCertificate;  }
+            set { m_verifyClientCertificate = value; }
+        }
+        #endregion
+
+        #region IEncodeable Members
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId TypeId => DataTypeIds.DtlsPubSubConnectionDataType; 
+
+        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.DtlsPubSubConnectionDataType_Encoding_DefaultBinary;
+
+        /// <summary cref="IEncodeable.XmlEncodingId" />
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.DtlsPubSubConnectionDataType_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.DtlsPubSubConnectionDataType_Encoding_DefaultJson; 
+
+        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        public virtual void Encode(IEncoder encoder)
+        {
+            encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            encoder.WriteString("ClientCipherSuite", ClientCipherSuite);
+            encoder.WriteStringArray("ServerCipherSuites", ServerCipherSuites);
+            encoder.WriteBoolean("ZeroRTT", ZeroRTT);
+            encoder.WriteNodeId("CertificateGroupId", CertificateGroupId);
+            encoder.WriteBoolean("VerifyClientCertificate", VerifyClientCertificate);
+
+            encoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        public virtual void Decode(IDecoder decoder)
+        {
+            decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            ClientCipherSuite = decoder.ReadString("ClientCipherSuite");
+            ServerCipherSuites = decoder.ReadStringArray("ServerCipherSuites");
+            ZeroRTT = decoder.ReadBoolean("ZeroRTT");
+            CertificateGroupId = decoder.ReadNodeId("CertificateGroupId");
+            VerifyClientCertificate = decoder.ReadBoolean("VerifyClientCertificate");
+
+            decoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        public virtual bool IsEqual(IEncodeable encodeable)
+        {
+            if (Object.ReferenceEquals(this, encodeable))
+            {
+                return true;
+            }
+
+            DtlsPubSubConnectionDataType value = encodeable as DtlsPubSubConnectionDataType;
+
+            if (value == null)
+            {
+                return false;
+            }
+
+            if (!Utils.IsEqual(m_clientCipherSuite, value.m_clientCipherSuite)) return false;
+            if (!Utils.IsEqual(m_serverCipherSuites, value.m_serverCipherSuites)) return false;
+            if (!Utils.IsEqual(m_zeroRTT, value.m_zeroRTT)) return false;
+            if (!Utils.IsEqual(m_certificateGroupId, value.m_certificateGroupId)) return false;
+            if (!Utils.IsEqual(m_verifyClientCertificate, value.m_verifyClientCertificate)) return false;
+
+            return true;
+        }
+
+        /// <summary cref="ICloneable.Clone" />
+        public virtual object Clone()
+        {
+            return (DtlsPubSubConnectionDataType)this.MemberwiseClone();
+        }
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            DtlsPubSubConnectionDataType clone = (DtlsPubSubConnectionDataType)base.MemberwiseClone();
+
+            clone.m_clientCipherSuite = (string)Utils.Clone(this.m_clientCipherSuite);
+            clone.m_serverCipherSuites = (StringCollection)Utils.Clone(this.m_serverCipherSuites);
+            clone.m_zeroRTT = (bool)Utils.Clone(this.m_zeroRTT);
+            clone.m_certificateGroupId = (NodeId)Utils.Clone(this.m_certificateGroupId);
+            clone.m_verifyClientCertificate = (bool)Utils.Clone(this.m_verifyClientCertificate);
+
+            return clone;
+        }
+        #endregion
+
+        #region Private Fields
+        private string m_clientCipherSuite;
+        private StringCollection m_serverCipherSuites;
+        private bool m_zeroRTT;
+        private NodeId m_certificateGroupId;
+        private bool m_verifyClientCertificate;
+        #endregion
+    }
+
+    #region DtlsPubSubConnectionDataTypeCollection Class
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [CollectionDataContract(Name = "ListOfDtlsPubSubConnectionDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "DtlsPubSubConnectionDataType")]
+    public partial class DtlsPubSubConnectionDataTypeCollection : List<DtlsPubSubConnectionDataType>, ICloneable
+    {
+        #region Constructors
+        /// <remarks />
+        public DtlsPubSubConnectionDataTypeCollection() {}
+
+        /// <remarks />
+        public DtlsPubSubConnectionDataTypeCollection(int capacity) : base(capacity) {}
+
+        /// <remarks />
+        public DtlsPubSubConnectionDataTypeCollection(IEnumerable<DtlsPubSubConnectionDataType> collection) : base(collection) {}
+        #endregion
+
+        #region Static Operators
+        /// <remarks />
+        public static implicit operator DtlsPubSubConnectionDataTypeCollection(DtlsPubSubConnectionDataType[] values)
+        {
+            if (values != null)
+            {
+                return new DtlsPubSubConnectionDataTypeCollection(values);
+            }
+
+            return new DtlsPubSubConnectionDataTypeCollection();
+        }
+
+        /// <remarks />
+        public static explicit operator DtlsPubSubConnectionDataType[](DtlsPubSubConnectionDataTypeCollection values)
+        {
+            if (values != null)
+            {
+                return values.ToArray();
+            }
+
+            return null;
+        }
+        #endregion
+
+        #region ICloneable Methods
+        /// <remarks />
+        public object Clone()
+        {
+            return (DtlsPubSubConnectionDataTypeCollection)this.MemberwiseClone();
+        }
+        #endregion
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            DtlsPubSubConnectionDataTypeCollection clone = new DtlsPubSubConnectionDataTypeCollection(this.Count);
+
+            for (int ii = 0; ii < this.Count; ii++)
+            {
+                clone.Add((DtlsPubSubConnectionDataType)Utils.Clone(this[ii]));
             }
 
             return clone;
@@ -19774,7 +20900,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_resourceUri, value.m_resourceUri)) return false;
             if (!Utils.IsEqual(m_authenticationProfileUri, value.m_authenticationProfileUri)) return false;
 
@@ -20090,7 +21215,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_queueName, value.m_queueName)) return false;
             if (!Utils.IsEqual(m_resourceUri, value.m_resourceUri)) return false;
             if (!Utils.IsEqual(m_authenticationProfileUri, value.m_authenticationProfileUri)) return false;
@@ -20338,7 +21462,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_queueName, value.m_queueName)) return false;
             if (!Utils.IsEqual(m_resourceUri, value.m_resourceUri)) return false;
             if (!Utils.IsEqual(m_authenticationProfileUri, value.m_authenticationProfileUri)) return false;
@@ -20581,7 +21704,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_queueName, value.m_queueName)) return false;
             if (!Utils.IsEqual(m_resourceUri, value.m_resourceUri)) return false;
             if (!Utils.IsEqual(m_authenticationProfileUri, value.m_authenticationProfileUri)) return false;
@@ -21437,6 +22559,2718 @@ namespace Opc.Ua
         }
     }
     #endregion
+    #endif
+    #endregion
+
+    #region JsonNetworkMessage Class
+    #if (!OPCUA_EXCLUDE_JsonNetworkMessage)
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
+    public partial class JsonNetworkMessage : IEncodeable, IJsonEncodeable
+    {
+        #region Constructors
+        /// <remarks />
+        public JsonNetworkMessage()
+        {
+            Initialize();
+        }
+            
+        [OnDeserializing]
+        private void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+            
+        private void Initialize()
+        {
+            m_messageId = null;
+            m_messageType = null;
+            m_publisherId = null;
+            m_writerGroupName = null;
+            m_dataSetClassId = null;
+            m_messages = Variant.Null;
+        }
+        #endregion
+
+        #region Public Properties
+        /// <remarks />
+        [DataMember(Name = "MessageId", IsRequired = false, Order = 1)]
+        public string MessageId
+        {
+            get { return m_messageId;  }
+            set { m_messageId = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "MessageType", IsRequired = false, Order = 2)]
+        public string MessageType
+        {
+            get { return m_messageType;  }
+            set { m_messageType = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "PublisherId", IsRequired = false, Order = 3)]
+        public string PublisherId
+        {
+            get { return m_publisherId;  }
+            set { m_publisherId = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "WriterGroupName", IsRequired = false, Order = 4)]
+        public string WriterGroupName
+        {
+            get { return m_writerGroupName;  }
+            set { m_writerGroupName = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "DataSetClassId", IsRequired = false, Order = 5)]
+        public string DataSetClassId
+        {
+            get { return m_dataSetClassId;  }
+            set { m_dataSetClassId = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "Messages", IsRequired = false, Order = 6)]
+        public Variant Messages
+        {
+            get { return m_messages;  }
+            set { m_messages = value; }
+        }
+        #endregion
+
+        #region IEncodeable Members
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId TypeId => DataTypeIds.JsonNetworkMessage; 
+
+        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        public virtual ExpandedNodeId BinaryEncodingId => NodeId.Null;
+
+        /// <summary cref="IEncodeable.XmlEncodingId" />
+        public virtual ExpandedNodeId XmlEncodingId => NodeId.Null;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => NodeId.Null; 
+
+        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        public virtual void Encode(IEncoder encoder)
+        {
+            encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            encoder.WriteString("MessageId", MessageId);
+            encoder.WriteString("MessageType", MessageType);
+            encoder.WriteString("PublisherId", PublisherId);
+            encoder.WriteString("WriterGroupName", WriterGroupName);
+            encoder.WriteString("DataSetClassId", DataSetClassId);
+            encoder.WriteVariant("Messages", Messages);
+
+            encoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        public virtual void Decode(IDecoder decoder)
+        {
+            decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            MessageId = decoder.ReadString("MessageId");
+            MessageType = decoder.ReadString("MessageType");
+            PublisherId = decoder.ReadString("PublisherId");
+            WriterGroupName = decoder.ReadString("WriterGroupName");
+            DataSetClassId = decoder.ReadString("DataSetClassId");
+            Messages = decoder.ReadVariant("Messages");
+
+            decoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        public virtual bool IsEqual(IEncodeable encodeable)
+        {
+            if (Object.ReferenceEquals(this, encodeable))
+            {
+                return true;
+            }
+
+            JsonNetworkMessage value = encodeable as JsonNetworkMessage;
+
+            if (value == null)
+            {
+                return false;
+            }
+
+            if (!Utils.IsEqual(m_messageId, value.m_messageId)) return false;
+            if (!Utils.IsEqual(m_messageType, value.m_messageType)) return false;
+            if (!Utils.IsEqual(m_publisherId, value.m_publisherId)) return false;
+            if (!Utils.IsEqual(m_writerGroupName, value.m_writerGroupName)) return false;
+            if (!Utils.IsEqual(m_dataSetClassId, value.m_dataSetClassId)) return false;
+            if (!Utils.IsEqual(m_messages, value.m_messages)) return false;
+
+            return true;
+        }
+
+        /// <summary cref="ICloneable.Clone" />
+        public virtual object Clone()
+        {
+            return (JsonNetworkMessage)this.MemberwiseClone();
+        }
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            JsonNetworkMessage clone = (JsonNetworkMessage)base.MemberwiseClone();
+
+            clone.m_messageId = (string)Utils.Clone(this.m_messageId);
+            clone.m_messageType = (string)Utils.Clone(this.m_messageType);
+            clone.m_publisherId = (string)Utils.Clone(this.m_publisherId);
+            clone.m_writerGroupName = (string)Utils.Clone(this.m_writerGroupName);
+            clone.m_dataSetClassId = (string)Utils.Clone(this.m_dataSetClassId);
+            clone.m_messages = (Variant)Utils.Clone(this.m_messages);
+
+            return clone;
+        }
+        #endregion
+
+        #region Private Fields
+        private string m_messageId;
+        private string m_messageType;
+        private string m_publisherId;
+        private string m_writerGroupName;
+        private string m_dataSetClassId;
+        private Variant m_messages;
+        #endregion
+    }
+    #endif
+    #endregion
+
+    #region JsonDataSetMessage Class
+    #if (!OPCUA_EXCLUDE_JsonDataSetMessage)
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
+    public partial class JsonDataSetMessage : IEncodeable, IJsonEncodeable
+    {
+        #region Constructors
+        /// <remarks />
+        public JsonDataSetMessage()
+        {
+            Initialize();
+        }
+            
+        [OnDeserializing]
+        private void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+            
+        private void Initialize()
+        {
+            m_dataSetWriterId = (ushort)0;
+            m_dataSetWriterName = null;
+            m_publisherId = null;
+            m_writerGroupName = null;
+            m_sequenceNumber = (uint)0;
+            m_metaDataVersion = new ConfigurationVersionDataType();
+            m_minorVersion = (uint)0;
+            m_timestamp = DateTime.MinValue;
+            m_status = StatusCodes.Good;
+            m_messageType = null;
+            m_payload = null;
+        }
+        #endregion
+
+        #region Public Properties
+        /// <remarks />
+        [DataMember(Name = "DataSetWriterId", IsRequired = false, Order = 1)]
+        public ushort DataSetWriterId
+        {
+            get { return m_dataSetWriterId;  }
+            set { m_dataSetWriterId = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "DataSetWriterName", IsRequired = false, Order = 2)]
+        public string DataSetWriterName
+        {
+            get { return m_dataSetWriterName;  }
+            set { m_dataSetWriterName = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "PublisherId", IsRequired = false, Order = 3)]
+        public string PublisherId
+        {
+            get { return m_publisherId;  }
+            set { m_publisherId = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "WriterGroupName", IsRequired = false, Order = 4)]
+        public string WriterGroupName
+        {
+            get { return m_writerGroupName;  }
+            set { m_writerGroupName = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "SequenceNumber", IsRequired = false, Order = 5)]
+        public uint SequenceNumber
+        {
+            get { return m_sequenceNumber;  }
+            set { m_sequenceNumber = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "MetaDataVersion", IsRequired = false, Order = 6)]
+        public ConfigurationVersionDataType MetaDataVersion
+        {
+            get
+            {
+                return m_metaDataVersion;
+            }
+
+            set
+            {
+                m_metaDataVersion = value;
+
+                if (value == null)
+                {
+                    m_metaDataVersion = new ConfigurationVersionDataType();
+                }
+            }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "MinorVersion", IsRequired = false, Order = 7)]
+        public uint MinorVersion
+        {
+            get { return m_minorVersion;  }
+            set { m_minorVersion = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "Timestamp", IsRequired = false, Order = 8)]
+        public DateTime Timestamp
+        {
+            get { return m_timestamp;  }
+            set { m_timestamp = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "Status", IsRequired = false, Order = 9)]
+        public StatusCode Status
+        {
+            get { return m_status;  }
+            set { m_status = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "MessageType", IsRequired = false, Order = 10)]
+        public string MessageType
+        {
+            get { return m_messageType;  }
+            set { m_messageType = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "Payload", IsRequired = false, Order = 11)]
+        public ExtensionObject Payload
+        {
+            get { return m_payload;  }
+            set { m_payload = value; }
+        }
+        #endregion
+
+        #region IEncodeable Members
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId TypeId => DataTypeIds.JsonDataSetMessage; 
+
+        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        public virtual ExpandedNodeId BinaryEncodingId => NodeId.Null;
+
+        /// <summary cref="IEncodeable.XmlEncodingId" />
+        public virtual ExpandedNodeId XmlEncodingId => NodeId.Null;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => NodeId.Null; 
+
+        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        public virtual void Encode(IEncoder encoder)
+        {
+            encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            encoder.WriteUInt16("DataSetWriterId", DataSetWriterId);
+            encoder.WriteString("DataSetWriterName", DataSetWriterName);
+            encoder.WriteString("PublisherId", PublisherId);
+            encoder.WriteString("WriterGroupName", WriterGroupName);
+            encoder.WriteUInt32("SequenceNumber", SequenceNumber);
+            encoder.WriteEncodeable("MetaDataVersion", MetaDataVersion, typeof(ConfigurationVersionDataType));
+            encoder.WriteUInt32("MinorVersion", MinorVersion);
+            encoder.WriteDateTime("Timestamp", Timestamp);
+            encoder.WriteStatusCode("Status", Status);
+            encoder.WriteString("MessageType", MessageType);
+            encoder.WriteExtensionObject("Payload", Payload);
+
+            encoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        public virtual void Decode(IDecoder decoder)
+        {
+            decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            DataSetWriterId = decoder.ReadUInt16("DataSetWriterId");
+            DataSetWriterName = decoder.ReadString("DataSetWriterName");
+            PublisherId = decoder.ReadString("PublisherId");
+            WriterGroupName = decoder.ReadString("WriterGroupName");
+            SequenceNumber = decoder.ReadUInt32("SequenceNumber");
+            MetaDataVersion = (ConfigurationVersionDataType)decoder.ReadEncodeable("MetaDataVersion", typeof(ConfigurationVersionDataType));
+            MinorVersion = decoder.ReadUInt32("MinorVersion");
+            Timestamp = decoder.ReadDateTime("Timestamp");
+            Status = decoder.ReadStatusCode("Status");
+            MessageType = decoder.ReadString("MessageType");
+            Payload = decoder.ReadExtensionObject("Payload");
+
+            decoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        public virtual bool IsEqual(IEncodeable encodeable)
+        {
+            if (Object.ReferenceEquals(this, encodeable))
+            {
+                return true;
+            }
+
+            JsonDataSetMessage value = encodeable as JsonDataSetMessage;
+
+            if (value == null)
+            {
+                return false;
+            }
+
+            if (!Utils.IsEqual(m_dataSetWriterId, value.m_dataSetWriterId)) return false;
+            if (!Utils.IsEqual(m_dataSetWriterName, value.m_dataSetWriterName)) return false;
+            if (!Utils.IsEqual(m_publisherId, value.m_publisherId)) return false;
+            if (!Utils.IsEqual(m_writerGroupName, value.m_writerGroupName)) return false;
+            if (!Utils.IsEqual(m_sequenceNumber, value.m_sequenceNumber)) return false;
+            if (!Utils.IsEqual(m_metaDataVersion, value.m_metaDataVersion)) return false;
+            if (!Utils.IsEqual(m_minorVersion, value.m_minorVersion)) return false;
+            if (!Utils.IsEqual(m_timestamp, value.m_timestamp)) return false;
+            if (!Utils.IsEqual(m_status, value.m_status)) return false;
+            if (!Utils.IsEqual(m_messageType, value.m_messageType)) return false;
+            if (!Utils.IsEqual(m_payload, value.m_payload)) return false;
+
+            return true;
+        }
+
+        /// <summary cref="ICloneable.Clone" />
+        public virtual object Clone()
+        {
+            return (JsonDataSetMessage)this.MemberwiseClone();
+        }
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            JsonDataSetMessage clone = (JsonDataSetMessage)base.MemberwiseClone();
+
+            clone.m_dataSetWriterId = (ushort)Utils.Clone(this.m_dataSetWriterId);
+            clone.m_dataSetWriterName = (string)Utils.Clone(this.m_dataSetWriterName);
+            clone.m_publisherId = (string)Utils.Clone(this.m_publisherId);
+            clone.m_writerGroupName = (string)Utils.Clone(this.m_writerGroupName);
+            clone.m_sequenceNumber = (uint)Utils.Clone(this.m_sequenceNumber);
+            clone.m_metaDataVersion = (ConfigurationVersionDataType)Utils.Clone(this.m_metaDataVersion);
+            clone.m_minorVersion = (uint)Utils.Clone(this.m_minorVersion);
+            clone.m_timestamp = (DateTime)Utils.Clone(this.m_timestamp);
+            clone.m_status = (StatusCode)Utils.Clone(this.m_status);
+            clone.m_messageType = (string)Utils.Clone(this.m_messageType);
+            clone.m_payload = (ExtensionObject)Utils.Clone(this.m_payload);
+
+            return clone;
+        }
+        #endregion
+
+        #region Private Fields
+        private ushort m_dataSetWriterId;
+        private string m_dataSetWriterName;
+        private string m_publisherId;
+        private string m_writerGroupName;
+        private uint m_sequenceNumber;
+        private ConfigurationVersionDataType m_metaDataVersion;
+        private uint m_minorVersion;
+        private DateTime m_timestamp;
+        private StatusCode m_status;
+        private string m_messageType;
+        private ExtensionObject m_payload;
+        #endregion
+    }
+    #endif
+    #endregion
+
+    #region JsonDataSetMetaDataMessage Class
+    #if (!OPCUA_EXCLUDE_JsonDataSetMetaDataMessage)
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
+    public partial class JsonDataSetMetaDataMessage : IEncodeable, IJsonEncodeable
+    {
+        #region Constructors
+        /// <remarks />
+        public JsonDataSetMetaDataMessage()
+        {
+            Initialize();
+        }
+            
+        [OnDeserializing]
+        private void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+            
+        private void Initialize()
+        {
+            m_messageId = null;
+            m_messageType = null;
+            m_publisherId = null;
+            m_dataSetWriterId = (ushort)0;
+            m_writerGroupName = null;
+            m_dataSetWriterName = null;
+            m_timestamp = DateTime.MinValue;
+            m_metaData = new DataSetMetaDataType();
+        }
+        #endregion
+
+        #region Public Properties
+        /// <remarks />
+        [DataMember(Name = "MessageId", IsRequired = false, Order = 1)]
+        public string MessageId
+        {
+            get { return m_messageId;  }
+            set { m_messageId = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "MessageType", IsRequired = false, Order = 2)]
+        public string MessageType
+        {
+            get { return m_messageType;  }
+            set { m_messageType = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "PublisherId", IsRequired = false, Order = 3)]
+        public string PublisherId
+        {
+            get { return m_publisherId;  }
+            set { m_publisherId = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "DataSetWriterId", IsRequired = false, Order = 4)]
+        public ushort DataSetWriterId
+        {
+            get { return m_dataSetWriterId;  }
+            set { m_dataSetWriterId = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "WriterGroupName", IsRequired = false, Order = 5)]
+        public string WriterGroupName
+        {
+            get { return m_writerGroupName;  }
+            set { m_writerGroupName = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "DataSetWriterName", IsRequired = false, Order = 6)]
+        public string DataSetWriterName
+        {
+            get { return m_dataSetWriterName;  }
+            set { m_dataSetWriterName = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "Timestamp", IsRequired = false, Order = 7)]
+        public DateTime Timestamp
+        {
+            get { return m_timestamp;  }
+            set { m_timestamp = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "MetaData", IsRequired = false, Order = 8)]
+        public DataSetMetaDataType MetaData
+        {
+            get
+            {
+                return m_metaData;
+            }
+
+            set
+            {
+                m_metaData = value;
+
+                if (value == null)
+                {
+                    m_metaData = new DataSetMetaDataType();
+                }
+            }
+        }
+        #endregion
+
+        #region IEncodeable Members
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId TypeId => DataTypeIds.JsonDataSetMetaDataMessage; 
+
+        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        public virtual ExpandedNodeId BinaryEncodingId => NodeId.Null;
+
+        /// <summary cref="IEncodeable.XmlEncodingId" />
+        public virtual ExpandedNodeId XmlEncodingId => NodeId.Null;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => NodeId.Null; 
+
+        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        public virtual void Encode(IEncoder encoder)
+        {
+            encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            encoder.WriteString("MessageId", MessageId);
+            encoder.WriteString("MessageType", MessageType);
+            encoder.WriteString("PublisherId", PublisherId);
+            encoder.WriteUInt16("DataSetWriterId", DataSetWriterId);
+            encoder.WriteString("WriterGroupName", WriterGroupName);
+            encoder.WriteString("DataSetWriterName", DataSetWriterName);
+            encoder.WriteDateTime("Timestamp", Timestamp);
+            encoder.WriteEncodeable("MetaData", MetaData, typeof(DataSetMetaDataType));
+
+            encoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        public virtual void Decode(IDecoder decoder)
+        {
+            decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            MessageId = decoder.ReadString("MessageId");
+            MessageType = decoder.ReadString("MessageType");
+            PublisherId = decoder.ReadString("PublisherId");
+            DataSetWriterId = decoder.ReadUInt16("DataSetWriterId");
+            WriterGroupName = decoder.ReadString("WriterGroupName");
+            DataSetWriterName = decoder.ReadString("DataSetWriterName");
+            Timestamp = decoder.ReadDateTime("Timestamp");
+            MetaData = (DataSetMetaDataType)decoder.ReadEncodeable("MetaData", typeof(DataSetMetaDataType));
+
+            decoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        public virtual bool IsEqual(IEncodeable encodeable)
+        {
+            if (Object.ReferenceEquals(this, encodeable))
+            {
+                return true;
+            }
+
+            JsonDataSetMetaDataMessage value = encodeable as JsonDataSetMetaDataMessage;
+
+            if (value == null)
+            {
+                return false;
+            }
+
+            if (!Utils.IsEqual(m_messageId, value.m_messageId)) return false;
+            if (!Utils.IsEqual(m_messageType, value.m_messageType)) return false;
+            if (!Utils.IsEqual(m_publisherId, value.m_publisherId)) return false;
+            if (!Utils.IsEqual(m_dataSetWriterId, value.m_dataSetWriterId)) return false;
+            if (!Utils.IsEqual(m_writerGroupName, value.m_writerGroupName)) return false;
+            if (!Utils.IsEqual(m_dataSetWriterName, value.m_dataSetWriterName)) return false;
+            if (!Utils.IsEqual(m_timestamp, value.m_timestamp)) return false;
+            if (!Utils.IsEqual(m_metaData, value.m_metaData)) return false;
+
+            return true;
+        }
+
+        /// <summary cref="ICloneable.Clone" />
+        public virtual object Clone()
+        {
+            return (JsonDataSetMetaDataMessage)this.MemberwiseClone();
+        }
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            JsonDataSetMetaDataMessage clone = (JsonDataSetMetaDataMessage)base.MemberwiseClone();
+
+            clone.m_messageId = (string)Utils.Clone(this.m_messageId);
+            clone.m_messageType = (string)Utils.Clone(this.m_messageType);
+            clone.m_publisherId = (string)Utils.Clone(this.m_publisherId);
+            clone.m_dataSetWriterId = (ushort)Utils.Clone(this.m_dataSetWriterId);
+            clone.m_writerGroupName = (string)Utils.Clone(this.m_writerGroupName);
+            clone.m_dataSetWriterName = (string)Utils.Clone(this.m_dataSetWriterName);
+            clone.m_timestamp = (DateTime)Utils.Clone(this.m_timestamp);
+            clone.m_metaData = (DataSetMetaDataType)Utils.Clone(this.m_metaData);
+
+            return clone;
+        }
+        #endregion
+
+        #region Private Fields
+        private string m_messageId;
+        private string m_messageType;
+        private string m_publisherId;
+        private ushort m_dataSetWriterId;
+        private string m_writerGroupName;
+        private string m_dataSetWriterName;
+        private DateTime m_timestamp;
+        private DataSetMetaDataType m_metaData;
+        #endregion
+    }
+    #endif
+    #endregion
+
+    #region JsonApplicationDescriptionMessage Class
+    #if (!OPCUA_EXCLUDE_JsonApplicationDescriptionMessage)
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
+    public partial class JsonApplicationDescriptionMessage : IEncodeable, IJsonEncodeable
+    {
+        #region Constructors
+        /// <remarks />
+        public JsonApplicationDescriptionMessage()
+        {
+            Initialize();
+        }
+            
+        [OnDeserializing]
+        private void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+            
+        private void Initialize()
+        {
+            m_messageId = null;
+            m_messageType = null;
+            m_publisherId = null;
+            m_timestamp = DateTime.MinValue;
+            m_description = new ApplicationDescription();
+            m_serverCapabilities = new StringCollection();
+        }
+        #endregion
+
+        #region Public Properties
+        /// <remarks />
+        [DataMember(Name = "MessageId", IsRequired = false, Order = 1)]
+        public string MessageId
+        {
+            get { return m_messageId;  }
+            set { m_messageId = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "MessageType", IsRequired = false, Order = 2)]
+        public string MessageType
+        {
+            get { return m_messageType;  }
+            set { m_messageType = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "PublisherId", IsRequired = false, Order = 3)]
+        public string PublisherId
+        {
+            get { return m_publisherId;  }
+            set { m_publisherId = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "Timestamp", IsRequired = false, Order = 4)]
+        public DateTime Timestamp
+        {
+            get { return m_timestamp;  }
+            set { m_timestamp = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "Description", IsRequired = false, Order = 5)]
+        public ApplicationDescription Description
+        {
+            get
+            {
+                return m_description;
+            }
+
+            set
+            {
+                m_description = value;
+
+                if (value == null)
+                {
+                    m_description = new ApplicationDescription();
+                }
+            }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "ServerCapabilities", IsRequired = false, Order = 6)]
+        public StringCollection ServerCapabilities
+        {
+            get
+            {
+                return m_serverCapabilities;
+            }
+
+            set
+            {
+                m_serverCapabilities = value;
+
+                if (value == null)
+                {
+                    m_serverCapabilities = new StringCollection();
+                }
+            }
+        }
+        #endregion
+
+        #region IEncodeable Members
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId TypeId => DataTypeIds.JsonApplicationDescriptionMessage; 
+
+        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        public virtual ExpandedNodeId BinaryEncodingId => NodeId.Null;
+
+        /// <summary cref="IEncodeable.XmlEncodingId" />
+        public virtual ExpandedNodeId XmlEncodingId => NodeId.Null;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => NodeId.Null; 
+
+        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        public virtual void Encode(IEncoder encoder)
+        {
+            encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            encoder.WriteString("MessageId", MessageId);
+            encoder.WriteString("MessageType", MessageType);
+            encoder.WriteString("PublisherId", PublisherId);
+            encoder.WriteDateTime("Timestamp", Timestamp);
+            encoder.WriteEncodeable("Description", Description, typeof(ApplicationDescription));
+            encoder.WriteStringArray("ServerCapabilities", ServerCapabilities);
+
+            encoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        public virtual void Decode(IDecoder decoder)
+        {
+            decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            MessageId = decoder.ReadString("MessageId");
+            MessageType = decoder.ReadString("MessageType");
+            PublisherId = decoder.ReadString("PublisherId");
+            Timestamp = decoder.ReadDateTime("Timestamp");
+            Description = (ApplicationDescription)decoder.ReadEncodeable("Description", typeof(ApplicationDescription));
+            ServerCapabilities = decoder.ReadStringArray("ServerCapabilities");
+
+            decoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        public virtual bool IsEqual(IEncodeable encodeable)
+        {
+            if (Object.ReferenceEquals(this, encodeable))
+            {
+                return true;
+            }
+
+            JsonApplicationDescriptionMessage value = encodeable as JsonApplicationDescriptionMessage;
+
+            if (value == null)
+            {
+                return false;
+            }
+
+            if (!Utils.IsEqual(m_messageId, value.m_messageId)) return false;
+            if (!Utils.IsEqual(m_messageType, value.m_messageType)) return false;
+            if (!Utils.IsEqual(m_publisherId, value.m_publisherId)) return false;
+            if (!Utils.IsEqual(m_timestamp, value.m_timestamp)) return false;
+            if (!Utils.IsEqual(m_description, value.m_description)) return false;
+            if (!Utils.IsEqual(m_serverCapabilities, value.m_serverCapabilities)) return false;
+
+            return true;
+        }
+
+        /// <summary cref="ICloneable.Clone" />
+        public virtual object Clone()
+        {
+            return (JsonApplicationDescriptionMessage)this.MemberwiseClone();
+        }
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            JsonApplicationDescriptionMessage clone = (JsonApplicationDescriptionMessage)base.MemberwiseClone();
+
+            clone.m_messageId = (string)Utils.Clone(this.m_messageId);
+            clone.m_messageType = (string)Utils.Clone(this.m_messageType);
+            clone.m_publisherId = (string)Utils.Clone(this.m_publisherId);
+            clone.m_timestamp = (DateTime)Utils.Clone(this.m_timestamp);
+            clone.m_description = (ApplicationDescription)Utils.Clone(this.m_description);
+            clone.m_serverCapabilities = (StringCollection)Utils.Clone(this.m_serverCapabilities);
+
+            return clone;
+        }
+        #endregion
+
+        #region Private Fields
+        private string m_messageId;
+        private string m_messageType;
+        private string m_publisherId;
+        private DateTime m_timestamp;
+        private ApplicationDescription m_description;
+        private StringCollection m_serverCapabilities;
+        #endregion
+    }
+    #endif
+    #endregion
+
+    #region JsonServerEndpointsMessage Class
+    #if (!OPCUA_EXCLUDE_JsonServerEndpointsMessage)
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
+    public partial class JsonServerEndpointsMessage : IEncodeable, IJsonEncodeable
+    {
+        #region Constructors
+        /// <remarks />
+        public JsonServerEndpointsMessage()
+        {
+            Initialize();
+        }
+            
+        [OnDeserializing]
+        private void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+            
+        private void Initialize()
+        {
+            m_messageId = null;
+            m_messageType = null;
+            m_publisherId = null;
+            m_timestamp = DateTime.MinValue;
+            m_description = new ApplicationDescription();
+            m_endpoints = new EndpointDescriptionCollection();
+        }
+        #endregion
+
+        #region Public Properties
+        /// <remarks />
+        [DataMember(Name = "MessageId", IsRequired = false, Order = 1)]
+        public string MessageId
+        {
+            get { return m_messageId;  }
+            set { m_messageId = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "MessageType", IsRequired = false, Order = 2)]
+        public string MessageType
+        {
+            get { return m_messageType;  }
+            set { m_messageType = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "PublisherId", IsRequired = false, Order = 3)]
+        public string PublisherId
+        {
+            get { return m_publisherId;  }
+            set { m_publisherId = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "Timestamp", IsRequired = false, Order = 4)]
+        public DateTime Timestamp
+        {
+            get { return m_timestamp;  }
+            set { m_timestamp = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "Description", IsRequired = false, Order = 5)]
+        public ApplicationDescription Description
+        {
+            get
+            {
+                return m_description;
+            }
+
+            set
+            {
+                m_description = value;
+
+                if (value == null)
+                {
+                    m_description = new ApplicationDescription();
+                }
+            }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "Endpoints", IsRequired = false, Order = 6)]
+        public EndpointDescriptionCollection Endpoints
+        {
+            get
+            {
+                return m_endpoints;
+            }
+
+            set
+            {
+                m_endpoints = value;
+
+                if (value == null)
+                {
+                    m_endpoints = new EndpointDescriptionCollection();
+                }
+            }
+        }
+        #endregion
+
+        #region IEncodeable Members
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId TypeId => DataTypeIds.JsonServerEndpointsMessage; 
+
+        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        public virtual ExpandedNodeId BinaryEncodingId => NodeId.Null;
+
+        /// <summary cref="IEncodeable.XmlEncodingId" />
+        public virtual ExpandedNodeId XmlEncodingId => NodeId.Null;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => NodeId.Null; 
+
+        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        public virtual void Encode(IEncoder encoder)
+        {
+            encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            encoder.WriteString("MessageId", MessageId);
+            encoder.WriteString("MessageType", MessageType);
+            encoder.WriteString("PublisherId", PublisherId);
+            encoder.WriteDateTime("Timestamp", Timestamp);
+            encoder.WriteEncodeable("Description", Description, typeof(ApplicationDescription));
+            encoder.WriteEncodeableArray("Endpoints", Endpoints.ToArray(), typeof(EndpointDescription));
+
+            encoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        public virtual void Decode(IDecoder decoder)
+        {
+            decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            MessageId = decoder.ReadString("MessageId");
+            MessageType = decoder.ReadString("MessageType");
+            PublisherId = decoder.ReadString("PublisherId");
+            Timestamp = decoder.ReadDateTime("Timestamp");
+            Description = (ApplicationDescription)decoder.ReadEncodeable("Description", typeof(ApplicationDescription));
+            Endpoints = (EndpointDescriptionCollection)decoder.ReadEncodeableArray("Endpoints", typeof(EndpointDescription));
+
+            decoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        public virtual bool IsEqual(IEncodeable encodeable)
+        {
+            if (Object.ReferenceEquals(this, encodeable))
+            {
+                return true;
+            }
+
+            JsonServerEndpointsMessage value = encodeable as JsonServerEndpointsMessage;
+
+            if (value == null)
+            {
+                return false;
+            }
+
+            if (!Utils.IsEqual(m_messageId, value.m_messageId)) return false;
+            if (!Utils.IsEqual(m_messageType, value.m_messageType)) return false;
+            if (!Utils.IsEqual(m_publisherId, value.m_publisherId)) return false;
+            if (!Utils.IsEqual(m_timestamp, value.m_timestamp)) return false;
+            if (!Utils.IsEqual(m_description, value.m_description)) return false;
+            if (!Utils.IsEqual(m_endpoints, value.m_endpoints)) return false;
+
+            return true;
+        }
+
+        /// <summary cref="ICloneable.Clone" />
+        public virtual object Clone()
+        {
+            return (JsonServerEndpointsMessage)this.MemberwiseClone();
+        }
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            JsonServerEndpointsMessage clone = (JsonServerEndpointsMessage)base.MemberwiseClone();
+
+            clone.m_messageId = (string)Utils.Clone(this.m_messageId);
+            clone.m_messageType = (string)Utils.Clone(this.m_messageType);
+            clone.m_publisherId = (string)Utils.Clone(this.m_publisherId);
+            clone.m_timestamp = (DateTime)Utils.Clone(this.m_timestamp);
+            clone.m_description = (ApplicationDescription)Utils.Clone(this.m_description);
+            clone.m_endpoints = (EndpointDescriptionCollection)Utils.Clone(this.m_endpoints);
+
+            return clone;
+        }
+        #endregion
+
+        #region Private Fields
+        private string m_messageId;
+        private string m_messageType;
+        private string m_publisherId;
+        private DateTime m_timestamp;
+        private ApplicationDescription m_description;
+        private EndpointDescriptionCollection m_endpoints;
+        #endregion
+    }
+    #endif
+    #endregion
+
+    #region JsonStatusMessage Class
+    #if (!OPCUA_EXCLUDE_JsonStatusMessage)
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
+    public partial class JsonStatusMessage : IEncodeable, IJsonEncodeable
+    {
+        #region Constructors
+        /// <remarks />
+        public JsonStatusMessage()
+        {
+            Initialize();
+        }
+            
+        [OnDeserializing]
+        private void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+            
+        private void Initialize()
+        {
+            m_messageId = null;
+            m_messageType = null;
+            m_publisherId = null;
+            m_timestamp = DateTime.MinValue;
+            m_isCyclic = true;
+            m_status = PubSubState.Disabled;
+            m_nextReportTime = DateTime.MinValue;
+        }
+        #endregion
+
+        #region Public Properties
+        /// <remarks />
+        [DataMember(Name = "MessageId", IsRequired = false, Order = 1)]
+        public string MessageId
+        {
+            get { return m_messageId;  }
+            set { m_messageId = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "MessageType", IsRequired = false, Order = 2)]
+        public string MessageType
+        {
+            get { return m_messageType;  }
+            set { m_messageType = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "PublisherId", IsRequired = false, Order = 3)]
+        public string PublisherId
+        {
+            get { return m_publisherId;  }
+            set { m_publisherId = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "Timestamp", IsRequired = false, Order = 4)]
+        public DateTime Timestamp
+        {
+            get { return m_timestamp;  }
+            set { m_timestamp = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "IsCyclic", IsRequired = false, Order = 5)]
+        public bool IsCyclic
+        {
+            get { return m_isCyclic;  }
+            set { m_isCyclic = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "Status", IsRequired = false, Order = 6)]
+        public PubSubState Status
+        {
+            get { return m_status;  }
+            set { m_status = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "NextReportTime", IsRequired = false, Order = 7)]
+        public DateTime NextReportTime
+        {
+            get { return m_nextReportTime;  }
+            set { m_nextReportTime = value; }
+        }
+        #endregion
+
+        #region IEncodeable Members
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId TypeId => DataTypeIds.JsonStatusMessage; 
+
+        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        public virtual ExpandedNodeId BinaryEncodingId => NodeId.Null;
+
+        /// <summary cref="IEncodeable.XmlEncodingId" />
+        public virtual ExpandedNodeId XmlEncodingId => NodeId.Null;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => NodeId.Null; 
+
+        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        public virtual void Encode(IEncoder encoder)
+        {
+            encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            encoder.WriteString("MessageId", MessageId);
+            encoder.WriteString("MessageType", MessageType);
+            encoder.WriteString("PublisherId", PublisherId);
+            encoder.WriteDateTime("Timestamp", Timestamp);
+            encoder.WriteBoolean("IsCyclic", IsCyclic);
+            encoder.WriteEnumerated("Status", Status);
+            encoder.WriteDateTime("NextReportTime", NextReportTime);
+
+            encoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        public virtual void Decode(IDecoder decoder)
+        {
+            decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            MessageId = decoder.ReadString("MessageId");
+            MessageType = decoder.ReadString("MessageType");
+            PublisherId = decoder.ReadString("PublisherId");
+            Timestamp = decoder.ReadDateTime("Timestamp");
+            IsCyclic = decoder.ReadBoolean("IsCyclic");
+            Status = (PubSubState)decoder.ReadEnumerated("Status", typeof(PubSubState));
+            NextReportTime = decoder.ReadDateTime("NextReportTime");
+
+            decoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        public virtual bool IsEqual(IEncodeable encodeable)
+        {
+            if (Object.ReferenceEquals(this, encodeable))
+            {
+                return true;
+            }
+
+            JsonStatusMessage value = encodeable as JsonStatusMessage;
+
+            if (value == null)
+            {
+                return false;
+            }
+
+            if (!Utils.IsEqual(m_messageId, value.m_messageId)) return false;
+            if (!Utils.IsEqual(m_messageType, value.m_messageType)) return false;
+            if (!Utils.IsEqual(m_publisherId, value.m_publisherId)) return false;
+            if (!Utils.IsEqual(m_timestamp, value.m_timestamp)) return false;
+            if (!Utils.IsEqual(m_isCyclic, value.m_isCyclic)) return false;
+            if (!Utils.IsEqual(m_status, value.m_status)) return false;
+            if (!Utils.IsEqual(m_nextReportTime, value.m_nextReportTime)) return false;
+
+            return true;
+        }
+
+        /// <summary cref="ICloneable.Clone" />
+        public virtual object Clone()
+        {
+            return (JsonStatusMessage)this.MemberwiseClone();
+        }
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            JsonStatusMessage clone = (JsonStatusMessage)base.MemberwiseClone();
+
+            clone.m_messageId = (string)Utils.Clone(this.m_messageId);
+            clone.m_messageType = (string)Utils.Clone(this.m_messageType);
+            clone.m_publisherId = (string)Utils.Clone(this.m_publisherId);
+            clone.m_timestamp = (DateTime)Utils.Clone(this.m_timestamp);
+            clone.m_isCyclic = (bool)Utils.Clone(this.m_isCyclic);
+            clone.m_status = (PubSubState)Utils.Clone(this.m_status);
+            clone.m_nextReportTime = (DateTime)Utils.Clone(this.m_nextReportTime);
+
+            return clone;
+        }
+        #endregion
+
+        #region Private Fields
+        private string m_messageId;
+        private string m_messageType;
+        private string m_publisherId;
+        private DateTime m_timestamp;
+        private bool m_isCyclic;
+        private PubSubState m_status;
+        private DateTime m_nextReportTime;
+        #endregion
+    }
+    #endif
+    #endregion
+
+    #region JsonPubSubConnectionMessage Class
+    #if (!OPCUA_EXCLUDE_JsonPubSubConnectionMessage)
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
+    public partial class JsonPubSubConnectionMessage : IEncodeable, IJsonEncodeable
+    {
+        #region Constructors
+        /// <remarks />
+        public JsonPubSubConnectionMessage()
+        {
+            Initialize();
+        }
+            
+        [OnDeserializing]
+        private void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+            
+        private void Initialize()
+        {
+            m_messageId = null;
+            m_messageType = null;
+            m_publisherId = null;
+            m_timestamp = DateTime.MinValue;
+            m_connection = new PubSubConnectionDataType();
+        }
+        #endregion
+
+        #region Public Properties
+        /// <remarks />
+        [DataMember(Name = "MessageId", IsRequired = false, Order = 1)]
+        public string MessageId
+        {
+            get { return m_messageId;  }
+            set { m_messageId = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "MessageType", IsRequired = false, Order = 2)]
+        public string MessageType
+        {
+            get { return m_messageType;  }
+            set { m_messageType = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "PublisherId", IsRequired = false, Order = 3)]
+        public string PublisherId
+        {
+            get { return m_publisherId;  }
+            set { m_publisherId = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "Timestamp", IsRequired = false, Order = 4)]
+        public DateTime Timestamp
+        {
+            get { return m_timestamp;  }
+            set { m_timestamp = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "Connection", IsRequired = false, Order = 5)]
+        public PubSubConnectionDataType Connection
+        {
+            get
+            {
+                return m_connection;
+            }
+
+            set
+            {
+                m_connection = value;
+
+                if (value == null)
+                {
+                    m_connection = new PubSubConnectionDataType();
+                }
+            }
+        }
+        #endregion
+
+        #region IEncodeable Members
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId TypeId => DataTypeIds.JsonPubSubConnectionMessage; 
+
+        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        public virtual ExpandedNodeId BinaryEncodingId => NodeId.Null;
+
+        /// <summary cref="IEncodeable.XmlEncodingId" />
+        public virtual ExpandedNodeId XmlEncodingId => NodeId.Null;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => NodeId.Null; 
+
+        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        public virtual void Encode(IEncoder encoder)
+        {
+            encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            encoder.WriteString("MessageId", MessageId);
+            encoder.WriteString("MessageType", MessageType);
+            encoder.WriteString("PublisherId", PublisherId);
+            encoder.WriteDateTime("Timestamp", Timestamp);
+            encoder.WriteEncodeable("Connection", Connection, typeof(PubSubConnectionDataType));
+
+            encoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        public virtual void Decode(IDecoder decoder)
+        {
+            decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            MessageId = decoder.ReadString("MessageId");
+            MessageType = decoder.ReadString("MessageType");
+            PublisherId = decoder.ReadString("PublisherId");
+            Timestamp = decoder.ReadDateTime("Timestamp");
+            Connection = (PubSubConnectionDataType)decoder.ReadEncodeable("Connection", typeof(PubSubConnectionDataType));
+
+            decoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        public virtual bool IsEqual(IEncodeable encodeable)
+        {
+            if (Object.ReferenceEquals(this, encodeable))
+            {
+                return true;
+            }
+
+            JsonPubSubConnectionMessage value = encodeable as JsonPubSubConnectionMessage;
+
+            if (value == null)
+            {
+                return false;
+            }
+
+            if (!Utils.IsEqual(m_messageId, value.m_messageId)) return false;
+            if (!Utils.IsEqual(m_messageType, value.m_messageType)) return false;
+            if (!Utils.IsEqual(m_publisherId, value.m_publisherId)) return false;
+            if (!Utils.IsEqual(m_timestamp, value.m_timestamp)) return false;
+            if (!Utils.IsEqual(m_connection, value.m_connection)) return false;
+
+            return true;
+        }
+
+        /// <summary cref="ICloneable.Clone" />
+        public virtual object Clone()
+        {
+            return (JsonPubSubConnectionMessage)this.MemberwiseClone();
+        }
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            JsonPubSubConnectionMessage clone = (JsonPubSubConnectionMessage)base.MemberwiseClone();
+
+            clone.m_messageId = (string)Utils.Clone(this.m_messageId);
+            clone.m_messageType = (string)Utils.Clone(this.m_messageType);
+            clone.m_publisherId = (string)Utils.Clone(this.m_publisherId);
+            clone.m_timestamp = (DateTime)Utils.Clone(this.m_timestamp);
+            clone.m_connection = (PubSubConnectionDataType)Utils.Clone(this.m_connection);
+
+            return clone;
+        }
+        #endregion
+
+        #region Private Fields
+        private string m_messageId;
+        private string m_messageType;
+        private string m_publisherId;
+        private DateTime m_timestamp;
+        private PubSubConnectionDataType m_connection;
+        #endregion
+    }
+    #endif
+    #endregion
+
+    #region JsonActionMetaDataMessage Class
+    #if (!OPCUA_EXCLUDE_JsonActionMetaDataMessage)
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
+    public partial class JsonActionMetaDataMessage : IEncodeable, IJsonEncodeable
+    {
+        #region Constructors
+        /// <remarks />
+        public JsonActionMetaDataMessage()
+        {
+            Initialize();
+        }
+            
+        [OnDeserializing]
+        private void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+            
+        private void Initialize()
+        {
+            m_messageId = null;
+            m_messageType = null;
+            m_publisherId = null;
+            m_dataSetWriterId = (ushort)0;
+            m_dataSetWriterName = null;
+            m_timestamp = DateTime.MinValue;
+            m_actionTargets = new ActionTargetDataTypeCollection();
+            m_request = new DataSetMetaDataType();
+            m_response = new DataSetMetaDataType();
+            m_actionMethods = new ActionMethodDataTypeCollection();
+        }
+        #endregion
+
+        #region Public Properties
+        /// <remarks />
+        [DataMember(Name = "MessageId", IsRequired = false, Order = 1)]
+        public string MessageId
+        {
+            get { return m_messageId;  }
+            set { m_messageId = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "MessageType", IsRequired = false, Order = 2)]
+        public string MessageType
+        {
+            get { return m_messageType;  }
+            set { m_messageType = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "PublisherId", IsRequired = false, Order = 3)]
+        public string PublisherId
+        {
+            get { return m_publisherId;  }
+            set { m_publisherId = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "DataSetWriterId", IsRequired = false, Order = 4)]
+        public ushort DataSetWriterId
+        {
+            get { return m_dataSetWriterId;  }
+            set { m_dataSetWriterId = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "DataSetWriterName", IsRequired = false, Order = 5)]
+        public string DataSetWriterName
+        {
+            get { return m_dataSetWriterName;  }
+            set { m_dataSetWriterName = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "Timestamp", IsRequired = false, Order = 6)]
+        public DateTime Timestamp
+        {
+            get { return m_timestamp;  }
+            set { m_timestamp = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "ActionTargets", IsRequired = false, Order = 7)]
+        public ActionTargetDataTypeCollection ActionTargets
+        {
+            get
+            {
+                return m_actionTargets;
+            }
+
+            set
+            {
+                m_actionTargets = value;
+
+                if (value == null)
+                {
+                    m_actionTargets = new ActionTargetDataTypeCollection();
+                }
+            }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "Request", IsRequired = false, Order = 8)]
+        public DataSetMetaDataType Request
+        {
+            get
+            {
+                return m_request;
+            }
+
+            set
+            {
+                m_request = value;
+
+                if (value == null)
+                {
+                    m_request = new DataSetMetaDataType();
+                }
+            }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "Response", IsRequired = false, Order = 9)]
+        public DataSetMetaDataType Response
+        {
+            get
+            {
+                return m_response;
+            }
+
+            set
+            {
+                m_response = value;
+
+                if (value == null)
+                {
+                    m_response = new DataSetMetaDataType();
+                }
+            }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "ActionMethods", IsRequired = false, Order = 10)]
+        public ActionMethodDataTypeCollection ActionMethods
+        {
+            get
+            {
+                return m_actionMethods;
+            }
+
+            set
+            {
+                m_actionMethods = value;
+
+                if (value == null)
+                {
+                    m_actionMethods = new ActionMethodDataTypeCollection();
+                }
+            }
+        }
+        #endregion
+
+        #region IEncodeable Members
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId TypeId => DataTypeIds.JsonActionMetaDataMessage; 
+
+        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        public virtual ExpandedNodeId BinaryEncodingId => NodeId.Null;
+
+        /// <summary cref="IEncodeable.XmlEncodingId" />
+        public virtual ExpandedNodeId XmlEncodingId => NodeId.Null;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => NodeId.Null; 
+
+        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        public virtual void Encode(IEncoder encoder)
+        {
+            encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            encoder.WriteString("MessageId", MessageId);
+            encoder.WriteString("MessageType", MessageType);
+            encoder.WriteString("PublisherId", PublisherId);
+            encoder.WriteUInt16("DataSetWriterId", DataSetWriterId);
+            encoder.WriteString("DataSetWriterName", DataSetWriterName);
+            encoder.WriteDateTime("Timestamp", Timestamp);
+            encoder.WriteEncodeableArray("ActionTargets", ActionTargets.ToArray(), typeof(ActionTargetDataType));
+            encoder.WriteEncodeable("Request", Request, typeof(DataSetMetaDataType));
+            encoder.WriteEncodeable("Response", Response, typeof(DataSetMetaDataType));
+            encoder.WriteEncodeableArray("ActionMethods", ActionMethods.ToArray(), typeof(ActionMethodDataType));
+
+            encoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        public virtual void Decode(IDecoder decoder)
+        {
+            decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            MessageId = decoder.ReadString("MessageId");
+            MessageType = decoder.ReadString("MessageType");
+            PublisherId = decoder.ReadString("PublisherId");
+            DataSetWriterId = decoder.ReadUInt16("DataSetWriterId");
+            DataSetWriterName = decoder.ReadString("DataSetWriterName");
+            Timestamp = decoder.ReadDateTime("Timestamp");
+            ActionTargets = (ActionTargetDataTypeCollection)decoder.ReadEncodeableArray("ActionTargets", typeof(ActionTargetDataType));
+            Request = (DataSetMetaDataType)decoder.ReadEncodeable("Request", typeof(DataSetMetaDataType));
+            Response = (DataSetMetaDataType)decoder.ReadEncodeable("Response", typeof(DataSetMetaDataType));
+            ActionMethods = (ActionMethodDataTypeCollection)decoder.ReadEncodeableArray("ActionMethods", typeof(ActionMethodDataType));
+
+            decoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        public virtual bool IsEqual(IEncodeable encodeable)
+        {
+            if (Object.ReferenceEquals(this, encodeable))
+            {
+                return true;
+            }
+
+            JsonActionMetaDataMessage value = encodeable as JsonActionMetaDataMessage;
+
+            if (value == null)
+            {
+                return false;
+            }
+
+            if (!Utils.IsEqual(m_messageId, value.m_messageId)) return false;
+            if (!Utils.IsEqual(m_messageType, value.m_messageType)) return false;
+            if (!Utils.IsEqual(m_publisherId, value.m_publisherId)) return false;
+            if (!Utils.IsEqual(m_dataSetWriterId, value.m_dataSetWriterId)) return false;
+            if (!Utils.IsEqual(m_dataSetWriterName, value.m_dataSetWriterName)) return false;
+            if (!Utils.IsEqual(m_timestamp, value.m_timestamp)) return false;
+            if (!Utils.IsEqual(m_actionTargets, value.m_actionTargets)) return false;
+            if (!Utils.IsEqual(m_request, value.m_request)) return false;
+            if (!Utils.IsEqual(m_response, value.m_response)) return false;
+            if (!Utils.IsEqual(m_actionMethods, value.m_actionMethods)) return false;
+
+            return true;
+        }
+
+        /// <summary cref="ICloneable.Clone" />
+        public virtual object Clone()
+        {
+            return (JsonActionMetaDataMessage)this.MemberwiseClone();
+        }
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            JsonActionMetaDataMessage clone = (JsonActionMetaDataMessage)base.MemberwiseClone();
+
+            clone.m_messageId = (string)Utils.Clone(this.m_messageId);
+            clone.m_messageType = (string)Utils.Clone(this.m_messageType);
+            clone.m_publisherId = (string)Utils.Clone(this.m_publisherId);
+            clone.m_dataSetWriterId = (ushort)Utils.Clone(this.m_dataSetWriterId);
+            clone.m_dataSetWriterName = (string)Utils.Clone(this.m_dataSetWriterName);
+            clone.m_timestamp = (DateTime)Utils.Clone(this.m_timestamp);
+            clone.m_actionTargets = (ActionTargetDataTypeCollection)Utils.Clone(this.m_actionTargets);
+            clone.m_request = (DataSetMetaDataType)Utils.Clone(this.m_request);
+            clone.m_response = (DataSetMetaDataType)Utils.Clone(this.m_response);
+            clone.m_actionMethods = (ActionMethodDataTypeCollection)Utils.Clone(this.m_actionMethods);
+
+            return clone;
+        }
+        #endregion
+
+        #region Private Fields
+        private string m_messageId;
+        private string m_messageType;
+        private string m_publisherId;
+        private ushort m_dataSetWriterId;
+        private string m_dataSetWriterName;
+        private DateTime m_timestamp;
+        private ActionTargetDataTypeCollection m_actionTargets;
+        private DataSetMetaDataType m_request;
+        private DataSetMetaDataType m_response;
+        private ActionMethodDataTypeCollection m_actionMethods;
+        #endregion
+    }
+    #endif
+    #endregion
+
+    #region JsonActionResponderMessage Class
+    #if (!OPCUA_EXCLUDE_JsonActionResponderMessage)
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
+    public partial class JsonActionResponderMessage : IEncodeable, IJsonEncodeable
+    {
+        #region Constructors
+        /// <remarks />
+        public JsonActionResponderMessage()
+        {
+            Initialize();
+        }
+            
+        [OnDeserializing]
+        private void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+            
+        private void Initialize()
+        {
+            m_messageId = null;
+            m_messageType = null;
+            m_publisherId = null;
+            m_timestamp = DateTime.MinValue;
+            m_connection = new PubSubConnectionDataType();
+        }
+        #endregion
+
+        #region Public Properties
+        /// <remarks />
+        [DataMember(Name = "MessageId", IsRequired = false, Order = 1)]
+        public string MessageId
+        {
+            get { return m_messageId;  }
+            set { m_messageId = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "MessageType", IsRequired = false, Order = 2)]
+        public string MessageType
+        {
+            get { return m_messageType;  }
+            set { m_messageType = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "PublisherId", IsRequired = false, Order = 3)]
+        public string PublisherId
+        {
+            get { return m_publisherId;  }
+            set { m_publisherId = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "Timestamp", IsRequired = false, Order = 4)]
+        public DateTime Timestamp
+        {
+            get { return m_timestamp;  }
+            set { m_timestamp = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "Connection", IsRequired = false, Order = 5)]
+        public PubSubConnectionDataType Connection
+        {
+            get
+            {
+                return m_connection;
+            }
+
+            set
+            {
+                m_connection = value;
+
+                if (value == null)
+                {
+                    m_connection = new PubSubConnectionDataType();
+                }
+            }
+        }
+        #endregion
+
+        #region IEncodeable Members
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId TypeId => DataTypeIds.JsonActionResponderMessage; 
+
+        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        public virtual ExpandedNodeId BinaryEncodingId => NodeId.Null;
+
+        /// <summary cref="IEncodeable.XmlEncodingId" />
+        public virtual ExpandedNodeId XmlEncodingId => NodeId.Null;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => NodeId.Null; 
+
+        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        public virtual void Encode(IEncoder encoder)
+        {
+            encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            encoder.WriteString("MessageId", MessageId);
+            encoder.WriteString("MessageType", MessageType);
+            encoder.WriteString("PublisherId", PublisherId);
+            encoder.WriteDateTime("Timestamp", Timestamp);
+            encoder.WriteEncodeable("Connection", Connection, typeof(PubSubConnectionDataType));
+
+            encoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        public virtual void Decode(IDecoder decoder)
+        {
+            decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            MessageId = decoder.ReadString("MessageId");
+            MessageType = decoder.ReadString("MessageType");
+            PublisherId = decoder.ReadString("PublisherId");
+            Timestamp = decoder.ReadDateTime("Timestamp");
+            Connection = (PubSubConnectionDataType)decoder.ReadEncodeable("Connection", typeof(PubSubConnectionDataType));
+
+            decoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        public virtual bool IsEqual(IEncodeable encodeable)
+        {
+            if (Object.ReferenceEquals(this, encodeable))
+            {
+                return true;
+            }
+
+            JsonActionResponderMessage value = encodeable as JsonActionResponderMessage;
+
+            if (value == null)
+            {
+                return false;
+            }
+
+            if (!Utils.IsEqual(m_messageId, value.m_messageId)) return false;
+            if (!Utils.IsEqual(m_messageType, value.m_messageType)) return false;
+            if (!Utils.IsEqual(m_publisherId, value.m_publisherId)) return false;
+            if (!Utils.IsEqual(m_timestamp, value.m_timestamp)) return false;
+            if (!Utils.IsEqual(m_connection, value.m_connection)) return false;
+
+            return true;
+        }
+
+        /// <summary cref="ICloneable.Clone" />
+        public virtual object Clone()
+        {
+            return (JsonActionResponderMessage)this.MemberwiseClone();
+        }
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            JsonActionResponderMessage clone = (JsonActionResponderMessage)base.MemberwiseClone();
+
+            clone.m_messageId = (string)Utils.Clone(this.m_messageId);
+            clone.m_messageType = (string)Utils.Clone(this.m_messageType);
+            clone.m_publisherId = (string)Utils.Clone(this.m_publisherId);
+            clone.m_timestamp = (DateTime)Utils.Clone(this.m_timestamp);
+            clone.m_connection = (PubSubConnectionDataType)Utils.Clone(this.m_connection);
+
+            return clone;
+        }
+        #endregion
+
+        #region Private Fields
+        private string m_messageId;
+        private string m_messageType;
+        private string m_publisherId;
+        private DateTime m_timestamp;
+        private PubSubConnectionDataType m_connection;
+        #endregion
+    }
+    #endif
+    #endregion
+
+    #region JsonActionNetworkMessage Class
+    #if (!OPCUA_EXCLUDE_JsonActionNetworkMessage)
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
+    public partial class JsonActionNetworkMessage : IEncodeable, IJsonEncodeable
+    {
+        #region Constructors
+        /// <remarks />
+        public JsonActionNetworkMessage()
+        {
+            Initialize();
+        }
+            
+        [OnDeserializing]
+        private void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+            
+        private void Initialize()
+        {
+            m_messageId = null;
+            m_messageType = null;
+            m_publisherId = null;
+            m_timestamp = DateTime.MinValue;
+            m_responseAddress = null;
+            m_correlationData = null;
+            m_requestorId = null;
+            m_timeoutHint = (double)0;
+            m_messages = new ExtensionObjectCollection();
+        }
+        #endregion
+
+        #region Public Properties
+        /// <remarks />
+        [DataMember(Name = "MessageId", IsRequired = false, Order = 1)]
+        public string MessageId
+        {
+            get { return m_messageId;  }
+            set { m_messageId = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "MessageType", IsRequired = false, Order = 2)]
+        public string MessageType
+        {
+            get { return m_messageType;  }
+            set { m_messageType = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "PublisherId", IsRequired = false, Order = 3)]
+        public string PublisherId
+        {
+            get { return m_publisherId;  }
+            set { m_publisherId = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "Timestamp", IsRequired = false, Order = 4)]
+        public DateTime Timestamp
+        {
+            get { return m_timestamp;  }
+            set { m_timestamp = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "ResponseAddress", IsRequired = false, Order = 5)]
+        public string ResponseAddress
+        {
+            get { return m_responseAddress;  }
+            set { m_responseAddress = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "CorrelationData", IsRequired = false, Order = 6)]
+        public byte[] CorrelationData
+        {
+            get { return m_correlationData;  }
+            set { m_correlationData = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "RequestorId", IsRequired = false, Order = 7)]
+        public string RequestorId
+        {
+            get { return m_requestorId;  }
+            set { m_requestorId = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "TimeoutHint", IsRequired = false, Order = 8)]
+        public double TimeoutHint
+        {
+            get { return m_timeoutHint;  }
+            set { m_timeoutHint = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "Messages", IsRequired = false, Order = 9)]
+        public ExtensionObjectCollection Messages
+        {
+            get { return m_messages;  }
+            set { m_messages = value; }
+        }
+        #endregion
+
+        #region IEncodeable Members
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId TypeId => DataTypeIds.JsonActionNetworkMessage; 
+
+        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        public virtual ExpandedNodeId BinaryEncodingId => NodeId.Null;
+
+        /// <summary cref="IEncodeable.XmlEncodingId" />
+        public virtual ExpandedNodeId XmlEncodingId => NodeId.Null;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => NodeId.Null; 
+
+        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        public virtual void Encode(IEncoder encoder)
+        {
+            encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            encoder.WriteString("MessageId", MessageId);
+            encoder.WriteString("MessageType", MessageType);
+            encoder.WriteString("PublisherId", PublisherId);
+            encoder.WriteDateTime("Timestamp", Timestamp);
+            encoder.WriteString("ResponseAddress", ResponseAddress);
+            encoder.WriteByteString("CorrelationData", CorrelationData);
+            encoder.WriteString("RequestorId", RequestorId);
+            encoder.WriteDouble("TimeoutHint", TimeoutHint);
+            encoder.WriteExtensionObjectArray("Messages", Messages);
+
+            encoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        public virtual void Decode(IDecoder decoder)
+        {
+            decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            MessageId = decoder.ReadString("MessageId");
+            MessageType = decoder.ReadString("MessageType");
+            PublisherId = decoder.ReadString("PublisherId");
+            Timestamp = decoder.ReadDateTime("Timestamp");
+            ResponseAddress = decoder.ReadString("ResponseAddress");
+            CorrelationData = decoder.ReadByteString("CorrelationData");
+            RequestorId = decoder.ReadString("RequestorId");
+            TimeoutHint = decoder.ReadDouble("TimeoutHint");
+            Messages = decoder.ReadExtensionObjectArray("Messages");
+
+            decoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        public virtual bool IsEqual(IEncodeable encodeable)
+        {
+            if (Object.ReferenceEquals(this, encodeable))
+            {
+                return true;
+            }
+
+            JsonActionNetworkMessage value = encodeable as JsonActionNetworkMessage;
+
+            if (value == null)
+            {
+                return false;
+            }
+
+            if (!Utils.IsEqual(m_messageId, value.m_messageId)) return false;
+            if (!Utils.IsEqual(m_messageType, value.m_messageType)) return false;
+            if (!Utils.IsEqual(m_publisherId, value.m_publisherId)) return false;
+            if (!Utils.IsEqual(m_timestamp, value.m_timestamp)) return false;
+            if (!Utils.IsEqual(m_responseAddress, value.m_responseAddress)) return false;
+            if (!Utils.IsEqual(m_correlationData, value.m_correlationData)) return false;
+            if (!Utils.IsEqual(m_requestorId, value.m_requestorId)) return false;
+            if (!Utils.IsEqual(m_timeoutHint, value.m_timeoutHint)) return false;
+            if (!Utils.IsEqual(m_messages, value.m_messages)) return false;
+
+            return true;
+        }
+
+        /// <summary cref="ICloneable.Clone" />
+        public virtual object Clone()
+        {
+            return (JsonActionNetworkMessage)this.MemberwiseClone();
+        }
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            JsonActionNetworkMessage clone = (JsonActionNetworkMessage)base.MemberwiseClone();
+
+            clone.m_messageId = (string)Utils.Clone(this.m_messageId);
+            clone.m_messageType = (string)Utils.Clone(this.m_messageType);
+            clone.m_publisherId = (string)Utils.Clone(this.m_publisherId);
+            clone.m_timestamp = (DateTime)Utils.Clone(this.m_timestamp);
+            clone.m_responseAddress = (string)Utils.Clone(this.m_responseAddress);
+            clone.m_correlationData = (byte[])Utils.Clone(this.m_correlationData);
+            clone.m_requestorId = (string)Utils.Clone(this.m_requestorId);
+            clone.m_timeoutHint = (double)Utils.Clone(this.m_timeoutHint);
+            clone.m_messages = (ExtensionObjectCollection)Utils.Clone(this.m_messages);
+
+            return clone;
+        }
+        #endregion
+
+        #region Private Fields
+        private string m_messageId;
+        private string m_messageType;
+        private string m_publisherId;
+        private DateTime m_timestamp;
+        private string m_responseAddress;
+        private byte[] m_correlationData;
+        private string m_requestorId;
+        private double m_timeoutHint;
+        private ExtensionObjectCollection m_messages;
+        #endregion
+    }
+    #endif
+    #endregion
+
+    #region JsonActionRequestMessage Class
+    #if (!OPCUA_EXCLUDE_JsonActionRequestMessage)
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
+    public partial class JsonActionRequestMessage : IEncodeable, IJsonEncodeable
+    {
+        #region Constructors
+        /// <remarks />
+        public JsonActionRequestMessage()
+        {
+            Initialize();
+        }
+            
+        [OnDeserializing]
+        private void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+            
+        private void Initialize()
+        {
+            m_dataSetWriterId = (ushort)0;
+            m_actionTargetId = (ushort)0;
+            m_dataSetWriterName = null;
+            m_writerGroupName = null;
+            m_metaDataVersion = new ConfigurationVersionDataType();
+            m_minorVersion = (uint)0;
+            m_timestamp = DateTime.MinValue;
+            m_messageType = null;
+            m_requestId = (ushort)0;
+            m_actionState = ActionState.Idle;
+            m_payload = null;
+        }
+        #endregion
+
+        #region Public Properties
+        /// <remarks />
+        [DataMember(Name = "DataSetWriterId", IsRequired = false, Order = 1)]
+        public ushort DataSetWriterId
+        {
+            get { return m_dataSetWriterId;  }
+            set { m_dataSetWriterId = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "ActionTargetId", IsRequired = false, Order = 2)]
+        public ushort ActionTargetId
+        {
+            get { return m_actionTargetId;  }
+            set { m_actionTargetId = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "DataSetWriterName", IsRequired = false, Order = 3)]
+        public string DataSetWriterName
+        {
+            get { return m_dataSetWriterName;  }
+            set { m_dataSetWriterName = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "WriterGroupName", IsRequired = false, Order = 4)]
+        public string WriterGroupName
+        {
+            get { return m_writerGroupName;  }
+            set { m_writerGroupName = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "MetaDataVersion", IsRequired = false, Order = 5)]
+        public ConfigurationVersionDataType MetaDataVersion
+        {
+            get
+            {
+                return m_metaDataVersion;
+            }
+
+            set
+            {
+                m_metaDataVersion = value;
+
+                if (value == null)
+                {
+                    m_metaDataVersion = new ConfigurationVersionDataType();
+                }
+            }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "MinorVersion", IsRequired = false, Order = 6)]
+        public uint MinorVersion
+        {
+            get { return m_minorVersion;  }
+            set { m_minorVersion = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "Timestamp", IsRequired = false, Order = 7)]
+        public DateTime Timestamp
+        {
+            get { return m_timestamp;  }
+            set { m_timestamp = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "MessageType", IsRequired = false, Order = 8)]
+        public string MessageType
+        {
+            get { return m_messageType;  }
+            set { m_messageType = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "RequestId", IsRequired = false, Order = 9)]
+        public ushort RequestId
+        {
+            get { return m_requestId;  }
+            set { m_requestId = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "ActionState", IsRequired = false, Order = 10)]
+        public ActionState ActionState
+        {
+            get { return m_actionState;  }
+            set { m_actionState = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "Payload", IsRequired = false, Order = 11)]
+        public ExtensionObject Payload
+        {
+            get { return m_payload;  }
+            set { m_payload = value; }
+        }
+        #endregion
+
+        #region IEncodeable Members
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId TypeId => DataTypeIds.JsonActionRequestMessage; 
+
+        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        public virtual ExpandedNodeId BinaryEncodingId => NodeId.Null;
+
+        /// <summary cref="IEncodeable.XmlEncodingId" />
+        public virtual ExpandedNodeId XmlEncodingId => NodeId.Null;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => NodeId.Null; 
+
+        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        public virtual void Encode(IEncoder encoder)
+        {
+            encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            encoder.WriteUInt16("DataSetWriterId", DataSetWriterId);
+            encoder.WriteUInt16("ActionTargetId", ActionTargetId);
+            encoder.WriteString("DataSetWriterName", DataSetWriterName);
+            encoder.WriteString("WriterGroupName", WriterGroupName);
+            encoder.WriteEncodeable("MetaDataVersion", MetaDataVersion, typeof(ConfigurationVersionDataType));
+            encoder.WriteUInt32("MinorVersion", MinorVersion);
+            encoder.WriteDateTime("Timestamp", Timestamp);
+            encoder.WriteString("MessageType", MessageType);
+            encoder.WriteUInt16("RequestId", RequestId);
+            encoder.WriteEnumerated("ActionState", ActionState);
+            encoder.WriteExtensionObject("Payload", Payload);
+
+            encoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        public virtual void Decode(IDecoder decoder)
+        {
+            decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            DataSetWriterId = decoder.ReadUInt16("DataSetWriterId");
+            ActionTargetId = decoder.ReadUInt16("ActionTargetId");
+            DataSetWriterName = decoder.ReadString("DataSetWriterName");
+            WriterGroupName = decoder.ReadString("WriterGroupName");
+            MetaDataVersion = (ConfigurationVersionDataType)decoder.ReadEncodeable("MetaDataVersion", typeof(ConfigurationVersionDataType));
+            MinorVersion = decoder.ReadUInt32("MinorVersion");
+            Timestamp = decoder.ReadDateTime("Timestamp");
+            MessageType = decoder.ReadString("MessageType");
+            RequestId = decoder.ReadUInt16("RequestId");
+            ActionState = (ActionState)decoder.ReadEnumerated("ActionState", typeof(ActionState));
+            Payload = decoder.ReadExtensionObject("Payload");
+
+            decoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        public virtual bool IsEqual(IEncodeable encodeable)
+        {
+            if (Object.ReferenceEquals(this, encodeable))
+            {
+                return true;
+            }
+
+            JsonActionRequestMessage value = encodeable as JsonActionRequestMessage;
+
+            if (value == null)
+            {
+                return false;
+            }
+
+            if (!Utils.IsEqual(m_dataSetWriterId, value.m_dataSetWriterId)) return false;
+            if (!Utils.IsEqual(m_actionTargetId, value.m_actionTargetId)) return false;
+            if (!Utils.IsEqual(m_dataSetWriterName, value.m_dataSetWriterName)) return false;
+            if (!Utils.IsEqual(m_writerGroupName, value.m_writerGroupName)) return false;
+            if (!Utils.IsEqual(m_metaDataVersion, value.m_metaDataVersion)) return false;
+            if (!Utils.IsEqual(m_minorVersion, value.m_minorVersion)) return false;
+            if (!Utils.IsEqual(m_timestamp, value.m_timestamp)) return false;
+            if (!Utils.IsEqual(m_messageType, value.m_messageType)) return false;
+            if (!Utils.IsEqual(m_requestId, value.m_requestId)) return false;
+            if (!Utils.IsEqual(m_actionState, value.m_actionState)) return false;
+            if (!Utils.IsEqual(m_payload, value.m_payload)) return false;
+
+            return true;
+        }
+
+        /// <summary cref="ICloneable.Clone" />
+        public virtual object Clone()
+        {
+            return (JsonActionRequestMessage)this.MemberwiseClone();
+        }
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            JsonActionRequestMessage clone = (JsonActionRequestMessage)base.MemberwiseClone();
+
+            clone.m_dataSetWriterId = (ushort)Utils.Clone(this.m_dataSetWriterId);
+            clone.m_actionTargetId = (ushort)Utils.Clone(this.m_actionTargetId);
+            clone.m_dataSetWriterName = (string)Utils.Clone(this.m_dataSetWriterName);
+            clone.m_writerGroupName = (string)Utils.Clone(this.m_writerGroupName);
+            clone.m_metaDataVersion = (ConfigurationVersionDataType)Utils.Clone(this.m_metaDataVersion);
+            clone.m_minorVersion = (uint)Utils.Clone(this.m_minorVersion);
+            clone.m_timestamp = (DateTime)Utils.Clone(this.m_timestamp);
+            clone.m_messageType = (string)Utils.Clone(this.m_messageType);
+            clone.m_requestId = (ushort)Utils.Clone(this.m_requestId);
+            clone.m_actionState = (ActionState)Utils.Clone(this.m_actionState);
+            clone.m_payload = (ExtensionObject)Utils.Clone(this.m_payload);
+
+            return clone;
+        }
+        #endregion
+
+        #region Private Fields
+        private ushort m_dataSetWriterId;
+        private ushort m_actionTargetId;
+        private string m_dataSetWriterName;
+        private string m_writerGroupName;
+        private ConfigurationVersionDataType m_metaDataVersion;
+        private uint m_minorVersion;
+        private DateTime m_timestamp;
+        private string m_messageType;
+        private ushort m_requestId;
+        private ActionState m_actionState;
+        private ExtensionObject m_payload;
+        #endregion
+    }
+    #endif
+    #endregion
+
+    #region JsonActionResponseMessage Class
+    #if (!OPCUA_EXCLUDE_JsonActionResponseMessage)
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
+    public partial class JsonActionResponseMessage : IEncodeable, IJsonEncodeable
+    {
+        #region Constructors
+        /// <remarks />
+        public JsonActionResponseMessage()
+        {
+            Initialize();
+        }
+            
+        [OnDeserializing]
+        private void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+            
+        private void Initialize()
+        {
+            m_dataSetWriterId = (ushort)0;
+            m_actionTargetId = (ushort)0;
+            m_dataSetWriterName = null;
+            m_writerGroupName = null;
+            m_metaDataVersion = new ConfigurationVersionDataType();
+            m_minorVersion = (uint)0;
+            m_timestamp = DateTime.MinValue;
+            m_status = StatusCodes.Good;
+            m_messageType = null;
+            m_requestId = (ushort)0;
+            m_actionState = ActionState.Idle;
+            m_payload = null;
+        }
+        #endregion
+
+        #region Public Properties
+        /// <remarks />
+        [DataMember(Name = "DataSetWriterId", IsRequired = false, Order = 1)]
+        public ushort DataSetWriterId
+        {
+            get { return m_dataSetWriterId;  }
+            set { m_dataSetWriterId = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "ActionTargetId", IsRequired = false, Order = 2)]
+        public ushort ActionTargetId
+        {
+            get { return m_actionTargetId;  }
+            set { m_actionTargetId = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "DataSetWriterName", IsRequired = false, Order = 3)]
+        public string DataSetWriterName
+        {
+            get { return m_dataSetWriterName;  }
+            set { m_dataSetWriterName = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "WriterGroupName", IsRequired = false, Order = 4)]
+        public string WriterGroupName
+        {
+            get { return m_writerGroupName;  }
+            set { m_writerGroupName = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "MetaDataVersion", IsRequired = false, Order = 5)]
+        public ConfigurationVersionDataType MetaDataVersion
+        {
+            get
+            {
+                return m_metaDataVersion;
+            }
+
+            set
+            {
+                m_metaDataVersion = value;
+
+                if (value == null)
+                {
+                    m_metaDataVersion = new ConfigurationVersionDataType();
+                }
+            }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "MinorVersion", IsRequired = false, Order = 6)]
+        public uint MinorVersion
+        {
+            get { return m_minorVersion;  }
+            set { m_minorVersion = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "Timestamp", IsRequired = false, Order = 7)]
+        public DateTime Timestamp
+        {
+            get { return m_timestamp;  }
+            set { m_timestamp = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "Status", IsRequired = false, Order = 8)]
+        public StatusCode Status
+        {
+            get { return m_status;  }
+            set { m_status = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "MessageType", IsRequired = false, Order = 9)]
+        public string MessageType
+        {
+            get { return m_messageType;  }
+            set { m_messageType = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "RequestId", IsRequired = false, Order = 10)]
+        public ushort RequestId
+        {
+            get { return m_requestId;  }
+            set { m_requestId = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "ActionState", IsRequired = false, Order = 11)]
+        public ActionState ActionState
+        {
+            get { return m_actionState;  }
+            set { m_actionState = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "Payload", IsRequired = false, Order = 12)]
+        public ExtensionObject Payload
+        {
+            get { return m_payload;  }
+            set { m_payload = value; }
+        }
+        #endregion
+
+        #region IEncodeable Members
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId TypeId => DataTypeIds.JsonActionResponseMessage; 
+
+        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        public virtual ExpandedNodeId BinaryEncodingId => NodeId.Null;
+
+        /// <summary cref="IEncodeable.XmlEncodingId" />
+        public virtual ExpandedNodeId XmlEncodingId => NodeId.Null;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => NodeId.Null; 
+
+        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        public virtual void Encode(IEncoder encoder)
+        {
+            encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            encoder.WriteUInt16("DataSetWriterId", DataSetWriterId);
+            encoder.WriteUInt16("ActionTargetId", ActionTargetId);
+            encoder.WriteString("DataSetWriterName", DataSetWriterName);
+            encoder.WriteString("WriterGroupName", WriterGroupName);
+            encoder.WriteEncodeable("MetaDataVersion", MetaDataVersion, typeof(ConfigurationVersionDataType));
+            encoder.WriteUInt32("MinorVersion", MinorVersion);
+            encoder.WriteDateTime("Timestamp", Timestamp);
+            encoder.WriteStatusCode("Status", Status);
+            encoder.WriteString("MessageType", MessageType);
+            encoder.WriteUInt16("RequestId", RequestId);
+            encoder.WriteEnumerated("ActionState", ActionState);
+            encoder.WriteExtensionObject("Payload", Payload);
+
+            encoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        public virtual void Decode(IDecoder decoder)
+        {
+            decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            DataSetWriterId = decoder.ReadUInt16("DataSetWriterId");
+            ActionTargetId = decoder.ReadUInt16("ActionTargetId");
+            DataSetWriterName = decoder.ReadString("DataSetWriterName");
+            WriterGroupName = decoder.ReadString("WriterGroupName");
+            MetaDataVersion = (ConfigurationVersionDataType)decoder.ReadEncodeable("MetaDataVersion", typeof(ConfigurationVersionDataType));
+            MinorVersion = decoder.ReadUInt32("MinorVersion");
+            Timestamp = decoder.ReadDateTime("Timestamp");
+            Status = decoder.ReadStatusCode("Status");
+            MessageType = decoder.ReadString("MessageType");
+            RequestId = decoder.ReadUInt16("RequestId");
+            ActionState = (ActionState)decoder.ReadEnumerated("ActionState", typeof(ActionState));
+            Payload = decoder.ReadExtensionObject("Payload");
+
+            decoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        public virtual bool IsEqual(IEncodeable encodeable)
+        {
+            if (Object.ReferenceEquals(this, encodeable))
+            {
+                return true;
+            }
+
+            JsonActionResponseMessage value = encodeable as JsonActionResponseMessage;
+
+            if (value == null)
+            {
+                return false;
+            }
+
+            if (!Utils.IsEqual(m_dataSetWriterId, value.m_dataSetWriterId)) return false;
+            if (!Utils.IsEqual(m_actionTargetId, value.m_actionTargetId)) return false;
+            if (!Utils.IsEqual(m_dataSetWriterName, value.m_dataSetWriterName)) return false;
+            if (!Utils.IsEqual(m_writerGroupName, value.m_writerGroupName)) return false;
+            if (!Utils.IsEqual(m_metaDataVersion, value.m_metaDataVersion)) return false;
+            if (!Utils.IsEqual(m_minorVersion, value.m_minorVersion)) return false;
+            if (!Utils.IsEqual(m_timestamp, value.m_timestamp)) return false;
+            if (!Utils.IsEqual(m_status, value.m_status)) return false;
+            if (!Utils.IsEqual(m_messageType, value.m_messageType)) return false;
+            if (!Utils.IsEqual(m_requestId, value.m_requestId)) return false;
+            if (!Utils.IsEqual(m_actionState, value.m_actionState)) return false;
+            if (!Utils.IsEqual(m_payload, value.m_payload)) return false;
+
+            return true;
+        }
+
+        /// <summary cref="ICloneable.Clone" />
+        public virtual object Clone()
+        {
+            return (JsonActionResponseMessage)this.MemberwiseClone();
+        }
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            JsonActionResponseMessage clone = (JsonActionResponseMessage)base.MemberwiseClone();
+
+            clone.m_dataSetWriterId = (ushort)Utils.Clone(this.m_dataSetWriterId);
+            clone.m_actionTargetId = (ushort)Utils.Clone(this.m_actionTargetId);
+            clone.m_dataSetWriterName = (string)Utils.Clone(this.m_dataSetWriterName);
+            clone.m_writerGroupName = (string)Utils.Clone(this.m_writerGroupName);
+            clone.m_metaDataVersion = (ConfigurationVersionDataType)Utils.Clone(this.m_metaDataVersion);
+            clone.m_minorVersion = (uint)Utils.Clone(this.m_minorVersion);
+            clone.m_timestamp = (DateTime)Utils.Clone(this.m_timestamp);
+            clone.m_status = (StatusCode)Utils.Clone(this.m_status);
+            clone.m_messageType = (string)Utils.Clone(this.m_messageType);
+            clone.m_requestId = (ushort)Utils.Clone(this.m_requestId);
+            clone.m_actionState = (ActionState)Utils.Clone(this.m_actionState);
+            clone.m_payload = (ExtensionObject)Utils.Clone(this.m_payload);
+
+            return clone;
+        }
+        #endregion
+
+        #region Private Fields
+        private ushort m_dataSetWriterId;
+        private ushort m_actionTargetId;
+        private string m_dataSetWriterName;
+        private string m_writerGroupName;
+        private ConfigurationVersionDataType m_metaDataVersion;
+        private uint m_minorVersion;
+        private DateTime m_timestamp;
+        private StatusCode m_status;
+        private string m_messageType;
+        private ushort m_requestId;
+        private ActionState m_actionState;
+        private ExtensionObject m_payload;
+        #endregion
+    }
     #endif
     #endregion
 
@@ -22896,6 +26730,306 @@ namespace Opc.Ua
     #endif
     #endregion
 
+    #region ChassisIdSubtype Enumeration
+    #if (!OPCUA_EXCLUDE_ChassisIdSubtype)
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
+    public enum ChassisIdSubtype
+    {
+        /// <remarks />
+        [EnumMember(Value = "ChassisComponent_1")]
+        ChassisComponent = 1,
+
+        /// <remarks />
+        [EnumMember(Value = "InterfaceAlias_2")]
+        InterfaceAlias = 2,
+
+        /// <remarks />
+        [EnumMember(Value = "PortComponent_3")]
+        PortComponent = 3,
+
+        /// <remarks />
+        [EnumMember(Value = "MacAddress_4")]
+        MacAddress = 4,
+
+        /// <remarks />
+        [EnumMember(Value = "NetworkAddress_5")]
+        NetworkAddress = 5,
+
+        /// <remarks />
+        [EnumMember(Value = "InterfaceName_6")]
+        InterfaceName = 6,
+
+        /// <remarks />
+        [EnumMember(Value = "Local_7")]
+        Local = 7,
+    }
+
+    #region ChassisIdSubtypeCollection Class
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [CollectionDataContract(Name = "ListOfChassisIdSubtype", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ChassisIdSubtype")]
+    public partial class ChassisIdSubtypeCollection : List<ChassisIdSubtype>, ICloneable
+    {
+        #region Constructors
+        /// <remarks />
+        public ChassisIdSubtypeCollection() {}
+
+        /// <remarks />
+        public ChassisIdSubtypeCollection(int capacity) : base(capacity) {}
+
+        /// <remarks />
+        public ChassisIdSubtypeCollection(IEnumerable<ChassisIdSubtype> collection) : base(collection) {}
+        #endregion
+
+        #region Static Operators
+        /// <remarks />
+        public static implicit operator ChassisIdSubtypeCollection(ChassisIdSubtype[] values)
+        {
+            if (values != null)
+            {
+                return new ChassisIdSubtypeCollection(values);
+            }
+
+            return new ChassisIdSubtypeCollection();
+        }
+
+        /// <remarks />
+        public static explicit operator ChassisIdSubtype[](ChassisIdSubtypeCollection values)
+        {
+            if (values != null)
+            {
+                return values.ToArray();
+            }
+
+            return null;
+        }
+        #endregion
+
+        #region ICloneable Methods
+        /// <remarks />
+        public object Clone()
+        {
+            return (ChassisIdSubtypeCollection)this.MemberwiseClone();
+        }
+        #endregion
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            ChassisIdSubtypeCollection clone = new ChassisIdSubtypeCollection(this.Count);
+
+            for (int ii = 0; ii < this.Count; ii++)
+            {
+                clone.Add((ChassisIdSubtype)Utils.Clone(this[ii]));
+            }
+
+            return clone;
+        }
+    }
+    #endregion
+    #endif
+    #endregion
+
+    #region PortIdSubtype Enumeration
+    #if (!OPCUA_EXCLUDE_PortIdSubtype)
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
+    public enum PortIdSubtype
+    {
+        /// <remarks />
+        [EnumMember(Value = "InterfaceAlias_1")]
+        InterfaceAlias = 1,
+
+        /// <remarks />
+        [EnumMember(Value = "PortComponent_2")]
+        PortComponent = 2,
+
+        /// <remarks />
+        [EnumMember(Value = "MacAddress_3")]
+        MacAddress = 3,
+
+        /// <remarks />
+        [EnumMember(Value = "NetworkAddress_4")]
+        NetworkAddress = 4,
+
+        /// <remarks />
+        [EnumMember(Value = "InterfaceName_5")]
+        InterfaceName = 5,
+
+        /// <remarks />
+        [EnumMember(Value = "AgentCircuitId_6")]
+        AgentCircuitId = 6,
+
+        /// <remarks />
+        [EnumMember(Value = "Local_7")]
+        Local = 7,
+    }
+
+    #region PortIdSubtypeCollection Class
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [CollectionDataContract(Name = "ListOfPortIdSubtype", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "PortIdSubtype")]
+    public partial class PortIdSubtypeCollection : List<PortIdSubtype>, ICloneable
+    {
+        #region Constructors
+        /// <remarks />
+        public PortIdSubtypeCollection() {}
+
+        /// <remarks />
+        public PortIdSubtypeCollection(int capacity) : base(capacity) {}
+
+        /// <remarks />
+        public PortIdSubtypeCollection(IEnumerable<PortIdSubtype> collection) : base(collection) {}
+        #endregion
+
+        #region Static Operators
+        /// <remarks />
+        public static implicit operator PortIdSubtypeCollection(PortIdSubtype[] values)
+        {
+            if (values != null)
+            {
+                return new PortIdSubtypeCollection(values);
+            }
+
+            return new PortIdSubtypeCollection();
+        }
+
+        /// <remarks />
+        public static explicit operator PortIdSubtype[](PortIdSubtypeCollection values)
+        {
+            if (values != null)
+            {
+                return values.ToArray();
+            }
+
+            return null;
+        }
+        #endregion
+
+        #region ICloneable Methods
+        /// <remarks />
+        public object Clone()
+        {
+            return (PortIdSubtypeCollection)this.MemberwiseClone();
+        }
+        #endregion
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            PortIdSubtypeCollection clone = new PortIdSubtypeCollection(this.Count);
+
+            for (int ii = 0; ii < this.Count; ii++)
+            {
+                clone.Add((PortIdSubtype)Utils.Clone(this[ii]));
+            }
+
+            return clone;
+        }
+    }
+    #endregion
+    #endif
+    #endregion
+
+    #region ManAddrIfSubtype Enumeration
+    #if (!OPCUA_EXCLUDE_ManAddrIfSubtype)
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
+    public enum ManAddrIfSubtype
+    {
+        /// <remarks />
+        [EnumMember(Value = "None_0")]
+        None = 0,
+
+        /// <remarks />
+        [EnumMember(Value = "Unknown_1")]
+        Unknown = 1,
+
+        /// <remarks />
+        [EnumMember(Value = "PortRef_2")]
+        PortRef = 2,
+
+        /// <remarks />
+        [EnumMember(Value = "SystemPortNumber_3")]
+        SystemPortNumber = 3,
+    }
+
+    #region ManAddrIfSubtypeCollection Class
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [CollectionDataContract(Name = "ListOfManAddrIfSubtype", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ManAddrIfSubtype")]
+    public partial class ManAddrIfSubtypeCollection : List<ManAddrIfSubtype>, ICloneable
+    {
+        #region Constructors
+        /// <remarks />
+        public ManAddrIfSubtypeCollection() {}
+
+        /// <remarks />
+        public ManAddrIfSubtypeCollection(int capacity) : base(capacity) {}
+
+        /// <remarks />
+        public ManAddrIfSubtypeCollection(IEnumerable<ManAddrIfSubtype> collection) : base(collection) {}
+        #endregion
+
+        #region Static Operators
+        /// <remarks />
+        public static implicit operator ManAddrIfSubtypeCollection(ManAddrIfSubtype[] values)
+        {
+            if (values != null)
+            {
+                return new ManAddrIfSubtypeCollection(values);
+            }
+
+            return new ManAddrIfSubtypeCollection();
+        }
+
+        /// <remarks />
+        public static explicit operator ManAddrIfSubtype[](ManAddrIfSubtypeCollection values)
+        {
+            if (values != null)
+            {
+                return values.ToArray();
+            }
+
+            return null;
+        }
+        #endregion
+
+        #region ICloneable Methods
+        /// <remarks />
+        public object Clone()
+        {
+            return (ManAddrIfSubtypeCollection)this.MemberwiseClone();
+        }
+        #endregion
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            ManAddrIfSubtypeCollection clone = new ManAddrIfSubtypeCollection(this.Count);
+
+            for (int ii = 0; ii < this.Count; ii++)
+            {
+                clone.Add((ManAddrIfSubtype)Utils.Clone(this[ii]));
+            }
+
+            return clone;
+        }
+    }
+    #endregion
+    #endif
+    #endregion
+
     #region PriorityMappingEntryType Class
     #if (!OPCUA_EXCLUDE_PriorityMappingEntryType)
     /// <remarks />
@@ -23108,6 +27242,793 @@ namespace Opc.Ua
             for (int ii = 0; ii < this.Count; ii++)
             {
                 clone.Add((PriorityMappingEntryType)Utils.Clone(this[ii]));
+            }
+
+            return clone;
+        }
+    }
+    #endregion
+    #endif
+    #endregion
+
+    #region LldpManagementAddressTxPortType Class
+    #if (!OPCUA_EXCLUDE_LldpManagementAddressTxPortType)
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
+    public partial class LldpManagementAddressTxPortType : IEncodeable, IJsonEncodeable
+    {
+        #region Constructors
+        /// <remarks />
+        public LldpManagementAddressTxPortType()
+        {
+            Initialize();
+        }
+            
+        [OnDeserializing]
+        private void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+            
+        private void Initialize()
+        {
+            m_addressSubtype = (uint)0;
+            m_manAddress = null;
+            m_txEnable = true;
+            m_addrLen = (uint)0;
+            m_ifSubtype = ManAddrIfSubtype.None;
+            m_ifId = (uint)0;
+        }
+        #endregion
+
+        #region Public Properties
+        /// <remarks />
+        [DataMember(Name = "AddressSubtype", IsRequired = false, Order = 1)]
+        public uint AddressSubtype
+        {
+            get { return m_addressSubtype;  }
+            set { m_addressSubtype = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "ManAddress", IsRequired = false, Order = 2)]
+        public string ManAddress
+        {
+            get { return m_manAddress;  }
+            set { m_manAddress = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "TxEnable", IsRequired = false, Order = 3)]
+        public bool TxEnable
+        {
+            get { return m_txEnable;  }
+            set { m_txEnable = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "AddrLen", IsRequired = false, Order = 4)]
+        public uint AddrLen
+        {
+            get { return m_addrLen;  }
+            set { m_addrLen = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "IfSubtype", IsRequired = false, Order = 5)]
+        public ManAddrIfSubtype IfSubtype
+        {
+            get { return m_ifSubtype;  }
+            set { m_ifSubtype = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "IfId", IsRequired = false, Order = 6)]
+        public uint IfId
+        {
+            get { return m_ifId;  }
+            set { m_ifId = value; }
+        }
+        #endregion
+
+        #region IEncodeable Members
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId TypeId => DataTypeIds.LldpManagementAddressTxPortType; 
+
+        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.LldpManagementAddressTxPortType_Encoding_DefaultBinary;
+
+        /// <summary cref="IEncodeable.XmlEncodingId" />
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.LldpManagementAddressTxPortType_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.LldpManagementAddressTxPortType_Encoding_DefaultJson; 
+
+        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        public virtual void Encode(IEncoder encoder)
+        {
+            encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            encoder.WriteUInt32("AddressSubtype", AddressSubtype);
+            encoder.WriteString("ManAddress", ManAddress);
+            encoder.WriteBoolean("TxEnable", TxEnable);
+            encoder.WriteUInt32("AddrLen", AddrLen);
+            encoder.WriteEnumerated("IfSubtype", IfSubtype);
+            encoder.WriteUInt32("IfId", IfId);
+
+            encoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        public virtual void Decode(IDecoder decoder)
+        {
+            decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            AddressSubtype = decoder.ReadUInt32("AddressSubtype");
+            ManAddress = decoder.ReadString("ManAddress");
+            TxEnable = decoder.ReadBoolean("TxEnable");
+            AddrLen = decoder.ReadUInt32("AddrLen");
+            IfSubtype = (ManAddrIfSubtype)decoder.ReadEnumerated("IfSubtype", typeof(ManAddrIfSubtype));
+            IfId = decoder.ReadUInt32("IfId");
+
+            decoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        public virtual bool IsEqual(IEncodeable encodeable)
+        {
+            if (Object.ReferenceEquals(this, encodeable))
+            {
+                return true;
+            }
+
+            LldpManagementAddressTxPortType value = encodeable as LldpManagementAddressTxPortType;
+
+            if (value == null)
+            {
+                return false;
+            }
+
+            if (!Utils.IsEqual(m_addressSubtype, value.m_addressSubtype)) return false;
+            if (!Utils.IsEqual(m_manAddress, value.m_manAddress)) return false;
+            if (!Utils.IsEqual(m_txEnable, value.m_txEnable)) return false;
+            if (!Utils.IsEqual(m_addrLen, value.m_addrLen)) return false;
+            if (!Utils.IsEqual(m_ifSubtype, value.m_ifSubtype)) return false;
+            if (!Utils.IsEqual(m_ifId, value.m_ifId)) return false;
+
+            return true;
+        }
+
+        /// <summary cref="ICloneable.Clone" />
+        public virtual object Clone()
+        {
+            return (LldpManagementAddressTxPortType)this.MemberwiseClone();
+        }
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            LldpManagementAddressTxPortType clone = (LldpManagementAddressTxPortType)base.MemberwiseClone();
+
+            clone.m_addressSubtype = (uint)Utils.Clone(this.m_addressSubtype);
+            clone.m_manAddress = (string)Utils.Clone(this.m_manAddress);
+            clone.m_txEnable = (bool)Utils.Clone(this.m_txEnable);
+            clone.m_addrLen = (uint)Utils.Clone(this.m_addrLen);
+            clone.m_ifSubtype = (ManAddrIfSubtype)Utils.Clone(this.m_ifSubtype);
+            clone.m_ifId = (uint)Utils.Clone(this.m_ifId);
+
+            return clone;
+        }
+        #endregion
+
+        #region Private Fields
+        private uint m_addressSubtype;
+        private string m_manAddress;
+        private bool m_txEnable;
+        private uint m_addrLen;
+        private ManAddrIfSubtype m_ifSubtype;
+        private uint m_ifId;
+        #endregion
+    }
+
+    #region LldpManagementAddressTxPortTypeCollection Class
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [CollectionDataContract(Name = "ListOfLldpManagementAddressTxPortType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "LldpManagementAddressTxPortType")]
+    public partial class LldpManagementAddressTxPortTypeCollection : List<LldpManagementAddressTxPortType>, ICloneable
+    {
+        #region Constructors
+        /// <remarks />
+        public LldpManagementAddressTxPortTypeCollection() {}
+
+        /// <remarks />
+        public LldpManagementAddressTxPortTypeCollection(int capacity) : base(capacity) {}
+
+        /// <remarks />
+        public LldpManagementAddressTxPortTypeCollection(IEnumerable<LldpManagementAddressTxPortType> collection) : base(collection) {}
+        #endregion
+
+        #region Static Operators
+        /// <remarks />
+        public static implicit operator LldpManagementAddressTxPortTypeCollection(LldpManagementAddressTxPortType[] values)
+        {
+            if (values != null)
+            {
+                return new LldpManagementAddressTxPortTypeCollection(values);
+            }
+
+            return new LldpManagementAddressTxPortTypeCollection();
+        }
+
+        /// <remarks />
+        public static explicit operator LldpManagementAddressTxPortType[](LldpManagementAddressTxPortTypeCollection values)
+        {
+            if (values != null)
+            {
+                return values.ToArray();
+            }
+
+            return null;
+        }
+        #endregion
+
+        #region ICloneable Methods
+        /// <remarks />
+        public object Clone()
+        {
+            return (LldpManagementAddressTxPortTypeCollection)this.MemberwiseClone();
+        }
+        #endregion
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            LldpManagementAddressTxPortTypeCollection clone = new LldpManagementAddressTxPortTypeCollection(this.Count);
+
+            for (int ii = 0; ii < this.Count; ii++)
+            {
+                clone.Add((LldpManagementAddressTxPortType)Utils.Clone(this[ii]));
+            }
+
+            return clone;
+        }
+    }
+    #endregion
+    #endif
+    #endregion
+
+    #region LldpManagementAddressType Class
+    #if (!OPCUA_EXCLUDE_LldpManagementAddressType)
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
+    public partial class LldpManagementAddressType : IEncodeable, IJsonEncodeable
+    {
+        #region Constructors
+        /// <remarks />
+        public LldpManagementAddressType()
+        {
+            Initialize();
+        }
+            
+        [OnDeserializing]
+        private void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+            
+        private void Initialize()
+        {
+            m_addressSubtype = (uint)0;
+            m_address = null;
+            m_ifSubtype = ManAddrIfSubtype.None;
+            m_ifId = (uint)0;
+        }
+        #endregion
+
+        #region Public Properties
+        /// <remarks />
+        [DataMember(Name = "AddressSubtype", IsRequired = false, Order = 1)]
+        public uint AddressSubtype
+        {
+            get { return m_addressSubtype;  }
+            set { m_addressSubtype = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "Address", IsRequired = false, Order = 2)]
+        public string Address
+        {
+            get { return m_address;  }
+            set { m_address = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "IfSubtype", IsRequired = false, Order = 3)]
+        public ManAddrIfSubtype IfSubtype
+        {
+            get { return m_ifSubtype;  }
+            set { m_ifSubtype = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "IfId", IsRequired = false, Order = 4)]
+        public uint IfId
+        {
+            get { return m_ifId;  }
+            set { m_ifId = value; }
+        }
+        #endregion
+
+        #region IEncodeable Members
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId TypeId => DataTypeIds.LldpManagementAddressType; 
+
+        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.LldpManagementAddressType_Encoding_DefaultBinary;
+
+        /// <summary cref="IEncodeable.XmlEncodingId" />
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.LldpManagementAddressType_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.LldpManagementAddressType_Encoding_DefaultJson; 
+
+        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        public virtual void Encode(IEncoder encoder)
+        {
+            encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            encoder.WriteUInt32("AddressSubtype", AddressSubtype);
+            encoder.WriteString("Address", Address);
+            encoder.WriteEnumerated("IfSubtype", IfSubtype);
+            encoder.WriteUInt32("IfId", IfId);
+
+            encoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        public virtual void Decode(IDecoder decoder)
+        {
+            decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            AddressSubtype = decoder.ReadUInt32("AddressSubtype");
+            Address = decoder.ReadString("Address");
+            IfSubtype = (ManAddrIfSubtype)decoder.ReadEnumerated("IfSubtype", typeof(ManAddrIfSubtype));
+            IfId = decoder.ReadUInt32("IfId");
+
+            decoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        public virtual bool IsEqual(IEncodeable encodeable)
+        {
+            if (Object.ReferenceEquals(this, encodeable))
+            {
+                return true;
+            }
+
+            LldpManagementAddressType value = encodeable as LldpManagementAddressType;
+
+            if (value == null)
+            {
+                return false;
+            }
+
+            if (!Utils.IsEqual(m_addressSubtype, value.m_addressSubtype)) return false;
+            if (!Utils.IsEqual(m_address, value.m_address)) return false;
+            if (!Utils.IsEqual(m_ifSubtype, value.m_ifSubtype)) return false;
+            if (!Utils.IsEqual(m_ifId, value.m_ifId)) return false;
+
+            return true;
+        }
+
+        /// <summary cref="ICloneable.Clone" />
+        public virtual object Clone()
+        {
+            return (LldpManagementAddressType)this.MemberwiseClone();
+        }
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            LldpManagementAddressType clone = (LldpManagementAddressType)base.MemberwiseClone();
+
+            clone.m_addressSubtype = (uint)Utils.Clone(this.m_addressSubtype);
+            clone.m_address = (string)Utils.Clone(this.m_address);
+            clone.m_ifSubtype = (ManAddrIfSubtype)Utils.Clone(this.m_ifSubtype);
+            clone.m_ifId = (uint)Utils.Clone(this.m_ifId);
+
+            return clone;
+        }
+        #endregion
+
+        #region Private Fields
+        private uint m_addressSubtype;
+        private string m_address;
+        private ManAddrIfSubtype m_ifSubtype;
+        private uint m_ifId;
+        #endregion
+    }
+
+    #region LldpManagementAddressTypeCollection Class
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [CollectionDataContract(Name = "ListOfLldpManagementAddressType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "LldpManagementAddressType")]
+    public partial class LldpManagementAddressTypeCollection : List<LldpManagementAddressType>, ICloneable
+    {
+        #region Constructors
+        /// <remarks />
+        public LldpManagementAddressTypeCollection() {}
+
+        /// <remarks />
+        public LldpManagementAddressTypeCollection(int capacity) : base(capacity) {}
+
+        /// <remarks />
+        public LldpManagementAddressTypeCollection(IEnumerable<LldpManagementAddressType> collection) : base(collection) {}
+        #endregion
+
+        #region Static Operators
+        /// <remarks />
+        public static implicit operator LldpManagementAddressTypeCollection(LldpManagementAddressType[] values)
+        {
+            if (values != null)
+            {
+                return new LldpManagementAddressTypeCollection(values);
+            }
+
+            return new LldpManagementAddressTypeCollection();
+        }
+
+        /// <remarks />
+        public static explicit operator LldpManagementAddressType[](LldpManagementAddressTypeCollection values)
+        {
+            if (values != null)
+            {
+                return values.ToArray();
+            }
+
+            return null;
+        }
+        #endregion
+
+        #region ICloneable Methods
+        /// <remarks />
+        public object Clone()
+        {
+            return (LldpManagementAddressTypeCollection)this.MemberwiseClone();
+        }
+        #endregion
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            LldpManagementAddressTypeCollection clone = new LldpManagementAddressTypeCollection(this.Count);
+
+            for (int ii = 0; ii < this.Count; ii++)
+            {
+                clone.Add((LldpManagementAddressType)Utils.Clone(this[ii]));
+            }
+
+            return clone;
+        }
+    }
+    #endregion
+    #endif
+    #endregion
+
+    #region LldpTlvType Class
+    #if (!OPCUA_EXCLUDE_LldpTlvType)
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
+    public partial class LldpTlvType : IEncodeable, IJsonEncodeable
+    {
+        #region Constructors
+        /// <remarks />
+        public LldpTlvType()
+        {
+            Initialize();
+        }
+            
+        [OnDeserializing]
+        private void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+            
+        private void Initialize()
+        {
+            m_tlvType = (uint)0;
+            m_tlvInfo = null;
+        }
+        #endregion
+
+        #region Public Properties
+        /// <remarks />
+        [DataMember(Name = "TlvType", IsRequired = false, Order = 1)]
+        public uint TlvType
+        {
+            get { return m_tlvType;  }
+            set { m_tlvType = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "TlvInfo", IsRequired = false, Order = 2)]
+        public byte[] TlvInfo
+        {
+            get { return m_tlvInfo;  }
+            set { m_tlvInfo = value; }
+        }
+        #endregion
+
+        #region IEncodeable Members
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId TypeId => DataTypeIds.LldpTlvType; 
+
+        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.LldpTlvType_Encoding_DefaultBinary;
+
+        /// <summary cref="IEncodeable.XmlEncodingId" />
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.LldpTlvType_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.LldpTlvType_Encoding_DefaultJson; 
+
+        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        public virtual void Encode(IEncoder encoder)
+        {
+            encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            encoder.WriteUInt32("TlvType", TlvType);
+            encoder.WriteByteString("TlvInfo", TlvInfo);
+
+            encoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        public virtual void Decode(IDecoder decoder)
+        {
+            decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            TlvType = decoder.ReadUInt32("TlvType");
+            TlvInfo = decoder.ReadByteString("TlvInfo");
+
+            decoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        public virtual bool IsEqual(IEncodeable encodeable)
+        {
+            if (Object.ReferenceEquals(this, encodeable))
+            {
+                return true;
+            }
+
+            LldpTlvType value = encodeable as LldpTlvType;
+
+            if (value == null)
+            {
+                return false;
+            }
+
+            if (!Utils.IsEqual(m_tlvType, value.m_tlvType)) return false;
+            if (!Utils.IsEqual(m_tlvInfo, value.m_tlvInfo)) return false;
+
+            return true;
+        }
+
+        /// <summary cref="ICloneable.Clone" />
+        public virtual object Clone()
+        {
+            return (LldpTlvType)this.MemberwiseClone();
+        }
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            LldpTlvType clone = (LldpTlvType)base.MemberwiseClone();
+
+            clone.m_tlvType = (uint)Utils.Clone(this.m_tlvType);
+            clone.m_tlvInfo = (byte[])Utils.Clone(this.m_tlvInfo);
+
+            return clone;
+        }
+        #endregion
+
+        #region Private Fields
+        private uint m_tlvType;
+        private byte[] m_tlvInfo;
+        #endregion
+    }
+
+    #region LldpTlvTypeCollection Class
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [CollectionDataContract(Name = "ListOfLldpTlvType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "LldpTlvType")]
+    public partial class LldpTlvTypeCollection : List<LldpTlvType>, ICloneable
+    {
+        #region Constructors
+        /// <remarks />
+        public LldpTlvTypeCollection() {}
+
+        /// <remarks />
+        public LldpTlvTypeCollection(int capacity) : base(capacity) {}
+
+        /// <remarks />
+        public LldpTlvTypeCollection(IEnumerable<LldpTlvType> collection) : base(collection) {}
+        #endregion
+
+        #region Static Operators
+        /// <remarks />
+        public static implicit operator LldpTlvTypeCollection(LldpTlvType[] values)
+        {
+            if (values != null)
+            {
+                return new LldpTlvTypeCollection(values);
+            }
+
+            return new LldpTlvTypeCollection();
+        }
+
+        /// <remarks />
+        public static explicit operator LldpTlvType[](LldpTlvTypeCollection values)
+        {
+            if (values != null)
+            {
+                return values.ToArray();
+            }
+
+            return null;
+        }
+        #endregion
+
+        #region ICloneable Methods
+        /// <remarks />
+        public object Clone()
+        {
+            return (LldpTlvTypeCollection)this.MemberwiseClone();
+        }
+        #endregion
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            LldpTlvTypeCollection clone = new LldpTlvTypeCollection(this.Count);
+
+            for (int ii = 0; ii < this.Count; ii++)
+            {
+                clone.Add((LldpTlvType)Utils.Clone(this[ii]));
+            }
+
+            return clone;
+        }
+    }
+    #endregion
+    #endif
+    #endregion
+
+    #region LldpSystemCapabilitiesMap Enumeration
+    #if (!OPCUA_EXCLUDE_LldpSystemCapabilitiesMap)
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)][Flags]
+    public enum LldpSystemCapabilitiesMap : UInt32
+    {
+        /// <remarks />
+        [EnumMember(Value = "None_0")]
+        None = 0,
+
+        /// <remarks />
+        [EnumMember(Value = "Other_1")]
+        Other = 1,
+
+        /// <remarks />
+        [EnumMember(Value = "Repeater_2")]
+        Repeater = 2,
+
+        /// <remarks />
+        [EnumMember(Value = "Bridge_4")]
+        Bridge = 4,
+
+        /// <remarks />
+        [EnumMember(Value = "WlanAccessPoint_8")]
+        WlanAccessPoint = 8,
+
+        /// <remarks />
+        [EnumMember(Value = "Router_16")]
+        Router = 16,
+
+        /// <remarks />
+        [EnumMember(Value = "Telephone_32")]
+        Telephone = 32,
+
+        /// <remarks />
+        [EnumMember(Value = "DocsisCableDevice_64")]
+        DocsisCableDevice = 64,
+
+        /// <remarks />
+        [EnumMember(Value = "StationOnly_128")]
+        StationOnly = 128,
+
+        /// <remarks />
+        [EnumMember(Value = "CvlanComponent_256")]
+        CvlanComponent = 256,
+
+        /// <remarks />
+        [EnumMember(Value = "SvlanComponent_512")]
+        SvlanComponent = 512,
+
+        /// <remarks />
+        [EnumMember(Value = "TwoPortMacRelay_1024")]
+        TwoPortMacRelay = 1024,
+    }
+
+    #region LldpSystemCapabilitiesMapCollection Class
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [CollectionDataContract(Name = "ListOfLldpSystemCapabilitiesMap", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "LldpSystemCapabilitiesMap")]
+    public partial class LldpSystemCapabilitiesMapCollection : List<LldpSystemCapabilitiesMap>, ICloneable
+    {
+        #region Constructors
+        /// <remarks />
+        public LldpSystemCapabilitiesMapCollection() {}
+
+        /// <remarks />
+        public LldpSystemCapabilitiesMapCollection(int capacity) : base(capacity) {}
+
+        /// <remarks />
+        public LldpSystemCapabilitiesMapCollection(IEnumerable<LldpSystemCapabilitiesMap> collection) : base(collection) {}
+        #endregion
+
+        #region Static Operators
+        /// <remarks />
+        public static implicit operator LldpSystemCapabilitiesMapCollection(LldpSystemCapabilitiesMap[] values)
+        {
+            if (values != null)
+            {
+                return new LldpSystemCapabilitiesMapCollection(values);
+            }
+
+            return new LldpSystemCapabilitiesMapCollection();
+        }
+
+        /// <remarks />
+        public static explicit operator LldpSystemCapabilitiesMap[](LldpSystemCapabilitiesMapCollection values)
+        {
+            if (values != null)
+            {
+                return values.ToArray();
+            }
+
+            return null;
+        }
+        #endregion
+
+        #region ICloneable Methods
+        /// <remarks />
+        public object Clone()
+        {
+            return (LldpSystemCapabilitiesMapCollection)this.MemberwiseClone();
+        }
+        #endregion
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            LldpSystemCapabilitiesMapCollection clone = new LldpSystemCapabilitiesMapCollection(this.Count);
+
+            for (int ii = 0; ii < this.Count; ii++)
+            {
+                clone.Add((LldpSystemCapabilitiesMap)Utils.Clone(this[ii]));
             }
 
             return clone;
@@ -24734,7 +29655,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_defaultEncodingId, value.m_defaultEncodingId)) return false;
             if (!Utils.IsEqual(m_baseDataType, value.m_baseDataType)) return false;
             if (!Utils.IsEqual(m_structureType, value.m_structureType)) return false;
@@ -24939,7 +29859,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_fields, value.m_fields)) return false;
 
             return base.IsEqual(encodeable);
@@ -25688,7 +30607,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_eventNotifier, value.m_eventNotifier)) return false;
 
             return base.IsEqual(encodeable);
@@ -25807,7 +30725,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_isAbstract, value.m_isAbstract)) return false;
 
             return base.IsEqual(encodeable);
@@ -26026,7 +30943,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_value, value.m_value)) return false;
             if (!Utils.IsEqual(m_dataType, value.m_dataType)) return false;
             if (!Utils.IsEqual(m_valueRank, value.m_valueRank)) return false;
@@ -26225,7 +31141,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_value, value.m_value)) return false;
             if (!Utils.IsEqual(m_dataType, value.m_dataType)) return false;
             if (!Utils.IsEqual(m_valueRank, value.m_valueRank)) return false;
@@ -26378,7 +31293,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_isAbstract, value.m_isAbstract)) return false;
             if (!Utils.IsEqual(m_symmetric, value.m_symmetric)) return false;
             if (!Utils.IsEqual(m_inverseName, value.m_inverseName)) return false;
@@ -26514,7 +31428,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_executable, value.m_executable)) return false;
             if (!Utils.IsEqual(m_userExecutable, value.m_userExecutable)) return false;
 
@@ -26647,7 +31560,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_containsNoLoops, value.m_containsNoLoops)) return false;
             if (!Utils.IsEqual(m_eventNotifier, value.m_eventNotifier)) return false;
 
@@ -26780,7 +31692,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_isAbstract, value.m_isAbstract)) return false;
             if (!Utils.IsEqual(m_dataTypeDefinition, value.m_dataTypeDefinition)) return false;
 
@@ -27563,7 +32474,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_name, value.m_name)) return false;
 
             return base.IsEqual(encodeable);
@@ -30185,6 +35095,71 @@ namespace Opc.Ua
         [EnumMember(Value = "SignAndEncrypt_3")]
         SignAndEncrypt = 3,
     }
+
+    #region MessageSecurityModeCollection Class
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [CollectionDataContract(Name = "ListOfMessageSecurityMode", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "MessageSecurityMode")]
+    public partial class MessageSecurityModeCollection : List<MessageSecurityMode>, ICloneable
+    {
+        #region Constructors
+        /// <remarks />
+        public MessageSecurityModeCollection() {}
+
+        /// <remarks />
+        public MessageSecurityModeCollection(int capacity) : base(capacity) {}
+
+        /// <remarks />
+        public MessageSecurityModeCollection(IEnumerable<MessageSecurityMode> collection) : base(collection) {}
+        #endregion
+
+        #region Static Operators
+        /// <remarks />
+        public static implicit operator MessageSecurityModeCollection(MessageSecurityMode[] values)
+        {
+            if (values != null)
+            {
+                return new MessageSecurityModeCollection(values);
+            }
+
+            return new MessageSecurityModeCollection();
+        }
+
+        /// <remarks />
+        public static explicit operator MessageSecurityMode[](MessageSecurityModeCollection values)
+        {
+            if (values != null)
+            {
+                return values.ToArray();
+            }
+
+            return null;
+        }
+        #endregion
+
+        #region ICloneable Methods
+        /// <remarks />
+        public object Clone()
+        {
+            return (MessageSecurityModeCollection)this.MemberwiseClone();
+        }
+        #endregion
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            MessageSecurityModeCollection clone = new MessageSecurityModeCollection(this.Count);
+
+            for (int ii = 0; ii < this.Count; ii++)
+            {
+                clone.Add((MessageSecurityMode)Utils.Clone(this[ii]));
+            }
+
+            return clone;
+        }
+    }
+    #endregion
     #endif
     #endregion
 
@@ -31887,7 +36862,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_mdnsServerName, value.m_mdnsServerName)) return false;
             if (!Utils.IsEqual(m_serverCapabilities, value.m_serverCapabilities)) return false;
 
@@ -34268,7 +39242,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_userName, value.m_userName)) return false;
             if (!Utils.IsEqual(m_password, value.m_password)) return false;
             if (!Utils.IsEqual(m_encryptionAlgorithm, value.m_encryptionAlgorithm)) return false;
@@ -34393,7 +39366,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_certificateData, value.m_certificateData)) return false;
 
             return base.IsEqual(encodeable);
@@ -34523,7 +39495,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_tokenData, value.m_tokenData)) return false;
             if (!Utils.IsEqual(m_encryptionAlgorithm, value.m_encryptionAlgorithm)) return false;
 
@@ -35948,7 +40919,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_eventNotifier, value.m_eventNotifier)) return false;
 
             return base.IsEqual(encodeable);
@@ -36156,7 +41126,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_value, value.m_value)) return false;
             if (!Utils.IsEqual(m_dataType, value.m_dataType)) return false;
             if (!Utils.IsEqual(m_valueRank, value.m_valueRank)) return false;
@@ -36307,7 +41276,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_executable, value.m_executable)) return false;
             if (!Utils.IsEqual(m_userExecutable, value.m_userExecutable)) return false;
 
@@ -36429,7 +41397,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_isAbstract, value.m_isAbstract)) return false;
 
             return base.IsEqual(encodeable);
@@ -36604,7 +41571,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_value, value.m_value)) return false;
             if (!Utils.IsEqual(m_dataType, value.m_dataType)) return false;
             if (!Utils.IsEqual(m_valueRank, value.m_valueRank)) return false;
@@ -36757,7 +41723,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_isAbstract, value.m_isAbstract)) return false;
             if (!Utils.IsEqual(m_symmetric, value.m_symmetric)) return false;
             if (!Utils.IsEqual(m_inverseName, value.m_inverseName)) return false;
@@ -36882,7 +41847,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_isAbstract, value.m_isAbstract)) return false;
 
             return base.IsEqual(encodeable);
@@ -37012,7 +41976,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_containsNoLoops, value.m_containsNoLoops)) return false;
             if (!Utils.IsEqual(m_eventNotifier, value.m_eventNotifier)) return false;
 
@@ -37339,7 +42302,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_attributeValues, value.m_attributeValues)) return false;
 
             return base.IsEqual(encodeable);
@@ -45318,7 +50280,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_index, value.m_index)) return false;
 
             return base.IsEqual(encodeable);
@@ -45437,7 +50398,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_value, value.m_value)) return false;
 
             return base.IsEqual(encodeable);
@@ -45612,7 +50572,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_nodeId, value.m_nodeId)) return false;
             if (!Utils.IsEqual(m_alias, value.m_alias)) return false;
             if (!Utils.IsEqual(m_browsePath, value.m_browsePath)) return false;
@@ -45788,7 +50747,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_typeDefinitionId, value.m_typeDefinitionId)) return false;
             if (!Utils.IsEqual(m_browsePath, value.m_browsePath)) return false;
             if (!Utils.IsEqual(m_attributeId, value.m_attributeId)) return false;
@@ -48575,7 +53533,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_numValuesPerNode, value.m_numValuesPerNode)) return false;
             if (!Utils.IsEqual(m_startTime, value.m_startTime)) return false;
             if (!Utils.IsEqual(m_endTime, value.m_endTime)) return false;
@@ -48703,7 +53660,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_readModified, value.m_readModified)) return false;
 
             return base.IsEqual(encodeable);
@@ -48728,6 +53684,360 @@ namespace Opc.Ua
 
         #region Private Fields
         private bool m_readModified;
+        #endregion
+    }
+    #endif
+    #endregion
+
+    #region SortOrderType Enumeration
+    #if (!OPCUA_EXCLUDE_SortOrderType)
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
+    public enum SortOrderType
+    {
+        /// <remarks />
+        [EnumMember(Value = "Ascending_0")]
+        Ascending = 0,
+
+        /// <remarks />
+        [EnumMember(Value = "Descending_1")]
+        Descending = 1,
+    }
+    #endif
+    #endregion
+
+    #region SortRuleElement Class
+    #if (!OPCUA_EXCLUDE_SortRuleElement)
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
+    public partial class SortRuleElement : IEncodeable, IJsonEncodeable
+    {
+        #region Constructors
+        /// <remarks />
+        public SortRuleElement()
+        {
+            Initialize();
+        }
+            
+        [OnDeserializing]
+        private void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+            
+        private void Initialize()
+        {
+            m_sortOrder = SortOrderType.Ascending;
+            m_eventField = new SimpleAttributeOperand();
+        }
+        #endregion
+
+        #region Public Properties
+        /// <remarks />
+        [DataMember(Name = "SortOrder", IsRequired = false, Order = 1)]
+        public SortOrderType SortOrder
+        {
+            get { return m_sortOrder;  }
+            set { m_sortOrder = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "EventField", IsRequired = false, Order = 2)]
+        public SimpleAttributeOperand EventField
+        {
+            get
+            {
+                return m_eventField;
+            }
+
+            set
+            {
+                m_eventField = value;
+
+                if (value == null)
+                {
+                    m_eventField = new SimpleAttributeOperand();
+                }
+            }
+        }
+        #endregion
+
+        #region IEncodeable Members
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId TypeId => DataTypeIds.SortRuleElement; 
+
+        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.SortRuleElement_Encoding_DefaultBinary;
+
+        /// <summary cref="IEncodeable.XmlEncodingId" />
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.SortRuleElement_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.SortRuleElement_Encoding_DefaultJson; 
+
+        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        public virtual void Encode(IEncoder encoder)
+        {
+            encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            encoder.WriteEnumerated("SortOrder", SortOrder);
+            encoder.WriteEncodeable("EventField", EventField, typeof(SimpleAttributeOperand));
+
+            encoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        public virtual void Decode(IDecoder decoder)
+        {
+            decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            SortOrder = (SortOrderType)decoder.ReadEnumerated("SortOrder", typeof(SortOrderType));
+            EventField = (SimpleAttributeOperand)decoder.ReadEncodeable("EventField", typeof(SimpleAttributeOperand));
+
+            decoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        public virtual bool IsEqual(IEncodeable encodeable)
+        {
+            if (Object.ReferenceEquals(this, encodeable))
+            {
+                return true;
+            }
+
+            SortRuleElement value = encodeable as SortRuleElement;
+
+            if (value == null)
+            {
+                return false;
+            }
+
+            if (!Utils.IsEqual(m_sortOrder, value.m_sortOrder)) return false;
+            if (!Utils.IsEqual(m_eventField, value.m_eventField)) return false;
+
+            return true;
+        }
+
+        /// <summary cref="ICloneable.Clone" />
+        public virtual object Clone()
+        {
+            return (SortRuleElement)this.MemberwiseClone();
+        }
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            SortRuleElement clone = (SortRuleElement)base.MemberwiseClone();
+
+            clone.m_sortOrder = (SortOrderType)Utils.Clone(this.m_sortOrder);
+            clone.m_eventField = (SimpleAttributeOperand)Utils.Clone(this.m_eventField);
+
+            return clone;
+        }
+        #endregion
+
+        #region Private Fields
+        private SortOrderType m_sortOrder;
+        private SimpleAttributeOperand m_eventField;
+        #endregion
+    }
+
+    #region SortRuleElementCollection Class
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [CollectionDataContract(Name = "ListOfSortRuleElement", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "SortRuleElement")]
+    public partial class SortRuleElementCollection : List<SortRuleElement>, ICloneable
+    {
+        #region Constructors
+        /// <remarks />
+        public SortRuleElementCollection() {}
+
+        /// <remarks />
+        public SortRuleElementCollection(int capacity) : base(capacity) {}
+
+        /// <remarks />
+        public SortRuleElementCollection(IEnumerable<SortRuleElement> collection) : base(collection) {}
+        #endregion
+
+        #region Static Operators
+        /// <remarks />
+        public static implicit operator SortRuleElementCollection(SortRuleElement[] values)
+        {
+            if (values != null)
+            {
+                return new SortRuleElementCollection(values);
+            }
+
+            return new SortRuleElementCollection();
+        }
+
+        /// <remarks />
+        public static explicit operator SortRuleElement[](SortRuleElementCollection values)
+        {
+            if (values != null)
+            {
+                return values.ToArray();
+            }
+
+            return null;
+        }
+        #endregion
+
+        #region ICloneable Methods
+        /// <remarks />
+        public object Clone()
+        {
+            return (SortRuleElementCollection)this.MemberwiseClone();
+        }
+        #endregion
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            SortRuleElementCollection clone = new SortRuleElementCollection(this.Count);
+
+            for (int ii = 0; ii < this.Count; ii++)
+            {
+                clone.Add((SortRuleElement)Utils.Clone(this[ii]));
+            }
+
+            return clone;
+        }
+    }
+    #endregion
+    #endif
+    #endregion
+
+    #region ReadEventDetailsSorted Class
+    #if (!OPCUA_EXCLUDE_ReadEventDetailsSorted)
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
+    public partial class ReadEventDetailsSorted : Opc.Ua.ReadEventDetails
+    {
+        #region Constructors
+        /// <remarks />
+        public ReadEventDetailsSorted()
+        {
+            Initialize();
+        }
+
+        [OnDeserializing]
+        private void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+
+        private void Initialize()
+        {
+            m_sortClause = new SortRuleElementCollection();
+        }
+        #endregion
+
+        #region Public Properties
+        /// <remarks />
+        [DataMember(Name = "SortClause", IsRequired = false, Order = 1)]
+        public SortRuleElementCollection SortClause
+        {
+            get
+            {
+                return m_sortClause;
+            }
+
+            set
+            {
+                m_sortClause = value;
+
+                if (value == null)
+                {
+                    m_sortClause = new SortRuleElementCollection();
+                }
+            }
+        }
+        #endregion
+
+        #region IEncodeable Members
+        /// <summary cref="IEncodeable.TypeId" />
+        public override ExpandedNodeId TypeId => DataTypeIds.ReadEventDetailsSorted; 
+
+        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        public override ExpandedNodeId BinaryEncodingId => ObjectIds.ReadEventDetailsSorted_Encoding_DefaultBinary;
+
+        /// <summary cref="IEncodeable.XmlEncodingId" />
+        public override ExpandedNodeId XmlEncodingId => ObjectIds.ReadEventDetailsSorted_Encoding_DefaultXml;
+            
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public override ExpandedNodeId JsonEncodingId => ObjectIds.ReadEventDetailsSorted_Encoding_DefaultJson; 
+
+        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        public override void Encode(IEncoder encoder)
+        {
+            base.Encode(encoder);
+
+            encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            encoder.WriteEncodeableArray("SortClause", SortClause.ToArray(), typeof(SortRuleElement));
+
+            encoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        public override void Decode(IDecoder decoder)
+        {
+            base.Decode(decoder);
+
+            decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            SortClause = (SortRuleElementCollection)decoder.ReadEncodeableArray("SortClause", typeof(SortRuleElement));
+
+            decoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        public override bool IsEqual(IEncodeable encodeable)
+        {
+            if (Object.ReferenceEquals(this, encodeable))
+            {
+                return true;
+            }
+
+            ReadEventDetailsSorted value = encodeable as ReadEventDetailsSorted;
+
+            if (value == null)
+            {
+                return false;
+            }
+
+            if (!Utils.IsEqual(m_sortClause, value.m_sortClause)) return false;
+
+            return base.IsEqual(encodeable);
+        }    
+
+        /// <summary cref="ICloneable.Clone" />
+        public override object Clone()
+        {
+            return (ReadEventDetailsSorted)this.MemberwiseClone();
+        }
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            ReadEventDetailsSorted clone = (ReadEventDetailsSorted)base.MemberwiseClone();
+
+            clone.m_sortClause = (SortRuleElementCollection)Utils.Clone(this.m_sortClause);
+
+            return clone;
+        }
+        #endregion
+
+        #region Private Fields
+        private SortRuleElementCollection m_sortClause;
         #endregion
     }
     #endif
@@ -48866,7 +54176,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_isReadModified, value.m_isReadModified)) return false;
             if (!Utils.IsEqual(m_startTime, value.m_startTime)) return false;
             if (!Utils.IsEqual(m_endTime, value.m_endTime)) return false;
@@ -49065,7 +54374,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_startTime, value.m_startTime)) return false;
             if (!Utils.IsEqual(m_endTime, value.m_endTime)) return false;
             if (!Utils.IsEqual(m_processingInterval, value.m_processingInterval)) return false;
@@ -49219,7 +54527,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_reqTimes, value.m_reqTimes)) return false;
             if (!Utils.IsEqual(m_useSimpleBounds, value.m_useSimpleBounds)) return false;
 
@@ -49353,7 +54660,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_reqTimes, value.m_reqTimes)) return false;
 
             return base.IsEqual(encodeable);
@@ -49817,7 +55123,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_modificationInfos, value.m_modificationInfos)) return false;
 
             return base.IsEqual(encodeable);
@@ -50074,7 +55379,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_modificationInfos, value.m_modificationInfos)) return false;
 
             return base.IsEqual(encodeable);
@@ -51305,7 +56609,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_nodeId, value.m_nodeId)) return false;
             if (!Utils.IsEqual(m_performInsertReplace, value.m_performInsertReplace)) return false;
             if (!Utils.IsEqual(m_updateValues, value.m_updateValues)) return false;
@@ -51464,7 +56767,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_nodeId, value.m_nodeId)) return false;
             if (!Utils.IsEqual(m_performInsertReplace, value.m_performInsertReplace)) return false;
             if (!Utils.IsEqual(m_updateValues, value.m_updateValues)) return false;
@@ -51646,7 +56948,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_nodeId, value.m_nodeId)) return false;
             if (!Utils.IsEqual(m_performInsertReplace, value.m_performInsertReplace)) return false;
             if (!Utils.IsEqual(m_filter, value.m_filter)) return false;
@@ -51807,7 +57108,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_nodeId, value.m_nodeId)) return false;
             if (!Utils.IsEqual(m_isDeleteModified, value.m_isDeleteModified)) return false;
             if (!Utils.IsEqual(m_startTime, value.m_startTime)) return false;
@@ -51958,7 +57258,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_nodeId, value.m_nodeId)) return false;
             if (!Utils.IsEqual(m_reqTimes, value.m_reqTimes)) return false;
 
@@ -52103,7 +57402,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_nodeId, value.m_nodeId)) return false;
             if (!Utils.IsEqual(m_eventIds, value.m_eventIds)) return false;
 
@@ -53784,7 +59082,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_trigger, value.m_trigger)) return false;
             if (!Utils.IsEqual(m_deadbandType, value.m_deadbandType)) return false;
             if (!Utils.IsEqual(m_deadbandValue, value.m_deadbandValue)) return false;
@@ -53944,7 +59241,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_selectClauses, value.m_selectClauses)) return false;
             if (!Utils.IsEqual(m_whereClause, value.m_whereClause)) return false;
 
@@ -54281,7 +59577,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_startTime, value.m_startTime)) return false;
             if (!Utils.IsEqual(m_aggregateType, value.m_aggregateType)) return false;
             if (!Utils.IsEqual(m_processingInterval, value.m_processingInterval)) return false;
@@ -54568,7 +59863,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_selectClauseResults, value.m_selectClauseResults)) return false;
             if (!Utils.IsEqual(m_selectClauseDiagnosticInfos, value.m_selectClauseDiagnosticInfos)) return false;
             if (!Utils.IsEqual(m_whereClauseResult, value.m_whereClauseResult)) return false;
@@ -54727,7 +60021,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_revisedStartTime, value.m_revisedStartTime)) return false;
             if (!Utils.IsEqual(m_revisedProcessingInterval, value.m_revisedProcessingInterval)) return false;
             if (!Utils.IsEqual(m_revisedAggregateConfiguration, value.m_revisedAggregateConfiguration)) return false;
@@ -59172,7 +64465,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_monitoredItems, value.m_monitoredItems)) return false;
             if (!Utils.IsEqual(m_diagnosticInfos, value.m_diagnosticInfos)) return false;
 
@@ -59499,7 +64791,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_events, value.m_events)) return false;
 
             return base.IsEqual(encodeable);
@@ -60025,7 +65316,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_status, value.m_status)) return false;
             if (!Utils.IsEqual(m_diagnosticInfo, value.m_diagnosticInfo)) return false;
 
@@ -65212,7 +70502,7 @@ namespace Opc.Ua
             m_disabledMonitoredItemCount = (uint)0;
             m_monitoringQueueOverflowCount = (uint)0;
             m_nextSequenceNumber = (uint)0;
-            m_eventQueueOverFlowCount = (uint)0;
+            m_eventQueueOverflowCount = (uint)0;
         }
         #endregion
 
@@ -65458,11 +70748,11 @@ namespace Opc.Ua
         }
 
         /// <remarks />
-        [DataMember(Name = "EventQueueOverFlowCount", IsRequired = false, Order = 31)]
-        public uint EventQueueOverFlowCount
+        [DataMember(Name = "EventQueueOverflowCount", IsRequired = false, Order = 31)]
+        public uint EventQueueOverflowCount
         {
-            get { return m_eventQueueOverFlowCount;  }
-            set { m_eventQueueOverFlowCount = value; }
+            get { return m_eventQueueOverflowCount;  }
+            set { m_eventQueueOverflowCount = value; }
         }
         #endregion
 
@@ -65514,7 +70804,7 @@ namespace Opc.Ua
             encoder.WriteUInt32("DisabledMonitoredItemCount", DisabledMonitoredItemCount);
             encoder.WriteUInt32("MonitoringQueueOverflowCount", MonitoringQueueOverflowCount);
             encoder.WriteUInt32("NextSequenceNumber", NextSequenceNumber);
-            encoder.WriteUInt32("EventQueueOverFlowCount", EventQueueOverFlowCount);
+            encoder.WriteUInt32("EventQueueOverflowCount", EventQueueOverflowCount);
 
             encoder.PopNamespace();
         }
@@ -65554,7 +70844,7 @@ namespace Opc.Ua
             DisabledMonitoredItemCount = decoder.ReadUInt32("DisabledMonitoredItemCount");
             MonitoringQueueOverflowCount = decoder.ReadUInt32("MonitoringQueueOverflowCount");
             NextSequenceNumber = decoder.ReadUInt32("NextSequenceNumber");
-            EventQueueOverFlowCount = decoder.ReadUInt32("EventQueueOverFlowCount");
+            EventQueueOverflowCount = decoder.ReadUInt32("EventQueueOverflowCount");
 
             decoder.PopNamespace();
         }
@@ -65604,7 +70894,7 @@ namespace Opc.Ua
             if (!Utils.IsEqual(m_disabledMonitoredItemCount, value.m_disabledMonitoredItemCount)) return false;
             if (!Utils.IsEqual(m_monitoringQueueOverflowCount, value.m_monitoringQueueOverflowCount)) return false;
             if (!Utils.IsEqual(m_nextSequenceNumber, value.m_nextSequenceNumber)) return false;
-            if (!Utils.IsEqual(m_eventQueueOverFlowCount, value.m_eventQueueOverFlowCount)) return false;
+            if (!Utils.IsEqual(m_eventQueueOverflowCount, value.m_eventQueueOverflowCount)) return false;
 
             return true;
         }
@@ -65650,7 +70940,7 @@ namespace Opc.Ua
             clone.m_disabledMonitoredItemCount = (uint)Utils.Clone(this.m_disabledMonitoredItemCount);
             clone.m_monitoringQueueOverflowCount = (uint)Utils.Clone(this.m_monitoringQueueOverflowCount);
             clone.m_nextSequenceNumber = (uint)Utils.Clone(this.m_nextSequenceNumber);
-            clone.m_eventQueueOverFlowCount = (uint)Utils.Clone(this.m_eventQueueOverFlowCount);
+            clone.m_eventQueueOverflowCount = (uint)Utils.Clone(this.m_eventQueueOverflowCount);
 
             return clone;
         }
@@ -65687,7 +70977,7 @@ namespace Opc.Ua
         private uint m_disabledMonitoredItemCount;
         private uint m_monitoringQueueOverflowCount;
         private uint m_nextSequenceNumber;
-        private uint m_eventQueueOverFlowCount;
+        private uint m_eventQueueOverflowCount;
         #endregion
     }
 
