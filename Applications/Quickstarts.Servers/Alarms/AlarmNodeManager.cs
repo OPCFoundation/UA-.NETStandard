@@ -762,11 +762,11 @@ namespace Alarms
 
                 MethodState method = null;
 
+                // check for valid handle.
+                NodeHandle initialHandle = GetManagerHandle(systemContext, methodToCall.ObjectId, operationCache);
+
                 lock (Lock)
                 {
-                    // check for valid handle.
-                    NodeHandle initialHandle = GetManagerHandle(systemContext, methodToCall.ObjectId, operationCache);
-
                     if (initialHandle == null)
                     {
                         if (ackConfirmMethod)
