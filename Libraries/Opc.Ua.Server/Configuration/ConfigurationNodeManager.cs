@@ -675,7 +675,15 @@ namespace Opc.Ua.Server
                     // give the client some time to receive the response
                     // before the certificate update may disconnect all sessions
                     await Task.Delay(1000).ConfigureAwait(false);
-                    await m_configuration.CertificateValidator.UpdateCertificateAsync(m_configuration.SecurityConfiguration).ConfigureAwait(false);
+                    try
+                    {
+                        await m_configuration.CertificateValidator.UpdateCertificateAsync(m_configuration.SecurityConfiguration).ConfigureAwait(false);
+                    }
+                    catch (Exception ex)
+                    {
+                        Utils.LogCritical(ex, "Failed to sucessfully Apply Changes: Error updating application instance certificates. Server could be in faulted state.");
+                        throw;
+                    }
                 }
                 );
             }
