@@ -434,7 +434,7 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Closes the specifed session.
+        /// Closes the specified session.
         /// </summary>
         /// <remarks>
         /// This method should not throw an exception if the session no longer exists.

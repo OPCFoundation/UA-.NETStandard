@@ -51,7 +51,7 @@ namespace Opc.Ua.Client
     public delegate void NotificationEventHandler(ISession session, NotificationEventArgs e);
 
     /// <summary>
-    /// The delegate used to receive pubish error notifications.
+    /// The delegate used to receive publish error notifications.
     /// </summary>
     public delegate void PublishErrorEventHandler(ISession session, PublishErrorEventArgs e);
 
@@ -935,7 +935,7 @@ namespace Opc.Ua.Client
 
         /// <summary>
         /// Execute browse and, if necessary, browse next in one service call.
-        /// Takes care of BadNoContinuationPoint and BadInvalidContnuationPoint status codes.
+        /// Takes care of BadNoContinuationPoint and BadInvalidContinuationPoint status codes.
         /// </summary>
         void ManagedBrowse(
             RequestHeader requestHeader,

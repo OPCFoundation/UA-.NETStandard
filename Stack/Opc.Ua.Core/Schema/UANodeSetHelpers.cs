@@ -380,7 +380,7 @@ namespace Opc.Ua.Export
 
             this.Items = nodes;
 
-            // recusively process children.
+            // recursively process children.
             List<BaseInstanceState> children = new List<BaseInstanceState>();
             node.GetChildren(context, children);
 

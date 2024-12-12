@@ -110,7 +110,7 @@ namespace Opc.Ua
 
         /// <summary>
         /// Indicates the max number of channels that can be created by the listener.
-        /// 0 indictates no limit.
+        /// 0 indicates no limit.
         /// </summary>
         public int MaxChannelCount
         {

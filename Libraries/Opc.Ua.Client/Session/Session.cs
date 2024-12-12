@@ -1618,7 +1618,7 @@ namespace Opc.Ua.Client
                     );
 
                 // add the server capability MaxContinuationPointPerBrowse. Add further capabilities
-                // later (when support form them will be implemented and in a more generic fashion)
+                // later (when support for them will be implemented and in a more generic fashion)
                 nodeIds.Add(VariableIds.Server_ServerCapabilities_MaxBrowseContinuationPoints);
                 int maxBrowseContinuationPointIndex = nodeIds.Count - 1;
 
@@ -6846,7 +6846,7 @@ namespace Opc.Ua.Client
     #region PublishSequenceNumbersToAcknowledgeEventArgs Class
     /// <summary>
     /// Represents the event arguments provided when publish response
-    /// sequence numbers are about to be achknoledged with a publish request.
+    /// sequence numbers are about to be ackknowledged with a publish request.
     /// </summary>
     /// <remarks>
     /// A callee can defer an acknowledge to the next publish request by

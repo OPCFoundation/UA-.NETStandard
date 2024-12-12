@@ -72,7 +72,7 @@ namespace Opc.Ua.PubSub.Configuration
                 }
                 else
                 {
-                    // compare fileds
+                    // compare fields
                     for (int i = 0; i < oldMetaData.Fields.Count; i++)
                     {
                         /*If at least one Property value of a DataSetMetaData field changes, the MajorVersion shall be updated.*/
