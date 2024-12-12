@@ -120,7 +120,7 @@ namespace Opc.Ua
 
         /// <summary>
         /// Indicates if Http listener requires mutual TLS
-        /// Handled only by HttpsTransportListner
+        /// Handled only by HttpsTransportListener
         /// In case true, the client should provide it's own valid TLS certificate to the TLS layer for the connection to succeed.
         /// </summary>
         public bool HttpsMutualTls

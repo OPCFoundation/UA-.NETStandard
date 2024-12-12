@@ -6874,7 +6874,7 @@ namespace Opc.Ua.Client
         /// The acknowledgements which are sent with the next publish request.
         /// </summary>
         /// <remarks>
-        /// A client may also chose to remove an acknowledgement from this list to add it back
+        /// A client may also choose to remove an acknowledgement from this list to add it back
         /// to the list in a subsequent callback when the request is fully processed.
         /// </remarks>
         public SubscriptionAcknowledgementCollection AcknowledgementsToSend => m_acknowledgementsToSend;

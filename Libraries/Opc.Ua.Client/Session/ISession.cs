@@ -102,7 +102,7 @@ namespace Opc.Ua.Client
         /// Raised when a publish request is about to acknowledge sequence numbers.
         /// </summary>
         /// <remarks>
-        /// If the client chose to defer acknowledge of sequence numbers, it is responsible
+        /// If the client chooses to defer acknowledge of sequence numbers, it is responsible
         /// to transfer these <see cref="SubscriptionAcknowledgement"/> to the deferred list.
         /// </remarks>
         event PublishSequenceNumbersToAcknowledgeEventHandler PublishSequenceNumbersToAcknowledge;
