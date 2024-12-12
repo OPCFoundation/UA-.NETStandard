@@ -20,6 +20,7 @@ namespace Opc.Ua
     public partial class SessionChannel
     {
         #region Constructors
+
         /// <summary>
         /// Creates a new transport channel that supports the ISessionChannel service contract.
         /// </summary>
@@ -29,8 +30,7 @@ namespace Opc.Ua
         /// <param name="clientCertificate">The client certificate.</param>
         /// <param name="messageContext">The message context to use when serializing the messages.</param>
         /// <returns></returns>
-        public static ITransportChannel Create(
-            ApplicationConfiguration configuration,
+        public static ITransportChannel Create(ApplicationConfiguration configuration,
             EndpointDescription description,
             EndpointConfiguration endpointConfiguration,
             X509Certificate2 clientCertificate,
@@ -49,8 +49,7 @@ namespace Opc.Ua
         /// <param name="clientCertificateChain">The client certificate chain.</param>
         /// <param name="messageContext">The message context to use when serializing the messages.</param>
         /// <returns></returns>
-        public static ITransportChannel Create(
-            ApplicationConfiguration configuration,
+        public static ITransportChannel Create(ApplicationConfiguration configuration,
             EndpointDescription description,
             EndpointConfiguration endpointConfiguration,
             X509Certificate2 clientCertificate,
@@ -80,8 +79,7 @@ namespace Opc.Ua
         /// <param name="clientCertificateChain">The client certificate chain.</param>
         /// <param name="messageContext">The message context to use when serializing the messages.</param>
         /// <returns></returns>
-        public static ITransportChannel Create(
-            ApplicationConfiguration configuration,
+        public static ITransportChannel Create(ApplicationConfiguration configuration,
             ITransportWaitingConnection connection,
             EndpointDescription description,
             EndpointConfiguration endpointConfiguration,
