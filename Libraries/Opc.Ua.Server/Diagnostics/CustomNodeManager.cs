@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Reflection;
+using System.Threading;
 
 
 namespace Opc.Ua.Server
@@ -4628,32 +4629,22 @@ namespace Opc.Ua.Server
         /// </summary>
         protected NodeState LookupNodeInComponentCache(ISystemContext context, NodeHandle handle)
         {
-            lock (Lock)
+            bool componentPathExists = !string.IsNullOrEmpty(handle.ComponentPath);
+            NodeId nodeId = componentPathExists ? handle.RootId : handle.NodeId;
+
+            if (m_componentCache?.TryGetValue(nodeId, out CacheEntry entry) == true)
             {
-                if (m_componentCache == null)
+                if (componentPathExists)
                 {
-                    return null;
-                }
-
-                CacheEntry entry = null;
-
-                if (!String.IsNullOrEmpty(handle.ComponentPath))
-                {
-                    if (m_componentCache.TryGetValue(handle.RootId, out entry))
-                    {
-                        return entry.Entry.FindChildBySymbolicName(context, handle.ComponentPath);
-                    }
+                    return entry.Entry.FindChildBySymbolicName(context, handle.ComponentPath);
                 }
                 else
                 {
-                    if (m_componentCache.TryGetValue(handle.NodeId, out entry))
-                    {
-                        return entry.Entry;
-                    }
+                    return entry.Entry;
                 }
-
-                return null;
             }
+
+            return null;
         }
 
         /// <summary>
@@ -4661,32 +4652,18 @@ namespace Opc.Ua.Server
         /// </summary>
         protected void RemoveNodeFromComponentCache(ISystemContext context, NodeHandle handle)
         {
-            lock (Lock)
+            bool componentPathExists = !string.IsNullOrEmpty(handle.ComponentPath);
+            NodeId nodeId = componentPathExists ? handle.RootId : handle.NodeId;
+
+            if (m_componentCache?.TryGetValue(nodeId, out CacheEntry entry) == true)
             {
-                if (handle == null)
+                lock (Lock)
                 {
-                    return;
-                }
+                    int refCount = Interlocked.Decrement(ref entry.RefCount);
 
-                if (m_componentCache != null)
-                {
-                    NodeId nodeId = handle.NodeId;
-
-                    if (!String.IsNullOrEmpty(handle.ComponentPath))
+                    if (refCount == 0)
                     {
-                        nodeId = handle.RootId;
-                    }
-
-                    CacheEntry entry = null;
-
-                    if (m_componentCache.TryGetValue(nodeId, out entry))
-                    {
-                        entry.RefCount--;
-
-                        if (entry.RefCount == 0)
-                        {
-                            m_componentCache.Remove(nodeId);
-                        }
+                        m_componentCache.Remove(nodeId);
                     }
                 }
             }
@@ -4697,65 +4674,52 @@ namespace Opc.Ua.Server
         /// </summary>
         protected NodeState AddNodeToComponentCache(ISystemContext context, NodeHandle handle, NodeState node)
         {
-            lock (Lock)
+            if (handle == null)
             {
-                if (handle == null)
-                {
-                    return node;
-                }
-
-                if (m_componentCache == null)
-                {
-                    m_componentCache = new Dictionary<NodeId, CacheEntry>();
-                }
-
-                // check if a component is actually specified.
-                if (!String.IsNullOrEmpty(handle.ComponentPath))
-                {
-                    CacheEntry entry = null;
-
-                    if (m_componentCache.TryGetValue(handle.RootId, out entry))
-                    {
-                        entry.RefCount++;
-
-                        if (!String.IsNullOrEmpty(handle.ComponentPath))
-                        {
-                            return entry.Entry.FindChildBySymbolicName(context, handle.ComponentPath);
-                        }
-
-                        return entry.Entry;
-                    }
-
-                    NodeState root = node.GetHierarchyRoot();
-
-                    if (root != null)
-                    {
-                        entry = new CacheEntry();
-                        entry.RefCount = 1;
-                        entry.Entry = root;
-                        m_componentCache.Add(handle.RootId, entry);
-                    }
-                }
-
-                // simply add the node to the cache.
-                else
-                {
-                    CacheEntry entry = null;
-
-                    if (m_componentCache.TryGetValue(handle.NodeId, out entry))
-                    {
-                        entry.RefCount++;
-                        return entry.Entry;
-                    }
-
-                    entry = new CacheEntry();
-                    entry.RefCount = 1;
-                    entry.Entry = node;
-                    m_componentCache.Add(handle.NodeId, entry);
-                }
-
                 return node;
             }
+
+            if (m_componentCache == null)
+            {
+                m_componentCache = new NodeIdDictionary<CacheEntry>();
+            }
+
+            // check if a component is actually specified.
+            if (!string.IsNullOrEmpty(handle.ComponentPath))
+            {
+                CacheEntry cacheEntry = m_componentCache.AddOrUpdate(
+                    handle.RootId,
+                    new CacheEntry {
+                        RefCount = 1,
+                        Entry = node.GetHierarchyRoot()
+                    },
+                    (nodeId, entry) => {
+                        entry.RefCount++;
+                        return entry;
+                    }
+                );
+
+                return cacheEntry.Entry.FindChildBySymbolicName(context, handle.ComponentPath);
+            }
+            // simply add the node to the cache.
+            else
+            {
+                m_componentCache.AddOrUpdate(
+                    handle.NodeId,
+                    new CacheEntry {
+                        RefCount = 1,
+                        Entry = node
+                    },
+                    (nodeId, entry) => {
+                        entry.RefCount++;
+                        return entry;
+                    }
+                );
+
+            }
+
+            return node;
+
         }
         #endregion
 
@@ -4766,7 +4730,7 @@ namespace Opc.Ua.Server
         private IReadOnlyList<string> m_namespaceUris;
         private IReadOnlyList<ushort> m_namespaceIndexes;
         private NodeIdDictionary<MonitoredNode2> m_monitoredNodes;
-        private Dictionary<NodeId, CacheEntry> m_componentCache;
+        private NodeIdDictionary<CacheEntry> m_componentCache;
         private NodeIdDictionary<NodeState> m_predefinedNodes;
         private List<NodeState> m_rootNotifiers;
         private uint m_maxQueueSize;
