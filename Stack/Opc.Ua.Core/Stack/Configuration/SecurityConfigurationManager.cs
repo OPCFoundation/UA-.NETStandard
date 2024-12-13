@@ -88,11 +88,17 @@ namespace Opc.Ua.Security
             {
                 FileStream reader = File.Open(configFilePath, FileMode.Open, FileAccess.Read, FileShare.Read);
 
-
                 try
                 {
                     byte[] data = new byte[reader.Length];
-                    reader.Read(data, 0, (int)reader.Length);
+                    int bytesRead = reader.Read(data, 0, (int)reader.Length);
+                    if (reader.Length != bytesRead)
+                    {
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadNotReadable,
+                            "Cannot read all bytes of the configuration file: {0}<{1}",
+                            bytesRead, reader.Length);
+                    }
 
                     // find the SecuredApplication element in the file.
                     if (data.ToString().Contains("SecuredApplication"))
