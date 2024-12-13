@@ -30,6 +30,11 @@ namespace Opc.Ua
         /// The documentation for the node that is saved in the NodeSet.
         /// </summary>
         public string NodeSetDocumentation { get; set; }
+
+        /// <summary>
+        /// The documentation for the node that is saved in the NodeSet.
+        /// </summary>
+        public bool DesignToolOnly { get; set; }
     }
 
     public partial class StructureDefinition

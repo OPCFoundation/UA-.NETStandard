@@ -36,7 +36,7 @@
 >
   <xs:annotation>
     <xs:appinfo>
-      <Model ModelUri="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd" Version="1.05.02" PublicationDate="2022-10-01T00:00:00Z" />
+      <Model ModelUri="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd" Version="1.05.04" PublicationDate="2024-12-01T00:00:00Z" />
     </xs:appinfo>
   </xs:annotation>
 
@@ -175,7 +175,7 @@
       <xs:element name="Model" type="ModelTableEntry" minOccurs="0" maxOccurs="unbounded" />
     </xs:sequence>
   </xs:complexType>
-  
+
   <xs:simpleType name="ModelVersion">
     <xs:restriction base="xs:string" />
   </xs:simpleType>
@@ -231,9 +231,9 @@
   </xs:simpleType>
 
   <xs:simpleType name="ArrayDimensions">
-	<xs:restriction base="xs:token">
-	  <xs:pattern value="(([0-9]+,)*[0-9]+)?" />
-	</xs:restriction>
+    <xs:restriction base="xs:token">
+      <xs:pattern value="(([0-9]+,)*[0-9]+)?" />
+    </xs:restriction>
   </xs:simpleType>
 
   <xs:simpleType name="SymbolicName">
@@ -323,6 +323,7 @@
     <xs:complexContent>
       <xs:extension base="UANode">
         <xs:attribute name="ParentNodeId" type="NodeId" />
+        <xs:attribute name="DesignToolOnly" type="xs:boolean" default="false" />
       </xs:extension>
     </xs:complexContent>
   </xs:complexType>
@@ -442,7 +443,7 @@
       <xs:enumeration value="CodeGenerator" />
     </xs:restriction>
   </xs:simpleType>
-  
+
   <xs:complexType name="UADataType">
     <xs:complexContent>
       <xs:extension base="UAType">
@@ -462,7 +463,7 @@
     <xs:attribute name="SymbolicName" type="SymbolicName" use="optional" />
     <xs:attribute name="IsUnion" type="xs:boolean" default="false" />
     <xs:attribute name="IsOptionSet" type="xs:boolean" default="false" />
-    
+
     <!-- BaseType is obsolete and no longer used. Left in for backwards compatibility. -->
     <xs:attribute name="BaseType" type="QualifiedName" default="" />
   </xs:complexType>

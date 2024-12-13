@@ -121,6 +121,11 @@ namespace Opc.Ua
         /// <summary>
         /// The request used the UA XML encoding.
         /// </summary>
-        Xml
+        Xml,
+
+        /// <summary>
+        /// The request used the UA JSON encoding.
+        /// </summary>
+        Json
     }
 }
