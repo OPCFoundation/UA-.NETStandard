@@ -13,6 +13,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
@@ -653,7 +654,7 @@ namespace Opc.Ua.Bindings
                     throw new ServiceResultException(StatusCodes.BadNonceInvalid);
                 }
 
-                string implementation = String.Format(g_ImplementationString, m_socketFactory.Implementation);
+                string implementation = string.Format(CultureInfo.InvariantCulture, g_ImplementationString, m_socketFactory.Implementation);
 
                 // log security information.
                 if (State == TcpChannelState.Opening)

@@ -612,7 +612,7 @@ namespace Opc.Ua.Server
             NodeState node,
             List<LocalReference> referencesToRemove)
         {
-            if (m_predefinedNodes == null || !m_predefinedNodes.TryRemove(node.NodeId, out _))
+            if (!m_predefinedNodes?.TryRemove(node.NodeId, out _) == true)
             {
                 return;
             }
@@ -919,20 +919,20 @@ namespace Opc.Ua.Server
         /// </remarks>
         public virtual void AddReferences(IDictionary<NodeId, IList<IReference>> references)
         {
-
-            foreach (KeyValuePair<NodeId, IList<IReference>> current in references)
+            lock (Lock)
             {
-                // get the handle.
-                NodeHandle source = GetManagerHandle(m_systemContext, current.Key, null);
-
-                // only support external references to nodes that are stored in memory.
-                if (source?.Node == null || !source.Validated)
+                foreach (KeyValuePair<NodeId, IList<IReference>> current in references)
                 {
-                    continue;
-                }
+                    // get the handle.
+                    NodeHandle source = GetManagerHandle(m_systemContext, current.Key, null);
 
-                lock (Lock)
-                {
+                    // only support external references to nodes that are stored in memory.
+                    if (source?.Node == null || !source.Validated)
+                    {
+                        continue;
+                    }
+
+
                     // add reference to external target.
                     foreach (IReference reference in current.Value)
                     {
@@ -3456,17 +3456,17 @@ namespace Opc.Ua.Server
                 return;
             }
 
-
-            // validates the nodes (reads values from the underlying data source if required).
-            for (int ii = 0; ii < nodesToValidate.Count; ii++)
+            lock (Lock)
             {
-                NodeHandle handle = nodesToValidate[ii];
-
-                MonitoringFilterResult filterResult = null;
-                IMonitoredItem monitoredItem = null;
-
-                lock (Lock)
+                // validates the nodes (reads values from the underlying data source if required).
+                for (int ii = 0; ii < nodesToValidate.Count; ii++)
                 {
+                    NodeHandle handle = nodesToValidate[ii];
+
+                    MonitoringFilterResult filterResult = null;
+                    IMonitoredItem monitoredItem = null;
+
+
                     // validate node.
                     NodeState source = ValidateNode(systemContext, handle, operationCache);
 
@@ -3489,19 +3489,19 @@ namespace Opc.Ua.Server
                         ref globalIdCounter,
                         out filterResult,
                         out monitoredItem);
+
+                    // save any filter error details.
+                    filterErrors[handle.Index] = filterResult;
+
+                    if (ServiceResult.IsBad(errors[handle.Index]))
+                    {
+                        continue;
+                    }
+
+                    // save the monitored item.
+                    monitoredItems[handle.Index] = monitoredItem;
+                    createdItems.Add(monitoredItem);
                 }
-
-                // save any filter error details.
-                filterErrors[handle.Index] = filterResult;
-
-                if (ServiceResult.IsBad(errors[handle.Index]))
-                {
-                    continue;
-                }
-
-                // save the monitored item.
-                monitoredItems[handle.Index] = monitoredItem;
-                createdItems.Add(monitoredItem);
             }
 
             // do any post processing.

@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Threading;
 using Opc.Ua;
 using Opc.Ua.Server;
@@ -143,7 +144,7 @@ namespace Alarms
 
                     Type alarmControllerType = Type.GetType("Alarms.AlarmController");
                     int interval = 1000;
-                    string intervalString = interval.ToString();
+                    string intervalString = interval.ToString(CultureInfo.InvariantCulture);
 
                     int conditionTypeIndex = 0;
                     #endregion
@@ -765,20 +766,20 @@ namespace Alarms
                 // check for valid handle.
                 NodeHandle initialHandle = GetManagerHandle(systemContext, methodToCall.ObjectId, operationCache);
 
-                lock (Lock)
+                if (initialHandle == null)
                 {
-                    if (initialHandle == null)
+                    if (ackConfirmMethod)
                     {
-                        if (ackConfirmMethod)
-                        {
-                            // Mantis 6944
-                            errors[ii] = StatusCodes.BadNodeIdUnknown;
-                            methodToCall.Processed = true;
-                        }
-
-                        continue;
+                        // Mantis 6944
+                        errors[ii] = StatusCodes.BadNodeIdUnknown;
+                        methodToCall.Processed = true;
                     }
 
+                    continue;
+                }
+
+                lock (Lock)
+                {
                     // owned by this node manager.
                     methodToCall.Processed = true;
 
