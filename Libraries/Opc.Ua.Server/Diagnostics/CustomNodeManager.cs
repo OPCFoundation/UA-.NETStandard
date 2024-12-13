@@ -4663,7 +4663,8 @@ namespace Opc.Ua.Server
 
                     if (refCount == 0)
                     {
-                        m_componentCache.Remove(nodeId);
+                        //this will only remove the value if it did not change after retrieving from the dictionary
+                        m_componentCache.TryRemove(nodeId, entry);
                     }
                 }
             }
@@ -4694,7 +4695,7 @@ namespace Opc.Ua.Server
                         Entry = node.GetHierarchyRoot()
                     },
                     (nodeId, entry) => {
-                        entry.RefCount++;
+                        Interlocked.Increment(ref entry.RefCount);
                         return entry;
                     }
                 );
@@ -4711,7 +4712,7 @@ namespace Opc.Ua.Server
                         Entry = node
                     },
                     (nodeId, entry) => {
-                        entry.RefCount++;
+                        Interlocked.Increment(ref entry.RefCount);
                         return entry;
                     }
                 );
