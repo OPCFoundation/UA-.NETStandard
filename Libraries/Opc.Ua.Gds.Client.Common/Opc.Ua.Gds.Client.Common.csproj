@@ -3,7 +3,7 @@
   <PropertyGroup>
     <AssemblyName>Opc.Ua.Gds.Client.Common</AssemblyName>
     <TargetFrameworks>$(LibTargetFrameworks)</TargetFrameworks>
-    <PackageId>OPCFoundation.NetStandard.Opc.Ua.Gds.Client.Common</PackageId>
+    <PackageId>$(PackagePrefix).Opc.Ua.Gds.Client.Common</PackageId>
     <RootNamespace>Opc.Ua.Gds.Client</RootNamespace>
     <NoWarn>$(NoWarn);CS1591</NoWarn>
     <Description>OPC UA GDS Client Class Library</Description>

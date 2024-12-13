@@ -4,7 +4,7 @@
     <DefineConstants>$(DefineConstants);CLIENT_ASYNC</DefineConstants>
     <AssemblyName>Opc.Ua.Client</AssemblyName>
     <TargetFrameworks>$(LibTargetFrameworks)</TargetFrameworks>
-    <PackageId>OPCFoundation.NetStandard.Opc.Ua.Client</PackageId>
+    <PackageId>$(PackagePrefix).Opc.Ua.Client</PackageId>
     <RootNamespace>Opc.Ua.Client</RootNamespace>
     <Description>OPC UA Client Class Library</Description>
     <IsPackable>true</IsPackable>

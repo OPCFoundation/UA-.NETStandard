@@ -1073,7 +1073,7 @@ namespace Opc.Ua.Client.Tests
                 // get the part of the error message after the time stamp:
                 string msg = s.Substring(s.IndexOf("ManagedBrowse"));
                 // create error message from expected results
-                String expectedString = String.Format(
+                String expectedString = Utils.Format(
                     "ManagedBrowse: in pass {0}, {1} {2} occured with a status code {3}.",
                     pass,
                     expectedResults.ExpectedNumberOfBadNoCPSCs[pass],

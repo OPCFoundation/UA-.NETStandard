@@ -38,6 +38,7 @@ using Opc.Ua;
 using Opc.Ua.Server;
 using Opc.Ua.Sample;
 using System.Reflection;
+using System.Globalization;
 
 namespace MemoryBuffer
 {
@@ -234,7 +235,7 @@ namespace MemoryBuffer
                     }
 
                     // check range on offset.
-                    uint offset = Convert.ToUInt32(offsetText);
+                    uint offset = Convert.ToUInt32(offsetText, CultureInfo.InvariantCulture);
 
                     if (offset >= buffer.SizeInBytes.Value)
                     {
