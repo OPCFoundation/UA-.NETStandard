@@ -798,8 +798,9 @@ namespace Opc.Ua
 
             foreach (var certificateIdentifier in Configuration.SecurityConfiguration.ApplicationCertificates)
             {
-                // preload chain 
-                InstanceCertificateTypesProvider.LoadCertificateChainAsync(certificateIdentifier.Find(false).GetAwaiter().GetResult()).GetAwaiter().GetResult();
+                // preload chain
+                X509Certificate2 certificate = certificateIdentifier.Find(false).GetAwaiter().GetResult();
+                InstanceCertificateTypesProvider.LoadCertificateChainAsync(certificate).GetAwaiter().GetResult();
             }
 
             //update certificate in the endpoint descriptions
