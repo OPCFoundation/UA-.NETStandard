@@ -902,7 +902,8 @@ namespace Opc.Ua.Server
                 return null;
             }
 
-            if (m_predefinedNodes?.TryGetValue(nodeId, out NodeState node) == true)
+            NodeState node = null;
+            if (m_predefinedNodes?.TryGetValue(nodeId, out node) == true)
             {
                 var handle = new NodeHandle {
                     NodeId = nodeId,
