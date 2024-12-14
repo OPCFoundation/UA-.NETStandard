@@ -320,7 +320,8 @@ namespace Opc.Ua.Server
         /// </summary>
         public NodeState Find(NodeId nodeId)
         {
-            if (m_predefinedNodes?.TryGetValue(nodeId, out NodeState node) == true)
+            NodeState node = null;
+            if (m_predefinedNodes?.TryGetValue(nodeId, out node) == true)
             {
                 return node;
             }
@@ -571,30 +572,32 @@ namespace Opc.Ua.Server
             {
                 AddTypesToTypeTree(type);
             }
-            // update the root notifiers.
-            if (m_rootNotifiers != null)
+            lock (Lock)
             {
-                for (int ii = 0; ii < m_rootNotifiers.Count; ii++)
+                // update the root notifiers.
+                if (m_rootNotifiers != null)
                 {
-                    if (m_rootNotifiers[ii].NodeId == activeNode.NodeId)
+                    for (int ii = 0; ii < m_rootNotifiers.Count; ii++)
                     {
-                        m_rootNotifiers[ii] = activeNode;
-
-                        // need to prevent recursion with the server object.
-                        if (activeNode.NodeId != ObjectIds.Server)
+                        if (m_rootNotifiers[ii].NodeId == activeNode.NodeId)
                         {
-                            activeNode.OnReportEvent = OnReportEvent;
+                            m_rootNotifiers[ii] = activeNode;
 
-                            if (!activeNode.ReferenceExists(ReferenceTypeIds.HasNotifier, true, ObjectIds.Server))
+                            // need to prevent recursion with the server object.
+                            if (activeNode.NodeId != ObjectIds.Server)
                             {
-                                activeNode.AddReference(ReferenceTypeIds.HasNotifier, true, ObjectIds.Server);
+                                activeNode.OnReportEvent = OnReportEvent;
+
+                                if (!activeNode.ReferenceExists(ReferenceTypeIds.HasNotifier, true, ObjectIds.Server))
+                                {
+                                    activeNode.AddReference(ReferenceTypeIds.HasNotifier, true, ObjectIds.Server);
+                                }
                             }
+                            break;
                         }
-                        break;
                     }
                 }
             }
-
 
             List<BaseInstanceState> children = new List<BaseInstanceState>();
             activeNode.GetChildren(context, children);
@@ -3136,31 +3139,34 @@ namespace Opc.Ua.Server
         /// </remarks>
         protected virtual void AddRootNotifier(NodeState notifier)
         {
-            if (m_rootNotifiers == null)
+            lock (Lock)
             {
-                m_rootNotifiers = new List<NodeState>();
-            }
-
-            bool mustAdd = true;
-
-            for (int ii = 0; ii < m_rootNotifiers.Count; ii++)
-            {
-                if (Object.ReferenceEquals(notifier, m_rootNotifiers[ii]))
+                if (m_rootNotifiers == null)
                 {
-                    return;
+                    m_rootNotifiers = new List<NodeState>();
                 }
 
-                if (m_rootNotifiers[ii].NodeId == notifier.NodeId)
-                {
-                    m_rootNotifiers[ii] = notifier;
-                    mustAdd = false;
-                    break;
-                }
-            }
+                bool mustAdd = true;
 
-            if (mustAdd)
-            {
-                m_rootNotifiers.Add(notifier);
+                for (int ii = 0; ii < m_rootNotifiers.Count; ii++)
+                {
+                    if (Object.ReferenceEquals(notifier, m_rootNotifiers[ii]))
+                    {
+                        return;
+                    }
+
+                    if (m_rootNotifiers[ii].NodeId == notifier.NodeId)
+                    {
+                        m_rootNotifiers[ii] = notifier;
+                        mustAdd = false;
+                        break;
+                    }
+                }
+
+                if (mustAdd)
+                {
+                    m_rootNotifiers.Add(notifier);
+                }
             }
 
             // need to prevent recursion with the server object.
@@ -4657,15 +4663,12 @@ namespace Opc.Ua.Server
 
             if (m_componentCache?.TryGetValue(nodeId, out CacheEntry entry) == true)
             {
-                lock (Lock)
-                {
-                    int refCount = Interlocked.Decrement(ref entry.RefCount);
+                int refCount = Interlocked.Decrement(ref entry.RefCount);
 
-                    if (refCount == 0)
-                    {
-                        //this will only remove the value if it did not change after retrieving from the dictionary
-                        m_componentCache.TryRemove(nodeId, entry);
-                    }
+                if (refCount == 0)
+                {
+                    //this will only remove the value if it did not change after retrieving from the dictionary
+                    m_componentCache.TryRemove(nodeId, entry);
                 }
             }
         }
