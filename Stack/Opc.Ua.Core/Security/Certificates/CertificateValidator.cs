@@ -1419,12 +1419,9 @@ namespace Opc.Ua
             {
                 int publicKeySize = X509Utils.GetPublicKeySize(certificate);
                 bool isInvalid = (certificate.SignatureAlgorithm.Value == Oids.ECDsaWithSha256 &&
-                                  publicKeySize < 256) ||
+                                  publicKeySize > 256) ||
                                  (certificate.SignatureAlgorithm.Value == Oids.ECDsaWithSha384 &&
-                                  publicKeySize < 384) ||
-                                 (certificate.SignatureAlgorithm.Value == Oids.ECDsaWithSha512 &&
-                                  publicKeySize < 512);
-
+                                  publicKeySize > 384);
                 if (isInvalid)
                 {
                     sresult = new ServiceResult(StatusCodes.BadCertificatePolicyCheckFailed,
