@@ -4670,7 +4670,7 @@ namespace Opc.Ua.Server
 
                 if (refCount == 0)
                 {
-                    //this will only remove the value if it did not change after retrieving from the dictionary
+                    //this will only remove the value if it was not changed by another thread
                     m_componentCache.TryRemove(nodeId, entry);
                 }
             }
@@ -4722,7 +4722,6 @@ namespace Opc.Ua.Server
                         return entry;
                     }
                 );
-
             }
 
             return node;
