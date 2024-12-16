@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -499,7 +499,7 @@ namespace Opc.Ua.Configuration
 
         #region Private Methods
         /// <summary>
-        /// 
+        ///
         /// </summary>
         /// <param name="id"></param>
         /// <param name="silent"></param>
@@ -715,7 +715,7 @@ namespace Opc.Ua.Configuration
                 configuration.CertificateValidator.CertificateValidation -= certValidator.OnCertificateValidation;
             }
 
-            // check key size 
+            // check key size
             int keySize = X509Utils.GetPublicKeySize(certificate);
             if (minimumKeySize > keySize)
             {
@@ -911,6 +911,7 @@ namespace Opc.Ua.Configuration
                 throw new ServiceResultException(StatusCodes.BadConfigurationError, "The Ecc certificate type is not supported.");
 #else
                 ECCurve curve = default(ECCurve);
+                HashAlgorithmName hashAlgorithm = HashAlgorithmName.SHA256;
                 if (id.CertificateType == ObjectTypeIds.EccApplicationCertificateType ||
                     id.CertificateType == ObjectTypeIds.EccNistP256ApplicationCertificateType)
                 {
@@ -919,6 +920,7 @@ namespace Opc.Ua.Configuration
                 else if (id.CertificateType == ObjectTypeIds.EccNistP384ApplicationCertificateType)
                 {
                     curve = ECCurve.NamedCurves.nistP384;
+                    hashAlgorithm = HashAlgorithmName.SHA384;
                 }
                 else if (id.CertificateType == ObjectTypeIds.EccBrainpoolP256r1ApplicationCertificateType)
                 {
@@ -927,6 +929,7 @@ namespace Opc.Ua.Configuration
                 else if (id.CertificateType == ObjectTypeIds.EccBrainpoolP384r1ApplicationCertificateType)
                 {
                     curve = ECCurve.NamedCurves.brainpoolP384r1;
+                    hashAlgorithm = HashAlgorithmName.SHA384;
                 }
 #if CURVE25519
                 else if (id.CertificateType == ObjectTypeIds.EccCurve25519ApplicationCertificateType)
@@ -944,6 +947,7 @@ namespace Opc.Ua.Configuration
                 }
 
                 id.Certificate = builder
+                    .SetHashAlgorithm(hashAlgorithm)
                     .SetECCurve(curve)
                     .CreateForECDsa();
 

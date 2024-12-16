@@ -30,7 +30,7 @@ namespace Opc.Ua
     /// </summary>
     public class CertificateValidator : ICertificateValidator
     {
-        // default number of rejected certificates for history 
+        // default number of rejected certificates for history
         const int kDefaultMaxRejectedCertificates = 5;
 
         #region Constructors
@@ -1412,6 +1412,24 @@ namespace Opc.Ua
             {
                 sresult = new ServiceResult(StatusCodes.BadCertificatePolicyCheckFailed,
                     null, null, "SHA1 signed certificates are not trusted.", null, sresult);
+            }
+
+            // check if certificate signature algorithm length is sufficient
+            if (isECDsaSignature)
+            {
+                int publicKeySize = X509Utils.GetPublicKeySize(certificate);
+                bool isInvalid = (certificate.SignatureAlgorithm.Value == Oids.ECDsaWithSha256 &&
+                                  publicKeySize < 256) ||
+                                 (certificate.SignatureAlgorithm.Value == Oids.ECDsaWithSha384 &&
+                                  publicKeySize < 384) ||
+                                 (certificate.SignatureAlgorithm.Value == Oids.ECDsaWithSha512 &&
+                                  publicKeySize < 512);
+
+                if (isInvalid)
+                {
+                    sresult = new ServiceResult(StatusCodes.BadCertificatePolicyCheckFailed,
+                        null, null, "Certificate doesn't meet minimum key length requirement.", null, sresult);
+                }
             }
 
             if (!isECDsaSignature)
