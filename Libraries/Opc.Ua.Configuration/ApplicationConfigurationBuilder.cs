@@ -145,7 +145,7 @@ namespace Opc.Ua.Configuration
                     StorePath = DefaultCertificateStorePath(TrustlistType.IssuerUser, pkiRoot)
                 },
                 // rejected store
-                RejectedCertificateStore = new CertificateTrustList() {
+                RejectedCertificateStore = new CertificateStoreIdentifier() {
                     StoreType = rejectedRootType,
                     StorePath = DefaultCertificateStorePath(TrustlistType.Rejected, rejectedRoot)
                 },
