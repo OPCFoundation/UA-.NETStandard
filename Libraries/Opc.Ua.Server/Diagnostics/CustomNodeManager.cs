@@ -4663,7 +4663,8 @@ namespace Opc.Ua.Server
             bool componentPathExists = !string.IsNullOrEmpty(handle.ComponentPath);
             NodeId nodeId = componentPathExists ? handle.RootId : handle.NodeId;
 
-            if (m_componentCache?.TryGetValue(nodeId, out CacheEntry entry) == true)
+            CacheEntry entry = null;
+            if (m_componentCache?.TryGetValue(nodeId, out entry) == true)
             {
                 int refCount = Interlocked.Decrement(ref entry.RefCount);
 
