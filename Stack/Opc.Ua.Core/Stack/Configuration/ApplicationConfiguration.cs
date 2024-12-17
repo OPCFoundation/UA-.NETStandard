@@ -442,7 +442,7 @@ namespace Opc.Ua
             // load private keys
             foreach (var applicationCertificate in SecurityConfiguration.ApplicationCertificates)
             {
-                await applicationCertificate.LoadPrivateKeyEx(SecurityConfiguration.CertificatePasswordProvider).ConfigureAwait(false);
+                await applicationCertificate.LoadPrivateKeyEx(SecurityConfiguration.CertificatePasswordProvider, ApplicationUri).ConfigureAwait(false);
             }
 
             Func<string> generateDefaultUri = () => {
