@@ -174,6 +174,7 @@ namespace Opc.Ua.Bindings
         {
             if (disposing)
             {
+                DiscardTokens();
 #if ECC_SUPPORT
                 if (m_localNonce != null)
                 {

@@ -218,7 +218,15 @@ namespace Opc.Ua.Client.Tests
         /// </summary>
         public async Task<ISession> ConnectAsync(Uri url, string securityProfile, EndpointDescriptionCollection endpoints = null, IUserIdentity userIdentity = null)
         {
-            return await ConnectAsync(await GetEndpointAsync(url, securityProfile, endpoints).ConfigureAwait(false), userIdentity).ConfigureAwait(false);
+            string uri = url.AbsoluteUri;
+            Uri getEndpointsUrl = url;
+            if (uri.StartsWith(Utils.UriSchemeHttp, StringComparison.Ordinal) ||
+                Utils.IsUriHttpsScheme(uri))
+            {
+                getEndpointsUrl = CoreClientUtils.GetDiscoveryUrl(uri);
+            }
+            
+            return await ConnectAsync(await GetEndpointAsync(getEndpointsUrl, securityProfile, endpoints).ConfigureAwait(false), userIdentity).ConfigureAwait(false);
         }
 
         /// <summary>

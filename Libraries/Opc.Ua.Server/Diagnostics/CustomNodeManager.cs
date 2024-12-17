@@ -3021,16 +3021,16 @@ namespace Opc.Ua.Server
             List<ServiceResult> argumentErrors = new List<ServiceResult>();
             VariantCollection outputArguments = new VariantCollection();
 
-            ServiceResult error = method.Call(
+            ServiceResult callResult = method.Call(
                 context,
                 methodToCall.ObjectId,
                 methodToCall.InputArguments,
                 argumentErrors,
                 outputArguments);
 
-            if (ServiceResult.IsBad(error))
+            if (ServiceResult.IsBad(callResult))
             {
-                return error;
+                return callResult;
             }
 
             // check for argument errors.
@@ -3085,7 +3085,8 @@ namespace Opc.Ua.Server
             // return output arguments.
             result.OutputArguments = outputArguments;
 
-            return ServiceResult.Good;
+            // return the actual result of the original call
+            return callResult;
         }
 
 
@@ -3752,7 +3753,7 @@ namespace Opc.Ua.Server
         /// <returns></returns>
         public ServiceResult ValidateRolePermissions(OperationContext operationContext, NodeId nodeId, PermissionType requestedPermission)
         {
-            if (operationContext.Session == null || requestedPermission == PermissionType.None)
+            if (requestedPermission == PermissionType.None)
             {
                 // no permission is required hence the validation passes.
                 return StatusCodes.Good;

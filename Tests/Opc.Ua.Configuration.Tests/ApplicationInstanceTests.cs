@@ -366,7 +366,7 @@ namespace Opc.Ua.Configuration.Tests
             {
                 // store public key in trusted store
                 var rawData = applicationCertificate.Certificate.RawData;
-                await store.Add(new X509Certificate2(rawData)).ConfigureAwait(false);
+                await store.Add(X509CertificateLoader.LoadCertificate(rawData)).ConfigureAwait(false);
             }
 
             if (deleteAfterUse)
@@ -475,7 +475,7 @@ namespace Opc.Ua.Configuration.Tests
                     applicationCertificate.StoreType,
                     applicationCertificate.StorePath
                 );
-                publicKey = new X509Certificate2(testCert.RawData);
+                publicKey = X509CertificateLoader.LoadCertificate(testCert.RawData);
             }
 
             using (publicKey)
@@ -568,7 +568,7 @@ namespace Opc.Ua.Configuration.Tests
                     applicationCertificate.StoreType,
                     applicationCertificate.StorePath
                     );
-                publicKey = new X509Certificate2(testCert.RawData);
+                publicKey = X509CertificateLoader.LoadCertificate(testCert.RawData);
             }
 
             using (publicKey)
@@ -774,7 +774,7 @@ namespace Opc.Ua.Configuration.Tests
 
                 var result = new X509Certificate2Collection {
                     appCert,
-                    new X509Certificate2(rootCA.RawData)
+                    X509CertificateLoader.LoadCertificate(rootCA.RawData)
                 };
 
                 return result;
