@@ -1080,11 +1080,8 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// 
+        /// Determines whether an event can be sent with SupportsFilteredRetain in consideration.
         /// </summary>
-        /// <param name="context"></param>
-        /// <param name="filter"></param>
-        /// <param name="instance"></param>
         /// <returns></returns>
         protected bool CanSendFilteredAlarm(FilterContext context, EventFilter filter, IFilterTarget instance)
         {
@@ -1156,12 +1153,12 @@ namespace Opc.Ua.Server
 
         private HashSet<string> GetFilteredRetainConditionIds()
         {
-            if (FilteredRetainConditionIds == null)
+            if (m_filteredRetainConditionIds == null)
             {
-                FilteredRetainConditionIds = new HashSet<string>();
+                m_filteredRetainConditionIds = new HashSet<string>();
             }
 
-            return FilteredRetainConditionIds;
+            return m_filteredRetainConditionIds;
         }
 
 
@@ -1959,7 +1956,7 @@ namespace Opc.Ua.Server
         private IAggregateCalculator m_calculator;
         private bool m_triggered;
         private bool m_resendData;
-        HashSet<string> FilteredRetainConditionIds = null;
+        private HashSet<string> m_filteredRetainConditionIds = null;
 
 
         #endregion
