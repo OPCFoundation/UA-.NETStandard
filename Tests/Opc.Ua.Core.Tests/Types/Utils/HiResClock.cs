@@ -98,7 +98,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         }
 
         /// <summary>
-        /// Validate tick counts forward only and has at least one tick per millsecond resolution.
+        /// Validate tick counts forward only and has at least one tick per millisecond resolution.
         /// </summary>
         [Theory, Order(200)]
         public void HiResClockTickCount(bool disabled)

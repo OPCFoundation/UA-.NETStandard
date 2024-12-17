@@ -149,7 +149,7 @@ namespace Opc.Ua
 
         #region Serialization Functions
         /// <summary>
-        /// Exports a copt of the node to a node table.
+        /// Exports a copy of the node to a node table.
         /// </summary>
         /// <param name="context">The context.</param>
         /// <param name="node">The node.</param>

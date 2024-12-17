@@ -110,7 +110,7 @@ namespace Opc.Ua
 
         /// <summary>
         /// Indicates the max number of channels that can be created by the listener.
-        /// 0 indictates no limit.
+        /// 0 indicates no limit.
         /// </summary>
         public int MaxChannelCount
         {
@@ -120,7 +120,7 @@ namespace Opc.Ua
 
         /// <summary>
         /// Indicates if Http listener requires mutual TLS
-        /// Handled only by HttpsTransportListner
+        /// Handled only by HttpsTransportListener
         /// In case true, the client should provide it's own valid TLS certificate to the TLS layer for the connection to succeed.
         /// </summary>
         public bool HttpsMutualTls

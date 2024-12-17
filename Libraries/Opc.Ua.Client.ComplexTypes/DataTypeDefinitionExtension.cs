@@ -117,7 +117,7 @@ namespace Opc.Ua.Client.ComplexTypes
             if (isUnionType && hasBitField)
             {
                 throw new DataTypeNotSupportedException(
-                    "The structure definition combines a Union and a bit filed, both of which are not supported in a single structure.");
+                    "The structure definition combines a Union and a bit field, both of which are not supported in a single structure.");
             }
 
             if (isUnionType)

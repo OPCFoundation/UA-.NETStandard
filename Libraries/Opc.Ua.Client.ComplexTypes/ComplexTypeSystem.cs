@@ -277,7 +277,7 @@ namespace Opc.Ua.Client.ComplexTypes
 
         /// <summary>
         /// Get the data type definition and dependent definitions for a data type node id.
-        /// Recursive through the cache to find all dependent types for strutures fields
+        /// Recursive through the cache to find all dependent types for structures fields
         /// contained in the cache.
         /// </summary>
         public NodeIdDictionary<DataTypeDefinition> GetDataTypeDefinitionsForDataType(ExpandedNodeId dataTypeId)

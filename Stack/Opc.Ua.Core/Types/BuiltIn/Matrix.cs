@@ -265,14 +265,14 @@ namespace Opc.Ua
         #region Helper methods
 
         /// <summary>
-        /// A function that performes a validation on a given index into the dimensions array
+        /// A function that performs a validation on a given index into the dimensions array
         /// </summary>
         /// <param name="idx">The index into the dimensions array</param>
         /// <param name="dimensions">The dimensions collection describing a matrix</param>
         /// <returns>The validation result</returns>
         public delegate bool ValidateDimensionsFunction(int idx, Int32Collection dimensions);
 
-        #region Publis Static
+        #region Public Static
         /// <summary>
         /// Validate the dimensions of a given matrix.
         /// As a side effect will bring to 0 negative dimensions.

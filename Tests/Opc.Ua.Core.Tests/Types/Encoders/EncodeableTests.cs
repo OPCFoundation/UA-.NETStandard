@@ -140,7 +140,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             TestContext.Out.WriteLine(result);
             object expected = AdjustExpectedBoundaryValues(encoderType, builtInType, array);
 
-            string encodeInfo = $"Encoder: {encoderType} Type: Array of {systemType}. Expected is diferent from result.";
+            string encodeInfo = $"Encoder: {encoderType} Type: Array of {systemType}. Expected is different from result.";
 
             Assert.IsTrue(Utils.IsEqual(expected, result), encodeInfo);
             Assert.IsTrue(Opc.Ua.Utils.IsEqual(expected, result), "Opc.Ua.Utils.IsEqual failed to compare expected and result. " + encodeInfo);

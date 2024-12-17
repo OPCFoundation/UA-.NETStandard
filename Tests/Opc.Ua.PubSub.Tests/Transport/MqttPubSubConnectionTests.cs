@@ -146,10 +146,10 @@ namespace Opc.Ua.PubSub.Tests.Transport
             Assert.IsNotNull(subscriberApplication.PubSubConnections.First(), "subscriberConfiguration first connection should not be null");
 
             // Configure the mqtt subscriber configuration with the MQTTbroker
-            PubSubConnectionDataType mqttSubcriberConnection = MessagesHelper.GetConnection(subscriberConfiguration, publisherId);
-            Assert.IsNotNull(mqttSubcriberConnection, "The MQTT subscriber connection is invalid.");
-            mqttSubcriberConnection.ConnectionProperties = mqttConfiguration.ConnectionProperties;
-            Assert.IsNotNull(mqttSubcriberConnection.ConnectionProperties, "The MQTT subscriber connection properties are not valid.");
+            PubSubConnectionDataType mqttSubscriberConnection = MessagesHelper.GetConnection(subscriberConfiguration, publisherId);
+            Assert.IsNotNull(mqttSubscriberConnection, "The MQTT subscriber connection is invalid.");
+            mqttSubscriberConnection.ConnectionProperties = mqttConfiguration.ConnectionProperties;
+            Assert.IsNotNull(mqttSubscriberConnection.ConnectionProperties, "The MQTT subscriber connection properties are not valid.");
 
             var dataSetReaders = subscriberApplication.PubSubConnections.First().GetOperationalDataSetReaders();
             Assert.IsNotNull(dataSetReaders, "dataSetReaders should not be null");
@@ -258,10 +258,10 @@ namespace Opc.Ua.PubSub.Tests.Transport
             Assert.IsNotNull(subscriberApplication.PubSubConnections.First(), "subscriberConfiguration first connection should not be null");
 
             // Configure the mqtt subscriber configuration with the MQTTbroker
-            PubSubConnectionDataType mqttSubcriberConnection = MessagesHelper.GetConnection(subscriberConfiguration, publisherId);
-            Assert.IsNotNull(mqttSubcriberConnection, "The MQTT subscriber connection is invalid.");
-            mqttSubcriberConnection.ConnectionProperties = mqttConfiguration.ConnectionProperties;
-            Assert.IsNotNull(mqttSubcriberConnection.ConnectionProperties, "The MQTT subscriber connection properties are not valid.");
+            PubSubConnectionDataType mqttSubscriberConnection = MessagesHelper.GetConnection(subscriberConfiguration, publisherId);
+            Assert.IsNotNull(mqttSubscriberConnection, "The MQTT subscriber connection is invalid.");
+            mqttSubscriberConnection.ConnectionProperties = mqttConfiguration.ConnectionProperties;
+            Assert.IsNotNull(mqttSubscriberConnection.ConnectionProperties, "The MQTT subscriber connection properties are not valid.");
 
             var dataSetReaders = subscriberApplication.PubSubConnections.First().GetOperationalDataSetReaders();
             Assert.IsNotNull(dataSetReaders, "dataSetReaders should not be null");
@@ -399,10 +399,10 @@ namespace Opc.Ua.PubSub.Tests.Transport
             Assert.IsNotNull(subscriberApplication.PubSubConnections.First(), "subscriberConfiguration first connection should not be null");
 
             // Configure the mqtt subscriber configuration with the MQTTbroker
-            PubSubConnectionDataType mqttSubcriberConnection = MessagesHelper.GetConnection(subscriberConfiguration, publisherId);
-            Assert.IsNotNull(mqttSubcriberConnection, "The MQTT subscriber connection is invalid.");
-            mqttSubcriberConnection.ConnectionProperties = mqttConfiguration.ConnectionProperties;
-            Assert.IsNotNull(mqttSubcriberConnection.ConnectionProperties, "The MQTT subscriber connection properties are not valid.");
+            PubSubConnectionDataType mqttSubscriberConnection = MessagesHelper.GetConnection(subscriberConfiguration, publisherId);
+            Assert.IsNotNull(mqttSubscriberConnection, "The MQTT subscriber connection is invalid.");
+            mqttSubscriberConnection.ConnectionProperties = mqttConfiguration.ConnectionProperties;
+            Assert.IsNotNull(mqttSubscriberConnection.ConnectionProperties, "The MQTT subscriber connection properties are not valid.");
 
             var dataSetReaders = subscriberApplication.PubSubConnections.First().GetOperationalDataSetReaders();
             Assert.IsNotNull(dataSetReaders, "dataSetReaders should not be null");
@@ -524,10 +524,10 @@ namespace Opc.Ua.PubSub.Tests.Transport
             Assert.IsNotNull(subscriberApplication.PubSubConnections.First(), "subscriberConfiguration first connection should not be null");
 
             // Configure the mqtt subscriber configuration with the MQTTbroker
-            PubSubConnectionDataType mqttSubcriberConnection = MessagesHelper.GetConnection(subscriberConfiguration, publisherId);
-            Assert.IsNotNull(mqttSubcriberConnection, "The MQTT subscriber connection is invalid.");
-            mqttSubcriberConnection.ConnectionProperties = mqttConfiguration.ConnectionProperties;
-            Assert.IsNotNull(mqttSubcriberConnection.ConnectionProperties, "The MQTT subscriber connection properties are not valid.");
+            PubSubConnectionDataType mqttSubscriberConnection = MessagesHelper.GetConnection(subscriberConfiguration, publisherId);
+            Assert.IsNotNull(mqttSubscriberConnection, "The MQTT subscriber connection is invalid.");
+            mqttSubscriberConnection.ConnectionProperties = mqttConfiguration.ConnectionProperties;
+            Assert.IsNotNull(mqttSubscriberConnection.ConnectionProperties, "The MQTT subscriber connection properties are not valid.");
 
             var dataSetReaders = subscriberApplication.PubSubConnections.First().GetOperationalDataSetReaders();
             Assert.IsNotNull(dataSetReaders, "dataSetReaders should not be null");

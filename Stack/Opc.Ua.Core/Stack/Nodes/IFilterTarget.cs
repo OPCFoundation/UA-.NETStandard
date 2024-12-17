@@ -120,7 +120,7 @@ namespace Opc.Ua
     /// </summary>
     public class FilterContext : IOperationContext
     {
-        #region Contructors
+        #region Constructors
         /// <summary>
         /// Initializes the context.
         /// </summary>
