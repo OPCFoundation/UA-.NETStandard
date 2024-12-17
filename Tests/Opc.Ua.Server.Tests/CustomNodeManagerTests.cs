@@ -74,35 +74,67 @@ namespace Opc.Ua.Server.Tests
 
                 baseObject.NodeId = nodeId;
 
+
+                //single threaded test
                 nodeManager.AddPredefinedNode(nodeManager.SystemContext, baseObject);
 
                 Assert.That(nodeManager.PredefinedNodes.ContainsKey(nodeId), Is.True);
+
+                NodeState nodeState = nodeManager.Find(nodeId);
+                Assert.That(nodeState, Is.Not.Null);
+
+                NodeHandle handle = nodeManager.GetManagerHandle(nodeId) as NodeHandle;
+                Assert.That(handle, Is.Not.Null);
 
                 nodeManager.DeleteNode(nodeManager.SystemContext, nodeId);
 
                 Assert.That(nodeManager.PredefinedNodes, Is.Empty);
 
-                //NodeState nodeState = nodeManager.Find(nodeId);
+                nodeState = nodeManager.Find(nodeId);
+                Assert.That(nodeState, Is.Null);
 
-                //NodeHandle handle = (NodeHandle)nodeManager.GetManagerHandle(nodeId);
+                handle = nodeManager.GetManagerHandle(nodeId) as NodeHandle;
+                Assert.That(handle, Is.Null);
 
-                //nodeManager.DeleteAddressSpace();
+                nodeManager.AddPredefinedNode(nodeManager.SystemContext, baseObject);
 
-                //Assert.That(handle, Is.Not.Null);
+                nodeManager.DeleteAddressSpace();
 
-                ////Act
-                ////await RunTaskInParallel(() => UseComponentCacheAsync(nodeManager, baseObject, nodeHandle), 100);
+                Assert.That(nodeManager.PredefinedNodes, Is.Empty);
 
 
-                ////Assert, that entry was deleted from cache after parallel operations on the same node
-                //NodeState handleFromCache = nodeManager.LookupNodeInComponentCache(nodeManager.SystemContext, nodeHandle);
+                //Act
+                await RunTaskInParallel(() => UsePredefinedNodesAsync(nodeManager, baseObject, nodeId), 100);
 
-                //Assert.That(handleFromCache, Is.Null);
+                //last operation added the Node back into the dictionary
+                Assert.That(nodeManager.PredefinedNodes.ContainsKey(nodeId), Is.True);
+
+                //delete full adress space
+                nodeManager.DeleteAddressSpace();
+                Assert.That(nodeManager.PredefinedNodes, Is.Empty);
             }
             finally
             {
                 await fixture.StopAsync().ConfigureAwait(false);
             }
+        }
+
+        private static async Task UsePredefinedNodesAsync(TestableCustomNodeManger2 nodeManager, DataItemState baseObject, NodeId nodeId)
+        {
+            nodeManager.AddPredefinedNode(nodeManager.SystemContext, baseObject);
+
+            NodeState nodeState = nodeManager.Find(nodeId);
+
+            NodeHandle handle = nodeManager.GetManagerHandle(nodeId) as NodeHandle;
+
+            nodeManager.DeleteNode(nodeManager.SystemContext, nodeId);
+
+            nodeState = nodeManager.Find(nodeId);
+
+            handle = nodeManager.GetManagerHandle(nodeId) as NodeHandle;
+
+            nodeManager.AddPredefinedNode(nodeManager.SystemContext, baseObject);
+            await Task.CompletedTask;
         }
 
         /// <summary>
