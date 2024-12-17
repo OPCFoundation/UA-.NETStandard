@@ -1135,7 +1135,9 @@ namespace Opc.Ua.Server
 
                 if ( passedFilter )
                 {
-//                    if (alarmCondition.Retain.Value)
+                    // Archie - December 17 2024
+                    // Requires discussion with Part 9 Editor
+                    // if (alarmCondition.Retain.Value)
                     {
                         conditionIds.Add(key);
                     }
