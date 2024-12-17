@@ -1427,7 +1427,7 @@ namespace Opc.Ua
                 if (isInvalid)
                 {
                     sresult = new ServiceResult(StatusCodes.BadCertificatePolicyCheckFailed,
-                        null, null, "Certificate doesn't meet minimum key length requirement.", null, sresult);
+                        null, null, "Certificate doesn't meet minimum signature algorithm length requirement.", null, sresult);
                 }
             }
             else // RSA
