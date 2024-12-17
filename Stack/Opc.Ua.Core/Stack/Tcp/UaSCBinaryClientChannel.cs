@@ -38,7 +38,8 @@ namespace Opc.Ua.Bindings
             X509Certificate2 clientCertificate,
             X509Certificate2Collection clientCertificateChain,
             X509Certificate2 serverCertificate,
-            EndpointDescription endpoint)
+            EndpointDescription endpoint,
+            MessageTransportMode transportMode = MessageTransportMode.DataEfficient)
         :
             base(
                 contextId,
@@ -71,6 +72,7 @@ namespace Opc.Ua.Bindings
             m_startHandshake = new TimerCallback(OnScheduledHandshake);
             m_handshakeComplete = new AsyncCallback(OnHandshakeComplete);
             m_socketFactory = socketFactory;
+            m_transportMode = transportMode;
 
             // save the endpoint.
             EndpointDescription = endpoint;
@@ -149,7 +151,7 @@ namespace Opc.Ua.Bindings
                 }
                 else
                 {
-                    Socket = m_socketFactory.Create(this, BufferManager, Quotas.MaxBufferSize);
+                    Socket = m_socketFactory.Create(this, BufferManager, Quotas.MaxBufferSize, m_transportMode);
                     Socket.BeginConnect(m_via, m_ConnectCallback, operation);
                 }
 
@@ -977,7 +979,7 @@ namespace Opc.Ua.Bindings
                         m_handshakeOperation = BeginOperation(Int32.MaxValue, m_handshakeComplete, null);
 
                         State = TcpChannelState.Connecting;
-                        Socket = m_socketFactory.Create(this, BufferManager, Quotas.MaxBufferSize);
+                        Socket = m_socketFactory.Create(this, BufferManager, Quotas.MaxBufferSize, m_transportMode);
 
                         // set the state.
                         ChannelStateChanged(TcpChannelState.Connecting, ServiceResult.Good);
@@ -1619,6 +1621,8 @@ namespace Opc.Ua.Bindings
         private List<QueuedOperation> m_queuedOperations;
         private Random m_random;
         private readonly string g_ImplementationString = "UA.NETStandard ClientChannel {0} " + Utils.GetAssemblyBuildNumber();
+        private readonly MessageTransportMode m_transportMode;
+
         #endregion
     }
 }

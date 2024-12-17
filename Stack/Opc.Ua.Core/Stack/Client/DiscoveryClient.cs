@@ -249,8 +249,8 @@ namespace Opc.Ua
         private EndpointDescriptionCollection PatchEndpointUrls(EndpointDescriptionCollection endpoints)
         {
             // if a server is behind a firewall, can only be accessed with a FQDN or IP address
-            // it may return URLs that are not accessible to the client. This problem can be avoided 
-            // by assuming that the domain in the URL used to call GetEndpoints can be used to 
+            // it may return URLs that are not accessible to the client. This problem can be avoided
+            // by assuming that the domain in the URL used to call GetEndpoints can be used to
             // access any of the endpoints. This code patches the returned endpoints accordingly.
             Uri endpointUrl = Utils.ParseUri(this.Endpoint.EndpointUrl);
             if (endpointUrl != null)
