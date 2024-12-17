@@ -1284,11 +1284,11 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             ECCurveHashPair ecCurveHashPair
             )
         {
-            if (ecCurveHashPair.HashSize > 256)
+            if (ecCurveHashPair.HashSize > 0)
             {
                 // default signing cert with custom key
                 X509Certificate2 cert = CertificateBuilder.Create("CN=LowHash")
-                    .SetHashAlgorithm(HashAlgorithmName.SHA256)
+                    .SetHashAlgorithm(HashAlgorithmName.SHA512)
                     .SetECCurve(ecCurveHashPair.Curve)
                     .CreateForECDsa();
 

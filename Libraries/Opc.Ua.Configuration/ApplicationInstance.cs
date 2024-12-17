@@ -911,7 +911,6 @@ namespace Opc.Ua.Configuration
                 throw new ServiceResultException(StatusCodes.BadConfigurationError, "The Ecc certificate type is not supported.");
 #else
                 ECCurve curve = default(ECCurve);
-                HashAlgorithmName hashAlgorithm = HashAlgorithmName.SHA256;
                 if (id.CertificateType == ObjectTypeIds.EccApplicationCertificateType ||
                     id.CertificateType == ObjectTypeIds.EccNistP256ApplicationCertificateType)
                 {
@@ -920,7 +919,6 @@ namespace Opc.Ua.Configuration
                 else if (id.CertificateType == ObjectTypeIds.EccNistP384ApplicationCertificateType)
                 {
                     curve = ECCurve.NamedCurves.nistP384;
-                    hashAlgorithm = HashAlgorithmName.SHA384;
                 }
                 else if (id.CertificateType == ObjectTypeIds.EccBrainpoolP256r1ApplicationCertificateType)
                 {
@@ -929,7 +927,6 @@ namespace Opc.Ua.Configuration
                 else if (id.CertificateType == ObjectTypeIds.EccBrainpoolP384r1ApplicationCertificateType)
                 {
                     curve = ECCurve.NamedCurves.brainpoolP384r1;
-                    hashAlgorithm = HashAlgorithmName.SHA384;
                 }
 #if CURVE25519
                 else if (id.CertificateType == ObjectTypeIds.EccCurve25519ApplicationCertificateType)
@@ -947,7 +944,6 @@ namespace Opc.Ua.Configuration
                 }
 
                 id.Certificate = builder
-                    .SetHashAlgorithm(hashAlgorithm)
                     .SetECCurve(curve)
                     .CreateForECDsa();
 
