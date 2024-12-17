@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using System.Threading;
 using Opc.Ua;
 using Opc.Ua.Server;
@@ -854,7 +855,7 @@ namespace Alarms
                     {
                         if (RootNotifiers != null)
                         {
-                            nodesToRefresh.AddRange(RootNotifiers);
+                            nodesToRefresh.AddRange(RootNotifiers.Values.ToList());
                         }
                     }
                     else

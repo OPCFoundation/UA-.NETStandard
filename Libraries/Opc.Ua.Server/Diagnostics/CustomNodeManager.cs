@@ -227,7 +227,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// The root notifiers for the node manager.
         /// </summary>
-        protected List<NodeState> RootNotifiers => m_rootNotifiers;
+        protected NodeIdDictionary<NodeState> RootNotifiers => m_rootNotifiers;
 
         /// <summary>
         /// Gets the table of nodes being monitored.
@@ -572,32 +572,28 @@ namespace Opc.Ua.Server
             {
                 AddTypesToTypeTree(type);
             }
-            lock (Lock)
+
+            // update the root notifiers.
+            NodeState rootNotifier = null;
+            if (m_rootNotifiers?.TryGetValue(activeNode.NodeId, out rootNotifier) == true)
             {
-                // update the root notifiers.
-                if (m_rootNotifiers != null)
+                //update entry only if it was not changed or deleted by another thread in an atomic operation
+                if (m_rootNotifiers.TryUpdate(activeNode.NodeId, activeNode, rootNotifier))
                 {
-                    for (int ii = 0; ii < m_rootNotifiers.Count; ii++)
+                    // need to prevent recursion with the server object.
+                    if (activeNode.NodeId != ObjectIds.Server)
                     {
-                        if (m_rootNotifiers[ii].NodeId == activeNode.NodeId)
+                        activeNode.OnReportEvent = OnReportEvent;
+
+                        if (!activeNode.ReferenceExists(ReferenceTypeIds.HasNotifier, true, ObjectIds.Server))
                         {
-                            m_rootNotifiers[ii] = activeNode;
-
-                            // need to prevent recursion with the server object.
-                            if (activeNode.NodeId != ObjectIds.Server)
-                            {
-                                activeNode.OnReportEvent = OnReportEvent;
-
-                                if (!activeNode.ReferenceExists(ReferenceTypeIds.HasNotifier, true, ObjectIds.Server))
-                                {
-                                    activeNode.AddReference(ReferenceTypeIds.HasNotifier, true, ObjectIds.Server);
-                                }
-                            }
-                            break;
+                            activeNode.AddReference(ReferenceTypeIds.HasNotifier, true, ObjectIds.Server);
                         }
                     }
                 }
+
             }
+
 
             List<BaseInstanceState> children = new List<BaseInstanceState>();
             activeNode.GetChildren(context, children);
@@ -3112,21 +3108,20 @@ namespace Opc.Ua.Server
         {
             ServerSystemContext systemContext = SystemContext.Copy(context);
 
-            lock (Lock)
+            // A client has subscribed to the Server object which means all events produced
+            // by this manager must be reported. This is done by incrementing the monitoring
+            // reference count for all root notifiers.
+            // No Lock needed for the loop a concurrent dictionary takes a snapshot for enumerating values
+            foreach (var rootNotifier in m_rootNotifiers?.Values)
             {
-                // A client has subscribed to the Server object which means all events produced
-                // by this manager must be reported. This is done by incrementing the monitoring
-                // reference count for all root notifiers.
-                if (m_rootNotifiers != null)
+                lock (Lock)
                 {
-                    for (int ii = 0; ii < m_rootNotifiers.Count; ii++)
-                    {
-                        SubscribeToEvents(systemContext, m_rootNotifiers[ii], monitoredItem, unsubscribe);
-                    }
+                    SubscribeToEvents(systemContext, rootNotifier, monitoredItem, unsubscribe);
                 }
-
-                return ServiceResult.Good;
             }
+
+            return ServiceResult.Good;
+
         }
 
         #region SubscribeToEvents Support Functions
@@ -3140,34 +3135,19 @@ namespace Opc.Ua.Server
         /// </remarks>
         protected virtual void AddRootNotifier(NodeState notifier)
         {
-            lock (Lock)
+            if (m_rootNotifiers == null)
             {
-                if (m_rootNotifiers == null)
-                {
-                    m_rootNotifiers = new List<NodeState>();
-                }
+                m_rootNotifiers = new NodeIdDictionary<NodeState>();
+            }
+            bool notifierAlreadyExists = false;
+            m_rootNotifiers.AddOrUpdate(notifier.NodeId, notifier, (key, oldNotifier) => {
+                notifierAlreadyExists = oldNotifier == notifier;
+                return notifier;
+            });
 
-                bool mustAdd = true;
-
-                for (int ii = 0; ii < m_rootNotifiers.Count; ii++)
-                {
-                    if (Object.ReferenceEquals(notifier, m_rootNotifiers[ii]))
-                    {
-                        return;
-                    }
-
-                    if (m_rootNotifiers[ii].NodeId == notifier.NodeId)
-                    {
-                        m_rootNotifiers[ii] = notifier;
-                        mustAdd = false;
-                        break;
-                    }
-                }
-
-                if (mustAdd)
-                {
-                    m_rootNotifiers.Add(notifier);
-                }
+            if (notifierAlreadyExists)
+            {
+                return;
             }
 
             // need to prevent recursion with the server object.
@@ -3190,11 +3170,14 @@ namespace Opc.Ua.Server
                 {
                     if (monitoredItems[ii].MonitoringAllEvents)
                     {
-                        SubscribeToEvents(
+                        lock (Lock)
+                        {
+                            SubscribeToEvents(
                             SystemContext,
                             notifier,
                             monitoredItems[ii],
                             true);
+                        }
                     }
                 }
             }
@@ -3206,17 +3189,10 @@ namespace Opc.Ua.Server
         /// <param name="notifier">The notifier.</param>
         protected virtual void RemoveRootNotifier(NodeState notifier)
         {
-            lock (Lock)
-            {
-                if (m_rootNotifiers == null)
-                {
-                    return;
-                }
-                if (m_rootNotifiers.Remove(notifier))
-                {
-                    notifier.OnReportEvent = null;
-                    notifier.RemoveReference(ReferenceTypeIds.HasNotifier, true, ObjectIds.Server);
-                }
+            NodeState removedNotifier = null;
+            if (m_rootNotifiers?.TryRemove(notifier.NodeId, out removedNotifier) == true){
+                removedNotifier.OnReportEvent = null;
+                removedNotifier.RemoveReference(ReferenceTypeIds.HasNotifier, true, ObjectIds.Server);
             }
         }
 
@@ -3364,7 +3340,7 @@ namespace Opc.Ua.Server
                     {
                         if (m_rootNotifiers != null)
                         {
-                            nodesToRefresh.AddRange(m_rootNotifiers);
+                            nodesToRefresh.AddRange(m_rootNotifiers.Values.ToList());
                         }
                     }
                     else
@@ -4738,7 +4714,7 @@ namespace Opc.Ua.Server
         private NodeIdDictionary<MonitoredNode2> m_monitoredNodes;
         private NodeIdDictionary<CacheEntry> m_componentCache;
         private NodeIdDictionary<NodeState> m_predefinedNodes;
-        private List<NodeState> m_rootNotifiers;
+        private NodeIdDictionary<NodeState> m_rootNotifiers;
         private uint m_maxQueueSize;
         private string m_aliasRoot;
         #endregion
