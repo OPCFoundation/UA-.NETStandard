@@ -1421,15 +1421,16 @@ namespace Opc.Ua
                 bool isInvalid = (certificate.SignatureAlgorithm.Value == Oids.ECDsaWithSha256 &&
                                   publicKeySize > 256) ||
                                  (certificate.SignatureAlgorithm.Value == Oids.ECDsaWithSha384 &&
-                                  publicKeySize > 384);
+                                  (publicKeySize <= 256 || publicKeySize > 384)) ||
+                                 (certificate.SignatureAlgorithm.Value == Oids.ECDsaWithSha512 &&
+                                  publicKeySize <= 384);
                 if (isInvalid)
                 {
                     sresult = new ServiceResult(StatusCodes.BadCertificatePolicyCheckFailed,
                         null, null, "Certificate doesn't meet minimum key length requirement.", null, sresult);
                 }
             }
-
-            if (!isECDsaSignature)
+            else // RSA
             {
                 int keySize = X509Utils.GetRSAPublicKeySize(certificate);
                 if (keySize < m_minimumCertificateKeySize)
