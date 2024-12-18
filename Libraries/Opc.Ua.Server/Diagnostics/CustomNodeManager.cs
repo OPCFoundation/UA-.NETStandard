@@ -685,15 +685,8 @@ namespace Opc.Ua.Server
         /// <param name="externalReferences">A list of references to add to external targets.</param>
         protected virtual void AddReverseReferences(IDictionary<NodeId, IList<IReference>> externalReferences)
         {
-            if (m_predefinedNodes == null)
+            foreach (NodeState source in m_predefinedNodes?.Values)
             {
-                return;
-            }
-
-            foreach (KeyValuePair<NodeId, NodeState> kvp in m_predefinedNodes)
-            {
-                NodeState source = kvp.Value;
-
                 IList<IReference> references = new List<IReference>();
                 source.GetReferences(SystemContext, references);
 
@@ -3190,7 +3183,8 @@ namespace Opc.Ua.Server
         protected virtual void RemoveRootNotifier(NodeState notifier)
         {
             NodeState removedNotifier = null;
-            if (m_rootNotifiers?.TryRemove(notifier.NodeId, out removedNotifier) == true){
+            if (m_rootNotifiers?.TryRemove(notifier.NodeId, out removedNotifier) == true)
+            {
                 removedNotifier.OnReportEvent = null;
                 removedNotifier.RemoveReference(ReferenceTypeIds.HasNotifier, true, ObjectIds.Server);
             }
@@ -3251,13 +3245,9 @@ namespace Opc.Ua.Server
             }
 
             // only objects or views can be subscribed to.
-            BaseObjectState instance = source as BaseObjectState;
-
-            if (instance == null || (instance.EventNotifier & EventNotifiers.SubscribeToEvents) == 0)
+            if (!(source is BaseObjectState instance) || (instance.EventNotifier & EventNotifiers.SubscribeToEvents) == 0)
             {
-                ViewState view = source as ViewState;
-
-                if (view == null || (view.EventNotifier & EventNotifiers.SubscribeToEvents) == 0)
+                if (!(source is ViewState view) || (view.EventNotifier & EventNotifiers.SubscribeToEvents) == 0)
                 {
                     return StatusCodes.BadNotSupported;
                 }
@@ -3333,30 +3323,25 @@ namespace Opc.Ua.Server
                 List<IFilterTarget> events = new List<IFilterTarget>();
                 List<NodeState> nodesToRefresh = new List<NodeState>();
 
-                lock (Lock)
+                // check for server subscription.
+                if (monitoredItem.NodeId == ObjectIds.Server)
                 {
-                    // check for server subscription.
-                    if (monitoredItem.NodeId == ObjectIds.Server)
-                    {
-                        if (m_rootNotifiers != null)
-                        {
-                            nodesToRefresh.AddRange(m_rootNotifiers.Values.ToList());
-                        }
-                    }
-                    else
-                    {
-                        // check for existing monitored node.
-                        MonitoredNode2 monitoredNode = null;
-
-                        if (!MonitoredNodes.TryGetValue(monitoredItem.NodeId, out monitoredNode))
-                        {
-                            continue;
-                        }
-
-                        // get the refresh events.
-                        nodesToRefresh.Add(monitoredNode.Node);
-                    }
+                    nodesToRefresh.AddRange(m_rootNotifiers?.Values.ToList());
                 }
+                else
+                {
+                    // check for existing monitored node.
+                    MonitoredNode2 monitoredNode = null;
+
+                    if (!MonitoredNodes.TryGetValue(monitoredItem.NodeId, out monitoredNode))
+                    {
+                        continue;
+                    }
+
+                    // get the refresh events.
+                    nodesToRefresh.Add(monitoredNode.Node);
+                }
+
 
                 // block and wait for the refresh.
                 for (int jj = 0; jj < nodesToRefresh.Count; jj++)
@@ -4215,7 +4200,7 @@ namespace Opc.Ua.Server
                 // check if node is no longer being monitored.
                 if (!monitoredNode.HasMonitoredItems)
                 {
-                    MonitoredNodes.Remove(handle.NodeId);
+                    m_monitoredNodes.Remove(handle.NodeId);
                 }
             }
 
