@@ -4702,7 +4702,7 @@ namespace Opc.Ua.Server
 
                 if (m_componentCache == null)
                 {
-                    m_componentCache = new Dictionary<NodeId, CacheEntry>();
+                    m_componentCache = new NodeIdDictionary<CacheEntry>();
                 }
 
                 // check if a component is actually specified.
