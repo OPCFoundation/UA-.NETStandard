@@ -1707,7 +1707,6 @@ namespace Opc.Ua.Client.Tests
                 {
 
                     X509Certificate2 cert = CertificateBuilder.Create("CN=Client Test ECC Subject, O=OPC Foundation")
-                    .SetHashAlgorithm(eccurveHashPair.HashAlgorithmName)
                     .SetECCurve(eccurveHashPair.Curve)
                     .CreateForECDsa();
 

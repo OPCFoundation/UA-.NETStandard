@@ -135,7 +135,7 @@ namespace Opc.Ua.Security.Certificates.Tests
                 Assert.NotNull(publicKey);
                 publicKey.ExportParameters(false);
             }
-            Assert.AreEqual(X509Defaults.HashAlgorithmName, Oids.GetHashAlgorithmName(cert.SignatureAlgorithm.Value));
+            Assert.AreEqual(eccurveHashPair.HashAlgorithmName, Oids.GetHashAlgorithmName(cert.SignatureAlgorithm.Value));
             Assert.GreaterOrEqual(DateTime.UtcNow, cert.NotBefore);
             Assert.GreaterOrEqual(DateTime.UtcNow.AddMonths(X509Defaults.LifeTime), cert.NotAfter.ToUniversalTime());
             TestUtils.ValidateSelSignedBasicConstraints(cert);
@@ -429,13 +429,33 @@ namespace Opc.Ua.Security.Certificates.Tests
         {
             var result = new ECCurveHashPairCollection {
                 { ECCurve.NamedCurves.nistP256, HashAlgorithmName.SHA256 },
-                { ECCurve.NamedCurves.nistP384, HashAlgorithmName.SHA384 } };
-            if (!RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-            {
-                result.AddRange(new ECCurveHashPairCollection {
+                { ECCurve.NamedCurves.nistP384, HashAlgorithmName.SHA384 },
                 { ECCurve.NamedCurves.brainpoolP256r1, HashAlgorithmName.SHA256 },
-                { ECCurve.NamedCurves.brainpoolP384r1, HashAlgorithmName.SHA384 }});
+                { ECCurve.NamedCurves.brainpoolP384r1, HashAlgorithmName.SHA384 }
+            };
+
+            int i = 0;
+            while (i < result.Count)
+            {
+                ECDsa key = null;
+
+                // test if curve is supported
+                try
+                {
+                    key = ECDsa.Create(result[i].Curve);
+                }
+                catch
+                {
+                    result.RemoveAt(i);
+                    continue;
+                }
+                finally
+                {
+                    Utils.SilentDispose(key);
+                }
+                i++;
             }
+
             return result.ToArray();
         }
 

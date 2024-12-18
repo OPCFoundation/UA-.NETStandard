@@ -241,7 +241,7 @@ namespace Opc.Ua.Security.Certificates
             m_curve = curve;
 
             // HashAlgorithmName.SHA256 is the default value
-            if (m_hashAlgorithmName == HashAlgorithmName.SHA256)
+            if (m_hashAlgorithmName == X509Defaults.HashAlgorithmName)
             {
                 SetHashAlgorithmSize(curve);
             }
