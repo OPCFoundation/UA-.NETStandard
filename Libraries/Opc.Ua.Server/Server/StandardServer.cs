@@ -3141,7 +3141,7 @@ namespace Opc.Ua.Server
                         ServerInternal.Status.Variable.ClearChangeMasks(ServerInternal.DefaultSystemContext, true);
 
                         // exit if all client connections are closed.
-                        var sessions = ServerInternal.SessionManager.GetSessions().Count;
+                        var sessions = ServerInternal.SessionManager.GetSessionCount();
                         if (sessions == 0)
                         {
                             break;

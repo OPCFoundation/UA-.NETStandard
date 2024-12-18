@@ -28,19 +28,66 @@
  * ======================================================================*/
 
 using System;
+using System.Linq;
+using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Configs;
+using BenchmarkDotNet.Jobs;
+using BenchmarkDotNet.Loggers;
 using BenchmarkDotNet.Running;
+using BenchmarkDotNet.Validators;
+using Opc.Ua;
 
-static class Program
+[assembly: Config(typeof(BenchmarksDefaultConfig))]
+
+class BenchmarksDefaultConfig : ManualConfig
 {
-    // Main Method 
-    public static void Main(String[] args)
+    public BenchmarksDefaultConfig()
     {
-        IConfig config = ManualConfig.Create(DefaultConfig.Instance)
-            // need this option because of reference to nunit.framework
-            .WithOptions(ConfigOptions.DisableOptimizationsValidator)
-            ;
-        BenchmarkSwitcher.FromAssembly(typeof(Program).Assembly).Run(args, config);
+        if (Program.CmdLineUsed)
+        {
+            var defaults = DefaultConfig.Instance;
+            foreach (var exporter in defaults.GetExporters())
+            {
+                AddExporter(exporter);
+            }
+            foreach (var logger in defaults.GetLoggers())
+            {
+                AddLogger(logger);
+            }
+            foreach (var analyser in defaults.GetAnalysers())
+            {
+                AddAnalyser(analyser);
+            }
+            foreach (var validator in defaults.GetValidators())
+            {
+                AddValidator(validator);
+            }
+            WithOptions(ConfigOptions.DisableOptimizationsValidator);
+        }
+        else
+        {
+            AddJob(Job.Dry);
+            AddLogger(ConsoleLogger.Default);
+            AddValidator(JitOptimizationsValidator.DontFailOnError);
+        }
+    }
+
+    static class Program
+    {
+        /// <summary>
+        /// Whether command line was used to start.
+        /// </summary>
+        public static bool CmdLineUsed = false;
+
+        // Main Method 
+        public static void Main(string[] args)
+        {
+            IConfig config = ManualConfig.Create(DefaultConfig.Instance)
+                // need this option because of reference to nunit.framework
+                .WithOptions(ConfigOptions.DisableOptimizationsValidator)
+                ;
+            CmdLineUsed = true;
+            BenchmarkSwitcher.FromAssembly(typeof(Program).Assembly).Run(args);
+        }
     }
 }
-
