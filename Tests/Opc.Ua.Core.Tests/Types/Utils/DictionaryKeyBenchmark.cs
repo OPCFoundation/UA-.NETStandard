@@ -595,6 +595,11 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             m_frozenDictionary = m_regularDictionary.ToFrozenDictionary();
 #endif
             m_lock = new object();
+
+            // initialize dicts for iteration setup
+            PrepareTryRemoveDictionary();
+            PrepareTryRemoveSortedDictionary();
+            PrepareTryRemoveConcurrentDictionary();
         }
         #endregion
     }
