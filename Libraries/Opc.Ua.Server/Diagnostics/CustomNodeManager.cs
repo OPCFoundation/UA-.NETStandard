@@ -1988,7 +1988,7 @@ namespace Opc.Ua.Server
 
                 if (propertyState != null && property != null && propertyState.NodeId == property.NodeId && !Utils.IsEqual(newPropertyValue, previousPropertyValue))
                 {
-                    foreach (var monitoredItem in monitoredNode.DataChangeMonitoredItems)
+                    foreach (var monitoredItem in monitoredNode.DataChangeMonitoredItems.Values)
                     {
                         if (monitoredItem.AttributeId == Attributes.Value)
                         {
@@ -3259,12 +3259,11 @@ namespace Opc.Ua.Server
                 MonitoredNodes[source.NodeId] = monitoredNode = new MonitoredNode2(this, source);
             }
 
-            if (monitoredNode.EventMonitoredItems != null)
-            {
-                // remove existing monitored items with the same Id prior to insertion in order to avoid duplicates
-                // this is necessary since the SubscribeToEvents method is called also from ModifyMonitoredItemsForEvents
-                monitoredNode.EventMonitoredItems.RemoveAll(e => e.Id == monitoredItem.Id);
-            }
+
+            // remove existing monitored items with the same Id prior to insertion in order to avoid duplicates
+            // this is necessary since the SubscribeToEvents method is called also from ModifyMonitoredItemsForEvents
+            monitoredNode.EventMonitoredItems?.TryRemove(monitoredItem.Id, out _);
+
 
             // this links the node to specified monitored item and ensures all events
             // reported by the node are added to the monitored item's queue.
