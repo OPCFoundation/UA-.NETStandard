@@ -5,9 +5,10 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 
 namespace Opc.Ua.Server.Tests
-{ /// <summary>
-  /// Test <see cref="CustomNodeManager2"/>
-  /// </summary>
+{
+    /// <summary>
+    /// Test <see cref="CustomNodeManager2"/>
+    /// </summary>
     [TestFixture, Category("CustomNodeManager")]
     [SetCulture("en-us"), SetUICulture("en-us")]
     [Parallelizable]
