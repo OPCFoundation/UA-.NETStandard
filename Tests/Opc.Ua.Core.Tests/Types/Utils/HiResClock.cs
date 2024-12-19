@@ -153,7 +153,8 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             long lastTickCount = HiResClock.UtcNow.Ticks;
             long firstTickCount = lastTickCount;
             int counts = 0;
-            while (stopWatch.ElapsedMilliseconds <= HiResClockTestDuration)
+            long elapsedMilliseconds = stopWatch.ElapsedMilliseconds;
+            while (elapsedMilliseconds <= HiResClockTestDuration)
             {
                 long tickCount;
                 do
@@ -164,6 +165,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
                 Assert.LessOrEqual(lastTickCount, tickCount);
                 lastTickCount = tickCount;
                 counts++;
+                elapsedMilliseconds = stopWatch.ElapsedMilliseconds;
             }
             if (!disabled)
             {
@@ -171,7 +173,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             }
             stopWatch.Stop();
             long elapsed = (lastTickCount - firstTickCount) / TimeSpan.TicksPerMillisecond;
-            TestContext.Out.WriteLine("HiResClock counts: {0} resolution: {1}µs", counts, stopWatch.ElapsedMilliseconds * 1000 / counts);
+            TestContext.Out.WriteLine("HiResClock counts: {0} resolution: {1}µs", counts, (elapsedMilliseconds * 1000.0 / counts));
             // test accuracy of counter vs. stop watch
             try
             {
