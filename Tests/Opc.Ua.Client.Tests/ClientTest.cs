@@ -1705,6 +1705,7 @@ namespace Opc.Ua.Client.Tests
                 }
                 if (eccurveHashPair.Curve.Oid.FriendlyName.Contains(extractedFriendlyNamae))
                 {
+
                     X509Certificate2 cert = CertificateBuilder.Create("CN=Client Test ECC Subject, O=OPC Foundation")
                     .SetECCurve(eccurveHashPair.Curve)
                     .CreateForECDsa();
