@@ -222,8 +222,7 @@ namespace Opc.Ua
         /// <returns></returns>
         public static ECDsa GetPublicKey(X509Certificate2 certificate)
         {
-            string[] securityPolicyUris;
-            return GetPublicKey(certificate, out securityPolicyUris);
+            return GetPublicKey(certificate, out string[] _);
         }
 
         /// <summary>
@@ -236,14 +235,19 @@ namespace Opc.Ua
         {
             securityPolicyUris = null;
 
-            var keyAlgorithm = certificate.GetKeyAlgorithm();
-
-            if (certificate == null || keyAlgorithm != Oids.ECPublicKey)
+            if (certificate == null)
             {
                 return null;
             }
 
-            const X509KeyUsageFlags SufficientFlags =
+            var keyAlgorithm = certificate.GetKeyAlgorithm();
+
+            if (keyAlgorithm != Oids.ECPublicKey)
+            {
+                return null;
+            }
+
+            const X509KeyUsageFlags kSufficientFlags =
                 X509KeyUsageFlags.KeyAgreement |
                 X509KeyUsageFlags.DigitalSignature |
                 X509KeyUsageFlags.NonRepudiation |
@@ -256,7 +260,7 @@ namespace Opc.Ua
                 {
                     X509KeyUsageExtension kuExt = (X509KeyUsageExtension)extension;
 
-                    if ((kuExt.KeyUsages & SufficientFlags) == 0)
+                    if ((kuExt.KeyUsages & kSufficientFlags) == 0)
                     {
                         return null;
                     }
@@ -343,8 +347,6 @@ namespace Opc.Ua
 
                 return publicKey.KeySize / 4;
             }
-
-            throw new NotImplementedException();
         }
 
         /// <summary>
