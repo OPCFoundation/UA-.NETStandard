@@ -33,9 +33,12 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using BenchmarkDotNet.Configs;
 using CommandLine;
 using NUnit.Framework;
 using Opc.Ua.Server.Tests;
@@ -54,7 +57,6 @@ namespace Opc.Ua.Client.Tests
     {
         private readonly string m_subscriptionTestXml = Path.Combine(Path.GetTempPath(), "SubscriptionTest.xml");
         public readonly uint MillisecondsPerHour = 3600 * 1000;
-
 
         #region Test Setup
         /// <summary>
@@ -98,6 +100,8 @@ namespace Opc.Ua.Client.Tests
             ServerFixture.Config.TransportQuotas.MaxMessageSize = TransportQuotaMaxMessageSize;
             ServerFixture.Config.TransportQuotas.MaxByteStringLength =
             ServerFixture.Config.TransportQuotas.MaxStringLength = TransportQuotaMaxStringLength;
+            ServerFixture.Config.ServerConfiguration.MinSessionTimeout = 1000;
+            ServerFixture.Config.ServerConfiguration.MinSubscriptionLifetime = 1500;
             ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(new UserTokenPolicy(UserTokenType.UserName));
             ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(new UserTokenPolicy(UserTokenType.Certificate));
             ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(
@@ -133,10 +137,12 @@ namespace Opc.Ua.Client.Tests
             {
                 try
                 {
+                    ClientFixture.SessionTimeout = 1500;
                     Session = await ClientFixture.ConnectAsync(ServerUrl,
                         SecurityPolicies.Basic256Sha256,
                         null,
                         new UserIdentity("sysadmin", "demo")).ConfigureAwait(false);
+                    Session.DeleteSubscriptionsOnClose = false;
                 }
                 catch (Exception e)
                 {
@@ -165,7 +171,7 @@ namespace Opc.Ua.Client.Tests
 
         #region Tests
 
-        [Test, Order(99)]
+        [Test, Order(100)]
         [TestCase(900, 100u, 100u, 10000u, 3600u, 83442u, TestName = "Test Lifetime Over Maximum")]
         [TestCase(900, 100u, 100u, 0u, 3600u, 83442u, TestName = "Test Lifetime Zero")]
         [TestCase(1200, 100u, 100u, 1u, 1u, 3000u, TestName = "Test Lifetime One")]
@@ -318,6 +324,193 @@ namespace Opc.Ua.Client.Tests
                     id, 1));
         }
 
+        [Test, Order(200)]
+        [TestCase(false, TestName = "Validate Session Close")]
+        [TestCase(true, TestName = "Validate Transfer")]
+        public async Task TestSessionTransfer(bool setSubscriptionDurable)
+        {
+            //if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+            //{
+            //    Assert.Ignore("Timing on mac OS causes issues");
+            //}
+
+            int publishingInterval = 100;
+            uint keepAliveCount = 5;
+            uint lifetimeCount = 15;
+            uint requestedHours = 1;
+            uint expectedHours = 1;
+            uint expectedLifetime = 36000;
+
+            TestableSubscription subscription = new TestableSubscription(Session.DefaultSubscription);
+
+            subscription.KeepAliveCount = keepAliveCount;
+            subscription.LifetimeCount = lifetimeCount;
+            subscription.PublishingInterval = publishingInterval;
+            subscription.MinLifetimeInterval = 1500;
+
+            subscription.StateChanged += (s, e) => {
+                TestContext.Out.WriteLine($"StateChanged: {s.Session.SessionId}-{s.Id}-{e.Status}");
+            };
+
+            Assert.True(Session.AddSubscription(subscription));
+            subscription.Create();
+
+            // Give some time to allow for the true browse of items
+            await Task.Delay(500).ConfigureAwait(false);
+
+            Dictionary<string, NodeId> desiredNodeIds = GetDesiredNodeIds(subscription.Id);
+            Dictionary<string, object> initialValues = GetValues(desiredNodeIds);
+
+            if (setSubscriptionDurable)
+            {
+                uint revisedLifetimeInHours = 0;
+                Assert.True(subscription.SetSubscriptionDurable(requestedHours, out revisedLifetimeInHours));
+
+                Assert.AreEqual(expectedHours, revisedLifetimeInHours);
+
+                ValidateDataValue(desiredNodeIds, "MaxLifetimeCount", expectedLifetime);
+            }
+            else
+            {
+                ValidateDataValue(desiredNodeIds, "MaxLifetimeCount", lifetimeCount);
+            }
+
+            List<NodeId> testSet = new List<NodeId>();
+            testSet.AddRange(GetTestSetFullSimulation(Session.NamespaceUris));
+            Dictionary<NodeId, List<DateTime>> valueTimeStamps = new Dictionary<NodeId, List<DateTime>>();
+
+
+            List<MonitoredItem> monitoredItemsList = new List<MonitoredItem>();
+            foreach (NodeId nodeId in testSet)
+            {
+                if (nodeId.IdType == IdType.String)
+                {
+                    valueTimeStamps.Add(nodeId, new List<DateTime>());
+                    MonitoredItem monitoredItem = new MonitoredItem(subscription.DefaultItem) {
+                        StartNodeId = nodeId,
+                        SamplingInterval = 1000,
+                        QueueSize = 100,
+                    };
+                    monitoredItem.Notification += (MonitoredItem item, MonitoredItemNotificationEventArgs e) => {
+                        List<DateTime> list = valueTimeStamps[nodeId];
+
+                        foreach (var value in item.DequeueValues())
+                        {
+                            list.Add(value.SourceTimestamp);
+                        }
+                    };
+
+                    monitoredItemsList.Add(monitoredItem);
+                }
+            }
+
+            DateTime startTime = DateTime.UtcNow;
+
+            subscription.AddItems(monitoredItemsList);
+            subscription.ApplyChanges();
+            await Task.Delay(2000).ConfigureAwait(false);
+
+            Dictionary<string, object> closeValues = GetValues(desiredNodeIds);
+
+            SubscriptionCollection subscriptions = new SubscriptionCollection(Session.Subscriptions);
+            DateTime closeTime = DateTime.UtcNow;
+            TestContext.Out.WriteLine("Session Id {0} Closed at {1}", Session.SessionId, closeTime);
+            
+            Session.Close(closeChannel: false);
+
+            // Subscription should time out with initial lifetime count
+            await Task.Delay(3000).ConfigureAwait(false);
+
+            DateTime restartTime = DateTime.UtcNow;
+            ISession transferSession = await ClientFixture.ConnectAsync(ServerUrl,
+                SecurityPolicies.Basic256Sha256, null,
+                new UserIdentity("sysadmin", "demo")).ConfigureAwait(false);
+
+            var result = await transferSession.TransferSubscriptionsAsync(subscriptions, true);
+
+            Assert.AreEqual(setSubscriptionDurable, result,
+                "SetSubscriptionDurable = " + setSubscriptionDurable.ToString() +
+                " Transfer Result " + result.ToString() + " Expected " + setSubscriptionDurable );
+
+            if (setSubscriptionDurable)
+            {
+                // New Session and Transfer
+                await Task.Delay(4000).ConfigureAwait(false);
+
+                DateTime completionTime = DateTime.UtcNow;
+
+                subscription.SetPublishingMode(false);
+
+                double tolerance = 1500;
+
+                TestContext.Out.WriteLine("Session StartTime at {0}", DateTimeMs(startTime));
+                TestContext.Out.WriteLine("Session Closed at {0}", DateTimeMs(closeTime));
+                TestContext.Out.WriteLine("Restart at {0}", DateTimeMs(restartTime));
+                TestContext.Out.WriteLine("Completion at {0}", DateTimeMs(completionTime));
+
+                // Validate 
+                foreach (KeyValuePair<NodeId, List<DateTime>> pair in valueTimeStamps)
+                {
+                    DateTime previous = startTime;
+
+                    for (int index = 0; index < pair.Value.Count; index++)
+                    {
+                        DateTime timestamp = pair.Value[index];
+
+                        TimeSpan timeSpan = timestamp - previous;
+                        TestContext.Out.WriteLine($"Node: {pair.Key} Index: {index} Time: {DateTimeMs(timestamp)} Previous: {DateTimeMs(previous)} Timespan {timeSpan.TotalMilliseconds.ToString("000.")}");
+
+                        Assert.Less(Math.Abs(timeSpan.TotalMilliseconds), tolerance,
+                            $"Node: {pair.Key} Index: {index} Timespan {timeSpan.TotalMilliseconds} ");
+
+                        previous = timestamp;
+
+
+                        if (index == pair.Value.Count - 1)
+                        {
+                            TimeSpan finalTimeSpan = completionTime - timestamp;
+                            Assert.Less(Math.Abs(finalTimeSpan.TotalMilliseconds), tolerance * 2,
+                                $"Last Value - Node: {pair.Key} Index: {index} Timespan {finalTimeSpan.TotalMilliseconds} ");
+                        }
+                    }
+                }
+
+                Assert.True(await transferSession.RemoveSubscriptionAsync(subscription));
+            }
+        }
+
+        private Dictionary<string, object> ValidateDataValue(Dictionary<string, NodeId> nodeIds,
+            string desiredValue, UInt32 expectedValue)
+        {
+            Dictionary<string, object> modifiedValues = GetValues(nodeIds);
+
+            DataValue dataValue = modifiedValues[desiredValue] as DataValue;
+            Assert.IsNotNull(dataValue);
+            Assert.IsNotNull(dataValue.Value);
+            Assert.AreEqual(expectedValue, Convert.ToUInt32(dataValue.Value));
+
+            return modifiedValues;
+        }
+
+        private void OnMonitoredItemNotification(MonitoredItem monitoredItem, MonitoredItemNotificationEventArgs e)
+        {
+            try
+            {
+                // Log MonitoredItem Notification event
+                MonitoredItemNotification notification = e.NotificationValue as MonitoredItemNotification;
+                DateTime localTime = notification.Value.SourceTimestamp.ToLocalTime();
+                Debug.WriteLine("Notification: {0} \"{1}\" and Value = {2} at [{3}].",
+                    notification.Message.SequenceNumber,
+                    monitoredItem.ResolvedNodeId,
+                    notification.Value,
+                    localTime.ToLongTimeString());
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine("OnMonitoredItemNotification error: {0}", ex.Message);
+            }
+        }
+
         #endregion
 
         #region Helpers
@@ -337,6 +530,7 @@ namespace Opc.Ua.Client.Tests
 
             return subscription;
         }
+
         private Dictionary<string, NodeId> GetDesiredNodeIds(uint subscriptionId)
         {
             Dictionary<string, NodeId> desiredNodeIds = new Dictionary<string, NodeId>();
@@ -358,11 +552,17 @@ namespace Opc.Ua.Client.Tests
                 out var continuationPoint,
                 out references);
 
-            Assert.NotNull(references);
-            Assert.Greater(references.Count, 0);
+            Assert.NotNull(references, "Initial Browse has no references");
+            Assert.Greater(references.Count, 0, "Initial Browse has zero references");
+
+            TestContext.Out.WriteLine("Initial Browse for SubscriptionDiagnosticsArray has {0} references, Desired SubscriptionId {1}",
+                references.Count,
+                subscriptionId);
 
             foreach (ReferenceDescription reference in references)
             {
+                TestContext.Out.WriteLine("Initial Browse Reference {0}", reference.BrowseName.Name);
+
                 if (reference.BrowseName.Name == subscriptionId.ToString())
                 {
                     ReferenceDescriptionCollection desiredReferences;
@@ -375,48 +575,83 @@ namespace Opc.Ua.Client.Tests
                         out var anotherContinuationPoint,
                         out desiredReferences);
 
-                    Assert.NotNull(desiredReferences);
-                    Assert.Greater(desiredReferences.Count, 0);
+                    Assert.NotNull(desiredReferences, "Secondary Browse has no references");
+                    Assert.Greater(desiredReferences.Count, 0, "Secondary Browse has zero references");
+
+                    TestContext.Out.WriteLine("Secondary Browse for SubscriptionId {0} has {1} references",
+                        subscriptionId,
+                        desiredReferences.Count
+                    );
+
 
                     foreach (ReferenceDescription referenceDescription in desiredReferences)
                     {
+                        NodeId recreated = null;
+                        if (referenceDescription.NodeId.IsNull)
+                        {
+                            TestContext.Out.WriteLine("Subscription Reference {0} ExpandedNodeId is Null",
+                                referenceDescription.BrowseName.Name);
+                            TestContext.Out.WriteLine("Full ReferenceDescription {0}",
+                                referenceDescription.ToString());
+                        }
+                        else
+                        {
+                            recreated = new NodeId(
+                                referenceDescription.NodeId.Identifier,
+                                referenceDescription.NodeId.NamespaceIndex);
+
+                            if ( recreated.IsNullNodeId )
+                            {
+                                TestContext.Out.WriteLine("Subscription Reference {0} Recreated Node is Null",
+                                    referenceDescription.BrowseName.Name);
+                                TestContext.Out.WriteLine("Full ReferenceDescription {0}",
+                                    referenceDescription.ToString());
+                            }
+                            else
+                            {
+                                TestContext.Out.WriteLine("Subscription Reference {0} ExpandedNodeId {1} Recreated {2}",
+                                    referenceDescription.BrowseName.Name,
+                                    referenceDescription.NodeId.ToString(),
+                                    recreated.ToString());
+                            }
+                        }
+
                         if (referenceDescription.BrowseName.Name.Equals("MonitoredItemCount",
                             StringComparison.OrdinalIgnoreCase))
                         {
-                            monitoredItemCountNodeId = ((NodeId)referenceDescription.NodeId);
+                            monitoredItemCountNodeId = recreated;
                         }
                         else if (referenceDescription.BrowseName.Name.Equals("MaxLifetimeCount",
                             StringComparison.OrdinalIgnoreCase))
                         {
-                            maxLifetimeCountNodeId = ((NodeId)referenceDescription.NodeId);
+                            maxLifetimeCountNodeId = recreated;
 
                         }
                         else if (referenceDescription.BrowseName.Name.Equals("MaxKeepAliveCount",
                             StringComparison.OrdinalIgnoreCase))
                         {
-                            maxKeepAliveCountNodeId = ((NodeId)referenceDescription.NodeId);
-
+                            maxKeepAliveCountNodeId = recreated;
                         }
                         else if (referenceDescription.BrowseName.Name.Equals("CurrentLifetimeCount",
                             StringComparison.OrdinalIgnoreCase))
                         {
-                            currentLifetimeCountNodeId = ((NodeId)referenceDescription.NodeId);
+                            currentLifetimeCountNodeId = recreated;
                         }
                         else if (referenceDescription.BrowseName.Name.Equals("PublishingInterval",
                             StringComparison.OrdinalIgnoreCase))
                         {
-                            publishingIntervalNodeId = ((NodeId)referenceDescription.NodeId);
+                            publishingIntervalNodeId = recreated;
                         }
                     }
                 }
                 break;
             }
 
-            Assert.IsNotNull(monitoredItemCountNodeId);
-            Assert.IsNotNull(maxLifetimeCountNodeId);
-            Assert.IsNotNull(maxKeepAliveCountNodeId);
-            Assert.IsNotNull(currentLifetimeCountNodeId);
-            Assert.IsNotNull(publishingIntervalNodeId);
+            Assert.IsNotNull(monitoredItemCountNodeId, "Unable to find MonitoredItemCount");
+            Assert.IsNotNull(maxLifetimeCountNodeId, "Unable to find MaxLifetimeCount");
+            Assert.IsNotNull(maxKeepAliveCountNodeId, "Unable to find MaxKeepAliveCount");
+            Assert.IsNotNull(currentLifetimeCountNodeId, "Unable to find CurrentLifetimeCount");
+            Assert.IsNotNull(publishingIntervalNodeId, "Unable to find PublishingInterval");
 
             desiredNodeIds.Add("MonitoredItemCount", monitoredItemCountNodeId);
             desiredNodeIds.Add("MaxLifetimeCount", maxLifetimeCountNodeId);
@@ -434,7 +669,7 @@ namespace Opc.Ua.Client.Tests
             foreach (KeyValuePair<string, NodeId> id in ids)
             {
                 values.Add(id.Key, Session.ReadValue(id.Value));
-                Debug.WriteLine($"{id.Key}: {values[id.Key]}");
+                TestContext.Out.WriteLine($"{id.Key}: {values[id.Key]}");
             }
 
             return values;
@@ -478,6 +713,15 @@ namespace Opc.Ua.Client.Tests
             };
             return mi;
         }
+
+        private string DateTimeMs( DateTime dateTime )
+        {
+            string readable = dateTime.ToLongTimeString() + "." +
+                dateTime.Millisecond.ToString("D3");
+
+            return readable;
+        }
+
 
         #endregion
     }
