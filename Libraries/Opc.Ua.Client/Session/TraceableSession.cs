@@ -1300,7 +1300,7 @@ namespace Opc.Ua.Client
         {
             using (Activity activity = ActivitySource.StartActivity())
             {
-                return await m_session.ManagedBrowseAsync(requestHeader, view, nodesToBrowse, maxResultsToReturn, browseDirection, referenceTypeId, includeSubtypes, nodeClassMask, ct);
+                return await m_session.ManagedBrowseAsync(requestHeader, view, nodesToBrowse, maxResultsToReturn, browseDirection, referenceTypeId, includeSubtypes, nodeClassMask, ct).ConfigureAwait(false);
             }
         }
 
