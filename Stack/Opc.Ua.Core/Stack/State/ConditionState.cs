@@ -49,6 +49,29 @@ namespace Opc.Ua
         }
         #endregion
 
+        #region Public Properties
+
+        /// <remarks />
+        public PropertyState<bool> SupportsFilteredRetain
+        {
+            get
+            {
+                return m_supportsFilteredRetain;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_supportsFilteredRetain, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_supportsFilteredRetain = value;
+            }
+        }
+
+        #endregion
+
         #region Public Methods
         /// <summary>
         /// Gets or sets a value indicating whether the condition will automatically report an event when a method call completes.
@@ -762,6 +785,7 @@ namespace Opc.Ua
         /// 
         /// </summary>
         protected Dictionary<string, ConditionState> m_branches = null;
+        private PropertyState<bool> m_supportsFilteredRetain = null;
 
         #endregion
     }
