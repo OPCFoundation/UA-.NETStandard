@@ -72,7 +72,7 @@ namespace Opc.Ua.PubSub.Configuration
                 }
                 else
                 {
-                    // compare fileds
+                    // compare fields
                     for (int i = 0; i < oldMetaData.Fields.Count; i++)
                     {
                         /*If at least one Property value of a DataSetMetaData field changes, the MajorVersion shall be updated.*/
@@ -135,7 +135,7 @@ namespace Opc.Ua.PubSub.Configuration
         }
 
         /// <summary>
-        /// Check if the DataSetMetData is usable for decoding.
+        /// Check if the DataSetMetaData is usable for decoding.
         /// It shall be not null and have the Fields collection defined and also the ConfigurationVersion shall be not null or Empty
         /// </summary>
         /// <param name="dataSetMetaData"></param>

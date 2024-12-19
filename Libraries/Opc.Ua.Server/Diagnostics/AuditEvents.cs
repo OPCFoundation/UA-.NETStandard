@@ -1014,7 +1014,7 @@ namespace Opc.Ua.Server
         /// <param name="method">The method that triggered the audit event.</param>
         /// <param name="inputArguments">The input arguments used to call the method that triggered the audit event.</param>
         /// <param name="certificateGroupId">The id of the certificate group</param>
-        /// <param name="certificateTypeId">the certificate ype id</param>
+        /// <param name="certificateTypeId">the certificate type id</param>
         /// <param name="exception">The exception resulted after executing the UpdateCertificate method. If null, the operation was successfull.</param>
         public static void ReportCertificateUpdatedAuditEvent(
             this IAuditEventServer server,

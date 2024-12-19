@@ -380,7 +380,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 Assert.AreEqual(1, crlsAfterFirstDelete.Count);
                 Assert.Null(crlsAfterFirstDelete.FirstOrDefault(c => c == crl));
 
-                //make shure IsRevoked cant find crl anymore
+                //make shure IsRevoked can't find crl anymore
                 var statusCode = await x509Store.IsRevoked(GetTestCert(), GetTestCert()).ConfigureAwait(false);
                 Assert.AreEqual((StatusCode)StatusCodes.BadCertificateRevocationUnknown, statusCode);
 

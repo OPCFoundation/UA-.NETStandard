@@ -425,7 +425,7 @@ namespace Opc.Ua.Client.Tests
                 var sre = Assert.ThrowsAsync<ServiceResultException>(async () => await session.ReadNodeAsync(nodeId, CancellationToken.None).ConfigureAwait(false));
                 Assert.AreEqual((StatusCode)StatusCodes.BadSessionIdInvalid, (StatusCode)sre.StatusCode);
 
-                // reconect/reactivate
+                // reconnect/reactivate
                 await session.OpenAsync(sessionName, userIdentity, CancellationToken.None).ConfigureAwait(false);
 
                 node = await session.ReadNodeAsync(nodeId, CancellationToken.None).ConfigureAwait(false);

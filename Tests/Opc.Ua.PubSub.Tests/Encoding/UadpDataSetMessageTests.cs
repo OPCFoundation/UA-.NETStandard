@@ -37,7 +37,7 @@ using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.PubSub.Tests.Encoding
 {
-    [TestFixture(Description = "Tests for Encoding/Decoding of UadpDataSeMessage objects")]
+    [TestFixture(Description = "Tests for Encoding/Decoding of UadpDataSetMessage objects")]
     public class UadpDataSetMessageTests
     {
         private string m_publisherConfigurationFileName = Path.Combine("Configuration", "PublisherConfiguration.xml");

@@ -237,7 +237,7 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
         }
 
          /// <summary>
-        /// Identifies a named curve by the provided coeficients A and B from their first 4 bytes
+        /// Identifies a named curve by the provided coefficients A and B from their first 4 bytes
         /// </summary>
         /// <param name="a"></param>
         /// <param name="b"></param>

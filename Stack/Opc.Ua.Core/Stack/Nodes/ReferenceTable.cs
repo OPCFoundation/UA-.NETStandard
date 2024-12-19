@@ -111,14 +111,14 @@ namespace Opc.Ua
             ITypeTable typeTree);
 
         /// <summary>
-        /// Returns a single target that meets the specifed criteria.
+        /// Returns a single target that meets the specified criteria.
         /// </summary>
         /// <param name="referenceTypeId">The reference type identifier.</param>
         /// <param name="isInverse">if set to <c>true</c> this is inverse reference.</param>
         /// <param name="includeSubtypes">if set to <c>true</c> subtypes are included.</param>
         /// <param name="typeTree">The type tree.</param>
         /// <param name="index">The index.</param>
-        /// <returns>A single target that meets the specifed criteria.</returns>
+        /// <returns>A single target that meets the specified criteria.</returns>
         ExpandedNodeId FindTarget(
             NodeId referenceTypeId,
             bool isInverse,
@@ -278,14 +278,14 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Returns a single target that meets the specifed criteria.
+        /// Returns a single target that meets the specified criteria.
         /// </summary>
         /// <param name="referenceTypeId">The reference type identifier.</param>
         /// <param name="isInverse">if set to <c>true</c> this is inverse reference.</param>
         /// <param name="includeSubtypes">if set to <c>true</c> subtypes are included.</param>
         /// <param name="typeTree">The type tree.</param>
         /// <param name="index">The index.</param>
-        /// <returns>A single target that meets the specifed criteria.</returns>
+        /// <returns>A single target that meets the specified criteria.</returns>
         public ExpandedNodeId FindTarget(
             NodeId referenceTypeId,
             bool isInverse,
@@ -537,7 +537,7 @@ namespace Opc.Ua
                 return hits;
             }
 
-            // go throw list of references.
+            // go through list of references.
             for (LinkedListNode<KeyValuePair<IReference, T>> node = m_list.First; node != null; node = node.Next)
             {
                 if (node.Value.Key.TargetId == targetId)

@@ -32,7 +32,7 @@ using System;
 namespace Opc.Ua.PubSub
 {
     /// <summary>
-    /// Class that contains data related to DatasetWriterConfigurationReceived event
+    /// Class that contains data related to DataSetWriterConfigurationReceived event
     /// </summary>
     public class DataSetWriterConfigurationEventArgs : EventArgs
     {

@@ -77,13 +77,13 @@ namespace Opc.Ua
     /// Indicates whether the status code represents a good, bad or uncertain condition. 
     /// These bits have the following meanings:<br/>
     ///     <list type="bullet">
-    ///         <item>Binary Represntation <b>00</b>:<br/>
+    ///         <item>Binary Representation <b>00</b>:<br/>
     ///         Indicates that the operation was successful and the associated results may be used.</item>
-    ///         <item>Binary Represntation <b>01</b>:<br/>
+    ///         <item>Binary Representation <b>01</b>:<br/>
     ///         Indicates that the operation was partially successful and that associated results may not be suitable for some purposes.</item>
-    ///         <item>Binary Represntation <b>10</b>:<br/>
+    ///         <item>Binary Representation <b>10</b>:<br/>
     ///         Indicates that the operation failed and any associated results cannot be used.</item>
-    ///         <item>Binary Represntation <b>11</b>:<br/>
+    ///         <item>Binary Representation <b>11</b>:<br/>
     ///         Reserved for future use. All Clients should treat a status code with this severity as �Bad�.</item>
     ///     </list>
     /// </item>
@@ -332,7 +332,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Returns a copy of the status code with the llimit bits set.
+        /// Returns a copy of the status code with the limit bits set.
         /// </summary>
         /// <param name="bits">The value for the limits bits</param>
         /// <returns>The status code with the limit bits set to the specified values.</returns>

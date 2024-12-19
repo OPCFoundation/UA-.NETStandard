@@ -30,12 +30,12 @@ namespace Opc.Ua
         public const string XmlSchemaInstance = "http://www.w3.org/2001/XMLSchema-instance";
 
         /// <summary>
-        /// The WS Secuirity Extensions Namespace.
+        /// The WS Security Extensions Namespace.
         /// </summary>
         public const string WSSecurityExtensions = "http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd";
 
         /// <summary>
-        /// The WS Secuirity Utilities Namespace.
+        /// The WS Security Utilities Namespace.
         /// </summary>
         public const string WSSecurityUtilities = "http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd";
 

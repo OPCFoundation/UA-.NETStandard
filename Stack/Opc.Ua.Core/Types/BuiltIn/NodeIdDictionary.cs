@@ -1061,9 +1061,9 @@ namespace Opc.Ua
             {
                 if (m_enumerator != null)
                 {
-                    if (m_enumerator is IDisposable diposeable)
+                    if (m_enumerator is IDisposable disposeable)
                     {
-                        diposeable.Dispose();
+                        disposeable.Dispose();
                     }
 
                     m_enumerator = null;

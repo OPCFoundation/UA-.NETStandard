@@ -152,7 +152,7 @@ namespace Opc.Ua
                 return false;
             }
 
-            // easiet to check inverse flag first.
+            // easiest to check inverse flag first.
             if (isInverse)
             {
                 if (m_browseDirection == BrowseDirection.Forward)

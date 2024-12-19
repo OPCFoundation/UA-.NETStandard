@@ -68,7 +68,7 @@ namespace Opc.Ua
                 return StatusCodes.BadNodeIdInvalid;
             }
 
-            // must be a legimate attribute value.
+            // must be a legitimate attribute value.
             if (!Attributes.IsValid(valueId.AttributeId))
             {
                 return StatusCodes.BadAttributeIdInvalid;
