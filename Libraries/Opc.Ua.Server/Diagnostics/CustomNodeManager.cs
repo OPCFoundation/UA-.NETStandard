@@ -389,7 +389,8 @@ namespace Opc.Ua.Server
 
             List<LocalReference> referencesToRemove = new List<LocalReference>();
 
-            if (m_predefinedNodes?.TryGetValue(nodeId, out NodeState node) != true)
+            NodeState node = null;
+            if (m_predefinedNodes?.TryGetValue(nodeId, out node) != true)
             {
                 return false;
             }
