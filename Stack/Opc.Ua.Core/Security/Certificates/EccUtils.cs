@@ -126,6 +126,47 @@ namespace Opc.Ua
             }
         }
 
+#if ECC_SUPPORT
+        /// <summary>
+        /// returns an ECCCurve if there is a matching supported curve for the provided certificate type id. if no supported ECC curve is found null is returned.
+        /// </summary>
+        /// <param name="certificateType">the  application certificatate type node id</param>
+        /// <returns>the ECCCurve, null if certificatate type id has no matching supported ECC curve</returns>
+        public static ECCurve? GetCurveFromCertificateTypeId(NodeId certificateType)
+        {
+            ECCurve? curve = null;
+
+            if (certificateType == ObjectTypeIds.EccApplicationCertificateType ||
+                                certificateType == ObjectTypeIds.EccNistP256ApplicationCertificateType)
+            {
+                curve = ECCurve.NamedCurves.nistP256;
+            }
+            else if (certificateType == ObjectTypeIds.EccNistP384ApplicationCertificateType)
+            {
+                curve = ECCurve.NamedCurves.nistP384;
+            }
+            else if (certificateType == ObjectTypeIds.EccBrainpoolP256r1ApplicationCertificateType)
+            {
+                curve = ECCurve.NamedCurves.brainpoolP256r1;
+            }
+            else if (certificateType == ObjectTypeIds.EccBrainpoolP384r1ApplicationCertificateType)
+            {
+                curve = ECCurve.NamedCurves.brainpoolP384r1;
+            }
+#if CURVE25519
+            else if (certificateType == ObjectTypeIds.EccCurve25519ApplicationCertificateType)
+            {
+                curve = default(ECCurve);
+            }
+            else if (certificateType == ObjectTypeIds.EccCurve448ApplicationCertificateType)
+            {
+                curve = default(ECCurve);
+            }
+#endif
+            return curve;
+        }
+#endif
+
         /// <summary>
         /// Returns the signature algorithm for the specified certificate.
         /// </summary>

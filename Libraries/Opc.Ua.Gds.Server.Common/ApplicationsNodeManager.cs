@@ -346,7 +346,19 @@ namespace Opc.Ua.Gds.Server
                     { Ua.ObjectTypeIds.UserCredentialCertificateType, nameof(Ua.ObjectTypeIds.UserCredentialCertificateType) },
                     { Ua.ObjectTypeIds.ApplicationCertificateType, nameof(Ua.ObjectTypeIds.ApplicationCertificateType) },
                     { Ua.ObjectTypeIds.RsaMinApplicationCertificateType, nameof(Ua.ObjectTypeIds.RsaMinApplicationCertificateType) },
-                    { Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType, nameof(Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType) }
+                    { Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType, nameof(Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType) },
+                    // ECC / V1.05
+#if ECC_SUPPORT
+                    { Ua.ObjectTypeIds.EccApplicationCertificateType, nameof(Ua.ObjectTypeIds.EccApplicationCertificateType) },
+                    { Ua.ObjectTypeIds.EccNistP256ApplicationCertificateType, nameof(Ua.ObjectTypeIds.EccNistP256ApplicationCertificateType) },
+                    { Ua.ObjectTypeIds.EccNistP384ApplicationCertificateType, nameof(Ua.ObjectTypeIds.EccNistP384ApplicationCertificateType) },
+                    { Ua.ObjectTypeIds.EccBrainpoolP256r1ApplicationCertificateType, nameof(Ua.ObjectTypeIds.EccBrainpoolP256r1ApplicationCertificateType) },
+                    { Ua.ObjectTypeIds.EccBrainpoolP384r1ApplicationCertificateType, nameof(Ua.ObjectTypeIds.EccBrainpoolP384r1ApplicationCertificateType) },
+#if CURVE25519
+                    { Ua.ObjectTypeIds.EccCurve25519ApplicationCertificateType, nameof(Ua.ObjectTypeIds.EccCurve25519ApplicationCertificateType) },
+                    { Ua.ObjectTypeIds.EccCurve448ApplicationCertificateType, nameof(Ua.ObjectTypeIds.EccCurve448ApplicationCertificateType) },
+#endif
+#endif
                 };
 
             }
@@ -414,7 +426,7 @@ namespace Opc.Ua.Gds.Server
                     activeNode.CheckRevocationStatus.OnCall = new CheckRevocationStatusMethodStateMethodCallHandler(OnCheckRevocationStatus);
                     activeNode.GetCertificates.OnCall = new GetCertificatesMethodStateMethodCallHandler(OnGetCertificates);
 
-                    activeNode.CertificateGroups.DefaultApplicationGroup.CertificateTypes.Value = new NodeId[] { Opc.Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType };
+                    activeNode.CertificateGroups.DefaultApplicationGroup.CertificateTypes.Value = new NodeId[] { Ua.ObjectTypeIds.ApplicationCertificateType };
                     activeNode.CertificateGroups.DefaultApplicationGroup.TrustList.LastUpdateTime.Value = DateTime.UtcNow;
                     activeNode.CertificateGroups.DefaultApplicationGroup.TrustList.Writable.Value = false;
                     activeNode.CertificateGroups.DefaultApplicationGroup.TrustList.UserWritable.Value = false;
@@ -966,7 +978,7 @@ namespace Opc.Ua.Gds.Server
             object[] inputArguments = new object[] { applicationId, certificateGroupId, certificateTypeId, subjectName, domainNames, privateKeyFormat, privateKeyPassword };
             Server.ReportCertificateRequestedAuditEvent(context, objectId, method, inputArguments, certificateGroupId, certificateTypeId);
 
-            AuthorizationHelper.HasAuthorization(context, AuthorizationHelper.CertificateAuthorityAdminOrSelfAdmin, applicationId); ;
+            AuthorizationHelper.HasAuthorization(context, AuthorizationHelper.CertificateAuthorityAdminOrSelfAdmin, applicationId);
 
             var application = m_database.GetApplication(applicationId);
 
@@ -1166,7 +1178,7 @@ namespace Opc.Ua.Gds.Server
             signedCertificate = null;
             issuerCertificates = null;
             privateKey = null;
-            AuthorizationHelper.HasAuthorization(context, AuthorizationHelper.CertificateAuthorityAdminOrSelfAdmin, applicationId); ;
+            AuthorizationHelper.HasAuthorization(context, AuthorizationHelper.CertificateAuthorityAdminOrSelfAdmin, applicationId);
 
             var application = m_database.GetApplication(applicationId);
             if (application == null)
@@ -1547,8 +1559,20 @@ namespace Opc.Ua.Gds.Server
                 certificateGroup.DefaultTrustList = (TrustListState)FindPredefinedNode(ExpandedNodeId.ToNodeId(Opc.Ua.Gds.ObjectIds.Directory_CertificateGroups_DefaultUserTokenGroup_TrustList, Server.NamespaceUris), typeof(TrustListState));
             }
             else if (Utils.IsEqual(certificateType, Opc.Ua.ObjectTypeIds.ApplicationCertificateType) ||
-                Utils.IsEqual(certificateType, Opc.Ua.ObjectTypeIds.RsaMinApplicationCertificateType) ||
-                Utils.IsEqual(certificateType, Opc.Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType)
+                    Utils.IsEqual(certificateType, Opc.Ua.ObjectTypeIds.RsaMinApplicationCertificateType) ||
+                    Utils.IsEqual(certificateType, Opc.Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType)
+
+#if ECC_SUPPORT
+                    || Utils.IsEqual(certificateType, Ua.ObjectTypeIds.EccApplicationCertificateType)
+                    || Utils.IsEqual(certificateType, Ua.ObjectTypeIds.EccNistP256ApplicationCertificateType)
+                    || Utils.IsEqual(certificateType, Ua.ObjectTypeIds.EccNistP384ApplicationCertificateType)
+                    || Utils.IsEqual(certificateType, Ua.ObjectTypeIds.EccBrainpoolP256r1ApplicationCertificateType)
+                    || Utils.IsEqual(certificateType, Ua.ObjectTypeIds.EccBrainpoolP384r1ApplicationCertificateType)
+#if CURVE25519
+                    || Utils.IsEqual(certificateType, Ua.ObjectTypeIds.EccCurve25519ApplicationCertificateType)
+                    || Utils.IsEqual(certificateType, Ua.ObjectTypeIds.EccCurve448ApplicationCertificateType)
+#endif
+#endif
                 )
             {
                 certificateGroup.Id = m_defaultApplicationGroupId;
