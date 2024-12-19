@@ -387,14 +387,12 @@ namespace Opc.Ua.Server
         {
             ServerSystemContext contextToUse = m_systemContext.Copy(context);
 
-            bool found = false;
             List<LocalReference> referencesToRemove = new List<LocalReference>();
 
-            if (m_predefinedNodes == null || !m_predefinedNodes.TryGetValue(nodeId, out NodeState node))
+            if (m_predefinedNodes?.TryGetValue(nodeId, out NodeState node) != true)
             {
                 return false;
             }
-            found = true;
 
             RemovePredefinedNode(contextToUse, node, referencesToRemove);
             RemoveRootNotifier(node);
@@ -404,7 +402,7 @@ namespace Opc.Ua.Server
                 Server.NodeManager.RemoveReferences(referencesToRemove);
             }
 
-            return found;
+            return true;
         }
 
         /// <summary>
@@ -615,7 +613,7 @@ namespace Opc.Ua.Server
             NodeState node,
             List<LocalReference> referencesToRemove)
         {
-            if (!m_predefinedNodes?.TryRemove(node.NodeId, out _) == true)
+            if (m_predefinedNodes?.TryRemove(node.NodeId, out _) != true)
             {
                 return;
             }
@@ -3453,16 +3451,16 @@ namespace Opc.Ua.Server
                 return;
             }
 
-            lock (Lock)
+            // validates the nodes (reads values from the underlying data source if required).
+            for (int ii = 0; ii < nodesToValidate.Count; ii++)
             {
-                // validates the nodes (reads values from the underlying data source if required).
-                for (int ii = 0; ii < nodesToValidate.Count; ii++)
+                NodeHandle handle = nodesToValidate[ii];
+
+                MonitoringFilterResult filterResult = null;
+                IMonitoredItem monitoredItem = null;
+
+                lock (Lock)
                 {
-                    NodeHandle handle = nodesToValidate[ii];
-
-                    MonitoringFilterResult filterResult = null;
-                    IMonitoredItem monitoredItem = null;
-
                     // validate node.
                     NodeState source = ValidateNode(systemContext, handle, operationCache);
 
@@ -3485,19 +3483,19 @@ namespace Opc.Ua.Server
                         ref globalIdCounter,
                         out filterResult,
                         out monitoredItem);
-
-                    // save any filter error details.
-                    filterErrors[handle.Index] = filterResult;
-
-                    if (ServiceResult.IsBad(errors[handle.Index]))
-                    {
-                        continue;
-                    }
-
-                    // save the monitored item.
-                    monitoredItems[handle.Index] = monitoredItem;
-                    createdItems.Add(monitoredItem);
                 }
+
+                // save any filter error details.
+                filterErrors[handle.Index] = filterResult;
+
+                if (ServiceResult.IsBad(errors[handle.Index]))
+                {
+                    continue;
+                }
+
+                // save the monitored item.
+                monitoredItems[handle.Index] = monitoredItem;
+                createdItems.Add(monitoredItem);
             }
 
             // do any post processing.
