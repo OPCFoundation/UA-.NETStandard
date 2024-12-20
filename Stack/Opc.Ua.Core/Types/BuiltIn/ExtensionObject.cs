@@ -418,6 +418,11 @@ namespace Opc.Ua
                     m_encoding = ExtensionObjectEncoding.Xml;
                 }
 
+                else if (m_body is Newtonsoft.Json.Linq.JObject)
+                {
+                    m_encoding = ExtensionObjectEncoding.Json;
+                }
+
                 else
                 {
                     throw new ServiceResultException(

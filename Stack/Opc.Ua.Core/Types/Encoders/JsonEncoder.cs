@@ -1672,6 +1672,7 @@ namespace Opc.Ua
                         if (!SuppressArtifacts && !NodeId.IsNull(localTypeId))
                         {
                             WriteNodeId("UaTypeId", localTypeId);
+                            m_writer.Write(s_comma);
                         }
 
                         string text = json.ToString(Newtonsoft.Json.Formatting.None);
