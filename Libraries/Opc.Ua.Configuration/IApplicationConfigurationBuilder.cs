@@ -52,7 +52,7 @@ namespace Opc.Ua.Configuration
     };
 
     /// <summary>
-    /// The client or server configuration types to chose.
+    /// The client or server configuration types to choose.
     /// </summary>
     public interface IApplicationConfigurationBuilderTypes :
         IApplicationConfigurationBuilderTransportQuotas,

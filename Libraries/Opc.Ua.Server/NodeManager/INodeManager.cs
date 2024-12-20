@@ -138,7 +138,7 @@ namespace Opc.Ua.Server
         /// NodeManager must return a ReferenceDescription with the NodeId and ReferenceTypeId set. The caller will
         /// be responsible for filling in the target attributes. 
         /// The references parameter may already contain references when the method is called. The implementer must 
-        /// include these references when calculating whether a continutation point must be returned.
+        /// include these references when calculating whether a continuation point must be returned.
         /// </remarks>
         /// <exception cref="ArgumentNullException">Thrown if the context, continuationPoint or references parameters are null.</exception>
         /// <exception cref="ServiceResultException">Thrown if an error occurs during processing.</exception>
