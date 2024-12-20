@@ -14,6 +14,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
@@ -416,7 +417,7 @@ namespace Opc.Ua.Bindings
             try
             {
                 var channelIdString = globalChannelId.Substring(ListenerId.Length + 1);
-                var channelId = Convert.ToUInt32(channelIdString);
+                var channelId = Convert.ToUInt32(channelIdString, CultureInfo.InvariantCulture);
 
                 TcpListenerChannel channel = null;
                 if (channelId > 0 &&
