@@ -119,7 +119,7 @@ namespace Opc.Ua.Security.Certificates
         }
 
         /// <summary>
-        /// Loads the cached certificate chain blob of a certificate for use in a secure channel as raw byte array.
+        /// Loads the cached certificate chain blob of a certificate for use in a secure channel as raw byte array from cache.
         /// </summary>
         /// <param name="certificate">The application certificate.</param>
         public byte[] LoadCertificateChainRaw(X509Certificate2 certificate)
@@ -199,6 +199,7 @@ namespace Opc.Ua.Security.Certificates
         public void Update(SecurityConfiguration securityConfiguration)
         {
             m_securityConfiguration = securityConfiguration;
+            //ToDo intialize internal CertificateValidator after Certificate Update to clear cache of old application certificates
         }
 
         CertificateValidator m_certificateValidator;
