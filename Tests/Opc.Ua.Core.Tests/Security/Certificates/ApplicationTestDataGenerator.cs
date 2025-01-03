@@ -62,6 +62,7 @@ namespace Opc.Ua.Core.Tests
             return testDataSet;
         }
 
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "SYSLIB1045:Convert to 'GeneratedRegexAttribute'.", Justification = "Test")]
         private ApplicationTestData RandomApplicationTestData()
         {
             // TODO: set to discoveryserver

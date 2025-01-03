@@ -99,6 +99,7 @@ namespace Opc.Ua.Gds.Tests
             return testDataSet;
         }
 
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "SYSLIB1045:Convert to 'GeneratedRegexAttribute'.", Justification = "Tests")]
         private ApplicationTestData RandomApplicationTestData()
         {
             // TODO: set to discoveryserver
