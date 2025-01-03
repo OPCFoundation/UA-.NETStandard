@@ -33,6 +33,15 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Gets a value indicating whether there are more NotificationMessages for this publish interval.
+        /// </summary>
+        public bool MoreNotifications
+        {
+            get { return m_moreNotifications; }
+            set { m_moreNotifications = value; }
+        }
+
+        /// <summary>
         /// Gets a value indicating whether this NotificationMessage is empty.
         /// </summary>
         /// <value>
@@ -120,7 +129,6 @@ namespace Opc.Ua
                     continue;
                 }
 
-
                 if (!(extension.Body is EventNotificationList notification))
                 {
                     continue;
@@ -159,6 +167,7 @@ namespace Opc.Ua
         #endregion
 
         #region Private Fields
+        private bool m_moreNotifications;
         private StringCollection m_stringTable;
         #endregion
     }
