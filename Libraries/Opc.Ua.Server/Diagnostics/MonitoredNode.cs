@@ -28,7 +28,9 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using Opc.Ua;
 using Opc.Ua.Server;
 
@@ -77,7 +79,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Gets the current list of data change MonitoredItems.
         /// </summary>
-        public List<MonitoredItem> DataChangeMonitoredItems
+        public ConcurrentDictionary<uint, MonitoredItem> DataChangeMonitoredItems
         {
             get { return m_dataChangeMonitoredItems; }
             private set { m_dataChangeMonitoredItems = value; }
@@ -86,7 +88,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Gets the current list of event MonitoredItems.
         /// </summary>
-        public List<IEventMonitoredItem> EventMonitoredItems
+        public ConcurrentDictionary<uint, IEventMonitoredItem> EventMonitoredItems
         {
             get { return m_eventMonitoredItems; }
             private set { m_eventMonitoredItems = value; }
@@ -98,23 +100,7 @@ namespace Opc.Ua.Server
         /// <value>
         /// 	<c>true</c> if this instance has monitored items; otherwise, <c>false</c>.
         /// </value>
-        public bool HasMonitoredItems
-        {
-            get
-            {
-                if (DataChangeMonitoredItems != null && DataChangeMonitoredItems.Count > 0)
-                {
-                    return true;
-                }
-
-                if (EventMonitoredItems != null && EventMonitoredItems.Count > 0)
-                {
-                    return true;
-                }
-
-                return false;
-            }
-        }
+        public bool HasMonitoredItems => DataChangeMonitoredItems?.Count > 0 || EventMonitoredItems?.Count > 0;
 
         /// <summary>
         /// Adds the specified data change monitored item.
@@ -124,11 +110,11 @@ namespace Opc.Ua.Server
         {
             if (DataChangeMonitoredItems == null)
             {
-                DataChangeMonitoredItems = new List<MonitoredItem>();
+                DataChangeMonitoredItems = new ConcurrentDictionary<uint, MonitoredItem>();
                 Node.OnStateChanged = OnMonitoredNodeChanged;
             }
 
-            DataChangeMonitoredItems.Add(datachangeItem);
+            DataChangeMonitoredItems.TryAdd(datachangeItem.Id, datachangeItem);
         }
 
         /// <summary>
@@ -137,14 +123,7 @@ namespace Opc.Ua.Server
         /// <param name="datachangeItem">The monitored item.</param>
         public void Remove(MonitoredItem datachangeItem)
         {
-            for (int ii = 0; ii < DataChangeMonitoredItems.Count; ii++)
-            {
-                if (Object.ReferenceEquals(DataChangeMonitoredItems[ii], datachangeItem))
-                {
-                    DataChangeMonitoredItems.RemoveAt(ii);
-                    break;
-                }
-            }
+            DataChangeMonitoredItems.TryRemove(datachangeItem.Id, out _);
 
             if (DataChangeMonitoredItems.Count == 0)
             {
@@ -161,11 +140,11 @@ namespace Opc.Ua.Server
         {
             if (EventMonitoredItems == null)
             {
-                EventMonitoredItems = new List<IEventMonitoredItem>();
+                EventMonitoredItems = new ConcurrentDictionary<uint, IEventMonitoredItem>();
                 Node.OnReportEvent = OnReportEvent;
             }
 
-            EventMonitoredItems.Add(eventItem);
+            EventMonitoredItems.TryAdd(eventItem.Id, eventItem);
         }
 
         /// <summary>
@@ -174,14 +153,7 @@ namespace Opc.Ua.Server
         /// <param name="eventItem">The monitored item.</param>
         public void Remove(IEventMonitoredItem eventItem)
         {
-            for (int ii = 0; ii < EventMonitoredItems.Count; ii++)
-            {
-                if (Object.ReferenceEquals(EventMonitoredItems[ii], eventItem))
-                {
-                    EventMonitoredItems.RemoveAt(ii);
-                    break;
-                }
-            }
+            EventMonitoredItems.TryRemove(eventItem.Id, out _);
 
             if (EventMonitoredItems.Count == 0)
             {
@@ -198,36 +170,14 @@ namespace Opc.Ua.Server
         /// <param name="e">The event.</param>
         public void OnReportEvent(ISystemContext context, NodeState node, IFilterTarget e)
         {
-            List<IEventMonitoredItem> eventMonitoredItems = new List<IEventMonitoredItem>();
-
-            lock (NodeManager.Lock)
-            {
-                if (EventMonitoredItems == null)
-                {
-                    return;
-                }
-
-                for (int ii = 0; ii < EventMonitoredItems.Count; ii++)
-                {
-                    IEventMonitoredItem monitoredItem = EventMonitoredItems[ii];
-                    // enqueue event for role permission validation
-                    eventMonitoredItems.Add(monitoredItem);
-                }
-            }
-
-            for (int ii = 0; ii < eventMonitoredItems.Count; ii++)
-            {
-
-                IEventMonitoredItem monitoredItem = eventMonitoredItems[ii];
-
+            Parallel.ForEach(EventMonitoredItems?.Values, (monitoredItem) => {
                 #region  Filter out audit events in case the Server_Auditing values is false or the channel is not encrypted
-
                 if (e is AuditEventState)
                 {
                     // check Server.Auditing flag and skip if false
                     if (!NodeManager.Server.Auditing)
                     {
-                        continue;
+                        return;
                     }
                     else
                     {
@@ -235,7 +185,7 @@ namespace Opc.Ua.Server
                         if (monitoredItem?.Session?.EndpointDescription?.SecurityMode != MessageSecurityMode.SignAndEncrypt &&
                             monitoredItem?.Session?.EndpointDescription?.TransportProfileUri != Profiles.HttpsBinaryTransport)
                         {
-                            continue;
+                            return;
                         }
                     }
                 }
@@ -247,31 +197,27 @@ namespace Opc.Ua.Server
                 if (ServiceResult.IsBad(validationResult))
                 {
                     // skip event reporting for EventType without permissions
-                    continue;
+                    return;
                 }
 
-                lock (NodeManager.Lock)
+                // enqueue event
+                if (context?.SessionId != null && monitoredItem?.Session?.Id?.Identifier != null)
                 {
-                    // enqueue event
-                    if (context?.SessionId != null && monitoredItem?.Session?.Id?.Identifier != null)
-                    {
-                        if (monitoredItem.Session.Id.Identifier.Equals(context.SessionId.Identifier))
-                        {
-                            monitoredItem?.QueueEvent(e);
-                        }
-                        else
-                        {
-                            continue;
-                        }
-                    }
-                    else
+                    if (monitoredItem.Session.Id.Identifier.Equals(context.SessionId.Identifier))
                     {
                         monitoredItem?.QueueEvent(e);
                     }
-
+                    else
+                    {
+                        return;
+                    }
                 }
-            }
-        }        
+                else
+                {
+                    monitoredItem?.QueueEvent(e);
+                }
+            });
+        }
 
         /// <summary>
         /// Called when the state of a Node changes.
@@ -281,17 +227,10 @@ namespace Opc.Ua.Server
         /// <param name="changes">The mask indicating what changes have occurred.</param>
         public void OnMonitoredNodeChanged(ISystemContext context, NodeState node, NodeStateChangeMasks changes)
         {
-            lock (NodeManager.Lock)
+            //ensure DataChange is enqueued for all MIs before the next DataChange can start enqueueing
+            lock (m_lock)
             {
-                if (DataChangeMonitoredItems == null)
-                {
-                    return;
-                }
-
-                for (int ii = 0; ii < DataChangeMonitoredItems.Count; ii++)
-                {
-                    MonitoredItem monitoredItem = DataChangeMonitoredItems[ii];
-
+                Parallel.ForEach(DataChangeMonitoredItems?.Values, (monitoredItem) => {
                     if (monitoredItem.AttributeId == Attributes.Value && (changes & NodeStateChangeMasks.Value) != 0)
                     {
                         // validate if the monitored item has the required role permissions to read the value
@@ -300,19 +239,19 @@ namespace Opc.Ua.Server
                         if (ServiceResult.IsBad(validationResult))
                         {
                             // skip if the monitored item does not have permission to read
-                            continue;
+                            return;
                         }
 
                         QueueValue(context, node, monitoredItem);
-                        continue;
+                        return;
                     }
 
                     if (monitoredItem.AttributeId != Attributes.Value && (changes & NodeStateChangeMasks.NonValue) != 0)
                     {
                         QueueValue(context, node, monitoredItem);
-                        continue;
+                        return;
                     }
-                }
+                });
             }
         }
 
@@ -324,12 +263,12 @@ namespace Opc.Ua.Server
             NodeState node,
             MonitoredItem monitoredItem)
         {
-            DataValue value = new DataValue();
-
-            value.Value = null;
-            value.ServerTimestamp = DateTime.UtcNow;
-            value.SourceTimestamp = DateTime.MinValue;
-            value.StatusCode = StatusCodes.Good;
+            DataValue value = new DataValue {
+                Value = null,
+                ServerTimestamp = DateTime.UtcNow,
+                SourceTimestamp = DateTime.MinValue,
+                StatusCode = StatusCodes.Good
+            };
 
             ServiceResult error = node.ReadAttribute(
                 context,
@@ -349,9 +288,10 @@ namespace Opc.Ua.Server
 
         #region Private Fields
         private CustomNodeManager2 m_nodeManager;
+        private readonly object m_lock = new object();
         private NodeState m_node;
-        private List<MonitoredItem> m_dataChangeMonitoredItems;
-        private List<IEventMonitoredItem> m_eventMonitoredItems;
+        private ConcurrentDictionary<uint, MonitoredItem> m_dataChangeMonitoredItems;
+        private ConcurrentDictionary<uint, IEventMonitoredItem> m_eventMonitoredItems;
         #endregion
     }
 }

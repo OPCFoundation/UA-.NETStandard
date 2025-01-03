@@ -29,6 +29,8 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
+using System.Linq;
 using System.Threading;
 using Opc.Ua;
 using Opc.Ua.Server;
@@ -143,7 +145,7 @@ namespace Alarms
 
                     Type alarmControllerType = Type.GetType("Alarms.AlarmController");
                     int interval = 1000;
-                    string intervalString = interval.ToString();
+                    string intervalString = interval.ToString(CultureInfo.InvariantCulture);
 
                     int conditionTypeIndex = 0;
                     #endregion
@@ -762,23 +764,23 @@ namespace Alarms
 
                 MethodState method = null;
 
-                lock (Lock)
+                // check for valid handle.
+                NodeHandle initialHandle = GetManagerHandle(systemContext, methodToCall.ObjectId, operationCache);
+
+                if (initialHandle == null)
                 {
-                    // check for valid handle.
-                    NodeHandle initialHandle = GetManagerHandle(systemContext, methodToCall.ObjectId, operationCache);
-
-                    if (initialHandle == null)
+                    if (ackConfirmMethod)
                     {
-                        if (ackConfirmMethod)
-                        {
-                            // Mantis 6944
-                            errors[ii] = StatusCodes.BadNodeIdUnknown;
-                            methodToCall.Processed = true;
-                        }
-
-                        continue;
+                        // Mantis 6944
+                        errors[ii] = StatusCodes.BadNodeIdUnknown;
+                        methodToCall.Processed = true;
                     }
 
+                    continue;
+                }
+
+                lock (Lock)
+                {
                     // owned by this node manager.
                     methodToCall.Processed = true;
 
@@ -836,9 +838,7 @@ namespace Alarms
             for (int ii = 0; ii < monitoredItems.Count; ii++)
             {
                 // the IEventMonitoredItem should always be MonitoredItems since they are created by the MasterNodeManager.
-                MonitoredItem monitoredItem = monitoredItems[ii] as MonitoredItem;
-
-                if (monitoredItem == null)
+                if (!(monitoredItems[ii] is MonitoredItem monitoredItem))
                 {
                     continue;
                 }
@@ -846,29 +846,26 @@ namespace Alarms
                 List<IFilterTarget> events = new List<IFilterTarget>();
                 List<NodeState> nodesToRefresh = new List<NodeState>();
 
-                lock (Lock)
+                // check for server subscription.
+                if (monitoredItem.NodeId == ObjectIds.Server)
                 {
-                    // check for server subscription.
-                    if (monitoredItem.NodeId == ObjectIds.Server)
+                    if (RootNotifiers != null)
                     {
-                        if (RootNotifiers != null)
-                        {
-                            nodesToRefresh.AddRange(RootNotifiers);
-                        }
+                        nodesToRefresh.AddRange(RootNotifiers.Values.ToList());
                     }
-                    else
+                }
+                else
+                {
+                    // check for existing monitored node.
+                    MonitoredNode2 monitoredNode = null;
+
+                    if (!MonitoredNodes.TryGetValue(monitoredItem.NodeId, out monitoredNode))
                     {
-                        // check for existing monitored node.
-                        MonitoredNode2 monitoredNode = null;
-
-                        if (!MonitoredNodes.TryGetValue(monitoredItem.NodeId, out monitoredNode))
-                        {
-                            continue;
-                        }
-
-                        // get the refresh events.
-                        nodesToRefresh.Add(monitoredNode.Node);
+                        continue;
                     }
+
+                    // get the refresh events.
+                    nodesToRefresh.Add(monitoredNode.Node);
                 }
 
                 // block and wait for the refresh.

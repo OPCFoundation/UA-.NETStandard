@@ -2726,29 +2726,27 @@ namespace Quickstarts.ReferenceServer
         /// </summary>
         protected override NodeHandle GetManagerHandle(ServerSystemContext context, NodeId nodeId, IDictionary<NodeId, NodeState> cache)
         {
-            lock (Lock)
+            // quickly exclude nodes that are not in the namespace. 
+            if (!IsNodeIdInNamespace(nodeId))
             {
-                // quickly exclude nodes that are not in the namespace. 
-                if (!IsNodeIdInNamespace(nodeId))
-                {
-                    return null;
-                }
-
-                NodeState node = null;
-
-                if (!PredefinedNodes.TryGetValue(nodeId, out node))
-                {
-                    return null;
-                }
-
-                NodeHandle handle = new NodeHandle();
-
-                handle.NodeId = nodeId;
-                handle.Node = node;
-                handle.Validated = true;
-
-                return handle;
+                return null;
             }
+
+            NodeState node = null;
+
+            if (!PredefinedNodes.TryGetValue(nodeId, out node))
+            {
+                return null;
+            }
+
+            NodeHandle handle = new NodeHandle {
+                NodeId = nodeId,
+                Node = node,
+                Validated = true
+            };
+
+            return handle;
+
         }
 
         /// <summary>

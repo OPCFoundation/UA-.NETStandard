@@ -187,8 +187,7 @@ namespace TestData
 
                 foreach (NodeState node in PredefinedNodes.Values)
                 {
-                    ConditionState condition = node as ConditionState;
-                    if (condition != null && !Object.ReferenceEquals(condition.Parent, conditionsFolder))
+                    if (node is ConditionState condition && !ReferenceEquals(condition.Parent, conditionsFolder))
                     {
                         condition.AddNotifier(SystemContext, null, true, conditionsFolder);
                         conditionsFolder.AddNotifier(SystemContext, null, false, condition);
