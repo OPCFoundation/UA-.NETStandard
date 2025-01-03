@@ -98,7 +98,6 @@ namespace Opc.Ua.Bindings
 
                         ServerBase.SetServerCertificateInEndpointDescription(
                             description,
-                            sendCertificateChain,
                             instanceCertificateTypesProvider);
 
                         listenerEndpoints.Add(description);
