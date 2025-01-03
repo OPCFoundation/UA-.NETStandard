@@ -705,7 +705,7 @@ namespace Opc.Ua
         }
 
 #if NETSTANDARD2_1_OR_GREATER || NET6_0_OR_GREATER
-        private void WriteSimpleField(string fieldName, string value)
+        private void WriteSimpleField(string fieldName, string value, EscapeOptions options = EscapeOptions.None)
         {
             // unlike Span<byte>, Span<char> can not become null, handle the case here
             if (value == null)
@@ -714,10 +714,10 @@ namespace Opc.Ua
                 return;
             }
 
-            WriteSimpleField(fieldName, value.AsSpan(), EscapeOptions.None);
+            WriteSimpleFieldAsSpan(fieldName, value.AsSpan(), options);
         }
 
-        private void WriteSimpleField(string fieldName, ReadOnlySpan<char> value, EscapeOptions options = EscapeOptions.None)
+        private void WriteSimpleFieldAsSpan(string fieldName, ReadOnlySpan<char> value, EscapeOptions options)
         {
             if (!string.IsNullOrEmpty(fieldName))
             {
@@ -1132,7 +1132,7 @@ namespace Opc.Ua
                     bool success = Convert.TryToBase64Chars(value, chars, out int charsWritten, Base64FormattingOptions.None);
                     if (success)
                     {
-                        WriteSimpleField(fieldName, chars.Slice(0, charsWritten), EscapeOptions.Quotes | EscapeOptions.NoValueEscape);
+                        WriteSimpleFieldAsSpan(fieldName, chars.Slice(0, charsWritten), EscapeOptions.Quotes | EscapeOptions.NoValueEscape);
                         return;
                     }
                 }
@@ -2825,7 +2825,7 @@ namespace Opc.Ua
             {
 #if NETSTANDARD2_1_OR_GREATER || NET6_0_OR_GREATER
                 Span<char> valueString = stackalloc char[DateTimeRoundTripKindLength];
-                WriteSimpleField(fieldName, ConvertUniversalTimeToString(value, valueString), escapeOptions | EscapeOptions.Quotes);
+                WriteSimpleFieldAsSpan(fieldName, ConvertUniversalTimeToString(value, valueString), escapeOptions | EscapeOptions.Quotes);
 #else
                 WriteSimpleField(fieldName, ConvertUniversalTimeToString(value), escapeOptions | EscapeOptions.Quotes);
 #endif
