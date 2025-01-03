@@ -37,5 +37,11 @@ namespace Opc.Ua
         /// A value of MinTime indicates that the time is not known.
         /// </remarks>
         public DateTime PublishTime { get; set; }
+
+        /// <summary>
+        /// Helper variable for a client to pass the information that more
+        /// notifications are expected for this publish interval.
+        /// </summary>
+        public bool MoreNotifications { get; set; }
     }
 }

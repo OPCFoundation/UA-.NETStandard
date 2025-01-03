@@ -248,6 +248,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             {
                 EscapeStringSystemTextJson(m_testString);
             }
+            m_streamWriter.Flush();
         }
 #endif
 

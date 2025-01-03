@@ -481,34 +481,54 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         {
             using (var stream = new MemoryStream())
             {
+                string text;
                 using (IEncoder encoder = new JsonEncoder(new ServiceMessageContext(), true, false, stream, true))
                 {
                     encoder.WriteByteString("ByteString1", new byte[] { 0, 1, 2, 3, 4, 5 }, 1, 3);
+                    encoder.WriteByteString("ByteString2", null);
+                    encoder.WriteByteString("ByteString3", null, 1, 2);
 #if SPAN_SUPPORT
                     var span = new ReadOnlySpan<byte>(new byte[] { 0, 1, 2, 3, 4, 5 }, 1, 3);
+                    encoder.WriteByteString("ByteString4", span);
+
                     var nullspan = new ReadOnlySpan<byte>(null);
-                    encoder.WriteByteString("ByteString2", span);
-                    encoder.WriteByteString("ByteString3", nullspan);
+                    encoder.WriteByteString("ByteString5", nullspan);
+                    Assert.IsTrue(nullspan.IsEmpty);
+                    Assert.IsTrue(nullspan == null);
+
+                    ReadOnlySpan<byte> defaultspan = default;
+                    encoder.WriteByteString("ByteString6", defaultspan);
+                    Assert.IsTrue(defaultspan.IsEmpty);
+                    Assert.IsTrue(defaultspan == null);
+
+                    ReadOnlySpan<byte> emptyspan = Array.Empty<byte>();
+                    encoder.WriteByteString("ByteString7", emptyspan);
+                    Assert.IsTrue(emptyspan.IsEmpty);
+                    Assert.IsTrue(emptyspan != null);
 #endif
-                    encoder.WriteByteString("ByteString4", null);
-                    encoder.WriteByteString("ByteString5", null, 1, 2);
+                    text = encoder.CloseAndReturnText();
                 }
+
                 stream.Position = 0;
                 var jsonTextReader = new JsonTextReader(new StreamReader(stream));
                 using (var decoder = new JsonDecoder(null, jsonTextReader, new ServiceMessageContext()))
                 {
                     var result = decoder.ReadByteString("ByteString1");
                     Assert.AreEqual(new byte[] { 1, 2, 3 }, result);
-#if SPAN_SUPPORT
                     result = decoder.ReadByteString("ByteString2");
-                    Assert.AreEqual(new byte[] { 1, 2, 3 }, result);
+                    Assert.AreEqual(null, result);
                     result = decoder.ReadByteString("ByteString3");
                     Assert.AreEqual(null, result);
-#endif
+#if SPAN_SUPPORT
                     result = decoder.ReadByteString("ByteString4");
-                    Assert.AreEqual(null, result);
+                    Assert.AreEqual(new byte[] { 1, 2, 3 }, result);
                     result = decoder.ReadByteString("ByteString5");
                     Assert.AreEqual(null, result);
+                    result = decoder.ReadByteString("ByteString6");
+                    Assert.AreEqual(null, result);
+                    result = decoder.ReadByteString("ByteString7");
+                    Assert.AreEqual(Array.Empty<byte>(), result);
+#endif
                 }
             }
         }

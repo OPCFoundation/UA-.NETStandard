@@ -11,6 +11,7 @@
 */
 
 using System;
+using System.Buffers;
 using System.Globalization;
 using System.IO;
 using System.Runtime.CompilerServices;
@@ -421,9 +422,48 @@ namespace Opc.Ua
                     "MaxStringLength {0} < {1}", maxStringLength, length);
             }
 
-            byte[] bytes = SafeReadBytes(length);
-
             // length is always >= 1 here
+
+#if NET6_0_OR_GREATER
+            const int maxStackAlloc = 1024;
+            if (length <= maxStackAlloc)
+            {
+                Span<byte> bytes = stackalloc byte[length];
+
+                // throws decoding error if length is not met
+                int utf8StringLength = SafeReadCharBytes(bytes);
+
+                // If 0 terminated, decrease length to remove 0 terminators before converting to string
+                while (utf8StringLength > 0 && bytes[utf8StringLength - 1] == 0)
+                {
+                    utf8StringLength--;
+                }
+                return Encoding.UTF8.GetString(bytes.Slice(0, utf8StringLength));
+            }
+            else
+            {
+                byte[] buffer = ArrayPool<byte>.Shared.Rent(length);
+                try
+                {
+                    Span<byte> bytes = buffer.AsSpan(0, length);
+
+                    // throws decoding error if length is not met
+                    int utf8StringLength = SafeReadCharBytes(bytes);
+
+                    // If 0 terminated, decrease length to remove 0 terminators before converting to string
+                    while (utf8StringLength > 0 && bytes[utf8StringLength - 1] == 0)
+                    {
+                        utf8StringLength--;
+                    }
+                    return Encoding.UTF8.GetString(buffer.AsSpan(0, utf8StringLength));
+                }
+                finally
+                {
+                    ArrayPool<byte>.Shared.Return(buffer);
+                }
+            }
+#else
+            byte[] bytes = SafeReadBytes(length);
 
             // If 0 terminated, decrease length to remove 0 terminators before converting to string
             int utf8StringLength = bytes.Length;
@@ -432,6 +472,7 @@ namespace Opc.Ua
                 utf8StringLength--;
             }
             return Encoding.UTF8.GetString(bytes, 0, utf8StringLength);
+#endif
         }
 
         /// <summary>
@@ -2490,6 +2531,29 @@ namespace Opc.Ua
             }
             return bytes;
         }
+
+#if NET6_0_OR_GREATER
+        /// <summary>
+        /// Read char bytes from the stream and validate the length of the returned buffer.
+        /// Throws decoding error if less than the expected number of bytes were read.
+        /// </summary>
+        /// <param name="bytes">A Span with the number of Utf8 characters to read.</param>
+        /// <param name="functionName">The name of the calling function.</param>
+        /// <exception cref="ServiceResultException"> with <see cref="StatusCodes.BadDecodingError"/></exception>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private int SafeReadCharBytes(Span<byte> bytes, [CallerMemberName] string functionName = null)
+        {
+            int length = m_reader.Read(bytes);
+
+            if (bytes.Length != length)
+            {
+                throw ServiceResultException.Create(StatusCodes.BadDecodingError,
+                    "Reading {0} bytes of {1} reached end of stream after {2} bytes.", length, functionName, bytes.Length);
+            }
+
+            return length;
+        }
+#endif
 
         /// <summary>
         /// Safe version of <see cref="ReadBoolean"></see> which returns a ServiceResultException on error.

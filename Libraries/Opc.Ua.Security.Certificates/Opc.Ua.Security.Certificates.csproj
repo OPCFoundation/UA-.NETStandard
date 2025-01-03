@@ -1,5 +1,4 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
-
   <PropertyGroup>
     <AssemblyName>Opc.Ua.Security.Certificates</AssemblyName>
     <TargetFrameworks>$(LibCoreTargetFrameworks)</TargetFrameworks>
@@ -41,7 +40,11 @@
     <DefineConstants>$(DefineConstants);SIGNASSEMBLY</DefineConstants>
   </PropertyGroup>
 
-  <ItemGroup>
+  <ItemGroup Condition="'$(TargetFramework)' != 'net6.0'">
+    <PackageReference Include="System.Formats.Asn1" Version="9.0.0" />
+  </ItemGroup>
+  
+  <ItemGroup Condition="'$(TargetFramework)' == 'net6.0'">
     <PackageReference Include="System.Formats.Asn1" Version="8.0.1" />
   </ItemGroup>
 
@@ -51,6 +54,10 @@
 
   <ItemGroup Condition="'$(TargetFramework)' == 'net48'">
     <PackageReference Include="BouncyCastle.Cryptography" Version="2.5.0" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(TargetFramework)' != 'net9.0' AND '$(TargetFramework)' != 'net6.0'">
+    <PackageReference Include="Microsoft.Bcl.Cryptography" Version="9.0.0" />
   </ItemGroup>
 
   <Target Name="GetPackagingOutputs" />

@@ -1214,7 +1214,12 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         public void DateTimeEncodeStringTest(DateTime testDateTime)
         {
             string resultString = testDateTime.ToString("yyyy-MM-dd'T'HH:mm:ss.FFFFFFFK", CultureInfo.InvariantCulture);
+#if NETSTANDARD2_1_OR_GREATER || NET6_0_OR_GREATER
+            Span<char> valueString = stackalloc char[JsonEncoder.DateTimeRoundTripKindLength];
+            var resultO = JsonEncoder.ConvertUniversalTimeToString(testDateTime, valueString).ToString();
+#else
             string resultO = JsonEncoder.ConvertUniversalTimeToString(testDateTime);
+#endif
             Assert.NotNull(resultString);
             Assert.NotNull(resultO);
 

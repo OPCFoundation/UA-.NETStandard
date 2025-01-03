@@ -165,12 +165,12 @@ namespace Opc.Ua
         void WriteByteString(string fieldName, ReadOnlySpan<byte> value);
 #endif
         /// <summary>
-        /// Writes an XmlElement to the stream.
+        /// Writes a XmlElement to the stream.
         /// </summary>
         void WriteXmlElement(string fieldName, XmlElement value);
 
         /// <summary>
-        /// Writes an NodeId to the stream.
+        /// Writes a NodeId to the stream.
         /// </summary>
         void WriteNodeId(string fieldName, NodeId value);
 
@@ -180,32 +180,32 @@ namespace Opc.Ua
         void WriteExpandedNodeId(string fieldName, ExpandedNodeId value);
 
         /// <summary>
-        /// Writes an StatusCode to the stream.
+        /// Writes a StatusCode to the stream.
         /// </summary>
         void WriteStatusCode(string fieldName, StatusCode value);
 
         /// <summary>
-        /// Writes an DiagnosticInfo to the stream.
+        /// Writes a DiagnosticInfo to the stream.
         /// </summary>
         void WriteDiagnosticInfo(string fieldName, DiagnosticInfo value);
 
         /// <summary>
-        /// Writes an QualifiedName to the stream.
+        /// Writes a QualifiedName to the stream.
         /// </summary>
         void WriteQualifiedName(string fieldName, QualifiedName value);
 
         /// <summary>
-        /// Writes an LocalizedText to the stream.
+        /// Writes a LocalizedText to the stream.
         /// </summary>
         void WriteLocalizedText(string fieldName, LocalizedText value);
 
         /// <summary>
-        /// Writes an Variant array to the stream.
+        /// Writes a Variant array to the stream.
         /// </summary>
         void WriteVariant(string fieldName, Variant value);
 
         /// <summary>
-        /// Writes an DataValue array to the stream.
+        /// Writes a DataValue array to the stream.
         /// </summary>
         void WriteDataValue(string fieldName, DataValue value);
 
