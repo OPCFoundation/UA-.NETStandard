@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using Opc.Ua;
 using Opc.Ua.Server;
 
@@ -169,16 +170,14 @@ namespace Opc.Ua.Server
         /// <param name="e">The event.</param>
         public void OnReportEvent(ISystemContext context, NodeState node, IFilterTarget e)
         {
-            foreach (IEventMonitoredItem monitoredItem in EventMonitoredItems?.Values)
-            {
+            Parallel.ForEach(EventMonitoredItems?.Values, (monitoredItem) => {
                 #region  Filter out audit events in case the Server_Auditing values is false or the channel is not encrypted
-
                 if (e is AuditEventState)
                 {
                     // check Server.Auditing flag and skip if false
                     if (!NodeManager.Server.Auditing)
                     {
-                        continue;
+                        return;
                     }
                     else
                     {
@@ -186,7 +185,7 @@ namespace Opc.Ua.Server
                         if (monitoredItem?.Session?.EndpointDescription?.SecurityMode != MessageSecurityMode.SignAndEncrypt &&
                             monitoredItem?.Session?.EndpointDescription?.TransportProfileUri != Profiles.HttpsBinaryTransport)
                         {
-                            continue;
+                            return;
                         }
                     }
                 }
@@ -198,7 +197,7 @@ namespace Opc.Ua.Server
                 if (ServiceResult.IsBad(validationResult))
                 {
                     // skip event reporting for EventType without permissions
-                    continue;
+                    return;
                 }
 
                 // enqueue event
@@ -210,14 +209,14 @@ namespace Opc.Ua.Server
                     }
                     else
                     {
-                        continue;
+                        return;
                     }
                 }
                 else
                 {
                     monitoredItem?.QueueEvent(e);
                 }
-            }
+            });
         }
 
         /// <summary>
@@ -228,31 +227,32 @@ namespace Opc.Ua.Server
         /// <param name="changes">The mask indicating what changes have occurred.</param>
         public void OnMonitoredNodeChanged(ISystemContext context, NodeState node, NodeStateChangeMasks changes)
         {
-
-            foreach (MonitoredItem monitoredItem in DataChangeMonitoredItems?.Values)
+            //ensure DataChange is enqueued for all MIs before the next DataChange can start enqueueing
+            lock (m_lock)
             {
-                if (monitoredItem.AttributeId == Attributes.Value && (changes & NodeStateChangeMasks.Value) != 0)
-                {
-                    // validate if the monitored item has the required role permissions to read the value
-                    ServiceResult validationResult = NodeManager.ValidateRolePermissions(new OperationContext(monitoredItem), node.NodeId, PermissionType.Read);
-
-                    if (ServiceResult.IsBad(validationResult))
+                Parallel.ForEach(DataChangeMonitoredItems?.Values, (monitoredItem) => {
+                    if (monitoredItem.AttributeId == Attributes.Value && (changes & NodeStateChangeMasks.Value) != 0)
                     {
-                        // skip if the monitored item does not have permission to read
-                        continue;
+                        // validate if the monitored item has the required role permissions to read the value
+                        ServiceResult validationResult = NodeManager.ValidateRolePermissions(new OperationContext(monitoredItem), node.NodeId, PermissionType.Read);
+
+                        if (ServiceResult.IsBad(validationResult))
+                        {
+                            // skip if the monitored item does not have permission to read
+                            return;
+                        }
+
+                        QueueValue(context, node, monitoredItem);
+                        return;
                     }
 
-                    QueueValue(context, node, monitoredItem);
-                    continue;
-                }
-
-                if (monitoredItem.AttributeId != Attributes.Value && (changes & NodeStateChangeMasks.NonValue) != 0)
-                {
-                    QueueValue(context, node, monitoredItem);
-                    continue;
-                }
+                    if (monitoredItem.AttributeId != Attributes.Value && (changes & NodeStateChangeMasks.NonValue) != 0)
+                    {
+                        QueueValue(context, node, monitoredItem);
+                        return;
+                    }
+                });
             }
-
         }
 
         /// <summary>
@@ -288,6 +288,7 @@ namespace Opc.Ua.Server
 
         #region Private Fields
         private CustomNodeManager2 m_nodeManager;
+        private readonly object m_lock = new object();
         private NodeState m_node;
         private ConcurrentDictionary<uint, MonitoredItem> m_dataChangeMonitoredItems;
         private ConcurrentDictionary<uint, IEventMonitoredItem> m_eventMonitoredItems;

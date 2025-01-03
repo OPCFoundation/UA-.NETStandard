@@ -3139,31 +3139,31 @@ namespace Opc.Ua.Server
             {
                 notifier.OnReportEvent = OnReportEvent;
 
-                    if (!notifier.ReferenceExists(ReferenceTypeIds.HasNotifier, true, ObjectIds.Server))
-                    {
-                        notifier.AddReference(ReferenceTypeIds.HasNotifier, true, ObjectIds.Server);
-                    }
-                }
-
-                // subscribe to existing events.
-                if (m_server.EventManager != null)
+                if (!notifier.ReferenceExists(ReferenceTypeIds.HasNotifier, true, ObjectIds.Server))
                 {
-                    IList<IEventMonitoredItem> monitoredItems = m_server.EventManager.GetMonitoredItems();
+                    notifier.AddReference(ReferenceTypeIds.HasNotifier, true, ObjectIds.Server);
+                }
+            }
 
-                    for (int ii = 0; ii < monitoredItems.Count; ii++)
+            // subscribe to existing events.
+            if (m_server.EventManager != null)
+            {
+                IList<IEventMonitoredItem> monitoredItems = m_server.EventManager.GetMonitoredItems();
+
+                for (int ii = 0; ii < monitoredItems.Count; ii++)
+                {
+                    if (monitoredItems[ii].MonitoringAllEvents)
                     {
-                        if (monitoredItems[ii].MonitoringAllEvents)
-                        {
-                            SubscribeToEvents(
-                            SystemContext,
-                            notifier,
-                            monitoredItems[ii],
-                            true);
-                        }
+                        SubscribeToEvents(
+                        SystemContext,
+                        notifier,
+                        monitoredItems[ii],
+                        true);
                     }
                 }
             }
         }
+
 
         /// <summary>
         /// Removes a root notifier previously added with AddRootNotifier.
