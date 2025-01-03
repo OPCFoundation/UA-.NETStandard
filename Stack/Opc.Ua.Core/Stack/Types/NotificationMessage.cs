@@ -18,7 +18,7 @@ using System.Security.Cryptography.X509Certificates;
 namespace Opc.Ua
 {
     /// <summary>
-    /// A message return in a Publish response.
+    /// A message returned in a Publish response.
     /// </summary>
     public partial class NotificationMessage
     {
@@ -26,7 +26,7 @@ namespace Opc.Ua
         /// <summary>
         /// The string table that was received with the message.
         /// </summary>
-        public List<string> StringTable
+        public StringCollection StringTable
         {
             get { return m_stringTable; }
             set { m_stringTable = value; }
@@ -159,7 +159,7 @@ namespace Opc.Ua
         #endregion
 
         #region Private Fields
-        private List<string> m_stringTable;
+        private StringCollection m_stringTable;
         #endregion
     }
 }
