@@ -1105,6 +1105,7 @@ namespace Opc.Ua
         /// <summary>
         /// Writes a byte string to the stream.
         /// </summary>
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2265:Do not compare Span<T> to 'null' or 'default'", Justification = "Null compare works with ReadOnlySpan<byte>")]
         public void WriteByteString(string fieldName, ReadOnlySpan<byte> value)
         {
             if (value == null)
@@ -1122,7 +1123,7 @@ namespace Opc.Ua
             if (value.Length > 0)
             {
                 const int maxStackLimit = 1024;
-                int length = value.Length << 1;
+                int length = ((value.Length + 2) / 3) * 4;
                 char[] arrayPool = null;
                 Span<char> chars = length <= maxStackLimit ?
                     stackalloc char[length] :
@@ -1135,6 +1136,8 @@ namespace Opc.Ua
                         WriteSimpleFieldAsSpan(fieldName, chars.Slice(0, charsWritten), EscapeOptions.Quotes | EscapeOptions.NoValueEscape);
                         return;
                     }
+
+                    throw new ServiceResultException(StatusCodes.BadEncodingError, "Failed to convert ByteString to Base64");
                 }
                 finally
                 {
@@ -2436,7 +2439,7 @@ namespace Opc.Ua
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadEncodingError,
-                    "With Array as top level, encodeables array with filename will create invalid json");
+                    "With Array as top level, encodeables array with fieldname will create invalid json");
             }
             else
             {
@@ -2825,7 +2828,8 @@ namespace Opc.Ua
             {
 #if NETSTANDARD2_1_OR_GREATER || NET6_0_OR_GREATER
                 Span<char> valueString = stackalloc char[DateTimeRoundTripKindLength];
-                WriteSimpleFieldAsSpan(fieldName, ConvertUniversalTimeToString(value, valueString), escapeOptions | EscapeOptions.Quotes);
+                ConvertUniversalTimeToString(value, valueString, out int charsWritten);
+                WriteSimpleFieldAsSpan(fieldName, valueString.Slice(0, charsWritten), escapeOptions | EscapeOptions.Quotes));
 #else
                 WriteSimpleField(fieldName, ConvertUniversalTimeToString(value), escapeOptions | EscapeOptions.Quotes);
 #endif
@@ -3060,19 +3064,21 @@ namespace Opc.Ua
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
 #if NETSTANDARD2_1_OR_GREATER || NET6_0_OR_GREATER
-        internal static ReadOnlySpan<char> ConvertUniversalTimeToString(DateTime value, Span<char> valueString)
+        internal static void ConvertUniversalTimeToString(DateTime value, Span<char> valueString, out int charsWritten)
         {
             // Note: "o" is a shortcut for "yyyy-MM-dd'T'HH:mm:ss.FFFFFFFK" and implicitly
             // uses invariant culture and gregorian calendar, but executes up to 10 times faster.
             // But in contrary to the explicit format string, trailing zeroes are not omitted!
             if (value.Kind != DateTimeKind.Utc)
             {
-                value.ToUniversalTime().TryFormat(valueString, out int charsWritten, "o", CultureInfo.InvariantCulture);
+                value.ToUniversalTime().TryFormat(valueString, out charsWritten, "o", CultureInfo.InvariantCulture);
             }
             else
             {
-                value.TryFormat(valueString, out int charsWritten, "o", CultureInfo.InvariantCulture);
+                value.TryFormat(valueString, out charsWritten, "o", CultureInfo.InvariantCulture);
             }
+
+            Debug.Assert(charsWritten == DateTimeRoundTripKindLength);
 
             // check if trailing zeroes can be omitted
             int i = DateTimeRoundTripKindLastDigit;
@@ -3093,10 +3099,8 @@ namespace Opc.Ua
                     i--;
                 }
                 valueString[i + 1] = 'Z';
-                return valueString.Slice(0, i + 2);
+                charsWritten = i + 2;
             }
-
-            return valueString;
         }
 #else
         internal static string ConvertUniversalTimeToString(DateTime value)

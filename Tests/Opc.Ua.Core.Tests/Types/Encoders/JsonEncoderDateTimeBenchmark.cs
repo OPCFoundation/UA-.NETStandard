@@ -58,7 +58,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         {
 #if NETSTANDARD2_1_OR_GREATER || NET6_0_OR_GREATER
             Span<char> valueString = stackalloc char[JsonEncoder.DateTimeRoundTripKindLength];
-            _ = JsonEncoder.ConvertUniversalTimeToString(m_dateTime, valueString);
+            JsonEncoder.ConvertUniversalTimeToString(m_dateTime, valueString, out int charsWritten);
+            _ = valueString.Slice(0, charsWritten);
 #else
             _ = JsonEncoder.ConvertUniversalTimeToString(m_dateTime);
 #endif

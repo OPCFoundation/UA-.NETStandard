@@ -36,7 +36,7 @@ namespace Opc.Ua.Server.Tests
                 var nodeHandle = new NodeHandle(new NodeId((string)CommonTestWorkers.NodeIdTestSetStatic.First().Identifier, 0), baseObject);
 
                 //Act
-                await RunTaskInParallel(() => UseComponentCacheAsync(nodeManager, baseObject, nodeHandle), 100);
+                await RunTaskInParallel(() => UseComponentCacheAsync(nodeManager, baseObject, nodeHandle), 100).ConfigureAwait(false);
 
 
                 //Assert, that entry was deleted from cache after parallel operations on the same node
@@ -102,7 +102,7 @@ namespace Opc.Ua.Server.Tests
 
 
                 //Act
-                await RunTaskInParallel(() => UsePredefinedNodesAsync(nodeManager, baseObject, nodeId), 100);
+                await RunTaskInParallel(() => UsePredefinedNodesAsync(nodeManager, baseObject, nodeId), 100).ConfigureAwait(false);
 
                 //last operation added the Node back into the dictionary
                 Assert.That(nodeManager.PredefinedNodes.ContainsKey(nodeId), Is.True);
@@ -132,7 +132,7 @@ namespace Opc.Ua.Server.Tests
             handle = nodeManager.GetManagerHandle(nodeId) as NodeHandle;
 
             nodeManager.AddPredefinedNode(nodeManager.SystemContext, baseObject);
-            await Task.CompletedTask;
+            await Task.CompletedTask.ConfigureAwait(false);
         }
 
         /// <summary>
@@ -159,7 +159,7 @@ namespace Opc.Ua.Server.Tests
 
             nodeManager.RemoveNodeFromComponentCache(nodeManager.SystemContext, nodeHandle);
 
-            await Task.CompletedTask;
+            await Task.CompletedTask.ConfigureAwait(false);
         }
         #endregion
 
@@ -172,7 +172,7 @@ namespace Opc.Ua.Server.Tests
                           async index => {
                               try
                               {
-                                  await task();
+                                  await task().ConfigureAwait(false);
                               }
                               catch (Exception ex)
                               {
@@ -190,7 +190,7 @@ namespace Opc.Ua.Server.Tests
             int maxSpinWaitCount = 100;
             while (iterations > tasksCompletedCount && error is null && spinWaitCount < maxSpinWaitCount)
             {
-                await Task.Delay(TimeSpan.FromMilliseconds(100));
+                await Task.Delay(TimeSpan.FromMilliseconds(100)).ConfigureAwait(false);
                 spinWaitCount++;
             }
 
