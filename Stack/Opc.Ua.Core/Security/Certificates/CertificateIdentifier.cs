@@ -145,14 +145,7 @@ namespace Opc.Ua
         public X509Certificate2 Certificate
         {
             get { return m_certificate; }
-            set
-            {
-                m_certificate = value;
-                if (m_certificate != null)
-                {
-                    m_certificateType = GetCertificateType(m_certificate);
-                }
-            }
+            set { m_certificate = value; }
         }
         #endregion
 
@@ -581,7 +574,7 @@ namespace Opc.Ua
                         certificateType == ObjectTypeIds.EccBrainpoolP256r1ApplicationCertificateType)
                     {
                         return true;
-                    }
+                    } 
 
                     break;
 
@@ -671,7 +664,7 @@ namespace Opc.Ua
             { ObjectTypes.RsaMinApplicationCertificateType, "RsaMin"},
             { ObjectTypes.ApplicationCertificateType, "Rsa"},
         };
-        #endregion
+#endregion
 
         #region Private Methods
         /// <summary>

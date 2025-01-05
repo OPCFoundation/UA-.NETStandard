@@ -95,7 +95,7 @@ namespace Opc.Ua.Gds.Tests
             CertificateIdentifierCollection applicationCerts = ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
                 "CN=Global Discovery Test Client, O=OPC Foundation, DC=localhost",
                 CertificateStoreType.Directory,
-                Path.Combine(pkiRoot, "own"));
+                pkiRoot);
 
             // build the application configuration.
             Configuration = await m_application

@@ -10,14 +10,11 @@
   <ApplicationType>Client_1</ApplicationType>
 
   <SecurityConfiguration>
-    <ApplicationCertificates>
-      <CertificateIdentifier>
-        <StoreType>Directory</StoreType>
-        <StorePath>%LocalApplicationData%/OPC/pki/own</StorePath>
-        <SubjectName>CN=Server Configuration Push Test Client, O=OPC Foundation</SubjectName>
-        <CertificateTypeString>RsaSha256</CertificateTypeString>
-      </CertificateIdentifier>
-    </ApplicationCertificates>
+    <ApplicationCertificate>
+      <StoreType>Directory</StoreType>
+      <StorePath>%LocalApplicationData%/OPC/pki/own</StorePath>
+      <SubjectName>CN=Server Configuration Push Test Client, O=OPC Foundation</SubjectName>
+    </ApplicationCertificate>
 
     <TrustedIssuerCertificates>
       <StoreType>Directory</StoreType>
