@@ -10,11 +10,14 @@
   <ApplicationType>Client_1</ApplicationType>
 
   <SecurityConfiguration>
-    <ApplicationCertificate>
-      <StoreType>Directory</StoreType>
-      <StorePath>%LocalApplicationData%/OPC/pki/own</StorePath>
-      <SubjectName>CN=Global Discovery Test Client, O=OPC Foundation, DC=localhost</SubjectName>
-    </ApplicationCertificate>
+    <ApplicationCertificates>
+      <CertificateIdentifier>
+        <StoreType>Directory</StoreType>
+        <StorePath>%LocalApplicationData%/OPC/pki/own</StorePath>
+        <SubjectName>CN=Global Discovery Test Client, O=OPC Foundation, DC=localhost</SubjectName>
+        <CertificateTypeString>RsaSha256</CertificateTypeString>
+      </CertificateIdentifier>
+    </ApplicationCertificates>
 
     <TrustedIssuerCertificates>
       <StoreType>Directory</StoreType>
@@ -79,7 +82,7 @@
     <MinSubscriptionLifetime>10000</MinSubscriptionLifetime>
 
   </ClientConfiguration>
-  
+
   <Extensions>
     <ua:XmlElement>
       <GlobalDiscoveryTestClientConfiguration xmlns="http://opcfoundation.org/UA/GDS/Configuration.xsd">
