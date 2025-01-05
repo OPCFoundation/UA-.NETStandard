@@ -3324,6 +3324,7 @@ namespace Opc.Ua
                 m_certificate = CertificateFactory.Create(value, true);
                 m_subjectName = m_certificate.Subject;
                 m_thumbprint = m_certificate.Thumbprint;
+                m_certificateType = GetCertificateType(m_certificate);
             }
         }
 

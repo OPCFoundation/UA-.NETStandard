@@ -145,7 +145,14 @@ namespace Opc.Ua
         public X509Certificate2 Certificate
         {
             get { return m_certificate; }
-            set { m_certificate = value; }
+            set
+            {
+                m_certificate = value;
+                if (m_certificate != null)
+                {
+                    m_certificateType = GetCertificateType(m_certificate);
+                }
+            }
         }
         #endregion
 
