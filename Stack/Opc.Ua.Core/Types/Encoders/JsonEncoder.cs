@@ -2829,7 +2829,7 @@ namespace Opc.Ua
 #if NETSTANDARD2_1_OR_GREATER || NET6_0_OR_GREATER
                 Span<char> valueString = stackalloc char[DateTimeRoundTripKindLength];
                 ConvertUniversalTimeToString(value, valueString, out int charsWritten);
-                WriteSimpleFieldAsSpan(fieldName, valueString.Slice(0, charsWritten), escapeOptions | EscapeOptions.Quotes));
+                WriteSimpleFieldAsSpan(fieldName, valueString.Slice(0, charsWritten), escapeOptions | EscapeOptions.Quotes);
 #else
                 WriteSimpleField(fieldName, ConvertUniversalTimeToString(value), escapeOptions | EscapeOptions.Quotes);
 #endif
