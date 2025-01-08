@@ -2780,6 +2780,11 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public uint ReadSwitchField(Type switches)
         {
+            if (switches == null)
+            {
+                return ReadUInt32("SwitchField");
+            }
+
             if (m_stack.Peek() is Dictionary<string, object> context)
             {
                 if (context.ContainsKey("SwitchField"))
@@ -2804,6 +2809,11 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public uint ReadEncodingMask(Type masks)
         {
+            if (masks == null)
+            {
+                return ReadUInt32("EncodingMask");
+            }
+
             if (m_stack.Peek() is Dictionary<string, object> context)
             {
                 if (context.ContainsKey("EncodingMask"))

@@ -514,20 +514,20 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public void WriteSwitchField(string fieldName, uint switchField)
+        public void WriteSwitchField(uint switchField)
         {
             if ((!SuppressArtifacts && EncodingToUse == JsonEncodingType.Compact) || EncodingToUse == JsonEncodingType.Reversible)
             {
-                WriteUInt32(fieldName, switchField);
+                WriteUInt32("SwitchField", switchField);
             }
-         }
+        }
 
         /// <inheritdoc/>
-        public void WriteEncodingMask(string fieldName, uint encodingMask)
+        public void WriteEncodingMask(uint encodingMask)
         {
             if ((!SuppressArtifacts && EncodingToUse == JsonEncodingType.Compact) || EncodingToUse == JsonEncodingType.Reversible)
             {
-                WriteUInt32(fieldName, encodingMask);
+                WriteUInt32("EncodingMask", encodingMask);
             }
         }
         #endregion
@@ -574,7 +574,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// The Json encoder default value option.
+        /// The Json encoder default value option for numbers.
         /// </summary>
         public bool IncludeDefaultNumberValues
         {
@@ -1639,6 +1639,18 @@ namespace Opc.Ua
                 // non reversible encoding, only the content of the Body field is encoded.
                 if (value.Body is IStructureTypeInfo structureType && structureType.StructureType == StructureType.Union)
                 {
+                    if (m_commaRequired)
+                    {
+                        m_writer.Write(s_comma);
+                    }
+
+                    if (string.IsNullOrEmpty(fieldName))
+                    {
+                        fieldName = "Value";
+                    }
+
+                    EscapeString(fieldName);
+                    m_writer.Write(s_quotationColon);
                     encodeable.Encode(this);
                     return;
                 }
@@ -1738,6 +1750,10 @@ namespace Opc.Ua
                     else if (value.Encoding == ExtensionObjectEncoding.Xml)
                     {
                         WriteXmlElement("Body", value.Body as XmlElement);
+                    }
+                    else if (value.Encoding == ExtensionObjectEncoding.Json)
+                    {
+                        WriteSimpleField("Body", value.Body as string);
                     }
                 }
             }
@@ -2629,9 +2645,218 @@ namespace Opc.Ua
 
             PopArray();
         }
+
+        /// <summary>
+        /// Encode an array according to its valueRank and BuiltInType
+        /// </summary>
+        public void WriteArray(string fieldName, object array, int valueRank, BuiltInType builtInType)
+        {
+            // write array.
+            if (valueRank == ValueRanks.OneDimension)
+            {
+                switch (builtInType)
+                {
+                    case BuiltInType.Boolean: { WriteBooleanArray(fieldName, (bool[])array); return; }
+                    case BuiltInType.SByte: { WriteSByteArray(fieldName, (sbyte[])array); return; }
+                    case BuiltInType.Byte: { WriteByteArray(fieldName, (byte[])array); return; }
+                    case BuiltInType.Int16: { WriteInt16Array(fieldName, (short[])array); return; }
+                    case BuiltInType.UInt16: { WriteUInt16Array(fieldName, (ushort[])array); return; }
+                    case BuiltInType.Int32: { WriteInt32Array(fieldName, (int[])array); return; }
+                    case BuiltInType.UInt32: { WriteUInt32Array(fieldName, (uint[])array); return; }
+                    case BuiltInType.Int64: { WriteInt64Array(fieldName, (long[])array); return; }
+                    case BuiltInType.UInt64: { WriteUInt64Array(fieldName, (ulong[])array); return; }
+                    case BuiltInType.Float: { WriteFloatArray(fieldName, (float[])array); return; }
+                    case BuiltInType.Double: { WriteDoubleArray(fieldName, (double[])array); return; }
+                    case BuiltInType.String: { WriteStringArray(fieldName, (string[])array); return; }
+                    case BuiltInType.DateTime: { WriteDateTimeArray(fieldName, (DateTime[])array); return; }
+                    case BuiltInType.Guid: { WriteGuidArray(fieldName, (Uuid[])array); return; }
+                    case BuiltInType.ByteString: { WriteByteStringArray(fieldName, (byte[][])array); return; }
+                    case BuiltInType.XmlElement: { WriteXmlElementArray(fieldName, (XmlElement[])array); return; }
+                    case BuiltInType.NodeId: { WriteNodeIdArray(fieldName, (NodeId[])array); return; }
+                    case BuiltInType.ExpandedNodeId: { WriteExpandedNodeIdArray(fieldName, (ExpandedNodeId[])array); return; }
+                    case BuiltInType.StatusCode: { WriteStatusCodeArray(fieldName, (StatusCode[])array); return; }
+                    case BuiltInType.QualifiedName: { WriteQualifiedNameArray(fieldName, (QualifiedName[])array); return; }
+                    case BuiltInType.LocalizedText: { WriteLocalizedTextArray(fieldName, (LocalizedText[])array); return; }
+                    case BuiltInType.ExtensionObject: { WriteExtensionObjectArray(fieldName, (ExtensionObject[])array); return; }
+                    case BuiltInType.DataValue: { WriteDataValueArray(fieldName, (DataValue[])array); return; }
+                    case BuiltInType.DiagnosticInfo: { WriteDiagnosticInfoArray(fieldName, (DiagnosticInfo[])array); return; }
+                    case BuiltInType.Enumeration:
+                    {
+                        if (!(array is Array enumArray))
+                        {
+                            throw ServiceResultException.Create(
+                                StatusCodes.BadEncodingError,
+                                "Unexpected non Array type encountered while encoding an array of enumeration.");
+                        }
+                        WriteEnumeratedArray(fieldName, enumArray, enumArray.GetType().GetElementType());
+                        return;
+                    }
+                    case BuiltInType.Variant:
+                    {
+                        if (array is Variant[] variants)
+                        {
+                            WriteVariantArray(fieldName, variants);
+                            return;
+                        }
+
+                        // try to write IEncodeable Array
+                        if (array is IEncodeable[] encodeableArray)
+                        {
+                            WriteEncodeableArray(fieldName, encodeableArray, array.GetType().GetElementType());
+                            return;
+                        }
+
+
+                        if (array is object[] objects)
+                        {
+                            WriteObjectArray(fieldName, objects);
+                            return;
+                        }
+
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadEncodingError,
+                            "Unexpected type encountered while encoding an array of Variants: {0}",
+                            array.GetType());
+                    }
+                    default:
+                    {
+                        // try to write IEncodeable Array
+                        if (array is IEncodeable[] encodeableArray)
+                        {
+                            WriteEncodeableArray(fieldName, encodeableArray, array.GetType().GetElementType());
+                            return;
+                        }
+                        if (array == null)
+                        {
+                            WriteSimpleFieldNull(fieldName);
+                            return;
+                        }
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadEncodingError,
+                            "Unexpected BuiltInType encountered while encoding an array: {0}",
+                            builtInType);
+                    }
+                }
+            }
+
+            // write matrix.
+            else if (valueRank > ValueRanks.OneDimension)
+            {
+                if (!(array is Matrix matrix))
+                {
+                    if (array is Array multiArray && multiArray.Rank == valueRank)
+                    {
+                        matrix = new Matrix(multiArray, builtInType);
+                    }
+                    else
+                    {
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadEncodingError,
+                            "Unexpected array type encountered while encoding array: {0}",
+                            array.GetType().Name);
+                    }
+                }
+
+                if (matrix != null)
+                {
+                    if (EncodingToUse == JsonEncodingType.Compact || EncodingToUse == JsonEncodingType.Verbose)
+                    {
+                        WriteArrayDimensionMatrix(fieldName, builtInType, matrix);
+                    }
+                    else
+                    {
+                        int index = 0;
+                        WriteStructureMatrix(fieldName, matrix, 0, ref index, matrix.TypeInfo);
+                    }
+                    return;
+                }
+
+                // field is omitted
+            }
+        }
         #endregion
 
         #region Public Methods
+        /// <summary>
+        /// Writes a raw value.
+        /// </summary>
+        public void WriteRawValue(FieldMetaData field, DataValue dv, DataSetFieldContentMask mask)
+        {
+            m_nestingLevel++;
+
+            try
+            {
+                if (m_commaRequired)
+                {
+                    m_writer.Write(s_comma);
+                }
+
+                EscapeString(field.Name);
+                m_writer.Write(s_quotationColon);
+                m_commaRequired = false;
+
+                if (mask != DataSetFieldContentMask.None && mask != DataSetFieldContentMask.RawData)
+                {
+                    m_writer.Write(s_leftCurlyBrace);
+                    m_writer.Write(s_quotation);
+                    m_writer.Write("Value");
+                    m_writer.Write(s_quotationColon);
+                }
+
+                if (mask == DataSetFieldContentMask.None && StatusCode.IsBad(dv.StatusCode))
+                {
+                    dv = new DataValue() { WrappedValue = dv.StatusCode };
+                }
+
+                WriteRawValueContents(field, dv);
+
+                if (mask != DataSetFieldContentMask.None && mask != DataSetFieldContentMask.RawData)
+                {
+                    if ((mask & DataSetFieldContentMask.StatusCode) != 0 && dv.StatusCode != StatusCodes.Good)
+                    {
+                        WriteStatusCode(nameof(dv.StatusCode), dv.StatusCode);
+                    }
+
+                    if ((mask & DataSetFieldContentMask.SourceTimestamp) != 0)
+                    {
+                        if (dv.SourceTimestamp != DateTime.MinValue)
+                        {
+                            WriteDateTime(nameof(dv.SourceTimestamp), dv.SourceTimestamp);
+
+                            if (dv.SourcePicoseconds != 0)
+                            {
+                                WriteUInt16(nameof(dv.SourcePicoseconds), dv.SourcePicoseconds);
+                            }
+                        }
+                    }
+
+                    if ((mask & DataSetFieldContentMask.ServerTimestamp) != 0)
+                    {
+                        if (dv.ServerTimestamp != DateTime.MinValue)
+                        {
+                            WriteDateTime(nameof(dv.ServerTimestamp), dv.ServerTimestamp);
+
+                            if (dv.ServerPicoseconds != 0)
+                            {
+                                WriteUInt16(nameof(dv.ServerPicoseconds), dv.ServerPicoseconds);
+                            }
+                        }
+                    }
+
+                    m_writer.Write(s_rightCurlyBrace);
+
+                }
+
+                m_commaRequired = true;
+            }
+            finally
+            {
+                m_nestingLevel--;
+            }
+        }
+        #endregion
+
+        #region Private Methods
         private void WriteRawExtensionObject(object value)
         {
             if (value is ExtensionObject eo)
@@ -2823,88 +3048,11 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// Writes a raw value.
-        /// </summary>
-        public void WriteRawValue(FieldMetaData field, DataValue dv, DataSetFieldContentMask mask)
-        {
-            m_nestingLevel++;
-
-            try
-            {
-                if (m_commaRequired)
-                {
-                    m_writer.Write(s_comma);
-                }
-
-                EscapeString(field.Name);
-                m_writer.Write(s_quotationColon);
-                m_commaRequired = false;
-
-                if (mask != DataSetFieldContentMask.None && mask != DataSetFieldContentMask.RawData)
-                {
-                    m_writer.Write(s_leftCurlyBrace);
-                    m_writer.Write(s_quotation);
-                    m_writer.Write("Value");
-                    m_writer.Write(s_quotationColon);
-                }
-
-                if (mask == DataSetFieldContentMask.None && StatusCode.IsBad(dv.StatusCode))
-                {
-                    dv = new DataValue() { WrappedValue = dv.StatusCode };
-                }
-
-                WriteRawValueContents(field, dv);
-
-                if (mask != DataSetFieldContentMask.None && mask != DataSetFieldContentMask.RawData)
-                {
-                    if ((mask & DataSetFieldContentMask.StatusCode) != 0 && dv.StatusCode != StatusCodes.Good)
-                    {
-                        WriteStatusCode(nameof(dv.StatusCode), dv.StatusCode);
-                    }
-
-                    if ((mask & DataSetFieldContentMask.SourceTimestamp) != 0)
-                    {
-                        if (dv.SourceTimestamp != DateTime.MinValue)
-                        {
-                            WriteDateTime(nameof(dv.SourceTimestamp), dv.SourceTimestamp);
-
-                            if (dv.SourcePicoseconds != 0)
-                            {
-                                WriteUInt16(nameof(dv.SourcePicoseconds), dv.SourcePicoseconds);
-                            }
-                        }
-                    }
-
-                    if ((mask & DataSetFieldContentMask.ServerTimestamp) != 0)
-                    {
-                        if (dv.ServerTimestamp != DateTime.MinValue)
-                        {
-                            WriteDateTime(nameof(dv.ServerTimestamp), dv.ServerTimestamp);
-
-                            if (dv.ServerPicoseconds != 0)
-                            {
-                                WriteUInt16(nameof(dv.ServerPicoseconds), dv.ServerPicoseconds);
-                            }
-                        }
-                    }
-
-                    m_writer.Write(s_rightCurlyBrace);
-
-                }
-
-                m_commaRequired = true;
-            }
-            finally
-            {
-                m_nestingLevel--;
-            }
-        }
 
         /// <summary>
-        /// Writes the contents of an Variant to the stream.
+        /// Writes the contents of a Variant to the stream.
         /// </summary>
-        public void WriteVariantContents(object value, TypeInfo typeInfo)
+        private void WriteVariantContents(object value, TypeInfo typeInfo)
         {
             bool inVariantWithEncoding = m_inVariantWithEncoding;
             try
@@ -2973,7 +3121,7 @@ namespace Opc.Ua
         /// <summary>
         /// Writes a Variant array to the stream.
         /// </summary>
-        public void WriteObjectArray(string fieldName, IList<object> values)
+        private void WriteObjectArray(string fieldName, IList<object> values)
         {
             if (CheckForSimpleFieldNull(fieldName, values))
             {
@@ -2998,137 +3146,6 @@ namespace Opc.Ua
             PopArray();
         }
 
-        /// <summary>
-        /// Encode an array according to its valueRank and BuiltInType
-        /// </summary>
-        public void WriteArray(string fieldName, object array, int valueRank, BuiltInType builtInType)
-        {
-            // write array.
-            if (valueRank == ValueRanks.OneDimension)
-            {
-                switch (builtInType)
-                {
-                    case BuiltInType.Boolean: { WriteBooleanArray(fieldName, (bool[])array); return; }
-                    case BuiltInType.SByte: { WriteSByteArray(fieldName, (sbyte[])array); return; }
-                    case BuiltInType.Byte: { WriteByteArray(fieldName, (byte[])array); return; }
-                    case BuiltInType.Int16: { WriteInt16Array(fieldName, (short[])array); return; }
-                    case BuiltInType.UInt16: { WriteUInt16Array(fieldName, (ushort[])array); return; }
-                    case BuiltInType.Int32: { WriteInt32Array(fieldName, (int[])array); return; }
-                    case BuiltInType.UInt32: { WriteUInt32Array(fieldName, (uint[])array); return; }
-                    case BuiltInType.Int64: { WriteInt64Array(fieldName, (long[])array); return; }
-                    case BuiltInType.UInt64: { WriteUInt64Array(fieldName, (ulong[])array); return; }
-                    case BuiltInType.Float: { WriteFloatArray(fieldName, (float[])array); return; }
-                    case BuiltInType.Double: { WriteDoubleArray(fieldName, (double[])array); return; }
-                    case BuiltInType.String: { WriteStringArray(fieldName, (string[])array); return; }
-                    case BuiltInType.DateTime: { WriteDateTimeArray(fieldName, (DateTime[])array); return; }
-                    case BuiltInType.Guid: { WriteGuidArray(fieldName, (Uuid[])array); return; }
-                    case BuiltInType.ByteString: { WriteByteStringArray(fieldName, (byte[][])array); return; }
-                    case BuiltInType.XmlElement: { WriteXmlElementArray(fieldName, (XmlElement[])array); return; }
-                    case BuiltInType.NodeId: { WriteNodeIdArray(fieldName, (NodeId[])array); return; }
-                    case BuiltInType.ExpandedNodeId: { WriteExpandedNodeIdArray(fieldName, (ExpandedNodeId[])array); return; }
-                    case BuiltInType.StatusCode: { WriteStatusCodeArray(fieldName, (StatusCode[])array); return; }
-                    case BuiltInType.QualifiedName: { WriteQualifiedNameArray(fieldName, (QualifiedName[])array); return; }
-                    case BuiltInType.LocalizedText: { WriteLocalizedTextArray(fieldName, (LocalizedText[])array); return; }
-                    case BuiltInType.ExtensionObject: { WriteExtensionObjectArray(fieldName, (ExtensionObject[])array); return; }
-                    case BuiltInType.DataValue: { WriteDataValueArray(fieldName, (DataValue[])array); return; }
-                    case BuiltInType.DiagnosticInfo: { WriteDiagnosticInfoArray(fieldName, (DiagnosticInfo[])array); return; }
-                    case BuiltInType.Enumeration:
-                    {
-                        if (!(array is Array enumArray))
-                        {
-                            throw ServiceResultException.Create(
-                                StatusCodes.BadEncodingError,
-                                "Unexpected non Array type encountered while encoding an array of enumeration.");
-                        }
-                        WriteEnumeratedArray(fieldName, enumArray, enumArray.GetType().GetElementType());
-                        return;
-                    }
-                    case BuiltInType.Variant:
-                    {
-                        if (array is Variant[] variants)
-                        {
-                            WriteVariantArray(fieldName, variants);
-                            return;
-                        }
-
-                        // try to write IEncodeable Array
-                        if (array is IEncodeable[] encodeableArray)
-                        {
-                            WriteEncodeableArray(fieldName, encodeableArray, array.GetType().GetElementType());
-                            return;
-                        }
-
-
-                        if (array is object[] objects)
-                        {
-                            WriteObjectArray(fieldName, objects);
-                            return;
-                        }
-
-                        throw ServiceResultException.Create(
-                            StatusCodes.BadEncodingError,
-                            "Unexpected type encountered while encoding an array of Variants: {0}",
-                            array.GetType());
-                    }
-                    default:
-                    {
-                        // try to write IEncodeable Array
-                        if (array is IEncodeable[] encodeableArray)
-                        {
-                            WriteEncodeableArray(fieldName, encodeableArray, array.GetType().GetElementType());
-                            return;
-                        }
-                        if (array == null)
-                        {
-                            WriteSimpleFieldNull(fieldName);
-                            return;
-                        }
-                        throw ServiceResultException.Create(
-                            StatusCodes.BadEncodingError,
-                            "Unexpected BuiltInType encountered while encoding an array: {0}",
-                            builtInType);
-                    }
-                }
-            }
-
-            // write matrix.
-            else if (valueRank > ValueRanks.OneDimension)
-            {
-                if (!(array is Matrix matrix))
-                {
-                    if (array is Array multiArray && multiArray.Rank == valueRank)
-                    {
-                        matrix = new Matrix(multiArray, builtInType);
-                    }
-                    else
-                    {
-                        throw ServiceResultException.Create(
-                            StatusCodes.BadEncodingError,
-                            "Unexpected array type encountered while encoding array: {0}",
-                            array.GetType().Name);
-                    }
-                }
-
-                if (matrix != null)
-                {
-                    if (EncodingToUse == JsonEncodingType.Compact || EncodingToUse == JsonEncodingType.Verbose)
-                    {
-                        WriteArrayDimensionMatrix(fieldName, builtInType, matrix);
-                    }
-                    else
-                    {
-                        int index = 0;
-                        WriteStructureMatrix(fieldName, matrix, 0, ref index, matrix.TypeInfo);
-                    }
-                    return;
-                }
-
-                // field is omitted
-            }
-        }
-        #endregion
-
-        #region Private Methods
         /// <summary>
         /// Push structure with an option to not escape a known fieldname.
         /// </summary>

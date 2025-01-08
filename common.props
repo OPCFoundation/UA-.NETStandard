@@ -4,7 +4,7 @@
     <RepositoryUrl>https://github.com/OPCFoundation/UA-.NETStandard</RepositoryUrl>
     <VersionPrefix>1.05.374</VersionPrefix>
     <VersionSuffix>preview-$([System.DateTime]::Now.ToString("yyyyMMdd"))</VersionSuffix>
-    <Copyright>Copyright © 2004-2024 OPC Foundation, Inc</Copyright>
+    <Copyright>Copyright © 2004-2025 OPC Foundation, Inc</Copyright>
     <PackagePrefix>OPCFoundation.NetStandard</PackagePrefix>
     <Company>OPC Foundation</Company>
     <Authors>OPC Foundation</Authors>

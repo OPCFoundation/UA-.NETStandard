@@ -93,10 +93,7 @@ namespace Opc.Ua.Client.ComplexTypes
         {
             encoder.PushNamespace(XmlNamespace);
 
-            if (encoder.UseReversibleEncoding)
-            {
-                encoder.WriteUInt32("EncodingMask", m_encodingMask);
-            }
+            encoder.WriteEncodingMask(m_encodingMask);
 
             foreach (var property in GetPropertyEnumerator())
             {
@@ -118,7 +115,7 @@ namespace Opc.Ua.Client.ComplexTypes
         {
             decoder.PushNamespace(XmlNamespace);
 
-            m_encodingMask = decoder.ReadUInt32("EncodingMask");
+            m_encodingMask = decoder.ReadEncodingMask(null);
 
             foreach (var property in GetPropertyEnumerator())
             {

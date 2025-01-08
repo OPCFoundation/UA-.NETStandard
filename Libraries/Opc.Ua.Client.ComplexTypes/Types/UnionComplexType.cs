@@ -96,9 +96,10 @@ namespace Opc.Ua.Client.ComplexTypes
 
             string fieldName = null;
 
+            encoder.WriteSwitchField(m_switchField);
+
             if (encoder.UseReversibleEncoding)
             {
-                encoder.WriteUInt32("SwitchField", m_switchField);
                 fieldName = "Value";
             }
 
@@ -139,7 +140,7 @@ namespace Opc.Ua.Client.ComplexTypes
             string fieldName = "Value";
             UInt32 unionSelector = 0;
 
-            if (decoder is JsonDecoder jd)
+            if (decoder is IJsonDecoder jd)
             {
                 object token = null;
                 m_switchField = 0;
