@@ -49,6 +49,11 @@ namespace Opc.Ua.Configuration
         IApplicationConfigurationBuilderServerPolicies,
         IApplicationConfigurationBuilderCreate
     {
+        /// <summary>
+        /// Set the high resolution clock to disabled or enabled
+        /// </summary>
+        /// <param name="hiResClockDisabled"><value><c>true</c> if high resolution clock is disabled; otherwise, <c>false</c>.</value></param>
+        IApplicationConfigurationBuilder SetHiResClockDisabled(bool hiResClockDisabled);
     };
 
     /// <summary>
