@@ -205,6 +205,7 @@ namespace Opc.Ua.Buffers.Tests
                         Assert.That(position, Is.EqualTo(chunkSize * i));
                     }
 
+                    int bytesRead;
                     switch (random.Next(3))
                     {
                         case 0:
@@ -215,7 +216,8 @@ namespace Opc.Ua.Buffers.Tests
                             break;
                         default:
 #if NET5_0_OR_GREATER
-                            writer.Read(buffer.AsSpan(0, chunkSize));
+                            bytesRead = writer.Read(buffer.AsSpan(0, chunkSize));
+                            Assert.That(chunkSize, Is.EqualTo(bytesRead));
                             for (int v = 0; v < chunkSize; v++)
                             {
                                 Assert.That(buffer[v], Is.EqualTo((byte)i));
@@ -223,7 +225,8 @@ namespace Opc.Ua.Buffers.Tests
                             break;
 #endif
                         case 1:
-                            writer.Read(buffer, 0, chunkSize);
+                            bytesRead = writer.Read(buffer, 0, chunkSize);
+                            Assert.That(chunkSize, Is.EqualTo(bytesRead));
                             for (int v = 0; v < chunkSize; v++)
                             {
                                 Assert.That(buffer[v], Is.EqualTo((byte)i));

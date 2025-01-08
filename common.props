@@ -5,6 +5,7 @@
     <VersionPrefix>1.05.374</VersionPrefix>
     <VersionSuffix>preview-$([System.DateTime]::Now.ToString("yyyyMMdd"))</VersionSuffix>
     <Copyright>Copyright © 2004-2024 OPC Foundation, Inc</Copyright>
+    <PackagePrefix>OPCFoundation.NetStandard</PackagePrefix>
     <Company>OPC Foundation</Company>
     <Authors>OPC Foundation</Authors>
     <NoWarn>NU5125;CA2254;CA1307</NoWarn>
