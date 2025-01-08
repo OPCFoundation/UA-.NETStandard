@@ -28,13 +28,13 @@
  * http://opcfoundation.org/License/MIT/1.00/
 -->
 
-<UANodeSet xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" LastModified="2024-12-01T00:00:00Z" xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
+<UANodeSet xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" LastModified="2025-01-08T00:00:00Z" xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
   <NamespaceUris>
     <Uri>http://opcfoundation.org/UA/GDS/</Uri>
   </NamespaceUris>
   <Models>
-    <Model ModelUri="http://opcfoundation.org/UA/GDS/" XmlSchemaUri="http://opcfoundation.org/UA/GDS/Types.xsd" Version="1.05.04" PublicationDate="2024-12-01T00:00:00Z" ModelVersion="1.5.4">
-      <RequiredModel ModelUri="http://opcfoundation.org/UA/" XmlSchemaUri="http://opcfoundation.org/UA/2008/02/Types.xsd" Version="1.05.02" PublicationDate="2022-06-28T00:00:00Z" ModelVersion="1.5.2" />
+    <Model ModelUri="http://opcfoundation.org/UA/GDS/" XmlSchemaUri="http://opcfoundation.org/UA/GDS/Types.xsd" Version="1.05.04" PublicationDate="2025-01-08T00:00:00Z" ModelVersion="1.5.4">
+      <RequiredModel ModelUri="http://opcfoundation.org/UA/" XmlSchemaUri="http://opcfoundation.org/UA/2008/02/Types.xsd" Version="1.05.04" PublicationDate="2025-01-08T00:00:00Z" ModelVersion="1.5.4" />
     </Model>
   </Models>
   <Aliases>
@@ -137,7 +137,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=721</Reference>
     </References>
     <Value>
-      <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">2024-12-01T00:00:00Z</DateTime>
+      <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">2025-01-08T00:00:00Z</DateTime>
     </Value>
   </UAVariable>
   <UAVariable NodeId="ns=1;i=725" BrowseName="IsNamespaceSubset" ParentNodeId="ns=1;i=721" DataType="Boolean">
@@ -4925,7 +4925,7 @@
       <Reference ReferenceType="HasComponent">ns=1;i=216</Reference>
       <Reference ReferenceType="HasComponent">ns=1;i=992</Reference>
       <Reference ReferenceType="HasComponent">ns=1;i=151</Reference>
-      <Reference ReferenceType="HasComponent">ns=1;i=614</Reference>
+      <Reference ReferenceType="Organizes">ns=1;i=614</Reference>
       <Reference ReferenceType="HasComponent">ns=1;i=157</Reference>
       <Reference ReferenceType="HasComponent">ns=1;i=154</Reference>
       <Reference ReferenceType="HasComponent">ns=1;i=163</Reference>
@@ -5564,10 +5564,10 @@
       <Reference ReferenceType="HasComponent">ns=1;i=649</Reference>
       <Reference ReferenceType="HasComponent">ns=1;i=683</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=13813</Reference>
-      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=141</Reference>
+      <Reference ReferenceType="Organizes" IsForward="false">ns=1;i=141</Reference>
     </References>
   </UAObject>
-  <UAObject NodeId="ns=1;i=615" BrowseName="1:DefaultApplicationGroup" ParentNodeId="ns=1;i=614">
+  <UAObject NodeId="ns=1;i=615" BrowseName="DefaultApplicationGroup" ParentNodeId="ns=1;i=614">
     <DisplayName>DefaultApplicationGroup</DisplayName>
     <References>
       <Reference ReferenceType="HasComponent">ns=1;i=616</Reference>
@@ -6181,7 +6181,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=615</Reference>
     </References>
   </UAVariable>
-  <UAObject NodeId="ns=1;i=649" BrowseName="1:DefaultHttpsGroup" ParentNodeId="ns=1;i=614">
+  <UAObject NodeId="ns=1;i=649" BrowseName="DefaultHttpsGroup" ParentNodeId="ns=1;i=614">
     <DisplayName>DefaultHttpsGroup</DisplayName>
     <References>
       <Reference ReferenceType="HasComponent">ns=1;i=650</Reference>
@@ -6795,7 +6795,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=649</Reference>
     </References>
   </UAVariable>
-  <UAObject NodeId="ns=1;i=683" BrowseName="1:DefaultUserTokenGroup" ParentNodeId="ns=1;i=614">
+  <UAObject NodeId="ns=1;i=683" BrowseName="DefaultUserTokenGroup" ParentNodeId="ns=1;i=614">
     <DisplayName>DefaultUserTokenGroup</DisplayName>
     <References>
       <Reference ReferenceType="HasComponent">ns=1;i=684</Reference>
@@ -8170,7 +8170,7 @@ c2QiDQogIHRhcmdldE5hbWVzcGFjZT0iaHR0cDovL29wY2ZvdW5kYXRpb24ub3JnL1VBL0dEUy9U
 eXBlcy54c2QiDQogIGVsZW1lbnRGb3JtRGVmYXVsdD0icXVhbGlmaWVkIg0KPg0KICA8eHM6YW5u
 b3RhdGlvbj4NCiAgICA8eHM6YXBwaW5mbz4NCiAgICAgIDx1YTpNb2RlbCBNb2RlbFVyaT0iaHR0
 cDovL29wY2ZvdW5kYXRpb24ub3JnL1VBL0dEUy8iIFZlcnNpb249IjEuMDUuMDQiIFB1YmxpY2F0
-aW9uRGF0ZT0iMjAyNC0xMi0wMVQwMDowMDowMFoiIC8+DQogICAgPC94czphcHBpbmZvPg0KICA8
+aW9uRGF0ZT0iMjAyNS0wMS0wOFQwMDowMDowMFoiIC8+DQogICAgPC94czphcHBpbmZvPg0KICA8
 L3hzOmFubm90YXRpb24+DQogIA0KICA8eHM6aW1wb3J0IG5hbWVzcGFjZT0iaHR0cDovL29wY2Zv
 dW5kYXRpb24ub3JnL1VBLzIwMDgvMDIvVHlwZXMueHNkIiAvPg0KDQogIDx4czpjb21wbGV4VHlw
 ZSBuYW1lPSJBcHBsaWNhdGlvblJlY29yZERhdGFUeXBlIj4NCiAgICA8eHM6c2VxdWVuY2U+DQog

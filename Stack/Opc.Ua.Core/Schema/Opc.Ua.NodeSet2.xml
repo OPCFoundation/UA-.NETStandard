@@ -28,9 +28,9 @@
  * http://opcfoundation.org/License/MIT/1.00/
 -->
 
-<UANodeSet xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" LastModified="2024-12-01T00:00:00Z" xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
+<UANodeSet xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" LastModified="2025-01-08T00:00:00Z" xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
   <Models>
-    <Model ModelUri="http://opcfoundation.org/UA/" XmlSchemaUri="http://opcfoundation.org/UA/2008/02/Types.xsd" Version="1.05.04" PublicationDate="2024-12-01T00:00:00Z" ModelVersion="1.5.4" />
+    <Model ModelUri="http://opcfoundation.org/UA/" XmlSchemaUri="http://opcfoundation.org/UA/2008/02/Types.xsd" Version="1.05.04" PublicationDate="2025-01-08T00:00:00Z" ModelVersion="1.5.4" />
   </Models>
   <Aliases>
     <Alias Alias="Boolean">i=1</Alias>
@@ -985,7 +985,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">i=15957</Reference>
     </References>
     <Value>
-      <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">2024-12-01T00:00:00Z</DateTime>
+      <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">2025-01-08T00:00:00Z</DateTime>
     </Value>
   </UAVariable>
   <UAVariable NodeId="i=15961" BrowseName="IsNamespaceSubset" ParentNodeId="i=15957" DataType="Boolean">
@@ -17263,7 +17263,7 @@
     <DisplayName>ConditionSubClassId</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">i=2782</Reference>
     </References>
   </UAVariable>
@@ -17271,7 +17271,7 @@
     <DisplayName>ConditionSubClassName</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">i=2782</Reference>
     </References>
   </UAVariable>
@@ -18981,8 +18981,6 @@
       <Reference ReferenceType="HasProperty">i=16415</Reference>
       <Reference ReferenceType="HasProperty">i=16416</Reference>
       <Reference ReferenceType="HasProperty">i=16417</Reference>
-      <Reference ReferenceType="HasProperty">i=16418</Reference>
-      <Reference ReferenceType="HasProperty">i=16419</Reference>
       <Reference ReferenceType="HasProperty">i=16420</Reference>
       <Reference ReferenceType="HasProperty">i=16421</Reference>
       <Reference ReferenceType="HasProperty">i=16422</Reference>
@@ -19078,22 +19076,6 @@
   </UAVariable>
   <UAVariable NodeId="i=16417" BrowseName="ConditionClassName" ParentNodeId="i=16406" DataType="LocalizedText">
     <DisplayName>ConditionClassName</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=16406</Reference>
-    </References>
-  </UAVariable>
-  <UAVariable NodeId="i=16418" BrowseName="ConditionSubClassId" ParentNodeId="i=16406" DataType="NodeId" ValueRank="1" ArrayDimensions="0">
-    <DisplayName>ConditionSubClassId</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=16406</Reference>
-    </References>
-  </UAVariable>
-  <UAVariable NodeId="i=16419" BrowseName="ConditionSubClassName" ParentNodeId="i=16406" DataType="LocalizedText" ValueRank="1" ArrayDimensions="0">
-    <DisplayName>ConditionSubClassName</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
@@ -24440,8 +24422,6 @@
       <Reference ReferenceType="HasProperty">i=19459</Reference>
       <Reference ReferenceType="HasProperty">i=19460</Reference>
       <Reference ReferenceType="HasProperty">i=19461</Reference>
-      <Reference ReferenceType="HasProperty">i=19462</Reference>
-      <Reference ReferenceType="HasProperty">i=19463</Reference>
       <Reference ReferenceType="HasProperty">i=19464</Reference>
       <Reference ReferenceType="HasProperty">i=19465</Reference>
       <Reference ReferenceType="HasProperty">i=19466</Reference>
@@ -24541,22 +24521,6 @@
   </UAVariable>
   <UAVariable NodeId="i=19461" BrowseName="ConditionClassName" ParentNodeId="i=19450" DataType="LocalizedText">
     <DisplayName>ConditionClassName</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=19450</Reference>
-    </References>
-  </UAVariable>
-  <UAVariable NodeId="i=19462" BrowseName="ConditionSubClassId" ParentNodeId="i=19450" DataType="NodeId" ValueRank="1" ArrayDimensions="0">
-    <DisplayName>ConditionSubClassId</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=19450</Reference>
-    </References>
-  </UAVariable>
-  <UAVariable NodeId="i=19463" BrowseName="ConditionSubClassName" ParentNodeId="i=19450" DataType="LocalizedText" ValueRank="1" ArrayDimensions="0">
-    <DisplayName>ConditionSubClassName</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
@@ -24888,8 +24852,6 @@
       <Reference ReferenceType="HasProperty">i=20152</Reference>
       <Reference ReferenceType="HasProperty">i=20153</Reference>
       <Reference ReferenceType="HasProperty">i=20154</Reference>
-      <Reference ReferenceType="HasProperty">i=20155</Reference>
-      <Reference ReferenceType="HasProperty">i=20156</Reference>
       <Reference ReferenceType="HasProperty">i=20157</Reference>
       <Reference ReferenceType="HasProperty">i=20158</Reference>
       <Reference ReferenceType="HasProperty">i=20159</Reference>
@@ -24989,22 +24951,6 @@
   </UAVariable>
   <UAVariable NodeId="i=20154" BrowseName="ConditionClassName" ParentNodeId="i=20143" DataType="LocalizedText">
     <DisplayName>ConditionClassName</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=20143</Reference>
-    </References>
-  </UAVariable>
-  <UAVariable NodeId="i=20155" BrowseName="ConditionSubClassId" ParentNodeId="i=20143" DataType="NodeId" ValueRank="1" ArrayDimensions="0">
-    <DisplayName>ConditionSubClassId</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=20143</Reference>
-    </References>
-  </UAVariable>
-  <UAVariable NodeId="i=20156" BrowseName="ConditionSubClassName" ParentNodeId="i=20143" DataType="LocalizedText" ValueRank="1" ArrayDimensions="0">
-    <DisplayName>ConditionSubClassName</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
@@ -68429,7 +68375,7 @@ ZXMueHNkIg0KICB0YXJnZXROYW1lc3BhY2U9Imh0dHA6Ly9vcGNmb3VuZGF0aW9uLm9yZy9VQS8y
 MDA4LzAyL1R5cGVzLnhzZCINCiAgZWxlbWVudEZvcm1EZWZhdWx0PSJxdWFsaWZpZWQiDQo+DQog
 IDx4czphbm5vdGF0aW9uPg0KICAgIDx4czphcHBpbmZvPg0KICAgICAgPHVhOk1vZGVsIE1vZGVs
 VXJpPSJodHRwOi8vb3BjZm91bmRhdGlvbi5vcmcvVUEvIiBWZXJzaW9uPSIxLjA1LjA0IiBQdWJs
-aWNhdGlvbkRhdGU9IjIwMjQtMTItMDFUMDA6MDA6MDBaIiAvPg0KICAgIDwveHM6YXBwaW5mbz4N
+aWNhdGlvbkRhdGU9IjIwMjUtMDEtMDhUMDA6MDA6MDBaIiAvPg0KICAgIDwveHM6YXBwaW5mbz4N
 CiAgPC94czphbm5vdGF0aW9uPg0KICANCiAgPHhzOmVsZW1lbnQgbmFtZT0iQm9vbGVhbiIgdHlw
 ZT0ieHM6Ym9vbGVhbiIgLz4NCg0KICA8eHM6Y29tcGxleFR5cGUgbmFtZT0iTGlzdE9mQm9vbGVh
 biI+DQogICAgPHhzOnNlcXVlbmNlPg0KICAgICAgPHhzOmVsZW1lbnQgbmFtZT0iQm9vbGVhbiIg
