@@ -96,7 +96,7 @@ namespace Opc.Ua.Client.ComplexTypes
 
             string fieldName = null;
 
-            encoder.WriteSwitchField(m_switchField);
+            encoder.WriteSwitchField("SwitchField", m_switchField);
 
             if (encoder.UseReversibleEncoding)
             {

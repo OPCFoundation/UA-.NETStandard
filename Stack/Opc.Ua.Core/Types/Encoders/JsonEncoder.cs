@@ -514,20 +514,20 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public void WriteSwitchField(uint switchField)
+        public void WriteSwitchField(string fieldName, uint switchField)
         {
             if ((!SuppressArtifacts && EncodingToUse == JsonEncodingType.Compact) || EncodingToUse == JsonEncodingType.Reversible)
             {
-                WriteUInt32("SwitchField", switchField);
+                WriteUInt32(fieldName, switchField);
             }
         }
 
         /// <inheritdoc/>
-        public void WriteEncodingMask(uint encodingMask)
+        public void WriteEncodingMask(string fieldName, uint encodingMask)
         {
             if ((!SuppressArtifacts && EncodingToUse == JsonEncodingType.Compact) || EncodingToUse == JsonEncodingType.Reversible)
             {
-                WriteUInt32("EncodingMask", encodingMask);
+                WriteUInt32(fieldName, encodingMask);
             }
         }
         #endregion

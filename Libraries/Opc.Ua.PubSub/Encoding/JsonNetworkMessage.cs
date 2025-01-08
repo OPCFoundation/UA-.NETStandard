@@ -195,9 +195,7 @@ namespace Opc.Ua.PubSub.Encoding
         {
             bool topLevelIsArray = !HasNetworkMessageHeader && !HasSingleDataSetMessage && !IsMetaDataMessage;
 
-            using (IJsonEncoder encoder = new JsonEncoder(messageContext, true, topLevelIsArray, stream) {
-                IncludeDefaultValues = true
-            })
+            using (IJsonEncoder encoder = new JsonEncoder(messageContext, true, topLevelIsArray, stream))
             {
                 if (IsMetaDataMessage)
                 {

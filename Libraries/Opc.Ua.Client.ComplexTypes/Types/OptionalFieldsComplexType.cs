@@ -93,7 +93,7 @@ namespace Opc.Ua.Client.ComplexTypes
         {
             encoder.PushNamespace(XmlNamespace);
 
-            encoder.WriteEncodingMask(m_encodingMask);
+            encoder.WriteEncodingMask("EncodingMask", m_encodingMask);
 
             foreach (var property in GetPropertyEnumerator())
             {
