@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.InteropServices;
@@ -45,7 +46,7 @@ namespace Opc.Ua.Gds.Server
         public NodeId Id { get; set; }
         public NodeIdCollection CertificateTypes { get; set; }
         public CertificateGroupConfiguration Configuration { get; }
-        public NodeIdDictionary<X509Certificate2> Certificates { get; }
+        public ConcurrentDictionary<NodeId, X509Certificate2> Certificates { get; }
         public TrustListState DefaultTrustList { get; set; }
         public bool UpdateRequired { get; set; }
         public CertificateStoreIdentifier AuthoritiesStore { get; }
@@ -72,7 +73,7 @@ namespace Opc.Ua.Gds.Server
             SubjectName = Configuration.SubjectName.Replace("localhost", Utils.GetHostName());
             CertificateTypes = new NodeIdCollection();
 
-            Certificates = new NodeIdDictionary<X509Certificate2>();
+            Certificates = new ConcurrentDictionary<NodeId, X509Certificate2>();
 
             foreach (string certificateTypeString in Configuration.CertificateTypes)
             {
@@ -85,7 +86,7 @@ namespace Opc.Ua.Gds.Server
                     }
 
                     CertificateTypes.Add(certificateType);
-                    Certificates.Add(certificateType, null);
+                    Certificates.TryAdd(certificateType, null);
                 }
                 else
                 {

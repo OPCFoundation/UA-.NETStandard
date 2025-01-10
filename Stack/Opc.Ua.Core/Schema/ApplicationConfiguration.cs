@@ -3067,7 +3067,7 @@ namespace Opc.Ua
         public CertificateIdentifier(X509Certificate2 certificate)
         {
             Initialize();
-            m_certificate = certificate;
+            Certificate = certificate;
         }
 
         /// <summary>
@@ -3076,7 +3076,7 @@ namespace Opc.Ua
         public CertificateIdentifier(X509Certificate2 certificate, CertificateValidationOptions validationOptions)
         {
             Initialize();
-            m_certificate = certificate;
+            Certificate = certificate;
             m_validationOptions = validationOptions;
         }
 
@@ -3087,7 +3087,7 @@ namespace Opc.Ua
         public CertificateIdentifier(byte[] rawData)
         {
             Initialize();
-            m_certificate = CertificateFactory.Create(rawData, true);
+            Certificate = CertificateFactory.Create(rawData, true);
         }
 
         /// <summary>

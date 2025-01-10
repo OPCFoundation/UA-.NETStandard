@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System.Collections.Concurrent;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
@@ -59,7 +60,7 @@ namespace Opc.Ua.Gds.Server
     {
         NodeId Id { get; set; }
         NodeIdCollection CertificateTypes { get; set; }
-        NodeIdDictionary<X509Certificate2> Certificates { get; }
+        ConcurrentDictionary<NodeId, X509Certificate2> Certificates { get; }
         CertificateGroupConfiguration Configuration { get; }
         CertificateStoreIdentifier AuthoritiesStore { get; }
         CertificateStoreIdentifier IssuerCertificatesStore { get; }
