@@ -300,7 +300,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             UdpPubSubConnection publisherConnection = publisherApplication.PubSubConnections.First() as UdpPubSubConnection;
             Assert.IsNotNull(publisherConnection, "publisherConnection is null");
 
-            //start subcriber and prepare the message
+            //start subscriber and prepare the message
             subscriberConnection.Start();
             m_shutdownEvent = new ManualResetEvent(false);
             m_sentBytes = BuildNetworkMessages(publisherConnection, UdpConnectionType.Discovery);

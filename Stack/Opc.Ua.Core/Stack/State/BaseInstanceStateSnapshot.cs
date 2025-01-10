@@ -221,7 +221,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Recusively stores the the current value for Object and Variable child nodes.
+        /// Recursively stores the the current value for Object and Variable child nodes.
         /// </summary>
         /// <param name="context">The context.</param>
         /// <param name="state">The state.</param>

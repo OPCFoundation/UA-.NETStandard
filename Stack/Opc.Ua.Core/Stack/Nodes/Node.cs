@@ -800,7 +800,7 @@ namespace Opc.Ua
         /// Whether the node supports the specified attribute.
         /// </summary>
         /// <param name="attributeId">The attribute id.</param>
-        /// <returns>True if  the node supports the specified attribute.</returns>
+        /// <returns>True if the node supports the specified attribute.</returns>
         public override bool SupportsAttribute(uint attributeId)
         {
             switch (attributeId)
@@ -1066,7 +1066,7 @@ namespace Opc.Ua
         /// Reads the value of an attribute.
         /// </summary>
         /// <param name="attributeId">The attribute id.</param>
-        /// <returns>Tthe node supports the specified attribute.</returns>
+        /// <returns>The node supports the specified attribute.</returns>
         protected override object Read(uint attributeId)
         {
             switch (attributeId)

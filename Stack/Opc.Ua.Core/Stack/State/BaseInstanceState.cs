@@ -273,7 +273,7 @@ namespace Opc.Ua
         {
             base.ReportEvent(context, e);
 
-            // recusively notify the parent.
+            // recursively notify the parent.
             m_parent?.ReportEvent(context, e);
             
         }

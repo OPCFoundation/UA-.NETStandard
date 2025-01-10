@@ -226,7 +226,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Returns the public key for the specified certificate and ouputs the security policy uris.
+        /// Returns the public key for the specified certificate and outputs the security policy uris.
         /// </summary>
         /// <param name="certificate"></param>
         /// <param name="securityPolicyUris"></param>
@@ -1273,7 +1273,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Returns the public key for the specified certificate and ouputs the security policy uris.
+        /// Returns the public key for the specified certificate and outputs the security policy uris.
         /// </summary>
         /// <param name="certificate"></param>
         /// <param name="securityPolicyUris"></param>
