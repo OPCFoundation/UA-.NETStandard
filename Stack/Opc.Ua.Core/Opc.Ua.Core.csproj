@@ -108,4 +108,9 @@
     <Message Text="Zip NodeSet2 completed, $(ZipTmp) removed." Importance="high" />
   </Target>
 
+  <Target Name="RemoveZipNodeset2" AfterTargets="Clean">
+    <Message Text="Delete Zip $(ZipNodeSet2XML).zip" Importance="high"></Message>
+    <Delete Files="$(ZipNodeSet2XML).zip"></Delete>
+  </Target>
+
 </Project>
