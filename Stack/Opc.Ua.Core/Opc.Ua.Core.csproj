@@ -96,7 +96,7 @@
 
   <!-- ensure this target runs only once for single- and multitargeted builds -->
   <PropertyGroup>
-    <ZipTmp>$(BaseIntermediateOutputPath)/$(Configuration)/$(TargetFramework)/zipnodeset2</ZipTmp>
+    <ZipTmp>$(BaseIntermediateOutputPath)$(Configuration)/$(TargetFramework)/zipnodeset2</ZipTmp>
     <ZipNodeSet2XML>Schema/Opc.Ua.NodeSet2.xml</ZipNodeSet2XML>
   </PropertyGroup>
 
@@ -108,7 +108,7 @@
     <Message Text="Zip NodeSet2 completed, $(ZipTmp) removed." Importance="high" />
   </Target>
 
-  <Target Name="RemoveZipNodeset2" AfterTargets="Clean">
+  <Target Name="RemoveZipNodeset2" AfterTargets="Clean" Condition="Exists('$(ZipNodeSet2XML).zip')">
     <Message Text="Delete Zip $(ZipNodeSet2XML).zip" Importance="high"></Message>
     <Delete Files="$(ZipNodeSet2XML).zip"></Delete>
   </Target>
