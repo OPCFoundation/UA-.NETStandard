@@ -94,7 +94,6 @@
     <EmbeddedResource Include="Schema\Opc.Ua.NodeSet2.xml.zip" />
   </ItemGroup>
 
-  <!-- ensure this target runs only once for single- and multitargeted builds -->
   <PropertyGroup>
     <ZipTmp>$(BaseIntermediateOutputPath)$(Configuration)/$(TargetFramework)/zipnodeset2</ZipTmp>
     <ZipNodeSet2XML>Schema/Opc.Ua.NodeSet2.xml</ZipNodeSet2XML>
