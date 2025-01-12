@@ -96,12 +96,11 @@
 
   <!-- ensure this target runs only once for single- and multitargeted builds -->
   <PropertyGroup>
-    <IsCrossTargetingProject Condition="$(TargetFrameworks) != ''">true</IsCrossTargetingProject>
-    <ZipTmp>$(BaseIntermediateOutputPath)/zipnodeset2</ZipTmp>
+    <ZipTmp>$(BaseIntermediateOutputPath)/$(Configuration)/$(TargetFramework)/zipnodeset2</ZipTmp>
     <ZipNodeSet2XML>Schema/Opc.Ua.NodeSet2.xml</ZipNodeSet2XML>
   </PropertyGroup>
 
-  <Target Name="ZipNodeSet2" Condition="'$(IsCrossTargetingProject)' == '$(IsCrossTargetingBuild)'" BeforeTargets="DispatchToInnerBuilds;BeforeBuild" Inputs="$(ZipNodeSet2XML)" Outputs="$(ZipNodeSet2XML).zip">
+  <Target Name="ZipNodeSet2" BeforeTargets="BeforeBuild" Inputs="$(ZipNodeSet2XML)" Outputs="$(ZipNodeSet2XML).zip">
     <Message Text="Zip $(ZipNodeSet2XML) in $(ZipTmp)." Importance="high" />
     <Copy SourceFiles="$(ZipNodeSet2XML)" DestinationFolder="$(ZipTmp)" />
     <ZipDirectory SourceDirectory="$(ZipTmp)" DestinationFile="$(ZipNodeSet2XML).zip" Overwrite="true" />
