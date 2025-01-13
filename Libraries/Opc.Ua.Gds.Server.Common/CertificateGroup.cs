@@ -157,7 +157,7 @@ namespace Opc.Ua.Gds.Server
                         Configuration.CACertificateHashSize,
                         Configuration.CACertificateLifetime
                         );
-                    X509Certificate2 newCertificate = await CreateCACertificateAsync(SubjectName, certificateType).ConfigureAwait(false);
+                    await CreateCACertificateAsync(SubjectName, certificateType).ConfigureAwait(false);
                     Utils.LogCertificate(Utils.TraceMasks.Security, "Created CA certificate: ", Certificates[certificateType]);
                 }
 
