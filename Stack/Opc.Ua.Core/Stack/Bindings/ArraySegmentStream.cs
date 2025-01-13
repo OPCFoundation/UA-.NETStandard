@@ -128,7 +128,7 @@ namespace Opc.Ua.Bindings
         /// <remarks>
         /// The buffers ownership is transferred to the sequence,
         /// the stream can be disposed.
-        /// The new owner is responisble to dispose the sequence after use.
+        /// The new owner is responsible to dispose the sequence after use.
         /// </remarks>
         public BufferSequence GetSequence(string owner)
         {

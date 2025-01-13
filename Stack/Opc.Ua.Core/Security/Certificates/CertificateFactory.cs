@@ -292,7 +292,19 @@ namespace Opc.Ua
                 .SetNextUpdate(nextUpdate)
                 .AddCRLExtension(X509Extensions.BuildAuthorityKeyIdentifier(issuerCertificate))
                 .AddCRLExtension(X509Extensions.BuildCRLNumber(crlSerialNumber + 1));
-            return new X509CRL(crlBuilder.CreateForRSA(issuerCertificate));
+
+            if (X509PfxUtils.IsECDsaSignature(issuerCertificate))
+            {
+#if ECC_SUPPORT
+                return new X509CRL(crlBuilder.CreateForECDsa(issuerCertificate));
+#else
+                throw new NotSupportedException("CRL can only be created for an RSA Certificate on this system");
+#endif
+            }
+            else
+            {
+                return new X509CRL(crlBuilder.CreateForRSA(issuerCertificate));
+            }
         }
 
 #if NETSTANDARD2_1 || NET472_OR_GREATER || NET5_0_OR_GREATER

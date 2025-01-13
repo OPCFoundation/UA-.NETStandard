@@ -36,7 +36,7 @@ using System.Threading;
 namespace Opc.Ua.Server 
 {
     /// <summary>
-    /// The current publishing state for a subcription.
+    /// The current publishing state for a subscription.
     /// </summary>  
     public enum PublishingState
     {

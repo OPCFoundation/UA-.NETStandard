@@ -3230,7 +3230,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Get Default value for NodeId for diferent IdTypes 
+        /// Get Default value for NodeId for different IdTypes 
         /// </summary>
         /// <returns>new NodeId</returns>
         private NodeId DefaultNodeId(IdType idType, ushort namespaceIndex)

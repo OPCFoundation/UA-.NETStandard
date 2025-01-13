@@ -76,7 +76,7 @@ public static partial class FuzzableCode
     }
 
     /// <summary>
-    /// The binary encoder indempotent fuzz target for afl-fuzz.
+    /// The binary encoder idempotent fuzz target for afl-fuzz.
     /// </summary>
     /// <param name="stream">The stdin stream from the afl-fuzz process.</param>
     public static void AflfuzzBinaryEncoderIndempotent(Stream stream)
@@ -96,7 +96,7 @@ public static partial class FuzzableCode
             }
         }
 
-        // reencode the fuzzed input and see if they are indempotent
+        // reencode the fuzzed input and see if they are idempotent
         FuzzBinaryEncoderIndempotentCore(serialized, encodeable);
     }
 
@@ -137,7 +137,7 @@ public static partial class FuzzableCode
     }
 
     /// <summary>
-    /// The binary encoder indempotent fuzz target for libfuzzer.
+    /// The binary encoder idempotent fuzz target for libfuzzer.
     /// </summary>
     public static void LibfuzzBinaryEncoderIndempotent(ReadOnlySpan<byte> input)
     {
@@ -156,7 +156,7 @@ public static partial class FuzzableCode
             }
         }
 
-        // reencode the fuzzed input and see if they are indempotent
+        // reencode the fuzzed input and see if they are idempotent
         FuzzBinaryEncoderIndempotentCore(serialized, encodeable);
     }
 
@@ -196,9 +196,9 @@ public static partial class FuzzableCode
     }
 
     /// <summary>
-    /// The indempotent fuzz target core for the BinaryEncoder.
+    /// The idempotent fuzz target core for the BinaryEncoder.
     /// </summary>
-    /// <param name="serialized">The indempotent UA binary encoded data.</param>
+    /// <param name="serialized">The idempotent UA binary encoded data.</param>
     /// <exception cref="Exception"></exception>
     internal static void FuzzBinaryEncoderIndempotentCore(byte[] serialized, IEncodeable encodeable)
     {
@@ -216,12 +216,12 @@ public static partial class FuzzableCode
                 string encodeableTypeName = encodeable2?.GetType().Name ?? "unknown type";
                 if (serialized2 == null || !serialized.SequenceEqual(serialized2))
                 {
-                    throw new Exception(Utils.Format("Indempotent encoding failed. Type={0}.", encodeableTypeName));
+                    throw new Exception(Utils.Format("Idempotent encoding failed. Type={0}.", encodeableTypeName));
                 }
 
                 if (!Utils.IsEqual(encodeable2, encodeable3))
                 {
-                    throw new Exception(Utils.Format("Indempotent 3rd gen decoding failed. Type={0}.", encodeableTypeName));
+                    throw new Exception(Utils.Format("Idempotent 3rd gen decoding failed. Type={0}.", encodeableTypeName));
                 }
             }
         }

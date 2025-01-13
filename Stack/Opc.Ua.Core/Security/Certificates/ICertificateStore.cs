@@ -106,7 +106,7 @@ namespace Opc.Ua
         Task<X509Certificate2> LoadPrivateKey(string thumbprint, string subjectName, string password);
 
         /// <summary>
-        /// Finds the certificate with the specified thumprint.
+        /// Finds the certificate with the specified thumbprint.
         /// </summary>
         /// <param name="thumbprint">The thumbprint.</param>
         /// <param name="subjectName">The certificate subject.</param>

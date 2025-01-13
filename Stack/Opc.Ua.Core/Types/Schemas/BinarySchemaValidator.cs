@@ -450,7 +450,7 @@ namespace Opc.Ua.Schema.Binary
                     {
                         if (bitCount % 8 != 0)
                         {
-                            throw Exception("Field '{1}' in structured type '{0}' is not aligned on a byte boundary .", description.Name, field.Name);
+                            throw Exception("Field '{1}' in structured type '{0}' is not aligned on a byte boundary.", description.Name, field.Name);
                         }
 
                         bitCount = 0;

@@ -203,7 +203,7 @@ namespace Opc.Ua
         /// <summary>
         /// Finds the index of the specified element.
         /// </summary>
-        /// <param name="target">The targetto be found.</param>
+        /// <param name="target">The target to be found.</param>
         /// <returns>The index of the specified element.</returns>
         private int FindElementIndex(ContentFilterElement target)
         {
