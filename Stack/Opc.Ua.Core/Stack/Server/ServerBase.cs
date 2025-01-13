@@ -604,12 +604,10 @@ namespace Opc.Ua
         /// Sets the Server Certificate in an Endpoint description if the description requires encryption.
         /// </summary>
         /// <param name="description">the endpoint Description to set the server certificate</param>
-        /// <param name="sendCertificateChain">true if the certificate chain shall be sent</param>
         /// <param name="certificateTypesProvider">The provider to get the server certificate per certificate type.</param>
         /// <param name="checkRequireEncryption">only set certificate if the endpoint does require Encryption</param>
         public static void SetServerCertificateInEndpointDescription(
             EndpointDescription description,
-            bool sendCertificateChain,
             CertificateTypesProvider certificateTypesProvider,
             bool checkRequireEncryption = true)
         {
@@ -617,7 +615,7 @@ namespace Opc.Ua
             {
                 X509Certificate2 serverCertificate = certificateTypesProvider.GetInstanceCertificate(description.SecurityPolicyUri);
                 // check if complete chain should be sent.
-                if (sendCertificateChain)
+                if (certificateTypesProvider.SendCertificateChain)
                 {
                     description.ServerCertificate = certificateTypesProvider.LoadCertificateChainRaw(serverCertificate);
                 }
@@ -797,6 +795,22 @@ namespace Opc.Ua
         protected virtual void OnCertificateUpdate(object sender, CertificateUpdateEventArgs e)
         {
             InstanceCertificateTypesProvider.Update(e.SecurityConfiguration);
+
+            foreach (var certificateIdentifier in Configuration.SecurityConfiguration.ApplicationCertificates)
+            {
+                // preload chain
+                X509Certificate2 certificate = certificateIdentifier.Find(false).GetAwaiter().GetResult();
+                InstanceCertificateTypesProvider.LoadCertificateChainAsync(certificate).GetAwaiter().GetResult();
+            }
+
+            //update certificate in the endpoint descriptions
+            foreach (EndpointDescription endpointDescription in m_endpoints)
+            {
+                SetServerCertificateInEndpointDescription(
+                    endpointDescription,
+                    InstanceCertificateTypesProvider);
+            }
+
             foreach (var listener in TransportListeners)
             {
                 listener.CertificateUpdate(e.CertificateValidator, InstanceCertificateTypesProvider);
@@ -1476,7 +1490,7 @@ namespace Opc.Ua
         {
             request.CallSynchronously();
         }
-#endregion
+        #endregion
 
         #region RequestQueue Class
         /// <summary>
@@ -1706,7 +1720,7 @@ namespace Opc.Ua
                 }
             }
 #endif
-#endregion
+            #endregion
 
             #region Private Fields
             private ServerBase m_server;
@@ -1720,7 +1734,7 @@ namespace Opc.Ua
             private Queue<IEndpointIncomingRequest> m_queue;
             private int m_totalThreadCount;
 #endif
-#endregion
+            #endregion
 
         }
         #endregion
