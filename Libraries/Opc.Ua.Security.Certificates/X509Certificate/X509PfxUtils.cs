@@ -257,8 +257,8 @@ namespace Opc.Ua.Security.Certificates
             bool throwOnError = false)
         {
             bool result = false;
-            using (ECDsa ecdsaPublicKey = certWithPrivateKey.GetECDsaPublicKey())
-            using (ECDsa ecdsaPrivateKey = certWithPublicKey.GetECDsaPrivateKey())
+            using (ECDsa ecdsaPublicKey = certWithPublicKey.GetECDsaPublicKey())
+            using (ECDsa ecdsaPrivateKey = certWithPrivateKey.GetECDsaPrivateKey())
             {
                 try
                 {
