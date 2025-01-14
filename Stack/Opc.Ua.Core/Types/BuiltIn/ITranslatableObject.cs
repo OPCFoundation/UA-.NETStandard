@@ -63,7 +63,7 @@ namespace Opc.Ua
         /// <param name="preferredLocales">The preferred locales.</param>
         /// <param name="result">The result.</param>
         /// <returns>The result with all localized text translated.</returns>
-        /// <remarks>Recusively translates text in inner results.</remarks>
+        /// <remarks>Recurssively translates text in inner results.</remarks>
         ServiceResult Translate(IList<string> preferredLocales, ServiceResult result);
     }
 

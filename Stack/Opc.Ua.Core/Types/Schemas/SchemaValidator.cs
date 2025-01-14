@@ -81,7 +81,7 @@ namespace Opc.Ua.Schema
 
         #region Protected Methods
         /// <summary>
-        /// Returns true if the QName is null,
+        /// Returns true if the QName is null.
         /// </summary>
         protected static bool IsNull(XmlQualifiedName name)
         {

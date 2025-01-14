@@ -12,8 +12,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
@@ -147,7 +145,14 @@ namespace Opc.Ua
         public X509Certificate2 Certificate
         {
             get { return m_certificate; }
-            set { m_certificate = value; }
+            set
+            {
+                m_certificate = value;
+                if (m_certificate != null)
+                {
+                    m_certificateType = GetCertificateType(m_certificate);
+                }
+            }
         }
         #endregion
 
@@ -241,20 +246,6 @@ namespace Opc.Ua
             }
 
             return certificate;
-        }
-
-        /// <summary>
-        /// Updates the object from another object (usage is not updated).
-        /// </summary>
-        /// <param name="certificate">The certificate.</param>
-        private void Paste(CertificateIdentifier certificate)
-        {
-            this.SubjectName = certificate.SubjectName;
-            this.Thumbprint = certificate.Thumbprint;
-            this.RawData = certificate.RawData;
-            this.ValidationOptions = certificate.ValidationOptions;
-            this.Certificate = certificate.Certificate;
-            this.CertificateType = certificate.CertificateType;
         }
 
         /// <summary>
@@ -528,9 +519,6 @@ namespace Opc.Ua
                 // non RSA
                 return 0;
             }
-            
-            throw new ArgumentException("Certificate type is unknown");
-            
         }
 
 

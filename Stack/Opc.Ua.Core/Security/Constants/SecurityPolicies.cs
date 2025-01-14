@@ -621,11 +621,6 @@ namespace Opc.Ua
                         securityPolicyUri);
                 }
             }
-
-            throw ServiceResultException.Create(
-                StatusCodes.BadSecurityChecksFailed,
-                "Unexpected security policy Uri: {0}",
-                securityPolicyUri);
         }
         #endregion
     }

@@ -69,7 +69,7 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// Create and return the list of DataSetWriterConfiguration response message
         /// </summary>
-        /// <param name="dataSetWriterIds">DatasetWriter ids</param>
+        /// <param name="dataSetWriterIds">DataSetWriter ids</param>
         /// <returns></returns>
         IList<UaNetworkMessage> CreateDataSetWriterCofigurationMessage(UInt16[] dataSetWriterIds);
 

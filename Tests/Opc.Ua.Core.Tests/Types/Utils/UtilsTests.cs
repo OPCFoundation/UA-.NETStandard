@@ -451,7 +451,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         }
 
         /// <summary>
-        /// Parse a path containing correctly escaped hash character folowed by exclamation.
+        /// Parse a path containing correctly escaped hash character followed by exclamation.
         /// </summary>
         [Test]
         public void RelativePathParseEscapedHashFollowedByExclamation()
@@ -462,7 +462,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         }
 
         /// <summary>
-        /// Parse a path containing correctly escaped hash character by exclamation within the reference type delimeters.
+        /// Parse a path containing correctly escaped hash character by exclamation within the reference type delimiters.
         /// </summary>
         [Test]
         public void RelativePathParseEscapedHashFollowedByExclamationInReferenceType()

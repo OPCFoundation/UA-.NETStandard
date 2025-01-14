@@ -23,7 +23,7 @@ namespace Opc.Ua
     {
         #region ICollection<T> Members
         /// <summary>
-        /// Wraps an exising list.
+        /// Wraps an existing list.
         /// </summary>
         public ReadOnlyList(IList<T> list)
         {
@@ -36,7 +36,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Makes a shallow copy of an exising list.
+        /// Makes a shallow copy of an existing list.
         /// </summary>
         public ReadOnlyList(IList<T> list, bool makeCopy)
         {
@@ -68,7 +68,7 @@ namespace Opc.Ua
         public int Count => m_list.Count;
 
         /// <summary>
-        /// Adds new item  to the list (not supported).
+        /// Adds new item to the list (not supported).
         /// </summary>
         public void Add(T item)
         {
@@ -76,7 +76,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Removes all item from the list (not supported).
+        /// Removes all items from the list (not supported).
         /// </summary>
         public void Clear()
         {

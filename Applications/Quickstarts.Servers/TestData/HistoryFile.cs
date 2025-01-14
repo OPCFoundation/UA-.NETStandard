@@ -118,7 +118,7 @@ namespace TestData
         /// <param name="lastTime">The timestamp of the last value returned.</param>
         /// <param name="isForward">Whether to search forward in time.</param>
         /// <param name="isReadModified">Whether to return modified data.</param>
-        /// <param name="position">A index previously returned by the reader.</param>
+        /// <param name="position">An index previously returned by the reader.</param>
         /// <returns>The DataValue.</returns>
         public DataValue NextRaw(DateTime lastTime, bool isForward, bool isReadModified, ref int position)
         {

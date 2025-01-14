@@ -1305,7 +1305,7 @@ namespace Opc.Ua
 
         #region Overridden Methods
         /// <summary>
-        /// Recusively sets the status code and timestamp for the node and all child variables.
+        /// Recursively sets the status code and timestamp for the node and all child variables.
         /// </summary>
         /// <param name="context">The context.</param>
         /// <param name="statusCode">The status code.</param>
