@@ -207,11 +207,14 @@ namespace Opc.Ua.Security.Certificates
             CreateX509Extensions(request, true);
 
             byte[] serialNumber = m_serialNumber.Reverse().ToArray();
+
+
+            X509Certificate2 cert;
             if (IssuerCAKeyCert != null)
             {
                 using (ECDsa issuerKey = IssuerCAKeyCert.GetECDsaPrivateKey())
                 {
-                    return request.Create(
+                    cert = request.Create(
                         IssuerCAKeyCert.SubjectName,
                         X509SignatureGenerator.CreateForECDsa(issuerKey),
                         NotBefore,
@@ -222,15 +225,16 @@ namespace Opc.Ua.Security.Certificates
             }
             else
             {
-                return request.Create(
+                cert = request.Create(
                     SubjectName,
                     X509SignatureGenerator.CreateForECDsa(key),
                     NotBefore,
                     NotAfter,
                     serialNumber
-                    )
-                    .CopyWithPrivateKey(key);
+                    );
             }
+
+            return (key == null) ? cert : cert.CopyWithPrivateKey(key);
         }
 
         /// <inheritdoc/>
