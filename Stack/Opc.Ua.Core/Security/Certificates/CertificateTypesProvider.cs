@@ -199,6 +199,7 @@ namespace Opc.Ua.Security.Certificates
         public void Update(SecurityConfiguration securityConfiguration)
         {
             m_securityConfiguration = securityConfiguration;
+            m_certificateChain.Clear();
             //ToDo intialize internal CertificateValidator after Certificate Update to clear cache of old application certificates
         }
 

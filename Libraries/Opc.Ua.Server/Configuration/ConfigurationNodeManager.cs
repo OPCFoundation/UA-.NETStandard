@@ -424,6 +424,12 @@ namespace Opc.Ua.Server
                     throw new ServiceResultException(StatusCodes.BadCertificateInvalid, "Certificate data is invalid.");
                 }
 
+                // validate certificate type of new certificate
+                if (!CertificateIdentifier.ValidateCertificateType(newCert, certificateTypeId))
+                {
+                    throw new ServiceResultException(StatusCodes.BadCertificateInvalid, "Certificate type of new certificate doesn't match the provided certificate type.");
+                }
+
                 // identify the existing certificate to be updated
                 // it should be of the same type and same subject name as the new certificate
                 CertificateIdentifier existingCertIdentifier = certificateGroup.ApplicationCertificates.FirstOrDefault(cert =>

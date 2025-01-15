@@ -1123,7 +1123,7 @@ namespace Opc.Ua.Gds.Server
             byte[] certificateRequest,
             ref NodeId requestId)
         {
-            AuthorizationHelper.HasAuthorization(context, AuthorizationHelper.CertificateAuthorityAdminOrSelfAdmin, applicationId); ;
+            AuthorizationHelper.HasAuthorization(context, AuthorizationHelper.CertificateAuthorityAdminOrSelfAdmin, applicationId);
 
             var application = m_database.GetApplication(applicationId);
 
@@ -1230,7 +1230,7 @@ namespace Opc.Ua.Gds.Server
             }
 
             ICertificateGroup certificateGroup = null;
-            if (!String.IsNullOrWhiteSpace(certificateGroupId))
+            if (!string.IsNullOrWhiteSpace(certificateGroupId))
             {
                 foreach (var group in m_certificateGroups)
                 {

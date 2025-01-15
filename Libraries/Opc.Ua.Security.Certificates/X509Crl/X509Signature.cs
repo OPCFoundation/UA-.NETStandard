@@ -190,6 +190,10 @@ namespace Opc.Ua.Security.Certificates
         {
             using (RSA rsa = certificate.GetRSAPublicKey())
             {
+                if (rsa == null)
+                {
+                    return false;
+                }
                 return rsa.VerifyData(Tbs, Signature, Name, padding);
             }
         }
@@ -201,6 +205,10 @@ namespace Opc.Ua.Security.Certificates
         {
             using (ECDsa key = certificate.GetECDsaPublicKey())
             {
+                if (key == null)
+                {
+                    return false;
+                }
                 byte[] decodedSignature = DecodeECDsa(Signature, key.KeySize);
                 return key.VerifyData(Tbs, decodedSignature, Name);
             }
