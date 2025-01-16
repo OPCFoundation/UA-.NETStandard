@@ -66,6 +66,12 @@ namespace Opc.Ua.Configuration
 
         #region Public Methods
         /// <inheritdoc/>
+        public IApplicationConfigurationBuilderGlobalConfiguration SetHiResClockDisabled(bool disableHiResClock)
+        {
+            ApplicationConfiguration.DisableHiResClock = disableHiResClock;
+            return this;
+        }
+        /// <inheritdoc/>
         public IApplicationConfigurationBuilderClientSelected AsClient()
         {
             switch (ApplicationInstance.ApplicationType)
@@ -137,7 +143,7 @@ namespace Opc.Ua.Configuration
                     StorePath = DefaultCertificateStorePath(TrustlistType.IssuerUser, pkiRoot)
                 },
                 // rejected store
-                RejectedCertificateStore = new CertificateTrustList() {
+                RejectedCertificateStore = new CertificateStoreIdentifier() {
                     StoreType = rejectedRootType,
                     StorePath = DefaultCertificateStorePath(TrustlistType.Rejected, rejectedRoot)
                 },
@@ -178,7 +184,7 @@ namespace Opc.Ua.Configuration
                     StorePath = DefaultCertificateStorePath(TrustlistType.Issuer, issuerRoot)
                 },
                 // rejected store
-                RejectedCertificateStore = new CertificateTrustList() {
+                RejectedCertificateStore = new CertificateStoreIdentifier() {
                     StoreType = rejectedRootType,
                     StorePath = DefaultCertificateStorePath(TrustlistType.Rejected, rejectedRoot)
                 },
