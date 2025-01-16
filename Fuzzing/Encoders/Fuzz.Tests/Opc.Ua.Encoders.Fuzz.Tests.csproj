@@ -30,7 +30,7 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="SharpFuzz" Version="2.1.1" />
+    <PackageReference Include="SharpFuzz" Version="2.2.0" />
     <PackageReference Include="BenchmarkDotNet" Version="0.13.2" />
   </ItemGroup>
 
