@@ -143,8 +143,6 @@
               <ua:String>RsaSha256ApplicationCertificateType</ua:String>
               <ua:String>EccNistP256ApplicationCertificateType</ua:String>
               <ua:String>EccNistP384ApplicationCertificateType</ua:String>
-              <ua:String>EccBrainpoolP256r1ApplicationCertificateType</ua:String>
-              <ua:String>EccBrainpoolP384r1ApplicationCertificateType</ua:String>
             </CertificateTypes>
             <SubjectName>CN=GDS Test CA, O=OPC Foundation</SubjectName>
             <BaseStorePath>%LocalApplicationData%/OPC/GDS/CA/default</BaseStorePath>
