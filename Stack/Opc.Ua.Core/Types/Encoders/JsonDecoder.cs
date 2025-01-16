@@ -2778,9 +2778,9 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public uint ReadSwitchField(Type switches)
+        public uint ReadSwitchField(StringCollection switches)
         {
-            if (switches == null)
+            if (switches == null || switches.Count == 0)
             {
                 return ReadUInt32("SwitchField");
             }
@@ -2792,14 +2792,14 @@ namespace Opc.Ua
                     return ReadUInt32("SwitchField");
                 }
 
-                foreach (var ii in context)
+                uint switchField = 1;
+                foreach (var propertyName in switches)
                 {
-                    if (ii.Key == "UaTypeId")
+                    if (context.TryGetValue(propertyName, out _))
                     {
-                        continue;
+                        return switchField;
                     }
-
-                    return (uint)Enum.Parse(switches, ii.Key);
+                    switchField++;
                 }
             }
 
@@ -2807,7 +2807,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public uint ReadEncodingMask(Type masks)
+        public uint ReadEncodingMask(StringCollection masks)
         {
             if (masks == null)
             {
@@ -2821,17 +2821,19 @@ namespace Opc.Ua
                     return ReadUInt32("EncodingMask");
                 }
 
-                uint mask = 0;
+                uint encodingMask = 0;
+                uint mask = 1;
 
-                foreach (var fieldName in Enum.GetNames(masks))
+                foreach (var propertyName in masks)
                 {
-                    if (context.ContainsKey(fieldName))
+                    if (context.TryGetValue(propertyName, out _))
                     {
-                        mask |= (uint)Enum.Parse(masks, fieldName);
+                        encodingMask |= mask;
                     }
+                    mask <<= 1;
                 }
 
-                return mask;
+                return encodingMask;
             }
 
             return 0;
@@ -2967,535 +2969,535 @@ namespace Opc.Ua
         /// </summary>
         private delegate bool TryParseHandler<T>(string s, NumberStyles numberStyles, CultureInfo cultureInfo, out T result);
 
-        /// <summary>
-        /// Helper to read an enumerated string in an extension object.
-        /// </summary>
-        /// <typeparam name="T">The number type which was encoded.</typeparam>
-        /// <param name="token"></param>
-        /// <param name="handler"></param>
-        /// <returns>The parsed number or 0.</returns>
-        private T ReadEnumeratedString<T>(object token, TryParseHandler<T> handler) where T : struct
+    /// <summary>
+    /// Helper to read an enumerated string in an extension object.
+    /// </summary>
+    /// <typeparam name="T">The number type which was encoded.</typeparam>
+    /// <param name="token"></param>
+    /// <param name="handler"></param>
+    /// <returns>The parsed number or 0.</returns>
+    private T ReadEnumeratedString<T>(object token, TryParseHandler<T> handler) where T : struct
+    {
+        T number = default;
+        if (token is string text)
         {
-            T number = default;
-            if (token is string text)
+            bool retry = false;
+            do
             {
-                bool retry = false;
-                do
+                if (handler?.Invoke(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out number) == false)
                 {
-                    if (handler?.Invoke(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out number) == false)
+                    int lastIndex = text.LastIndexOf('_');
+                    if (lastIndex != -1)
                     {
-                        int lastIndex = text.LastIndexOf('_');
-                        if (lastIndex != -1)
-                        {
-                            text = text.Substring(lastIndex + 1);
-                            retry = true;
-                        }
-                    }
-                } while (retry);
-            }
-
-            return number;
-        }
-
-        /// <summary>
-        /// Reads a DiagnosticInfo from the stream.
-        /// Limits the InnerDiagnosticInfos to the specified depth.
-        /// </summary>
-        private DiagnosticInfo ReadDiagnosticInfo(string fieldName, int depth)
-        {
-            object token = null;
-
-            if (!ReadField(fieldName, out token))
-            {
-                return null;
-            }
-
-
-            if (!(token is Dictionary<string, object> value))
-            {
-                return null;
-            }
-
-            if (depth >= DiagnosticInfo.MaxInnerDepth)
-            {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadEncodingLimitsExceeded,
-                    "Maximum nesting level of InnerDiagnosticInfo was exceeded");
-            }
-
-            CheckAndIncrementNestingLevel();
-
-            try
-            {
-                m_stack.Push(value);
-
-                DiagnosticInfo di = new DiagnosticInfo();
-
-                bool hasDiagnosticInfo = false;
-                if (value.ContainsKey("SymbolicId"))
-                {
-                    di.SymbolicId = ReadInt32("SymbolicId");
-                    hasDiagnosticInfo = true;
-                }
-
-                if (value.ContainsKey("NamespaceUri"))
-                {
-                    di.NamespaceUri = ReadInt32("NamespaceUri");
-                    hasDiagnosticInfo = true;
-                }
-
-                if (value.ContainsKey("Locale"))
-                {
-                    di.Locale = ReadInt32("Locale");
-                    hasDiagnosticInfo = true;
-                }
-
-                if (value.ContainsKey("LocalizedText"))
-                {
-                    di.LocalizedText = ReadInt32("LocalizedText");
-                    hasDiagnosticInfo = true;
-                }
-
-                if (value.ContainsKey("AdditionalInfo"))
-                {
-                    di.AdditionalInfo = ReadString("AdditionalInfo");
-                    hasDiagnosticInfo = true;
-                }
-
-                if (value.ContainsKey("InnerStatusCode"))
-                {
-                    di.InnerStatusCode = ReadStatusCode("InnerStatusCode");
-                    hasDiagnosticInfo = true;
-                }
-
-                if (value.ContainsKey("InnerDiagnosticInfo") && depth < DiagnosticInfo.MaxInnerDepth)
-                {
-                    di.InnerDiagnosticInfo = ReadDiagnosticInfo("InnerDiagnosticInfo", depth + 1);
-                    hasDiagnosticInfo = true;
-                }
-
-                return hasDiagnosticInfo ? di : null;
-            }
-            finally
-            {
-                m_nestingLevel--;
-                m_stack.Pop();
-            }
-        }
-
-        /// <summary>
-        /// Get the system type from the type factory if not specified by caller.
-        /// </summary>
-        /// <param name="systemType">The reference to the system type, or null</param>
-        /// <param name="encodeableTypeId">The encodeable type id of the system type.</param>
-        /// <returns>If the system type is assignable to <see cref="IEncodeable"/> </returns>
-        private bool DetermineIEncodeableSystemType(ref Type systemType, ExpandedNodeId encodeableTypeId)
-        {
-            if (encodeableTypeId != null && systemType == null)
-            {
-                systemType = Context.Factory.GetSystemType(encodeableTypeId);
-            }
-            return typeof(IEncodeable).IsAssignableFrom(systemType);
-        }
-
-        /// <summary>
-        /// Read the body of a Variant as a BuiltInType
-        /// </summary>
-        private Variant ReadVariantBody(string fieldName, BuiltInType type)
-        {
-            switch (type)
-            {
-                case BuiltInType.Boolean: { return new Variant(ReadBoolean(fieldName), TypeInfo.Scalars.Boolean); }
-                case BuiltInType.SByte: { return new Variant(ReadSByte(fieldName), TypeInfo.Scalars.SByte); }
-                case BuiltInType.Byte: { return new Variant(ReadByte(fieldName), TypeInfo.Scalars.Byte); }
-                case BuiltInType.Int16: { return new Variant(ReadInt16(fieldName), TypeInfo.Scalars.Int16); }
-                case BuiltInType.UInt16: { return new Variant(ReadUInt16(fieldName), TypeInfo.Scalars.UInt16); }
-                case BuiltInType.Int32: { return new Variant(ReadInt32(fieldName), TypeInfo.Scalars.Int32); }
-                case BuiltInType.UInt32: { return new Variant(ReadUInt32(fieldName), TypeInfo.Scalars.UInt32); }
-                case BuiltInType.Int64: { return new Variant(ReadInt64(fieldName), TypeInfo.Scalars.Int64); }
-                case BuiltInType.UInt64: { return new Variant(ReadUInt64(fieldName), TypeInfo.Scalars.UInt64); }
-                case BuiltInType.Float: { return new Variant(ReadFloat(fieldName), TypeInfo.Scalars.Float); }
-                case BuiltInType.Double: { return new Variant(ReadDouble(fieldName), TypeInfo.Scalars.Double); }
-                case BuiltInType.String: { return new Variant(ReadString(fieldName), TypeInfo.Scalars.String); }
-                case BuiltInType.ByteString: { return new Variant(ReadByteString(fieldName), TypeInfo.Scalars.ByteString); }
-                case BuiltInType.DateTime: { return new Variant(ReadDateTime(fieldName), TypeInfo.Scalars.DateTime); }
-                case BuiltInType.Guid: { return new Variant(ReadGuid(fieldName), TypeInfo.Scalars.Guid); }
-                case BuiltInType.NodeId: { return new Variant(ReadNodeId(fieldName), TypeInfo.Scalars.NodeId); }
-                case BuiltInType.ExpandedNodeId: { return new Variant(ReadExpandedNodeId(fieldName), TypeInfo.Scalars.ExpandedNodeId); }
-                case BuiltInType.QualifiedName: { return new Variant(ReadQualifiedName(fieldName), TypeInfo.Scalars.QualifiedName); }
-                case BuiltInType.LocalizedText: { return new Variant(ReadLocalizedText(fieldName), TypeInfo.Scalars.LocalizedText); }
-                case BuiltInType.StatusCode: { return new Variant(ReadStatusCode(fieldName), TypeInfo.Scalars.StatusCode); }
-                case BuiltInType.XmlElement: { return new Variant(ReadXmlElement(fieldName), TypeInfo.Scalars.XmlElement); }
-                case BuiltInType.ExtensionObject: { return new Variant(ReadExtensionObject(fieldName), TypeInfo.Scalars.ExtensionObject); }
-                case BuiltInType.Variant: { return new Variant(ReadVariant(fieldName), TypeInfo.Scalars.Variant); }
-                case BuiltInType.DiagnosticInfo: { return new Variant(ReadDiagnosticInfo(fieldName), TypeInfo.Scalars.DiagnosticInfo); }
-                case BuiltInType.DataValue: { return new Variant(ReadDataValue(fieldName), TypeInfo.Scalars.DataValue); }
-            }
-
-            return Variant.Null;
-        }
-
-        /// <summary>
-        /// Read the Body of a Variant as an Array
-        /// </summary>
-        private Variant ReadVariantArrayBody(string fieldName, BuiltInType type)
-        {
-            switch (type)
-            {
-                case BuiltInType.Boolean: { return new Variant(ReadBooleanArray(fieldName), TypeInfo.Arrays.Boolean); }
-                case BuiltInType.SByte: { return new Variant(ReadSByteArray(fieldName), TypeInfo.Arrays.SByte); }
-                case BuiltInType.Byte: { return new Variant(ReadByteArray(fieldName), TypeInfo.Arrays.Byte); }
-                case BuiltInType.Int16: { return new Variant(ReadInt16Array(fieldName), TypeInfo.Arrays.Int16); }
-                case BuiltInType.UInt16: { return new Variant(ReadUInt16Array(fieldName), TypeInfo.Arrays.UInt16); }
-                case BuiltInType.Int32: { return new Variant(ReadInt32Array(fieldName), TypeInfo.Arrays.Int32); }
-                case BuiltInType.UInt32: { return new Variant(ReadUInt32Array(fieldName), TypeInfo.Arrays.UInt32); }
-                case BuiltInType.Int64: { return new Variant(ReadInt64Array(fieldName), TypeInfo.Arrays.Int64); }
-                case BuiltInType.UInt64: { return new Variant(ReadUInt64Array(fieldName), TypeInfo.Arrays.UInt64); }
-                case BuiltInType.Float: { return new Variant(ReadFloatArray(fieldName), TypeInfo.Arrays.Float); }
-                case BuiltInType.Double: { return new Variant(ReadDoubleArray(fieldName), TypeInfo.Arrays.Double); }
-                case BuiltInType.String: { return new Variant(ReadStringArray(fieldName), TypeInfo.Arrays.String); }
-                case BuiltInType.ByteString: { return new Variant(ReadByteStringArray(fieldName), TypeInfo.Arrays.ByteString); }
-                case BuiltInType.DateTime: { return new Variant(ReadDateTimeArray(fieldName), TypeInfo.Arrays.DateTime); }
-                case BuiltInType.Guid: { return new Variant(ReadGuidArray(fieldName), TypeInfo.Arrays.Guid); }
-                case BuiltInType.NodeId: { return new Variant(ReadNodeIdArray(fieldName), TypeInfo.Arrays.NodeId); }
-                case BuiltInType.ExpandedNodeId: { return new Variant(ReadExpandedNodeIdArray(fieldName), TypeInfo.Arrays.ExpandedNodeId); }
-                case BuiltInType.QualifiedName: { return new Variant(ReadQualifiedNameArray(fieldName), TypeInfo.Arrays.QualifiedName); }
-                case BuiltInType.LocalizedText: { return new Variant(ReadLocalizedTextArray(fieldName), TypeInfo.Arrays.LocalizedText); }
-                case BuiltInType.StatusCode: { return new Variant(ReadStatusCodeArray(fieldName), TypeInfo.Arrays.StatusCode); }
-                case BuiltInType.XmlElement: { return new Variant(ReadXmlElementArray(fieldName), TypeInfo.Arrays.XmlElement); }
-                case BuiltInType.ExtensionObject: { return new Variant(ReadExtensionObjectArray(fieldName), TypeInfo.Arrays.ExtensionObject); }
-                case BuiltInType.Variant: { return new Variant(ReadVariantArray(fieldName), TypeInfo.Arrays.Variant); }
-                case BuiltInType.DiagnosticInfo: { return new Variant(ReadDiagnosticInfoArray(fieldName), TypeInfo.Arrays.DiagnosticInfo); }
-                case BuiltInType.DataValue: { return new Variant(ReadDataValueArray(fieldName), TypeInfo.Arrays.DataValue); }
-            }
-
-            return Variant.Null;
-        }
-
-        /// <summary>
-        /// Reads the content of an Array from json stream
-        /// </summary>
-        private List<object> ReadArray()
-        {
-            CheckAndIncrementNestingLevel();
-
-            try
-            {
-                List<object> elements = new List<object>();
-
-                while (m_reader.Read() && m_reader.TokenType != JsonToken.EndArray)
-                {
-                    switch (m_reader.TokenType)
-                    {
-                        case JsonToken.Comment:
-                        {
-                            break;
-                        }
-
-                        case JsonToken.Null:
-                        {
-                            elements.Add(JTokenNullObject.Array);
-                            break;
-                        }
-                        case JsonToken.Date:
-                        case JsonToken.Boolean:
-                        case JsonToken.Integer:
-                        case JsonToken.Float:
-                        case JsonToken.String:
-                        {
-                            elements.Add(m_reader.Value);
-                            break;
-                        }
-
-                        case JsonToken.StartArray:
-                        {
-                            elements.Add(ReadArray());
-                            break;
-                        }
-
-                        case JsonToken.StartObject:
-                        {
-                            elements.Add(ReadObject());
-                            break;
-                        }
-
-                        default:
-                            break;
+                        text = text.Substring(lastIndex + 1);
+                        retry = true;
                     }
                 }
-
-                return elements;
-            }
-            finally
-            {
-                m_nestingLevel--;
-            }
+            } while (retry);
         }
 
-        /// <summary>
-        /// Reads an object from the json stream
-        /// </summary>
-        /// <returns></returns>
-        private Dictionary<string, object> ReadObject()
-        {
-            Dictionary<string, object> fields = new Dictionary<string, object>();
-
-            try
-            {
-                while (m_reader.Read() && m_reader.TokenType != JsonToken.EndObject)
-                {
-                    if (m_reader.TokenType == JsonToken.StartArray)
-                    {
-                        fields[RootArrayName] = ReadArray();
-                    }
-                    else if (m_reader.TokenType == JsonToken.PropertyName)
-                    {
-                        string name = (string)m_reader.Value;
-
-                        if (m_reader.Read() && m_reader.TokenType != JsonToken.EndObject)
-                        {
-                            switch (m_reader.TokenType)
-                            {
-                                case JsonToken.Comment:
-                                {
-                                    break;
-                                }
-
-                                case JsonToken.Null:
-                                {
-                                    fields[name] = JTokenNullObject.Object;
-                                    break;
-                                }
-
-                                case JsonToken.Date:
-                                case JsonToken.Bytes:
-                                case JsonToken.Boolean:
-                                case JsonToken.Integer:
-                                case JsonToken.Float:
-                                case JsonToken.String:
-                                {
-                                    fields[name] = m_reader.Value;
-                                    break;
-                                }
-
-                                case JsonToken.StartArray:
-                                {
-                                    fields[name] = ReadArray();
-                                    break;
-                                }
-
-                                case JsonToken.StartObject:
-                                {
-                                    fields[name] = ReadObject();
-                                    break;
-                                }
-
-                                default:
-                                    break;
-                            }
-                        }
-                    }
-                }
-            }
-            catch (JsonReaderException jre)
-            {
-                throw ServiceResultException.Create(StatusCodes.BadDecodingError, "Error reading JSON object: {0}", jre.Message);
-            }
-            return fields;
-        }
-
-        /// <summary>
-        /// Read the Matrix part (simple array or array of arrays)
-        /// </summary>
-        private void ReadMatrixPart(
-            string fieldName,
-            List<object> currentArray,
-            BuiltInType builtInType,
-            ref List<object> elements,
-            ref List<int> dimensions,
-            int level,
-            Type systemType,
-            ExpandedNodeId encodeableTypeId)
-        {
-            CheckAndIncrementNestingLevel();
-
-            try
-            {
-                if (currentArray?.Count > 0)
-                {
-                    bool hasInnerArray = false;
-                    for (int ii = 0; ii < currentArray.Count; ii++)
-                    {
-                        if (ii == 0 && dimensions.Count <= level)
-                        {
-                            // remember dimension length
-                            dimensions.Add(currentArray.Count);
-                        }
-                        if (currentArray[ii] is List<object>)
-                        {
-                            hasInnerArray = true;
-
-                            PushArray(fieldName, ii);
-
-                            ReadMatrixPart(null, currentArray[ii] as List<object>, builtInType, ref elements, ref dimensions, level + 1, systemType, encodeableTypeId);
-
-                            Pop();
-                        }
-                        else
-                        {
-                            break; // do not continue reading array of array
-                        }
-                    }
-                    if (!hasInnerArray)
-                    {
-                        // read array from one dimension
-                        Array part = ReadArray(null, ValueRanks.OneDimension, builtInType, systemType, encodeableTypeId);
-                        if (part != null && part.Length > 0)
-                        {
-                            // add part elements to final list 
-                            foreach (var item in part)
-                            {
-                                elements.Add(item);
-                            }
-                        }
-                    }
-                }
-            }
-            finally
-            {
-                m_nestingLevel--;
-            }
-        }
-
-        /// <summary>
-        /// Get Default value for NodeId for diferent IdTypes 
-        /// </summary>
-        /// <returns>new NodeId</returns>
-        private NodeId DefaultNodeId(IdType idType, ushort namespaceIndex)
-        {
-            switch (idType)
-            {
-                case IdType.Numeric:
-                default:
-                {
-                    return new NodeId(0U, namespaceIndex);
-                }
-
-                case IdType.Opaque:
-                {
-                    return new NodeId(Array.Empty<byte>(), namespaceIndex);
-                }
-
-                case IdType.String:
-                {
-                    return new NodeId("", namespaceIndex);
-                }
-
-                case IdType.Guid:
-                {
-                    return new NodeId(Guid.Empty, namespaceIndex);
-                }
-            }
-        }
-
-        private void EncodeAsJson(JsonTextWriter writer, object value)
-        {
-            try
-            {
-                if (value is Dictionary<string, object> map)
-                {
-                    EncodeAsJson(writer, map);
-                    return;
-                }
-
-                if (value is List<object> list)
-                {
-                    writer.WriteStartArray();
-
-                    foreach (var element in list)
-                    {
-                        EncodeAsJson(writer, element);
-                    }
-
-                    writer.WriteEndArray();
-                    return;
-                }
-
-                writer.WriteValue(value);
-            }
-            catch (JsonWriterException jwe)
-            {
-                throw ServiceResultException.Create(StatusCodes.BadDecodingError, "Unable to encode ExtensionObject Body as Json: {0}", jwe.Message);
-            }
-        }
-
-        private void EncodeAsJson(JsonTextWriter writer, Dictionary<string, object> value)
-        {
-            writer.WriteStartObject();
-
-            foreach (var field in value)
-            {
-                writer.WritePropertyName(field.Key);
-                EncodeAsJson(writer, field.Value);
-            }
-
-            writer.WriteEndObject();
-        }
-
-        private bool ReadArrayField(string fieldName, out List<object> array)
-        {
-            array = null;
-            object token;
-
-            if (!ReadField(fieldName, out token))
-            {
-                return false;
-            }
-
-            array = token as List<object>;
-
-            if (array == null)
-            {
-                return false;
-            }
-
-            if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < array.Count)
-            {
-                throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
-            }
-
-            return true;
-        }
-
-        /// <summary>
-        /// Safe Convert function which throws a BadDecodingError if unsuccessful.
-        /// </summary>
-        private byte[] SafeConvertFromBase64String(string s)
-        {
-            try
-            {
-                return Convert.FromBase64String(s);
-            }
-            catch (FormatException fe)
-            {
-                throw ServiceResultException.Create(StatusCodes.BadDecodingError, "Error decoding base64 string: {0}", fe.Message);
-            }
-        }
-
-        /// <summary>
-        /// Test and increment the nesting level.
-        /// </summary>
-        private void CheckAndIncrementNestingLevel()
-        {
-            if (m_nestingLevel > m_context.MaxEncodingNestingLevels)
-            {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadEncodingLimitsExceeded,
-                    "Maximum nesting level of {0} was exceeded",
-                    m_context.MaxEncodingNestingLevels);
-            }
-            m_nestingLevel++;
-        }
-        #endregion
+        return number;
     }
+
+    /// <summary>
+    /// Reads a DiagnosticInfo from the stream.
+    /// Limits the InnerDiagnosticInfos to the specified depth.
+    /// </summary>
+    private DiagnosticInfo ReadDiagnosticInfo(string fieldName, int depth)
+    {
+        object token = null;
+
+        if (!ReadField(fieldName, out token))
+        {
+            return null;
+        }
+
+
+        if (!(token is Dictionary<string, object> value))
+        {
+            return null;
+        }
+
+        if (depth >= DiagnosticInfo.MaxInnerDepth)
+        {
+            throw ServiceResultException.Create(
+                StatusCodes.BadEncodingLimitsExceeded,
+                "Maximum nesting level of InnerDiagnosticInfo was exceeded");
+        }
+
+        CheckAndIncrementNestingLevel();
+
+        try
+        {
+            m_stack.Push(value);
+
+            DiagnosticInfo di = new DiagnosticInfo();
+
+            bool hasDiagnosticInfo = false;
+            if (value.ContainsKey("SymbolicId"))
+            {
+                di.SymbolicId = ReadInt32("SymbolicId");
+                hasDiagnosticInfo = true;
+            }
+
+            if (value.ContainsKey("NamespaceUri"))
+            {
+                di.NamespaceUri = ReadInt32("NamespaceUri");
+                hasDiagnosticInfo = true;
+            }
+
+            if (value.ContainsKey("Locale"))
+            {
+                di.Locale = ReadInt32("Locale");
+                hasDiagnosticInfo = true;
+            }
+
+            if (value.ContainsKey("LocalizedText"))
+            {
+                di.LocalizedText = ReadInt32("LocalizedText");
+                hasDiagnosticInfo = true;
+            }
+
+            if (value.ContainsKey("AdditionalInfo"))
+            {
+                di.AdditionalInfo = ReadString("AdditionalInfo");
+                hasDiagnosticInfo = true;
+            }
+
+            if (value.ContainsKey("InnerStatusCode"))
+            {
+                di.InnerStatusCode = ReadStatusCode("InnerStatusCode");
+                hasDiagnosticInfo = true;
+            }
+
+            if (value.ContainsKey("InnerDiagnosticInfo") && depth < DiagnosticInfo.MaxInnerDepth)
+            {
+                di.InnerDiagnosticInfo = ReadDiagnosticInfo("InnerDiagnosticInfo", depth + 1);
+                hasDiagnosticInfo = true;
+            }
+
+            return hasDiagnosticInfo ? di : null;
+        }
+        finally
+        {
+            m_nestingLevel--;
+            m_stack.Pop();
+        }
+    }
+
+    /// <summary>
+    /// Get the system type from the type factory if not specified by caller.
+    /// </summary>
+    /// <param name="systemType">The reference to the system type, or null</param>
+    /// <param name="encodeableTypeId">The encodeable type id of the system type.</param>
+    /// <returns>If the system type is assignable to <see cref="IEncodeable"/> </returns>
+    private bool DetermineIEncodeableSystemType(ref Type systemType, ExpandedNodeId encodeableTypeId)
+    {
+        if (encodeableTypeId != null && systemType == null)
+        {
+            systemType = Context.Factory.GetSystemType(encodeableTypeId);
+        }
+        return typeof(IEncodeable).IsAssignableFrom(systemType);
+    }
+
+    /// <summary>
+    /// Read the body of a Variant as a BuiltInType
+    /// </summary>
+    private Variant ReadVariantBody(string fieldName, BuiltInType type)
+    {
+        switch (type)
+        {
+            case BuiltInType.Boolean: { return new Variant(ReadBoolean(fieldName), TypeInfo.Scalars.Boolean); }
+            case BuiltInType.SByte: { return new Variant(ReadSByte(fieldName), TypeInfo.Scalars.SByte); }
+            case BuiltInType.Byte: { return new Variant(ReadByte(fieldName), TypeInfo.Scalars.Byte); }
+            case BuiltInType.Int16: { return new Variant(ReadInt16(fieldName), TypeInfo.Scalars.Int16); }
+            case BuiltInType.UInt16: { return new Variant(ReadUInt16(fieldName), TypeInfo.Scalars.UInt16); }
+            case BuiltInType.Int32: { return new Variant(ReadInt32(fieldName), TypeInfo.Scalars.Int32); }
+            case BuiltInType.UInt32: { return new Variant(ReadUInt32(fieldName), TypeInfo.Scalars.UInt32); }
+            case BuiltInType.Int64: { return new Variant(ReadInt64(fieldName), TypeInfo.Scalars.Int64); }
+            case BuiltInType.UInt64: { return new Variant(ReadUInt64(fieldName), TypeInfo.Scalars.UInt64); }
+            case BuiltInType.Float: { return new Variant(ReadFloat(fieldName), TypeInfo.Scalars.Float); }
+            case BuiltInType.Double: { return new Variant(ReadDouble(fieldName), TypeInfo.Scalars.Double); }
+            case BuiltInType.String: { return new Variant(ReadString(fieldName), TypeInfo.Scalars.String); }
+            case BuiltInType.ByteString: { return new Variant(ReadByteString(fieldName), TypeInfo.Scalars.ByteString); }
+            case BuiltInType.DateTime: { return new Variant(ReadDateTime(fieldName), TypeInfo.Scalars.DateTime); }
+            case BuiltInType.Guid: { return new Variant(ReadGuid(fieldName), TypeInfo.Scalars.Guid); }
+            case BuiltInType.NodeId: { return new Variant(ReadNodeId(fieldName), TypeInfo.Scalars.NodeId); }
+            case BuiltInType.ExpandedNodeId: { return new Variant(ReadExpandedNodeId(fieldName), TypeInfo.Scalars.ExpandedNodeId); }
+            case BuiltInType.QualifiedName: { return new Variant(ReadQualifiedName(fieldName), TypeInfo.Scalars.QualifiedName); }
+            case BuiltInType.LocalizedText: { return new Variant(ReadLocalizedText(fieldName), TypeInfo.Scalars.LocalizedText); }
+            case BuiltInType.StatusCode: { return new Variant(ReadStatusCode(fieldName), TypeInfo.Scalars.StatusCode); }
+            case BuiltInType.XmlElement: { return new Variant(ReadXmlElement(fieldName), TypeInfo.Scalars.XmlElement); }
+            case BuiltInType.ExtensionObject: { return new Variant(ReadExtensionObject(fieldName), TypeInfo.Scalars.ExtensionObject); }
+            case BuiltInType.Variant: { return new Variant(ReadVariant(fieldName), TypeInfo.Scalars.Variant); }
+            case BuiltInType.DiagnosticInfo: { return new Variant(ReadDiagnosticInfo(fieldName), TypeInfo.Scalars.DiagnosticInfo); }
+            case BuiltInType.DataValue: { return new Variant(ReadDataValue(fieldName), TypeInfo.Scalars.DataValue); }
+        }
+
+        return Variant.Null;
+    }
+
+    /// <summary>
+    /// Read the Body of a Variant as an Array
+    /// </summary>
+    private Variant ReadVariantArrayBody(string fieldName, BuiltInType type)
+    {
+        switch (type)
+        {
+            case BuiltInType.Boolean: { return new Variant(ReadBooleanArray(fieldName), TypeInfo.Arrays.Boolean); }
+            case BuiltInType.SByte: { return new Variant(ReadSByteArray(fieldName), TypeInfo.Arrays.SByte); }
+            case BuiltInType.Byte: { return new Variant(ReadByteArray(fieldName), TypeInfo.Arrays.Byte); }
+            case BuiltInType.Int16: { return new Variant(ReadInt16Array(fieldName), TypeInfo.Arrays.Int16); }
+            case BuiltInType.UInt16: { return new Variant(ReadUInt16Array(fieldName), TypeInfo.Arrays.UInt16); }
+            case BuiltInType.Int32: { return new Variant(ReadInt32Array(fieldName), TypeInfo.Arrays.Int32); }
+            case BuiltInType.UInt32: { return new Variant(ReadUInt32Array(fieldName), TypeInfo.Arrays.UInt32); }
+            case BuiltInType.Int64: { return new Variant(ReadInt64Array(fieldName), TypeInfo.Arrays.Int64); }
+            case BuiltInType.UInt64: { return new Variant(ReadUInt64Array(fieldName), TypeInfo.Arrays.UInt64); }
+            case BuiltInType.Float: { return new Variant(ReadFloatArray(fieldName), TypeInfo.Arrays.Float); }
+            case BuiltInType.Double: { return new Variant(ReadDoubleArray(fieldName), TypeInfo.Arrays.Double); }
+            case BuiltInType.String: { return new Variant(ReadStringArray(fieldName), TypeInfo.Arrays.String); }
+            case BuiltInType.ByteString: { return new Variant(ReadByteStringArray(fieldName), TypeInfo.Arrays.ByteString); }
+            case BuiltInType.DateTime: { return new Variant(ReadDateTimeArray(fieldName), TypeInfo.Arrays.DateTime); }
+            case BuiltInType.Guid: { return new Variant(ReadGuidArray(fieldName), TypeInfo.Arrays.Guid); }
+            case BuiltInType.NodeId: { return new Variant(ReadNodeIdArray(fieldName), TypeInfo.Arrays.NodeId); }
+            case BuiltInType.ExpandedNodeId: { return new Variant(ReadExpandedNodeIdArray(fieldName), TypeInfo.Arrays.ExpandedNodeId); }
+            case BuiltInType.QualifiedName: { return new Variant(ReadQualifiedNameArray(fieldName), TypeInfo.Arrays.QualifiedName); }
+            case BuiltInType.LocalizedText: { return new Variant(ReadLocalizedTextArray(fieldName), TypeInfo.Arrays.LocalizedText); }
+            case BuiltInType.StatusCode: { return new Variant(ReadStatusCodeArray(fieldName), TypeInfo.Arrays.StatusCode); }
+            case BuiltInType.XmlElement: { return new Variant(ReadXmlElementArray(fieldName), TypeInfo.Arrays.XmlElement); }
+            case BuiltInType.ExtensionObject: { return new Variant(ReadExtensionObjectArray(fieldName), TypeInfo.Arrays.ExtensionObject); }
+            case BuiltInType.Variant: { return new Variant(ReadVariantArray(fieldName), TypeInfo.Arrays.Variant); }
+            case BuiltInType.DiagnosticInfo: { return new Variant(ReadDiagnosticInfoArray(fieldName), TypeInfo.Arrays.DiagnosticInfo); }
+            case BuiltInType.DataValue: { return new Variant(ReadDataValueArray(fieldName), TypeInfo.Arrays.DataValue); }
+        }
+
+        return Variant.Null;
+    }
+
+    /// <summary>
+    /// Reads the content of an Array from json stream
+    /// </summary>
+    private List<object> ReadArray()
+    {
+        CheckAndIncrementNestingLevel();
+
+        try
+        {
+            List<object> elements = new List<object>();
+
+            while (m_reader.Read() && m_reader.TokenType != JsonToken.EndArray)
+            {
+                switch (m_reader.TokenType)
+                {
+                    case JsonToken.Comment:
+                    {
+                        break;
+                    }
+
+                    case JsonToken.Null:
+                    {
+                        elements.Add(JTokenNullObject.Array);
+                        break;
+                    }
+                    case JsonToken.Date:
+                    case JsonToken.Boolean:
+                    case JsonToken.Integer:
+                    case JsonToken.Float:
+                    case JsonToken.String:
+                    {
+                        elements.Add(m_reader.Value);
+                        break;
+                    }
+
+                    case JsonToken.StartArray:
+                    {
+                        elements.Add(ReadArray());
+                        break;
+                    }
+
+                    case JsonToken.StartObject:
+                    {
+                        elements.Add(ReadObject());
+                        break;
+                    }
+
+                    default:
+                        break;
+                }
+            }
+
+            return elements;
+        }
+        finally
+        {
+            m_nestingLevel--;
+        }
+    }
+
+    /// <summary>
+    /// Reads an object from the json stream
+    /// </summary>
+    /// <returns></returns>
+    private Dictionary<string, object> ReadObject()
+    {
+        Dictionary<string, object> fields = new Dictionary<string, object>();
+
+        try
+        {
+            while (m_reader.Read() && m_reader.TokenType != JsonToken.EndObject)
+            {
+                if (m_reader.TokenType == JsonToken.StartArray)
+                {
+                    fields[RootArrayName] = ReadArray();
+                }
+                else if (m_reader.TokenType == JsonToken.PropertyName)
+                {
+                    string name = (string)m_reader.Value;
+
+                    if (m_reader.Read() && m_reader.TokenType != JsonToken.EndObject)
+                    {
+                        switch (m_reader.TokenType)
+                        {
+                            case JsonToken.Comment:
+                            {
+                                break;
+                            }
+
+                            case JsonToken.Null:
+                            {
+                                fields[name] = JTokenNullObject.Object;
+                                break;
+                            }
+
+                            case JsonToken.Date:
+                            case JsonToken.Bytes:
+                            case JsonToken.Boolean:
+                            case JsonToken.Integer:
+                            case JsonToken.Float:
+                            case JsonToken.String:
+                            {
+                                fields[name] = m_reader.Value;
+                                break;
+                            }
+
+                            case JsonToken.StartArray:
+                            {
+                                fields[name] = ReadArray();
+                                break;
+                            }
+
+                            case JsonToken.StartObject:
+                            {
+                                fields[name] = ReadObject();
+                                break;
+                            }
+
+                            default:
+                                break;
+                        }
+                    }
+                }
+            }
+        }
+        catch (JsonReaderException jre)
+        {
+            throw ServiceResultException.Create(StatusCodes.BadDecodingError, "Error reading JSON object: {0}", jre.Message);
+        }
+        return fields;
+    }
+
+    /// <summary>
+    /// Read the Matrix part (simple array or array of arrays)
+    /// </summary>
+    private void ReadMatrixPart(
+        string fieldName,
+        List<object> currentArray,
+        BuiltInType builtInType,
+        ref List<object> elements,
+        ref List<int> dimensions,
+        int level,
+        Type systemType,
+        ExpandedNodeId encodeableTypeId)
+    {
+        CheckAndIncrementNestingLevel();
+
+        try
+        {
+            if (currentArray?.Count > 0)
+            {
+                bool hasInnerArray = false;
+                for (int ii = 0; ii < currentArray.Count; ii++)
+                {
+                    if (ii == 0 && dimensions.Count <= level)
+                    {
+                        // remember dimension length
+                        dimensions.Add(currentArray.Count);
+                    }
+                    if (currentArray[ii] is List<object>)
+                    {
+                        hasInnerArray = true;
+
+                        PushArray(fieldName, ii);
+
+                        ReadMatrixPart(null, currentArray[ii] as List<object>, builtInType, ref elements, ref dimensions, level + 1, systemType, encodeableTypeId);
+
+                        Pop();
+                    }
+                    else
+                    {
+                        break; // do not continue reading array of array
+                    }
+                }
+                if (!hasInnerArray)
+                {
+                    // read array from one dimension
+                    Array part = ReadArray(null, ValueRanks.OneDimension, builtInType, systemType, encodeableTypeId);
+                    if (part != null && part.Length > 0)
+                    {
+                        // add part elements to final list 
+                        foreach (var item in part)
+                        {
+                            elements.Add(item);
+                        }
+                    }
+                }
+            }
+        }
+        finally
+        {
+            m_nestingLevel--;
+        }
+    }
+
+    /// <summary>
+    /// Get Default value for NodeId for diferent IdTypes 
+    /// </summary>
+    /// <returns>new NodeId</returns>
+    private NodeId DefaultNodeId(IdType idType, ushort namespaceIndex)
+    {
+        switch (idType)
+        {
+            case IdType.Numeric:
+            default:
+            {
+                return new NodeId(0U, namespaceIndex);
+            }
+
+            case IdType.Opaque:
+            {
+                return new NodeId(Array.Empty<byte>(), namespaceIndex);
+            }
+
+            case IdType.String:
+            {
+                return new NodeId("", namespaceIndex);
+            }
+
+            case IdType.Guid:
+            {
+                return new NodeId(Guid.Empty, namespaceIndex);
+            }
+        }
+    }
+
+    private void EncodeAsJson(JsonTextWriter writer, object value)
+    {
+        try
+        {
+            if (value is Dictionary<string, object> map)
+            {
+                EncodeAsJson(writer, map);
+                return;
+            }
+
+            if (value is List<object> list)
+            {
+                writer.WriteStartArray();
+
+                foreach (var element in list)
+                {
+                    EncodeAsJson(writer, element);
+                }
+
+                writer.WriteEndArray();
+                return;
+            }
+
+            writer.WriteValue(value);
+        }
+        catch (JsonWriterException jwe)
+        {
+            throw ServiceResultException.Create(StatusCodes.BadDecodingError, "Unable to encode ExtensionObject Body as Json: {0}", jwe.Message);
+        }
+    }
+
+    private void EncodeAsJson(JsonTextWriter writer, Dictionary<string, object> value)
+    {
+        writer.WriteStartObject();
+
+        foreach (var field in value)
+        {
+            writer.WritePropertyName(field.Key);
+            EncodeAsJson(writer, field.Value);
+        }
+
+        writer.WriteEndObject();
+    }
+
+    private bool ReadArrayField(string fieldName, out List<object> array)
+    {
+        array = null;
+        object token;
+
+        if (!ReadField(fieldName, out token))
+        {
+            return false;
+        }
+
+        array = token as List<object>;
+
+        if (array == null)
+        {
+            return false;
+        }
+
+        if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < array.Count)
+        {
+            throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// Safe Convert function which throws a BadDecodingError if unsuccessful.
+    /// </summary>
+    private byte[] SafeConvertFromBase64String(string s)
+    {
+        try
+        {
+            return Convert.FromBase64String(s);
+        }
+        catch (FormatException fe)
+        {
+            throw ServiceResultException.Create(StatusCodes.BadDecodingError, "Error decoding base64 string: {0}", fe.Message);
+        }
+    }
+
+    /// <summary>
+    /// Test and increment the nesting level.
+    /// </summary>
+    private void CheckAndIncrementNestingLevel()
+    {
+        if (m_nestingLevel > m_context.MaxEncodingNestingLevels)
+        {
+            throw ServiceResultException.Create(
+                StatusCodes.BadEncodingLimitsExceeded,
+                "Maximum nesting level of {0} was exceeded",
+                m_context.MaxEncodingNestingLevels);
+        }
+        m_nestingLevel++;
+    }
+    #endregion
+}
 }

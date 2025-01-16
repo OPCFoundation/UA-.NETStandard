@@ -94,14 +94,9 @@ namespace Opc.Ua.Client.ComplexTypes
         {
             encoder.PushNamespace(XmlNamespace);
 
-            string fieldName = null;
-
-            encoder.WriteSwitchField("SwitchField", m_switchField);
-
-            if (encoder.UseReversibleEncoding)
-            {
-                fieldName = "Value";
-            }
+            // the encoder may return an override for the field name
+            // e.g. to support reversible JSON encoding
+            encoder.WriteSwitchField(m_switchField, out string fieldName);
 
             if (m_switchField != 0)
             {
@@ -117,16 +112,16 @@ namespace Opc.Ua.Client.ComplexTypes
                     unionSelector++;
                 }
 
-                if (encoder is JsonEncoder je && (je.EncodingToUse == JsonEncodingType.Verbose || je.EncodingToUse == JsonEncodingType.Compact))
+                if (encoder.UseReversibleEncoding)
                 {
-                    fieldName = unionProperty.Name;
+                    fieldName = fieldName ?? unionProperty.Name;
                 }
 
                 EncodeProperty(encoder, fieldName, unionProperty);
             }
             else if (!encoder.UseReversibleEncoding)
             {
-                encoder.WriteString(null, "null");
+                encoder.WriteString(null, null);
             }
 
             encoder.PopNamespace();
@@ -140,63 +135,43 @@ namespace Opc.Ua.Client.ComplexTypes
             string fieldName = "Value";
             UInt32 unionSelector = 0;
 
-            if (decoder is IJsonDecoder jd)
+            unionSelector = decoder.ReadSwitchField(null);
+
+            // maybe the switch field is implicitly defined by the JSON keys
+            bool isJsonDecoder = decoder.EncodingType == EncodingType.Json;
+            if (unionSelector == 0 && isJsonDecoder)
             {
-                object token = null;
-                m_switchField = 0;
-
-                if (jd.ReadField("SwitchField", out token))
-                {
-                    m_switchField = decoder.ReadUInt32("SwitchField");
-                }
-
-                bool found = false;
-
+                var fields = new StringCollection();
                 foreach (var property in GetPropertyEnumerator())
                 {
-                    unionSelector++;
-
-                    if (jd.ReadField(property.Name, out token))
+                    if (property.IsOptional)
                     {
-                        fieldName = property.Name;
-                        m_switchField = unionSelector;
-                        found = true;
-                        break;
-                    }
-
-                    if (m_switchField == unionSelector)
-                    {
-                        fieldName = property.Name;
-                        break;
+                        fields.Add(property.Name);
                     }
                 }
 
-                if (!found)
-                {
-                    if (jd.ReadField("Value", out token))
-                    {
-                        fieldName = "Value";
-                        found = true;
-                    }
-
-                    if (!found)
-                    {
-                        unionSelector = 0;
-                    }
-                }
-            }
-            else
-            {
-                unionSelector = m_switchField = decoder.ReadUInt32("SwitchField");
+                unionSelector = decoder.ReadSwitchField(fields);
             }
 
+            m_switchField = unionSelector;
             if (unionSelector > 0)
             {
                 foreach (var property in GetPropertyEnumerator())
                 {
                     if (--unionSelector == 0)
                     {
-                        DecodeProperty(decoder, fieldName, property);
+                        fieldName = property.Name;
+
+                        if (isJsonDecoder &&
+                            decoder is IJsonDecoder jsonDecoder &&
+                            jsonDecoder.ReadField("Value", out _))
+                        {
+                            DecodeProperty(jsonDecoder, "Value", property);
+                        }
+                        else
+                        {
+                            DecodeProperty(decoder, fieldName, property);
+                        }
                         break;
                     }
                 }

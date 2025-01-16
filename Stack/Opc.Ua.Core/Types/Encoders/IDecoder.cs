@@ -354,11 +354,13 @@ namespace Opc.Ua
         /// <summary>
         /// Decode the switch field for a union.
         /// </summary>
-        uint ReadSwitchField(Type switches);
+        /// <param name="switches">The list of field names in the order of the union selector.</param>
+        uint ReadSwitchField(StringCollection switches);
 
         /// <summary>
         /// Decode the encoding mask for a structure with optional fields.
         /// </summary>
-        uint ReadEncodingMask(Type masks);
+        /// <param name="masks">The list of field names in the order of the bits in the optional fields mask.</param>
+        uint ReadEncodingMask(StringCollection masks);
     }
 }

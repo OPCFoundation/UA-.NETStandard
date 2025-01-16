@@ -514,20 +514,36 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public void WriteSwitchField(string fieldName, uint switchField)
+        public void WriteSwitchField(uint switchField, out string fieldName)
         {
-            if ((!SuppressArtifacts && EncodingToUse == JsonEncodingType.Compact) || EncodingToUse == JsonEncodingType.Reversible)
+            fieldName = null;
+
+            switch (EncodingToUse)
             {
-                WriteUInt32(fieldName, switchField);
+                case JsonEncodingType.Compact:
+                    if (SuppressArtifacts)
+                    {
+                        return;
+                    }
+                    break;
+                case JsonEncodingType.Reversible:
+                    fieldName = "Value";
+                    break;
+                case JsonEncodingType.Verbose:
+                case JsonEncodingType.NonReversible:
+                default:
+                    return;
             }
+
+            WriteUInt32("SwitchField", switchField);
         }
 
         /// <inheritdoc/>
-        public void WriteEncodingMask(string fieldName, uint encodingMask)
+        public void WriteEncodingMask(uint encodingMask)
         {
             if ((!SuppressArtifacts && EncodingToUse == JsonEncodingType.Compact) || EncodingToUse == JsonEncodingType.Reversible)
             {
-                WriteUInt32(fieldName, encodingMask);
+                WriteUInt32("EncodingMask", encodingMask);
             }
         }
         #endregion
@@ -537,7 +553,7 @@ namespace Opc.Ua
         public EncodingType EncodingType => EncodingType.Json;
 
         /// <inheritdoc/>
-        public bool UseReversibleEncoding => EncodingToUse != JsonEncodingType.NonReversible && EncodingToUse != JsonEncodingType.Verbose;
+        public bool UseReversibleEncoding => EncodingToUse != JsonEncodingType.NonReversible;
 
         /// <summary>
         /// The message context associated with the encoder.

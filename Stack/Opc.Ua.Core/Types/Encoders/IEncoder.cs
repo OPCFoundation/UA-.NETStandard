@@ -372,12 +372,14 @@ namespace Opc.Ua
         /// <summary>
         /// Encode the switch field for a union.
         /// </summary>
-        void WriteSwitchField(string fieldName, uint switchField);
+        /// <params name="switchField">The switch field </params>
+        /// <params name="alternateFieldName">Returns an alternate fieldName for the encoded union property if the encoder requires it, null otherwise.</params>
+        void WriteSwitchField(uint switchField, out string alternateFieldName);
 
         /// <summary>
         /// Encode the encoding mask for a structure with optional fields.
         /// </summary>
-        void WriteEncodingMask(string fieldName, uint encodingMask);
+        void WriteEncodingMask(uint encodingMask);
     }
 
     /// <summary>
