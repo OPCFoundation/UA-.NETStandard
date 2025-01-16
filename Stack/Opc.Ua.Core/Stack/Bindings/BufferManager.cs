@@ -405,7 +405,7 @@ namespace Opc.Ua.Bindings
         private readonly object m_lock = new object();
         private int m_allocated;
         private int m_id;
-        private SortedDictionary<int, Allocation> m_allocations = new SortedDictionary<int, Allocation>();
+        private Dictionary<int, Allocation> m_allocations = new Dictionary<int, Allocation>();
 #else
         private const byte kCookieLength = 1;
 #endif
