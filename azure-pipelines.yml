@@ -68,7 +68,7 @@ stages:
     parameters:
       configuration: Release
       framework: net6.0
-      agents: '@{ windows = "windows-2022"; linux="ubuntu-22.04"; mac = "macOS-12"}'
+      agents: '@{ windows = "windows-2022"; linux="ubuntu-22.04"; mac = "macOS-15"}'
       jobnamesuffix: net60
       customtestarget: net6.0
 - stage: testreleasepr
