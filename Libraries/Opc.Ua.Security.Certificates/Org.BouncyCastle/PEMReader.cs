@@ -45,13 +45,53 @@ namespace Opc.Ua.Security.Certificates
     {
         #region Public Methods
         /// <summary>
-        /// Import a private key from PEM.
+        /// Import an RSA private key from PEM.
         /// </summary>
         public static RSA ImportPrivateKeyFromPEM(
             byte[] pemDataBlob,
             string password = null)
         {
-            RSA rsaPrivateKey = null;
+            AsymmetricAlgorithm key = ImportPrivateKey(pemDataBlob, password);
+            if (key is RSA rsaKey)
+            {
+                return rsaKey;
+            }
+            else
+            {
+                throw new CryptographicException("{EM data does not contain a valid RSA private key");
+            }
+        }
+
+        /// <summary>
+        /// Import an ECDSa private key from PEM.
+        /// </summary>
+        public static ECDsa ImportECDsaPrivateKeyFromPEM(
+            byte[] pemDataBlob,
+            string password = null)
+        {
+            AsymmetricAlgorithm key = ImportPrivateKey(pemDataBlob, password);
+            if (key is ECDsa ecKey)
+            {
+                return ecKey;
+            }
+            else
+            {
+                throw new CryptographicException("{EM data does not contain a valid RSA private key");
+            }
+        }
+
+
+        #endregion
+
+        #region Private
+        /// <summary>
+        /// Import a private key from PEM.
+        /// </summary>
+        private static AsymmetricAlgorithm ImportPrivateKey(
+            byte[] pemDataBlob,
+            string password = null)
+        {
+            
             Org.BouncyCastle.OpenSsl.PemReader pemReader;
             using (var pemStreamReader = new StreamReader(new MemoryStream(pemDataBlob), Encoding.UTF8, true))
             {
@@ -64,30 +104,35 @@ namespace Opc.Ua.Security.Certificates
                     var pwFinder = new Password(password.ToCharArray());
                     pemReader = new Org.BouncyCastle.OpenSsl.PemReader(pemStreamReader, pwFinder);
                 }
+
+                AsymmetricAlgorithm key = null;
                 try
                 {
                     // find the private key in the PEM blob
                     object pemObject = pemReader.ReadObject();
                     while (pemObject != null)
                     {
-                        RsaPrivateCrtKeyParameters privateKey = null;
                         if (pemObject is Org.BouncyCastle.Crypto.AsymmetricCipherKeyPair keypair)
                         {
-                            privateKey = keypair.Private as RsaPrivateCrtKeyParameters;
+                            pemObject = keypair.Private;
                         }
 
-                        if (privateKey == null)
+                        // Check for an RSA private key
+                        if (pemObject is RsaPrivateCrtKeyParameters rsaParams)
                         {
-                            privateKey = pemObject as RsaPrivateCrtKeyParameters;
-                        }
-
-                        if (privateKey != null)
-                        {
-                            rsaPrivateKey = RSA.Create();
-                            rsaPrivateKey.ImportParameters(DotNetUtilities.ToRSAParameters(privateKey));
+                            var rsa = RSA.Create();
+                            rsa.ImportParameters(DotNetUtilities.ToRSAParameters(rsaParams));
+                            key = rsa;
                             break;
                         }
-
+                        // Check for an EC private key
+                        if (pemObject is ECPrivateKeyParameters ecParams)
+                        {
+                            var ecdsa = CreateECDsaFromECPrivateKey(ecParams);
+                            key = ecdsa;
+                            break;
+                        }
+                       
                         // read next object
                         pemObject = pemReader.ReadObject();
                     }
@@ -96,14 +141,40 @@ namespace Opc.Ua.Security.Certificates
                 {
                     pemReader.Reader.Dispose();
                 }
+                if (key == null)
+                {
+                    throw new CryptographicException("PEM data blob does not contain a private key.");
+                }
+                return key;
             }
+        }
 
-            if (rsaPrivateKey == null)
-            {
-                throw new CryptographicException("PEM data blob does not contain a private key.");
-            }
+        private static ECDsa CreateECDsaFromECPrivateKey(ECPrivateKeyParameters eCPrivateKeyParameters)
+        {
+            var domainParams = eCPrivateKeyParameters.Parameters;
 
-            return rsaPrivateKey;
+            var curveOid = eCPrivateKeyParameters.PublicKeyParamSet.Id;
+            var curve = ECCurve.CreateFromOid(new Oid(curveOid));
+
+            var q = domainParams.G.Multiply(eCPrivateKeyParameters.D).Normalize();
+            var x = q.AffineXCoord.ToBigInteger().ToByteArrayUnsigned();
+            var y = q.AffineYCoord.ToBigInteger().ToByteArrayUnsigned();
+            var d = eCPrivateKeyParameters.D.ToByteArrayUnsigned();
+
+            var ecParams = new ECParameters {
+                Curve = curve,
+                Q =
+                {
+                    X = x,
+                    Y = y
+                },
+                D = d
+            };
+
+            var ecdsa = ECDsa.Create();
+            ecdsa.ImportParameters(ecParams);
+
+            return ecdsa;
         }
         #endregion
 

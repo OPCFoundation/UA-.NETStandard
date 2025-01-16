@@ -29,6 +29,7 @@
 
 #if !NETSTANDARD2_1 && !NET5_0_OR_GREATER
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
@@ -174,9 +175,24 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
 
             X9ECParameters curve = GetX9ECParameters(ecParams);
 
-            if (curve == null) throw new ArgumentException("Curve OID is not recognized ", ecParams.Curve.Oid.ToString());
-            ECDomainParameters domainParameters = new ECDomainParameters(curve.Curve, curve.G, curve.N, curve.H);
-            return new ECPrivateKeyParameters(d, domainParameters);
+            string friendlyName = ecParams.Curve.Oid.FriendlyName;
+            if (!FriendlyNameToOidMap.TryGetValue(friendlyName, out var oidValue))
+            {
+                throw new NotSupportedException($"Unknown friendly name: {friendlyName}");
+            }
+
+            var oid = new DerObjectIdentifier(oidValue);
+
+            var namedDomainParameters = new ECNamedDomainParameters(
+                oid,
+                curve.Curve,
+                curve.G,
+                curve.N,
+                curve.H,
+                curve.GetSeed()
+            );
+
+            return new ECPrivateKeyParameters(d, namedDomainParameters);
 
         }
 
@@ -275,6 +291,16 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
             throw new ArgumentException("EccCurveByCoefficients cannot be identified");
 
         }
+
+        private static readonly Dictionary<string, string> FriendlyNameToOidMap
+            = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                { "nistP256", "1.2.840.10045.3.1.7"},
+                { "nistP384", "1.3.132.0.34" },
+                { "brainpoolP256r1", "1.3.36.3.3.2.8.1.1.7"},
+                { "brainpoolP384r1", "1.3.36.3.3.2.8.1.1.11"}
+            };
+
 #endif
 
         /// <summary>
