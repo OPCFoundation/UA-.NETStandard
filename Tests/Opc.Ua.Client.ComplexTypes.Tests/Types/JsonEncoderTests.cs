@@ -215,8 +215,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                     EncodingType.Json, EncoderContext, encoderStream,
                     typeof(ExtensionObject), jsonEncoding, topLevelIsArray))
                 {
-                    var builtInTypeString = (jsonEncoding != JsonEncodingType.NonReversible) ? builtInType.ToString() : null;
-                    Encode(encoder, BuiltInType.ExtensionObject, builtInTypeString, data);
+                    Encode(encoder, BuiltInType.ExtensionObject, builtInType.ToString(), data);
                 }
                 buffer = encoderStream.ToArray();
             }
@@ -226,11 +225,6 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             try
             {
                 result = Encoding.UTF8.GetString(buffer);
-                if (data.Body is UnionComplexType && (jsonEncoding == JsonEncodingType.NonReversible))
-                {
-                    // helper to create testable JSON output for Unions
-                    result = result.Replace("{", "{\"Union\" :");
-                }
                 formattedResult = PrettifyAndValidateJson(result);
                 var jsonLoadSettings = new JsonLoadSettings() {
                     CommentHandling = CommentHandling.Ignore,
@@ -315,7 +309,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                     }
                     else if (jsonEncoding == JsonEncodingType.NonReversible)
                     {
-                        expected = "{\"Union\" :" + expected + "}";
+                        expected = $"{{\"{builtInType}\" :" + expected + "}";
                     }
                     else
                     {
@@ -350,7 +344,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 {
                     if (jsonEncoding == JsonEncodingType.NonReversible)
                     {
-                        expected = $"{{\"{builtInType}\" :" + expected + "}";
+                        var json = $"{{\"{builtInType}\" :";
+                        expected = json + $"{{\"{builtInType}\" :" + expected + "}}";
                     }
                     else
                     {
@@ -499,7 +494,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 
                     if (jsonEncoding == JsonEncodingType.NonReversible)
                     {
-                        expected = "{" + body + "}";
+                        var json = $"{{\"{builtInType}\" :{{";
+                        expected = json + body + "}";
                     }
                     else
                     {
