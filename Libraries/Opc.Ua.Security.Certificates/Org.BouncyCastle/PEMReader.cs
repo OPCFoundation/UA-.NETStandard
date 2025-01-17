@@ -45,13 +45,53 @@ namespace Opc.Ua.Security.Certificates
     {
         #region Public Methods
         /// <summary>
-        /// Import a private key from PEM.
+        /// Import an RSA private key from PEM.
         /// </summary>
-        public static RSA ImportPrivateKeyFromPEM(
+        public static RSA ImportRsaPrivateKeyFromPEM(
             byte[] pemDataBlob,
             string password = null)
         {
-            RSA rsaPrivateKey = null;
+            AsymmetricAlgorithm key = ImportPrivateKey(pemDataBlob, password);
+            if (key is RSA rsaKey)
+            {
+                return rsaKey;
+            }
+            else
+            {
+                throw new CryptographicException("PEM data does not contain a valid RSA private key");
+            }
+        }
+
+        /// <summary>
+        /// Import an ECDSa private key from PEM.
+        /// </summary>
+        public static ECDsa ImportECDsaPrivateKeyFromPEM(
+            byte[] pemDataBlob,
+            string password = null)
+        {
+            AsymmetricAlgorithm key = ImportPrivateKey(pemDataBlob, password);
+            if (key is ECDsa ecKey)
+            {
+                return ecKey;
+            }
+            else
+            {
+                throw new CryptographicException("PEM data does not contain a valid RSA private key");
+            }
+        }
+
+
+        #endregion
+
+        #region Private
+        /// <summary>
+        /// Import a private key from PEM.
+        /// </summary>
+        private static AsymmetricAlgorithm ImportPrivateKey(
+            byte[] pemDataBlob,
+            string password = null)
+        {
+            
             Org.BouncyCastle.OpenSsl.PemReader pemReader;
             using (var pemStreamReader = new StreamReader(new MemoryStream(pemDataBlob), Encoding.UTF8, true))
             {
@@ -64,30 +104,35 @@ namespace Opc.Ua.Security.Certificates
                     var pwFinder = new Password(password.ToCharArray());
                     pemReader = new Org.BouncyCastle.OpenSsl.PemReader(pemStreamReader, pwFinder);
                 }
+
+                AsymmetricAlgorithm key = null;
                 try
                 {
                     // find the private key in the PEM blob
                     object pemObject = pemReader.ReadObject();
                     while (pemObject != null)
                     {
-                        RsaPrivateCrtKeyParameters privateKey = null;
                         if (pemObject is Org.BouncyCastle.Crypto.AsymmetricCipherKeyPair keypair)
                         {
-                            privateKey = keypair.Private as RsaPrivateCrtKeyParameters;
+                            pemObject = keypair.Private;
                         }
 
-                        if (privateKey == null)
+                        // Check for an RSA private key
+                        if (pemObject is RsaPrivateCrtKeyParameters rsaParams)
                         {
-                            privateKey = pemObject as RsaPrivateCrtKeyParameters;
-                        }
-
-                        if (privateKey != null)
-                        {
-                            rsaPrivateKey = RSA.Create();
-                            rsaPrivateKey.ImportParameters(DotNetUtilities.ToRSAParameters(privateKey));
+                            var rsa = RSA.Create();
+                            rsa.ImportParameters(DotNetUtilities.ToRSAParameters(rsaParams));
+                            key = rsa;
                             break;
                         }
-
+                        // Check for an EC private key
+                        if (pemObject is ECPrivateKeyParameters ecParams)
+                        {
+                            var ecdsa = CreateECDsaFromECPrivateKey(ecParams);
+                            key = ecdsa;
+                            break;
+                        }
+                       
                         // read next object
                         pemObject = pemReader.ReadObject();
                     }
@@ -96,14 +141,78 @@ namespace Opc.Ua.Security.Certificates
                 {
                     pemReader.Reader.Dispose();
                 }
+                if (key == null)
+                {
+                    throw new CryptographicException("PEM data blob does not contain a private key.");
+                }
+                return key;
             }
+        }
 
-            if (rsaPrivateKey == null)
+        private static ECDsa CreateECDsaFromECPrivateKey(ECPrivateKeyParameters eCPrivateKeyParameters)
+        {
+            var domainParams = eCPrivateKeyParameters.Parameters;
+
+            // calculate keySize round up (bitLength + 7) / 8
+            int keySizeBytes = (domainParams.N.BitLength + 7) / 8;
+
+            var curveOid = eCPrivateKeyParameters.PublicKeyParamSet.Id;
+            var curve = ECCurve.CreateFromOid(new Oid(curveOid));
+
+            var q = domainParams.G.Multiply(eCPrivateKeyParameters.D).Normalize();
+            var x = q.AffineXCoord.ToBigInteger().ToByteArrayUnsigned();
+            var y = q.AffineYCoord.ToBigInteger().ToByteArrayUnsigned();
+            var d = eCPrivateKeyParameters.D.ToByteArrayUnsigned();
+
+            // pad all to the same length since ToByteArrayUnsigned might drop leading zeroes
+            x = PadWithLeadingZeros(x, keySizeBytes);
+            y = PadWithLeadingZeros(y, keySizeBytes);
+            d = PadWithLeadingZeros(d, keySizeBytes);
+
+
+            var ecParams = new ECParameters {
+                Curve = curve,
+                Q =
+                {
+                    X = x,
+                    Y = y
+                },
+                D = d
+            };
+
+            var ecdsa = ECDsa.Create();
+            ecdsa.ImportParameters(ecParams);
+
+            return ecdsa;
+        }
+
+        /// <summary>
+        /// Pads a byte array with leading zeros to reach the specifieed size
+        /// If the input is allready the given size, it just returns it
+        /// </summary>
+        /// <param name="arrayToPad">Provided array to pad</param>
+        /// <param name="desiredSize">The desired total length of byte array after padding</param>
+        /// <returns></returns>
+        private static byte[] PadWithLeadingZeros(byte[] arrayToPad,  int desiredSize)
+        {
+            if (arrayToPad.Length == desiredSize)
             {
-                throw new CryptographicException("PEM data blob does not contain a private key.");
+                return arrayToPad;
             }
 
-            return rsaPrivateKey;
+            int paddingLength = desiredSize - arrayToPad.Length;
+            if (paddingLength < 0)
+            {
+                throw new ArgumentException($"Input byte array is larger than the desired size {desiredSize} bytes.");
+            }
+
+            var paddedArray = new byte[desiredSize];
+
+            // Right-align the arrayToPad into paddedArray
+            Buffer.BlockCopy(arrayToPad, 0, paddedArray, paddingLength, arrayToPad.Length);
+
+            return paddedArray;
+
         }
         #endregion
 
