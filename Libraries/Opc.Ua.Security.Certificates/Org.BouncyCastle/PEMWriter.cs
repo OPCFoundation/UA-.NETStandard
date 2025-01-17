@@ -67,7 +67,7 @@ namespace Opc.Ua.Security.Certificates
             else
             {
                 if (!String.IsNullOrEmpty(password)) throw new ArgumentException("Export with password not supported on this platform.", nameof(password));
-                ECPrivateKeyParameters privateKeyParameter = X509Utils.GetECPrivateKeyParameter(certificate.GetECDsaPrivateKey());
+                ECPrivateKeyParameters privateKeyParameter = X509Utils.GetECDsaPrivateKeyParameter(certificate.GetECDsaPrivateKey());
                 // write private key as PKCS#8
                 PrivateKeyInfo privateKeyInfo = PrivateKeyInfoFactory.CreatePrivateKeyInfo(privateKeyParameter);
                 byte[] serializedPrivateBytes = privateKeyInfo.ToAsn1Object().GetDerEncoded();
