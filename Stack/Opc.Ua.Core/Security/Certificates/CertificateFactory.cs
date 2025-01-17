@@ -426,8 +426,20 @@ namespace Opc.Ua
             byte[] pemDataBlob,
             string password = null)
         {
-            RSA rsaPrivateKey = PEMReader.ImportRsaPrivateKeyFromPEM(pemDataBlob, password);
-            return X509CertificateLoader.LoadCertificate(certificate.RawData).CopyWithPrivateKey(rsaPrivateKey);
+            if (X509Utils.IsECDsaSignature(certificate))
+            {
+                using (ECDsa ecdsaPrivateKey = PEMReader.ImportECDsaPrivateKeyFromPEM(pemDataBlob, password))
+                {
+                    return X509CertificateLoader.LoadCertificate(certificate.RawData).CopyWithPrivateKey(ecdsaPrivateKey);
+                };
+            }
+            else
+            {
+                using (RSA rsaPrivateKey = PEMReader.ImportRsaPrivateKeyFromPEM(pemDataBlob, password))
+                {
+                    return X509CertificateLoader.LoadCertificate(certificate.RawData).CopyWithPrivateKey(rsaPrivateKey);
+                };
+            }
         }
 #else
         /// <summary>
@@ -479,16 +491,36 @@ namespace Opc.Ua
             byte[] pemDataBlob,
             string password = null)
         {
-            RSA privateKey = PEMReader.ImportRsaPrivateKeyFromPEM(pemDataBlob, password);
-            if (privateKey == null)
+            if (X509Utils.IsECDsaSignature(certificate))
             {
-                throw new ServiceResultException("PEM data blob does not contain a private key.");
-            }
+                using (ECDsa privateKey = PEMReader.ImportECDsaPrivateKeyFromPEM(pemDataBlob, password))
+                {
+                    if (privateKey == null)
+                    {
+                        throw new ServiceResultException("PEM data blob does not contain a private key.");
+                    }
 
-            string passcode = X509Utils.GeneratePasscode();
-            byte[] pfxData = CertificateBuilder.CreatePfxWithRSAPrivateKey(
-                certificate, certificate.FriendlyName, privateKey, passcode);
-            return X509Utils.CreateCertificateFromPKCS12(pfxData, passcode);
+                    string passcode = X509Utils.GeneratePasscode();
+                    byte[] pfxData = CertificateBuilder.CreatePfxWithECdsaPrivateKey(
+                        certificate, certificate.FriendlyName, privateKey, passcode);
+                    return X509Utils.CreateCertificateFromPKCS12(pfxData, passcode);
+                }
+            }
+            else
+            {
+                using (RSA privateKey = PEMReader.ImportRsaPrivateKeyFromPEM(pemDataBlob, password))
+                {
+                    if (privateKey == null)
+                    {
+                        throw new ServiceResultException("PEM data blob does not contain a private key.");
+                    }
+
+                    string passcode = X509Utils.GeneratePasscode();
+                    byte[] pfxData = CertificateBuilder.CreatePfxWithRSAPrivateKey(
+                        certificate, certificate.FriendlyName, privateKey, passcode);
+                    return X509Utils.CreateCertificateFromPKCS12(pfxData, passcode);
+                }
+            }
         }
 #endif
         #endregion
