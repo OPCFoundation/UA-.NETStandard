@@ -426,7 +426,7 @@ namespace Opc.Ua
             byte[] pemDataBlob,
             string password = null)
         {
-            RSA rsaPrivateKey = PEMReader.ImportPrivateKeyFromPEM(pemDataBlob, password);
+            RSA rsaPrivateKey = PEMReader.ImportRsaPrivateKeyFromPEM(pemDataBlob, password);
             return X509CertificateLoader.LoadCertificate(certificate.RawData).CopyWithPrivateKey(rsaPrivateKey);
         }
 #else
@@ -479,7 +479,7 @@ namespace Opc.Ua
             byte[] pemDataBlob,
             string password = null)
         {
-            RSA privateKey = PEMReader.ImportPrivateKeyFromPEM(pemDataBlob, password);
+            RSA privateKey = PEMReader.ImportRsaPrivateKeyFromPEM(pemDataBlob, password);
             if (privateKey == null)
             {
                 throw new ServiceResultException("PEM data blob does not contain a private key.");

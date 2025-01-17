@@ -49,7 +49,7 @@ namespace Opc.Ua.Security.Certificates
         /// <param name="pemDataBlob">The PEM datablob as byte array.</param>
         /// <param name="password">The password to use (optional).</param>
         /// <returns>The RSA private key.</returns>
-        public static RSA ImportPrivateKeyFromPEM(
+        public static RSA ImportRsaPrivateKeyFromPEM(
             byte[] pemDataBlob,
             string password = null)
         {
