@@ -669,7 +669,7 @@ namespace Quickstarts.ReferenceServer
                         string referenceString = "Has3ForwardReferences";
                         if (i > 1)
                         {
-                            referenceString += i.ToString();
+                            referenceString += i.ToString(CultureInfo.InvariantCulture);
                         }
                         BaseDataVariableState has3ForwardReferences = CreateMeshVariable(referencesFolder, referencesPrefix + referenceString, referenceString);
                         has3ForwardReferences.AddReference(ReferenceTypes.HasCause, false, variables[0].NodeId);
@@ -1690,7 +1690,7 @@ namespace Quickstarts.ReferenceServer
             // now to create the remaining NUMBERED items
             for (uint i = 0; i < numVariables; i++)
             {
-                string newName = string.Format(CultureInfo.InvariantCulture, "{0}{1}", name, i.ToString("000"));
+                string newName = string.Format(CultureInfo.InvariantCulture, "{0}{1}", name, i.ToString("000", CultureInfo.InvariantCulture));
                 string newPath = string.Format(CultureInfo.InvariantCulture, "{0}/Mass/{1}", path, newName);
                 itemsCreated.Add(CreateDataItemVariable(parent, newPath, newName, dataType, valueRank));
             }//for i

@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <AssemblyName>Opc.Ua.Gds.Client.Common</AssemblyName>
+    <AssemblyName>$(AssemblyPrefix).Gds.Client.Common</AssemblyName>
     <TargetFrameworks>$(LibTargetFrameworks)</TargetFrameworks>
     <PackageId>$(PackagePrefix).Opc.Ua.Gds.Client.Common</PackageId>
     <RootNamespace>Opc.Ua.Gds.Client</RootNamespace>

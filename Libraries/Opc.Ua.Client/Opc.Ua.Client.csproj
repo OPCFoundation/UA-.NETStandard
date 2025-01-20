@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <DefineConstants>$(DefineConstants);CLIENT_ASYNC</DefineConstants>
-    <AssemblyName>Opc.Ua.Client</AssemblyName>
+    <AssemblyName>$(AssemblyPrefix).Client</AssemblyName>
     <TargetFrameworks>$(LibTargetFrameworks)</TargetFrameworks>
     <PackageId>$(PackagePrefix).Opc.Ua.Client</PackageId>
     <RootNamespace>Opc.Ua.Client</RootNamespace>
