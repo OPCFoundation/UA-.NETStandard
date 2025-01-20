@@ -102,7 +102,7 @@ namespace Opc.Ua.Security.Certificates.Tests
 #endif
             else
             {
-                throw new NotImplementedException();
+                Assert.Skip("Unsupported certificate type");
             }
         }
 
