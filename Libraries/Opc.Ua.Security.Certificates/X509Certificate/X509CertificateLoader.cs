@@ -27,7 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#if NET6_0
+#if !NET9_0_OR_GREATER
 
 using System;
 using System.Security.Cryptography.X509Certificates;
