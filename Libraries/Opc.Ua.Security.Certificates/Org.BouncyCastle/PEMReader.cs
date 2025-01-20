@@ -125,6 +125,7 @@ namespace Opc.Ua.Security.Certificates
                             key = rsa;
                             break;
                         }
+#if NET472_OR_GREATER
                         // Check for an EC private key
                         if (pemObject is ECPrivateKeyParameters ecParams)
                         {
@@ -132,7 +133,8 @@ namespace Opc.Ua.Security.Certificates
                             key = ecdsa;
                             break;
                         }
-                       
+#endif
+
                         // read next object
                         pemObject = pemReader.ReadObject();
                     }
@@ -149,6 +151,7 @@ namespace Opc.Ua.Security.Certificates
             }
         }
 
+#if NET472_OR_GREATER
         private static ECDsa CreateECDsaFromECPrivateKey(ECPrivateKeyParameters eCPrivateKeyParameters)
         {
             var domainParams = eCPrivateKeyParameters.Parameters;
@@ -185,6 +188,7 @@ namespace Opc.Ua.Security.Certificates
 
             return ecdsa;
         }
+#endif
 
         /// <summary>
         /// Pads a byte array with leading zeros to reach the specifieed size
@@ -214,7 +218,7 @@ namespace Opc.Ua.Security.Certificates
             return paddedArray;
 
         }
-        #endregion
+#endregion
 
         #region Internal class
         /// <summary>

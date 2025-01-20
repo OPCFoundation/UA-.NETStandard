@@ -146,23 +146,6 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
         }
 
         /// <summary>
-        /// Get ECDsa private key parameters from a X509Certificate2.
-        /// The private key must be exportable.
-        /// </summary>
-        internal static ECPrivateKeyParameters GetECDsaPrivateKeyParameter(X509Certificate2 certificate)
-        {
-            // try to get signing/private key from certificate passed in
-            using (ECDsa ecdsa = certificate.GetECDsaPrivateKey())
-            {
-                if (ecdsa != null)
-                {
-                    return GetECDsaPrivateKeyParameter(ecdsa);
-                }
-            }
-            return null;
-        }
-
-        /// <summary>
         /// Get private key parameters from a RSA private key.
         /// The private key must be exportable.
         /// </summary>
@@ -178,6 +161,24 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
                 new BigInteger(1, rsaParams.DP),
                 new BigInteger(1, rsaParams.DQ),
                 new BigInteger(1, rsaParams.InverseQ));
+        }
+
+#if NET472_OR_GREATER
+        /// <summary>
+        /// Get ECDsa private key parameters from a X509Certificate2.
+        /// The private key must be exportable.
+        /// </summary>
+        internal static ECPrivateKeyParameters GetECDsaPrivateKeyParameter(X509Certificate2 certificate)
+        {
+            // try to get signing/private key from certificate passed in
+            using (ECDsa ecdsa = certificate.GetECDsaPrivateKey())
+            {
+                if (ecdsa != null)
+                {
+                    return GetECDsaPrivateKeyParameter(ecdsa);
+                }
+            }
+            return null;
         }
 
         /// <summary>
@@ -296,8 +297,6 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
             return null;
         }
 
-
-
         /// <summary>
         /// Get BouncyCastle format public key parameters from a System.Security.Cryptography.ECDsa
         /// </summary>
@@ -318,6 +317,7 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
             return new ECPublicKeyParameters(q, domainParameters);
 
         }
+#endif
 
         /// <summary>
         /// Get the serial number from a certificate as BigInteger.
@@ -370,7 +370,7 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
             rsaPublicKey.ImportParameters(parameters);
             return rsaPublicKey;
         }
-        #endregion
+#endregion
     }
 }
 #endif
