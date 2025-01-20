@@ -34,7 +34,7 @@ using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using NUnit.Framework;
 using Opc.Ua.Tests;
- using Assert = NUnit.Framework.Legacy.ClassicAssert;
+using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Security.Certificates.Tests
 {
@@ -95,7 +95,7 @@ namespace Opc.Ua.Security.Certificates.Tests
                     .SetECCurve(eCCurveHash.Curve)
                     .CreateForECDsa())
                 {
-                    
+
                     Assert.NotNull(cert);
                     WriteCertificate(cert, $"Default cert with ECDsa {eCCurveHash.Curve.Oid.FriendlyName} {eCCurveHash.HashAlgorithmName} signature.");
                     Assert.AreEqual(eCCurveHash.HashAlgorithmName, Oids.GetHashAlgorithmName(cert.SignatureAlgorithm.Value));
@@ -109,7 +109,7 @@ namespace Opc.Ua.Security.Certificates.Tests
         }
 
         /// <summary>
-        /// Create the default RSA certificate.
+        /// Create the default ECDsa certificate.
         /// </summary>
         [Theory, Repeat(10)]
         public void CreateSelfSignedForECDsaDefaultTest(ECCurveHashPair eccurveHashPair)
@@ -355,13 +355,33 @@ namespace Opc.Ua.Security.Certificates.Tests
         {
             var result = new ECCurveHashPairCollection {
                 { ECCurve.NamedCurves.nistP256, HashAlgorithmName.SHA256 },
-                { ECCurve.NamedCurves.nistP384, HashAlgorithmName.SHA384 } };
-            if (!RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-            {
-                result.AddRange(new ECCurveHashPairCollection {
+                { ECCurve.NamedCurves.nistP384, HashAlgorithmName.SHA384 },
                 { ECCurve.NamedCurves.brainpoolP256r1, HashAlgorithmName.SHA256 },
-                { ECCurve.NamedCurves.brainpoolP384r1, HashAlgorithmName.SHA384 }});
+                { ECCurve.NamedCurves.brainpoolP384r1, HashAlgorithmName.SHA384 }
+            };
+
+            int i = 0;
+            while (i < result.Count)
+            {
+                ECDsa key = null;
+
+                // test if curve is supported
+                try
+                {
+                    key = ECDsa.Create(result[i].Curve);
+                }
+                catch
+                {
+                    result.RemoveAt(i);
+                    continue;
+                }
+                finally
+                {
+                    Utils.SilentDispose(key);
+                }
+                i++;
             }
+
             return result.ToArray();
         }
 

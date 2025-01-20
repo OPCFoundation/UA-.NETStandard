@@ -1385,8 +1385,7 @@ namespace Opc.Ua.Client
         /// </summary>
         public void SaveMessageInCache(
             IList<uint> availableSequenceNumbers,
-            NotificationMessage message,
-            IList<string> stringTable)
+            NotificationMessage message)
         {
             PublishStateChangedEventHandler callback = null;
 
@@ -1411,11 +1410,9 @@ namespace Opc.Ua.Client
 
                 DateTime now = DateTime.UtcNow;
                 Interlocked.Exchange(ref m_lastNotificationTime, now.Ticks);
+
                 int tickCount = HiResClock.TickCount;
                 m_lastNotificationTickCount = tickCount;
-
-                // save the string table that came with notification.
-                message.StringTable = new List<string>(stringTable);
 
                 // create queue for the first time.
                 if (m_incomingMessages == null)
@@ -1443,10 +1440,11 @@ namespace Opc.Ua.Client
 
                     if (next != null && next.Value.SequenceNumber > entry.SequenceNumber + 1)
                     {
-                        IncomingMessage placeholder = new IncomingMessage();
-                        placeholder.SequenceNumber = entry.SequenceNumber + 1;
-                        placeholder.Timestamp = now;
-                        placeholder.TickCount = tickCount;
+                        var placeholder = new IncomingMessage {
+                            SequenceNumber = entry.SequenceNumber + 1,
+                            Timestamp = now,
+                            TickCount = tickCount
+                        };
                         node = m_incomingMessages.AddAfter(node, placeholder);
                         continue;
                     }

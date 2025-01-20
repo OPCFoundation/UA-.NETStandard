@@ -19,6 +19,8 @@
     <FileVersion>$(NBGV_Version)</FileVersion>
     <PackageVersion>$(NBGV_Version)$(NBGV_PrereleaseVersion)</PackageVersion>
   </PropertyGroup>
-
+  <PropertyGroup>
+    <GitVersionBaseDirectory>$(MSBuildThisFileDirectory)</GitVersionBaseDirectory>
+  </PropertyGroup>
 </Project>
 

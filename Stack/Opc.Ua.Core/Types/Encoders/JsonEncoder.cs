@@ -13,6 +13,7 @@
 using System;
 using System.Buffers;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Runtime.CompilerServices;
@@ -704,21 +705,37 @@ namespace Opc.Ua
             }
         }
 
-        private void WriteSimpleField(string fieldName, string value)
+#if NETSTANDARD2_1_OR_GREATER || NET6_0_OR_GREATER
+        private void WriteSimpleField(string fieldName, string value, EscapeOptions options = EscapeOptions.None)
+        {
+            // unlike Span<byte>, Span<char> can not become null, handle the case here
+            if (value == null)
+            {
+                WriteSimpleFieldNull(fieldName);
+                return;
+            }
+
+            WriteSimpleFieldAsSpan(fieldName, value.AsSpan(), options);
+        }
+
+        private void WriteSimpleFieldAsSpan(string fieldName, ReadOnlySpan<char> value, EscapeOptions options)
         {
             if (!string.IsNullOrEmpty(fieldName))
             {
-                if (value == null)
-                {
-                    return;
-                }
-
                 if (m_commaRequired)
                 {
                     m_writer.Write(s_comma);
                 }
 
-                EscapeString(fieldName);
+                if ((options & EscapeOptions.NoFieldNameEscape) == EscapeOptions.NoFieldNameEscape)
+                {
+                    m_writer.Write(s_quotation);
+                    m_writer.Write(fieldName);
+                }
+                else
+                {
+                    EscapeString(fieldName);
+                }
                 m_writer.Write(s_quotationColon);
             }
             else
@@ -729,19 +746,28 @@ namespace Opc.Ua
                 }
             }
 
-            if (value != null)
+            if ((options & EscapeOptions.Quotes) == EscapeOptions.Quotes)
             {
-                m_writer.Write(value);
+                if ((options & EscapeOptions.NoValueEscape) == EscapeOptions.NoValueEscape)
+                {
+                    m_writer.Write(s_quotation);
+                    m_writer.Write(value);
+                }
+                else
+                {
+                    EscapeString(value);
+                }
+                m_writer.Write(s_quotation);
             }
             else
             {
-                m_writer.Write(s_null);
+                m_writer.Write(value);
             }
 
             m_commaRequired = true;
         }
-
-        private void WriteSimpleField(string fieldName, string value, EscapeOptions options)
+#else
+        private void WriteSimpleField(string fieldName, string value, EscapeOptions options = EscapeOptions.None)
         {
             if (!string.IsNullOrEmpty(fieldName))
             {
@@ -801,6 +827,7 @@ namespace Opc.Ua
 
             m_commaRequired = true;
         }
+#endif
 
         /// <summary>
         /// Writes a boolean to the stream.
@@ -1079,6 +1106,7 @@ namespace Opc.Ua
         /// <summary>
         /// Writes a byte string to the stream.
         /// </summary>
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2265:Do not compare Span<T> to 'null' or 'default'", Justification = "Null compare works with ReadOnlySpan<byte>")]
         public void WriteByteString(string fieldName, ReadOnlySpan<byte> value)
         {
             if (value == null)
@@ -1093,7 +1121,35 @@ namespace Opc.Ua
                 throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
             }
 
-            WriteSimpleField(fieldName, Convert.ToBase64String(value), EscapeOptions.Quotes | EscapeOptions.NoValueEscape);
+            if (value.Length > 0)
+            {
+                const int maxStackLimit = 1024;
+                int length = ((value.Length + 2) / 3) * 4;
+                char[] arrayPool = null;
+                Span<char> chars = length <= maxStackLimit ?
+                    stackalloc char[length] :
+                    (arrayPool = ArrayPool<char>.Shared.Rent(length)).AsSpan(0, length);
+                try
+                {
+                    bool success = Convert.TryToBase64Chars(value, chars, out int charsWritten, Base64FormattingOptions.None);
+                    if (success)
+                    {
+                        WriteSimpleFieldAsSpan(fieldName, chars.Slice(0, charsWritten), EscapeOptions.Quotes | EscapeOptions.NoValueEscape);
+                        return;
+                    }
+
+                    throw new ServiceResultException(StatusCodes.BadEncodingError, "Failed to convert ByteString to Base64");
+                }
+                finally
+                {
+                    if (arrayPool != null)
+                    {
+                        ArrayPool<char>.Shared.Return(arrayPool);
+                    }
+                }
+            }
+
+            WriteSimpleField(fieldName, "\"\"");
         }
 #endif
 
@@ -1606,7 +1662,7 @@ namespace Opc.Ua
             {
                 PushStructure(fieldName);
 
-                value?.Encode(this);
+                value.Encode(this);
 
                 PopStructure();
             }
@@ -2384,7 +2440,7 @@ namespace Opc.Ua
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadEncodingError,
-                    "With Array as top level, encodeables array with filename will create invalid json");
+                    "With Array as top level, encodeables array with fieldname will create invalid json");
             }
             else
             {
@@ -2771,7 +2827,13 @@ namespace Opc.Ua
             }
             else
             {
+#if NETSTANDARD2_1_OR_GREATER || NET6_0_OR_GREATER
+                Span<char> valueString = stackalloc char[DateTimeRoundTripKindLength];
+                ConvertUniversalTimeToString(value, valueString, out int charsWritten);
+                WriteSimpleFieldAsSpan(fieldName, valueString.Slice(0, charsWritten), escapeOptions | EscapeOptions.Quotes);
+#else
                 WriteSimpleField(fieldName, ConvertUniversalTimeToString(value), escapeOptions | EscapeOptions.Quotes);
+#endif
             }
         }
 
@@ -2991,19 +3053,59 @@ namespace Opc.Ua
             m_nestingLevel++;
         }
 
+        // The length of the DateTime string encoded by "o"
+        internal const int DateTimeRoundTripKindLength = 28;
+        // the index of the last digit which can be omitted if 0
+        const int DateTimeRoundTripKindLastDigit = DateTimeRoundTripKindLength - 2;
+        // the index of the first digit which can be omitted (7 digits total)
+        const int DateTimeRoundTripKindFirstDigit = DateTimeRoundTripKindLastDigit - 7;
+
         /// <summary>
         /// Write Utc time in the format "yyyy-MM-dd'T'HH:mm:ss.FFFFFFFK".
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#if NETSTANDARD2_1_OR_GREATER || NET6_0_OR_GREATER
+        internal static void ConvertUniversalTimeToString(DateTime value, Span<char> valueString, out int charsWritten)
+        {
+            // Note: "o" is a shortcut for "yyyy-MM-dd'T'HH:mm:ss.FFFFFFFK" and implicitly
+            // uses invariant culture and gregorian calendar, but executes up to 10 times faster.
+            // But in contrary to the explicit format string, trailing zeroes are not omitted!
+            if (value.Kind != DateTimeKind.Utc)
+            {
+                value.ToUniversalTime().TryFormat(valueString, out charsWritten, "o", CultureInfo.InvariantCulture);
+            }
+            else
+            {
+                value.TryFormat(valueString, out charsWritten, "o", CultureInfo.InvariantCulture);
+            }
+
+            Debug.Assert(charsWritten == DateTimeRoundTripKindLength);
+
+            // check if trailing zeroes can be omitted
+            int i = DateTimeRoundTripKindLastDigit;
+            while (i > DateTimeRoundTripKindFirstDigit)
+            {
+                if (valueString[i] != '0')
+                {
+                    break;
+                }
+                i--;
+            }
+
+            if (i < DateTimeRoundTripKindLastDigit)
+            {
+                // check if the decimal point has to be removed too
+                if (i == DateTimeRoundTripKindFirstDigit)
+                {
+                    i--;
+                }
+                valueString[i + 1] = 'Z';
+                charsWritten = i + 2;
+            }
+        }
+#else
         internal static string ConvertUniversalTimeToString(DateTime value)
         {
-            // The length of the DateTime string encoded by "o"
-            const int DateTimeRoundTripKindLength = 28;
-            // the index of the last digit which can be omitted if 0
-            const int DateTimeRoundTripKindLastDigit = DateTimeRoundTripKindLength - 2;
-            // the index of the first digit which can be omitted (7 digits total)
-            const int DateTimeRoundTripKindFirstDigit = DateTimeRoundTripKindLastDigit - 7;
-
             // Note: "o" is a shortcut for "yyyy-MM-dd'T'HH:mm:ss.FFFFFFFK" and implicitly
             // uses invariant culture and gregorian calendar, but executes up to 10 times faster.
             // But in contrary to the explicit format string, trailing zeroes are not omitted!
@@ -3032,6 +3134,7 @@ namespace Opc.Ua
 
             return valueString;
         }
+#endif
         #endregion
     }
 }

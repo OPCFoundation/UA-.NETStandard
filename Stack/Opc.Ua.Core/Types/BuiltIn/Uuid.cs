@@ -53,15 +53,10 @@ namespace Opc.Ua
         #endregion
 
         #region Static Fields
-
         /// <summary>
         /// A constant containing an empty GUID.
         /// </summary>
-        /// <remarks>
-        /// A constant containing an empty GUID.
-        /// </remarks>
         public static readonly Uuid Empty = new Uuid();
-
         #endregion
 
         #region Public Properties
