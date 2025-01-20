@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <AssemblyName>Opc.Ua.Client.ComplexTypes</AssemblyName>
+    <AssemblyName>$(AssemblyPrefix).Client.ComplexTypes</AssemblyName>
     <TargetFrameworks>$(LibxTargetFrameworks)</TargetFrameworks>
     <PackageId>$(PackagePrefix).Opc.Ua.Client.ComplexTypes</PackageId>
     <RootNameSpace>Opc.Ua.Client.ComplexTypes</RootNameSpace>

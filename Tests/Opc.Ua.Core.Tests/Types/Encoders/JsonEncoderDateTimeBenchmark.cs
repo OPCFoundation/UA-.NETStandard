@@ -56,7 +56,13 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void ConvertToUniversalTime()
         {
+#if ECC_SUPPORT && (NETSTANDARD2_1_OR_GREATER || NET6_0_OR_GREATER)
+            Span<char> valueString = stackalloc char[JsonEncoder.DateTimeRoundTripKindLength];
+            JsonEncoder.ConvertUniversalTimeToString(m_dateTime, valueString, out int charsWritten);
+            _ = valueString.Slice(0, charsWritten);
+#else
             _ = JsonEncoder.ConvertUniversalTimeToString(m_dateTime);
+#endif
         }
 
         #region Test Setup

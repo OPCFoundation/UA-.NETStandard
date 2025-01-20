@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <AssemblyName>Opc.Ua.Gds.Server.Common</AssemblyName>
+    <AssemblyName>$(AssemblyPrefix).Gds.Server.Common</AssemblyName>
     <TargetFrameworks>$(LibTargetFrameworks)</TargetFrameworks>
     <PackageId>$(PackagePrefix).Opc.Ua.Gds.Server.Common</PackageId>
     <RootNamespace>Opc.Ua.Gds.Server</RootNamespace>
