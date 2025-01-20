@@ -763,6 +763,13 @@ namespace Opc.Ua.Server
                 DateTime now = DateTime.UtcNow;
                 m_serverStatus.Timestamp = now;
                 m_serverStatus.Value.CurrentTime = now;
+                // update other timestamps in NodeState objects which are used to derive the source timestamp
+                if (variable is ServerStatusValue serverStatusValue &&
+                    serverStatusValue.Variable is ServerStatusState serverStatusState)
+                {
+                    serverStatusState.Timestamp = now;
+                    serverStatusState.CurrentTime.Timestamp = now;
+                }
             }
         }
 
