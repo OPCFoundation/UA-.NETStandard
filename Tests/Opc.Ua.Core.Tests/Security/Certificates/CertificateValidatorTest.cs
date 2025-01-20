@@ -57,8 +57,10 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
     public class CertificateValidatorTest
     {
         #region DataPoints
+#if ECC_SUPPORT
         [DatapointSource]
         public static readonly ECCurveHashPair[] ECCurveHashPairs = CertificateTestsForECDsa.GetECCurveHashPairs();
+#endif
         #endregion
 
         #region Test Setup
@@ -1274,6 +1276,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             certValidator.CertificateValidation -= approver.OnCertificateValidation;
         }
 
+#if ECC_SUPPORT
         /// <summary>
         /// Test that Hash sizes lower than public key sizes of certificates are not valid
         /// </summary>
@@ -1303,6 +1306,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 Assert.Null(innerResult);
             }
         }
+#endif
 
         /// <summary>
         /// Test auto accept.
@@ -1707,7 +1711,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         }
         #endregion missing revocation list when revocation is enforced
 
-        #endregion Test Methods
+#endregion Test Methods
 
         #region Private Methods
         private void OnCertificateUpdate(object sender, CertificateUpdateEventArgs e)

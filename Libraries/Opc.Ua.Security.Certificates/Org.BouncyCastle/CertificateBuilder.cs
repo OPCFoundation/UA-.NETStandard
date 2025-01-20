@@ -155,6 +155,7 @@ namespace Opc.Ua.Security.Certificates
             }
         }
 
+#if NET472_OR_GREATER
         /// <summary>
         /// Create a Pfx with a private key by combining 
         /// an existing X509Certificate2 and a RSA private key.
@@ -175,6 +176,7 @@ namespace Opc.Ua.Security.Certificates
                     new SecureRandom(cfrg));
             }
         }
+#endif
 
         /// <summary>
         /// Creates a certificate signing request from an
