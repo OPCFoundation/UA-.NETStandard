@@ -282,6 +282,7 @@ namespace Opc.Ua.Security.Certificates
         }
         #endregion
 
+#if ECC_SUPPORT
         #region Private methods
         /// <summary>
         /// Set the hash algorithm depending on the curve size
@@ -301,6 +302,7 @@ namespace Opc.Ua.Security.Certificates
             }
         }
         #endregion
+#endif
 
         #region Protected Methods
         /// <summary>
@@ -386,7 +388,7 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         private protected ECCurve? m_curve;
 #endif
-        #endregion
+#endregion
 
         #region Private Fields
         private X509Certificate2 m_issuerCAKeyCert;

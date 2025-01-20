@@ -91,6 +91,7 @@ namespace Opc.Ua.Security.Certificates.Tests
                     .SetCAConstraint()
                     .CreateForRSA();
             }
+#if ECC_SUPPORT
             else if (m_certifiateType == nameof(Opc.Ua.ObjectTypeIds.EccNistP256ApplicationCertificateType))
             {
                 m_issuerCert = CertificateBuilder.Create("CN=Root CA, O=OPC Foundation")
@@ -98,6 +99,7 @@ namespace Opc.Ua.Security.Certificates.Tests
                     .SetECCurve(ECCurve.NamedCurves.nistP256)
                     .CreateForECDsa();
             }
+#endif
             else
             {
                 throw new NotImplementedException();
@@ -111,7 +113,7 @@ namespace Opc.Ua.Security.Certificates.Tests
         protected void OneTimeTearDown()
         {
         }
-        #endregion
+#endregion
 
         #region Test Methods
         /// <summary>
@@ -179,12 +181,14 @@ namespace Opc.Ua.Security.Certificates.Tests
                 crlBuilder.CrlExtensions.Add(X509Extensions.BuildAuthorityKeyIdentifier(m_issuerCert));
             }
             IX509CRL i509Crl;
+#if ECC_SUPPORT
             if (X509PfxUtils.IsECDsaSignature(m_issuerCert))
             {
 
                 i509Crl = crlBuilder.CreateForECDsa(m_issuerCert);
             }
             else
+#endif
             {
                 i509Crl = crlBuilder.CreateForRSA(m_issuerCert);
             }
@@ -245,6 +249,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             crlBuilder.CrlExtensions.Add(X509Extensions.BuildAuthorityKeyIdentifier(m_issuerCert));
 
             IX509CRL ix509Crl;
+#if ECC_SUPPORT
             if (X509PfxUtils.IsECDsaSignature(m_issuerCert))
             {
                 using (ECDsa ecdsa = m_issuerCert.GetECDsaPrivateKey())
@@ -254,6 +259,7 @@ namespace Opc.Ua.Security.Certificates.Tests
                 }
             }
             else
+#endif
             {
                 using (RSA rsa = m_issuerCert.GetRSAPrivateKey())
                 {
@@ -322,7 +328,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             Assert.NotNull(crlEncoded);
             ValidateCRL(serial, serstring, hash, crlBuilder, crlEncoded);
         }
-        #endregion
+#endregion
 
         #region Private Methods
         private string WriteCRL(X509CRL x509Crl)
