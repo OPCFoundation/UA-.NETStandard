@@ -3,7 +3,7 @@
   <PropertyGroup>
     <DefineConstants>$(DefineConstants);NET_STANDARD;NET_STANDARD_ASYNC</DefineConstants>
     <TargetFrameworks>$(LibCoreTargetFrameworks)</TargetFrameworks>
-    <AssemblyName>Opc.Ua.Core</AssemblyName>
+    <AssemblyName>$(AssemblyPrefix).Core</AssemblyName>
     <PackageId>$(PackagePrefix).Opc.Ua.Core</PackageId>
     <RootNamespace>Opc.Ua</RootNamespace>
     <Description>OPC UA Core Class Library</Description>

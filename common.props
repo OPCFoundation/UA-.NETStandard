@@ -6,6 +6,7 @@
     <VersionSuffix>preview-$([System.DateTime]::Now.ToString("yyyyMMdd"))</VersionSuffix>
     <Copyright>Copyright © 2004-2025 OPC Foundation, Inc</Copyright>
     <PackagePrefix>OPCFoundation.NetStandard</PackagePrefix>
+    <AssemblyPrefix>Opc.Ua</AssemblyPrefix>
     <Company>OPC Foundation</Company>
     <Authors>OPC Foundation</Authors>
     <NoWarn>NU5125;CA2254;CA1307</NoWarn>
@@ -15,7 +16,7 @@
     <PlatformTarget>AnyCPU</PlatformTarget>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <!-- Highest language version supported by .NET Standard 2.0 and .NET Framework -->
-    <LangVersion>7.3</LangVersion>
+    <LangVersion>12</LangVersion>
     <EnablePackageValidation>true</EnablePackageValidation>
     <!-- to check the package validation on a release build, uncomment here -->
     <!--<PackageValidationBaselineVersion>1.5.374.27</PackageValidationBaselineVersion>-->

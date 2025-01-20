@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <AssemblyName>Opc.Ua.Configuration</AssemblyName>
+    <AssemblyName>$(AssemblyPrefix).Configuration</AssemblyName>
     <TargetFrameworks>$(LibTargetFrameworks)</TargetFrameworks>
     <PackageId>$(PackagePrefix).Opc.Ua.Configuration</PackageId>
     <RootNamespace>Opc.Ua.Configuration</RootNamespace>

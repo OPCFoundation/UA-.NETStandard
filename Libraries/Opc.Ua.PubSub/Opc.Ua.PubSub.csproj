@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <AssemblyName>Opc.Ua.PubSub</AssemblyName>
+    <AssemblyName>$(AssemblyPrefix).PubSub</AssemblyName>
     <TargetFrameworks>$(LibxTargetFrameworks)</TargetFrameworks>
     <PackageId>$(PackagePrefix).Opc.Ua.PubSub</PackageId>
     <RootNamespace>Opc.Ua.PubSub</RootNamespace>

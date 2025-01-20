@@ -1,8 +1,8 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <AssemblyName>Opc.Ua.Security.Certificates</AssemblyName>
     <TargetFrameworks>$(LibCoreTargetFrameworks)</TargetFrameworks>
     <PackageId>$(PackagePrefix).Opc.Ua.Security.Certificates</PackageId>
+    <AssemblyName>$(AssemblyPrefix).Security.Certificates</AssemblyName>
     <RootNamespace>Opc.Ua.Security.Certificates</RootNamespace>
     <Description>OPC UA Security X509 Certificates Class Library</Description>
     <IsPackable>true</IsPackable>

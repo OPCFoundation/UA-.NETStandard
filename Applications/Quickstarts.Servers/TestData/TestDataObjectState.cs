@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using Opc.Ua;
 using Range = Opc.Ua.Range;
 
@@ -142,7 +143,7 @@ namespace TestData
                             element = ((Variant)element).Value;
                         }
 
-                        double elementNumber = Convert.ToDouble(element);
+                        double elementNumber = Convert.ToDouble(element, CultureInfo.InvariantCulture);
 
                         if (elementNumber > range.High || elementNumber < range.Low)
                         {
@@ -153,7 +154,7 @@ namespace TestData
                     return ServiceResult.Good;
                 }
 
-                double number = Convert.ToDouble(value);
+                double number = Convert.ToDouble(value, CultureInfo.InvariantCulture);
 
                 if (number > range.High || number < range.Low)
                 {
