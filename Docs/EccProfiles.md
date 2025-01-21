@@ -237,6 +237,41 @@ Additionally the `<UserTokenPolicies>` section of the configuration file can be 
 Combining the "old" and the "new" configuration formats is not supported. That means that the `<ApplicationCertificate>` tag cannot be used in the same configuration file with the `<ApplicationCertificates>` tag.
 
 
+## Configure GDS for use with ECC Certificates
+
+To configure the Global Discovery Server for use with ECC Certificates the configuration needs to be updated.
+
+```xml
+  <Extensions>
+    <ua:XmlElement>
+      <GlobalDiscoveryServerConfiguration xmlns="http://opcfoundation.org/UA/GDS/Configuration.xsd">
+        <CertificateGroups>
+          <CertificateGroupConfiguration>
+            <Id>Default</Id>
+            <CertificateType>RsaSha256ApplicationCertificateType</CertificateType>
+```
+
+Replace the `<CertificateType>` node of the Default CertificateGroupConfiguration with the `<CertificateTypes>` node. 
+This allows the Certificate Group to have multiple CA Certificates for the different Certificate types.
+
+```xml
+<Extensions>
+    <ua:XmlElement>
+      <GlobalDiscoveryServerConfiguration xmlns="http://opcfoundation.org/UA/GDS/Configuration.xsd">
+        <CertificateGroups>
+          <CertificateGroupConfiguration>
+            <Id>Default</Id>
+            <CertificateTypes>
+              <ua:String>RsaSha256ApplicationCertificateType</ua:String>
+              <ua:String>EccNistP256ApplicationCertificateType</ua:String>
+              <ua:String>EccNistP384ApplicationCertificateType</ua:String>
+            </CertificateTypes>
+```
+
+The old Configuration format is still supported but only supports either RSA or ECC Certificates for a single CertificateGroup.
+The GDS checks on startup if a valid configuration was supplied.
+
+
 ## Known Limitations
 
 Not all curves are supported by all OS platforms and not all .NET implementations offer cryptographic API support for all curve types.
@@ -247,6 +282,8 @@ The supported ECC curve types are the following:
  - `NistP384`               for ECC certificates with NIST P384 curve
  - `BrainpoolP256r1`        for ECC certificates with Brainpool P256r1 curve
  - `BrainpoolP384r1`        for ECC certificates with Brainpool P384r1 curve
+
+
 
 
         
