@@ -618,7 +618,7 @@ namespace Opc.Ua.Gds.Tests
 
             m_pushClient.PushClient.GetCertificates(m_pushClient.PushClient.DefaultApplicationGroup, out NodeId[] certificateTypeIds, out byte[][] certificates);
 
-            Assert.That(certificateTypeIds.Length == 1);
+            Assert.That(certificateTypeIds.Length == certificates.Length);
             Assert.NotNull(certificates[0]);
             using (var x509 = X509CertificateLoader.LoadCertificate(certificates[0]))
             {

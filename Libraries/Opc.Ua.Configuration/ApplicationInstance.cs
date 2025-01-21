@@ -910,44 +910,18 @@ namespace Opc.Ua.Configuration
 #if !ECC_SUPPORT
                 throw new ServiceResultException(StatusCodes.BadConfigurationError, "The Ecc certificate type is not supported.");
 #else
-                ECCurve curve = default(ECCurve);
-                if (id.CertificateType == ObjectTypeIds.EccApplicationCertificateType ||
-                    id.CertificateType == ObjectTypeIds.EccNistP256ApplicationCertificateType)
+                ECCurve? curve = EccUtils.GetCurveFromCertificateTypeId(id.CertificateType);
+
+                if(curve == null)
                 {
-                    curve = ECCurve.NamedCurves.nistP256;
-                }
-                else if (id.CertificateType == ObjectTypeIds.EccNistP384ApplicationCertificateType)
-                {
-                    curve = ECCurve.NamedCurves.nistP384;
-                }
-                else if (id.CertificateType == ObjectTypeIds.EccBrainpoolP256r1ApplicationCertificateType)
-                {
-                    curve = ECCurve.NamedCurves.brainpoolP256r1;
-                }
-                else if (id.CertificateType == ObjectTypeIds.EccBrainpoolP384r1ApplicationCertificateType)
-                {
-                    curve = ECCurve.NamedCurves.brainpoolP384r1;
-                }
-#if CURVE25519
-                else if (id.CertificateType == ObjectTypeIds.EccCurve25519ApplicationCertificateType)
-                {
-                    curve = default(ECCurve);
-                }
-                else if (id.CertificateType == ObjectTypeIds.EccCurve448ApplicationCertificateType)
-                {
-                    curve = default(ECCurve);
-                }
-#endif
-                else
-                {
-                    throw new ServiceResultException(StatusCodes.BadConfigurationError, "The ECC certificate type is not supported.");
+                    throw new ServiceResultException(StatusCodes.BadConfigurationError, "The Ecc certificate type is not supported.");
                 }
 
                 id.Certificate = builder
-                    .SetECCurve(curve)
+                    .SetECCurve(curve.Value)
                     .CreateForECDsa();
 
-                Utils.LogCertificate("Certificate created for {0}.", id.Certificate, curve.Oid.FriendlyName);
+                Utils.LogCertificate("Certificate created for {0}.", id.Certificate, curve.Value.Oid.FriendlyName);
 #endif
             }
 
@@ -1163,7 +1137,7 @@ namespace Opc.Ua.Configuration
                 return false;
             }
         }
-        #endregion
+#endregion
 
         #region Private Fields
         private string m_applicationName;

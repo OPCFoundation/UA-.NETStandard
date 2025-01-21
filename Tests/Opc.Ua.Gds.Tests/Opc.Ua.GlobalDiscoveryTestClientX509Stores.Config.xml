@@ -10,11 +10,14 @@
   <ApplicationType>Client_1</ApplicationType>
 
   <SecurityConfiguration>
-    <ApplicationCertificate>
-      <StoreType>X509Store</StoreType>
-      <StorePath>CurrentUser\UA_Test_GDS_Client_own</StorePath>
-      <SubjectName>CN=Global Discovery Test Client, O=OPC Foundation, DC=localhost</SubjectName>
-    </ApplicationCertificate>
+    <ApplicationCertificates>
+      <CertificateIdentifier>
+        <StoreType>X509Store</StoreType>
+        <StorePath>CurrentUser\UA_Test_GDS_Client_own</StorePath>
+        <SubjectName>CN=Global Discovery Test Client, O=OPC Foundation, DC=localhost</SubjectName>
+        <CertificateTypeString>RsaSha256</CertificateTypeString>
+      </CertificateIdentifier>
+    </ApplicationCertificates>
 
     <TrustedIssuerCertificates>
       <StoreType>X509Store</StoreType>
