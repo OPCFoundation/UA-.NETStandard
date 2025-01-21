@@ -399,7 +399,7 @@ namespace Opc.Ua.Gds.Tests
             byte[] csr = m_pushClient.PushClient.CreateSigningRequest(
                 null,
                 m_pushClient.PushClient.ApplicationCertificateType,
-                null,
+                m_selfSignedServerCert.Subject + "2",
                 regeneratePrivateKey,
                 null);
             Assert.IsNotNull(csr);
@@ -487,7 +487,7 @@ namespace Opc.Ua.Gds.Tests
             X509Certificate2 newCert = CertificateFactory.CreateCertificate(
                 m_applicationRecord.ApplicationUri,
                 m_applicationRecord.ApplicationNames[0].Text,
-                m_selfSignedServerCert.Subject,
+                m_selfSignedServerCert.Subject + "1",
                 null).CreateForRSA();
 
             byte[] privateKey = null;
@@ -546,7 +546,7 @@ namespace Opc.Ua.Gds.Tests
                 m_applicationRecord.ApplicationId,
                 null,
                 null,
-                m_selfSignedServerCert.Subject,
+                m_selfSignedServerCert.Subject + "3",
                 m_domainNames,
                 keyFormat,
                 null);

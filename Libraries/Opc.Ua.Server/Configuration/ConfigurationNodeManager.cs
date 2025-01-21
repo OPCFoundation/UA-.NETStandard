@@ -401,9 +401,18 @@ namespace Opc.Ua.Server
                     X509Utils.CompareDistinguishedName(cert.Certificate.Subject, newCert.Subject) &&
                     cert.CertificateType == certificateTypeId);
 
+                // if no cert was found search by ApplicationUri
+                if (existingCertIdentifier == null)
+                {
+                    existingCertIdentifier = certificateGroup.ApplicationCertificates.FirstOrDefault(cert =>
+                    m_configuration.ApplicationUri == X509Utils.GetApplicationUriFromCertificate(cert.Certificate) &&
+                    cert.CertificateType == certificateTypeId);
+                }
+
                 // if there is no such existing certificate then this is an error
                 if (existingCertIdentifier == null)
                 {
+
                     throw new ServiceResultException(StatusCodes.BadInvalidArgument, "No existing certificate found for the specified certificate type and subject name.");
                 }
 
@@ -426,16 +435,6 @@ namespace Opc.Ua.Server
                 catch
                 {
                     throw new ServiceResultException(StatusCodes.BadCertificateInvalid, "Certificate data is invalid.");
-                }
-
-                // validate new subject matches the previous subject,
-                // otherwise application may not be able to find it after restart
-                // TODO: An issuer may modify the subject of an issued certificate,
-                // but then the configuration must be updated too!
-                // NOTE: not a strict requirement here for ASN.1 byte compare 
-                if (!X509Utils.CompareDistinguishedName(existingCertIdentifier.Certificate.Subject, newCert.Subject))
-                {
-                    throw new ServiceResultException(StatusCodes.BadSecurityChecksFailed, "Subject Name of new certificate doesn't match the application.");
                 }
 
                 // self signed
@@ -484,7 +483,7 @@ namespace Opc.Ua.Server
                             }
                             else
                             {
-                                X509Certificate2 certWithPrivateKey = existingCertIdentifier.LoadPrivateKeyEx(passwordProvider).Result;
+                                X509Certificate2 certWithPrivateKey = existingCertIdentifier.LoadPrivateKeyEx(passwordProvider, m_configuration.ApplicationUri).Result;
                                 exportableKey = X509Utils.CreateCopyWithPrivateKey(certWithPrivateKey, false);
                             }
 
@@ -592,16 +591,17 @@ namespace Opc.Ua.Server
 
             ServerCertificateGroup certificateGroup = VerifyGroupAndTypeId(certificateGroupId, certificateTypeId);
 
+           
+
             // identify the existing certificate for which to CreateSigningRequest
             // it should be of the same type
             CertificateIdentifier existingCertIdentifier = certificateGroup.ApplicationCertificates.FirstOrDefault(cert =>
                 cert.CertificateType == certificateTypeId);
 
-            if (!String.IsNullOrEmpty(subjectName))
+            if (string.IsNullOrEmpty(subjectName))
             {
-                throw new ArgumentNullException(nameof(subjectName));
+                subjectName = existingCertIdentifier.Certificate.Subject;
             }
-
 
             certificateGroup.TemporaryApplicationCertificate?.Dispose();
             certificateGroup.TemporaryApplicationCertificate = null;
@@ -619,7 +619,7 @@ namespace Opc.Ua.Server
                 certWithPrivateKey = CertificateFactory.CreateCertificate(
                     m_configuration.ApplicationUri,
                     null,
-                    existingCertIdentifier.Certificate.Subject,
+                    subjectName,
                     null)
                     .SetNotBefore(DateTime.Today.AddDays(-1))
                     .SetNotAfter(DateTime.Today.AddDays(14))
@@ -677,7 +677,7 @@ namespace Opc.Ua.Server
                     await Task.Delay(1000).ConfigureAwait(false);
                     try
                     {
-                        await m_configuration.CertificateValidator.UpdateCertificateAsync(m_configuration.SecurityConfiguration).ConfigureAwait(false);
+                        await m_configuration.CertificateValidator.UpdateCertificateAsync(m_configuration.SecurityConfiguration, m_configuration.ApplicationUri).ConfigureAwait(false);
                     }
                     catch (Exception ex)
                     {
