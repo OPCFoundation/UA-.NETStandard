@@ -1,9 +1,8 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
-
   <PropertyGroup>
-    <AssemblyName>Opc.Ua.Security.Certificates</AssemblyName>
     <TargetFrameworks>$(LibCoreTargetFrameworks)</TargetFrameworks>
-    <PackageId>OPCFoundation.NetStandard.Opc.Ua.Security.Certificates</PackageId>
+    <PackageId>$(PackagePrefix).Opc.Ua.Security.Certificates</PackageId>
+    <AssemblyName>$(AssemblyPrefix).Security.Certificates</AssemblyName>
     <RootNamespace>Opc.Ua.Security.Certificates</RootNamespace>
     <Description>OPC UA Security X509 Certificates Class Library</Description>
     <IsPackable>true</IsPackable>
@@ -15,6 +14,7 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
 
+  <!-- Choose which platforms support ECC -->
   <Choose>
     <When Condition="'$(TargetFramework)' == 'net462'">
       <ItemGroup>
@@ -41,17 +41,25 @@
     <DefineConstants>$(DefineConstants);SIGNASSEMBLY</DefineConstants>
   </PropertyGroup>
 
-  <ItemGroup>
-    <PackageReference Include="System.Formats.Asn1" Version="8.0.1" />
-  </ItemGroup>
-
-  <ItemGroup Condition="'$(TargetFramework)' == 'net472'">
-    <PackageReference Include="BouncyCastle.Cryptography" Version="2.5.0" />
-  </ItemGroup>
-
-  <ItemGroup Condition="'$(TargetFramework)' == 'net48'">
-    <PackageReference Include="BouncyCastle.Cryptography" Version="2.5.0" />
-  </ItemGroup>
+  <!-- Choose Asn1 encoder and additional crypto library version -->
+  <Choose>
+    <When Condition="'$(TargetFramework)' == 'net472' OR '$(TargetFramework)' == 'net48'">
+      <ItemGroup>
+        <PackageReference Include="BouncyCastle.Cryptography" Version="2.5.0" />
+        <PackageReference Include="System.Formats.Asn1" Version="8.0.1" />
+      </ItemGroup>
+    </When>
+    <When Condition="'$(TargetFramework)' == 'net9.0'">
+      <ItemGroup>
+        <PackageReference Include="System.Formats.Asn1" Version="9.0.1" />
+      </ItemGroup>
+    </When>
+    <Otherwise>
+      <ItemGroup>
+        <PackageReference Include="System.Formats.Asn1" Version="8.0.1" />
+      </ItemGroup>
+    </Otherwise>
+  </Choose>
 
   <Target Name="GetPackagingOutputs" />
 

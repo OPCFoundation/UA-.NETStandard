@@ -1144,6 +1144,7 @@ namespace Opc.Ua
         /// <param name="endpoint">The endpoint for domain validation.</param>
         /// <param name="ct">The cancellation token.</param>
         /// <exception cref="ServiceResultException">If certificate[0] cannot be accepted</exception>
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Roslynanalyzer", "IA5352:Do not set X509RevocationMode.NoCheck", Justification = "Revocation is already checked.")]
         protected virtual async Task InternalValidateAsync(X509Certificate2Collection certificates, ConfiguredEndpoint endpoint, CancellationToken ct = default)
         {
             X509Certificate2 certificate = certificates[0];
