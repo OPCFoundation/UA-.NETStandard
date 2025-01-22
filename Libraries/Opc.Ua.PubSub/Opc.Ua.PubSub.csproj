@@ -1,9 +1,9 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <AssemblyName>Opc.Ua.PubSub</AssemblyName>
+    <AssemblyName>$(AssemblyPrefix).PubSub</AssemblyName>
     <TargetFrameworks>$(LibxTargetFrameworks)</TargetFrameworks>
-    <PackageId>OPCFoundation.NetStandard.Opc.Ua.PubSub</PackageId>
+    <PackageId>$(PackagePrefix).Opc.Ua.PubSub</PackageId>
     <RootNamespace>Opc.Ua.PubSub</RootNamespace>
     <Description>OPC UA PubSub Class Library</Description>
     <IsPackable>true</IsPackable>
