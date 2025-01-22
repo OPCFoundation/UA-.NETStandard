@@ -66,7 +66,7 @@ namespace Opc.Ua.Configuration
 
         #region Public Methods
         /// <inheritdoc/>
-        public IApplicationConfigurationBuilder SetHiResClockDisabled(bool disableHiResClock)
+        public IApplicationConfigurationBuilderGlobalConfiguration SetHiResClockDisabled(bool disableHiResClock)
         {
             ApplicationConfiguration.DisableHiResClock = disableHiResClock;
             return this;

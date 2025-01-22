@@ -113,7 +113,7 @@ namespace Opc.Ua.Security.Certificates.Tests
         }
 
         /// <summary>
-        /// Create the default RSA certificate.
+        /// Create the default ECDsa certificate.
         /// </summary>
         [Theory, Repeat(10)]
         public void CreateSelfSignedForECDsaDefaultTest(ECCurveHashPair eccurveHashPair)
