@@ -159,7 +159,7 @@ namespace Opc.Ua.Bindings
             lock (DataLock)
             {
                 state = State;
-                if (state == TcpChannelState.Open)
+                if (state == TcpChannelState.Open || state == TcpChannelState.Connecting)
                 {
                     state = State = TcpChannelState.Closing;
                 }
