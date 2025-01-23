@@ -370,6 +370,35 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
             rsaPublicKey.ImportParameters(parameters);
             return rsaPublicKey;
         }
+
+        /// <summary>
+        /// Pads a byte array with leading zeros to reach the specifieed size
+        /// If the input is allready the given size, it just returns it
+        /// </summary>
+        /// <param name="arrayToPad">Provided array to pad</param>
+        /// <param name="desiredSize">The desired total length of byte array after padding</param>
+        /// <returns></returns>
+        internal static byte[] PadWithLeadingZeros(byte[] arrayToPad,  int desiredSize)
+        {
+            if (arrayToPad.Length == desiredSize)
+            {
+                return arrayToPad;
+            }
+
+            int paddingLength = desiredSize - arrayToPad.Length;
+            if (paddingLength < 0)
+            {
+                throw new ArgumentException($"Input byte array is larger than the desired size {desiredSize} bytes.");
+            }
+
+            var paddedArray = new byte[desiredSize];
+
+            // Right-align the arrayToPad into paddedArray
+            Buffer.BlockCopy(arrayToPad, 0, paddedArray, paddingLength, arrayToPad.Length);
+
+            return paddedArray;
+
+        }
 #endregion
     }
 }

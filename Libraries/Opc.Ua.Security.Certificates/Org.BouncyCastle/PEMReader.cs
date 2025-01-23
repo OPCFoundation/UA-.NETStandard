@@ -35,6 +35,7 @@ using System.Text;
 using Org.BouncyCastle.OpenSsl;
 using Org.BouncyCastle.Security;
 using Org.BouncyCastle.Crypto.Parameters;
+using Opc.Ua.Security.Certificates.BouncyCastle;
 
 namespace Opc.Ua.Security.Certificates
 {
@@ -168,9 +169,9 @@ namespace Opc.Ua.Security.Certificates
             var d = eCPrivateKeyParameters.D.ToByteArrayUnsigned();
 
             // pad all to the same length since ToByteArrayUnsigned might drop leading zeroes
-            x = PadWithLeadingZeros(x, keySizeBytes);
-            y = PadWithLeadingZeros(y, keySizeBytes);
-            d = PadWithLeadingZeros(d, keySizeBytes);
+            x = X509Utils.PadWithLeadingZeros(x, keySizeBytes);
+            y = X509Utils.PadWithLeadingZeros(y, keySizeBytes);
+            d = X509Utils.PadWithLeadingZeros(d, keySizeBytes);
 
 
             var ecParams = new ECParameters {
@@ -190,34 +191,6 @@ namespace Opc.Ua.Security.Certificates
         }
 #endif
 
-        /// <summary>
-        /// Pads a byte array with leading zeros to reach the specifieed size
-        /// If the input is allready the given size, it just returns it
-        /// </summary>
-        /// <param name="arrayToPad">Provided array to pad</param>
-        /// <param name="desiredSize">The desired total length of byte array after padding</param>
-        /// <returns></returns>
-        private static byte[] PadWithLeadingZeros(byte[] arrayToPad,  int desiredSize)
-        {
-            if (arrayToPad.Length == desiredSize)
-            {
-                return arrayToPad;
-            }
-
-            int paddingLength = desiredSize - arrayToPad.Length;
-            if (paddingLength < 0)
-            {
-                throw new ArgumentException($"Input byte array is larger than the desired size {desiredSize} bytes.");
-            }
-
-            var paddedArray = new byte[desiredSize];
-
-            // Right-align the arrayToPad into paddedArray
-            Buffer.BlockCopy(arrayToPad, 0, paddedArray, paddingLength, arrayToPad.Length);
-
-            return paddedArray;
-
-        }
 #endregion
 
         #region Internal class
