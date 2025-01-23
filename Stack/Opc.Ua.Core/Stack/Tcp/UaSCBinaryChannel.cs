@@ -883,7 +883,7 @@ namespace Opc.Ua.Bindings
 
         private TcpChannelStateEventHandler m_StateChanged;
 
-        private int m_lastActiveTickCount;
+        private int m_lastActiveTickCount = HiResClock.TickCount;
         #endregion
     }
 
