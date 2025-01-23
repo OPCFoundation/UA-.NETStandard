@@ -312,7 +312,7 @@ namespace Opc.Ua
 
                 if (index < 0)
                 {
-                    throw ServiceResultException.Create(StatusCodes.BadNodeIdInvalid, "Invalid NodeId ({0}).", originalText);
+                    throw new ServiceResultException(StatusCodes.BadNodeIdInvalid, $"Invalid NodeId ({originalText}).");
                 }
 
                 var namespaceUri = Utils.UnescapeUri(text.Substring(4, index - 4));
@@ -320,7 +320,7 @@ namespace Opc.Ua
 
                 if (namespaceIndex < 0)
                 {
-                    throw ServiceResultException.Create(StatusCodes.BadNodeIdInvalid, "No mapping to NamespaceIndex for NamespaceUri ({0}).", namespaceUri);
+                    throw new ServiceResultException(StatusCodes.BadNodeIdInvalid, $"No mapping to NamespaceIndex for NamespaceUri ({namespaceUri}).");
                 }
 
                 text = text.Substring(index + 1);
@@ -332,7 +332,7 @@ namespace Opc.Ua
 
                 if (index < 0)
                 {
-                    throw ServiceResultException.Create(StatusCodes.BadNodeIdInvalid, "Invalid ExpandedNodeId ({0}).", originalText);
+                    throw new ServiceResultException(StatusCodes.BadNodeIdInvalid, $"Invalid ExpandedNodeId ({originalText}).");
                 }
 
                 if (UInt16.TryParse(text.Substring(3, index - 3), out ushort ns))
@@ -348,61 +348,58 @@ namespace Opc.Ua
                 text = text.Substring(index + 1);
             }
 
-            if (text.Length >= 2)
+            var idType = text.Substring(0, 1);
+            text = text.Substring(2);
+
+            switch (idType)
             {
-                char idType = text[0];
-                text = text.Substring(2);
-
-                switch (idType)
+                case "i":
                 {
-                    case 'i':
+                    if (UInt32.TryParse(text, out uint number))
                     {
-                        if (UInt32.TryParse(text, out uint number))
-                        {
-                            return new NodeId(number, (ushort)namespaceIndex);
-                        }
-
-                        break;
+                        return new NodeId(number, (ushort)namespaceIndex);
                     }
 
-                    case 's':
-                    {
-                        if (!String.IsNullOrWhiteSpace(text))
-                        {
-                            return new NodeId(text, (ushort)namespaceIndex);
-                        }
+                    break;
+                }
 
-                        break;
+                case "s":
+                {
+                    if (!String.IsNullOrWhiteSpace(text))
+                    {
+                        return new NodeId(text, (ushort)namespaceIndex);
                     }
 
-                    case 'b':
-                    {
-                        try
-                        {
-                            var bytes = Convert.FromBase64String(text);
-                            return new NodeId(bytes, (ushort)namespaceIndex);
-                        }
-                        catch (Exception)
-                        {
-                            // error handled after the switch statement.
-                        }
+                    break;
+                }
 
-                        break;
+                case "b":
+                {
+                    try
+                    {
+                        var bytes = Convert.FromBase64String(text);
+                        return new NodeId(bytes, (ushort)namespaceIndex);
+                    }
+                    catch (Exception)
+                    {
+                        // error handled after the switch statement.
                     }
 
-                    case 'g':
-                    {
-                        if (Guid.TryParse(text, out var guid))
-                        {
-                            return new NodeId(guid, (ushort)namespaceIndex);
-                        }
+                    break;
+                }
 
-                        break;
+                case "g":
+                {
+                    if (Guid.TryParse(text, out var guid))
+                    {
+                        return new NodeId(guid, (ushort)namespaceIndex);
                     }
+
+                    break;
                 }
             }
 
-            throw ServiceResultException.Create(StatusCodes.BadNodeIdInvalid, "Invalid NodeId Identifier ({0}).", originalText);
+            throw new ServiceResultException(StatusCodes.BadNodeIdInvalid, $"Invalid NodeId Identifier ({originalText}).");
         }
 
         /// <summary>

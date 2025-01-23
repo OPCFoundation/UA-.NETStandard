@@ -28,7 +28,7 @@
  * ======================================================================*/
 
 using System;
-using System.Globalization;
+
 using Opc.Ua;
 
 #pragma warning disable CS0219
@@ -85,7 +85,7 @@ namespace Alarms
 
             if (message.Length == 0)
             {
-                message = "Discrete Alarm analog value = " + value.ToString(CultureInfo.InvariantCulture) + ", active = " + active.ToString();
+                message = "Discrete Alarm analog value = " + value.ToString() + ", active = " + active.ToString();
             }
 
             base.SetValue(message);

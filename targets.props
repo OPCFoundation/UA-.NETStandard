@@ -1,10 +1,12 @@
 <Project>
-  <!-- Suppress warnings for testing only. Rather use supported libraries only. -->
+  <!-- Uncomment to suppress warning that .NET Core 2.1 is used with .NET 6 library. -->
+  
   <!--
   <PropertyGroup>
     <SuppressTfmSupportBuildWarnings>true</SuppressTfmSupportBuildWarnings>
   </PropertyGroup>
   -->
+
   <!-- 
   A custom target can be used to test a future or legacy target.
   A build with all custom targets which are not part of a regular build

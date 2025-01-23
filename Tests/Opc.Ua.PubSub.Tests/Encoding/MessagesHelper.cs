@@ -35,7 +35,6 @@ using Opc.Ua.PubSub.Encoding;
 using System.ComponentModel;
 using System.Threading;
 using Opc.Ua.PubSub.PublishedData;
-using System.Globalization;
 
 namespace Opc.Ua.PubSub.Tests.Encoding
 {
@@ -2842,21 +2841,21 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             DataValue boolToggle = pubSubApplication.DataStore.ReadPublishedDataItem(new NodeId("BoolToggle", namespaceIndexAllTypes), Attributes.Value);
             if (boolToggle.Value is bool)
             {
-                bool boolVal = Convert.ToBoolean(boolToggle.Value, CultureInfo.InvariantCulture);
+                bool boolVal = Convert.ToBoolean(boolToggle.Value);
                 boolToggle.Value = !boolVal;
                 pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("BoolToggle", namespaceIndexAllTypes), Attributes.Value, boolToggle);
             }
             DataValue byteValue = pubSubApplication.DataStore.ReadPublishedDataItem(new NodeId("Byte", namespaceIndexAllTypes), Attributes.Value);
             if (byteValue.Value is byte)
             {
-                byte byteVal = Convert.ToByte(byteValue.Value, CultureInfo.InvariantCulture);
+                byte byteVal = Convert.ToByte(byteValue.Value);
                 byteValue.Value = ++byteVal;
                 pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("Byte", namespaceIndexAllTypes), Attributes.Value, byteValue);
             }
             DataValue int16Value = pubSubApplication.DataStore.ReadPublishedDataItem(new NodeId("Int16", namespaceIndexAllTypes), Attributes.Value);
             if (int16Value.Value is Int16)
             {
-                Int16 int16Val = Convert.ToInt16(int16Value.Value, CultureInfo.InvariantCulture);
+                Int16 int16Val = Convert.ToInt16(int16Value.Value);
                 int intIdentifier = int16Val;
                 Interlocked.CompareExchange(ref intIdentifier, 0, Int16.MaxValue);
                 int16Value.Value = (Int16)Interlocked.Increment(ref intIdentifier);
@@ -2865,7 +2864,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             DataValue int32Value = pubSubApplication.DataStore.ReadPublishedDataItem(new NodeId("Int32", namespaceIndexAllTypes), Attributes.Value);
             if (int32Value.Value is Int32)
             {
-                Int32 int32Val = Convert.ToInt32(int16Value.Value, CultureInfo.InvariantCulture);
+                Int32 int32Val = Convert.ToInt32(int16Value.Value);
                 int intIdentifier = int32Val;
                 Interlocked.CompareExchange(ref intIdentifier, 0, Int32.MaxValue);
                 int32Value.Value = (Int32)Interlocked.Increment(ref intIdentifier);
@@ -2874,7 +2873,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             DataValue uInt16Value = pubSubApplication.DataStore.ReadPublishedDataItem(new NodeId("UInt16", namespaceIndexAllTypes), Attributes.Value);
             if (uInt16Value.Value is UInt16)
             {
-                UInt16 uInt16Val = Convert.ToUInt16(uInt16Value.Value, CultureInfo.InvariantCulture);
+                UInt16 uInt16Val = Convert.ToUInt16(uInt16Value.Value);
                 int intIdentifier = uInt16Val;
                 Interlocked.CompareExchange(ref intIdentifier, 0, UInt16.MaxValue);
                 uInt16Value.Value = (UInt16)Interlocked.Increment(ref intIdentifier);
@@ -2883,7 +2882,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             DataValue uInt32Value = pubSubApplication.DataStore.ReadPublishedDataItem(new NodeId("UInt32", namespaceIndexAllTypes), Attributes.Value);
             if (uInt32Value.Value is UInt32)
             {
-                UInt32 uInt32Val = Convert.ToUInt32(uInt32Value.Value, CultureInfo.InvariantCulture);
+                UInt32 uInt32Val = Convert.ToUInt32(uInt32Value.Value);
                 long longIdentifier = uInt32Val;
                 Interlocked.CompareExchange(ref longIdentifier, 0, UInt32.MaxValue);
                 uInt32Value.Value = (UInt32)Interlocked.Increment(ref longIdentifier);
@@ -2892,7 +2891,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             DataValue doubleValue = pubSubApplication.DataStore.ReadPublishedDataItem(new NodeId("Double", namespaceIndexAllTypes), Attributes.Value);
             if (doubleValue.Value is double)
             {
-                double doubleVal = Convert.ToDouble(doubleValue.Value, CultureInfo.InvariantCulture);
+                double doubleVal = Convert.ToDouble(doubleValue.Value);
                 Interlocked.CompareExchange(ref doubleVal, 0, double.MaxValue);
                 doubleValue.Value = ++doubleVal;
                 pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("Double", namespaceIndexAllTypes), Attributes.Value, doubleValue);

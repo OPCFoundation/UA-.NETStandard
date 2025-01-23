@@ -1411,12 +1411,6 @@ namespace Opc.Ua
                         continue;
                     }
 
-                    // check for matching port.
-                    if (sessionUrl.Port != endpointUrl.Port)
-                    {
-                        continue;
-                    }
-
                     matches.Add(description);
                 }
             }

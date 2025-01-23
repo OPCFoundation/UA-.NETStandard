@@ -62,7 +62,6 @@ namespace Opc.Ua.Core.Tests
             return testDataSet;
         }
 
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "SYSLIB1045:Convert to 'GeneratedRegexAttribute'.", Justification = "Test")]
         private ApplicationTestData RandomApplicationTestData()
         {
             // TODO: set to discoveryserver
@@ -105,7 +104,6 @@ namespace Opc.Ua.Core.Tests
             return testData;
         }
 
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "SYSLIB1045:Convert to 'GeneratedRegexAttribute'.", Justification = "Test")]
         private string RandomLocalHost()
         {
             string localhost = Regex.Replace(m_dataGenerator.GetRandomSymbol("en").Trim().ToLower(), @"[^\w\d]", "");

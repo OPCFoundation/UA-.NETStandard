@@ -49,6 +49,11 @@ namespace Opc.Ua.Configuration
         IApplicationConfigurationBuilderServerPolicies,
         IApplicationConfigurationBuilderCreate
     {
+        /// <summary>
+        /// Set the high resolution clock to disabled or enabled
+        /// </summary>
+        /// <param name="hiResClockDisabled"><value><c>true</c> if high resolution clock is disabled; otherwise, <c>false</c>.</value></param>
+        IApplicationConfigurationBuilder SetHiResClockDisabled(bool hiResClockDisabled);
     };
 
     /// <summary>
@@ -486,7 +491,6 @@ namespace Opc.Ua.Configuration
     /// Add security options to the configuration.
     /// </summary>
     public interface IApplicationConfigurationBuilderSecurityOptions :
-        IApplicationConfigurationBuilderGlobalConfiguration,
         IApplicationConfigurationBuilderTraceConfiguration,
         IApplicationConfigurationBuilderExtension,
         IApplicationConfigurationBuilderCreate
@@ -587,20 +591,6 @@ namespace Opc.Ua.Configuration
         /// <param name="elementName">The name of the extension, null to use the name.</param>
         /// <param name="value">The object to add and encode.</param>
         IApplicationConfigurationBuilderExtension AddExtension<T>(XmlQualifiedName elementName, object value);
-    }
-
-    /// <summary>
-    /// Add some global configuration settings.
-    /// </summary>
-    public interface IApplicationConfigurationBuilderGlobalConfiguration :
-        IApplicationConfigurationBuilderCreate,
-        IApplicationConfigurationBuilderTraceConfiguration
-    {
-        /// <summary>
-        /// Set the high resolution clock to disabled or enabled.
-        /// </summary>
-        /// <param name="hiResClockDisabled"><value><c>true</c> if high resolution clock is disabled; otherwise, <c>false</c>.</value></param>
-        IApplicationConfigurationBuilderGlobalConfiguration SetHiResClockDisabled(bool hiResClockDisabled);
     }
 
     /// <summary>
