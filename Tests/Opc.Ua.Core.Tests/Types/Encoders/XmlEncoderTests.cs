@@ -44,6 +44,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
     [Parallelizable]
     public class XmlEncoderTests
     {
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "SYSLIB1045:Convert to 'GeneratedRegexAttribute'.", Justification = "Tests")]
         static Regex REValue = new Regex("Value>([^<]*)<");
 
         #region Test Methods

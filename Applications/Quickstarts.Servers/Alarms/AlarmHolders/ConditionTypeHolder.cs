@@ -28,7 +28,7 @@
  * ======================================================================*/
 
 using System;
-
+using System.Globalization;
 using Opc.Ua;
 
 #pragma warning disable CS1591
@@ -168,7 +168,7 @@ namespace Alarms
                 alarm.Time.Value = DateTime.UtcNow;
                 alarm.ReceiveTime.Value = alarm.Time.Value;
 
-                Log("ReportEvent", " Value " + m_alarmController.GetValue().ToString() +
+                Log("ReportEvent", " Value " + m_alarmController.GetValue().ToString(CultureInfo.InvariantCulture) +
                     " Message " + alarm.Message.Value.Text);
 
                 alarm.ClearChangeMasks(SystemContext, true);
