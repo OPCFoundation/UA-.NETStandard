@@ -29,14 +29,12 @@
 
 using System;
 using System.Linq;
-using System.Runtime.InteropServices;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client;
-using Opc.Ua.Gds.Client;
 using Opc.Ua.Gds.Server;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.Test;
@@ -761,10 +759,10 @@ namespace Opc.Ua.Gds.Tests
             m_pushClient.PushClient.Connect(m_pushClient.PushClient.EndpointUrl).GetAwaiter().GetResult();
             // compare leaf certificates, ServerCertificate might be a chain if sendCertChain is sets
             var serverCertificate = Utils.ParseCertificateBlob(m_pushClient.PushClient.Session.ConfiguredEndpoint.Description.ServerCertificate);
-            //Assert.AreEqual(
-            //    certificateBlob,
-            //    serverCertificate.RawData
-            //    );
+            Assert.AreEqual(
+                certificateBlob,
+                serverCertificate.RawData
+                );
         }
 
         private async Task<bool> AddTrustListToStore(SecurityConfiguration config, TrustListDataType trustList)
