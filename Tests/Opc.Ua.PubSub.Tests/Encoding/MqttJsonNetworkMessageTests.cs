@@ -50,7 +50,6 @@ using Assert = NUnit.Framework.Legacy.ClassicAssert;
 namespace Opc.Ua.PubSub.Tests.Encoding
 {
     [TestFixture(Description = "Tests for Encoding/Decoding of JsonNetworkMessage objects")]
-    [Parallelizable]
     public class MqttJsonNetworkMessageTests
     {
         private const UInt16 NamespaceIndexAllTypes = 3;

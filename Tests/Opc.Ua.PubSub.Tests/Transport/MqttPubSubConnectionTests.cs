@@ -79,7 +79,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             //Arrange
             UInt16 writerGroupId = 1;
 
-            string mqttLocalBrokerUrl = Utils.Format(MqttUrlFormat, Utils.UriSchemeMqtt, "localhost");
+            string mqttLocalBrokerUrl = string.Format(MqttUrlFormat, Utils.UriSchemeMqtt, "localhost");
 
             ITransportProtocolConfiguration mqttConfiguration = new MqttClientProtocolConfiguration(version: EnumMqttProtocolVersion.V500);
 
@@ -190,7 +190,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             //Arrange
             UInt16 writerGroupId = 1;
 
-            string mqttLocalBrokerUrl = Utils.Format(MqttUrlFormat, Utils.UriSchemeMqtt, "localhost");
+            string mqttLocalBrokerUrl = string.Format(MqttUrlFormat, Utils.UriSchemeMqtt, "localhost");
 
             ITransportProtocolConfiguration mqttConfiguration = new MqttClientProtocolConfiguration(version: EnumMqttProtocolVersion.V500);
 
@@ -326,7 +326,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             //Arrange
             UInt16 writerGroupId = 1;
 
-            string mqttLocalBrokerUrl = Utils.Format(MqttUrlFormat, Utils.UriSchemeMqtt, "localhost");
+            string mqttLocalBrokerUrl = string.Format(MqttUrlFormat, Utils.UriSchemeMqtt, "localhost");
 
             ITransportProtocolConfiguration mqttConfiguration = new MqttClientProtocolConfiguration(version: EnumMqttProtocolVersion.V500);
 
@@ -452,7 +452,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             //Arrange
             UInt16 writerGroupId = 1;
 
-            string mqttLocalBrokerUrl = Utils.Format(MqttUrlFormat, Utils.UriSchemeMqtt, "localhost");
+            string mqttLocalBrokerUrl = string.Format(MqttUrlFormat, Utils.UriSchemeMqtt, "localhost");
 
             ITransportProtocolConfiguration mqttConfiguration = new MqttClientProtocolConfiguration(version: EnumMqttProtocolVersion.V500);
 

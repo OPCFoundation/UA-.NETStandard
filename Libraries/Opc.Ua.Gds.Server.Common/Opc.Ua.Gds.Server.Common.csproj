@@ -1,9 +1,9 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <AssemblyName>$(AssemblyPrefix).Gds.Server.Common</AssemblyName>
+    <AssemblyName>Opc.Ua.Gds.Server.Common</AssemblyName>
     <TargetFrameworks>$(LibTargetFrameworks)</TargetFrameworks>
-    <PackageId>$(PackagePrefix).Opc.Ua.Gds.Server.Common</PackageId>
+    <PackageId>OPCFoundation.NetStandard.Opc.Ua.Gds.Server.Common</PackageId>
     <RootNamespace>Opc.Ua.Gds.Server</RootNamespace>
     <NoWarn>$(NoWarn);CS1591</NoWarn>
     <Description>OPC UA GDS Server Class Library</Description>

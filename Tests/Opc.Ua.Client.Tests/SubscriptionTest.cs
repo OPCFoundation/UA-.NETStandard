@@ -771,7 +771,9 @@ namespace Opc.Ua.Client.Tests
                 };
 
                 subscription.FastDataChangeCallback = (_, notification, __) => {
-                    Interlocked.Add(ref numOfNotifications, notification.MonitoredItems.Count);
+                    notification.MonitoredItems.ForEach(item => {
+                        Interlocked.Increment(ref numOfNotifications);
+                    });
                 };
 
                 subscriptionList.Add(subscription);

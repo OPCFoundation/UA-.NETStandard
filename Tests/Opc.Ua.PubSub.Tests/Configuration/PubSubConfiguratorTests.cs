@@ -36,7 +36,6 @@ using Assert = NUnit.Framework.Legacy.ClassicAssert;
 namespace Opc.Ua.PubSub.Tests.Configuration
 {
     [TestFixture(Description = "Tests for UaPubSubApplication class")]
-    [Parallelizable]
     public class UaPubSubConfiguratorTests
     {
         static int CallCountPublishedDataSetAdded = 0;

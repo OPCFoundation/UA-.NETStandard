@@ -339,9 +339,9 @@ namespace Opc.Ua
         /// <param name="systemType">The underlying system type to add to the factory</param>
         public void AddEncodeableType(Type systemType)
         {
-            m_readerWriterLockSlim.EnterWriteLock();
             try
             {
+                m_readerWriterLockSlim.EnterWriteLock();
                 AddEncodeableType(systemType, null);
             }
             finally
@@ -365,9 +365,9 @@ namespace Opc.Ua
                     Utils.LogWarning("WARNING: Adding type '{0}' to shared Factory #{1}.", systemType.Name, m_instanceId);
                 }
 #endif
-                m_readerWriterLockSlim.EnterWriteLock();
                 try
                 {
+                    m_readerWriterLockSlim.EnterWriteLock();
                     m_encodeableTypes[encodingId] = systemType;
                 }
                 finally
@@ -402,9 +402,10 @@ namespace Opc.Ua
                 }
 #endif
 
-                m_readerWriterLockSlim.EnterWriteLock();
                 try
                 {
+                    m_readerWriterLockSlim.EnterWriteLock();
+
                     Type[] systemTypes = assembly.GetExportedTypes();
                     var unboundTypeIds = new Dictionary<string, ExpandedNodeId>();
 
@@ -469,9 +470,9 @@ namespace Opc.Ua
         /// <param name="systemTypes">The underlying system types to add to the factory</param>
         public void AddEncodeableTypes(IEnumerable<Type> systemTypes)
         {
-            m_readerWriterLockSlim.EnterWriteLock();
             try
             {
+                m_readerWriterLockSlim.EnterWriteLock();
                 foreach (var type in systemTypes)
                 {
                     if (type.GetTypeInfo().IsAbstract)
@@ -497,9 +498,10 @@ namespace Opc.Ua
         /// <param name="typeId">The type id to return the system-type of</param>
         public Type GetSystemType(ExpandedNodeId typeId)
         {
-            m_readerWriterLockSlim.EnterReadLock();
             try
             {
+                m_readerWriterLockSlim.EnterReadLock();
+
                 Type systemType = null;
 
                 if (NodeId.IsNull(typeId) || !m_encodeableTypes.TryGetValue(typeId, out systemType))
@@ -533,9 +535,9 @@ namespace Opc.Ua
         {
             EncodeableFactory clone = new EncodeableFactory(null);
 
-            m_readerWriterLockSlim.EnterReadLock();
             try
             {
+                m_readerWriterLockSlim.EnterReadLock();
                 foreach (KeyValuePair<ExpandedNodeId, Type> current in m_encodeableTypes)
                 {
                     clone.m_encodeableTypes.Add(current.Key, current.Value);

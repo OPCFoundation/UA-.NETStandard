@@ -52,10 +52,11 @@ namespace Opc.Ua.Client
                 return null;
             }
 
-            m_cacheLock.EnterReadLock();
             INode node;
             try
             {
+                m_cacheLock.EnterReadLock();
+
                 // check if node already exists.
                 node = m_nodes.Find(nodeId);
             }
@@ -103,10 +104,10 @@ namespace Opc.Ua.Client
             for (ii = 0; ii < count; ii++)
             {
                 INode node;
-
-                m_cacheLock.EnterReadLock();
                 try
                 {
+                    m_cacheLock.EnterReadLock();
+
                     // check if node already exists.
                     node = m_nodes.Find(nodeIds[ii]);
                 }
@@ -178,9 +179,10 @@ namespace Opc.Ua.Client
                 return null;
             }
 
-            m_cacheLock.EnterReadLock();
             try
             {
+                m_cacheLock.EnterReadLock();
+
                 return m_typeTree.FindSuperType(typeId);
             }
             finally
@@ -199,9 +201,10 @@ namespace Opc.Ua.Client
                 return null;
             }
 
-            m_cacheLock.EnterReadLock();
             try
             {
+                m_cacheLock.EnterReadLock();
+
                 return m_typeTree.FindSuperType(typeId);
             }
             finally
@@ -230,9 +233,10 @@ namespace Opc.Ua.Client
                 // fetch references from server.
                 ReferenceDescriptionCollection references = await m_session.FetchReferencesAsync(localId, ct).ConfigureAwait(false);
 
-                m_cacheLock.EnterUpgradeableReadLock();
                 try
                 {
+                    m_cacheLock.EnterUpgradeableReadLock();
+
                     foreach (ReferenceDescription reference in references)
                     {
                         // create a placeholder for the node if it does not already exist.
@@ -300,9 +304,10 @@ namespace Opc.Ua.Client
 
                     foreach (ReferenceDescription reference in references)
                     {
-                        m_cacheLock.EnterUpgradeableReadLock();
                         try
                         {
+                            m_cacheLock.EnterUpgradeableReadLock();
+
                             // create a placeholder for the node if it does not already exist.
                             if (!m_nodes.Exists(reference.NodeId))
                             {
@@ -351,10 +356,10 @@ namespace Opc.Ua.Client
             }
 
             IList<IReference> references;
-
-            m_cacheLock.EnterReadLock();
             try
             {
+                m_cacheLock.EnterReadLock();
+
                 references = source.ReferenceTable.Find(referenceTypeId, isInverse, includeSubtypes, m_typeTree);
             }
             finally
@@ -402,10 +407,10 @@ namespace Opc.Ua.Client
                 foreach (var referenceTypeId in referenceTypeIds)
                 {
                     IList<IReference> references;
-
-                    m_cacheLock.EnterReadLock();
                     try
                     {
+                        m_cacheLock.EnterReadLock();
+
                         references = node.ReferenceTable.Find(referenceTypeId, isInverse, includeSubtypes, m_typeTree);
                     }
                     finally

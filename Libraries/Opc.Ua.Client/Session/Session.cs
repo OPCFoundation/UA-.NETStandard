@@ -6082,7 +6082,6 @@ namespace Opc.Ua.Client
             // ignore messages with a subscription that has been deleted.
             if (subscription != null)
             {
-#if DEBUG
                 // Validate publish time and reject old values.
                 if (notificationMessage.PublishTime.AddMilliseconds(subscription.CurrentPublishingInterval * subscription.CurrentLifetimeCount) < DateTime.UtcNow)
                 {
@@ -6094,15 +6093,12 @@ namespace Opc.Ua.Client
                 {
                     Utils.LogTrace("PublishTime {0} in publish response is newer than actual time for SubscriptionId {1}.", notificationMessage.PublishTime.ToLocalTime(), subscription.Id);
                 }
-#endif
-                // save the information that more notifications are expected
-                notificationMessage.MoreNotifications = moreNotifications;
-
-                // save the string table that came with the notification.
-                notificationMessage.StringTable = responseHeader.StringTable;
 
                 // update subscription cache.
-                subscription.SaveMessageInCache(availableSequenceNumbers, notificationMessage);
+                subscription.SaveMessageInCache(
+                    availableSequenceNumbers,
+                    notificationMessage,
+                    responseHeader.StringTable);
 
                 // raise the notification.
                 NotificationEventHandler publishEventHandler = m_Publish;
