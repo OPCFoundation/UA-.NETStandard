@@ -336,6 +336,7 @@ namespace Opc.Ua.Security.Certificates
 #else
                 m_ecdsaPublicKey.ImportSubjectPublicKeyInfo(publicKey, out bytes);
 #endif
+                SetECCurve(m_ecdsaPublicKey.ExportParameters(false).Curve);
             }
             catch (Exception e)
             {
