@@ -687,7 +687,7 @@ namespace Opc.Ua.Server
         /// <param name="externalReferences">A list of references to add to external targets.</param>
         protected virtual void AddReverseReferences(IDictionary<NodeId, IList<IReference>> externalReferences)
         {
-            foreach (NodeState source in m_predefinedNodes?.Values)
+            foreach (NodeState source in m_predefinedNodes?.Values ?? Enumerable.Empty<NodeState>())
             {
                 IList<IReference> references = new List<IReference>();
                 source.GetReferences(SystemContext, references);

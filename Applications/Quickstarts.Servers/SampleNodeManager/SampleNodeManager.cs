@@ -576,7 +576,7 @@ namespace Opc.Ua.Sample
         /// <param name="externalReferences">A list of references to add to external targets.</param>
         protected virtual void AddReverseReferences(IDictionary<NodeId, IList<IReference>> externalReferences)
         {
-            foreach (NodeState source in m_predefinedNodes.Values)
+            foreach (NodeState source in m_predefinedNodes?.Values ?? Enumerable.Empty<NodeState>())
             {
                 // assign a default value to any variable value.
                 BaseVariableState variable = source as BaseVariableState;
