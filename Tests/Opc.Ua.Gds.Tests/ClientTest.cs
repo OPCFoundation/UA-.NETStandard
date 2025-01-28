@@ -661,9 +661,11 @@ namespace Opc.Ua.Gds.Tests
         {
             AssertIgnoreTestWithoutGoodRegistration();
             ConnectGDS(true);
+            int certificateTypeIndex = 0;
             foreach (var application in m_goodApplicationTestSet)
             {
-                application.CertificateTypeId = m_supportedCertificateTypes[m_appTestDataGenerator.RandomSource.NextInt32(m_supportedCertificateTypes.Count - 1)];
+                application.CertificateTypeId = m_supportedCertificateTypes[certificateTypeIndex];
+                certificateTypeIndex = (certificateTypeIndex + 1) % m_supportedCertificateTypes.Count;
 
                 Assert.Null(application.CertificateRequestId);
                 NodeId requestId = m_gdsClient.GDSClient.StartNewKeyPairRequest(
