@@ -377,6 +377,10 @@ namespace Opc.Ua.Gds.Tests
         [Test, Order(501)]
         public void UpdateCertificateSelfSignedNoPrivateKey()
         {
+            if (m_certificateType != Opc.Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType)
+            {
+                Assert.Ignore("Test only supported for RSA");
+            }
             ConnectPushClient(true);
             using (X509Certificate2 serverCert = X509CertificateLoader.LoadCertificate(m_pushClient.PushClient.Session.ConfiguredEndpoint.Description.ServerCertificate))
             {
@@ -427,7 +431,7 @@ namespace Opc.Ua.Gds.Tests
             NodeId requestId = m_gdsClient.GDSClient.StartSigningRequest(
                 m_applicationRecord.ApplicationId,
                 null,
-                null,
+                m_certificateType,
                 csr);
             Assert.NotNull(requestId);
             byte[] privateKey = null;
@@ -585,7 +589,7 @@ namespace Opc.Ua.Gds.Tests
             NodeId requestId = m_gdsClient.GDSClient.StartNewKeyPairRequest(
                 m_applicationRecord.ApplicationId,
                 null,
-                null,
+                m_certificateType,
                 m_selfSignedServerCert.Subject + "3",
                 m_domainNames,
                 keyFormat,
@@ -759,10 +763,14 @@ namespace Opc.Ua.Gds.Tests
             m_pushClient.PushClient.Connect(m_pushClient.PushClient.EndpointUrl).GetAwaiter().GetResult();
             // compare leaf certificates, ServerCertificate might be a chain if sendCertChain is sets
             var serverCertificate = Utils.ParseCertificateBlob(m_pushClient.PushClient.Session.ConfiguredEndpoint.Description.ServerCertificate);
-            Assert.AreEqual(
-                certificateBlob,
-                serverCertificate.RawData
-                );
+            //validation currently only works for RSA certificates
+            if (m_certificateType == Opc.Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType)
+            {
+                Assert.AreEqual(
+                    certificateBlob,
+                    serverCertificate.RawData
+                    );
+            }
         }
 
         private async Task<bool> AddTrustListToStore(SecurityConfiguration config, TrustListDataType trustList)

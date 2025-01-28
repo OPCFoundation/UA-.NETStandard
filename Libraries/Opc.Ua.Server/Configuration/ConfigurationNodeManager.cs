@@ -433,7 +433,7 @@ namespace Opc.Ua.Server
                 // identify the existing certificate to be updated
                 // it should be of the same type and same subject name as the new certificate
                 CertificateIdentifier existingCertIdentifier = certificateGroup.ApplicationCertificates.FirstOrDefault(cert =>
-                    X509Utils.CompareDistinguishedName(cert.Certificate.Subject, newCert.Subject) &&
+                    X509Utils.CompareDistinguishedName(cert.SubjectName, newCert.Subject) &&
                     cert.CertificateType == certificateTypeId);
 
                 // if no cert was found search by ApplicationUri
@@ -566,6 +566,8 @@ namespace Opc.Ua.Server
                             var certOnly = X509CertificateLoader.LoadCertificate(updateCertificate.CertificateWithPrivateKey.RawData);
                             updateCertificate.CertificateWithPrivateKey.Dispose();
                             updateCertificate.CertificateWithPrivateKey = certOnly;
+                            //update certificate identifier with new certificate
+                            existingCertIdentifier.Find(m_configuration.ApplicationUri).GetAwaiter().GetResult();
                         }
 
                         ICertificateStore issuerStore = certificateGroup.IssuerStore.OpenStore();
@@ -800,7 +802,7 @@ namespace Opc.Ua.Server
             }
 
             certificateTypeIds = certificateGroup.CertificateTypes;
-            certificates = certificateGroup.ApplicationCertificates.Select(s => s.Certificate.RawData).ToArray();
+            certificates = certificateGroup.ApplicationCertificates.Select(s => s.Certificate?.RawData).ToArray();
 
             return ServiceResult.Good;
         }
