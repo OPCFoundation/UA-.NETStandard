@@ -238,7 +238,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected void ChannelStateChanged(TcpChannelState state, ServiceResult reason)
         {
-            var stateChanged = m_StateChanged;
+            TcpChannelStateEventHandler stateChanged = m_StateChanged;
             if (stateChanged != null)
             {
                 Task.Run(() => {
@@ -657,10 +657,7 @@ namespace Opc.Ua.Bindings
                 reason = Encoding.UTF8.GetString(reasonBytes, 0, reasonLength);
             }
 
-            if (reason == null)
-            {
-                reason = new ServiceResult(statusCode).ToString();
-            }
+            reason ??= new ServiceResult(statusCode).ToString();
 
             return ServiceResult.Create(statusCode, "Error received from remote host: {0}", reason);
         }
@@ -739,8 +736,8 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected internal IMessageSocket Socket
         {
-            get { return m_socket; }
-            set { m_socket = value; }
+            get => m_socket;
+            set => m_socket = value;
         }
 
         /// <summary>
@@ -763,8 +760,8 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected int ReceiveBufferSize
         {
-            get { return m_receiveBufferSize; }
-            set { m_receiveBufferSize = value; }
+            get => m_receiveBufferSize;
+            set => m_receiveBufferSize = value;
         }
 
         /// <summary>
@@ -772,8 +769,8 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected int SendBufferSize
         {
-            get { return m_sendBufferSize; }
-            set { m_sendBufferSize = value; }
+            get => m_sendBufferSize;
+            set => m_sendBufferSize = value;
         }
 
         /// <summary>
@@ -781,8 +778,8 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected int MaxRequestMessageSize
         {
-            get { return m_maxRequestMessageSize; }
-            set { m_maxRequestMessageSize = value; }
+            get => m_maxRequestMessageSize;
+            set => m_maxRequestMessageSize = value;
         }
 
         /// <summary>
@@ -790,8 +787,8 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected int MaxRequestChunkCount
         {
-            get { return m_maxRequestChunkCount; }
-            set { m_maxRequestChunkCount = value; }
+            get => m_maxRequestChunkCount;
+            set => m_maxRequestChunkCount = value;
         }
 
         /// <summary>
@@ -799,8 +796,8 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected int MaxResponseMessageSize
         {
-            get { return m_maxResponseMessageSize; }
-            set { m_maxResponseMessageSize = value; }
+            get => m_maxResponseMessageSize;
+            set => m_maxResponseMessageSize = value;
         }
 
         /// <summary>
@@ -808,8 +805,8 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected int MaxResponseChunkCount
         {
-            get { return m_maxResponseChunkCount; }
-            set { m_maxResponseChunkCount = value; }
+            get => m_maxResponseChunkCount;
+            set => m_maxResponseChunkCount = value;
         }
 
         /// <summary>
@@ -833,10 +830,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected uint ChannelId
         {
-            get
-            {
-                return m_channelId;
-            }
+            get => m_channelId;
 
             set
             {
@@ -866,8 +860,8 @@ namespace Opc.Ua.Bindings
             /// </summary>
             public uint RequestId
             {
-                get { return m_requestId; }
-                set { m_requestId = value; }
+                get => m_requestId;
+                set => m_requestId = value;
             }
 
             /// <summary>
@@ -875,8 +869,8 @@ namespace Opc.Ua.Bindings
             /// </summary>
             public IEncodeable MessageBody
             {
-                get { return m_messageBody; }
-                set { m_messageBody = value; }
+                get => m_messageBody;
+                set => m_messageBody = value;
             }
 
             #region Private Fields

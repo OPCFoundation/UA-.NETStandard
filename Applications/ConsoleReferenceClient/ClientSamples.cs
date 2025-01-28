@@ -88,7 +88,7 @@ namespace Quickstarts
                 #region Read a node by calling the Read Service
 
                 // build a list of nodes to be read
-                ReadValueIdCollection nodesToRead = new ReadValueIdCollection()
+                var nodesToRead = new ReadValueIdCollection()
                 {
                     // Value of ServerStatus
                     new ReadValueId() { NodeId = Variables.Server_ServerStatus, AttributeId = Attributes.Value },
@@ -149,10 +149,10 @@ namespace Quickstarts
             try
             {
                 // Write the configured nodes
-                WriteValueCollection nodesToWrite = new WriteValueCollection();
+                var nodesToWrite = new WriteValueCollection();
 
                 // Int32 Node - Objects\CTT\Scalar\Scalar_Static\Int32
-                WriteValue intWriteVal = new WriteValue();
+                var intWriteVal = new WriteValue();
                 intWriteVal.NodeId = new NodeId("ns=2;s=Scalar_Static_Int32");
                 intWriteVal.AttributeId = Attributes.Value;
                 intWriteVal.Value = new DataValue();
@@ -160,7 +160,7 @@ namespace Quickstarts
                 nodesToWrite.Add(intWriteVal);
 
                 // Float Node - Objects\CTT\Scalar\Scalar_Static\Float
-                WriteValue floatWriteVal = new WriteValue();
+                var floatWriteVal = new WriteValue();
                 floatWriteVal.NodeId = new NodeId("ns=2;s=Scalar_Static_Float");
                 floatWriteVal.AttributeId = Attributes.Value;
                 floatWriteVal.Value = new DataValue();
@@ -168,7 +168,7 @@ namespace Quickstarts
                 nodesToWrite.Add(floatWriteVal);
 
                 // String Node - Objects\CTT\Scalar\Scalar_Static\String
-                WriteValue stringWriteVal = new WriteValue();
+                var stringWriteVal = new WriteValue();
                 stringWriteVal.NodeId = new NodeId("ns=2;s=Scalar_Static_String");
                 stringWriteVal.AttributeId = Attributes.Value;
                 stringWriteVal.Value = new DataValue();
@@ -218,7 +218,7 @@ namespace Quickstarts
             try
             {
                 // Create a Browser object
-                Browser browser = new Browser(session);
+                var browser = new Browser(session);
 
                 // Set browse parameters
                 browser.BrowseDirection = BrowseDirection.Forward;
@@ -263,8 +263,8 @@ namespace Quickstarts
                 // Define the UA Method to call
                 // Parent node - Objects\CTT\Methods
                 // Method node - Objects\CTT\Methods\Add
-                NodeId objectId = new NodeId("ns=2;s=Methods");
-                NodeId methodId = new NodeId("ns=2;s=Methods_Add");
+                var objectId = new NodeId("ns=2;s=Methods");
+                var methodId = new NodeId("ns=2;s=Methods_Add");
 
                 // Define the method parameters
                 // Input argument requires a Float and an UInt32 value
@@ -278,7 +278,7 @@ namespace Quickstarts
                 // Display results
                 m_output.WriteLine("Method call returned {0} output argument(s):", outputArguments.Count);
 
-                foreach (var outputArgument in outputArguments)
+                foreach (object outputArgument in outputArguments)
                 {
                     m_output.WriteLine("     OutputValue = {0}", outputArgument.ToString());
                 }
@@ -305,7 +305,7 @@ namespace Quickstarts
                 // Create a subscription for receiving data change notifications
 
                 // Define Subscription parameters
-                Subscription subscription = new Subscription(session.DefaultSubscription) {
+                var subscription = new Subscription(session.DefaultSubscription) {
                     DisplayName = "Console ReferenceClient Subscription",
                     PublishingEnabled = true,
                     PublishingInterval = 1000,
@@ -321,7 +321,7 @@ namespace Quickstarts
 
                 // Create MonitoredItems for data changes (Reference Server)
 
-                MonitoredItem intMonitoredItem = new MonitoredItem(subscription.DefaultItem);
+                var intMonitoredItem = new MonitoredItem(subscription.DefaultItem);
                 // Int32 Node - Objects\CTT\Scalar\Simulation\Int32
                 intMonitoredItem.StartNodeId = new NodeId("ns=2;s=Scalar_Simulation_Int32");
                 intMonitoredItem.AttributeId = Attributes.Value;
@@ -333,7 +333,7 @@ namespace Quickstarts
 
                 subscription.AddItem(intMonitoredItem);
 
-                MonitoredItem floatMonitoredItem = new MonitoredItem(subscription.DefaultItem);
+                var floatMonitoredItem = new MonitoredItem(subscription.DefaultItem);
                 // Float Node - Objects\CTT\Scalar\Simulation\Float
                 floatMonitoredItem.StartNodeId = new NodeId("ns=2;s=Scalar_Simulation_Float");
                 floatMonitoredItem.AttributeId = Attributes.Value;
@@ -344,7 +344,7 @@ namespace Quickstarts
 
                 subscription.AddItem(floatMonitoredItem);
 
-                MonitoredItem stringMonitoredItem = new MonitoredItem(subscription.DefaultItem);
+                var stringMonitoredItem = new MonitoredItem(subscription.DefaultItem);
                 // String Node - Objects\CTT\Scalar\Simulation\String
                 stringMonitoredItem.StartNodeId = new NodeId("ns=2;s=Scalar_Simulation_String");
                 stringMonitoredItem.AttributeId = Attributes.Value;
@@ -404,7 +404,7 @@ namespace Quickstarts
             // add root node
             if (addRootNode)
             {
-                var rootNode = await uaClient.Session.NodeCache.FindAsync(startingNode).ConfigureAwait(false);
+                INode rootNode = await uaClient.Session.NodeCache.FindAsync(startingNode).ConfigureAwait(false);
                 nodeDictionary[rootNode.NodeId] = rootNode;
             }
 
@@ -439,7 +439,7 @@ namespace Quickstarts
                             // no need to browse property types
                             if (node is VariableNode variableNode)
                             {
-                                var hasTypeDefinition = variableNode.ReferenceTable.FirstOrDefault(r => r.ReferenceTypeId.Equals(ReferenceTypeIds.HasTypeDefinition));
+                                IReference hasTypeDefinition = variableNode.ReferenceTable.FirstOrDefault(r => r.ReferenceTypeId.Equals(ReferenceTypeIds.HasTypeDefinition));
                                 if (hasTypeDefinition != null)
                                 {
                                     leafNode = (hasTypeDefinition.TargetId == VariableTypeIds.PropertyType);
@@ -494,7 +494,7 @@ namespace Quickstarts
 
             if (m_verbose)
             {
-                foreach (var node in result)
+                foreach (INode node in result)
                 {
                     m_output.WriteLine("NodeId {0} {1} {2}", node.NodeId, node.NodeClass, node.BrowseName);
                 }
@@ -524,7 +524,7 @@ namespace Quickstarts
             ContinuationPointPolicy policyBackup = uaClient.Session.ContinuationPointPolicy;
             uaClient.Session.ContinuationPointPolicy = ContinuationPointPolicy.Default;
 
-            Stopwatch stopWatch = new Stopwatch();
+            var stopWatch = new Stopwatch();
             stopWatch.Start();
             BrowseDirection browseDirection = BrowseDirection.Forward;
             NodeId referenceTypeId = ReferenceTypeIds.HierarchicalReferences;
@@ -547,7 +547,7 @@ namespace Quickstarts
                 }
             }
 
-            List<NodeId> nodesToBrowse = new List<NodeId> {
+            var nodesToBrowse = new List<NodeId> {
                 startingNode ?? ObjectIds.RootFolder
             };
 
@@ -559,9 +559,9 @@ namespace Quickstarts
             int searchDepth = 0;
             uint maxNodesPerBrowse = uaClient.Session.OperationLimits.MaxNodesPerBrowse;
 
-            List<ReferenceDescriptionCollection> allReferenceDescriptions = new List<ReferenceDescriptionCollection>();
-            List<ReferenceDescriptionCollection> newReferenceDescriptions = new List<ReferenceDescriptionCollection>();
-            List<ServiceResult> allServiceResults = new List<ServiceResult>();
+            var allReferenceDescriptions = new List<ReferenceDescriptionCollection>();
+            var newReferenceDescriptions = new List<ReferenceDescriptionCollection>();
+            var allServiceResults = new List<ServiceResult>();
 
             while (nodesToBrowse.Any() && searchDepth < kMaxSearchDepth)
             {
@@ -619,7 +619,7 @@ namespace Quickstarts
                 } while (repeatBrowse);
 
                 // Build browse request for next level
-                List<NodeId> nodesForNextManagedBrowse = new List<NodeId>();
+                var nodesForNextManagedBrowse = new List<NodeId>();
                 int duplicates = 0;
                 foreach (ReferenceDescriptionCollection referenceCollection in newReferenceDescriptions)
                 {
@@ -666,7 +666,7 @@ namespace Quickstarts
 
             if (m_verbose)
             {
-                foreach (var reference in result)
+                foreach (ReferenceDescription reference in result)
                 {
                     m_output.WriteLine("NodeId {0} {1} {2}", reference.NodeId, reference.NodeClass, reference.BrowseName);
                 }
@@ -691,12 +691,12 @@ namespace Quickstarts
             BrowseDescription browseDescription = null,
             CancellationToken ct = default)
         {
-            Stopwatch stopWatch = new Stopwatch();
+            var stopWatch = new Stopwatch();
             stopWatch.Start();
 
             // Browse template
             const int kMaxReferencesPerNode = 1000;
-            var browseTemplate = browseDescription ?? new BrowseDescription {
+            BrowseDescription browseTemplate = browseDescription ?? new BrowseDescription {
                 NodeId = startingNode ?? ObjectIds.RootFolder,
                 BrowseDirection = BrowseDirection.Forward,
                 ReferenceTypeId = ReferenceTypeIds.HierarchicalReferences,
@@ -704,7 +704,7 @@ namespace Quickstarts
                 NodeClassMask = 0,
                 ResultMask = (uint)BrowseResultMask.All
             };
-            var browseDescriptionCollection = CreateBrowseDescriptionCollectionFromNodeId(
+            BrowseDescriptionCollection browseDescriptionCollection = CreateBrowseDescriptionCollectionFromNodeId(
                 new NodeIdCollection(new NodeId[] { startingNode ?? ObjectIds.RootFolder }),
                 browseTemplate);
 
@@ -719,10 +719,10 @@ namespace Quickstarts
                 Utils.LogInfo("{0}: Browse {1} nodes after {2}ms",
                     searchDepth, browseDescriptionCollection.Count, stopWatch.ElapsedMilliseconds);
 
-                BrowseResultCollection allBrowseResults = new BrowseResultCollection();
+                var allBrowseResults = new BrowseResultCollection();
                 bool repeatBrowse;
-                BrowseResultCollection browseResultCollection = new BrowseResultCollection();
-                BrowseDescriptionCollection unprocessedOperations = new BrowseDescriptionCollection();
+                var browseResultCollection = new BrowseResultCollection();
+                var unprocessedOperations = new BrowseDescriptionCollection();
                 DiagnosticInfoCollection diagnosticsInfoCollection;
                 do
                 {
@@ -732,13 +732,13 @@ namespace Quickstarts
                         break;
                     }
 
-                    var browseCollection = (maxNodesPerBrowse == 0) ?
+                    BrowseDescriptionCollection browseCollection = (maxNodesPerBrowse == 0) ?
                         browseDescriptionCollection :
                         browseDescriptionCollection.Take((int)maxNodesPerBrowse).ToArray();
                     repeatBrowse = false;
                     try
                     {
-                        var browseResponse = await uaClient.Session.BrowseAsync(null, null,
+                        BrowseResponse browseResponse = await uaClient.Session.BrowseAsync(null, null,
                             kMaxReferencesPerNode, browseCollection, ct).ConfigureAwait(false);
                         browseResultCollection = browseResponse.Results;
                         diagnosticsInfoCollection = browseResponse.DiagnosticInfos;
@@ -796,7 +796,7 @@ namespace Quickstarts
                 }
 
                 // Browse next
-                var continuationPoints = PrepareBrowseNext(browseResultCollection);
+                ByteStringCollection continuationPoints = PrepareBrowseNext(browseResultCollection);
                 while (continuationPoints.Any())
                 {
                     if (m_quitEvent?.WaitOne(0) == true)
@@ -805,8 +805,8 @@ namespace Quickstarts
                     }
 
                     Utils.LogInfo("BrowseNext {0} continuation points.", continuationPoints.Count);
-                    var browseNextResult = await uaClient.Session.BrowseNextAsync(null, false, continuationPoints, ct).ConfigureAwait(false);
-                    var browseNextResultCollection = browseNextResult.Results;
+                    BrowseNextResponse browseNextResult = await uaClient.Session.BrowseNextAsync(null, false, continuationPoints, ct).ConfigureAwait(false);
+                    BrowseResultCollection browseNextResultCollection = browseNextResult.Results;
                     diagnosticsInfoCollection = browseNextResult.DiagnosticInfos;
                     ClientBase.ValidateResponse(browseNextResultCollection, continuationPoints);
                     ClientBase.ValidateDiagnosticInfos(diagnosticsInfoCollection, continuationPoints);
@@ -817,7 +817,7 @@ namespace Quickstarts
                 // Build browse request for next level
                 var browseTable = new NodeIdCollection();
                 int duplicates = 0;
-                foreach (var browseResult in allBrowseResults)
+                foreach (BrowseResult browseResult in allBrowseResults)
                 {
                     foreach (ReferenceDescription reference in browseResult.References)
                     {
@@ -855,7 +855,7 @@ namespace Quickstarts
 
             if (m_verbose)
             {
-                foreach (var reference in result)
+                foreach (ReferenceDescription reference in result)
                 {
                     m_output.WriteLine("NodeId {0} {1} {2}", reference.NodeId, reference.NodeClass, reference.BrowseName);
                 }
@@ -877,7 +877,7 @@ namespace Quickstarts
         {
             m_output.WriteLine("Load the server type system.");
 
-            Stopwatch stopWatch = new Stopwatch();
+            var stopWatch = new Stopwatch();
             stopWatch.Start();
 
             var complexTypeSystem = new ComplexTypeSystem(session);
@@ -891,16 +891,16 @@ namespace Quickstarts
             if (m_verbose)
             {
                 m_output.WriteLine("Custom types defined for this session:");
-                foreach (var type in complexTypeSystem.GetDefinedTypes())
+                foreach (Type type in complexTypeSystem.GetDefinedTypes())
                 {
                     m_output.WriteLine($"{type.Namespace}.{type.Name}");
                 }
 
                 m_output.WriteLine($"Loaded {session.DataTypeSystem.Count} dictionaries:");
-                foreach (var dictionary in session.DataTypeSystem)
+                foreach (KeyValuePair<NodeId, DataDictionary> dictionary in session.DataTypeSystem)
                 {
                     m_output.WriteLine($" + {dictionary.Value.Name}");
-                    foreach (var type in dictionary.Value.DataTypes)
+                    foreach (KeyValuePair<NodeId, QualifiedName> type in dictionary.Value.DataTypes)
                     {
                         m_output.WriteLine($" -- {type.Key}:{type.Value}");
                     }
@@ -924,9 +924,9 @@ namespace Quickstarts
         Task FetchReferenceIdTypesAsync(ISession session)
         {
             // fetch the reference types first, otherwise browse for e.g. hierarchical references with subtypes won't work
-            var bindingFlags = BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public;
-            var namespaceUris = session.NamespaceUris;
-            var referenceTypes = typeof(ReferenceTypeIds)
+            BindingFlags bindingFlags = BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public;
+            NamespaceTable namespaceUris = session.NamespaceUris;
+            IEnumerable<ExpandedNodeId> referenceTypes = typeof(ReferenceTypeIds)
                      .GetFields(bindingFlags)
                      .Select(field => NodeId.ToExpandedNodeId((NodeId)field.GetValue(null), namespaceUris));
             return session.FetchTypeTreeAsync(new ExpandedNodeIdCollection(referenceTypes));
@@ -956,18 +956,18 @@ namespace Quickstarts
                         values = new DataValueCollection();
                         errors = new List<ServiceResult>();
 
-                        foreach (var variableId in variableIds)
+                        foreach (NodeId variableId in variableIds)
                         {
                             try
                             {
                                 m_output.WriteLine("Read {0}", variableId);
-                                var value = await uaClient.Session.ReadValueAsync(variableId).ConfigureAwait(false);
+                                DataValue value = await uaClient.Session.ReadValueAsync(variableId).ConfigureAwait(false);
                                 values.Add(value);
                                 errors.Add(value.StatusCode);
 
                                 if (ServiceResult.IsNotBad(value.StatusCode))
                                 {
-                                    var valueString = ClientSamples.FormatValueAsJson(uaClient.Session.MessageContext, variableId.ToString(), value, JsonEncodingType.Compact);
+                                    string valueString = FormatValueAsJson(uaClient.Session.MessageContext, variableId.ToString(), value, JsonEncodingType.Compact);
                                     m_output.WriteLine(valueString);
                                 }
                                 else
@@ -988,11 +988,11 @@ namespace Quickstarts
                         (values, errors) = await uaClient.Session.ReadValuesAsync(variableIds).ConfigureAwait(false);
 
                         int ii = 0;
-                        foreach (var value in values)
+                        foreach (DataValue value in values)
                         {
                             if (ServiceResult.IsNotBad(errors[ii]))
                             {
-                                var valueString = ClientSamples.FormatValueAsJson(uaClient.Session.MessageContext, variableIds[ii].ToString(), value, JsonEncodingType.Compact);
+                                string valueString = FormatValueAsJson(uaClient.Session.MessageContext, variableIds[ii].ToString(), value, JsonEncodingType.Compact);
                                 m_output.WriteLine(valueString);
                             }
                             else
@@ -1040,7 +1040,7 @@ namespace Quickstarts
             try
             {
                 // Create a subscription for receiving data change notifications
-                var session = uaClient.Session;
+                ISession session = uaClient.Session;
 
                 // test for deferred ack of sequence numbers
                 session.PublishSequenceNumbersToAcknowledge += DeferSubscriptionAcknowledge;
@@ -1049,7 +1049,7 @@ namespace Quickstarts
                 session.MinPublishRequestCount = 3;
 
                 // Define Subscription parameters
-                Subscription subscription = new Subscription(session.DefaultSubscription) {
+                var subscription = new Subscription(session.DefaultSubscription) {
                     DisplayName = "Console ReferenceClient Subscription",
                     PublishingEnabled = true,
                     PublishingInterval = publishingInterval,
@@ -1072,7 +1072,7 @@ namespace Quickstarts
                 // Create MonitoredItems for data changes
                 foreach (Node item in variableIds)
                 {
-                    MonitoredItem monitoredItem = new MonitoredItem(subscription.DefaultItem) {
+                    var monitoredItem = new MonitoredItem(subscription.DefaultItem) {
                         StartNodeId = item.NodeId,
                         AttributeId = Attributes.Value,
                         SamplingInterval = samplingInterval,
@@ -1185,7 +1185,7 @@ namespace Quickstarts
             try
             {
                 // Log MonitoredItem Notification event
-                MonitoredItemNotification notification = e.NotificationValue as MonitoredItemNotification;
+                var notification = e.NotificationValue as MonitoredItemNotification;
                 m_output.WriteLine("Notification: {0} \"{1}\" and Value = {2}.", notification.Message.SequenceNumber, monitoredItem.ResolvedNodeId, notification.Value);
             }
             catch (Exception ex)
@@ -1206,7 +1206,7 @@ namespace Quickstarts
                 // defer latest sequence numbers
                 var deferredItems = e.AcknowledgementsToSend.OrderByDescending(s => s.SequenceNumber).Take(AckDelay).ToList();
                 e.DeferredAcknowledgementsToSend.AddRange(deferredItems);
-                foreach (var deferredItem in deferredItems)
+                foreach (SubscriptionAcknowledgement deferredItem in deferredItems)
                 {
                     e.AcknowledgementsToSend.Remove(deferredItem);
                 }
@@ -1223,9 +1223,9 @@ namespace Quickstarts
             BrowseDescription template)
         {
             var browseDescriptionCollection = new BrowseDescriptionCollection();
-            foreach (var nodeId in nodeIdCollection)
+            foreach (NodeId nodeId in nodeIdCollection)
             {
-                BrowseDescription browseDescription = (BrowseDescription)template.MemberwiseClone();
+                var browseDescription = (BrowseDescription)template.MemberwiseClone();
                 browseDescription.NodeId = nodeId;
                 browseDescriptionCollection.Add(browseDescription);
             }
@@ -1241,7 +1241,7 @@ namespace Quickstarts
         private static ByteStringCollection PrepareBrowseNext(BrowseResultCollection browseResultCollection)
         {
             var continuationPoints = new ByteStringCollection();
-            foreach (var browseResult in browseResultCollection)
+            foreach (BrowseResult browseResult in browseResultCollection)
             {
                 if (browseResult.ContinuationPoint != null)
                 {

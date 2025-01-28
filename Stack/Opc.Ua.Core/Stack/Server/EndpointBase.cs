@@ -102,9 +102,9 @@ namespace Opc.Ua
             if (request == null) throw new ArgumentNullException(nameof(request));
 
             // create operation.
-            ProcessRequestAsyncResult result = new ProcessRequestAsyncResult(this, callback, callbackData, 0);
+            var result = new ProcessRequestAsyncResult(this, callback, callbackData, 0);
 
-            SecureChannelContext context = new SecureChannelContext(
+            var context = new SecureChannelContext(
                 channeId,
                 endpointDescription,
                 RequestEncoding.Binary);
@@ -184,11 +184,11 @@ namespace Opc.Ua
             ActivitySpanId spanId = default;
             ActivityTraceFlags traceFlags = ActivityTraceFlags.None;
 
-            foreach (var item in parameters.Parameters)
+            foreach (KeyValuePair item in parameters.Parameters)
             {
                 if (item.Key == "traceparent")
                 {
-                    var traceparent = item.Value.ToString();
+                    string traceparent = item.Value.ToString();
                     int firstDash = traceparent.IndexOf('-');
                     int secondDash = traceparent.IndexOf('-', firstDash + 1);
                     int thirdDash = traceparent.IndexOf('-', secondDash + 1);
@@ -315,7 +315,7 @@ namespace Opc.Ua
                 SetRequestContext(RequestEncoding.Binary);
 
                 // create handler.
-                ProcessRequestAsyncResult result = new ProcessRequestAsyncResult(this, callback, asyncState, 0);
+                var result = new ProcessRequestAsyncResult(this, callback, asyncState, 0);
                 return result.BeginProcessRequest(SecureChannelContext.Current, request.InvokeServiceRequest);
             }
             catch (Exception e)
@@ -336,7 +336,7 @@ namespace Opc.Ua
                 IServiceResponse response = ProcessRequestAsyncResult.WaitForComplete(result, false);
 
                 // encode the response.
-                InvokeServiceResponseMessage outgoing = new InvokeServiceResponseMessage();
+                var outgoing = new InvokeServiceResponseMessage();
                 outgoing.InvokeServiceResponse = BinaryEncoder.EncodeMessage(response, MessageContext);
                 return outgoing;
             }
@@ -346,7 +346,7 @@ namespace Opc.Ua
                 ServiceFault fault = CreateFault(ProcessRequestAsyncResult.GetRequest(result), e);
 
                 // encode the fault as a response.
-                InvokeServiceResponseMessage outgoing = new InvokeServiceResponseMessage();
+                var outgoing = new InvokeServiceResponseMessage();
                 outgoing.InvokeServiceResponse = BinaryEncoder.EncodeMessage(fault, MessageContext);
                 return outgoing;
             }
@@ -361,10 +361,7 @@ namespace Opc.Ua
         {
             get
             {
-                if (m_host == null)
-                {
-                    m_host = GetHostForContext();
-                }
+                m_host ??= GetHostForContext();
 
                 return m_host;
             }
@@ -389,10 +386,7 @@ namespace Opc.Ua
         {
             get
             {
-                if (m_server == null)
-                {
-                    m_server = GetServerForContext();
-                }
+                m_server ??= GetServerForContext();
 
                 return m_server;
             }
@@ -460,7 +454,7 @@ namespace Opc.Ua
         {
             DiagnosticsMasks diagnosticsMask = DiagnosticsMasks.ServiceNoInnerStatus;
 
-            ServiceFault fault = new ServiceFault();
+            var fault = new ServiceFault();
 
             if (request != null)
             {
@@ -493,7 +487,7 @@ namespace Opc.Ua
 
             fault.ResponseHeader.ServiceResult = result.Code;
 
-            StringTable stringTable = new StringTable();
+            var stringTable = new StringTable();
 
             fault.ResponseHeader.ServiceDiagnostics = new DiagnosticInfo(
                 result,
@@ -519,10 +513,7 @@ namespace Opc.Ua
             // get the error from the header.
             ServiceResult error = fault.ResponseHeader.ServiceResult;
 
-            if (error == null)
-            {
-                error = ServiceResult.Create(StatusCodes.BadUnexpectedError, "An unknown error occurred.");
-            }
+            error ??= ServiceResult.Create(StatusCodes.BadUnexpectedError, "An unknown error occurred.");
 
             // construct the fault code and fault reason.
             string codeName = StatusCodes.GetBrowseName(error.Code);
@@ -536,8 +527,8 @@ namespace Opc.Ua
         /// <value>The message context.</value>
         protected IServiceMessageContext MessageContext
         {
-            get { return m_messageContext; }
-            set { m_messageContext = value; }
+            get => m_messageContext;
+            set => m_messageContext = value;
         }
 
         /// <summary>
@@ -546,8 +537,8 @@ namespace Opc.Ua
         /// <value>The endpoint description.</value>
         protected EndpointDescription EndpointDescription
         {
-            get { return m_endpointDescription; }
-            set { m_endpointDescription = value; }
+            get => m_endpointDescription;
+            set => m_endpointDescription = value;
         }
 
         /// <summary>
@@ -556,8 +547,8 @@ namespace Opc.Ua
         /// <value>The server error.</value>
         protected ServiceResult ServerError
         {
-            get { return m_serverError; }
-            set { m_serverError = value; }
+            get => m_serverError;
+            set => m_serverError = value;
         }
 
         /// <summary>
@@ -565,8 +556,8 @@ namespace Opc.Ua
         /// </summary>
         protected Dictionary<ExpandedNodeId, ServiceDefinition> SupportedServices
         {
-            get { return m_supportedServices; }
-            set { m_supportedServices = value; }
+            get => m_supportedServices;
+            set => m_supportedServices = value;
         }
 
         /// <summary>
@@ -717,8 +708,8 @@ namespace Opc.Ua
             /// <value>The call data.</value>
             public object Calldata
             {
-                get { return m_calldata; }
-                set { m_calldata = value; }
+                get => m_calldata;
+                set => m_calldata = value;
             }
 
             /// <summary>
@@ -891,11 +882,11 @@ namespace Opc.Ua
             {
                 try
                 {
-                    return EndpointBase.CreateFault(m_request, e);
+                    return CreateFault(m_request, e);
                 }
                 catch (Exception e2)
                 {
-                    return EndpointBase.CreateFault(null, e2);
+                    return CreateFault(null, e2);
                 }
             }
 
@@ -913,9 +904,9 @@ namespace Opc.Ua
                     {
                         // extract trace information from the request header if available
                         if (m_request.RequestHeader?.AdditionalHeader?.Body is AdditionalParametersType parameters &&
-                            TryExtractActivityContextFromParameters(parameters, out var activityContext))
+                            TryExtractActivityContextFromParameters(parameters, out ActivityContext activityContext))
                         {
-                            using (var activity = ActivitySource.StartActivity(m_request.GetType().Name, ActivityKind.Server, activityContext))
+                            using (Activity activity = ActivitySource.StartActivity(m_request.GetType().Name, ActivityKind.Server, activityContext))
                             {
                                 // call the service.
                                 m_response = m_service.Invoke(m_request);

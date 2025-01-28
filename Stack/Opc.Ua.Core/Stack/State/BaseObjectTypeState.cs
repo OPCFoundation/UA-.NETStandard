@@ -32,10 +32,10 @@ namespace Opc.Ua
         /// </summary>
         protected override void Initialize(ISystemContext context)
         {
-            SuperTypeId = Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.BaseObjectType, Opc.Ua.Namespaces.OpcUa, context.NamespaceUris);
-            NodeId = Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.BaseObjectType, Opc.Ua.Namespaces.OpcUa, context.NamespaceUris);
-            BrowseName = Opc.Ua.QualifiedName.Create(Opc.Ua.BrowseNames.BaseObjectType, Opc.Ua.Namespaces.OpcUa, context.NamespaceUris);
-            DisplayName = new LocalizedText(Opc.Ua.BrowseNames.BaseObjectType, String.Empty, Opc.Ua.BrowseNames.BaseObjectType);
+            SuperTypeId = NodeId.Create(ObjectTypes.BaseObjectType, Namespaces.OpcUa, context.NamespaceUris);
+            NodeId = NodeId.Create(ObjectTypes.BaseObjectType, Namespaces.OpcUa, context.NamespaceUris);
+            BrowseName = QualifiedName.Create(BrowseNames.BaseObjectType, Namespaces.OpcUa, context.NamespaceUris);
+            DisplayName = new LocalizedText(BrowseNames.BaseObjectType, String.Empty, BrowseNames.BaseObjectType);
             Description = null;
             WriteMask = AttributeWriteMask.None;
             UserWriteMask = AttributeWriteMask.None;
@@ -68,7 +68,7 @@ namespace Opc.Ua
         /// </returns>
         public new object MemberwiseClone()
         {
-            BaseObjectTypeState clone = (BaseObjectTypeState)Activator.CreateInstance(this.GetType());
+            var clone = (BaseObjectTypeState)Activator.CreateInstance(this.GetType());
             return CloneChildren(clone);
         }
         #endregion
@@ -94,10 +94,10 @@ namespace Opc.Ua
         /// </summary>
         protected override void Initialize(ISystemContext context)
         {
-            SuperTypeId = Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.FolderType, Opc.Ua.Namespaces.OpcUa, context.NamespaceUris);
-            NodeId = Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.FolderType, Opc.Ua.Namespaces.OpcUa, context.NamespaceUris);
-            BrowseName = Opc.Ua.QualifiedName.Create(Opc.Ua.BrowseNames.FolderType, Opc.Ua.Namespaces.OpcUa, context.NamespaceUris);
-            DisplayName = new LocalizedText(Opc.Ua.BrowseNames.FolderType, String.Empty, Opc.Ua.BrowseNames.FolderType);
+            SuperTypeId = NodeId.Create(ObjectTypes.FolderType, Namespaces.OpcUa, context.NamespaceUris);
+            NodeId = NodeId.Create(ObjectTypes.FolderType, Namespaces.OpcUa, context.NamespaceUris);
+            BrowseName = QualifiedName.Create(BrowseNames.FolderType, Namespaces.OpcUa, context.NamespaceUris);
+            DisplayName = new LocalizedText(BrowseNames.FolderType, String.Empty, BrowseNames.FolderType);
             Description = null;
             WriteMask = AttributeWriteMask.None;
             UserWriteMask = AttributeWriteMask.None;

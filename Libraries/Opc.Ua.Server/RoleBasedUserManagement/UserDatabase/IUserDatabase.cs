@@ -29,7 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Security;
 
 namespace Opc.Ua.Server.UserDatabase
 {

@@ -171,7 +171,7 @@ namespace Opc.Ua.Server
         {
             base.OnServerStarted(server);
 
-            UpdateConfiguration(base.Configuration);
+            UpdateConfiguration(Configuration);
             StartTimer(true);
         }
 
@@ -260,7 +260,7 @@ namespace Opc.Ua.Server
             {
                 lock (m_connectionsLock)
                 {
-                    foreach (var reverseConnection in m_connections.Values)
+                    foreach (ReverseConnectProperty reverseConnection in m_connections.Values)
                     {
                         // recharge a rejected connection after timeout
                         if (reverseConnection.LastState == ReverseConnectState.Rejected &&
@@ -278,7 +278,7 @@ namespace Opc.Ua.Server
                             try
                             {
                                 reverseConnection.LastState = ReverseConnectState.Connecting;
-                                base.CreateConnection(reverseConnection.ClientUrl,
+                                CreateConnection(reverseConnection.ClientUrl,
                                     reverseConnection.Timeout > 0 ? reverseConnection.Timeout : m_connectTimeout);
                                 Utils.LogInfo("Create Connection! [{0}][{1}]", reverseConnection.LastState, reverseConnection.ClientUrl);
                             }
@@ -387,8 +387,8 @@ namespace Opc.Ua.Server
         {
             lock (m_connectionsLock)
             {
-                var toRemove = m_connections.Where(r => r.Value.ConfigEntry == configEntry);
-                foreach (var entry in toRemove)
+                IEnumerable<KeyValuePair<Uri, ReverseConnectProperty>> toRemove = m_connections.Where(r => r.Value.ConfigEntry == configEntry);
+                foreach (KeyValuePair<Uri, ReverseConnectProperty> entry in toRemove)
                 {
                     m_connections.Remove(entry.Key);
                 }
@@ -403,7 +403,7 @@ namespace Opc.Ua.Server
             ClearConnections(true);
 
             // get the configuration for the reverse connections.
-            var reverseConnect = configuration?.ServerConfiguration?.ReverseConnect;
+            ReverseConnectServerConfiguration reverseConnect = configuration?.ServerConfiguration?.ReverseConnect;
 
             // add configuration reverse client connection properties.
             if (reverseConnect != null)
@@ -415,9 +415,9 @@ namespace Opc.Ua.Server
                     m_rejectTimeout = reverseConnect.RejectTimeout > 0 ? reverseConnect.RejectTimeout : DefaultReverseConnectRejectTimeout;
                     if (reverseConnect.Clients != null)
                     {
-                        foreach (var client in reverseConnect.Clients)
+                        foreach (ReverseConnectClient client in reverseConnect.Clients)
                         {
-                            var uri = Utils.ParseUri(client.EndpointUrl);
+                            Uri uri = Utils.ParseUri(client.EndpointUrl);
                             if (uri != null)
                             {
                                 if (m_connections.ContainsKey(uri))

@@ -27,11 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
-using System.Collections.Generic;
-using System.Xml;
-using System.IO;
-using System.Reflection;
 using Opc.Ua;
 
 namespace TestData
@@ -58,9 +53,7 @@ namespace TestData
             NodeState node,
             ref object value)
         {
-            TestDataSystem system = context?.SystemHandle as TestDataSystem;
-
-            if (system == null)
+            if (context?.SystemHandle is not TestDataSystem system)
             {
                 return StatusCodes.BadOutOfService;
             }

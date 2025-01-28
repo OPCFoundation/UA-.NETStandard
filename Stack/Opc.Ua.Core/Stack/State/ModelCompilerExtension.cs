@@ -11,11 +11,8 @@
 */
 
 using System;
-using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.IO;
-using System.Threading.Tasks;
 
 namespace Opc.Ua
 {
@@ -60,7 +57,7 @@ namespace Opc.Ua
             DateTime lastModified,
             bool outputRedundantNames)
         {
-            Opc.Ua.Export.UANodeSet nodeSet = new Opc.Ua.Export.UANodeSet();
+            var nodeSet = new Opc.Ua.Export.UANodeSet();
 
             if (lastModified != DateTime.MinValue)
             {

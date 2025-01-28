@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.InteropServices;
@@ -56,7 +55,7 @@ namespace Opc.Ua.Gds.Server
         {
             if (context != null)
             {
-                List<Role> allowedRoles = roles.ToList();
+                var allowedRoles = roles.ToList();
                 bool selfAdmin = allowedRoles.Remove(GdsRole.ApplicationSelfAdmin);
 
                 //if true access is allowed
@@ -99,8 +98,7 @@ namespace Opc.Ua.Gds.Server
         /// <exception cref="ServiceResultException"></exception>
         public static void HasAuthenticatedSecureChannel(ISystemContext context)
         {
-            OperationContext operationContext = (context as SystemContext)?.OperationContext as OperationContext;
-            if (operationContext != null)
+            if ((context as SystemContext)?.OperationContext is OperationContext operationContext)
             {
                 if (operationContext.ChannelContext?.EndpointDescription?.SecurityMode != MessageSecurityMode.SignAndEncrypt)
                 {
@@ -128,8 +126,7 @@ namespace Opc.Ua.Gds.Server
             if (applicationId is null || applicationId.IsNullNodeId)
                 return false;
 
-            GdsRoleBasedIdentity identity = userIdentity as GdsRoleBasedIdentity;
-            if (identity != null)
+            if (userIdentity is GdsRoleBasedIdentity identity)
             {
                 //self Admin only has access to own application
                 if (identity.ApplicationId == applicationId)
@@ -142,12 +139,11 @@ namespace Opc.Ua.Gds.Server
 
         private static bool CheckSelfAdminPrivilege(IUserIdentity userIdentity, CertificateStoreIdentifier trustedStore, Dictionary<NodeId, string> certTypeMap, IApplicationsDatabase applicationsDatabase)
         {
-            GdsRoleBasedIdentity identity = userIdentity as GdsRoleBasedIdentity;
-            if (identity != null)
+            if (userIdentity is GdsRoleBasedIdentity identity)
             {
-                foreach (var certType in certTypeMap.Values)
+                foreach (string certType in certTypeMap.Values)
                 {
-                    applicationsDatabase.GetApplicationTrustLists(identity.ApplicationId, certType, out var trustListId);
+                    applicationsDatabase.GetApplicationTrustLists(identity.ApplicationId, certType, out string trustListId);
                     if (trustedStore.StorePath == trustListId)
                     {
                         return true;

@@ -77,7 +77,7 @@ namespace Opc.Ua
         /// <exception cref="ArgumentOutOfRangeException">Thrown when the value is less than -1, or when the value is greater than the end</exception>
         public int Begin
         {
-            get { return m_begin; }
+            get => m_begin;
 
             set
             {
@@ -105,7 +105,7 @@ namespace Opc.Ua
         /// than -1 or when the end is less than the beginning</exception>
         public int End
         {
-            get { return m_end; }
+            get => m_end;
 
             set
             {
@@ -175,15 +175,9 @@ namespace Opc.Ua
         /// <value>The sub ranges.</value>
         public NumericRange[] SubRanges
         {
-            get
-            {
-                return m_subranges;
-            }
+            get => m_subranges;
 
-            set
-            {
-                m_subranges = value;
-            }
+            set => m_subranges = value;
         }
         #endregion
 
@@ -380,7 +374,7 @@ namespace Opc.Ua
         /// <returns>The reason for any error.</returns>
         public static ServiceResult Validate(string textToParse, out NumericRange range)
         {
-            range = NumericRange.Empty;
+            range = Empty;
 
             if (String.IsNullOrEmpty(textToParse))
             {
@@ -393,7 +387,7 @@ namespace Opc.Ua
             if (index >= 0)
             {
                 int start = 0;
-                List<NumericRange> subranges = new List<NumericRange>();
+                var subranges = new List<NumericRange>();
 
                 for (int ii = 0; ii < textToParse.Length; ii++)
                 {
@@ -401,7 +395,7 @@ namespace Opc.Ua
 
                     if (ch == ',' || ii == textToParse.Length - 1)
                     {
-                        NumericRange subrange = new NumericRange();
+                        var subrange = new NumericRange();
                         string subtext = (ch == ',') ? textToParse.Substring(start, ii - start) : textToParse.Substring(start);
                         ServiceResult result = Validate(subtext, out subrange);
 
@@ -484,7 +478,7 @@ namespace Opc.Ua
         /// </summary>
         private StatusCode ApplyMultiRange(ref object value)
         {
-            Array array = value as Array;
+            var array = value as Array;
             TypeInfo typeInfo = null;
 
             // check for matrix.
@@ -619,7 +613,7 @@ namespace Opc.Ua
                 return StatusCodes.BadIndexRangeNoData;
             }
 
-            TypeInfo dstTypeInfo = TypeInfo.Construct(dst);
+            var dstTypeInfo = TypeInfo.Construct(dst);
 
             // check for subset of string or byte string.
             if (dstTypeInfo.ValueRank == ValueRanks.Scalar)
@@ -680,8 +674,8 @@ namespace Opc.Ua
                 return StatusCodes.BadIndexRangeInvalid;
             }
 
-            Array srcArray = src as Array;
-            Array dstArray = dst as Array;
+            var srcArray = src as Array;
+            var dstArray = dst as Array;
 
             // check for destinations specified as a matrix.
             if (dstArray == null)
@@ -705,7 +699,7 @@ namespace Opc.Ua
                 srcArray = matrix.ToArray();
             }
 
-            TypeInfo srcTypeInfo = TypeInfo.Construct(srcArray);
+            var srcTypeInfo = TypeInfo.Construct(srcArray);
 
             if (srcTypeInfo.BuiltInType != dstTypeInfo.BuiltInType)
             {
@@ -955,7 +949,7 @@ namespace Opc.Ua
                 return StatusCodes.Good;
             }
 
-            Array array = value as Array;
+            var array = value as Array;
 
             // check for list type.
             IList list = null;
@@ -1089,7 +1083,7 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException">Thrown when the numeric value of the parsed text is out of range</exception>
         public static NumericRange Parse(string textToParse)
         {
-            NumericRange range = NumericRange.Empty;
+            NumericRange range = Empty;
 
             ServiceResult result = Validate(textToParse, out range);
 

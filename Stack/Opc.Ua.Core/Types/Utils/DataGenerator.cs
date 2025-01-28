@@ -139,10 +139,7 @@ namespace Opc.Ua.Test
             m_serverUris = new StringTable();
 
             // create a random source if none provided.
-            if (m_random == null)
-            {
-                m_random = new RandomSource();
-            }
+            m_random ??= new RandomSource();
 
             // load the boundary values.
             m_boundaryValues = new SortedDictionary<string, object[]>();
@@ -177,8 +174,8 @@ namespace Opc.Ua.Test
         /// </summary>
         public int MaxArrayLength
         {
-            get { return m_maxArrayLength; }
-            set { m_maxArrayLength = value; }
+            get => m_maxArrayLength;
+            set => m_maxArrayLength = value;
         }
 
         /// <summary>
@@ -186,8 +183,8 @@ namespace Opc.Ua.Test
         /// </summary>
         public int MaxStringLength
         {
-            get { return m_maxStringLength; }
-            set { m_maxStringLength = value; }
+            get => m_maxStringLength;
+            set => m_maxStringLength = value;
         }
 
         /// <summary>
@@ -195,8 +192,8 @@ namespace Opc.Ua.Test
         /// </summary>
         public DateTime MinDateTimeValue
         {
-            get { return m_minDateTimeValue; }
-            set { m_minDateTimeValue = value; }
+            get => m_minDateTimeValue;
+            set => m_minDateTimeValue = value;
         }
 
         /// <summary>
@@ -204,8 +201,8 @@ namespace Opc.Ua.Test
         /// </summary>
         public DateTime MaxDateTimeValue
         {
-            get { return m_maxDateTimeValue; }
-            set { m_maxDateTimeValue = value; }
+            get => m_maxDateTimeValue;
+            set => m_maxDateTimeValue = value;
         }
 
         /// <summary>
@@ -213,8 +210,8 @@ namespace Opc.Ua.Test
         /// </summary>
         public int MaxXmlAttributeCount
         {
-            get { return m_maxXmlAttributeCount; }
-            set { m_maxXmlAttributeCount = value; }
+            get => m_maxXmlAttributeCount;
+            set => m_maxXmlAttributeCount = value;
         }
 
         /// <summary>
@@ -222,8 +219,8 @@ namespace Opc.Ua.Test
         /// </summary>
         public int MaxXmlElementCount
         {
-            get { return m_maxXmlElementCount; }
-            set { m_maxXmlElementCount = value; }
+            get => m_maxXmlElementCount;
+            set => m_maxXmlElementCount = value;
         }
 
         /// <summary>
@@ -231,8 +228,8 @@ namespace Opc.Ua.Test
         /// </summary>
         public NamespaceTable NamespaceUris
         {
-            get { return m_namespaceUris; }
-            set { m_namespaceUris = value; }
+            get => m_namespaceUris;
+            set => m_namespaceUris = value;
         }
 
         /// <summary>
@@ -240,8 +237,8 @@ namespace Opc.Ua.Test
         /// </summary>
         public StringTable ServerUris
         {
-            get { return m_serverUris; }
-            set { m_serverUris = value; }
+            get => m_serverUris;
+            set => m_serverUris = value;
         }
 
         /// <summary>
@@ -249,8 +246,8 @@ namespace Opc.Ua.Test
         /// </summary>
         public int BoundaryValueFrequency
         {
-            get { return m_boundaryValueFrequency; }
-            set { m_boundaryValueFrequency = value; }
+            get => m_boundaryValueFrequency;
+            set => m_boundaryValueFrequency = value;
         }
 
         /// <summary>
@@ -422,19 +419,19 @@ namespace Opc.Ua.Test
 
                 case BuiltInType.Number:
                 {
-                    BuiltInType builtInType = (BuiltInType)(m_random.NextInt32(9) + (int)BuiltInType.SByte);
+                    var builtInType = (BuiltInType)(m_random.NextInt32(9) + (int)BuiltInType.SByte);
                     return GetRandomVariant(builtInType, false);
                 }
 
                 case BuiltInType.Integer:
                 {
-                    BuiltInType builtInType = (BuiltInType)((m_random.NextInt32(3) * 2) + (int)BuiltInType.SByte);
+                    var builtInType = (BuiltInType)((m_random.NextInt32(3) * 2) + (int)BuiltInType.SByte);
                     return GetRandomVariant(builtInType, false);
                 }
 
                 case BuiltInType.UInteger:
                 {
-                    BuiltInType builtInType = (BuiltInType)((m_random.NextInt32(3) * 2) + (int)BuiltInType.Byte);
+                    var builtInType = (BuiltInType)((m_random.NextInt32(3) * 2) + (int)BuiltInType.Byte);
                     return GetRandomVariant(builtInType, false);
                 }
             }
@@ -475,19 +472,19 @@ namespace Opc.Ua.Test
                 case BuiltInType.ExtensionObject: { return GetRandomArray<ExtensionObject>(useBoundaryValues, length, fixedLength); }
                 case BuiltInType.Number:
                 {
-                    BuiltInType builtInType = (BuiltInType)(m_random.NextInt32(9) + (int)BuiltInType.SByte);
+                    var builtInType = (BuiltInType)(m_random.NextInt32(9) + (int)BuiltInType.SByte);
                     return GetRandomArrayInVariant(builtInType, useBoundaryValues, length, fixedLength);
                 }
 
                 case BuiltInType.Integer:
                 {
-                    BuiltInType builtInType = (BuiltInType)((m_random.NextInt32(3) * 2) + (int)BuiltInType.SByte);
+                    var builtInType = (BuiltInType)((m_random.NextInt32(3) * 2) + (int)BuiltInType.SByte);
                     return GetRandomArrayInVariant(builtInType, useBoundaryValues, length, fixedLength);
                 }
 
                 case BuiltInType.UInteger:
                 {
-                    BuiltInType builtInType = (BuiltInType)((m_random.NextInt32(3) * 2) + (int)BuiltInType.Byte);
+                    var builtInType = (BuiltInType)((m_random.NextInt32(3) * 2) + (int)BuiltInType.Byte);
                     return GetRandomArrayInVariant(builtInType, useBoundaryValues, length, fixedLength);
                 }
                 case BuiltInType.Enumeration: { return GetRandomArray<int>(useBoundaryValues, length, fixedLength); }
@@ -502,8 +499,8 @@ namespace Opc.Ua.Test
         private Variant[] GetRandomArrayInVariant(BuiltInType builtInType, bool useBoundaryValues, int length, bool fixedLength)
         {
             Array array = GetRandomArray(builtInType, useBoundaryValues, length, fixedLength);
-            Variant[] variants = new Variant[array.Length];
-            TypeInfo typeInfo = new TypeInfo(builtInType, ValueRanks.Scalar);
+            var variants = new Variant[array.Length];
+            var typeInfo = new TypeInfo(builtInType, ValueRanks.Scalar);
 
             for (int ii = 0; ii < variants.Length; ii++)
             {
@@ -546,7 +543,7 @@ namespace Opc.Ua.Test
                 length = m_random.NextInt32(length);
             }
 
-            T[] value = new T[length];
+            var value = new T[length];
 
             for (int ii = 0; ii < value.Length; ii++)
             {
@@ -571,7 +568,7 @@ namespace Opc.Ua.Test
                 length = m_random.NextInt32(length);
             }
 
-            T[] value = new T[length];
+            var value = new T[length];
 
             for (int ii = 0; ii < value.Length; ii++)
             {
@@ -824,7 +821,7 @@ namespace Opc.Ua.Test
             string locale2 = GetRandomLocale();
 
             // create the root element.
-            XmlDocument document = new XmlDocument();
+            var document = new XmlDocument();
 
             XmlElement element = document.CreateElement(
                 "n0",
@@ -872,7 +869,7 @@ namespace Opc.Ua.Test
         {
             ushort ns = (ushort)m_random.NextInt32(m_namespaceUris.Count - 1);
 
-            IdType idType = (IdType)m_random.NextInt32(4);
+            var idType = (IdType)m_random.NextInt32(4);
 
             switch (idType)
             {
@@ -1176,7 +1173,7 @@ namespace Opc.Ua.Test
         /// </summary>
         private static SortedDictionary<string, string[]> LoadStringData(string resourceName)
         {
-            SortedDictionary<string, string[]> dictionary = new SortedDictionary<string, string[]>();
+            var dictionary = new SortedDictionary<string, string[]>();
 
             try
             {
@@ -1187,11 +1184,11 @@ namespace Opc.Ua.Test
                 if (istrm == null)
                 {
                     // try to load from app directory
-                    FileInfo file = new FileInfo(resourceName);
+                    var file = new FileInfo(resourceName);
                     istrm = file.OpenRead();
                 }
 
-                using (StreamReader reader = new StreamReader(istrm))
+                using (var reader = new StreamReader(istrm))
                 {
                     for (string line = reader.ReadLine(); line != null; line = reader.ReadLine())
                     {
@@ -1287,7 +1284,7 @@ namespace Opc.Ua.Test
         /// </summary>
         private object GetRandom(Type expectedType)
         {
-            var builtInType = TypeInfo.Construct(expectedType).BuiltInType;
+            BuiltInType builtInType = TypeInfo.Construct(expectedType).BuiltInType;
             object value = GetRandom(builtInType);
 
             if (builtInType == BuiltInType.Guid &&
@@ -1331,7 +1328,7 @@ namespace Opc.Ua.Test
                 length = m_random.NextInt32(m_maxStringLength) + 1;
             }
 
-            StringBuilder buffer = new StringBuilder();
+            var buffer = new StringBuilder();
 
             while (buffer.Length < length)
             {

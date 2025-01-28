@@ -36,12 +36,12 @@ namespace Opc.Ua
         /// <returns>The DNS names.</returns>
         public static IList<string> GetDomainsFromCertificate(X509Certificate2 certificate)
         {
-            List<string> dnsNames = new List<string>();
+            var dnsNames = new List<string>();
 
             // extracts the domain from the subject name.
-            List<string> fields = X509Utils.ParseDistinguishedName(certificate.Subject);
+            List<string> fields = ParseDistinguishedName(certificate.Subject);
 
-            StringBuilder builder = new StringBuilder();
+            var builder = new StringBuilder();
 
             for (int ii = 0; ii < fields.Count; ii++)
             {
@@ -237,7 +237,7 @@ namespace Opc.Ua
         /// </summary>
         public static bool IsCertificateAuthority(X509Certificate2 certificate)
         {
-            var constraints = X509Extensions.FindExtension<X509BasicConstraintsExtension>(certificate);
+            X509BasicConstraintsExtension constraints = X509Extensions.FindExtension<X509BasicConstraintsExtension>(certificate);
             if (constraints != null)
             {
                 return constraints.CertificateAuthority;
@@ -250,7 +250,7 @@ namespace Opc.Ua
         /// </summary>
         public static X509KeyUsageFlags GetKeyUsage(X509Certificate2 cert)
         {
-            var allFlags = X509KeyUsageFlags.None;
+            X509KeyUsageFlags allFlags = X509KeyUsageFlags.None;
             foreach (X509KeyUsageExtension ext in cert.Extensions.OfType<X509KeyUsageExtension>())
             {
                 allFlags |= ext.KeyUsages;
@@ -265,7 +265,7 @@ namespace Opc.Ua
         /// <returns>True if self signed.</returns>
         public static bool IsSelfSigned(X509Certificate2 certificate)
         {
-            return X509Utils.CompareDistinguishedName(certificate.SubjectName, certificate.IssuerName);
+            return CompareDistinguishedName(certificate.SubjectName, certificate.IssuerName);
         }
 
         /// <summary>
@@ -313,7 +313,7 @@ namespace Opc.Ua
             // compare each.
             for (int ii = 0; ii < fields1.Count; ii++)
             {
-                var comparison = StringComparison.Ordinal;
+                StringComparison comparison = StringComparison.Ordinal;
                 if (fields1[ii].StartsWith("DC=", StringComparison.OrdinalIgnoreCase))
                 {
                     // DC hostnames may have different case
@@ -357,7 +357,7 @@ namespace Opc.Ua
         /// </summary>
         public static List<string> ParseDistinguishedName(string name)
         {
-            List<string> fields = new List<string>();
+            var fields = new List<string>();
 
             if (String.IsNullOrEmpty(name))
             {
@@ -396,7 +396,7 @@ namespace Opc.Ua
                 }
             }
 
-            StringBuilder buffer = new StringBuilder();
+            var buffer = new StringBuilder();
 
             string key = null;
             string value = null;
@@ -611,9 +611,9 @@ namespace Opc.Ua
         {
             X509Certificate2Collection certificates = await store.Enumerate().ConfigureAwait(false);
 
-            foreach (var certificate in certificates)
+            foreach (X509Certificate2 certificate in certificates)
             {
-                if (X509Utils.CompareDistinguishedName(certificate.SubjectName, issuer) &&
+                if (CompareDistinguishedName(certificate.SubjectName, issuer) &&
                     Utils.IsEqual(certificate.SerialNumber, serialnumber))
                 {
                     return certificate;

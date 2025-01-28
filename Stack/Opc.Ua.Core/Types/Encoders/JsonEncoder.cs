@@ -231,7 +231,7 @@ namespace Opc.Ua
             if (context == null) throw new ArgumentNullException(nameof(context));
 
             // create encoder.
-            JsonEncoder encoder = new JsonEncoder(context, true, false, stream, leaveOpen);
+            var encoder = new JsonEncoder(context, true, false, stream, leaveOpen);
             try
             {
                 long start = stream.Position;
@@ -276,7 +276,7 @@ namespace Opc.Ua
             if (buffer == null) throw new ArgumentNullException(nameof(buffer));
             if (context == null) throw new ArgumentNullException(nameof(context));
 
-            using (MemoryStream stream = new MemoryStream(buffer, true))
+            using (var stream = new MemoryStream(buffer, true))
             using (var encoder = new JsonEncoder(context, true, false, stream))
             {
                 // encode message
@@ -295,7 +295,7 @@ namespace Opc.Ua
             if (message == null) throw new ArgumentNullException(nameof(message));
 
             // convert the namespace uri to an index.
-            NodeId typeId = ExpandedNodeId.ToNodeId(message.TypeId, m_context.NamespaceUris);
+            var typeId = ExpandedNodeId.ToNodeId(message.TypeId, m_context.NamespaceUris);
 
             // write the type id.
             WriteNodeId("TypeId", typeId);
@@ -1164,7 +1164,7 @@ namespace Opc.Ua
                 return;
             }
 
-            var xml = value.OuterXml;
+            string xml = value.OuterXml;
             int maxByteCount = Encoding.UTF8.GetMaxByteCount(xml.Length);
             byte[] encodedBytes = ArrayPool<byte>.Shared.Rent(maxByteCount);
             try
@@ -1197,7 +1197,7 @@ namespace Opc.Ua
 
             if ((!UseReversibleEncoding || ForceNamespaceUri) && namespaceIndex > (ForceNamespaceUriForIndex1 ? 0 : 1))
             {
-                var uri = m_context.NamespaceUris.GetString(namespaceIndex);
+                string uri = m_context.NamespaceUris.GetString(namespaceIndex);
                 if (!string.IsNullOrEmpty(uri))
                 {
                     WriteSimpleField(fieldName, uri, EscapeOptions.Quotes);
@@ -1339,7 +1339,7 @@ namespace Opc.Ua
             {
                 if (EncodingToUse == JsonEncodingType.NonReversible)
                 {
-                    var uri = m_context.ServerUris.GetString(serverIndex);
+                    string uri = m_context.ServerUris.GetString(serverIndex);
 
                     if (!string.IsNullOrEmpty(uri))
                     {
@@ -1577,7 +1577,7 @@ namespace Opc.Ua
 
             PushStructure(fieldName);
 
-            var typeId = value.TypeId;
+            ExpandedNodeId typeId = value.TypeId;
 
             if (encodeable != null)
             {
@@ -1678,7 +1678,7 @@ namespace Opc.Ua
         public void WriteEnumerated(string fieldName, Enum value)
         {
             int numeric = Convert.ToInt32(value, CultureInfo.InvariantCulture);
-            var numericString = numeric.ToString(CultureInfo.InvariantCulture);
+            string numericString = numeric.ToString(CultureInfo.InvariantCulture);
 
             if (EncodingToUse == JsonEncodingType.Reversible ||
                 EncodingToUse == JsonEncodingType.Compact)
@@ -1687,7 +1687,7 @@ namespace Opc.Ua
             }
             else
             {
-                var valueString = value.ToString();
+                string valueString = value.ToString();
                 if (valueString == numericString)
                 {
                     WriteSimpleField(fieldName, numericString, EscapeOptions.Quotes);
@@ -1705,7 +1705,7 @@ namespace Opc.Ua
         public void WriteEnumerated(string fieldName, int numeric)
         {
             bool writeNumber = EncodingToUse == JsonEncodingType.Reversible || EncodingToUse == JsonEncodingType.Compact;
-            var numericString = numeric.ToString(CultureInfo.InvariantCulture);
+            string numericString = numeric.ToString(CultureInfo.InvariantCulture);
             WriteSimpleField(fieldName, numericString, writeNumber ? EscapeOptions.None : EscapeOptions.Quotes);
         }
 
@@ -3006,7 +3006,7 @@ namespace Opc.Ua
 
             try
             {
-                var arrayLen = matrix.Dimensions[dim];
+                int arrayLen = matrix.Dimensions[dim];
                 if (dim == matrix.Dimensions.Length - 1)
                 {
                     // Create a slice of values for the top dimension
@@ -3024,7 +3024,7 @@ namespace Opc.Ua
                 else
                 {
                     PushArray(fieldName);
-                    for (var i = 0; i < arrayLen; i++)
+                    for (int i = 0; i < arrayLen; i++)
                     {
                         WriteStructureMatrix(null, matrix, dim + 1, ref index, typeInfo);
                     }

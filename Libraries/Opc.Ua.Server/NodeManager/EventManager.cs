@@ -29,9 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Text;
-using System.Threading;
-using System.Security.Principal;
 
 namespace Opc.Ua.Server
 {
@@ -159,7 +156,7 @@ namespace Opc.Ua.Server
                 }
 
                 // create the monitored item.
-                MonitoredItem monitoredItem = new MonitoredItem(
+                var monitoredItem = new MonitoredItem(
                     m_server,
                     nodeManager,
                     handle,

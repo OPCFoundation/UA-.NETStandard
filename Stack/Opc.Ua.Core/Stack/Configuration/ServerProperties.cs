@@ -42,8 +42,8 @@ namespace Opc.Ua
         /// </summary>
         public string ProductUri
         {
-            get { return m_productUri; }
-            set { m_productUri = value; }
+            get => m_productUri;
+            set => m_productUri = value;
         }
 
         /// <summary>
@@ -51,8 +51,8 @@ namespace Opc.Ua
         /// </summary>
         public string ProductName
         {
-            get { return m_productName; }
-            set { m_productName = value; }
+            get => m_productName;
+            set => m_productName = value;
         }
 
         /// <summary>
@@ -60,8 +60,8 @@ namespace Opc.Ua
         /// </summary>
         public string ManufacturerName
         {
-            get { return m_manufacturerName; }
-            set { m_manufacturerName = value; }
+            get => m_manufacturerName;
+            set => m_manufacturerName = value;
         }
 
         /// <summary>
@@ -69,8 +69,8 @@ namespace Opc.Ua
         /// </summary>
         public string SoftwareVersion
         {
-            get { return m_softwareVersion; }
-            set { m_softwareVersion = value; }
+            get => m_softwareVersion;
+            set => m_softwareVersion = value;
         }
 
         /// <summary>
@@ -78,8 +78,8 @@ namespace Opc.Ua
         /// </summary>
         public string BuildNumber
         {
-            get { return m_buildNumber; }
-            set { m_buildNumber = value; }
+            get => m_buildNumber;
+            set => m_buildNumber = value;
         }
 
         /// <summary>
@@ -87,8 +87,8 @@ namespace Opc.Ua
         /// </summary>
         public DateTime BuildDate
         {
-            get { return m_buildDate; }
-            set { m_buildDate = value; }
+            get => m_buildDate;
+            set => m_buildDate = value;
         }
 
         /// <summary>

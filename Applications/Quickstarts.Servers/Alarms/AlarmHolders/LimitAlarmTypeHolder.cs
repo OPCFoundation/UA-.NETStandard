@@ -52,7 +52,7 @@ namespace Alarms
         {
             if (create)
             {
-                Initialize(Opc.Ua.ObjectTypes.LimitAlarmType, name, maxShelveTime);
+                Initialize(ObjectTypes.LimitAlarmType, name, maxShelveTime);
             }
         }
 
@@ -64,31 +64,16 @@ namespace Alarms
         {
             // Create an alarm and trigger name - Create a base method for creating the trigger, just provide the name
 
-            if (m_alarm == null)
-            {
-                m_alarm = new LimitAlarmState(m_parent);
-            }
+            m_alarm ??= new LimitAlarmState(m_parent);
 
             m_isLimit = isLimit;
 
             LimitAlarmState alarm = GetAlarm();
 
-            if (alarm.HighLimit == null)
-            {
-                alarm.HighLimit = new PropertyState<double>(alarm);
-            }
-            if (alarm.HighHighLimit == null)
-            {
-                alarm.HighHighLimit = new PropertyState<double>(alarm);
-            }
-            if (alarm.LowLimit == null)
-            {
-                alarm.LowLimit = new PropertyState<double>(alarm);
-            }
-            if (alarm.LowLowLimit == null)
-            {
-                alarm.LowLowLimit = new PropertyState<double>(alarm);
-            }
+            alarm.HighLimit ??= new PropertyState<double>(alarm);
+            alarm.HighHighLimit ??= new PropertyState<double>(alarm);
+            alarm.LowLimit ??= new PropertyState<double>(alarm);
+            alarm.LowLowLimit ??= new PropertyState<double>(alarm);
 
             if (Optional)
             {

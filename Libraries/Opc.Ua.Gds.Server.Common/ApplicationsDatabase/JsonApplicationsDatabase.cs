@@ -88,7 +88,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
         /// Get or set the filename.
         /// </summary>
         [JsonIgnore]
-        public string FileName { get { return m_fileName; } private set { m_fileName = value; } }
+        public string FileName { get => m_fileName; private set => m_fileName = value; }
         #endregion
 
         #region Private Fields

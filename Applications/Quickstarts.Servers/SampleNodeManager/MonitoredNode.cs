@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
 using System.Collections.Generic;
 using Opc.Ua.Server;
 
@@ -137,7 +136,7 @@ namespace Opc.Ua.Sample
             Range range,
             bool alwaysReportUpdates)
         {
-            DataChangeMonitoredItem monitoredItem = new DataChangeMonitoredItem(
+            var monitoredItem = new DataChangeMonitoredItem(
                 this,
                 monitoredItemId,
                 attributeId,
@@ -220,7 +219,7 @@ namespace Opc.Ua.Sample
             {
                 for (int ii = 0; ii < m_monitoredItems.Count; ii++)
                 {
-                    if (Object.ReferenceEquals(monitoredItem, m_monitoredItems[ii]))
+                    if (ReferenceEquals(monitoredItem, m_monitoredItems[ii]))
                     {
                         m_monitoredItems.RemoveAt(ii);
                         break;
@@ -273,10 +272,7 @@ namespace Opc.Ua.Sample
         /// </summary>
         public void SubscribeToEvents(ISystemContext context, IEventMonitoredItem eventSubscription)
         {
-            if (m_eventSubscriptions == null)
-            {
-                m_eventSubscriptions = new List<IEventMonitoredItem>();
-            }
+            m_eventSubscriptions ??= new List<IEventMonitoredItem>();
 
             if (m_eventSubscriptions.Count == 0)
             {
@@ -286,7 +282,7 @@ namespace Opc.Ua.Sample
 
             for (int ii = 0; ii < m_eventSubscriptions.Count; ii++)
             {
-                if (Object.ReferenceEquals(eventSubscription, m_eventSubscriptions[ii]))
+                if (ReferenceEquals(eventSubscription, m_eventSubscriptions[ii]))
                 {
                     return;
                 }
@@ -304,7 +300,7 @@ namespace Opc.Ua.Sample
             {
                 for (int ii = 0; ii < m_eventSubscriptions.Count; ii++)
                 {
-                    if (Object.ReferenceEquals(eventSubscription, m_eventSubscriptions[ii]))
+                    if (ReferenceEquals(eventSubscription, m_eventSubscriptions[ii]))
                     {
                         m_eventSubscriptions.RemoveAt(ii);
 
@@ -351,13 +347,13 @@ namespace Opc.Ua.Sample
                 for (int ii = 0; ii < m_eventSubscriptions.Count; ii++)
                 {
                     // only process items monitoring this node.
-                    if (!Object.ReferenceEquals(monitoredItem, m_eventSubscriptions[ii]))
+                    if (!ReferenceEquals(monitoredItem, m_eventSubscriptions[ii]))
                     {
                         continue;
                     }
 
                     // get the set of condition events for the node and its children.
-                    List<IFilterTarget> events = new List<IFilterTarget>();
+                    var events = new List<IFilterTarget>();
                     m_node.ConditionRefresh(context, events, true);
 
                     // report the events to the monitored item.

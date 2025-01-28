@@ -27,11 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
-using System.Collections.Generic;
-using System.Xml;
-using System.IO;
-using System.Reflection;
 using Opc.Ua;
 
 namespace TestData
@@ -46,19 +41,19 @@ namespace TestData
         {
             base.OnAfterCreate(context, node);
 
-            InitializeVariable(context, SByteValue, TestData.Variables.AnalogScalarValueObjectType_SByteValue);
-            InitializeVariable(context, ByteValue, TestData.Variables.AnalogScalarValueObjectType_ByteValue);
-            InitializeVariable(context, Int16Value, TestData.Variables.AnalogScalarValueObjectType_Int16Value);
-            InitializeVariable(context, UInt16Value, TestData.Variables.AnalogScalarValueObjectType_UInt16Value);
-            InitializeVariable(context, Int32Value, TestData.Variables.AnalogScalarValueObjectType_Int32Value);
-            InitializeVariable(context, UInt32Value, TestData.Variables.AnalogScalarValueObjectType_UInt32Value);
-            InitializeVariable(context, Int64Value, TestData.Variables.AnalogScalarValueObjectType_Int64Value);
-            InitializeVariable(context, UInt64Value, TestData.Variables.AnalogScalarValueObjectType_UInt64Value);
-            InitializeVariable(context, FloatValue, TestData.Variables.AnalogScalarValueObjectType_FloatValue);
-            InitializeVariable(context, DoubleValue, TestData.Variables.AnalogScalarValueObjectType_DoubleValue);
-            InitializeVariable(context, NumberValue, TestData.Variables.AnalogScalarValueObjectType_NumberValue);
-            InitializeVariable(context, IntegerValue, TestData.Variables.AnalogScalarValueObjectType_IntegerValue);
-            InitializeVariable(context, UIntegerValue, TestData.Variables.AnalogScalarValueObjectType_UIntegerValue);
+            InitializeVariable(context, SByteValue, Variables.AnalogScalarValueObjectType_SByteValue);
+            InitializeVariable(context, ByteValue, Variables.AnalogScalarValueObjectType_ByteValue);
+            InitializeVariable(context, Int16Value, Variables.AnalogScalarValueObjectType_Int16Value);
+            InitializeVariable(context, UInt16Value, Variables.AnalogScalarValueObjectType_UInt16Value);
+            InitializeVariable(context, Int32Value, Variables.AnalogScalarValueObjectType_Int32Value);
+            InitializeVariable(context, UInt32Value, Variables.AnalogScalarValueObjectType_UInt32Value);
+            InitializeVariable(context, Int64Value, Variables.AnalogScalarValueObjectType_Int64Value);
+            InitializeVariable(context, UInt64Value, Variables.AnalogScalarValueObjectType_UInt64Value);
+            InitializeVariable(context, FloatValue, Variables.AnalogScalarValueObjectType_FloatValue);
+            InitializeVariable(context, DoubleValue, Variables.AnalogScalarValueObjectType_DoubleValue);
+            InitializeVariable(context, NumberValue, Variables.AnalogScalarValueObjectType_NumberValue);
+            InitializeVariable(context, IntegerValue, Variables.AnalogScalarValueObjectType_IntegerValue);
+            InitializeVariable(context, UIntegerValue, Variables.AnalogScalarValueObjectType_UIntegerValue);
         }
         #endregion
 
@@ -72,9 +67,7 @@ namespace TestData
             NodeId objectId,
             uint count)
         {
-            TestDataSystem system = context.SystemHandle as TestDataSystem;
-
-            if (system == null)
+            if (context.SystemHandle is not TestDataSystem system)
             {
                 return StatusCodes.BadOutOfService;
             }

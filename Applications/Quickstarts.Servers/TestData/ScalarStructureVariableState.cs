@@ -79,7 +79,7 @@ namespace TestData
         protected void InitializeVariable(ISystemContext context, BaseVariableState variable)
         {
             // set a valid initial value.
-            TestDataSystem system = context.SystemHandle as TestDataSystem;
+            var system = context.SystemHandle as TestDataSystem;
 
             // copy access level to childs
             variable.AccessLevel = AccessLevel;
@@ -90,15 +90,13 @@ namespace TestData
         #region Public Methods
         public virtual StatusCode OnGenerateValues(ISystemContext context)
         {
-            TestDataSystem system = context.SystemHandle as TestDataSystem;
-
-            if (system == null)
+            if (context.SystemHandle is not TestDataSystem system)
             {
                 return StatusCodes.BadOutOfService;
             }
 
-            var accessLevel = AccessLevel;
-            var userAccessLevel = UserAccessLevel;
+            byte accessLevel = AccessLevel;
+            byte userAccessLevel = UserAccessLevel;
             AccessLevel = UserAccessLevel = AccessLevels.CurrentReadOrWrite;
 
             // generate structure values here

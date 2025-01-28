@@ -30,7 +30,6 @@
 using System;
 using System.Diagnostics;
 using System.IO;
-using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Configuration;
@@ -83,8 +82,8 @@ namespace Opc.Ua.Server.Tests
 
             // create the application configuration. Use temp path for cert stores.
             pkiRoot = pkiRoot ?? Path.GetTempPath() + Path.GetRandomFileName();
-            var endpointUrl = $"{UriScheme}://localhost:0/" + typeof(T).Name;
-            var serverConfig = Application.Build(
+            string endpointUrl = $"{UriScheme}://localhost:0/" + typeof(T).Name;
+            IApplicationConfigurationBuilderServerSelected serverConfig = Application.Build(
                 "urn:localhost:UA:" + typeof(T).Name,
                 "uri:opcfoundation.org:" + typeof(T).Name)
                 .SetMaxByteStringLength(4 * 1024 * 1024)
@@ -173,7 +172,7 @@ namespace Opc.Ua.Server.Tests
         /// </summary>
         public async Task<T> StartAsync(TextWriter writer, string pkiRoot, int port = 0)
         {
-            Random random = new Random();
+            var random = new Random();
             bool retryStartServer = false;
             int testPort = port;
             int serverStartRetries = 1;
@@ -235,7 +234,7 @@ namespace Opc.Ua.Server.Tests
             }
 
             // start the server.
-            T server = new T();
+            var server = new T();
             if (AllNodeManagers && server is StandardServer standardServer)
             {
                 Quickstarts.Servers.Utils.AddDefaultNodeManagers(standardServer);

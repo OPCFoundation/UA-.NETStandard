@@ -13,7 +13,6 @@
 using System;
 using System.Collections.Generic;
 using System.Reflection;
-using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 
@@ -236,9 +235,9 @@ namespace Opc.Ua
                 nameof(Basic256)
             };
             var defaultUris = new List<string>();
-            foreach (var name in defaultNames)
+            foreach (string name in defaultNames)
             {
-                var uri = GetUri(name);
+                string uri = GetUri(name);
                 if (uri != null)
                 {
                     defaultUris.Add(uri);
@@ -257,9 +256,9 @@ namespace Opc.Ua
                 nameof(Aes128_Sha256_RsaOaep),
                 nameof(Aes256_Sha256_RsaPss) };
             var defaultUris = new List<string>();
-            foreach (var name in defaultNames)
+            foreach (string name in defaultNames)
             {
-                var uri = GetUri(name);
+                string uri = GetUri(name);
                 if (uri != null)
                 {
                     defaultUris.Add(uri);
@@ -280,9 +279,9 @@ namespace Opc.Ua
                 nameof(ECC_brainpoolP384r1)
                 };
             var defaultUris = new List<string>();
-            foreach (var name in defaultNames)
+            foreach (string name in defaultNames)
             {
-                var uri = GetUri(name);
+                string uri = GetUri(name);
                 if (uri != null)
                 {
                     defaultUris.Add(uri);
@@ -296,7 +295,7 @@ namespace Opc.Ua
         /// </summary>
         public static EncryptedData Encrypt(X509Certificate2 certificate, string securityPolicyUri, byte[] plainText)
         {
-            EncryptedData encryptedData = new EncryptedData();
+            var encryptedData = new EncryptedData();
 
             encryptedData.Algorithm = null;
             encryptedData.Data = plainText;
@@ -316,44 +315,44 @@ namespace Opc.Ua
             // encrypt data.
             switch (securityPolicyUri)
             {
-                case SecurityPolicies.Basic256:
-                case SecurityPolicies.Basic256Sha256:
-                case SecurityPolicies.Aes128_Sha256_RsaOaep:
+                case Basic256:
+                case Basic256Sha256:
+                case Aes128_Sha256_RsaOaep:
                 {
                     encryptedData.Algorithm = SecurityAlgorithms.RsaOaep;
                     encryptedData.Data = RsaUtils.Encrypt(plainText, certificate, RsaUtils.Padding.OaepSHA1);
                     break;
                 }
 
-                case SecurityPolicies.Basic128Rsa15:
+                case Basic128Rsa15:
                 {
                     encryptedData.Algorithm = SecurityAlgorithms.Rsa15;
                     encryptedData.Data = RsaUtils.Encrypt(plainText, certificate, RsaUtils.Padding.Pkcs1);
                     break;
                 }
 
-                case SecurityPolicies.Aes256_Sha256_RsaPss:
+                case Aes256_Sha256_RsaPss:
                 {
                     encryptedData.Algorithm = SecurityAlgorithms.RsaOaepSha256;
                     encryptedData.Data = RsaUtils.Encrypt(plainText, certificate, RsaUtils.Padding.OaepSHA256);
                     break;
                 }
 
-                case SecurityPolicies.ECC_nistP256:
-                case SecurityPolicies.ECC_nistP384:
-                case SecurityPolicies.ECC_brainpoolP256r1:
-                case SecurityPolicies.ECC_brainpoolP384r1:
+                case ECC_nistP256:
+                case ECC_nistP384:
+                case ECC_brainpoolP256r1:
+                case ECC_brainpoolP384r1:
                 {
                     return encryptedData;
                 }
 
-                case SecurityPolicies.None:
+                case None:
                 {
                     break;
                 }
 
-                case SecurityPolicies.ECC_curve25519:
-                case SecurityPolicies.ECC_curve448:
+                case ECC_curve25519:
+                case ECC_curve448:
                 default:
                 {
                     throw ServiceResultException.Create(
@@ -386,9 +385,9 @@ namespace Opc.Ua
             // decrypt data.
             switch (securityPolicyUri)
             {
-                case SecurityPolicies.Basic256:
-                case SecurityPolicies.Basic256Sha256:
-                case SecurityPolicies.Aes128_Sha256_RsaOaep:
+                case Basic256:
+                case Basic256Sha256:
+                case Aes128_Sha256_RsaOaep:
                 {
                     if (dataToDecrypt.Algorithm == SecurityAlgorithms.RsaOaep)
                     {
@@ -397,7 +396,7 @@ namespace Opc.Ua
                     break;
                 }
 
-                case SecurityPolicies.Basic128Rsa15:
+                case Basic128Rsa15:
                 {
                     if (dataToDecrypt.Algorithm == SecurityAlgorithms.Rsa15)
                     {
@@ -406,7 +405,7 @@ namespace Opc.Ua
                     break;
                 }
 
-                case SecurityPolicies.Aes256_Sha256_RsaPss:
+                case Aes256_Sha256_RsaPss:
                 {
                     if (dataToDecrypt.Algorithm == SecurityAlgorithms.RsaOaepSha256)
                     {
@@ -415,11 +414,11 @@ namespace Opc.Ua
                     break;
                 }
 
-                case SecurityPolicies.ECC_nistP256:
-                case SecurityPolicies.ECC_nistP384:
-                case SecurityPolicies.ECC_brainpoolP256r1:
-                case SecurityPolicies.ECC_brainpoolP384r1:
-                case SecurityPolicies.None:
+                case ECC_nistP256:
+                case ECC_nistP384:
+                case ECC_brainpoolP256r1:
+                case ECC_brainpoolP384r1:
+                case None:
                 {
                     if (String.IsNullOrEmpty(dataToDecrypt.Algorithm))
                     {
@@ -428,8 +427,8 @@ namespace Opc.Ua
                     break;
                 }
 
-                case SecurityPolicies.ECC_curve25519:
-                case SecurityPolicies.ECC_curve448:
+                case ECC_curve25519:
+                case ECC_curve448:
                 default:
                 {
                     throw ServiceResultException.Create(
@@ -450,7 +449,7 @@ namespace Opc.Ua
         /// </summary>
         public static SignatureData Sign(X509Certificate2 certificate, string securityPolicyUri, byte[] dataToSign)
         {
-            SignatureData signatureData = new SignatureData();
+            var signatureData = new SignatureData();
 
             // check if nothing to do.
             if (dataToSign == null)
@@ -467,23 +466,23 @@ namespace Opc.Ua
             // sign data.
             switch (securityPolicyUri)
             {
-                case SecurityPolicies.Basic256:
-                case SecurityPolicies.Basic128Rsa15:
+                case Basic256:
+                case Basic128Rsa15:
                 {
                     signatureData.Algorithm = SecurityAlgorithms.RsaSha1;
                     signatureData.Signature = RsaUtils.Rsa_Sign(new ArraySegment<byte>(dataToSign), certificate, HashAlgorithmName.SHA1, RSASignaturePadding.Pkcs1);
                     break;
                 }
 
-                case SecurityPolicies.Aes128_Sha256_RsaOaep:
-                case SecurityPolicies.Basic256Sha256:
+                case Aes128_Sha256_RsaOaep:
+                case Basic256Sha256:
                 {
                     signatureData.Algorithm = SecurityAlgorithms.RsaSha256;
                     signatureData.Signature = RsaUtils.Rsa_Sign(new ArraySegment<byte>(dataToSign), certificate, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
                     break;
                 }
 
-                case SecurityPolicies.Aes256_Sha256_RsaPss:
+                case Aes256_Sha256_RsaPss:
                 {
                     signatureData.Algorithm = SecurityAlgorithms.RsaPssSha256;
                     signatureData.Signature = RsaUtils.Rsa_Sign(new ArraySegment<byte>(dataToSign), certificate, HashAlgorithmName.SHA256, RSASignaturePadding.Pss);
@@ -491,16 +490,16 @@ namespace Opc.Ua
                 }
 
 #if ECC_SUPPORT
-                case SecurityPolicies.ECC_nistP256:
-                case SecurityPolicies.ECC_brainpoolP256r1:
+                case ECC_nistP256:
+                case ECC_brainpoolP256r1:
                 {
                     signatureData.Algorithm = null;
                     signatureData.Signature = EccUtils.Sign(new ArraySegment<byte>(dataToSign), certificate, HashAlgorithmName.SHA256);
                     break;
                 }
 
-                case SecurityPolicies.ECC_nistP384:
-                case SecurityPolicies.ECC_brainpoolP384r1:
+                case ECC_nistP384:
+                case ECC_brainpoolP384r1:
                 {
                     signatureData.Algorithm = null;
                     signatureData.Signature = EccUtils.Sign(new ArraySegment<byte>(dataToSign), certificate, HashAlgorithmName.SHA384);
@@ -508,15 +507,15 @@ namespace Opc.Ua
                 }
 #endif
 
-                case SecurityPolicies.None:
+                case None:
                 {
                     signatureData.Algorithm = null;
                     signatureData.Signature = null;
                     break;
                 }
 
-                case SecurityPolicies.ECC_curve25519:
-                case SecurityPolicies.ECC_curve448:
+                case ECC_curve25519:
+                case ECC_curve448:
                 default:
                 {
                     throw ServiceResultException.Create(
@@ -549,8 +548,8 @@ namespace Opc.Ua
             // decrypt data.
             switch (securityPolicyUri)
             {
-                case SecurityPolicies.Basic256:
-                case SecurityPolicies.Basic128Rsa15:
+                case Basic256:
+                case Basic128Rsa15:
                 {
                     if (signature.Algorithm == SecurityAlgorithms.RsaSha1)
                     {
@@ -564,8 +563,8 @@ namespace Opc.Ua
                         SecurityAlgorithms.RsaSha1);
                 }
 
-                case SecurityPolicies.Aes128_Sha256_RsaOaep:
-                case SecurityPolicies.Basic256Sha256:
+                case Aes128_Sha256_RsaOaep:
+                case Basic256Sha256:
                 {
                     if (signature.Algorithm == SecurityAlgorithms.RsaSha256)
                     {
@@ -579,7 +578,7 @@ namespace Opc.Ua
                         SecurityAlgorithms.RsaSha256);
                 }
 
-                case SecurityPolicies.Aes256_Sha256_RsaPss:
+                case Aes256_Sha256_RsaPss:
                 {
                     if (signature.Algorithm == SecurityAlgorithms.RsaPssSha256)
                     {
@@ -593,26 +592,26 @@ namespace Opc.Ua
                         SecurityAlgorithms.RsaPssSha256);
                 }
 #if ECC_SUPPORT
-                case SecurityPolicies.ECC_nistP256:
-                case SecurityPolicies.ECC_brainpoolP256r1:
+                case ECC_nistP256:
+                case ECC_brainpoolP256r1:
                 {
                     return EccUtils.Verify(new ArraySegment<byte>(dataToVerify), signature.Signature, certificate, HashAlgorithmName.SHA256);
                 }
 
-                case SecurityPolicies.ECC_nistP384:
-                case SecurityPolicies.ECC_brainpoolP384r1:
+                case ECC_nistP384:
+                case ECC_brainpoolP384r1:
                 {
                     return EccUtils.Verify(new ArraySegment<byte>(dataToVerify), signature.Signature, certificate, HashAlgorithmName.SHA384);
                 }
 #endif
                 // always accept signatures if security is not used.
-                case SecurityPolicies.None:
+                case None:
                 {
                     return true;
                 }
 
-                case SecurityPolicies.ECC_curve25519:
-                case SecurityPolicies.ECC_curve448:
+                case ECC_curve25519:
+                case ECC_curve448:
                 default:
                 {
                     throw ServiceResultException.Create(

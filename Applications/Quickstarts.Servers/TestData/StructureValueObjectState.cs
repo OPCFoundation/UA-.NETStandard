@@ -41,8 +41,8 @@ namespace TestData
         {
             base.OnAfterCreate(context, node);
 
-            InitializeVariable(context, ScalarStructure, TestData.Variables.StructureValueObjectType_ScalarStructure);
-            InitializeVariable(context, VectorStructure, TestData.Variables.StructureValueObjectType_VectorStructure);
+            InitializeVariable(context, ScalarStructure, Variables.StructureValueObjectType_ScalarStructure);
+            InitializeVariable(context, VectorStructure, Variables.StructureValueObjectType_VectorStructure);
         }
         #endregion
 
@@ -56,9 +56,7 @@ namespace TestData
             NodeId objectId,
             uint count)
         {
-            TestDataSystem system = context.SystemHandle as TestDataSystem;
-
-            if (system == null)
+            if (context.SystemHandle is not TestDataSystem system)
             {
                 return StatusCodes.BadOutOfService;
             }

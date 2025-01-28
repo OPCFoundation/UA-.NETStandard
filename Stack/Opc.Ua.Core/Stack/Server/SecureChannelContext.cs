@@ -41,7 +41,7 @@ namespace Opc.Ua
         /// </summary>
         protected SecureChannelContext()
         {
-            SecureChannelContext context = SecureChannelContext.Current;
+            SecureChannelContext context = Current;
 
             if (context != null)
             {
@@ -88,15 +88,9 @@ namespace Opc.Ua
         /// <value>The current secure channel context.</value>
         public static SecureChannelContext Current
         {
-            get
-            {
-                return s_Dataslot.Value;
-            }
+            get => s_Dataslot.Value;
 
-            set
-            {
-                s_Dataslot.Value = value;
-            }
+            set => s_Dataslot.Value = value;
         }
         #endregion
 

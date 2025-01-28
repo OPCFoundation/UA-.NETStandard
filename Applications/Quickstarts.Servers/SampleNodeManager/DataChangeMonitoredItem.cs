@@ -29,7 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Text;
 using Opc.Ua.Server;
 
 namespace Opc.Ua.Sample
@@ -156,8 +155,8 @@ namespace Opc.Ua.Sample
         /// </summary>
         public bool AlwaysReportUpdates
         {
-            get { return m_alwaysReportUpdates; }
-            set { m_alwaysReportUpdates = value; }
+            get => m_alwaysReportUpdates;
+            set => m_alwaysReportUpdates = value;
         }
 
         /// <summary>
@@ -276,10 +275,7 @@ namespace Opc.Ua.Sample
                 // update the queue size.
                 if (queueSize > 1)
                 {
-                    if (m_queue == null)
-                    {
-                        m_queue = new MonitoredItemQueue(m_id);
-                    }
+                    m_queue ??= new MonitoredItemQueue(m_id);
 
                     m_queue.SetQueueSize(queueSize, discardOldest, diagnosticsMasks);
                     m_queue.SetSamplingInterval(samplingInterval);
@@ -298,7 +294,7 @@ namespace Opc.Ua.Sample
         /// </summary>
         public void ValueChanged(ISystemContext context)
         {
-            DataValue value = new DataValue();
+            var value = new DataValue();
 
             ServiceResult error = m_source.Node.ReadAttribute(context, m_attributeId, NumericRange.Empty, null, value);
 
@@ -391,15 +387,9 @@ namespace Opc.Ua.Sample
         /// </summary>
         public ISubscription SubscriptionCallback
         {
-            get
-            {
-                return m_subscription;
-            }
+            get => m_subscription;
 
-            set
-            {
-                m_subscription = value;
-            }
+            set => m_subscription = value;
         }
 
         /// <summary>
@@ -569,7 +559,7 @@ namespace Opc.Ua.Sample
                 // check if value has changed.
                 if (!m_alwaysReportUpdates && !ignoreFilters)
                 {
-                    if (!Opc.Ua.Server.MonitoredItem.ValueChanged(value, error, m_lastValue, m_lastError, m_filter, m_range))
+                    if (!MonitoredItem.ValueChanged(value, error, m_lastValue, m_lastError, m_filter, m_range))
                     {
                         return;
                     }
@@ -578,7 +568,7 @@ namespace Opc.Ua.Sample
                 // make a shallow copy of the value.
                 if (value != null)
                 {
-                    DataValue copy = new DataValue();
+                    var copy = new DataValue();
 
                     copy.WrappedValue = value.WrappedValue;
                     copy.StatusCode = value.StatusCode;
@@ -815,7 +805,7 @@ namespace Opc.Ua.Sample
             }
 
             // copy data value.
-            MonitoredItemNotification item = new MonitoredItemNotification();
+            var item = new MonitoredItemNotification();
 
             item.ClientHandle = m_clientHandle;
             item.Value = value;

@@ -221,12 +221,12 @@ namespace Opc.Ua
         {
             if (value == null)
             {
-                return Opc.Ua.NodeId.Null;
+                return NodeId.Null;
             }
 
             NodeId dataTypeId = GetDataTypeId(value.GetType());
 
-            if (dataTypeId == Opc.Ua.NodeId.Null)
+            if (dataTypeId == NodeId.Null)
             {
                 if (value is Matrix matrix)
                 {
@@ -244,11 +244,11 @@ namespace Opc.Ua
         /// <returns>An data type identifier for a node in a server's address space.</returns>
         public static NodeId GetDataTypeId(Type type)
         {
-            TypeInfo typeInfo = TypeInfo.Construct(type);
+            var typeInfo = Construct(type);
 
             NodeId dataTypeId = GetDataTypeId(typeInfo);
 
-            if (Opc.Ua.NodeId.IsNull(dataTypeId))
+            if (NodeId.IsNull(dataTypeId))
             {
                 if (type.GetTypeInfo().IsEnum || (type.IsArray && type.GetElementType().GetTypeInfo().IsEnum))
                 {
@@ -299,7 +299,7 @@ namespace Opc.Ua
                 case BuiltInType.Enumeration: { return DataTypeIds.Enumeration; }
             }
 
-            return Opc.Ua.NodeId.Null;
+            return NodeId.Null;
         }
 
         /// <summary>
@@ -314,7 +314,7 @@ namespace Opc.Ua
                 return ValueRanks.Any;
             }
 
-            TypeInfo typeInfo = TypeInfo.Construct(value);
+            var typeInfo = Construct(value);
 
             if (typeInfo.BuiltInType == BuiltInType.Null)
             {
@@ -334,7 +334,7 @@ namespace Opc.Ua
         /// <returns>The array rank of the <paramref name="type"/> </returns>
         public static int GetValueRank(Type type)
         {
-            TypeInfo typeInfo = TypeInfo.Construct(type);
+            var typeInfo = Construct(type);
 
             if (typeInfo.BuiltInType == BuiltInType.Null)
             {
@@ -361,7 +361,7 @@ namespace Opc.Ua
         /// <returns>An <see cref="BuiltInType"/> for  <paramref name="datatypeId"/></returns>
         public static BuiltInType GetBuiltInType(NodeId datatypeId)
         {
-            if (datatypeId == null || datatypeId.NamespaceIndex != 0 || datatypeId.IdType != Opc.Ua.IdType.Numeric)
+            if (datatypeId == null || datatypeId.NamespaceIndex != 0 || datatypeId.IdType != IdType.Numeric)
             {
                 return BuiltInType.Null;
             }
@@ -399,7 +399,7 @@ namespace Opc.Ua
                 case DataTypes.TimeString: return BuiltInType.String;
             }
 
-            BuiltInType builtInType = (BuiltInType)Enum.ToObject(typeof(BuiltInType), datatypeId.Identifier);
+            var builtInType = (BuiltInType)Enum.ToObject(typeof(BuiltInType), datatypeId.Identifier);
 
             if (builtInType > BuiltInType.DiagnosticInfo && builtInType != BuiltInType.Enumeration)
             {
@@ -488,11 +488,11 @@ namespace Opc.Ua
         {
             NodeId typeId = datatypeId;
 
-            while (!Opc.Ua.NodeId.IsNull(typeId))
+            while (!NodeId.IsNull(typeId))
             {
-                if (typeId != null && typeId.NamespaceIndex == 0 && typeId.IdType == Opc.Ua.IdType.Numeric)
+                if (typeId != null && typeId.NamespaceIndex == 0 && typeId.IdType == IdType.Numeric)
                 {
-                    BuiltInType id = (BuiltInType)(int)(uint)typeId.Identifier;
+                    var id = (BuiltInType)(int)(uint)typeId.Identifier;
 
                     if (id > BuiltInType.Null && id <= BuiltInType.Enumeration && id != BuiltInType.DiagnosticInfo)
                     {
@@ -525,11 +525,11 @@ namespace Opc.Ua
         {
             NodeId typeId = datatypeId;
 
-            while (!Opc.Ua.NodeId.IsNull(typeId))
+            while (!NodeId.IsNull(typeId))
             {
-                if (typeId != null && typeId.NamespaceIndex == 0 && typeId.IdType == Opc.Ua.IdType.Numeric)
+                if (typeId != null && typeId.NamespaceIndex == 0 && typeId.IdType == IdType.Numeric)
                 {
-                    BuiltInType id = (BuiltInType)(int)(uint)typeId.Identifier;
+                    var id = (BuiltInType)(int)(uint)typeId.Identifier;
 
                     if (id > BuiltInType.Null && id <= BuiltInType.Enumeration && id != BuiltInType.DiagnosticInfo)
                     {
@@ -562,7 +562,7 @@ namespace Opc.Ua
                 return null;
             }
 
-            if (datatypeId.NamespaceIndex != 0 || datatypeId.IdType != Opc.Ua.IdType.Numeric || datatypeId.IsAbsolute)
+            if (datatypeId.NamespaceIndex != 0 || datatypeId.IdType != IdType.Numeric || datatypeId.IsAbsolute)
             {
                 return factory.GetSystemType(datatypeId);
             }
@@ -678,7 +678,7 @@ namespace Opc.Ua
 
             if (typeInfo.BuiltInType == BuiltInType.Null)
             {
-                expectedType = TypeInfo.GetBuiltInType(expectedDataTypeId, typeTree);
+                expectedType = GetBuiltInType(expectedDataTypeId, typeTree);
 
                 // nulls allowed for all array types.
                 if (expectedValueRank != ValueRanks.Scalar)
@@ -924,7 +924,7 @@ namespace Opc.Ua
             }
 
             // check every element in the array or matrix.
-            Array array = value as Array;
+            var array = value as Array;
             if (array == null)
             {
                 if (value is Matrix matrix)
@@ -935,7 +935,7 @@ namespace Opc.Ua
 
             if (array != null)
             {
-                BuiltInType expectedElementType = TypeInfo.GetBuiltInType(expectedDataTypeId, typeTree);
+                BuiltInType expectedElementType = GetBuiltInType(expectedDataTypeId, typeTree);
                 BuiltInType actualElementType = GetBuiltInType(array.GetType().GetElementType().Name);
                 // system type of array matches the expected type - nothing more to do.
                 if (actualElementType != BuiltInType.ExtensionObject && actualElementType == expectedElementType)
@@ -976,7 +976,7 @@ namespace Opc.Ua
                         element = ((Variant)element).Value;
                     }
 
-                    TypeInfo elementInfo = TypeInfo.IsInstanceOfDataType(
+                    var elementInfo = IsInstanceOfDataType(
                         element,
                         expectedDataTypeId,
                         ValueRanks.Scalar,
@@ -1164,7 +1164,7 @@ namespace Opc.Ua
         {
             if (value == null)
             {
-                return TypeInfo.Unknown;
+                return Unknown;
             }
 
             TypeInfo typeInfo = Construct(value.GetType());
@@ -1192,7 +1192,7 @@ namespace Opc.Ua
             // check for null.
             if (systemType == null)
             {
-                return TypeInfo.Unknown;
+                return Unknown;
             }
 
             // using strings in switch statements is much faster than the typeof() operator.
@@ -1243,7 +1243,7 @@ namespace Opc.Ua
                         return Construct(systemType.GetTypeInfo().BaseType);
                     }
 
-                    return TypeInfo.Unknown;
+                    return Unknown;
                 }
 
                 // check for generic type.
@@ -1261,7 +1261,7 @@ namespace Opc.Ua
                         }
                     }
 
-                    return TypeInfo.Unknown;
+                    return Unknown;
                 }
 
                 // check for encodeable object.
@@ -1270,7 +1270,7 @@ namespace Opc.Ua
                     return new TypeInfo(BuiltInType.ExtensionObject, ValueRanks.Scalar);
                 }
 
-                return TypeInfo.Unknown;
+                return Unknown;
             }
 
             // handle one dimensional array.
@@ -1299,7 +1299,7 @@ namespace Opc.Ua
                     return new TypeInfo(BuiltInType.Enumeration, ValueRanks.OneDimension);
                 }
 
-                return TypeInfo.Unknown;
+                return Unknown;
             }
 
             // count the number of dimensions (syntax is [,] - commas+1 is the number of dimensions).
@@ -1329,7 +1329,7 @@ namespace Opc.Ua
                     return new TypeInfo(BuiltInType.ExtensionObject, count);
                 }
 
-                return TypeInfo.Unknown;
+                return Unknown;
             }
 
             // handle multi-dimensional array of byte strings.
@@ -1343,7 +1343,7 @@ namespace Opc.Ua
             }
 
             // unknown type.
-            return TypeInfo.Unknown;
+            return Unknown;
         }
 
         /// <summary>
@@ -1554,7 +1554,7 @@ namespace Opc.Ua
         /// <exception cref="InvalidCastException">if impossible to cast.</exception>
         public static object Cast(object source, BuiltInType targetType)
         {
-            return Cast(source, TypeInfo.Construct(source), targetType);
+            return Cast(source, Construct(source), targetType);
         }
 
         /// <summary>
@@ -1733,7 +1733,7 @@ namespace Opc.Ua
                 dimensions[ii] = srcArray.GetLength(ii);
             }
 
-            Array dstArray = TypeInfo.CreateArray(dstType, dimensions);
+            Array dstArray = CreateArray(dstType, dimensions);
             CastArray(dstArray, dstType, srcArray, srcType, convertor);
 
             return dstArray;
@@ -1958,7 +1958,7 @@ namespace Opc.Ua
 
                 case BuiltInType.StatusCode:
                 {
-                    StatusCode code = (StatusCode)value;
+                    var code = (StatusCode)value;
                     return (ushort)(code.CodeBits >> 16);
                 }
             }
@@ -2357,7 +2357,7 @@ namespace Opc.Ua
 
                 case BuiltInType.Guid:
                 {
-                    Guid? guid = value as Guid?;
+                    var guid = value as Guid?;
 
                     if (guid != null)
                     {
@@ -2399,7 +2399,7 @@ namespace Opc.Ua
                         return Array.Empty<byte>();
                     }
 
-                    using (System.IO.MemoryStream ostrm = new System.IO.MemoryStream())
+                    using (var ostrm = new System.IO.MemoryStream())
                     {
                         byte buffer = 0;
                         bool firstByte = false;
@@ -2473,7 +2473,7 @@ namespace Opc.Ua
 
                 case BuiltInType.String:
                 {
-                    XmlDocument document = new XmlDocument();
+                    var document = new XmlDocument();
                     document.LoadInnerXml((string)value);
                     return document.DocumentElement;
                 }
@@ -2667,10 +2667,7 @@ namespace Opc.Ua
         /// </summary>
         private static object Cast<T>(object input, TypeInfo sourceType, CastDelegate<T> handler)
         {
-            if (sourceType == null)
-            {
-                sourceType = TypeInfo.Construct(input);
-            }
+            sourceType ??= Construct(input);
 
             if (sourceType.ValueRank >= 0)
             {
@@ -2680,7 +2677,7 @@ namespace Opc.Ua
             if (sourceType.BuiltInType == BuiltInType.Variant)
             {
                 object value = ((Variant)input).Value;
-                sourceType = TypeInfo.Construct(value);
+                sourceType = Construct(value);
                 return handler(value, sourceType);
             }
 
@@ -2697,11 +2694,11 @@ namespace Opc.Ua
                 return null;
             }
 
-            TypeInfo elementType = new TypeInfo(sourceType.BuiltInType, ValueRanks.Scalar);
+            var elementType = new TypeInfo(sourceType.BuiltInType, ValueRanks.Scalar);
 
             if (input.Rank == 1)
             {
-                T[] copy = new T[input.Length];
+                var copy = new T[input.Length];
 
                 for (int ii = 0; ii < input.Length; ii++)
                 {
@@ -2712,7 +2709,7 @@ namespace Opc.Ua
                         if (sourceType.BuiltInType == BuiltInType.Variant)
                         {
                             value = ((Variant)value).Value;
-                            elementType = TypeInfo.Construct(value);
+                            elementType = Construct(value);
                         }
 
                         copy[ii] = handler(value, elementType);
@@ -2727,7 +2724,7 @@ namespace Opc.Ua
                 int x = input.GetLength(0);
                 int y = input.GetLength(1);
 
-                T[,] copy = new T[x, y];
+                var copy = new T[x, y];
 
                 for (int ii = 0; ii < x; ii++)
                 {
@@ -2740,7 +2737,7 @@ namespace Opc.Ua
                             if (sourceType.BuiltInType == BuiltInType.Variant)
                             {
                                 value = ((Variant)value).Value;
-                                elementType = TypeInfo.Construct(value);
+                                elementType = Construct(value);
                             }
 
                             copy[ii, jj] = handler(value, elementType);
@@ -2758,7 +2755,7 @@ namespace Opc.Ua
                 dimensions[ii] = input.GetLength(ii);
             }
 
-            Array output = Array.CreateInstance(typeof(T), dimensions);
+            var output = Array.CreateInstance(typeof(T), dimensions);
 
             int length = output.Length;
             int[] indexes = new int[dimensions.Length];
@@ -2780,7 +2777,7 @@ namespace Opc.Ua
                     if (sourceType.BuiltInType == BuiltInType.Variant)
                     {
                         value = ((Variant)value).Value;
-                        elementType = TypeInfo.Construct(value);
+                        elementType = Construct(value);
                     }
 
                     output.SetValue(handler(value, elementType), indexes);
@@ -3081,7 +3078,7 @@ namespace Opc.Ua
         {
             if (format == null)
             {
-                System.Text.StringBuilder buffer = new System.Text.StringBuilder();
+                var buffer = new System.Text.StringBuilder();
                 buffer.Append(m_builtInType);
 
                 if (m_valueRank >= 0)
@@ -3112,7 +3109,7 @@ namespace Opc.Ua
         /// </remarks>
         public override bool Equals(object obj)
         {
-            if (Object.ReferenceEquals(this, obj))
+            if (ReferenceEquals(this, obj))
             {
                 return true;
             }

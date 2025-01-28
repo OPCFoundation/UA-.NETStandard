@@ -197,8 +197,8 @@ namespace Alarms
 
         public bool SupportsBranching
         {
-            get { return m_supportsBranching; }
-            set { m_supportsBranching = value; }
+            get => m_supportsBranching;
+            set => m_supportsBranching = value;
         }
 
         public virtual void SetBranchCount(int count)

@@ -76,7 +76,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             // Decode
             float actualBinaryValue;
-            using (XmlReader reader = XmlReader.Create(new StringReader(actualXmlValue)))
+            using (var reader = XmlReader.Create(new StringReader(actualXmlValue)))
             {
                 using (IDecoder xmlDecoder = new XmlDecoder(null, reader, context))
                 {
@@ -119,7 +119,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             // Decode
             double actualBinaryValue;
-            using (XmlReader reader = XmlReader.Create(new StringReader(actualXmlValue)))
+            using (var reader = XmlReader.Create(new StringReader(actualXmlValue)))
             {
                 using (IDecoder xmlDecoder = new XmlDecoder(null, reader, context))
                 {

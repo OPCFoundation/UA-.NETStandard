@@ -29,14 +29,7 @@
 
 using System;
 using System.Collections.Generic;
-using System.Xml;
-using System.IO;
-using System.Text;
-using System.Reflection;
-using System.Threading;
-using System.Globalization;
 using Opc.Ua;
-using Opc.Ua.Server;
 
 namespace TestData
 {
@@ -101,7 +94,7 @@ namespace TestData
 
                 HistoryEntry entry = m_entries[position];
 
-                DataValue value = new DataValue();
+                var value = new DataValue();
 
                 value.Value = entry.Value.Value;
                 value.ServerTimestamp = entry.Value.ServerTimestamp;
@@ -133,7 +126,7 @@ namespace TestData
 
                 HistoryEntry entry = m_entries[position];
 
-                DataValue value = new DataValue();
+                var value = new DataValue();
 
                 value.Value = entry.Value.Value;
                 value.ServerTimestamp = entry.Value.ServerTimestamp;

@@ -76,7 +76,7 @@ namespace Opc.Ua
             try
             {
                 // check for array of encodeables.
-                IList<IEncodeable> encodeables = value as IList<IEncodeable>;
+                var encodeables = value as IList<IEncodeable>;
 
                 if (encodeables == null)
                 {
@@ -109,7 +109,7 @@ namespace Opc.Ua
                 // apply data encoding to the array.
                 if (encodeables != null)
                 {
-                    ExtensionObject[] extensions = new ExtensionObject[encodeables.Count];
+                    var extensions = new ExtensionObject[encodeables.Count];
 
                     for (int ii = 0; ii < extensions.Length; ii++)
                     {
@@ -121,7 +121,7 @@ namespace Opc.Ua
                 }
 
                 // check for scalar value.
-                IEncodeable encodeable = value as IEncodeable;
+                var encodeable = value as IEncodeable;
 
                 if (encodeable == null)
                 {
@@ -155,12 +155,12 @@ namespace Opc.Ua
         {
             if (useXml)
             {
-                XmlElement body = EncodeableObject.EncodeXml(encodeable, context);
+                XmlElement body = EncodeXml(encodeable, context);
                 return new ExtensionObject(encodeable.XmlEncodingId, body);
             }
             else
             {
-                byte[] body = EncodeableObject.EncodeBinary(encodeable, context);
+                byte[] body = EncodeBinary(encodeable, context);
                 return new ExtensionObject(encodeable.BinaryEncodingId, body);
             }
         }
@@ -171,13 +171,13 @@ namespace Opc.Ua
         public static XmlElement EncodeXml(IEncodeable encodeable, IServiceMessageContext context)
         {
             // create encoder.
-            using (XmlEncoder encoder = new XmlEncoder(context))
+            using (var encoder = new XmlEncoder(context))
             {
                 // write body.
                 encoder.WriteExtensionObjectBody(encodeable);
 
                 // create document from encoder.
-                XmlDocument document = new XmlDocument();
+                var document = new XmlDocument();
                 document.LoadInnerXml(encoder.CloseAndReturnText());
 
                 // return root element.
@@ -190,7 +190,7 @@ namespace Opc.Ua
         /// </summary>
         public static byte[] EncodeBinary(IEncodeable encodeable, IServiceMessageContext context)
         {
-            using (BinaryEncoder encoder = new BinaryEncoder(context))
+            using (var encoder = new BinaryEncoder(context))
             {
                 encoder.WriteEncodeable(null, encodeable, null);
                 return encoder.CloseAndReturnBuffer();

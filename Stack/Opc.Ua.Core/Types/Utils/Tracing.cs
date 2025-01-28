@@ -51,10 +51,7 @@ namespace Opc.Ua
                 {
                     lock (s_syncRoot)
                     {
-                        if (s_instance == null)
-                        {
-                            s_instance = new Tracing();
-                        }
+                        s_instance ??= new Tracing();
                     }
                 }
                 return s_instance;

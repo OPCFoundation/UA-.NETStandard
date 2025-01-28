@@ -74,7 +74,7 @@ namespace Opc.Ua
         /// </returns>
         public new object MemberwiseClone()
         {
-            BaseInstanceState clone = new BaseInstanceState(this.NodeClass, this.Parent);
+            var clone = new BaseInstanceState(this.NodeClass, this.Parent);
             return CloneChildren(clone);
         }
         #endregion
@@ -85,8 +85,8 @@ namespace Opc.Ua
         /// </summary>
         public NodeState Parent
         {
-            get { return m_parent; }
-            internal set { m_parent = value; }
+            get => m_parent;
+            internal set => m_parent = value;
         }
 
         /// <summary>
@@ -128,12 +128,12 @@ namespace Opc.Ua
                 return name;
             }
 
-            StringBuilder buffer = new StringBuilder();
+            var buffer = new StringBuilder();
 
             if (maxLength > 2)
             {
                 NodeState parent = stateParent;
-                List<string> names = new List<string>();
+                var names = new List<string>();
 
                 while (parent != null)
                 {
@@ -197,8 +197,8 @@ namespace Opc.Ua
         /// </summary>
         public uint NumericId
         {
-            get { return m_numericId; }
-            set { m_numericId = value; }
+            get => m_numericId;
+            set => m_numericId = value;
         }
 
         /// <summary>
@@ -206,14 +206,11 @@ namespace Opc.Ua
         /// </summary>
         public NodeId ReferenceTypeId
         {
-            get
-            {
-                return m_referenceTypeId;
-            }
+            get => m_referenceTypeId;
 
             set
             {
-                if (!Object.ReferenceEquals(m_referenceTypeId, value))
+                if (!ReferenceEquals(m_referenceTypeId, value))
                 {
                     ChangeMasks |= NodeStateChangeMasks.References;
                 }
@@ -227,14 +224,11 @@ namespace Opc.Ua
         /// </summary>
         public NodeId TypeDefinitionId
         {
-            get
-            {
-                return m_typeDefinitionId;
-            }
+            get => m_typeDefinitionId;
 
             set
             {
-                if (!Object.ReferenceEquals(m_typeDefinitionId, value))
+                if (!ReferenceEquals(m_typeDefinitionId, value))
                 {
                     ChangeMasks |= NodeStateChangeMasks.References;
                 }
@@ -248,14 +242,11 @@ namespace Opc.Ua
         /// </summary>
         public NodeId ModellingRuleId
         {
-            get
-            {
-                return m_modellingRuleId;
-            }
+            get => m_modellingRuleId;
 
             set
             {
-                if (!Object.ReferenceEquals(m_modellingRuleId, value))
+                if (!ReferenceEquals(m_modellingRuleId, value))
                 {
                     ChangeMasks |= NodeStateChangeMasks.References;
                 }
@@ -405,7 +396,7 @@ namespace Opc.Ua
                 variable.MinimumSamplingInterval = minimumSamplingInterval;
             }
 
-            List<BaseInstanceState> children = new List<BaseInstanceState>();
+            var children = new List<BaseInstanceState>();
             GetChildren(context, children);
 
             for (int ii = 0; ii < children.Count; ii++)
@@ -455,7 +446,7 @@ namespace Opc.Ua
             }
 
             // read the child attribute.
-            DataValue dataValue = new DataValue();
+            var dataValue = new DataValue();
 
             ServiceResult result = ReadChildAttribute(
                 null,

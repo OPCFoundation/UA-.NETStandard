@@ -80,14 +80,14 @@ namespace Opc.Ua.Client.ComplexTypes
                 throw new ArgumentNullException(nameof(enumDefinition));
             }
 
-            var enumBuilder = m_moduleBuilder.DefineEnum(
+            EnumBuilder enumBuilder = m_moduleBuilder.DefineEnum(
                 GetFullQualifiedTypeName(typeName),
                 TypeAttributes.Public,
                 typeof(int));
             enumBuilder.DataContractAttribute(m_targetNamespace);
-            foreach (var enumValue in enumDefinition.Fields)
+            foreach (EnumField enumValue in enumDefinition.Fields)
             {
-                var newEnum = enumBuilder.DefineLiteral(enumValue.Name, (int)enumValue.Value);
+                FieldBuilder newEnum = enumBuilder.DefineLiteral(enumValue.Name, (int)enumValue.Value);
                 newEnum.EnumMemberAttribute(enumValue.Name, (int)enumValue.Value);
             }
             return enumBuilder.CreateTypeInfo();
@@ -115,7 +115,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 case StructureType.Structure: baseType = typeof(BaseComplexType); break;
                 default: throw new DataTypeNotSupportedException("Unsupported structure type");
             }
-            var structureBuilder = m_moduleBuilder.DefineType(
+            TypeBuilder structureBuilder = m_moduleBuilder.DefineType(
                 GetFullQualifiedTypeName(name),
                 TypeAttributes.Public | TypeAttributes.Class,
                 baseType);
@@ -134,12 +134,12 @@ namespace Opc.Ua.Client.ComplexTypes
             if (String.IsNullOrWhiteSpace(moduleName))
             {
                 // remove space chars in malformed namespace url
-                var tempNamespace = targetNamespace.Replace(" ", "");
-                Uri uri = new Uri(tempNamespace, UriKind.RelativeOrAbsolute);
-                var tempName = uri.IsAbsoluteUri ? uri.AbsolutePath : uri.ToString();
+                string tempNamespace = targetNamespace.Replace(" ", "");
+                var uri = new Uri(tempNamespace, UriKind.RelativeOrAbsolute);
+                string tempName = uri.IsAbsoluteUri ? uri.AbsolutePath : uri.ToString();
 
                 tempName = tempName.Replace("/", "");
-                var splitName = tempName.Split(':');
+                string[] splitName = tempName.Split(':');
                 moduleName = splitName.Last();
             }
             return moduleName;
@@ -151,7 +151,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <param name="browseName">The browse name of the type.</param>
         private string GetFullQualifiedTypeName(QualifiedName browseName)
         {
-            var result = "Opc.Ua.ComplexTypes." + m_moduleName + ".";
+            string result = "Opc.Ua.ComplexTypes." + m_moduleName + ".";
             if (browseName.NamespaceIndex > 1)
             {
                 result += browseName.NamespaceIndex + ".";

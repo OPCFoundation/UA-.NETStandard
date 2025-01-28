@@ -235,7 +235,7 @@ namespace Opc.Ua
             bool includeSubtypes,
             ITypeTable typeTree)
         {
-            ReferenceNode reference = new ReferenceNode(referenceTypeId, isInverse, targetId);
+            var reference = new ReferenceNode(referenceTypeId, isInverse, targetId);
 
             // check for trivial case.
             if (m_references.ContainsKey(reference))
@@ -375,7 +375,7 @@ namespace Opc.Ua
             if (arrayIndex < 0 || arrayIndex >= array.Length)
                 throw new ArgumentOutOfRangeException(nameof(arrayIndex), "arrayIndex < 0 || arrayIndex >= array.Length");
 
-            KeyValuePair<IReference, object>[] elements = new KeyValuePair<IReference, object>[array.Length - arrayIndex];
+            var elements = new KeyValuePair<IReference, object>[array.Length - arrayIndex];
             m_references.CopyTo(elements, 0);
 
             for (int ii = 0; ii < elements.Length; ii++)
@@ -467,7 +467,7 @@ namespace Opc.Ua
             NodeId referenceTypeId,
             bool isInverse)
         {
-            List<IReference> hits = new List<IReference>();
+            var hits = new List<IReference>();
 
             // check for null.
             if (NodeId.IsNull(referenceTypeId))
@@ -503,7 +503,7 @@ namespace Opc.Ua
         {
             if (typeTree == null) throw new ArgumentNullException(nameof(typeTree));
 
-            List<IReference> hits = new List<IReference>();
+            var hits = new List<IReference>();
 
             // check for null.
             if (NodeId.IsNull(referenceTypeId))
@@ -529,7 +529,7 @@ namespace Opc.Ua
         /// <returns>A list of references to the specified target.</returns>
         public IList<IReference> FindReferencesToTarget(ExpandedNodeId targetId)
         {
-            List<IReference> hits = new List<IReference>();
+            var hits = new List<IReference>();
 
             // check for null.
             if (NodeId.IsNull(targetId))
@@ -577,7 +577,7 @@ namespace Opc.Ua
                 {
                     foreach (LinkedListNode<KeyValuePair<IReference, T>> node in entry.InverseTargets.Values)
                     {
-                        if (Object.ReferenceEquals(m_list, node.List))
+                        if (ReferenceEquals(m_list, node.List))
                         {
                             m_list.Remove(node);
                         }
@@ -590,7 +590,7 @@ namespace Opc.Ua
                 {
                     foreach (LinkedListNode<KeyValuePair<IReference, T>> node in entry.InverseExternalTargets.Values)
                     {
-                        if (Object.ReferenceEquals(m_list, node.List))
+                        if (ReferenceEquals(m_list, node.List))
                         {
                             m_list.Remove(node);
                         }
@@ -605,7 +605,7 @@ namespace Opc.Ua
                 {
                     foreach (LinkedListNode<KeyValuePair<IReference, T>> node in entry.ForwardTargets.Values)
                     {
-                        if (Object.ReferenceEquals(m_list, node.List))
+                        if (ReferenceEquals(m_list, node.List))
                         {
                             m_list.Remove(node);
                         }
@@ -618,7 +618,7 @@ namespace Opc.Ua
                 {
                     foreach (LinkedListNode<KeyValuePair<IReference, T>> node in entry.ForwardExternalTargets.Values)
                     {
-                        if (Object.ReferenceEquals(m_list, node.List))
+                        if (ReferenceEquals(m_list, node.List))
                         {
                             m_list.Remove(node);
                         }
@@ -663,7 +663,7 @@ namespace Opc.Ua
         {
             get
             {
-                List<IReference> keys = new List<IReference>();
+                var keys = new List<IReference>();
 
                 for (LinkedListNode<KeyValuePair<IReference, T>> node = m_list.First; node != null; node = node.Next)
                 {
@@ -784,7 +784,7 @@ namespace Opc.Ua
         {
             get
             {
-                List<T> values = new List<T>();
+                var values = new List<T>();
 
                 for (LinkedListNode<KeyValuePair<IReference, T>> node = m_list.First; node != null; node = node.Next)
                 {
@@ -816,10 +816,7 @@ namespace Opc.Ua
                 return target.Value;
             }
 
-            set
-            {
-                Add(key, value, true);
-            }
+            set => Add(key, value, true);
         }
         #endregion
 
@@ -848,7 +845,7 @@ namespace Opc.Ua
                 return false;
             }
 
-            return Object.Equals(target.Value, item.Value);
+            return Equals(target.Value, item.Value);
         }
 
         /// <summary cref="ICollection{T}.CopyTo" />
@@ -1094,25 +1091,19 @@ namespace Opc.Ua
 
                 if (key.IsInverse)
                 {
-                    if (entry.InverseExternalTargets == null)
-                    {
-                        entry.InverseExternalTargets = new Dictionary<ExpandedNodeId, LinkedListNode<KeyValuePair<IReference, T>>>();
-                    }
+                    entry.InverseExternalTargets ??= new Dictionary<ExpandedNodeId, LinkedListNode<KeyValuePair<IReference, T>>>();
 
                     targets = entry.InverseExternalTargets;
                 }
                 else
                 {
-                    if (entry.ForwardExternalTargets == null)
-                    {
-                        entry.ForwardExternalTargets = new Dictionary<ExpandedNodeId, LinkedListNode<KeyValuePair<IReference, T>>>();
-                    }
+                    entry.ForwardExternalTargets ??= new Dictionary<ExpandedNodeId, LinkedListNode<KeyValuePair<IReference, T>>>();
 
                     targets = entry.ForwardExternalTargets;
                 }
 
                 // create a new target.
-                LinkedListNode<KeyValuePair<IReference, T>> node = new LinkedListNode<KeyValuePair<IReference, T>>(new KeyValuePair<IReference, T>(key, value));
+                var node = new LinkedListNode<KeyValuePair<IReference, T>>(new KeyValuePair<IReference, T>(key, value));
 
                 // check if target already exists.
                 LinkedListNode<KeyValuePair<IReference, T>> existingNode = null;
@@ -1145,27 +1136,21 @@ namespace Opc.Ua
 
                 if (key.IsInverse)
                 {
-                    if (entry.InverseTargets == null)
-                    {
-                        entry.InverseTargets = new NodeIdDictionary<LinkedListNode<KeyValuePair<IReference, T>>>();
-                    }
+                    entry.InverseTargets ??= new NodeIdDictionary<LinkedListNode<KeyValuePair<IReference, T>>>();
 
                     targets = entry.InverseTargets;
                 }
                 else
                 {
-                    if (entry.ForwardTargets == null)
-                    {
-                        entry.ForwardTargets = new NodeIdDictionary<LinkedListNode<KeyValuePair<IReference, T>>>();
-                    }
+                    entry.ForwardTargets ??= new NodeIdDictionary<LinkedListNode<KeyValuePair<IReference, T>>>();
 
                     targets = entry.ForwardTargets;
                 }
 
-                NodeId targetId = (NodeId)key.TargetId;
+                var targetId = (NodeId)key.TargetId;
 
                 // create a new target.
-                LinkedListNode<KeyValuePair<IReference, T>> node = new LinkedListNode<KeyValuePair<IReference, T>>(new KeyValuePair<IReference, T>(key, value));
+                var node = new LinkedListNode<KeyValuePair<IReference, T>>(new KeyValuePair<IReference, T>(key, value));
 
                 // check if target already exists.
                 LinkedListNode<KeyValuePair<IReference, T>> existingNode = null;

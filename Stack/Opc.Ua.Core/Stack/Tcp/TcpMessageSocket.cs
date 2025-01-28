@@ -11,11 +11,8 @@
 */
 
 using System;
-using System.Linq;
 using System.Net;
 using System.Net.Sockets;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace Opc.Ua.Bindings
 {
@@ -126,8 +123,8 @@ namespace Opc.Ua.Bindings
         /// <inheritdoc/>
         public BufferCollection BufferList
         {
-            get { return m_args.BufferList as BufferCollection; }
-            set { m_args.BufferList = value; }
+            get => m_args.BufferList as BufferCollection;
+            set => m_args.BufferList = value;
         }
 
         /// <summary>
@@ -180,14 +177,8 @@ namespace Opc.Ua.Bindings
         /// <remarks>Not implemented here.</remarks>
         public event EventHandler<IMessageSocketAsyncEventArgs> Completed
         {
-            add
-            {
-                throw new NotImplementedException();
-            }
-            remove
-            {
-                throw new NotImplementedException();
-            }
+            add => throw new NotImplementedException();
+            remove => throw new NotImplementedException();
         }
 
         /// <inheritdoc/>
@@ -201,11 +192,8 @@ namespace Opc.Ua.Bindings
         /// <remarks>Not implememnted here.</remarks>
         public BufferCollection BufferList
         {
-            get { return null; }
-            set
-            {
-                throw new NotImplementedException();
-            }
+            get => null;
+            set => throw new NotImplementedException();
         }
 
         private SocketError m_socketError;
@@ -356,7 +344,7 @@ namespace Opc.Ua.Bindings
                 port = Utils.UaTcpDefaultPort;
             }
 
-            DnsEndPoint endpoint = new DnsEndPoint(endpointUrl.DnsSafeHost, port);
+            var endpoint = new DnsEndPoint(endpointUrl.DnsSafeHost, port);
             error = BeginConnect(endpoint, doCallback);
             if (error == SocketError.InProgress || error == SocketError.Success)
             {
@@ -411,10 +399,7 @@ namespace Opc.Ua.Bindings
                 do
                 {
                     // allocate a buffer large enough to a message chunk.
-                    if (m_receiveBuffer == null)
-                    {
-                        m_receiveBuffer = m_bufferManager.TakeBuffer(m_receiveBufferSize, "ReadNextMessage");
-                    }
+                    m_receiveBuffer ??= m_bufferManager.TakeBuffer(m_receiveBufferSize, "ReadNextMessage");
 
                     // read the first 8 bytes of the message which contains the message size.          
                     m_bytesReceived = 0;
@@ -567,7 +552,7 @@ namespace Opc.Ua.Bindings
                 try
                 {
                     // send notification (implementor responsible for freeing buffer) on success.
-                    ArraySegment<byte> messageChunk = new ArraySegment<byte>(m_receiveBuffer, 0, m_incomingMessageSize);
+                    var messageChunk = new ArraySegment<byte>(m_receiveBuffer, 0, m_incomingMessageSize);
 
                     // must allocate a new buffer for the next message.
                     m_receiveBuffer = null;

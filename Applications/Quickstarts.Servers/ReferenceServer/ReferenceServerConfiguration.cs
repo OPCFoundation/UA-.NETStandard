@@ -70,8 +70,8 @@ namespace Quickstarts.ReferenceServer
         [DataMember(Order = 1)]
         public bool ShowCertificateValidationDialog
         {
-            get { return m_showCertificateValidationDialog; }
-            set { m_showCertificateValidationDialog = value; }
+            get => m_showCertificateValidationDialog;
+            set => m_showCertificateValidationDialog = value;
         }
         #endregion
 

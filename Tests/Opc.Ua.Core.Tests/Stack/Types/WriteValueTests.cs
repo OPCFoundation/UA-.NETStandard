@@ -27,10 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
-using System.Linq;
 using NUnit.Framework;
-using Opc.Ua.Test;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 
@@ -83,10 +80,10 @@ namespace Opc.Ua.Core.Tests.Stack.Types
                 { 7, 8, 9 },
             };
 
-            Matrix matrix = new Matrix(int3x3Matrix, BuiltInType.Int32);
+            var matrix = new Matrix(int3x3Matrix, BuiltInType.Int32);
 
             // Positive test
-            WriteValue writeValue = new WriteValue() {
+            var writeValue = new WriteValue() {
                 AttributeId = Attributes.Value,
                 NodeId = new NodeId(4000, 8),
                 Value = new DataValue(new Variant(matrix)),
@@ -122,7 +119,7 @@ namespace Opc.Ua.Core.Tests.Stack.Types
         public void StringIndexRangeValidationTest()
         {
             // Positive test
-            WriteValue writeValue = new WriteValue() {
+            var writeValue = new WriteValue() {
                 AttributeId = Attributes.Value,
                 NodeId = new NodeId(4000, 8),
                 Value = new DataValue(new Variant("Hello world")),
@@ -148,7 +145,7 @@ namespace Opc.Ua.Core.Tests.Stack.Types
         {
 
             // Positive test
-            WriteValue writeValue = new WriteValue() {
+            var writeValue = new WriteValue() {
                 AttributeId = Attributes.Value,
                 NodeId = new NodeId(4000, 8),
                 Value = new DataValue(new Variant(new int[] { 1, 2, 3, 4, 5 })),
@@ -173,7 +170,7 @@ namespace Opc.Ua.Core.Tests.Stack.Types
         public void ArraySubRangeIndexRangeValidationTest()
         {
             // Test with String array
-            WriteValue writeValue = new WriteValue() {
+            var writeValue = new WriteValue() {
                 AttributeId = Attributes.Value,
                 NodeId = new NodeId(4000, 8),
                 Value = new DataValue(new Variant(new string[] { "ha" })),

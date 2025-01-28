@@ -258,10 +258,10 @@ namespace Opc.Ua.Security.Certificates
                     m_issuerName = new X500DistinguishedName(seqReader.ReadEncodedValue().ToArray());
 
                     // thisUpdate
-                    m_thisUpdate = X509CRL.ReadTime(seqReader, optional: false);
+                    m_thisUpdate = ReadTime(seqReader, optional: false);
 
                     // nextUpdate is OPTIONAL
-                    m_nextUpdate = X509CRL.ReadTime(seqReader, optional: true);
+                    m_nextUpdate = ReadTime(seqReader, optional: true);
 
                     // revokedCertificates is OPTIONAL
                     if (seqReader.HasData)
@@ -278,7 +278,7 @@ namespace Opc.Ua.Security.Certificates
                                 AsnReader crlEntry = revReader.ReadSequence();
                                 System.Numerics.BigInteger serial = crlEntry.ReadInteger();
                                 var revokedCertificate = new RevokedCertificate(serial.ToByteArray());
-                                revokedCertificate.RevocationDate = X509CRL.ReadTime(crlEntry, optional: false);
+                                revokedCertificate.RevocationDate = ReadTime(crlEntry, optional: false);
                                 if (version == 1 &&
                                     crlEntry.HasData)
                                 {
@@ -391,14 +391,8 @@ namespace Opc.Ua.Security.Certificates
         /// <exception cref="ArgumentNullException"></exception>
         public new X509CRL this[int index]
         {
-            get
-            {
-                return (X509CRL)base[index];
-            }
-            set
-            {
-                base[index] = value ?? throw new ArgumentNullException(nameof(value));
-            }
+            get => (X509CRL)base[index];
+            set => base[index] = value ?? throw new ArgumentNullException(nameof(value));
         }
 
         /// <summary>

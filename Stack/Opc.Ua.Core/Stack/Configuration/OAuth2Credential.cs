@@ -108,10 +108,7 @@ namespace Opc.Ua
                 {
                     list = configuration.ParseExtension<OAuth2CredentialCollection>();
 
-                    if (list == null)
-                    {
-                        list = new OAuth2CredentialCollection();
-                    }
+                    list ??= new OAuth2CredentialCollection();
 
                     configuration.Properties["OAuth2Credentials"] = list;
                 }
@@ -131,15 +128,15 @@ namespace Opc.Ua
 
             if (list != null)
             {
-                foreach (var ii in list)
+                foreach (OAuth2Credential ii in list)
                 {
                     if (ii.Servers != null && ii.Servers.Count > 0)
                     {
-                        foreach (var jj in ii.Servers)
+                        foreach (OAuth2ServerSettings jj in ii.Servers)
                         {
                             // this is too allow generic sample config files to work on any machine. 
                             // in a real system explicit host names would be used so this would have no effect.
-                            var uri = jj.ApplicationUri.Replace("localhost", System.Net.Dns.GetHostName().ToLowerInvariant());
+                            string uri = jj.ApplicationUri.Replace("localhost", System.Net.Dns.GetHostName().ToLowerInvariant());
 
                             if (uri == serverApplicationUri)
                             {
@@ -180,11 +177,11 @@ namespace Opc.Ua
 
             if (list != null)
             {
-                foreach (var ii in list)
+                foreach (OAuth2Credential ii in list)
                 {
                     // this is too allow generic sample config files to work on any machine. 
                     // in a real system explicit host names would be used so this would have no effect.
-                    var uri = ii.AuthorityUrl.Replace("localhost", System.Net.Dns.GetHostName().ToLowerInvariant());
+                    string uri = ii.AuthorityUrl.Replace("localhost", System.Net.Dns.GetHostName().ToLowerInvariant());
 
                     if (!uri.EndsWith("/", StringComparison.Ordinal))
                     {

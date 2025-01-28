@@ -10,7 +10,6 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
-using System.Security.Cryptography.X509Certificates;
 using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua
@@ -26,8 +25,8 @@ namespace Opc.Ua
         /// </summary>
         public EndpointDescriptionCollection Descriptions
         {
-            get { return m_descriptions; }
-            set { m_descriptions = value; }
+            get => m_descriptions;
+            set => m_descriptions = value;
         }
 
         /// <summary>
@@ -35,8 +34,8 @@ namespace Opc.Ua
         /// </summary>
         public EndpointConfiguration Configuration
         {
-            get { return m_configuration; }
-            set { m_configuration = value; }
+            get => m_configuration;
+            set => m_configuration = value;
         }
 
         /// <summary>
@@ -44,8 +43,8 @@ namespace Opc.Ua
         /// </summary>
         public CertificateTypesProvider ServerCertificateTypesProvider
         {
-            get { return m_serverCertificateTypes; }
-            set { m_serverCertificateTypes = value; }
+            get => m_serverCertificateTypes;
+            set => m_serverCertificateTypes = value;
         }
 
 
@@ -58,8 +57,8 @@ namespace Opc.Ua
         /// </remarks>
         public ICertificateValidator CertificateValidator
         {
-            get { return m_certificateValidator; }
-            set { m_certificateValidator = value; }
+            get => m_certificateValidator;
+            set => m_certificateValidator = value;
         }
 
         /// <summary>
@@ -75,8 +74,8 @@ namespace Opc.Ua
         /// <seealso cref="Factory" />
         public NamespaceTable NamespaceUris
         {
-            get { return m_namespaceUris; }
-            set { m_namespaceUris = value; }
+            get => m_namespaceUris;
+            set => m_namespaceUris = value;
         }
 
         /// <summary>
@@ -95,8 +94,8 @@ namespace Opc.Ua
         /// <seealso cref="NamespaceUris" />
         public IEncodeableFactory Factory
         {
-            get { return m_channelFactory; }
-            set { m_channelFactory = value; }
+            get => m_channelFactory;
+            set => m_channelFactory = value;
         }
 
         /// <summary>
@@ -104,8 +103,8 @@ namespace Opc.Ua
         /// </summary>
         public bool ReverseConnectListener
         {
-            get { return m_reverseConnectListener; }
-            set { m_reverseConnectListener = value; }
+            get => m_reverseConnectListener;
+            set => m_reverseConnectListener = value;
         }
 
         /// <summary>
@@ -114,8 +113,8 @@ namespace Opc.Ua
         /// </summary>
         public int MaxChannelCount
         {
-            get { return m_maxChannelCount; }
-            set { m_maxChannelCount = value; }
+            get => m_maxChannelCount;
+            set => m_maxChannelCount = value;
         }
 
         /// <summary>
@@ -125,8 +124,8 @@ namespace Opc.Ua
         /// </summary>
         public bool HttpsMutualTls
         {
-            get { return m_httpMutualTls; }
-            set { m_httpMutualTls = value; }
+            get => m_httpMutualTls;
+            set => m_httpMutualTls = value;
         }
         #endregion
 

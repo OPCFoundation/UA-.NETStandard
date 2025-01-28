@@ -11,14 +11,7 @@
 */
 
 using System;
-using System.Collections;
 using System.Collections.Generic;
-using System.Text;
-using System.Xml;
-using System.IO;
-using System.Runtime.Serialization;
-using System.Reflection;
-using System.Threading;
 
 namespace Opc.Ua
 {
@@ -90,7 +83,7 @@ namespace Opc.Ua
         /// </returns>
         public new object MemberwiseClone()
         {
-            MethodState clone = (MethodState)Activator.CreateInstance(this.GetType(), this.Parent);
+            var clone = (MethodState)Activator.CreateInstance(this.GetType(), this.Parent);
             return CloneChildren(clone);
         }
         #endregion
@@ -101,15 +94,9 @@ namespace Opc.Ua
         /// </summary>
         public NodeId MethodDeclarationId
         {
-            get
-            {
-                return base.TypeDefinitionId;
-            }
+            get => TypeDefinitionId;
 
-            set
-            {
-                base.TypeDefinitionId = value;
-            }
+            set => TypeDefinitionId = value;
         }
 
         /// <summary>
@@ -117,10 +104,7 @@ namespace Opc.Ua
         /// </summary>
         public bool Executable
         {
-            get
-            {
-                return m_executable;
-            }
+            get => m_executable;
 
             set
             {
@@ -138,10 +122,7 @@ namespace Opc.Ua
         /// </summary>
         public bool UserExecutable
         {
-            get
-            {
-                return m_userExecutable;
-            }
+            get => m_userExecutable;
 
             set
             {
@@ -460,14 +441,11 @@ namespace Opc.Ua
         /// </summary>
         public PropertyState<Argument[]> InputArguments
         {
-            get
-            {
-                return m_inputArguments;
-            }
+            get => m_inputArguments;
 
             set
             {
-                if (!Object.ReferenceEquals(m_inputArguments, value))
+                if (!ReferenceEquals(m_inputArguments, value))
                 {
                     ChangeMasks |= NodeStateChangeMasks.Children;
                 }
@@ -481,14 +459,11 @@ namespace Opc.Ua
         /// </summary>
         public PropertyState<Argument[]> OutputArguments
         {
-            get
-            {
-                return m_outputArguments;
-            }
+            get => m_outputArguments;
 
             set
             {
-                if (!Object.ReferenceEquals(m_outputArguments, value))
+                if (!ReferenceEquals(m_outputArguments, value))
                 {
                     ChangeMasks |= NodeStateChangeMasks.Children;
                 }
@@ -631,7 +606,7 @@ namespace Opc.Ua
             }
 
             // validate input arguments.
-            List<object> inputs = new List<object>();
+            var inputs = new List<object>();
 
             // check for too few or too many arguments.
             int expectedCount = 0;
@@ -676,7 +651,7 @@ namespace Opc.Ua
             }
 
             // set output arguments to default values.
-            List<object> outputs = new List<object>();
+            var outputs = new List<object>();
 
             PropertyState<Argument[]> expectedOutputArguments = OutputArguments;
 
@@ -792,7 +767,7 @@ namespace Opc.Ua
 
             Argument expectedArgument = arguments[index];
 
-            TypeInfo typeInfo = TypeInfo.IsInstanceOfDataType(
+            var typeInfo = TypeInfo.IsInstanceOfDataType(
                 inputArgument.Value,
                 expectedArgument.DataType,
                 expectedArgument.ValueRank,

@@ -133,8 +133,8 @@ namespace Opc.Ua
         /// </summary>
         public string Key
         {
-            get { return m_key; }
-            set { m_key = value; }
+            get => m_key;
+            set => m_key = value;
         }
 
         /// <summary>
@@ -142,8 +142,8 @@ namespace Opc.Ua
         /// </summary>
         public string Locale
         {
-            get { return m_locale; }
-            set { m_locale = value; }
+            get => m_locale;
+            set => m_locale = value;
         }
 
         /// <summary>
@@ -151,8 +151,8 @@ namespace Opc.Ua
         /// </summary>
         public string Text
         {
-            get { return m_text; }
-            set { m_text = value; }
+            get => m_text;
+            set => m_text = value;
         }
 
         /// <summary>
@@ -161,8 +161,8 @@ namespace Opc.Ua
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1819:PropertiesShouldNotReturnArrays")]
         public object[] Args
         {
-            get { return m_args; }
-            set { m_args = value; }
+            get => m_args;
+            set => m_args = value;
         }
         #endregion
 

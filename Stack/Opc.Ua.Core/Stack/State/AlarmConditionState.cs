@@ -12,12 +12,8 @@
 
 using System;
 using System.Collections.Generic;
-using System.Xml;
 using System.Text;
-using System.IO;
-using System.Reflection;
 using System.Threading;
-using Opc.Ua;
 
 namespace Opc.Ua
 {
@@ -86,15 +82,9 @@ namespace Opc.Ua
         /// </summary>
         public int UnshelveTimeUpdateRate
         {
-            get
-            {
-                return m_unshelveTimeUpdateRate;
-            }
+            get => m_unshelveTimeUpdateRate;
 
-            set
-            {
-                m_unshelveTimeUpdateRate = value;
-            }
+            set => m_unshelveTimeUpdateRate = value;
         }
 
         #endregion
@@ -400,7 +390,7 @@ namespace Opc.Ua
                 return;
             }
 
-            StringBuilder builder = new StringBuilder();
+            var builder = new StringBuilder();
 
             string locale = null;
 
@@ -473,7 +463,7 @@ namespace Opc.Ua
                 builder.Append(ackState);
             }
 
-            LocalizedText effectiveState = new LocalizedText(locale, builder.ToString());
+            var effectiveState = new LocalizedText(locale, builder.ToString());
 
             SetEffectiveSubState(context, effectiveState, DateTime.MinValue);
         }
@@ -555,9 +545,9 @@ namespace Opc.Ua
             {
                 if (this.AreEventsMonitored)
                 {
-                    AuditConditionShelvingEventState e = new AuditConditionShelvingEventState(null);
+                    var e = new AuditConditionShelvingEventState(null);
 
-                    TranslationInfo info = new TranslationInfo(
+                    var info = new TranslationInfo(
                         "AuditConditionOneShotShelve",
                         "en-US",
                         "The OneShotShelve method was called.");
@@ -640,9 +630,9 @@ namespace Opc.Ua
             {
                 if (this.AreEventsMonitored)
                 {
-                    AuditConditionShelvingEventState e = new AuditConditionShelvingEventState(null);
+                    var e = new AuditConditionShelvingEventState(null);
 
-                    TranslationInfo info = new TranslationInfo(
+                    var info = new TranslationInfo(
                         "AuditConditionTimedShelve",
                         "en-US",
                         "The TimedShelve method was called.");
@@ -723,9 +713,9 @@ namespace Opc.Ua
                 // raise the audit event.
                 if (this.AreEventsMonitored)
                 {
-                    AuditConditionShelvingEventState e = new AuditConditionShelvingEventState(null);
+                    var e = new AuditConditionShelvingEventState(null);
 
-                    TranslationInfo info = new TranslationInfo(
+                    var info = new TranslationInfo(
                         "AuditConditionUnshelve",
                         "en-US",
                         "The Unshelve method was called.");
@@ -776,7 +766,7 @@ namespace Opc.Ua
         {
             try
             {
-                ISystemContext context = (ISystemContext)state;
+                var context = (ISystemContext)state;
                 object unshelveTimeObject = new object();
                 OnReadUnshelveTime(context, null, ref unshelveTimeObject);
                 double unshelveTime = (double)unshelveTimeObject;

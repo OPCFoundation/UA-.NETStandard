@@ -98,10 +98,7 @@ namespace Opc.Ua
 
             string uaxPrefix = m_writer.LookupPrefix(Namespaces.OpcUaXsd);
 
-            if (uaxPrefix == null)
-            {
-                uaxPrefix = "uax";
-            }
+            uaxPrefix ??= "uax";
 
             if (namespaceUri == Namespaces.OpcUaXsd)
             {
@@ -534,6 +531,7 @@ namespace Opc.Ua
         /// <summary>
         /// Writes a byte string to the stream.
         /// </summary>
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2265:Do not compare Span<T> to 'null' or 'default'", Justification = "Null compare works with ReadOnlySpan<byte>")]
         public void WriteByteString(string fieldName, ReadOnlySpan<byte> value)
         {
             if (BeginField(fieldName, value == null, true, false))
@@ -601,7 +599,7 @@ namespace Opc.Ua
                         namespaceIndex = m_namespaceMappings[namespaceIndex];
                     }
 
-                    StringBuilder buffer = new StringBuilder();
+                    var buffer = new StringBuilder();
                     NodeId.Format(CultureInfo.InvariantCulture, buffer, value.Identifier, value.IdType, namespaceIndex);
                     WriteString("Identifier", buffer.ToString());
                 }
@@ -637,7 +635,7 @@ namespace Opc.Ua
                         serverIndex = m_serverMappings[serverIndex];
                     }
 
-                    StringBuilder buffer = new StringBuilder();
+                    var buffer = new StringBuilder();
                     ExpandedNodeId.Format(CultureInfo.InvariantCulture, buffer, value.Identifier, value.IdType, namespaceIndex, value.NamespaceUri, serverIndex);
                     WriteString("Identifier", buffer.ToString());
                 }
@@ -837,7 +835,7 @@ namespace Opc.Ua
                     return;
                 }
 
-                IEncodeable encodeable = value.Body as IEncodeable;
+                var encodeable = value.Body as IEncodeable;
 
                 // write the type id.
                 ExpandedNodeId typeId = value.TypeId;
@@ -854,7 +852,7 @@ namespace Opc.Ua
                     }
                 }
 
-                NodeId localTypeId = ExpandedNodeId.ToNodeId(typeId, m_context.NamespaceUris);
+                var localTypeId = ExpandedNodeId.ToNodeId(typeId, m_context.NamespaceUris);
 
                 if (NodeId.IsNull(localTypeId) && !NodeId.IsNull(typeId))
                 {
@@ -923,8 +921,8 @@ namespace Opc.Ua
             {
                 if (value != null)
                 {
-                    var valueSymbol = value.ToString();
-                    var valueInt32 = Convert.ToInt32(value, CultureInfo.InvariantCulture).ToString(CultureInfo.InvariantCulture);
+                    string valueSymbol = value.ToString();
+                    string valueInt32 = Convert.ToInt32(value, CultureInfo.InvariantCulture).ToString(CultureInfo.InvariantCulture);
                     if (valueSymbol != valueInt32)
                     {
                         m_writer.WriteString(Utils.Format("{0}_{1}", valueSymbol, valueInt32));
@@ -1945,7 +1943,7 @@ namespace Opc.Ua
             // encode xml body.
             if (body is XmlElement xml)
             {
-                using (XmlReader reader = XmlReader.Create(new StringReader(xml.OuterXml), Utils.DefaultXmlReaderSettings()))
+                using (var reader = XmlReader.Create(new StringReader(xml.OuterXml), Utils.DefaultXmlReaderSettings()))
                 {
                     m_writer.WriteNode(reader, false);
                     return;

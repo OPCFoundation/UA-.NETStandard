@@ -10,12 +10,9 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
-using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Security.Cryptography.X509Certificates;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace Opc.Ua
@@ -65,7 +62,7 @@ namespace Opc.Ua
 
 
             // replace subjectName DC=localhost with DC=hostname
-            foreach (var applicationCertificate in m_applicationCertificates)
+            foreach (CertificateIdentifier applicationCertificate in m_applicationCertificates)
             {
                 applicationCertificate.SubjectName = Utils.ReplaceDCLocalhost(applicationCertificate.SubjectName);
             }
@@ -78,8 +75,8 @@ namespace Opc.Ua
         /// <param name="privateKey"></param>
         public async Task<X509Certificate2> FindApplicationCertificateAsync(string securityPolicy, bool privateKey)
         {
-            var certificateTypes = CertificateIdentifier.MapSecurityPolicyToCertificateTypes(securityPolicy);
-            foreach (var certType in certificateTypes)
+            IList<NodeId> certificateTypes = CertificateIdentifier.MapSecurityPolicyToCertificateTypes(securityPolicy);
+            foreach (NodeId certType in certificateTypes)
             {
                 CertificateIdentifier id = ApplicationCertificates.FirstOrDefault(certId => certId.CertificateType == certType);
                 if (id == null)
@@ -120,7 +117,7 @@ namespace Opc.Ua
         {
             var securityPolicies = new StringCollection();
             securityPolicies.Add(SecurityPolicies.None);
-            foreach (var applicationCertificate in m_applicationCertificates)
+            foreach (CertificateIdentifier applicationCertificate in m_applicationCertificates)
             {
                 if (applicationCertificate.CertificateType == null)
                 {
@@ -168,7 +165,7 @@ namespace Opc.Ua
             }
             // filter based on platform support
             var result = new StringCollection();
-            foreach (var securityPolicyUri in securityPolicies.Distinct())
+            foreach (string securityPolicyUri in securityPolicies.Distinct())
             {
                 if (SecurityPolicies.GetDisplayName(securityPolicyUri) != null)
                 {

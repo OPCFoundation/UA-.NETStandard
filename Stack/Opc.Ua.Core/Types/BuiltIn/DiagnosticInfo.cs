@@ -245,7 +245,7 @@ namespace Opc.Ua
 
             if ((DiagnosticsMasks.ServiceLocalizedText & diagnosticsMask) != 0)
             {
-                if (!Opc.Ua.LocalizedText.IsNullOrEmpty(result.LocalizedText))
+                if (!Ua.LocalizedText.IsNullOrEmpty(result.LocalizedText))
                 {
                     if (!String.IsNullOrEmpty(result.LocalizedText.Locale))
                     {
@@ -311,8 +311,8 @@ namespace Opc.Ua
         [DataMember(Order = 1, IsRequired = false)]
         public int SymbolicId
         {
-            get { return m_symbolicId; }
-            set { m_symbolicId = value; }
+            get => m_symbolicId;
+            set => m_symbolicId = value;
         }
 
         /// <summary>
@@ -321,8 +321,8 @@ namespace Opc.Ua
         [DataMember(Order = 2, IsRequired = false)]
         public int NamespaceUri
         {
-            get { return m_namespaceUri; }
-            set { m_namespaceUri = value; }
+            get => m_namespaceUri;
+            set => m_namespaceUri = value;
         }
 
         /// <summary>
@@ -331,8 +331,8 @@ namespace Opc.Ua
         [DataMember(Order = 3, IsRequired = false)]
         public int Locale
         {
-            get { return m_locale; }
-            set { m_locale = value; }
+            get => m_locale;
+            set => m_locale = value;
         }
 
         /// <summary>
@@ -341,8 +341,8 @@ namespace Opc.Ua
         [DataMember(Order = 4, IsRequired = false)]
         public int LocalizedText
         {
-            get { return m_localizedText; }
-            set { m_localizedText = value; }
+            get => m_localizedText;
+            set => m_localizedText = value;
         }
 
         /// <summary>
@@ -351,8 +351,8 @@ namespace Opc.Ua
         [DataMember(Order = 5, IsRequired = false, EmitDefaultValue = false)]
         public string AdditionalInfo
         {
-            get { return m_additionalInfo; }
-            set { m_additionalInfo = value; }
+            get => m_additionalInfo;
+            set => m_additionalInfo = value;
         }
 
         /// <summary>
@@ -361,8 +361,8 @@ namespace Opc.Ua
         [DataMember(Order = 6, IsRequired = false)]
         public StatusCode InnerStatusCode
         {
-            get { return m_innerStatusCode; }
-            set { m_innerStatusCode = value; }
+            get => m_innerStatusCode;
+            set => m_innerStatusCode = value;
         }
 
         /// <summary>
@@ -371,8 +371,8 @@ namespace Opc.Ua
         [DataMember(Order = 7, IsRequired = false, EmitDefaultValue = false)]
         public DiagnosticInfo InnerDiagnosticInfo
         {
-            get { return m_innerDiagnosticInfo; }
-            set { m_innerDiagnosticInfo = value; }
+            get => m_innerDiagnosticInfo;
+            set => m_innerDiagnosticInfo = value;
         }
 
         /// <summary>
@@ -496,7 +496,7 @@ namespace Opc.Ua
         /// </summary>
         private bool Equals(object obj, int depth)
         {
-            if (Object.ReferenceEquals(this, obj))
+            if (ReferenceEquals(this, obj))
             {
                 return true;
             }
@@ -651,7 +651,7 @@ namespace Opc.Ua
         /// </remarks>
         public new object MemberwiseClone()
         {
-            DiagnosticInfoCollection clone = new DiagnosticInfoCollection(this.Count);
+            var clone = new DiagnosticInfoCollection(this.Count);
 
             foreach (DiagnosticInfo element in this)
             {

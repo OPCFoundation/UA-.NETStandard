@@ -136,8 +136,8 @@ namespace Opc.Ua
         /// </summary>
         public CertificateValidationOptions ValidationOptions
         {
-            get { return m_validationOptions; }
-            set { m_validationOptions = value; }
+            get => m_validationOptions;
+            set => m_validationOptions = value;
         }
         #endregion
 
@@ -232,7 +232,7 @@ namespace Opc.Ua
                  store.StorePath != this.StorePath ||
                  store.NoPrivateKeys != this.m_noPrivateKeys))
             {
-                var previousStore = Interlocked.CompareExchange(ref m_store, null, store);
+                ICertificateStore previousStore = Interlocked.CompareExchange(ref m_store, null, store);
                 previousStore?.Dispose();
                 store = null;
             }
@@ -241,7 +241,7 @@ namespace Opc.Ua
             if (store == null && !string.IsNullOrEmpty(this.StoreType) && !string.IsNullOrEmpty(this.StorePath))
             {
                 store = CreateStore(this.StoreType);
-                var currentStore = Interlocked.CompareExchange(ref m_store, store, null);
+                ICertificateStore currentStore = Interlocked.CompareExchange(ref m_store, store, null);
                 if (currentStore != null)
                 {
                     Utils.SilentDispose(store);
@@ -266,7 +266,7 @@ namespace Opc.Ua
         [Obsolete("Use non static OpenStore method to take advantage of caching.")]
         public static ICertificateStore OpenStore(string path, bool noPrivateKeys)
         {
-            ICertificateStore store = CertificateStoreIdentifier.CreateStore(CertificateStoreIdentifier.DetermineStoreType(path));
+            ICertificateStore store = CreateStore(DetermineStoreType(path));
             store.Open(path, noPrivateKeys);
             return store;
         }

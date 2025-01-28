@@ -30,7 +30,7 @@ namespace Opc.Ua
         {
             Initialize();
 
-            UriBuilder parsedUrl = new UriBuilder(url);
+            var parsedUrl = new UriBuilder(url);
 
             if (Utils.IsUriHttpRelatedScheme(parsedUrl.Scheme))
             {
@@ -82,8 +82,8 @@ namespace Opc.Ua
         /// </summary>
         public Uri ProxyUrl
         {
-            get { return m_proxyUrl; }
-            set { m_proxyUrl = value; }
+            get => m_proxyUrl;
+            set => m_proxyUrl = value;
         }
         #endregion
 
@@ -127,10 +127,7 @@ namespace Opc.Ua
                         (!EccUtils.IsEccPolicy(policy.SecurityPolicyUri) && !EccUtils.IsEccPolicy(tokenSecurityPolicyUri))
                         )
                     {
-                        if (sameEncryptionAlgorithm == null)
-                        {
-                            sameEncryptionAlgorithm = policy;
-                        }
+                        sameEncryptionAlgorithm ??= policy;
                     }
                     else if (policy.SecurityPolicyUri == null)
                     {
@@ -234,10 +231,7 @@ namespace Opc.Ua
                         (!EccUtils.IsEccPolicy(policy.SecurityPolicyUri) && !EccUtils.IsEccPolicy(tokenSecurityPolicyUri))
                         )
                     {
-                        if (sameEncryptionAlgorithm == null)
-                        {
-                            sameEncryptionAlgorithm = policy;
-                        }
+                        sameEncryptionAlgorithm ??= policy;
                     }
                     else if (policy.SecurityPolicyUri == null)
                     {

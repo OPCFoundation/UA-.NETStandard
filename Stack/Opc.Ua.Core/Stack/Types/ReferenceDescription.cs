@@ -11,10 +11,7 @@
 */
 
 using System;
-using System.Collections.Generic;
 using System.Globalization;
-using System.Runtime.Serialization;
-using System.Security.Cryptography.X509Certificates;
 
 namespace Opc.Ua
 {
@@ -139,8 +136,8 @@ namespace Opc.Ua
         /// </summary>
         public bool Unfiltered
         {
-            get { return m_unfiltered; }
-            set { m_unfiltered = value; }
+            get => m_unfiltered;
+            set => m_unfiltered = value;
         }
         #endregion
 

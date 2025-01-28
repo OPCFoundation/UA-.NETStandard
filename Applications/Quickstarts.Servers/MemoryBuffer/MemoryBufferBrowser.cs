@@ -29,12 +29,7 @@
 
 using System;
 using System.Collections.Generic;
-using System.Xml;
-using System.IO;
-using System.Reflection;
-using System.Threading;
 using Opc.Ua;
-using Opc.Ua.Server;
 
 namespace MemoryBuffer
 {
@@ -137,7 +132,7 @@ namespace MemoryBuffer
             MemoryTagState tag = null;
 
             // check if a specific browse name is requested.
-            if (!QualifiedName.IsNull(base.BrowseName))
+            if (!QualifiedName.IsNull(BrowseName))
             {
                 // check if match found previously.
                 if (m_position == UInt32.MaxValue)
@@ -146,12 +141,12 @@ namespace MemoryBuffer
                 }
 
                 // browse name must be qualified by the correct namespace.
-                if (m_buffer.TypeDefinitionId.NamespaceIndex != base.BrowseName.NamespaceIndex)
+                if (m_buffer.TypeDefinitionId.NamespaceIndex != BrowseName.NamespaceIndex)
                 {
                     return null;
                 }
 
-                string name = base.BrowseName.Name;
+                string name = BrowseName.Name;
 
                 for (int ii = 0; ii < name.Length; ii++)
                 {

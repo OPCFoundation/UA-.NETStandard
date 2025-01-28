@@ -151,7 +151,7 @@ namespace Opc.Ua.Server
         /// </summary>
         public void CancelRequests(uint requestHandle, out uint cancelCount)
         {
-            List<uint> cancelledRequests = new List<uint>();
+            var cancelledRequests = new List<uint>();
 
             // flag requests as cancelled.
             lock (m_requestsLock)
@@ -199,7 +199,7 @@ namespace Opc.Ua.Server
         /// </summary>
         private void OnTimerExpired(object state)
         {
-            List<uint> expiredRequests = new List<uint>();
+            var expiredRequests = new List<uint>();
 
             // flag requests as expired.
             lock (m_requestsLock)

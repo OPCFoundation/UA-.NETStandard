@@ -69,7 +69,7 @@ namespace Opc.Ua
                 return;
             }
 
-            TypeInfo sanityCheck = TypeInfo.Construct(m_value);
+            var sanityCheck = TypeInfo.Construct(m_value);
 
             // except special case byte array vs. bytestring
             if (sanityCheck.BuiltInType == BuiltInType.ByteString &&
@@ -87,13 +87,13 @@ namespace Opc.Ua
                 return;
             }
 
-            System.Diagnostics.Debug.Assert(
+            Debug.Assert(
                 sanityCheck.BuiltInType == m_typeInfo.BuiltInType,
                 Utils.Format("{0} != {1}",
                 sanityCheck.BuiltInType,
                 typeInfo.BuiltInType));
 
-            System.Diagnostics.Debug.Assert(
+            Debug.Assert(
                 sanityCheck.ValueRank == m_typeInfo.ValueRank,
                 Utils.Format("{0} != {1}",
                 sanityCheck.ValueRank,
@@ -779,13 +779,13 @@ namespace Opc.Ua
             get
             {
                 // create encoder.
-                using (XmlEncoder encoder = new XmlEncoder(MessageContextExtension.CurrentContext))
+                using (var encoder = new XmlEncoder(MessageContextExtension.CurrentContext))
                 {
                     // write value.
                     encoder.WriteVariantContents(m_value, m_typeInfo);
 
                     // create document from encoder.
-                    XmlDocument document = new XmlDocument();
+                    var document = new XmlDocument();
                     document.LoadInnerXml(encoder.CloseAndReturnText());
 
                     // return element.
@@ -805,7 +805,7 @@ namespace Opc.Ua
                 TypeInfo typeInfo = null;
 
                 // create decoder.
-                using (XmlDecoder decoder = new XmlDecoder(value, MessageContextExtension.CurrentContext))
+                using (var decoder = new XmlDecoder(value, MessageContextExtension.CurrentContext))
                 {
                     try
                     {
@@ -837,8 +837,8 @@ namespace Opc.Ua
         /// </remarks>
         public object Value
         {
-            get { return m_value; }
-            set { Set(value, TypeInfo.Construct(value)); }
+            get => m_value;
+            set => Set(value, TypeInfo.Construct(value));
         }
 
         /// <summary>
@@ -861,7 +861,7 @@ namespace Opc.Ua
         {
             if (format == null)
             {
-                StringBuilder buffer = new StringBuilder();
+                var buffer = new StringBuilder();
                 AppendFormat(buffer, m_value, formatProvider);
                 return buffer.ToString();
             }
@@ -910,7 +910,7 @@ namespace Opc.Ua
             // convert XML element to string.
             if (m_typeInfo.BuiltInType == BuiltInType.XmlElement && m_typeInfo.ValueRank < 0)
             {
-                XmlElement xml = (XmlElement)value;
+                var xml = (XmlElement)value;
                 buffer.AppendFormat(formatProvider, "{0}", xml.OuterXml);
                 return;
             }
@@ -1545,7 +1545,7 @@ namespace Opc.Ua
         /// </summary>
         public bool Equals(Variant other)
         {
-            Variant? variant = other as Variant?;
+            var variant = other as Variant?;
 
             if (variant != null)
             {
@@ -1575,7 +1575,7 @@ namespace Opc.Ua
         /// </remarks>
         public override bool Equals(object obj)
         {
-            Variant? variant = obj as Variant?;
+            var variant = obj as Variant?;
 
             if (variant != null)
             {
@@ -2089,7 +2089,7 @@ namespace Opc.Ua
 
             if (value != null)
             {
-                Uuid[] uuids = new Uuid[value.Length];
+                var uuids = new Uuid[value.Length];
 
                 for (int ii = 0; ii < value.Length; ii++)
                 {
@@ -2258,7 +2258,7 @@ namespace Opc.Ua
 
             if (value != null)
             {
-                Variant[] anyValues = new Variant[value.Length];
+                var anyValues = new Variant[value.Length];
 
                 for (int ii = 0; ii < value.Length; ii++)
                 {
@@ -2309,7 +2309,7 @@ namespace Opc.Ua
                 // convert Guids to Uuids.
                 case BuiltInType.Guid:
                 {
-                    Guid? guid = value as Guid?;
+                    var guid = value as Guid?;
 
                     if (guid != null)
                     {
@@ -2401,7 +2401,7 @@ namespace Opc.Ua
                 {
                     if (array is IEncodeable[] encodeables)
                     {
-                        ExtensionObject[] extensions = new ExtensionObject[encodeables.Length];
+                        var extensions = new ExtensionObject[encodeables.Length];
 
                         for (int ii = 0; ii < encodeables.Length; ii++)
                         {
@@ -2421,7 +2421,7 @@ namespace Opc.Ua
                 {
                     if (array is object[] objects)
                     {
-                        Variant[] variants = new Variant[objects.Length];
+                        var variants = new Variant[objects.Length];
 
                         for (int ii = 0; ii < objects.Length; ii++)
                         {
@@ -2491,7 +2491,7 @@ namespace Opc.Ua
                 return;
             }
 
-            Array array = value as Array;
+            var array = value as Array;
 
             // handle one dimensional arrays.
             if (typeInfo.ValueRank <= 1)
@@ -2615,7 +2615,7 @@ namespace Opc.Ua
         /// </remarks>
         public new object MemberwiseClone()
         {
-            VariantCollection clone = new VariantCollection(this.Count);
+            var clone = new VariantCollection(this.Count);
 
             foreach (Variant element in this)
             {

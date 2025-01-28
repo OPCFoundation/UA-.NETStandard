@@ -72,13 +72,13 @@ namespace Opc.Ua.Server
 
             // need to build a table of NamespaceIndexes and their NodeManagers.
             List<INodeManager> registeredManagers = null;
-            Dictionary<int, List<INodeManager>> namespaceManagers = new Dictionary<int, List<INodeManager>>();
+            var namespaceManagers = new Dictionary<int, List<INodeManager>>();
 
             namespaceManagers[0] = registeredManagers = new List<INodeManager>();
             namespaceManagers[1] = registeredManagers = new List<INodeManager>();
 
             // always add the diagnostics and configuration node manager to the start of the list.
-            ConfigurationNodeManager configurationAndDiagnosticsManager = new ConfigurationNodeManager(server, configuration);
+            var configurationAndDiagnosticsManager = new ConfigurationNodeManager(server, configuration);
             RegisterNodeManager(configurationAndDiagnosticsManager, registeredManagers, namespaceManagers);
 
             // add the core node manager second because the diagnostics node manager takes priority.
@@ -193,7 +193,7 @@ namespace Opc.Ua.Server
             bool isInverse,
             NodeId targetId)
         {
-            ReferenceNode reference = new ReferenceNode();
+            var reference = new ReferenceNode();
 
             reference.ReferenceTypeId = referenceTypeId;
             reference.IsInverse = isInverse;
@@ -220,17 +220,17 @@ namespace Opc.Ua.Server
 
             if (detailsType == typeof(UpdateDataDetails))
             {
-                UpdateDataDetails updateDataDetails = (UpdateDataDetails)historyUpdateDetails;
+                var updateDataDetails = (UpdateDataDetails)historyUpdateDetails;
                 return GetHistoryPermissionType(updateDataDetails.PerformInsertReplace);
             }
             else if (detailsType == typeof(UpdateStructureDataDetails))
             {
-                UpdateStructureDataDetails updateStructureDataDetails = (UpdateStructureDataDetails)historyUpdateDetails;
+                var updateStructureDataDetails = (UpdateStructureDataDetails)historyUpdateDetails;
                 return GetHistoryPermissionType(updateStructureDataDetails.PerformInsertReplace);
             }
             else if (detailsType == typeof(UpdateEventDetails))
             {
-                UpdateEventDetails updateEventDetails = (UpdateEventDetails)historyUpdateDetails;
+                var updateEventDetails = (UpdateEventDetails)historyUpdateDetails;
                 return GetHistoryPermissionType(updateEventDetails.PerformInsertReplace);
             }
             else if (detailsType == typeof(DeleteRawModifiedDetails) ||
@@ -309,7 +309,7 @@ namespace Opc.Ua.Server
                     m_nodeManagers.Count);
 
                 // create the address spaces.
-                Dictionary<NodeId, IList<IReference>> externalReferences = new Dictionary<NodeId, IList<IReference>>();
+                var externalReferences = new Dictionary<NodeId, IList<IReference>>();
 
                 for (int ii = 0; ii < m_nodeManagers.Count; ii++)
                 {
@@ -353,9 +353,7 @@ namespace Opc.Ua.Server
             {
                 for (int ii = 0; ii < m_nodeManagers.Count; ii++)
                 {
-                    INodeManager2 nodeManager = m_nodeManagers[ii] as INodeManager2;
-
-                    if (nodeManager != null)
+                    if (m_nodeManagers[ii] is INodeManager2 nodeManager)
                     {
                         try
                         {
@@ -419,7 +417,7 @@ namespace Opc.Ua.Server
             }
 
             // allocate a new table (using arrays instead of collections because lookup efficiency is critical).
-            INodeManager[][] namespaceManagers = new INodeManager[m_server.NamespaceUris.Count][];
+            var namespaceManagers = new INodeManager[m_server.NamespaceUris.Count][];
 
             m_readWriterLockSlim.EnterWriteLock();
             try
@@ -487,7 +485,7 @@ namespace Opc.Ua.Server
             }
 
             // allocate a new table (using arrays instead of collections because lookup efficiency is critical).
-            INodeManager[][] namespaceManagers = new INodeManager[m_server.NamespaceUris.Count][];
+            var namespaceManagers = new INodeManager[m_server.NamespaceUris.Count][];
 
             m_readWriterLockSlim.EnterWriteLock();
             try
@@ -502,7 +500,7 @@ namespace Opc.Ua.Server
                 }
 
                 // allocate a new smaller array to support element removal for the index being updated.
-                INodeManager[] registeredManagers = new INodeManager[namespaceManagers[namespaceIndex].Length - 1];
+                var registeredManagers = new INodeManager[namespaceManagers[namespaceIndex].Length - 1];
 
                 // begin by populating the new array with existing elements up to the target index. 
                 if (nodeManagerIndex > 0)
@@ -615,7 +613,7 @@ namespace Opc.Ua.Server
 
                 // delete the reference.
 
-                Dictionary<NodeId, IList<IReference>> map = new Dictionary<NodeId, IList<IReference>>();
+                var map = new Dictionary<NodeId, IList<IReference>>();
                 map.Add(sourceId, references);
                 nodeManager.AddReferences(map);
             }
@@ -628,7 +626,7 @@ namespace Opc.Ua.Server
         {
             foreach (ReferenceNode reference in references)
             {
-                NodeId sourceId = ExpandedNodeId.ToNodeId(reference.TargetId, m_server.NamespaceUris);
+                var sourceId = ExpandedNodeId.ToNodeId(reference.TargetId, m_server.NamespaceUris);
 
                 // find source node.
                 INodeManager nodeManager = null;
@@ -760,7 +758,7 @@ namespace Opc.Ua.Server
 
                 BrowsePath browsePath = browsePaths[ii];
 
-                BrowsePathResult result = new BrowsePathResult();
+                var result = new BrowsePathResult();
                 result.StatusCode = StatusCodes.Good;
                 results.Add(result);
 
@@ -948,8 +946,8 @@ namespace Opc.Ua.Server
                 throw new ServiceResultException(StatusCodes.BadBrowseNameInvalid);
             }
 
-            List<ExpandedNodeId> targetIds = new List<ExpandedNodeId>();
-            List<NodeId> externalTargetIds = new List<NodeId>();
+            var targetIds = new List<ExpandedNodeId>();
+            var externalTargetIds = new List<NodeId>();
 
             try
             {
@@ -970,7 +968,7 @@ namespace Opc.Ua.Server
             for (int ii = 0; ii < externalTargetIds.Count; ii++)
             {
                 // get the browse name from another node manager.
-                ReferenceDescription description = new ReferenceDescription();
+                var description = new ReferenceDescription();
 
                 UpdateReferenceDescription(
                     context,
@@ -1021,7 +1019,7 @@ namespace Opc.Ua.Server
                         }
                     }
 
-                    BrowsePathTarget target = new BrowsePathTarget();
+                    var target = new BrowsePathTarget();
                     target.TargetId = targetIds[ii];
                     target.RemainingPathIndex = UInt32.MaxValue;
 
@@ -1039,7 +1037,7 @@ namespace Opc.Ua.Server
                 // check for external reference.
                 if (targetId.IsAbsolute)
                 {
-                    BrowsePathTarget target = new BrowsePathTarget();
+                    var target = new BrowsePathTarget();
 
                     target.TargetId = targetId;
                     target.RemainingPathIndex = (uint)(index + 1);
@@ -1136,7 +1134,7 @@ namespace Opc.Ua.Server
                 BrowseDescription nodeToBrowse = nodesToBrowse[ii];
 
                 // initialize result.
-                BrowseResult result = new BrowseResult();
+                var result = new BrowseResult();
                 result.StatusCode = StatusCodes.Good;
                 results.Add(result);
 
@@ -1197,7 +1195,7 @@ namespace Opc.Ua.Server
         private void PrepareValidationCache<T>(List<T> nodesCollection,
             out Dictionary<NodeId, List<object>> uniqueNodesServiceAttributes)
         {
-            HashSet<NodeId> uniqueNodes = new HashSet<NodeId>();
+            var uniqueNodes = new HashSet<NodeId>();
             for (int i = 0; i < nodesCollection.Count; i++)
             {
                 Type listType = typeof(T);
@@ -1220,7 +1218,7 @@ namespace Opc.Ua.Server
             }
             // uniqueNodesReadAttributes is the place where the attributes for each unique nodeId are kept on the services
             uniqueNodesServiceAttributes = new Dictionary<NodeId, List<object>>();
-            foreach (var uniqueNode in uniqueNodes)
+            foreach (NodeId uniqueNode in uniqueNodes)
             {
                 uniqueNodesServiceAttributes.Add(uniqueNode, new List<object>());
             }
@@ -1274,7 +1272,7 @@ namespace Opc.Ua.Server
                     ServiceResult validationResult = ValidatePermissions(context, cp.Manager, cp.NodeToBrowse, PermissionType.Browse, null, true);
                     if (ServiceResult.IsBad(validationResult))
                     {
-                        BrowseResult badResult = new BrowseResult();
+                        var badResult = new BrowseResult();
                         badResult.StatusCode = validationResult.Code;
                         results.Add(badResult);
 
@@ -1285,7 +1283,7 @@ namespace Opc.Ua.Server
                 }
 
                 // initialize result.    
-                BrowseResult result = new BrowseResult();
+                var result = new BrowseResult();
                 result.StatusCode = StatusCodes.Good;
                 results.Add(result);
 
@@ -1407,7 +1405,7 @@ namespace Opc.Ua.Server
             }
 
             // create a continuation point.
-            ContinuationPoint cp = new ContinuationPoint();
+            var cp = new ContinuationPoint();
 
             cp.Manager = nodeManager;
             cp.View = view;
@@ -1458,7 +1456,7 @@ namespace Opc.Ua.Server
             Debug.Assert(references != null);
 
             INodeManager nodeManager = cp.Manager;
-            NodeClass nodeClassMask = (NodeClass)cp.NodeClassMask;
+            var nodeClassMask = (NodeClass)cp.NodeClassMask;
             BrowseResultMask resultMask = cp.ResultMask;
 
             // loop until browse is complete or max results.
@@ -1467,7 +1465,7 @@ namespace Opc.Ua.Server
                 // fetch next batch.
                 nodeManager.Browse(context, ref cp, references);
 
-                ReferenceDescriptionCollection referencesToKeep = new ReferenceDescriptionCollection(references.Count);
+                var referencesToKeep = new ReferenceDescriptionCollection(references.Count);
 
                 // check for incomplete reference descriptions.
                 for (int ii = 0; ii < references.Count; ii++)
@@ -1603,7 +1601,7 @@ namespace Opc.Ua.Server
             diagnosticInfos = new DiagnosticInfoCollection(nodesToRead.Count);
 
             // create empty list of errors.
-            List<ServiceResult> errors = new List<ServiceResult>(values.Count);
+            var errors = new List<ServiceResult>(values.Count);
             for (int ii = 0; ii < nodesToRead.Count; ii++)
             {
                 errors.Add(null);
@@ -1679,10 +1677,7 @@ namespace Opc.Ua.Server
                 // update the diagnostic info and ensure the status code in the data value is the same as the error code.
                 if (errors[ii] != null && errors[ii].Code != StatusCodes.Good)
                 {
-                    if (value == null)
-                    {
-                        value = values[ii] = new DataValue(errors[ii].Code, DateTime.UtcNow);
-                    }
+                    value ??= values[ii] = new DataValue(errors[ii].Code, DateTime.UtcNow);
 
                     value.StatusCode = errors[ii].Code;
 
@@ -1727,9 +1722,8 @@ namespace Opc.Ua.Server
                 throw new ServiceResultException(StatusCodes.BadHistoryOperationInvalid);
             }
 
-            HistoryReadDetails details = historyReadDetails.Body as HistoryReadDetails;
 
-            if (details == null)
+            if (historyReadDetails.Body is not HistoryReadDetails details)
             {
                 throw new ServiceResultException(StatusCodes.BadHistoryOperationInvalid);
             }
@@ -1742,7 +1736,7 @@ namespace Opc.Ua.Server
             // pre-validate items.
             bool validItems = false;
             // create empty list of errors.
-            List<ServiceResult> errors = new List<ServiceResult>(results.Count);
+            var errors = new List<ServiceResult>(results.Count);
             for (int ii = 0; ii < nodesToRead.Count; ii++)
             {
                 errors.Add(null);
@@ -1813,10 +1807,7 @@ namespace Opc.Ua.Server
                     // update the diagnostic info and ensure the status code in the result is the same as the error code.
                     if (errors[ii] != null && errors[ii].Code != StatusCodes.Good)
                     {
-                        if (result == null)
-                        {
-                            result = results[ii] = new HistoryReadResult();
-                        }
+                        result ??= results[ii] = new HistoryReadResult();
 
                         result.StatusCode = errors[ii].Code;
 
@@ -1891,7 +1882,7 @@ namespace Opc.Ua.Server
             // call each node manager.
             if (validItems)
             {
-                List<ServiceResult> errors = new List<ServiceResult>(count);
+                var errors = new List<ServiceResult>(count);
                 errors.AddRange(new ServiceResult[count]);
 
                 foreach (INodeManager nodeManager in m_nodeManagers)
@@ -1939,7 +1930,7 @@ namespace Opc.Ua.Server
             out DiagnosticInfoCollection diagnosticInfos)
         {
             Type detailsType = null;
-            List<HistoryUpdateDetails> nodesToUpdate = new List<HistoryUpdateDetails>();
+            var nodesToUpdate = new List<HistoryUpdateDetails>();
 
             // verify that all extension objects in the list have the same type.
             foreach (ExtensionObject details in historyUpdateDetails)
@@ -1964,7 +1955,7 @@ namespace Opc.Ua.Server
             bool validItems = false;
 
             // create empty list of errors.
-            List<ServiceResult> errors = new List<ServiceResult>(results.Count);
+            var errors = new List<ServiceResult>(results.Count);
             for (int ii = 0; ii < nodesToUpdate.Count; ii++)
             {
                 errors.Add(null);
@@ -2042,10 +2033,7 @@ namespace Opc.Ua.Server
                     // update the diagnostic info and ensure the status code in the result is the same as the error code.
                     if (errors[ii] != null && errors[ii].Code != StatusCodes.Good)
                     {
-                        if (result == null)
-                        {
-                            result = results[ii] = new HistoryUpdateResult();
-                        }
+                        result ??= results[ii] = new HistoryUpdateResult();
 
                         result.StatusCode = errors[ii].Code;
 
@@ -2078,7 +2066,7 @@ namespace Opc.Ua.Server
             bool diagnosticsExist = false;
             results = new CallMethodResultCollection(methodsToCall.Count);
             diagnosticInfos = new DiagnosticInfoCollection(methodsToCall.Count);
-            List<ServiceResult> errors = new List<ServiceResult>(methodsToCall.Count);
+            var errors = new List<ServiceResult>(methodsToCall.Count);
 
             // add placeholder for each result.
             bool validItems = false;
@@ -2290,9 +2278,8 @@ namespace Opc.Ua.Server
                     }
 
                     // all event subscriptions required an event filter.
-                    EventFilter filter = itemToCreate.RequestedParameters.Filter.Body as EventFilter;
 
-                    if (filter == null)
+                    if (itemToCreate.RequestedParameters.Filter.Body is not EventFilter filter)
                     {
                         continue;
                     }
@@ -2493,10 +2480,8 @@ namespace Opc.Ua.Server
         {
             for (int ii = 0; ii < itemsToModify.Count; ii++)
             {
-                IEventMonitoredItem monitoredItem = monitoredItems[ii] as IEventMonitoredItem;
-
                 // all event subscriptions are handled by the event manager.
-                if (monitoredItem == null || (monitoredItem.MonitoredItemType & MonitoredItemTypeMask.Events) == 0)
+                if (monitoredItems[ii] is not IEventMonitoredItem monitoredItem || (monitoredItem.MonitoredItemType & MonitoredItemTypeMask.Events) == 0)
                 {
                     continue;
                 }
@@ -2512,9 +2497,8 @@ namespace Opc.Ua.Server
                 }
 
                 // all event subscriptions required an event filter.
-                EventFilter filter = itemToModify.RequestedParameters.Filter.Body as EventFilter;
 
-                if (filter == null)
+                if (itemToModify.RequestedParameters.Filter.Body is not EventFilter filter)
                 {
                     errors[ii] = StatusCodes.BadEventFilterInvalid;
                     continue;
@@ -2613,7 +2597,7 @@ namespace Opc.Ua.Server
             if (itemsToDelete == null) throw new ArgumentNullException(nameof(itemsToDelete));
             if (errors == null) throw new ArgumentNullException(nameof(errors));
 
-            List<bool> processedItems = new List<bool>(itemsToDelete.Count);
+            var processedItems = new List<bool>(itemsToDelete.Count);
 
             for (int ii = 0; ii < itemsToDelete.Count; ii++)
             {
@@ -2660,10 +2644,8 @@ namespace Opc.Ua.Server
         {
             for (int ii = 0; ii < monitoredItems.Count; ii++)
             {
-                IEventMonitoredItem monitoredItem = monitoredItems[ii] as IEventMonitoredItem;
-
                 // all event subscriptions are handled by the event manager.
-                if (monitoredItem == null || (monitoredItem.MonitoredItemType & MonitoredItemTypeMask.Events) == 0)
+                if (monitoredItems[ii] is not IEventMonitoredItem monitoredItem || (monitoredItem.MonitoredItemType & MonitoredItemTypeMask.Events) == 0)
                 {
                     continue;
                 }
@@ -2707,7 +2689,7 @@ namespace Opc.Ua.Server
             if (errors == null) throw new ArgumentNullException(nameof(errors));
 
             // call each node manager.
-            List<bool> processedItems = new List<bool>(itemsToModify.Count);
+            var processedItems = new List<bool>(itemsToModify.Count);
 
             for (int ii = 0; ii < itemsToModify.Count; ii++)
             {
@@ -2754,10 +2736,8 @@ namespace Opc.Ua.Server
         {
             for (int ii = 0; ii < monitoredItems.Count; ii++)
             {
-                IEventMonitoredItem monitoredItem = monitoredItems[ii] as IEventMonitoredItem;
-
                 // all event subscriptions are handled by the event manager.
-                if (monitoredItem == null || (monitoredItem.MonitoredItemType & MonitoredItemTypeMask.Events) == 0)
+                if (monitoredItems[ii] is not IEventMonitoredItem monitoredItem || (monitoredItem.MonitoredItemType & MonitoredItemTypeMask.Events) == 0)
                 {
                     continue;
                 }
@@ -2809,9 +2789,7 @@ namespace Opc.Ua.Server
             // check for known filter.
             if (!ExtensionObject.IsNull(attributes.Filter))
             {
-                MonitoringFilter filter = attributes.Filter.Body as MonitoringFilter;
-
-                if (filter == null)
+                if (attributes.Filter.Body is not MonitoringFilter filter)
                 {
                     return new ServiceResult(StatusCodes.BadMonitoredItemFilterInvalid);
                 }
@@ -2831,10 +2809,8 @@ namespace Opc.Ua.Server
             // check that no filter is specified for non-value attributes.
             if (!ExtensionObject.IsNull(filter))
             {
-                DataChangeFilter datachangeFilter = filter.Body as DataChangeFilter;
-
                 // validate data change filter.
-                if (datachangeFilter != null)
+                if (filter.Body is DataChangeFilter datachangeFilter)
                 {
                     error = datachangeFilter.Validate();
 
@@ -3140,21 +3116,16 @@ namespace Opc.Ua.Server
             // check if validation is necessary
             if (context.Session != null && nodeManager != null && nodeHandle != null)
             {
-                INodeManager2 nodeManager2 = nodeManager as INodeManager2;
-
                 NodeMetadata nodeMetadata = null;
                 // First attempt to retrieve just the Permission metadata with or without cache optimization
                 // If it happens that nodemanager does not fully implement INodeManager2.GetPermissionMetadata or not INodeManager2,
                 // fallback to INodeManager.GetNodeMetadata
-                if (nodeManager2 != null)
+                if (nodeManager is INodeManager2 nodeManager2)
                 {
                     nodeMetadata = nodeManager2.GetPermissionMetadata(context, nodeHandle, BrowseResultMask.NodeClass, uniqueNodesServiceAttributes, permissionsOnly);
                 }
                 // If not INodeManager2 or GetPermissionMetadata() returns null.
-                if (nodeMetadata == null)
-                {
-                    nodeMetadata = nodeManager.GetNodeMetadata(context, nodeHandle, BrowseResultMask.NodeClass);
-                }
+                nodeMetadata ??= nodeManager.GetNodeMetadata(context, nodeHandle, BrowseResultMask.NodeClass);
 
                 if (nodeMetadata != null)
                 {
@@ -3263,7 +3234,7 @@ namespace Opc.Ua.Server
             }
 
             // group all permissions defined in rolePermissions by RoleId 
-            Dictionary<NodeId, PermissionType> roleIdPermissions = new Dictionary<NodeId, PermissionType>();
+            var roleIdPermissions = new Dictionary<NodeId, PermissionType>();
             if (rolePermissions != null && rolePermissions.Count > 0)
             {
                 foreach (RolePermissionType rolePermission in rolePermissions)
@@ -3280,7 +3251,7 @@ namespace Opc.Ua.Server
             }
 
             // group all permissions defined in userRolePermissions by RoleId 
-            Dictionary<NodeId, PermissionType> roleIdPermissionsDefinedForUser = new Dictionary<NodeId, PermissionType>();
+            var roleIdPermissionsDefinedForUser = new Dictionary<NodeId, PermissionType>();
             if (userRolePermissions != null && userRolePermissions.Count > 0)
             {
                 foreach (RolePermissionType rolePermission in userRolePermissions)
@@ -3320,7 +3291,7 @@ namespace Opc.Ua.Server
                 }
             }
 
-            var currentRoleIds = context.UserIdentity.GrantedRoleIds;
+            NodeIdCollection currentRoleIds = context.UserIdentity.GrantedRoleIds;
             if (currentRoleIds == null || currentRoleIds.Count == 0)
             {
                 return ServiceResult.Create(StatusCodes.BadUserAccessDenied, "Current user has no granted role.");

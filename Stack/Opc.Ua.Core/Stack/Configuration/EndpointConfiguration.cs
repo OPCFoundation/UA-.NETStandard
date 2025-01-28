@@ -10,7 +10,6 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
-using System.Runtime.Serialization;
 using Opc.Ua.Bindings;
 
 namespace Opc.Ua
@@ -26,7 +25,7 @@ namespace Opc.Ua
         /// </summary>
         public static EndpointConfiguration Create()
         {
-            EndpointConfiguration configuration = new EndpointConfiguration {
+            var configuration = new EndpointConfiguration {
                 // message defaults
                 OperationTimeout = TcpMessageLimits.DefaultOperationTimeout,
                 UseBinaryEncoding = true,
@@ -56,7 +55,7 @@ namespace Opc.Ua
                 return Create();
             }
 
-            EndpointConfiguration configuration = new EndpointConfiguration {
+            var configuration = new EndpointConfiguration {
                 OperationTimeout = applicationConfiguration.TransportQuotas.OperationTimeout,
                 UseBinaryEncoding = true,
                 MaxArrayLength = applicationConfiguration.TransportQuotas.MaxArrayLength,
@@ -80,15 +79,9 @@ namespace Opc.Ua
         /// </summary>
         public int MaxEncodingNestingLevels
         {
-            get
-            {
-                return m_maxEncodingNestingLevels <= 0 ? DefaultEncodingLimits.MaxEncodingNestingLevels : m_maxEncodingNestingLevels;
-            }
+            get => m_maxEncodingNestingLevels <= 0 ? DefaultEncodingLimits.MaxEncodingNestingLevels : m_maxEncodingNestingLevels;
 
-            set
-            {
-                m_maxEncodingNestingLevels = value;
-            }
+            set => m_maxEncodingNestingLevels = value;
         }
 
         /// <summary>
@@ -97,15 +90,9 @@ namespace Opc.Ua
         /// </summary>
         public int MaxDecoderRecoveries
         {
-            get
-            {
-                return m_maxDecoderRecoveries;
-            }
+            get => m_maxDecoderRecoveries;
 
-            set
-            {
-                m_maxDecoderRecoveries = value;
-            }
+            set => m_maxDecoderRecoveries = value;
         }
         #endregion
 

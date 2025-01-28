@@ -11,12 +11,6 @@
 */
 
 using System;
-using System.Collections.Generic;
-using System.Xml;
-using System.Text;
-using System.IO;
-using System.Reflection;
-using Opc.Ua;
 
 namespace Opc.Ua
 {
@@ -192,9 +186,9 @@ namespace Opc.Ua
                 }
 
                 // raise the audit event.
-                AuditConditionAcknowledgeEventState e = new AuditConditionAcknowledgeEventState(null);
+                var e = new AuditConditionAcknowledgeEventState(null);
 
-                TranslationInfo info = new TranslationInfo(
+                var info = new TranslationInfo(
                     "AuditConditionAcknowledge",
                     "en-US",
                     "The Acknowledge method was called.");
@@ -264,7 +258,7 @@ namespace Opc.Ua
         /// <param name="context">The system context.</param>
         protected virtual void UpdateStateAfterAcknowledge(ISystemContext context)
         {
-            TranslationInfo state = new TranslationInfo(
+            var state = new TranslationInfo(
                 "ConditionStateAcknowledged",
                 "en-US",
                 ConditionStateNames.Acknowledged);
@@ -286,7 +280,7 @@ namespace Opc.Ua
         /// <param name="context">The system context.</param>
         protected virtual void UpdateStateAfterUnacknowledge(ISystemContext context)
         {
-            TranslationInfo state = new TranslationInfo(
+            var state = new TranslationInfo(
                 "ConditionStateUnacknowledged",
                 "en-US",
                 ConditionStateNames.Unacknowledged);
@@ -352,9 +346,9 @@ namespace Opc.Ua
                 }
 
                 // raise the audit event.
-                AuditConditionConfirmEventState e = new AuditConditionConfirmEventState(null);
+                var e = new AuditConditionConfirmEventState(null);
 
-                TranslationInfo info = new TranslationInfo(
+                var info = new TranslationInfo(
                     "AuditConditionConfirm",
                     "en-US",
                     "The Confirm method was called.");
@@ -426,7 +420,7 @@ namespace Opc.Ua
         {
             if (this.ConfirmedState != null)
             {
-                TranslationInfo state = new TranslationInfo(
+                var state = new TranslationInfo(
                     "ConditionStateConfirmed",
                     "en-US",
                     ConditionStateNames.Confirmed);
@@ -451,7 +445,7 @@ namespace Opc.Ua
         {
             if (this.ConfirmedState != null)
             {
-                TranslationInfo state = new TranslationInfo(
+                var state = new TranslationInfo(
                     "ConditionStateUnconfirmed",
                     "en-US",
                     ConditionStateNames.Unconfirmed);

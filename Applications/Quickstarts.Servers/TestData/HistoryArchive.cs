@@ -29,10 +29,7 @@
 
 using System;
 using System.Collections.Generic;
-using System.Text;
 using System.Threading;
-using System.Xml;
-using System.IO;
 using Opc.Ua;
 
 namespace TestData
@@ -98,7 +95,7 @@ namespace TestData
         {
             lock (m_lock)
             {
-                HistoryRecord record = new HistoryRecord();
+                var record = new HistoryRecord();
 
                 record.RawData = new List<HistoryEntry>();
                 record.Historizing = true;
@@ -108,7 +105,7 @@ namespace TestData
 
                 for (int ii = 1000; ii >= 0; ii--)
                 {
-                    HistoryEntry entry = new HistoryEntry();
+                    var entry = new HistoryEntry();
 
                     entry.Value = new DataValue();
                     entry.Value.ServerTimestamp = now.AddSeconds(-(ii * 10));
@@ -127,17 +124,11 @@ namespace TestData
                     record.RawData.Add(entry);
                 }
 
-                if (m_records == null)
-                {
-                    m_records = new Dictionary<NodeId, HistoryRecord>();
-                }
+                m_records ??= new Dictionary<NodeId, HistoryRecord>();
 
                 m_records[nodeId] = record;
 
-                if (m_updateTimer == null)
-                {
-                    m_updateTimer = new Timer(OnUpdate, null, 10000, 10000);
-                }
+                m_updateTimer ??= new Timer(OnUpdate, null, 10000, 10000);
             }
         }
         #endregion
@@ -161,7 +152,7 @@ namespace TestData
                             continue;
                         }
 
-                        HistoryEntry entry = new HistoryEntry();
+                        var entry = new HistoryEntry();
 
                         entry.Value = new DataValue();
                         entry.Value.ServerTimestamp = now;

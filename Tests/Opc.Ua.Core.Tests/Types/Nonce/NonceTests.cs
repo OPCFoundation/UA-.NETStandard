@@ -29,7 +29,6 @@
 
 using System;
 using System.Runtime.InteropServices;
-using System.Security.Cryptography;
 using NUnit.Framework;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
@@ -61,7 +60,7 @@ namespace Opc.Ua.Core.Tests.Types.Nonce
             {
                 uint nonceLength = Ua.Nonce.GetNonceLength(securityPolicyUri);
 
-                Ua.Nonce nonce = Ua.Nonce.CreateNonce(securityPolicyUri);
+                var nonce = Ua.Nonce.CreateNonce(securityPolicyUri);
 
                 Assert.IsNotNull(nonce);
                 Assert.IsNotNull(nonce.Data);
@@ -86,9 +85,9 @@ namespace Opc.Ua.Core.Tests.Types.Nonce
             if (IsSupportedByPlatform(securityPolicyUri))
             {
                 uint nonceLength = Ua.Nonce.GetNonceLength(securityPolicyUri);
-                Ua.Nonce nonceByLen = Ua.Nonce.CreateNonce(securityPolicyUri);
+                var nonceByLen = Ua.Nonce.CreateNonce(securityPolicyUri);
 
-                Ua.Nonce nonceByData = Ua.Nonce.CreateNonce(securityPolicyUri, nonceByLen.Data);
+                var nonceByData = Ua.Nonce.CreateNonce(securityPolicyUri, nonceByLen.Data);
 
                 Assert.IsNotNull(nonceByData);
                 Assert.IsNotNull(nonceByData.Data);
@@ -122,13 +121,13 @@ namespace Opc.Ua.Core.Tests.Types.Nonce
                     if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX) &&
                         (securityPolicyUri == SecurityPolicies.ECC_nistP256 || securityPolicyUri == SecurityPolicies.ECC_nistP384))
                     {
-                        Assert.Ignore("No exception is thrown on OSX with NIST curves");
+                        NUnit.Framework.Assert.Ignore("No exception is thrown on OSX with NIST curves");
                     }
-                    Assert.Throws(typeof(ArgumentException), () => Ua.Nonce.CreateNonce(securityPolicyUri, randomValue));
+                    NUnit.Framework.Assert.Throws(typeof(ArgumentException), () => Ua.Nonce.CreateNonce(securityPolicyUri, randomValue));
                 }
                 else
                 {
-                    Ua.Nonce rsaNonce = Ua.Nonce.CreateNonce(securityPolicyUri, randomValue);
+                    var rsaNonce = Ua.Nonce.CreateNonce(securityPolicyUri, randomValue);
                     Assert.AreEqual(rsaNonce.Data, randomValue);
                 }
             }

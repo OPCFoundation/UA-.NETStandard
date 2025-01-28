@@ -10,7 +10,6 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
-using System;
 using System.Collections.Generic;
 
 namespace Opc.Ua
@@ -27,8 +26,8 @@ namespace Opc.Ua
         /// <value>The handle.</value>
         public object Handle
         {
-            get { return m_handle; }
-            set { m_handle = value; }
+            get => m_handle;
+            set => m_handle = value;
         }
 
         /// <summary>
@@ -195,7 +194,7 @@ namespace Opc.Ua
         /// <returns>A snapshot of a node.</returns>
         private ChildNode CreateChildNode(ISystemContext context, BaseInstanceState state)
         {
-            ChildNode node = new ChildNode();
+            var node = new ChildNode();
 
             node.NodeClass = state.NodeClass;
             node.BrowseName = state.BrowseName;
@@ -228,10 +227,10 @@ namespace Opc.Ua
         /// <returns>The list of the nodes.</returns>
         private List<ChildNode> CreateChildNodes(ISystemContext context, BaseInstanceState state)
         {
-            List<BaseInstanceState> children = new List<BaseInstanceState>();
+            var children = new List<BaseInstanceState>();
             state.GetChildren(context, children);
 
-            List<ChildNode> nodes = new List<ChildNode>();
+            var nodes = new List<ChildNode>();
 
             for (int ii = 0; ii < children.Count; ii++)
             {

@@ -100,7 +100,7 @@ namespace Opc.Ua
             lock (m_lock)
             {
                 string trimmedLocation = Utils.ReplaceSpecialFolderNames(location);
-                var directory = !string.IsNullOrEmpty(trimmedLocation) ? new DirectoryInfo(trimmedLocation) : null;
+                DirectoryInfo directory = !string.IsNullOrEmpty(trimmedLocation) ? new DirectoryInfo(trimmedLocation) : null;
                 if (directory == null ||
                     m_directory?.FullName.Equals(directory.FullName, StringComparison.Ordinal) != true ||
                     NoPrivateKeys != noPrivateKeys)
@@ -225,7 +225,7 @@ namespace Opc.Ua
 
                 DateTime now = DateTime.UtcNow;
                 int entries = 0;
-                foreach (var certificate in certificates)
+                foreach (X509Certificate2 certificate in certificates)
                 {
                     // limit the number of certificates added per call.
                     if (maxCertificates != 0 && entries >= maxCertificates)
@@ -243,7 +243,7 @@ namespace Opc.Ua
                         string fileName = GetFileName(certificate);
 
                         // store is created if it does not exist
-                        var fileInfo = WriteFile(certificate.RawData, fileName, false, true);
+                        FileInfo fileInfo = WriteFile(certificate.RawData, fileName, false, true);
 
                         // add entry
                         entry = new Entry {
@@ -272,7 +272,7 @@ namespace Opc.Ua
             }
 
             bool reload = false;
-            foreach (var entry in deleteEntryList)
+            foreach (Entry entry in deleteEntryList)
             {
                 try
                 {
@@ -458,7 +458,7 @@ namespace Opc.Ua
                 {
                     try
                     {
-                        var certificate = X509CertificateLoader.LoadCertificateFromFile(file.FullName);
+                        X509Certificate2 certificate = X509CertificateLoader.LoadCertificateFromFile(file.FullName);
 
                         if (!String.IsNullOrEmpty(thumbprint))
                         {
@@ -858,7 +858,7 @@ namespace Opc.Ua
                         {
                             string fileRoot = file.Name.Substring(0, entry.CertificateFile.Name.Length - entry.CertificateFile.Extension.Length);
 
-                            var filePath = new StringBuilder()
+                            StringBuilder filePath = new StringBuilder()
                                 .Append(m_privateKeySubdir.FullName)
                                 .Append(Path.DirectorySeparatorChar)
                                 .Append(fileRoot);
@@ -966,7 +966,7 @@ namespace Opc.Ua
                 fileName.Append(ch);
             }
 
-            var signatureQualifier = X509Utils.GetECDsaQualifier(certificate);
+            string signatureQualifier = X509Utils.GetECDsaQualifier(certificate);
             if (!string.IsNullOrEmpty(signatureQualifier))
             {
                 fileName.Append(" [");
@@ -1027,7 +1027,7 @@ namespace Opc.Ua
             }
 
             // write file.
-            var fileMode = allowOverride ? FileMode.OpenOrCreate : FileMode.Create;
+            FileMode fileMode = allowOverride ? FileMode.OpenOrCreate : FileMode.Create;
             var writer = new BinaryWriter(fileInfo.Open(fileMode, FileAccess.Write));
             try
             {

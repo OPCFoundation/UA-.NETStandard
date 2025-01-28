@@ -31,7 +31,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Security.Cryptography.X509Certificates;
-using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Gds.Client
 {
@@ -52,7 +51,7 @@ namespace Opc.Ua.Gds.Client
                 {
                     if (Uri.IsWellFormedUriString(discoveryUrl, UriKind.Absolute))
                     {
-                        Uri url = new Uri(discoveryUrl);
+                        var url = new Uri(discoveryUrl);
                         return url.DnsSafeHost.Replace("localhost", Utils.GetHostName());
                     }
                 }
@@ -88,17 +87,17 @@ namespace Opc.Ua.Gds.Client
 
         public List<string> GetDomainNames(X509Certificate2 certificate)
         {
-            List<string> domainNames = new List<string>();
+            var domainNames = new List<string>();
 
             if (!String.IsNullOrEmpty(Domains))
             {
-                var domains = Domains.Split(',');
+                string[] domains = Domains.Split(',');
 
-                List<string> trimmedDomains = new List<string>();
+                var trimmedDomains = new List<string>();
 
-                foreach (var domain in domains)
+                foreach (string domain in domains)
                 {
-                    var d = domain.Trim();
+                    string d = domain.Trim();
 
                     if (d.Length > 0)
                     {
@@ -114,7 +113,7 @@ namespace Opc.Ua.Gds.Client
 
             if (DiscoveryUrl != null)
             {
-                foreach (var discoveryUrl in DiscoveryUrl)
+                foreach (string discoveryUrl in DiscoveryUrl)
                 {
                     if (Uri.IsWellFormedUriString(discoveryUrl, UriKind.Absolute))
                     {
@@ -128,7 +127,7 @@ namespace Opc.Ua.Gds.Client
                         bool found = false;
 
                         //domainNames.Any(n => String.Compare(n, name, StringComparison.OrdinalIgnoreCase) == 0);
-                        foreach (var domainName in domainNames)
+                        foreach (string domainName in domainNames)
                         {
                             if (String.Equals(domainName, name, StringComparison.OrdinalIgnoreCase))
                             {
@@ -152,7 +151,7 @@ namespace Opc.Ua.Gds.Client
 
             if (certificate != null)
             {
-                var names = X509Utils.GetDomainsFromCertificate(certificate);
+                IList<string> names = X509Utils.GetDomainsFromCertificate(certificate);
 
                 if (names != null && names.Count > 0)
                 {
@@ -160,11 +159,11 @@ namespace Opc.Ua.Gds.Client
                     return domainNames;
                 }
 
-                var fields = X509Utils.ParseDistinguishedName(certificate.Subject);
+                List<string> fields = X509Utils.ParseDistinguishedName(certificate.Subject);
 
                 string name = null;
 
-                foreach (var field in fields)
+                foreach (string field in fields)
                 {
                     if (field.StartsWith("DC=", StringComparison.Ordinal))
                     {

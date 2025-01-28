@@ -177,7 +177,7 @@ namespace Opc.Ua.PubSub
             lock (Lock)
             {
                 m_isRunning = true;
-                foreach (var publisher in m_publishers)
+                foreach (IUaPublisher publisher in m_publishers)
                 {
                     publisher.Start();
                 }
@@ -193,7 +193,7 @@ namespace Opc.Ua.PubSub
             lock (Lock)
             {
                 m_isRunning = false;
-                foreach (var publisher in m_publishers)
+                foreach (IUaPublisher publisher in m_publishers)
                 {
                     publisher.Stop();
                 }
@@ -259,7 +259,7 @@ namespace Opc.Ua.PubSub
         /// </summary>
         public List<DataSetReaderDataType> GetOperationalDataSetReaders()
         {
-            List<DataSetReaderDataType> readersList = new List<DataSetReaderDataType>();
+            var readersList = new List<DataSetReaderDataType>();
             if (Application.UaPubSubConfigurator.FindStateForObject(m_pubSubConnectionDataType) != PubSubState.Operational)
             {
                 return readersList;
@@ -324,7 +324,7 @@ namespace Opc.Ua.PubSub
                     if (raiseChangedEvent)
                     {
                         // raise event
-                        ConfigurationUpdatingEventArgs metaDataUpdatedEventArgs = new ConfigurationUpdatingEventArgs() {
+                        var metaDataUpdatedEventArgs = new ConfigurationUpdatingEventArgs() {
                             ChangedProperty = ConfigurationProperty.DataSetMetaData,
                             Parent = reader,
                             NewValue = networkMessage.DataSetMetaData,
@@ -348,7 +348,7 @@ namespace Opc.Ua.PubSub
                     }
                 }
 
-                SubscribedDataEventArgs subscribedDataEventArgs = new SubscribedDataEventArgs() {
+                var subscribedDataEventArgs = new SubscribedDataEventArgs() {
                     NetworkMessage = networkMessage,
                     Source = source
                 };
@@ -363,7 +363,7 @@ namespace Opc.Ua.PubSub
             }
             else if (networkMessage.DataSetMessages != null && networkMessage.DataSetMessages.Count > 0)
             {
-                SubscribedDataEventArgs subscribedDataEventArgs = new SubscribedDataEventArgs() {
+                var subscribedDataEventArgs = new SubscribedDataEventArgs() {
                     NetworkMessage = networkMessage,
                     Source = source
                 };
@@ -378,14 +378,12 @@ namespace Opc.Ua.PubSub
             }
             else if (networkMessage is Encoding.UadpNetworkMessage)
             {
-                Encoding.UadpNetworkMessage uadpNetworkMessage = networkMessage as Encoding.UadpNetworkMessage;
-
-                if (uadpNetworkMessage != null)
+                if (networkMessage is Encoding.UadpNetworkMessage uadpNetworkMessage)
                 {
                     if (uadpNetworkMessage.UADPDiscoveryType == UADPNetworkMessageDiscoveryType.DataSetWriterConfiguration &&
                         uadpNetworkMessage.UADPNetworkMessageType == UADPNetworkMessageType.DiscoveryResponse)
                     {
-                        DataSetWriterConfigurationEventArgs eventArgs = new DataSetWriterConfigurationEventArgs() {
+                        var eventArgs = new DataSetWriterConfigurationEventArgs() {
                             DataSetWriterIds = uadpNetworkMessage.DataSetWriterIds,
                             Source = source,
                             DataSetWriterConfiguration = uadpNetworkMessage.DataSetWriterConfiguration,
@@ -404,7 +402,7 @@ namespace Opc.Ua.PubSub
                     else if (uadpNetworkMessage.UADPDiscoveryType == UADPNetworkMessageDiscoveryType.PublisherEndpoint &&
                         uadpNetworkMessage.UADPNetworkMessageType == UADPNetworkMessageType.DiscoveryResponse)
                     {
-                        PublisherEndpointsEventArgs publisherEndpointsEventArgs = new PublisherEndpointsEventArgs() {
+                        var publisherEndpointsEventArgs = new PublisherEndpointsEventArgs() {
                             PublisherEndpoints = uadpNetworkMessage.PublisherEndpoints,
                             Source = source,
                             PublisherId = uadpNetworkMessage.PublisherId,
@@ -428,7 +426,7 @@ namespace Opc.Ua.PubSub
         /// </summary>
         protected List<DataSetReaderDataType> GetAllDataSetReaders()
         {
-            List<DataSetReaderDataType> readersList = new List<DataSetReaderDataType>();
+            var readersList = new List<DataSetReaderDataType>();
             foreach (ReaderGroupDataType readerGroup in m_pubSubConnectionDataType.ReaderGroups)
             {
                 foreach (DataSetReaderDataType reader in readerGroup.DataSetReaders)
@@ -444,7 +442,7 @@ namespace Opc.Ua.PubSub
         /// </summary>
         protected List<DataSetWriterDataType> GetWriterGroupsDataType()
         {
-            List<DataSetWriterDataType> writerList = new List<DataSetWriterDataType>();
+            var writerList = new List<DataSetWriterDataType>();
 
             foreach (WriterGroupDataType writerGroup in m_pubSubConnectionDataType.WriterGroups)
             {
@@ -461,16 +459,16 @@ namespace Opc.Ua.PubSub
         /// </summary>
         protected IList<DataSetWriterConfigurationResponse> GetDataSetWriterDiscoveryResponses(UInt16[] dataSetWriterIds)
         {
-            List<DataSetWriterConfigurationResponse> responses = new List<DataSetWriterConfigurationResponse>();
+            var responses = new List<DataSetWriterConfigurationResponse>();
 
-            List<ushort> writerGroupsIds = m_pubSubConnectionDataType.WriterGroups
+            var writerGroupsIds = m_pubSubConnectionDataType.WriterGroups
                 .SelectMany(group => group.DataSetWriters)
                 .Select(writer => writer.DataSetWriterId)
                 .ToList();
 
-            foreach (var dataSetWriterId in dataSetWriterIds)
+            foreach (ushort dataSetWriterId in dataSetWriterIds)
             {
-                DataSetWriterConfigurationResponse response = new DataSetWriterConfigurationResponse();
+                var response = new DataSetWriterConfigurationResponse();
 
                 if (!writerGroupsIds.Contains(dataSetWriterId))
                 {
@@ -547,11 +545,11 @@ namespace Opc.Ua.PubSub
         /// </summary>
         private void UaPubSubConfigurator_WriterGroupAdded(object sender, WriterGroupEventArgs e)
         {
-            PubSubConnectionDataType pubSubConnectionDataType = m_uaPubSubApplication.UaPubSubConfigurator.FindObjectById(e.ConnectionId)
+            var pubSubConnectionDataType = m_uaPubSubApplication.UaPubSubConfigurator.FindObjectById(e.ConnectionId)
                 as PubSubConnectionDataType;
             if (m_pubSubConnectionDataType == pubSubConnectionDataType)
             {
-                UaPublisher publisher = new UaPublisher(this, e.WriterGroupDataType);
+                var publisher = new UaPublisher(this, e.WriterGroupDataType);
                 m_publishers.Add(publisher);
             }
         }

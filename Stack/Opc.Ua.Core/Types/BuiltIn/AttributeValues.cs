@@ -152,12 +152,12 @@ namespace Opc.Ua
 
             switch (expectedValueRank)
             {
-                case ValueRanks.Any:
+                case Any:
                 {
                     return true;
                 }
 
-                case ValueRanks.OneOrMoreDimensions:
+                case OneOrMoreDimensions:
                 {
                     if (actualValueRank < 0)
                     {
@@ -167,9 +167,9 @@ namespace Opc.Ua
                     break;
                 }
 
-                case ValueRanks.ScalarOrOneDimension:
+                case ScalarOrOneDimension:
                 {
-                    if (actualValueRank != ValueRanks.Scalar && actualValueRank != ValueRanks.OneDimension)
+                    if (actualValueRank != Scalar && actualValueRank != OneDimension)
                     {
                         return false;
                     }
@@ -198,13 +198,13 @@ namespace Opc.Ua
             }
 
             // no array dimensions allowed for scalars.
-            if (valueRank == ValueRanks.Scalar)
+            if (valueRank == Scalar)
             {
                 return false;
             }
 
             // check if one dimension required.
-            if (valueRank == ValueRanks.OneDimension || valueRank == ValueRanks.ScalarOrOneDimension)
+            if (valueRank == OneDimension || valueRank == ScalarOrOneDimension)
             {
                 if (actualArrayDimensions.Count != 1)
                 {
@@ -213,7 +213,7 @@ namespace Opc.Ua
             }
 
             // check number of dimensions.
-            if (valueRank != ValueRanks.OneOrMoreDimensions)
+            if (valueRank != OneOrMoreDimensions)
             {
                 if (actualArrayDimensions.Count != valueRank)
                 {

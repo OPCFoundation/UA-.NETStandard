@@ -11,13 +11,6 @@
 */
 
 using System;
-using System.Collections.Generic;
-using System.Xml;
-using System.Text;
-using System.IO;
-using System.Reflection;
-using System.Threading;
-using Opc.Ua;
 
 namespace Opc.Ua
 {

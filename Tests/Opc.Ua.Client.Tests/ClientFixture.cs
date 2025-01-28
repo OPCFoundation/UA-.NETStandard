@@ -30,9 +30,6 @@
 using System;
 using System.Diagnostics;
 using System.IO;
-using System.Linq;
-using System.Net.Http;
-using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using NUnit.Framework;
@@ -88,7 +85,7 @@ namespace Opc.Ua.Client.Tests
         /// </summary>
         public async Task LoadClientConfiguration(string pkiRoot = null, string clientName = "TestClient")
         {
-            ApplicationInstance application = new ApplicationInstance {
+            var application = new ApplicationInstance {
                 ApplicationName = clientName
             };
 
@@ -140,7 +137,7 @@ namespace Opc.Ua.Client.Tests
         /// </summary>
         public async Task StartReverseConnectHost()
         {
-            Random random = new Random();
+            var random = new Random();
             int testPort = ServerFixtureUtils.GetNextFreeIPPort();
             bool retryStartServer = false;
             int serverStartRetries = 25;
@@ -191,8 +188,8 @@ namespace Opc.Ua.Client.Tests
                 try
                 {
                     EndpointDescription endpointDescription = CoreClientUtils.SelectEndpoint(Config, endpointUrl, true);
-                    EndpointConfiguration endpointConfiguration = EndpointConfiguration.Create(Config);
-                    ConfiguredEndpoint endpoint = new ConfiguredEndpoint(null, endpointDescription, endpointConfiguration);
+                    var endpointConfiguration = EndpointConfiguration.Create(Config);
+                    var endpoint = new ConfiguredEndpoint(null, endpointDescription, endpointConfiguration);
 
                     return await ConnectAsync(endpoint).ConfigureAwait(false);
                 }
@@ -244,7 +241,7 @@ namespace Opc.Ua.Client.Tests
                 }
             }
 
-            var session = await SessionFactory.CreateAsync(
+            ISession session = await SessionFactory.CreateAsync(
                 Config, endpoint, false, false,
                 Config.ApplicationName, SessionTimeout, userIdentity, null).ConfigureAwait(false);
 
@@ -290,16 +287,13 @@ namespace Opc.Ua.Client.Tests
             string securityPolicy,
             EndpointDescriptionCollection endpoints = null)
         {
-            if (endpoints == null)
-            {
-                endpoints = await GetEndpoints(url).ConfigureAwait(false);
-            }
-            var endpointDescription = SelectEndpoint(Config, endpoints, url, securityPolicy);
+            endpoints ??= await GetEndpoints(url).ConfigureAwait(false);
+            EndpointDescription endpointDescription = SelectEndpoint(Config, endpoints, url, securityPolicy);
             if (endpointDescription == null)
             {
                 Assert.Ignore("The endpoint is not supported by the server.");
             }
-            EndpointConfiguration endpointConfiguration = EndpointConfiguration.Create(Config);
+            var endpointConfiguration = EndpointConfiguration.Create(Config);
             endpointConfiguration.OperationTimeout = OperationTimeout;
             return new ConfiguredEndpoint(null, endpointDescription, endpointConfiguration);
         }
@@ -316,7 +310,7 @@ namespace Opc.Ua.Client.Tests
             EndpointDescription selectedEndpoint = null;
 
             // select the best endpoint to use based on the selected URL and the UseSecurity checkbox. 
-            foreach (var endpoint in endpoints)
+            foreach (EndpointDescription endpoint in endpoints)
             {
                 // check for a match on the URL scheme.
                 if (endpoint.EndpointUrl.StartsWith(url.Scheme))
@@ -358,7 +352,7 @@ namespace Opc.Ua.Client.Tests
 
             using (var client = DiscoveryClient.Create(url, endpointConfiguration))
             {
-                var result = await client.GetEndpointsAsync(null).ConfigureAwait(false);
+                EndpointDescriptionCollection result = await client.GetEndpointsAsync(null).ConfigureAwait(false);
                 await client.CloseAsync().ConfigureAwait(false);
                 return result;
             }

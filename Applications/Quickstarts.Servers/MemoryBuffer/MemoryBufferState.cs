@@ -29,13 +29,9 @@
 
 using System;
 using System.Collections.Generic;
-using System.Xml;
-using System.IO;
-using System.Reflection;
 using System.Threading;
 using Opc.Ua;
 using Opc.Ua.Server;
-using System.Diagnostics;
 
 namespace MemoryBuffer
 {
@@ -230,9 +226,7 @@ namespace MemoryBuffer
             ref StatusCode statusCode,
             ref DateTime timestamp)
         {
-            MemoryTagState tag = node as MemoryTagState;
-
-            if (tag == null)
+            if (node is not MemoryTagState tag)
             {
                 return StatusCodes.BadNodeIdUnknown;
             }
@@ -282,9 +276,7 @@ namespace MemoryBuffer
             ref StatusCode statusCode,
             ref DateTime timestamp)
         {
-            MemoryTagState tag = node as MemoryTagState;
-
-            if (tag == null)
+            if (node is not MemoryTagState tag)
             {
                 return StatusCodes.BadNodeIdUnknown;
             }
@@ -461,7 +453,7 @@ namespace MemoryBuffer
         {
             lock (m_dataLock)
             {
-                MemoryBufferMonitoredItem monitoredItem = new MemoryBufferMonitoredItem(
+                var monitoredItem = new MemoryBufferMonitoredItem(
                     m_server,
                     m_nodeManager,
                     this,
@@ -585,7 +577,7 @@ namespace MemoryBuffer
 
                         for (int ii = 0; ii < monitoredItems.Length; ii++)
                         {
-                            if (Object.ReferenceEquals(monitoredItems[ii], monitoredItem))
+                            if (ReferenceEquals(monitoredItems[ii], monitoredItem))
                             {
                                 index = ii;
                                 break;
@@ -630,7 +622,7 @@ namespace MemoryBuffer
 
                     if (monitoredItems != null)
                     {
-                        DataValue value = new DataValue();
+                        var value = new DataValue();
 
                         value.WrappedValue = GetValueAtOffset(offset);
                         value.StatusCode = StatusCodes.Good;

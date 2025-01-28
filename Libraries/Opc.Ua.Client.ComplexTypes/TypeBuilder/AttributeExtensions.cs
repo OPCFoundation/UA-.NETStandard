@@ -55,7 +55,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// </summary>
         public static void DataContractAttribute(this TypeBuilder builder, string Namespace)
         {
-            var attribute = DataContractAttributeBuilder(Namespace);
+            CustomAttributeBuilder attribute = DataContractAttributeBuilder(Namespace);
             builder.SetCustomAttribute(attribute);
         }
 
@@ -64,7 +64,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// </summary>
         public static void DataContractAttribute(this EnumBuilder builder, string Namespace)
         {
-            var attribute = DataContractAttributeBuilder(Namespace);
+            CustomAttributeBuilder attribute = DataContractAttributeBuilder(Namespace);
             builder.SetCustomAttribute(attribute);
         }
 
@@ -73,7 +73,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// </summary>
         public static void DataMemberAttribute(this PropertyBuilder typeBuilder, string name, bool isRequired, int order)
         {
-            var attribute = DataMemberAttributeBuilder(name, isRequired, order);
+            CustomAttributeBuilder attribute = DataMemberAttributeBuilder(name, isRequired, order);
             typeBuilder.SetCustomAttribute(attribute);
         }
 
@@ -84,10 +84,10 @@ namespace Opc.Ua.Client.ComplexTypes
             this TypeBuilder typeBuilder,
             StructureDefinition structureDefinition)
         {
-            var attributeType = typeof(StructureDefinitionAttribute);
-            var baseDataType = ComplexTypes.StructureDefinitionAttribute.FromBaseType(structureDefinition.BaseDataType);
+            Type attributeType = typeof(StructureDefinitionAttribute);
+            StructureBaseDataType baseDataType = ComplexTypes.StructureDefinitionAttribute.FromBaseType(structureDefinition.BaseDataType);
             ConstructorInfo ctorInfo = attributeType.GetConstructor(Type.EmptyTypes);
-            CustomAttributeBuilder builder = new CustomAttributeBuilder(
+            var builder = new CustomAttributeBuilder(
                 ctorInfo,
                 Array.Empty<object>(),  // constructor arguments
                 new[]           // properties to assign
@@ -115,9 +115,9 @@ namespace Opc.Ua.Client.ComplexTypes
             ExpandedNodeId xmlEncodingId
             )
         {
-            var attributeType = typeof(StructureTypeIdAttribute);
+            Type attributeType = typeof(StructureTypeIdAttribute);
             ConstructorInfo ctorInfo = attributeType.GetConstructor(Type.EmptyTypes);
-            CustomAttributeBuilder builder = new CustomAttributeBuilder(
+            var builder = new CustomAttributeBuilder(
                 ctorInfo,
                 Array.Empty<object>(),  // constructor arguments
                 new[]           // properties to assign
@@ -142,7 +142,7 @@ namespace Opc.Ua.Client.ComplexTypes
             this PropertyBuilder typeBuilder,
             StructureField structureField)
         {
-            var attributeType = typeof(StructureFieldAttribute);
+            Type attributeType = typeof(StructureFieldAttribute);
             ConstructorInfo ctorInfo = attributeType.GetConstructor(Type.EmptyTypes);
             var pi = new List<PropertyInfo>()
             {
@@ -166,7 +166,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 pv.Add(builtInType);
             }
 
-            CustomAttributeBuilder builder = new CustomAttributeBuilder(
+            var builder = new CustomAttributeBuilder(
                 ctorInfo,
                 Array.Empty<object>(),  // constructor arguments
                 pi.ToArray(),           // properties to assign
@@ -180,10 +180,10 @@ namespace Opc.Ua.Client.ComplexTypes
         /// </summary>
         public static void EnumMemberAttribute(this FieldBuilder typeBuilder, string Name, int Value)
         {
-            var attributeType = typeof(EnumMemberAttribute);
-            Type[] ctorParams = new Type[] { typeof(string) };
+            Type attributeType = typeof(EnumMemberAttribute);
+            var ctorParams = new Type[] { typeof(string) };
             ConstructorInfo ctorInfo = attributeType.GetConstructor(Type.EmptyTypes);
-            CustomAttributeBuilder builder = new CustomAttributeBuilder(
+            var builder = new CustomAttributeBuilder(
                 ctorInfo,
                 Array.Empty<object>(),  // constructor arguments
                 new[]           // properties to assign
@@ -204,9 +204,9 @@ namespace Opc.Ua.Client.ComplexTypes
         /// </summary>
         private static CustomAttributeBuilder DataMemberAttributeBuilder(string name, bool isRequired, int order)
         {
-            var attributeType = typeof(DataMemberAttribute);
+            Type attributeType = typeof(DataMemberAttribute);
             ConstructorInfo ctorInfo = attributeType.GetConstructor(Type.EmptyTypes);
-            CustomAttributeBuilder builder = new CustomAttributeBuilder(
+            var builder = new CustomAttributeBuilder(
                 ctorInfo,
                 Array.Empty<object>(),  // constructor arguments
                 new[]           // properties to assign
@@ -229,9 +229,9 @@ namespace Opc.Ua.Client.ComplexTypes
         /// </summary>
         private static CustomAttributeBuilder DataContractAttributeBuilder(string Namespace)
         {
-            var attributeType = typeof(DataContractAttribute);
+            Type attributeType = typeof(DataContractAttribute);
             ConstructorInfo ctorInfo = attributeType.GetConstructor(Type.EmptyTypes);
-            CustomAttributeBuilder builder = new CustomAttributeBuilder(
+            var builder = new CustomAttributeBuilder(
                 ctorInfo,
                 Array.Empty<object>(),  // constructor arguments
                 new[]           // properties to assign
@@ -259,12 +259,12 @@ namespace Opc.Ua.Client.ComplexTypes
         private static BuiltInType GetBuiltInType(NodeId datatypeId)
         {
             if (datatypeId.IsNullNodeId || datatypeId.NamespaceIndex != 0 ||
-                datatypeId.IdType != Opc.Ua.IdType.Numeric)
+                datatypeId.IdType != IdType.Numeric)
             {
                 return BuiltInType.Null;
             }
 
-            BuiltInType builtInType = (BuiltInType)Enum.ToObject(typeof(BuiltInType), datatypeId.Identifier);
+            var builtInType = (BuiltInType)Enum.ToObject(typeof(BuiltInType), datatypeId.Identifier);
 
             if (builtInType <= BuiltInType.DiagnosticInfo || builtInType == BuiltInType.Enumeration)
             {

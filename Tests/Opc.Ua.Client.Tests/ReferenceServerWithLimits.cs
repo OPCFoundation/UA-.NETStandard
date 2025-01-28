@@ -77,7 +77,7 @@ namespace Opc.Ua.Client.Tests
         {
             Configuration.ServerConfiguration.MaxBrowseContinuationPoints = (int)maxNumberOfContinuationPoints;
             ((MasterNodeManagerWithLimits)MasterNodeManagerReference).MaxContinuationPointsPerBrowseForUnitTest = maxNumberOfContinuationPoints;
-            List<Opc.Ua.Server.Session> theServerSideSessions = SessionManagerForTest.GetSessions().ToList();
+            var theServerSideSessions = SessionManagerForTest.GetSessions().ToList();
             foreach (Opc.Ua.Server.Session session in theServerSideSessions)
             {
                 try
@@ -98,7 +98,7 @@ namespace Opc.Ua.Client.Tests
             // create the custom node manager.
             nodeManagers.Add(new ReferenceNodeManager(server, configuration));
 
-            foreach (var nodeManagerFactory in NodeManagerFactories)
+            foreach (INodeManagerFactory nodeManagerFactory in NodeManagerFactories)
             {
                 nodeManagers.Add(nodeManagerFactory.Create(server, configuration));
             }
@@ -200,7 +200,7 @@ namespace Opc.Ua.Client.Tests
             int maxRequestAge, // TBD - Remove unused parameter.
             int maxContinuationPoints) // TBD - Remove unused parameter.
         {
-            ServerSessionWithLimits session = new ServerSessionWithLimits(
+            var session = new ServerSessionWithLimits(
                 context,
                 m_4TestServer,
                 serverCertificate,
@@ -302,7 +302,7 @@ namespace Opc.Ua.Client.Tests
                 BrowseDescription nodeToBrowse = nodesToBrowse[ii];
 
                 // initialize result.
-                BrowseResult result = new BrowseResult();
+                var result = new BrowseResult();
                 result.StatusCode = StatusCodes.Good;
                 results.Add(result);
 
@@ -311,7 +311,7 @@ namespace Opc.Ua.Client.Tests
                 // need to trap unexpected exceptions to handle bugs in the node managers.
                 try
                 {
-                    error = base.Browse(
+                    error = Browse(
                         context,
                         view,
                         maxReferencesPerNode,

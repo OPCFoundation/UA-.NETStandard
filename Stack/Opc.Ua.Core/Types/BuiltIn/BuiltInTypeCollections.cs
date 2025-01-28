@@ -1199,7 +1199,7 @@ namespace Opc.Ua
         /// </remarks>
         public new object MemberwiseClone()
         {
-            ByteStringCollection clone = new ByteStringCollection(this.Count);
+            var clone = new ByteStringCollection(this.Count);
 
             foreach (byte[] element in this)
             {
@@ -1290,7 +1290,7 @@ namespace Opc.Ua
         /// </remarks>
         public new object MemberwiseClone()
         {
-            XmlElementCollection clone = new XmlElementCollection(this.Count);
+            var clone = new XmlElementCollection(this.Count);
 
             foreach (XmlElement element in this)
             {

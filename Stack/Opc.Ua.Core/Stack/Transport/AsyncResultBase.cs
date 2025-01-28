@@ -170,10 +170,7 @@ namespace Opc.Ua
                         return true;
                     }
 
-                    if (m_waitHandle == null)
-                    {
-                        m_waitHandle = new ManualResetEvent(false);
-                    }
+                    m_waitHandle ??= new ManualResetEvent(false);
 
                     waitHandle = m_waitHandle;
                 }
@@ -281,7 +278,7 @@ namespace Opc.Ua
         /// <param name="set"></param>
         private void DisposeWaitHandle(bool set)
         {
-            var waitHandle = Interlocked.Exchange(ref m_waitHandle, null);
+            ManualResetEvent waitHandle = Interlocked.Exchange(ref m_waitHandle, null);
             if (waitHandle != null)
             {
                 try
@@ -335,10 +332,7 @@ namespace Opc.Ua
             {
                 lock (Lock)
                 {
-                    if (m_waitHandle == null)
-                    {
-                        m_waitHandle = new ManualResetEvent(false);
-                    }
+                    m_waitHandle ??= new ManualResetEvent(false);
 
                     return m_waitHandle;
                 }

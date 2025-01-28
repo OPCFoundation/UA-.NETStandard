@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using NUnit.Framework;
-using NUnit.Framework.Internal;
 using System;
 using System.Buffers;
 using System.IO;
@@ -55,7 +54,7 @@ namespace Opc.Ua.Buffers.Tests
 
             // Act
             Action act = () => stream.Dispose();
-            var buffer = new byte[1] { 0x55 };
+            byte[] buffer = new byte[1] { 0x55 };
 
             // Assert
             Assert.That(stream.CanRead, Is.True);
@@ -111,16 +110,16 @@ namespace Opc.Ua.Buffers.Tests
             Assert.That(stream.Read(buffer.AsSpan(0, 1)), Is.EqualTo(0));
 #endif
 
-            var array = stream.ToArray();
+            byte[] array = stream.ToArray();
             Assert.That(array.Length, Is.EqualTo(3));
             Assert.That(array[0], Is.EqualTo(0xaa));
             Assert.That(array[1], Is.EqualTo(0x55));
             Assert.That(array[2], Is.EqualTo(0x55));
 
             // now buffer sequence owns the buffers
-            using (var bufferSequence = stream.GetSequence("Test"))
+            using (BufferSequence bufferSequence = stream.GetSequence("Test"))
             {
-                var sequence = bufferSequence.Sequence;
+                ReadOnlySequence<byte> sequence = bufferSequence.Sequence;
                 Assert.That(sequence.Length, Is.EqualTo(3));
                 Assert.That(sequence.Slice(0, 1).First.Span[0], Is.EqualTo(0xaa));
                 Assert.That(sequence.Slice(1, 1).First.Span[0], Is.EqualTo(0x55));
@@ -238,9 +237,9 @@ namespace Opc.Ua.Buffers.Tests
                 position = writer.Seek(0, SeekOrigin.Begin);
                 Assert.That(position, Is.EqualTo(0));
 
-                using (var bufferSequence = writer.GetSequence("Test"))
+                using (BufferSequence bufferSequence = writer.GetSequence("Test"))
                 {
-                    var sequence = bufferSequence.Sequence;
+                    ReadOnlySequence<byte> sequence = bufferSequence.Sequence;
                     buffer = sequence.ToArray();
 
                     // Assert sequence properties
@@ -254,7 +253,7 @@ namespace Opc.Ua.Buffers.Tests
 
                     for (int i = 0; i <= byte.MaxValue; i++)
                     {
-                        var chunkSequence = sequence.Slice(i * chunkSize, chunkSize);
+                        ReadOnlySequence<byte> chunkSequence = sequence.Slice(i * chunkSize, chunkSize);
                         Assert.That(chunkSequence.Length, Is.EqualTo((long)chunkSize));
 
                         buffer = chunkSequence.ToArray();

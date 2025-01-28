@@ -179,7 +179,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <param name="messageContext">The context.</param>
         public override byte[] Encode(IServiceMessageContext messageContext)
         {
-            using (MemoryStream stream = new MemoryStream())
+            using (var stream = new MemoryStream())
             {
                 Encode(messageContext, stream);
                 return stream.ToArray();
@@ -238,7 +238,7 @@ namespace Opc.Ua.PubSub.Encoding
                     {
                         // If the NetworkMessageHeader bit of the NetworkMessageContentMask is not set,
                         // the NetworkMessage is the contents of the Messages field (e.g. a JSON array of DataSetMessages).
-                        foreach (var message in DataSetMessages)
+                        foreach (UaDataSetMessage message in DataSetMessages)
                         {
                             if (message is JsonDataSetMessage jsonDataSetMessage)
                             {
@@ -318,7 +318,7 @@ namespace Opc.Ua.PubSub.Encoding
                 {
                     if (HasSingleDataSetMessage)
                     {
-                        JsonDataSetMessage jsonDataSetMessage = DataSetMessages[0] as JsonDataSetMessage;
+                        var jsonDataSetMessage = DataSetMessages[0] as JsonDataSetMessage;
 
                         if (jsonDataSetMessage?.DataSet?.DataSetMetaData?.DataSetClassId != null)
                         {
@@ -360,7 +360,7 @@ namespace Opc.Ua.PubSub.Encoding
                 else
                 {
                     encoder.PushArray(kFieldMessages);
-                    foreach (var message in DataSetMessages)
+                    foreach (UaDataSetMessage message in DataSetMessages)
                     {
                         if (message is JsonDataSetMessage jsonDataSetMessage)
                         {
@@ -483,7 +483,7 @@ namespace Opc.Ua.PubSub.Encoding
             }
             try
             {
-                List<DataSetReaderDataType> dataSetReadersFiltered = new List<DataSetReaderDataType>();
+                var dataSetReadersFiltered = new List<DataSetReaderDataType>();
 
                 // 1. decode network message header (PublisherId & DataSetClassId)
                 DecodeNetworkMessageHeader(jsonDecoder);
@@ -561,7 +561,7 @@ namespace Opc.Ua.PubSub.Encoding
                             // The reader MessageSettings is not set up correctly 
                             continue;
                         }
-                        JsonNetworkMessageContentMask networkMessageContentMask =
+                        var networkMessageContentMask =
                             (JsonNetworkMessageContentMask)jsonMessageSettings.NetworkMessageContentMask;
                         if ((networkMessageContentMask & NetworkMessageContentMask) != NetworkMessageContentMask)
                         {
@@ -570,7 +570,7 @@ namespace Opc.Ua.PubSub.Encoding
                         }
 
                         // initialize the dataset message
-                        JsonDataSetMessage jsonDataSetMessage = new JsonDataSetMessage();
+                        var jsonDataSetMessage = new JsonDataSetMessage();
                         jsonDataSetMessage.DataSetMessageContentMask = (JsonDataSetMessageContentMask)jsonMessageSettings.DataSetMessageContentMask;
                         jsonDataSetMessage.SetFieldContentMask((DataSetFieldContentMask)dataSetReader.DataSetFieldContentMask);
                         // set the flag that indicates if dataset message shall have a header

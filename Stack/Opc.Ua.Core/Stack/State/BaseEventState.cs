@@ -11,11 +11,6 @@
 */
 
 using System;
-using System.Collections.Generic;
-using System.Xml;
-using System.IO;
-using System.Reflection;
-using Opc.Ua;
 
 namespace Opc.Ua
 {
@@ -90,7 +85,7 @@ namespace Opc.Ua
         /// </returns>
         public new object MemberwiseClone()
         {
-            BaseEventState clone = (BaseEventState)Activator.CreateInstance(this.GetType());
+            var clone = (BaseEventState)Activator.CreateInstance(this.GetType());
             return CloneChildren(clone);
         }
         #endregion

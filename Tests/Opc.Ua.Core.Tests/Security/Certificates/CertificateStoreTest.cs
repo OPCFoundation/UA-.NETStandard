@@ -32,7 +32,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
-using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -66,13 +65,13 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         [OneTimeTearDown]
         protected async Task OneTimeTearDown()
         {
-            foreach (var certStore in CertStores)
+            foreach (string certStore in CertStores)
             {
                 using (var x509Store = new X509CertificateStore())
                 {
                     x509Store.Open(certStore);
-                    var collection = await x509Store.Enumerate().ConfigureAwait(false);
-                    foreach (var cert in collection)
+                    X509Certificate2Collection collection = await x509Store.Enumerate().ConfigureAwait(false);
+                    foreach (X509Certificate2 cert in collection)
                     {
                         if (X509Utils.CompareDistinguishedName(X509StoreSubject, cert.Subject))
                         {
@@ -111,14 +110,14 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         [Theory, Order(10)]
         public async Task VerifyAppCertX509Store(string storePath)
         {
-            var appCertificate = GetTestCert();
+            X509Certificate2 appCertificate = GetTestCert();
             Assert.NotNull(appCertificate);
             Assert.True(appCertificate.HasPrivateKey);
             appCertificate.AddToStore(
                     CertificateStoreType.X509Store,
                     storePath
                 );
-            using (var publicKey = X509CertificateLoader.LoadCertificate(appCertificate.RawData))
+            using (X509Certificate2 publicKey = X509CertificateLoader.LoadCertificate(appCertificate.RawData))
             {
                 Assert.NotNull(publicKey);
                 Assert.False(publicKey.HasPrivateKey);
@@ -128,7 +127,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     StorePath = storePath,
                     StoreType = CertificateStoreType.X509Store
                 };
-                var privateKey = await id.LoadPrivateKey(null).ConfigureAwait(false);
+                X509Certificate2 privateKey = await id.LoadPrivateKey(null).ConfigureAwait(false);
                 Assert.NotNull(privateKey);
                 Assert.True(privateKey.HasPrivateKey);
 
@@ -149,21 +148,21 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         [Test, Order(20)]
         public async Task VerifyAppCertDirectoryStore()
         {
-            var appCertificate = GetTestCert();
+            X509Certificate2 appCertificate = GetTestCert();
             Assert.NotNull(appCertificate);
             Assert.True(appCertificate.HasPrivateKey);
 
             string password = Guid.NewGuid().ToString();
             // pki directory root for app cert
-            var pkiRoot = Path.GetTempPath() + Path.GetRandomFileName() + Path.DirectorySeparatorChar;
-            var storePath = pkiRoot + "own";
+            string pkiRoot = Path.GetTempPath() + Path.GetRandomFileName() + Path.DirectorySeparatorChar;
+            string storePath = pkiRoot + "own";
             var certificateStoreIdentifier = new CertificateStoreIdentifier(storePath, false);
             const string storeType = CertificateStoreType.Directory;
             appCertificate.AddToStore(
                 certificateStoreIdentifier, password
                 );
 
-            using (var publicKey = X509CertificateLoader.LoadCertificate(appCertificate.RawData))
+            using (X509Certificate2 publicKey = X509CertificateLoader.LoadCertificate(appCertificate.RawData))
             {
                 Assert.NotNull(publicKey);
                 Assert.False(publicKey.HasPrivateKey);
@@ -176,30 +175,30 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
                 {
                     // check no password fails to load
-                    var nullKey = await id.LoadPrivateKey(null).ConfigureAwait(false);
+                    X509Certificate2 nullKey = await id.LoadPrivateKey(null).ConfigureAwait(false);
                     Assert.IsNull(nullKey);
                 }
 
                 {
                     // check invalid password fails to load
-                    var nullKey = await id.LoadPrivateKey("123").ConfigureAwait(false);
+                    X509Certificate2 nullKey = await id.LoadPrivateKey("123").ConfigureAwait(false);
                     Assert.IsNull(nullKey);
                 }
 
                 {
                     // check invalid password fails to load
-                    var nullKey = await id.LoadPrivateKeyEx(new CertificatePasswordProvider("123")).ConfigureAwait(false);
+                    X509Certificate2 nullKey = await id.LoadPrivateKeyEx(new CertificatePasswordProvider("123")).ConfigureAwait(false);
                     Assert.IsNull(nullKey);
                 }
 
-                var privateKey = await id.LoadPrivateKeyEx(new CertificatePasswordProvider(password)).ConfigureAwait(false);
+                X509Certificate2 privateKey = await id.LoadPrivateKeyEx(new CertificatePasswordProvider(password)).ConfigureAwait(false);
 
                 Assert.NotNull(privateKey);
                 Assert.True(privateKey.HasPrivateKey);
 
                 X509Utils.VerifyRSAKeyPair(publicKey, privateKey, true);
 
-                using (ICertificateStore store = Opc.Ua.CertificateStoreIdentifier.CreateStore(storeType))
+                using (ICertificateStore store = CertificateStoreIdentifier.CreateStore(storeType))
                 {
                     store.Open(storePath, false);
                     await store.Delete(publicKey.Thumbprint).ConfigureAwait(false);
@@ -213,12 +212,12 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         [Test, Order(30)]
         public void VerifyInvalidAppCertX509Store()
         {
-            var appCertificate = GetTestCert();
-            _ = Assert.Throws<ServiceResultException>(
+            X509Certificate2 appCertificate = GetTestCert();
+            _ = NUnit.Framework.Assert.Throws<ServiceResultException>(
                 () => appCertificate.AddToStore(
                     CertificateStoreType.X509Store,
                     "User\\UA_MachineDefault"));
-            _ = Assert.Throws<ServiceResultException>(
+            _ = NUnit.Framework.Assert.Throws<ServiceResultException>(
                 () => appCertificate.AddToStore(
                     CertificateStoreType.X509Store,
                     "System\\UA_MachineDefault"));
@@ -237,7 +236,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
                 {
                     Assert.False(x509Store.SupportsCRLs);
-                    Assert.Throws<ServiceResultException>(() => x509Store.EnumerateCRLs());
+                    NUnit.Framework.Assert.Throws<ServiceResultException>(() => x509Store.EnumerateCRLs());
                 }
                 else
                 {
@@ -255,7 +254,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         {
             if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
-                Assert.Ignore("Crls in an X509Store are only supported on Windows");
+                NUnit.Framework.Assert.Ignore("Crls in an X509Store are only supported on Windows");
             }
             using (var x509Store = new X509CertificateStore())
             {
@@ -280,7 +279,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     crls[0].RevokedCertificates.First().SerialNumber);
 
                 //TestRevocation
-                var statusCode = await x509Store.IsRevoked(GetTestCert(), GetTestCert()).ConfigureAwait(false);
+                StatusCode statusCode = await x509Store.IsRevoked(GetTestCert(), GetTestCert()).ConfigureAwait(false);
                 Assert.AreEqual((StatusCode)StatusCodes.BadCertificateRevoked, statusCode);
 
 
@@ -296,7 +295,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         {
             if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
-                Assert.Ignore("Crls in an X509Store are only supported on Windows");
+                NUnit.Framework.Assert.Ignore("Crls in an X509Store are only supported on Windows");
             }
             using (var x509Store = new X509CertificateStore())
             {
@@ -305,7 +304,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 X509CRL crl = (await x509Store.EnumerateCRLs().ConfigureAwait(false)).First();
 
                 //Test Revocation before adding cert
-                var statusCode = await x509Store.IsRevoked(GetTestCert(), GetTestCert2()).ConfigureAwait(false);
+                StatusCode statusCode = await x509Store.IsRevoked(GetTestCert(), GetTestCert2()).ConfigureAwait(false);
                 Assert.AreEqual((StatusCode)StatusCodes.Good, statusCode);
 
                 var crlBuilder = CrlBuilder.Create(crl);
@@ -320,7 +319,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
                 Assert.AreEqual(2, crls[0].RevokedCertificates.Count);
                 //Test Revocation after adding cert
-                var statusCode2 = await x509Store.IsRevoked(GetTestCert(), GetTestCert2()).ConfigureAwait(false);
+                StatusCode statusCode2 = await x509Store.IsRevoked(GetTestCert(), GetTestCert2()).ConfigureAwait(false);
                 Assert.AreEqual((StatusCode)StatusCodes.BadCertificateRevoked, statusCode2);
             }
         }
@@ -334,7 +333,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         {
             if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
-                Assert.Ignore("Crls in an X509Store are only supported on Windows");
+                NUnit.Framework.Assert.Ignore("Crls in an X509Store are only supported on Windows");
             }
             using (var x509Store = new X509CertificateStore())
             {
@@ -364,7 +363,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         {
             if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
-                Assert.Ignore("Crls in an X509Store are only supported on Windows");
+                NUnit.Framework.Assert.Ignore("Crls in an X509Store are only supported on Windows");
             }
             using (var x509Store = new X509CertificateStore())
             {
@@ -381,7 +380,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 Assert.Null(crlsAfterFirstDelete.FirstOrDefault(c => c == crl));
 
                 //make shure IsRevoked can't find crl anymore
-                var statusCode = await x509Store.IsRevoked(GetTestCert(), GetTestCert()).ConfigureAwait(false);
+                StatusCode statusCode = await x509Store.IsRevoked(GetTestCert(), GetTestCert()).ConfigureAwait(false);
                 Assert.AreEqual((StatusCode)StatusCodes.BadCertificateRevocationUnknown, statusCode);
 
                 //Delete second (empty) crl from store
@@ -406,13 +405,13 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             {
                 if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
                 {
-                    Assert.Throws<PlatformNotSupportedException>(() => x509Store.AddCrl(new byte[0]));
-                    Assert.Throws<PlatformNotSupportedException>(() => x509Store.EnumerateCrls());
-                    Assert.Throws<PlatformNotSupportedException>(() => x509Store.DeleteCrl(new byte[0]));
+                    NUnit.Framework.Assert.Throws<PlatformNotSupportedException>(() => x509Store.AddCrl(new byte[0]));
+                    NUnit.Framework.Assert.Throws<PlatformNotSupportedException>(() => x509Store.EnumerateCrls());
+                    NUnit.Framework.Assert.Throws<PlatformNotSupportedException>(() => x509Store.DeleteCrl(new byte[0]));
                 }
                 else
                 {
-                    Assert.Ignore("Test only relevant on MacOS/Linux");
+                    NUnit.Framework.Assert.Ignore("Test only relevant on MacOS/Linux");
                 }
             }
             using (var x509Store = new X509CertificateStore())
@@ -420,13 +419,13 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 x509Store.Open(storePath);
                 if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
                 {
-                    Assert.ThrowsAsync<ServiceResultException>(() => x509Store.AddCRL(new X509CRL()));
-                    Assert.ThrowsAsync<ServiceResultException>(() => x509Store.EnumerateCRLs());
-                    Assert.ThrowsAsync<ServiceResultException>(() => x509Store.DeleteCRL(new X509CRL()));
+                    NUnit.Framework.Assert.ThrowsAsync<ServiceResultException>(() => x509Store.AddCRL(new X509CRL()));
+                    NUnit.Framework.Assert.ThrowsAsync<ServiceResultException>(() => x509Store.EnumerateCRLs());
+                    NUnit.Framework.Assert.ThrowsAsync<ServiceResultException>(() => x509Store.DeleteCRL(new X509CRL()));
                 }
                 else
                 {
-                    Assert.Ignore("Test only relevant on MacOS/Linux");
+                    NUnit.Framework.Assert.Ignore("Test only relevant on MacOS/Linux");
                 }
             }
         }
@@ -436,14 +435,12 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         #region Private Methods
         private X509Certificate2 GetTestCert()
         {
-            return m_testCertificate ??
-                (m_testCertificate = CertificateFactory.CreateCertificate(X509StoreSubject).CreateForRSA());
+            return m_testCertificate ??= CertificateFactory.CreateCertificate(X509StoreSubject).CreateForRSA();
         }
 
         private X509Certificate2 GetTestCert2()
         {
-            return m_testCertificate2 ??
-                (m_testCertificate2 = CertificateFactory.CreateCertificate(X509StoreSubject2).CreateForRSA());
+            return m_testCertificate2 ??= CertificateFactory.CreateCertificate(X509StoreSubject2).CreateForRSA();
         }
 
         private static string[] GetCertStores()

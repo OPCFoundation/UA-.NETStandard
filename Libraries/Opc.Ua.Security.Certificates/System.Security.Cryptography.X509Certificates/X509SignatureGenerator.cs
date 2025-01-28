@@ -23,10 +23,7 @@ namespace Opc.Ua.Security.Certificates
         {
             get
             {
-                if (_publicKey == null)
-                {
-                    _publicKey = BuildPublicKey();
-                }
+                _publicKey ??= BuildPublicKey();
 
                 return _publicKey;
             }

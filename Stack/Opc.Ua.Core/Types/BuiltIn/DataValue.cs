@@ -209,7 +209,7 @@ namespace Opc.Ua
         /// <param name="obj">The object to compare to *this*</param>
         public override bool Equals(object obj)
         {
-            if (Object.ReferenceEquals(this, obj))
+            if (ReferenceEquals(this, obj))
             {
                 return true;
             }
@@ -257,7 +257,7 @@ namespace Opc.Ua
         /// <param name="other">The DataValue to compare to *this*</param>
         public bool Equals(DataValue other)
         {
-            if (Object.ReferenceEquals(this, other))
+            if (ReferenceEquals(this, other))
             {
                 return true;
             }
@@ -373,8 +373,8 @@ namespace Opc.Ua
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1721:PropertyNamesShouldNotMatchGetMethods")]
         public object Value
         {
-            get { return m_value.Value; }
-            set { m_value.Value = value; }
+            get => m_value.Value;
+            set => m_value.Value = value;
         }
 
         /// <summary>
@@ -386,8 +386,8 @@ namespace Opc.Ua
         [DataMember(Name = "Value", Order = 1, IsRequired = false)]
         public Variant WrappedValue
         {
-            get { return m_value; }
-            set { m_value = value; }
+            get => m_value;
+            set => m_value = value;
         }
 
         /// <summary>
@@ -399,8 +399,8 @@ namespace Opc.Ua
         [DataMember(Order = 2, IsRequired = false)]
         public StatusCode StatusCode
         {
-            get { return m_statusCode; }
-            set { m_statusCode = value; }
+            get => m_statusCode;
+            set => m_statusCode = value;
         }
 
         /// <summary>
@@ -412,8 +412,8 @@ namespace Opc.Ua
         [DataMember(Order = 3, IsRequired = false)]
         public DateTime SourceTimestamp
         {
-            get { return m_sourceTimestamp; }
-            set { m_sourceTimestamp = value; }
+            get => m_sourceTimestamp;
+            set => m_sourceTimestamp = value;
         }
 
         /// <summary>
@@ -425,8 +425,8 @@ namespace Opc.Ua
         [DataMember(Order = 4, IsRequired = false)]
         public ushort SourcePicoseconds
         {
-            get { return m_sourcePicoseconds; }
-            set { m_sourcePicoseconds = value; }
+            get => m_sourcePicoseconds;
+            set => m_sourcePicoseconds = value;
         }
 
         /// <summary>
@@ -438,8 +438,8 @@ namespace Opc.Ua
         [DataMember(Order = 5, IsRequired = false)]
         public DateTime ServerTimestamp
         {
-            get { return m_serverTimestamp; }
-            set { m_serverTimestamp = value; }
+            get => m_serverTimestamp;
+            set => m_serverTimestamp = value;
         }
 
         /// <summary>
@@ -451,8 +451,8 @@ namespace Opc.Ua
         [DataMember(Order = 6, IsRequired = false)]
         public ushort ServerPicoseconds
         {
-            get { return m_serverPicoseconds; }
-            set { m_serverPicoseconds = value; }
+            get => m_serverPicoseconds;
+            set => m_serverPicoseconds = value;
         }
         #endregion
 
@@ -759,7 +759,7 @@ namespace Opc.Ua
         /// </remarks>
         public new object MemberwiseClone()
         {
-            DataValueCollection clone = new DataValueCollection(this.Count);
+            var clone = new DataValueCollection(this.Count);
 
             foreach (DataValue element in this)
             {

@@ -40,7 +40,7 @@ namespace Opc.Ua.Security.Certificates
 
         internal static PublicKey BuildPublicKey(RSA rsa)
         {
-            Oid oid = new Oid(Oids.Rsa);
+            var oid = new Oid(Oids.Rsa);
 
             // The OID is being passed to everything here because that's what
             // X509Certificate2.PublicKey does.
@@ -78,7 +78,7 @@ namespace Opc.Ua.Security.Certificates
                     $"'{hashAlgorithm.Name}' is not a known hash algorithm.");
             }
 
-            AsnWriter writer = new AsnWriter(AsnEncodingRules.DER);
+            var writer = new AsnWriter(AsnEncodingRules.DER);
             writer.PushSequence();
             writer.WriteObjectIdentifier(oid);
             writer.WriteNull();
@@ -95,7 +95,7 @@ namespace Opc.Ua.Security.Certificates
                 throw new CryptographicException("Invalid RSA Parameters.");
             }
 
-            AsnWriter writer = new AsnWriter(AsnEncodingRules.DER);
+            var writer = new AsnWriter(AsnEncodingRules.DER);
             writer.PushSequence();
             writer.WriteKeyParameterInteger(rsaParameters.Modulus);
             writer.WriteKeyParameterInteger(rsaParameters.Exponent);

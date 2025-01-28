@@ -29,19 +29,11 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Runtime.CompilerServices;
-using System.Security.Cryptography.X509Certificates;
-using System.Text;
-using System.Threading;
 using System.Threading.Tasks;
 using BenchmarkDotNet.Attributes;
-using Moq;
 using NUnit.Framework;
-using Opc.Ua.Bindings;
-using Opc.Ua.Configuration;
 using Opc.Ua.Server.Tests;
 using Quickstarts.ReferenceServer;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
@@ -68,7 +60,7 @@ namespace Opc.Ua.Client.Tests
         public new Task OneTimeSetUp()
         {
             SupportsExternalServerUrl = true;
-            return base.OneTimeSetUpAsync();
+            return OneTimeSetUpAsync();
         }
 
         /// <summary>
@@ -114,7 +106,7 @@ namespace Opc.Ua.Client.Tests
             ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(new UserTokenPolicy(UserTokenType.UserName));
             ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(new UserTokenPolicy(UserTokenType.Certificate));
             ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(
-                new UserTokenPolicy(UserTokenType.IssuedToken) { IssuedTokenType = Opc.Ua.Profiles.JwtUserToken });
+                new UserTokenPolicy(UserTokenType.IssuedToken) { IssuedTokenType = Profiles.JwtUserToken });
 
             ReferenceServer = await ServerFixture.StartAsync(writer ?? TestContext.Out).ConfigureAwait(false);
             ReferenceServer.TokenValidator = this.TokenValidator;
@@ -156,31 +148,31 @@ namespace Opc.Ua.Client.Tests
         [Test, Order(100)]        
         public void ReadDictionaryByteString()
         {
-            List<NodeId> dictionaryIds = new List<NodeId>();
+            var dictionaryIds = new List<NodeId>();
             dictionaryIds.Add(VariableIds.OpcUa_BinarySchema);
             dictionaryIds.Add(GetTestDataDictionaryNodeId());
 
-            Session theSession = ((Session)(((TraceableSession)Session).Session));
+            var theSession = ((Session)(((TraceableSession)Session).Session));
 
             foreach (NodeId dataDictionaryId in dictionaryIds)
             {
-                ReferenceDescription referenceDescription = new ReferenceDescription();
+                var referenceDescription = new ReferenceDescription();
 
                 referenceDescription.NodeId = NodeId.ToExpandedNodeId(dataDictionaryId, theSession.NodeCache.NamespaceUris);
 
                 // make sure the dictionary is too large to fit in a single message
-                ReadValueId readValueId = new ReadValueId {
+                var readValueId = new ReadValueId {
                     NodeId = dataDictionaryId,
                     AttributeId = Attributes.Value,
                     IndexRange = null,
                     DataEncoding = null
                 };
 
-                ReadValueIdCollection nodesToRead = new ReadValueIdCollection {
+                var nodesToRead = new ReadValueIdCollection {
                 readValueId
             };
 
-                var x = Assert.Throws<ServiceResultException>(() => {
+                ServiceResultException x = NUnit.Framework.Assert.Throws<ServiceResultException>(() => {
                     theSession.Read(null, 0, TimestampsToReturn.Neither, nodesToRead, out DataValueCollection results, out DiagnosticInfoCollection diagnosticInfos);
                 });
 
@@ -213,30 +205,30 @@ namespace Opc.Ua.Client.Tests
         public void TestBoundaryCaseForReadingChunks()
         {
 
-            Session theSession = ((Session)(((TraceableSession)Session).Session));
+            var theSession = ((Session)(((TraceableSession)Session).Session));
 
             int NamespaceIndex = theSession.NamespaceUris.GetIndex("http://opcfoundation.org/Quickstarts/ReferenceServer");
-            NodeId NodeId = new NodeId($"ns={NamespaceIndex};s=Scalar_Static_ByteString");
+            var NodeId = new NodeId($"ns={NamespaceIndex};s=Scalar_Static_ByteString");
 
-            Random random = new Random();
+            var random = new Random();
 
             byte[] chunk = new byte[MaxByteStringLengthForTest];
             random.NextBytes(chunk);
 
-            WriteValue WriteValue = new WriteValue {
+            var WriteValue = new WriteValue {
                 NodeId = NodeId,
                 AttributeId = Attributes.Value,
                 Value = new DataValue() { WrappedValue = new Variant(chunk) },
                 IndexRange = null
             };
-            WriteValueCollection writeValues = new WriteValueCollection {
+            var writeValues = new WriteValueCollection {
                     WriteValue
                 };
             theSession.Write(null, writeValues, out StatusCodeCollection results, out DiagnosticInfoCollection diagnosticInfos);
 
             if (results[0] != StatusCodes.Good)
             {
-                Assert.Fail($"Write failed with status code {results[0]}");
+                NUnit.Framework.Assert.Fail($"Write failed with status code {results[0]}");
             }
 
             byte[] readData = theSession.ReadByteStringInChunks(NodeId);
@@ -253,7 +245,7 @@ namespace Opc.Ua.Client.Tests
         /// <returns></returns>
         public NodeId GetTestDataDictionaryNodeId()
         {
-            BrowseDescription browseDescription = new BrowseDescription() {
+            var browseDescription = new BrowseDescription() {
                 NodeId = ObjectIds.OPCBinarySchema_TypeSystem,
                 BrowseDirection = BrowseDirection.Forward,
                 ReferenceTypeId = ReferenceTypeIds.HasComponent,
@@ -261,7 +253,7 @@ namespace Opc.Ua.Client.Tests
                 NodeClassMask = (uint)NodeClass.Variable,
                 ResultMask = (uint) BrowseResultMask.All
             };
-            BrowseDescriptionCollection browseDescriptions = new BrowseDescriptionCollection() { browseDescription };
+            var browseDescriptions = new BrowseDescriptionCollection() { browseDescription };
 
             Session.Browse(null, null, 0, browseDescriptions, out BrowseResultCollection results, out DiagnosticInfoCollection diagnosticInfos);
 
@@ -270,7 +262,7 @@ namespace Opc.Ua.Client.Tests
                 throw new Exception("cannot read the id of the test dictionary");
             }
             ReferenceDescription referenceDescription = results[0].References.FirstOrDefault(a => a.BrowseName.Name == "TestData");
-            NodeId result = ExpandedNodeId.ToNodeId(referenceDescription.NodeId,Session.NamespaceUris);
+            var result = ExpandedNodeId.ToNodeId(referenceDescription.NodeId,Session.NamespaceUris);
             return result;
 
 

@@ -31,7 +31,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text;
 using System.Threading;
 using System.Xml;
 using NUnit.Framework;
@@ -156,7 +155,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 StructureType = structureType
             };
 
-            var fieldBuilder = m_complexTypeBuilder.AddStructuredType(
+            IComplexTypeFieldBuilder fieldBuilder = m_complexTypeBuilder.AddStructuredType(
                 structureType.ToString() + "." + testFunc,
                 complexTypeStructure);
             nodeId = new ExpandedNodeId(typeId++, m_complexTypeBuilder.TargetNamespace);
@@ -166,13 +165,13 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 nodeId, binaryEncodingId, xmlEncodingId
                 );
             int i = 1;
-            foreach (var field in complexTypeStructure.Fields)
+            foreach (StructureField field in complexTypeStructure.Fields)
             {
                 Type fieldType = TypeInfo.GetSystemType(field.DataType, null);
                 field.IsOptional = structureType == StructureType.StructureWithOptionalFields;
                 fieldBuilder.AddField(field, fieldType, i++);
             }
-            var complexType = fieldBuilder.CreateType();
+            Type complexType = fieldBuilder.CreateType();
             if (context != null)
             {
                 context.Factory.AddEncodeableType(nodeId, complexType);
@@ -188,7 +187,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         public static StructureFieldCollection GetAllBuiltInTypesFields()
         {
             var collection = new StructureFieldCollection();
-            foreach (var builtInType in EncoderCommon.BuiltInTypes)
+            foreach (BuiltInType builtInType in BuiltInTypes)
             {
                 if (builtInType == BuiltInType.Null ||
                     builtInType == BuiltInType.Variant ||
@@ -221,9 +220,9 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             Dictionary<StructureType, (ExpandedNodeId, Type)> dict,
             string nameExtension)
         {
-            foreach (var structureType in StructureTypes)
+            foreach (StructureType structureType in StructureTypes)
             {
-                var type = BuildComplexTypeWithAllBuiltInTypes(
+                Type type = BuildComplexTypeWithAllBuiltInTypes(
                     context,
                     structureType,
                     nameof(CreateComplexTypes) + nameExtension,
@@ -238,10 +237,10 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         public void FillStructWithValues(BaseComplexType structType, bool randomValues)
         {
             int index = 0;
-            foreach (var property in structType.GetPropertyEnumerator())
+            foreach (ComplexTypePropertyInfo property in structType.GetPropertyEnumerator())
             {
-                var builtInType = TypeInfo.GetBuiltInType(TypeInfo.GetDataTypeId(property.PropertyType));
-                var newObj = randomValues ? DataGenerator.GetRandom(builtInType) : TypeInfo.GetDefaultValue(builtInType);
+                BuiltInType builtInType = TypeInfo.GetBuiltInType(TypeInfo.GetDataTypeId(property.PropertyType));
+                object newObj = randomValues ? DataGenerator.GetRandom(builtInType) : TypeInfo.GetDefaultValue(builtInType);
                 if (newObj == null)
                 {
                     // fill known missing default values (by design)
@@ -261,7 +260,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                             newObj = ExtensionObject.Null;
                             break;
                         default:
-                            Assert.Fail("Unknown null default value");
+                            NUnit.Framework.Assert.Fail("Unknown null default value");
                             break;
                     }
                 }
@@ -294,7 +293,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             TestContext.Out.WriteLine(expected);
 
             byte[] buffer;
-            using (var encoderStream = CreateEncoderMemoryStream(memoryStreamType))
+            using (MemoryStream encoderStream = CreateEncoderMemoryStream(memoryStreamType))
             {
                 using (IEncoder encoder = CreateEncoder(encoderType, encoderContext, encoderStream, typeof(DataValue), jsonEncodingType))
                 {

@@ -12,7 +12,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.Serialization;
@@ -366,8 +365,8 @@ namespace Opc.Ua
         /// <value>The type id.</value>
         public ExpandedNodeId TypeId
         {
-            get { return m_typeId; }
-            set { m_typeId = value; }
+            get => m_typeId;
+            set => m_typeId = value;
         }
 
         /// <summary>
@@ -392,7 +391,7 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException">Thrown when the body is not one of the types listed above</exception>
         public object Body
         {
-            get { return m_body; }
+            get => m_body;
 
             set
             {
@@ -438,12 +437,12 @@ namespace Opc.Ua
         /// </returns>
         public override bool Equals(object obj)
         {
-            if (Object.ReferenceEquals(obj, null))
+            if (ReferenceEquals(obj, null))
             {
                 return IsNull(this);
             }
 
-            if (Object.ReferenceEquals(this, obj))
+            if (ReferenceEquals(this, obj))
             {
                 return true;
             }
@@ -526,7 +525,7 @@ namespace Opc.Ua
 
                 if (m_body is IEncodeable)
                 {
-                    StringBuilder body = new StringBuilder();
+                    var body = new StringBuilder();
 
                     PropertyInfo[] properties = m_body.GetType().GetProperties(BindingFlags.Public | BindingFlags.FlattenHierarchy | BindingFlags.Instance);
 
@@ -646,7 +645,7 @@ namespace Opc.Ua
                 return null;
             }
 
-            Array output = Array.CreateInstance(elementType, extensions.Length);
+            var output = Array.CreateInstance(elementType, extensions.Length);
 
             for (int ii = 0; ii < output.Length; ii++)
             {
@@ -676,7 +675,7 @@ namespace Opc.Ua
                 return null;
             }
 
-            List<T> list = new List<T>();
+            var list = new List<T>();
 
             for (int ii = 0; ii < extensions.Length; ii++)
             {
@@ -723,10 +722,7 @@ namespace Opc.Ua
                 return ExpandedNodeId.ToNodeId(m_typeId, m_context.NamespaceUris);
             }
 
-            set
-            {
-                m_typeId = NodeId.ToExpandedNodeId(value, m_context.NamespaceUris);
-            }
+            set => m_typeId = NodeId.ToExpandedNodeId(value, m_context.NamespaceUris);
         }
 
         [DataMember(Name = "Body", Order = 2, IsRequired = false, EmitDefaultValue = true)]
@@ -741,13 +737,13 @@ namespace Opc.Ua
                 }
 
                 // create encoder.
-                using (XmlEncoder encoder = new XmlEncoder(m_context))
+                using (var encoder = new XmlEncoder(m_context))
                 {
                     // write body.
                     encoder.WriteExtensionObjectBody(m_body);
 
                     // create document from encoder.
-                    XmlDocument document = new XmlDocument();
+                    var document = new XmlDocument();
                     document.LoadInnerXml(encoder.CloseAndReturnText());
 
                     // return root element.
@@ -765,7 +761,7 @@ namespace Opc.Ua
                 }
 
                 // create decoder.
-                using (XmlDecoder decoder = new XmlDecoder(value, m_context))
+                using (var decoder = new XmlDecoder(value, m_context))
                 {
                     // read body.
                     Body = decoder.ReadExtensionObjectBody(m_typeId);
@@ -909,7 +905,7 @@ namespace Opc.Ua
             }
 
             // convert each encodeable to an extension object.
-            ExtensionObjectCollection extensibles = new ExtensionObjectCollection();
+            var extensibles = new ExtensionObjectCollection();
 
             if (encodeables != null)
             {
@@ -949,7 +945,7 @@ namespace Opc.Ua
         /// </remarks>
         public new object MemberwiseClone()
         {
-            ExtensionObjectCollection clone = new ExtensionObjectCollection(this.Count);
+            var clone = new ExtensionObjectCollection(this.Count);
 
             foreach (ExtensionObject element in this)
             {

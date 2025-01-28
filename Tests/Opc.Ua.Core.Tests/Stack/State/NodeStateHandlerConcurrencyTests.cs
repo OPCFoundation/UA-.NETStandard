@@ -1,8 +1,6 @@
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading;
-using System.Threading.Tasks;
 using NUnit.Framework;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
@@ -467,7 +465,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
             if(node is BaseVariableState baseVariableState)
             {
                 // Make Value attribute writable so that it is possible to test Value attribute writing
-                var result = baseVariableState.WriteAttribute(systemContext, Attributes.AccessLevel, NumericRange.Empty, new DataValue(new Variant(AccessLevels.CurrentReadOrWrite)));
+                ServiceResult result = baseVariableState.WriteAttribute(systemContext, Attributes.AccessLevel, NumericRange.Empty, new DataValue(new Variant(AccessLevels.CurrentReadOrWrite)));
                 Assert.IsTrue(ServiceResult.IsGood(result));
                 result = baseVariableState.WriteAttribute(systemContext, Attributes.UserAccessLevel, NumericRange.Empty, new DataValue(new Variant(AccessLevels.CurrentReadOrWrite)));
                 Assert.IsTrue(ServiceResult.IsGood(result));
@@ -488,7 +486,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
 
             while (DateTime.UtcNow - utcNow < TimeSpan.FromSeconds(1))
             {
-                var writeResult = node.WriteAttribute(
+                ServiceResult writeResult = node.WriteAttribute(
                                     systemContext,
                                     attribute,
                                     NumericRange.Empty,

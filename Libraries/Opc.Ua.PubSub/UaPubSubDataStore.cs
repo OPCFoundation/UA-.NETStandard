@@ -120,7 +120,7 @@ namespace Opc.Ua.PubSub
                 }
                 else
                 {
-                    Dictionary<uint, DataValue> dictionary = new Dictionary<uint, DataValue>();
+                    var dictionary = new Dictionary<uint, DataValue>();
                     dictionary.Add(attributeId, dataValue);
                     m_store.Add(nodeId, dictionary);
                 }

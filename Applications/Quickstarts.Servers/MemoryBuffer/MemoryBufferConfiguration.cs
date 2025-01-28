@@ -27,11 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
 using System.Runtime.Serialization;
 using System.Collections.Generic;
-
-using Opc.Ua.Server;
 
 namespace MemoryBuffer
 {
@@ -75,8 +72,8 @@ namespace MemoryBuffer
         [DataMember(Order = 1)]
         public MemoryBufferInstanceCollection Buffers
         {
-            get { return m_buffers; }
-            set { m_buffers = value; }
+            get => m_buffers;
+            set => m_buffers = value;
         }
         #endregion
 
@@ -127,8 +124,8 @@ namespace MemoryBuffer
         [DataMember(Order = 1)]
         public string Name
         {
-            get { return m_name; }
-            set { m_name = value; }
+            get => m_name;
+            set => m_name = value;
         }
 
         /// <summary>
@@ -137,8 +134,8 @@ namespace MemoryBuffer
         [DataMember(Order = 2)]
         public int TagCount
         {
-            get { return m_tagCount; }
-            set { m_tagCount = value; }
+            get => m_tagCount;
+            set => m_tagCount = value;
         }
 
         /// <summary>
@@ -147,8 +144,8 @@ namespace MemoryBuffer
         [DataMember(Order = 3)]
         public string DataType
         {
-            get { return m_dataType; }
-            set { m_dataType = value; }
+            get => m_dataType;
+            set => m_dataType = value;
         }
         #endregion
 

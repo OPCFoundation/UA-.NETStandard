@@ -10,9 +10,7 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
-using System;
 using System.Reflection;
-using System.Xml;
 
 namespace Opc.Ua
 {
@@ -27,7 +25,7 @@ namespace Opc.Ua
         /// </summary>
         public static bool IsValid(uint attributeId)
         {
-            return (attributeId >= Attributes.NodeId && attributeId <= Attributes.AccessLevelEx);
+            return (attributeId >= NodeId && attributeId <= AccessLevelEx);
         }
 
         /// <summary>
@@ -110,7 +108,7 @@ namespace Opc.Ua
         {
             FieldInfo[] fields = typeof(Attributes).GetFields(BindingFlags.Public | BindingFlags.Static);
 
-            UInt32Collection ids = new UInt32Collection(fields.Length);
+            var ids = new UInt32Collection(fields.Length);
 
             foreach (FieldInfo field in fields)
             {
@@ -284,12 +282,12 @@ namespace Opc.Ua
         /// </summary>
         public static int GetValueRank(uint attributeId)
         {
-            if (attributeId == Attributes.Value)
+            if (attributeId == Value)
             {
                 return ValueRanks.Any;
             }
 
-            if (attributeId == Attributes.ArrayDimensions)
+            if (attributeId == ArrayDimensions)
             {
                 return ValueRanks.OneDimension;
             }
@@ -323,28 +321,28 @@ namespace Opc.Ua
                 case ValueRank:
                 case ArrayDimensions:
                 {
-                    return (nodeClass & (Opc.Ua.NodeClass.VariableType | Opc.Ua.NodeClass.Variable)) != 0;
+                    return (nodeClass & (Ua.NodeClass.VariableType | Ua.NodeClass.Variable)) != 0;
                 }
 
                 case IsAbstract:
                 {
-                    return (nodeClass & (Opc.Ua.NodeClass.VariableType | Opc.Ua.NodeClass.ObjectType | Opc.Ua.NodeClass.ReferenceType | Opc.Ua.NodeClass.DataType)) != 0;
+                    return (nodeClass & (Ua.NodeClass.VariableType | Ua.NodeClass.ObjectType | Ua.NodeClass.ReferenceType | Ua.NodeClass.DataType)) != 0;
                 }
 
                 case Symmetric:
                 case InverseName:
                 {
-                    return (nodeClass & Opc.Ua.NodeClass.ReferenceType) != 0;
+                    return (nodeClass & Ua.NodeClass.ReferenceType) != 0;
                 }
 
                 case ContainsNoLoops:
                 {
-                    return (nodeClass & Opc.Ua.NodeClass.View) != 0;
+                    return (nodeClass & Ua.NodeClass.View) != 0;
                 }
 
                 case EventNotifier:
                 {
-                    return (nodeClass & (Opc.Ua.NodeClass.Object | Opc.Ua.NodeClass.View)) != 0;
+                    return (nodeClass & (Ua.NodeClass.Object | Ua.NodeClass.View)) != 0;
                 }
 
                 case AccessLevel:
@@ -353,18 +351,18 @@ namespace Opc.Ua
                 case Historizing:
                 case AccessLevelEx:
                 {
-                    return (nodeClass & Opc.Ua.NodeClass.Variable) != 0;
+                    return (nodeClass & Ua.NodeClass.Variable) != 0;
                 }
 
                 case Executable:
                 case UserExecutable:
                 {
-                    return (nodeClass & Opc.Ua.NodeClass.Method) != 0;
+                    return (nodeClass & Ua.NodeClass.Method) != 0;
                 }
 
                 case DataTypeDefinition:
                 {
-                    return (nodeClass & Opc.Ua.NodeClass.DataType) != 0;
+                    return (nodeClass & Ua.NodeClass.DataType) != 0;
                 }
             }
 

@@ -224,7 +224,7 @@ namespace Opc.Ua
 
                 if (configuration.ApplicationCertificates != null)
                 {
-                    foreach (var applicationCertificate in configuration.ApplicationCertificates)
+                    foreach (CertificateIdentifier applicationCertificate in configuration.ApplicationCertificates)
                     {
                         X509Certificate2 certificate = await applicationCertificate.Find(true, applicationUri).ConfigureAwait(false);
                         if (certificate == null)
@@ -258,13 +258,13 @@ namespace Opc.Ua
             try
             {
 
-                foreach (var applicationCertificate in securityConfiguration.ApplicationCertificates)
+                foreach (CertificateIdentifier applicationCertificate in securityConfiguration.ApplicationCertificates)
                 {
                     m_applicationCertificates.RemoveAll(cert => Utils.IsEqual(cert.RawData, applicationCertificate.RawData));
                     applicationCertificate.DisposeCertificate();
                 }
 
-                foreach (var applicationCertificate in securityConfiguration.ApplicationCertificates)
+                foreach (CertificateIdentifier applicationCertificate in securityConfiguration.ApplicationCertificates)
                 {
                     await applicationCertificate.LoadPrivateKeyEx(
                         securityConfiguration.CertificatePasswordProvider, applicationUri).ConfigureAwait(false);
@@ -604,7 +604,7 @@ namespace Opc.Ua
             ServiceResultException revocationStatus = null;
             X509Certificate2 certificate = certificates[0];
 
-            CertificateIdentifierCollection untrustedCollection = new CertificateIdentifierCollection();
+            var untrustedCollection = new CertificateIdentifierCollection();
             for (int ii = 1; ii < certificates.Count; ii++)
             {
                 untrustedCollection.Add(new CertificateIdentifier(certificates[ii]));
@@ -703,7 +703,7 @@ namespace Opc.Ua
         private void InternalResetValidatedCertificates()
         {
             // dispose outdated list
-            foreach (var cert in m_validatedCertificates.Values)
+            foreach (X509Certificate2 cert in m_validatedCertificates.Values)
             {
                 Utils.SilentDispose(cert);
             }
@@ -744,7 +744,7 @@ namespace Opc.Ua
                     accept = false;
                     if (m_CertificateValidation != null)
                     {
-                        CertificateValidationEventArgs args = new CertificateValidationEventArgs(serviceResult, certificate);
+                        var args = new CertificateValidationEventArgs(serviceResult, certificate);
                         m_CertificateValidation(this, args);
                         if (args.AcceptAll)
                         {
@@ -847,7 +847,7 @@ namespace Opc.Ua
             // max time to wait for semaphore
             const int kSaveCertificatesTimeout = 5000;
 
-            var rejectedCertificateStore = m_rejectedCertificateStore;
+            CertificateStoreIdentifier rejectedCertificateStore = m_rejectedCertificateStore;
             if (rejectedCertificateStore == null)
             {
                 return;
@@ -1010,6 +1010,15 @@ namespace Opc.Ua
             string serialNumber = null;
 
             // find the authority key identifier.
+
+/* Unmerged change from project 'Opc.Ua.Core (net8.0)'
+Before:
+            var authority = X509Extensions.FindExtension<Security.Certificates.X509AuthorityKeyIdentifierExtension>(certificate);
+            if (authority != null)
+After:
+            Security.Certificates.X509AuthorityKeyIdentifierExtension authority = X509Extensions.FindExtension<Security.Certificates.X509AuthorityKeyIdentifierExtension>(certificate);
+            if (authority != null)
+*/
             var authority = X509Extensions.FindExtension<Security.Certificates.X509AuthorityKeyIdentifierExtension>(certificate);
             if (authority != null)
             {
@@ -1164,15 +1173,15 @@ namespace Opc.Ua
             CertificateIdentifier trustedCertificate = await GetTrustedCertificateAsync(certificate).ConfigureAwait(false);
 
             // get the issuers (checks the revocation lists if using directory stores).
-            List<CertificateIdentifier> issuers = new List<CertificateIdentifier>();
-            Dictionary<X509Certificate2, ServiceResultException> validationErrors = new Dictionary<X509Certificate2, ServiceResultException>();
+            var issuers = new List<CertificateIdentifier>();
+            var validationErrors = new Dictionary<X509Certificate2, ServiceResultException>();
 
             bool isIssuerTrusted = await GetIssuersNoExceptionsOnGetIssuer(certificates, issuers, validationErrors).ConfigureAwait(false);
 
             ServiceResult sresult = PopulateSresultWithValidationErrors(validationErrors);
 
             // setup policy chain
-            X509ChainPolicy policy = new X509ChainPolicy() {
+            var policy = new X509ChainPolicy() {
                 RevocationFlag = X509RevocationFlag.EntireChain,
                 RevocationMode = X509RevocationMode.NoCheck,
                 VerificationFlags = X509VerificationFlags.NoFlag,
@@ -1199,7 +1208,7 @@ namespace Opc.Ua
 
             // build chain.
             bool chainIncomplete = false;
-            using (X509Chain chain = new X509Chain())
+            using (var chain = new X509Chain())
             {
                 chain.ChainPolicy = policy;
                 chain.Build(certificate);
@@ -1207,10 +1216,7 @@ namespace Opc.Ua
                 // check the chain results.
                 CertificateIdentifier target = trustedCertificate;
 
-                if (target == null)
-                {
-                    target = new CertificateIdentifier(certificate);
-                }
+                target ??= new CertificateIdentifier(certificate);
 
                 foreach (X509ChainStatus chainStatus in chain.ChainStatus)
                 {
@@ -1291,7 +1297,7 @@ namespace Opc.Ua
                     // validate the issuer chain matches the chain elements
                     if (ii + 1 < chain.ChainElements.Count)
                     {
-                        var issuerCert = chain.ChainElements[ii + 1].Certificate;
+                        X509Certificate2 issuerCert = chain.ChainElements[ii + 1].Certificate;
                         if (issuer == null ||
                             !Utils.IsEqual(issuerCert.RawData, issuer.RawData))
                         {
@@ -1327,7 +1333,7 @@ namespace Opc.Ua
             bool issuedByCA = !X509Utils.IsSelfSigned(certificate);
             if (issuers.Count > 0)
             {
-                var rootCertificate = issuers[issuers.Count - 1].Certificate;
+                X509Certificate2 rootCertificate = issuers[issuers.Count - 1].Certificate;
                 if (!X509Utils.IsSelfSigned(rootCertificate))
                 {
                     chainIncomplete = true;
@@ -1345,7 +1351,7 @@ namespace Opc.Ua
             // check if certificate issuer is trusted.
             if (issuedByCA && !isIssuerTrusted && trustedCertificate == null)
             {
-                var message = "Certificate Issuer is not trusted.";
+                string message = "Certificate Issuer is not trusted.";
                 sresult = new ServiceResult(StatusCodes.BadCertificateUntrusted,
                     null, null, message, null, sresult);
             }
@@ -1357,7 +1363,7 @@ namespace Opc.Ua
                 bool isApplicationCertificate = false;
                 if (m_applicationCertificates != null)
                 {
-                    foreach (var appCert in m_applicationCertificates)
+                    foreach (X509Certificate2 appCert in m_applicationCertificates)
                     {
                         if (Utils.IsEqual(appCert.RawData, certificate.RawData))
                         {
@@ -1443,7 +1449,7 @@ namespace Opc.Ua
 
             if (issuedByCA && chainIncomplete)
             {
-                var message = "Certificate chain validation incomplete.";
+                string message = "Certificate chain validation incomplete.";
                 sresult = new ServiceResult(StatusCodes.BadCertificateChainIncomplete,
                     null, null, message, null, sresult);
             }
@@ -1456,9 +1462,9 @@ namespace Opc.Ua
 
         private ServiceResult PopulateSresultWithValidationErrors(Dictionary<X509Certificate2, ServiceResultException> validationErrors)
         {
-            Dictionary<X509Certificate2, ServiceResultException> p1List = new Dictionary<X509Certificate2, ServiceResultException>();
-            Dictionary<X509Certificate2, ServiceResultException> p2List = new Dictionary<X509Certificate2, ServiceResultException>();
-            Dictionary<X509Certificate2, ServiceResultException> p3List = new Dictionary<X509Certificate2, ServiceResultException>();
+            var p1List = new Dictionary<X509Certificate2, ServiceResultException>();
+            var p2List = new Dictionary<X509Certificate2, ServiceResultException>();
+            var p3List = new Dictionary<X509Certificate2, ServiceResultException>();
 
             ServiceResult sresult = null;
 
@@ -1481,7 +1487,7 @@ namespace Opc.Ua
                     else if (kvp.Value.StatusCode == StatusCodes.BadCertificateIssuerRevocationUnknown)
                     {
                         //p4List[kvp.Key] = kvp.Value;
-                        var message = CertificateMessage("Certificate issuer revocation list not found.", kvp.Key);
+                        string message = CertificateMessage("Certificate issuer revocation list not found.", kvp.Key);
                         sresult = new ServiceResult(StatusCodes.BadCertificateIssuerRevocationUnknown,
                             null, null, message, null, sresult);
                     }
@@ -1489,7 +1495,7 @@ namespace Opc.Ua
                     {
                         if (StatusCode.IsBad(kvp.Value.StatusCode))
                         {
-                            var message = CertificateMessage("Unknown error while trying to determine the revocation status.", kvp.Key);
+                            string message = CertificateMessage("Unknown error while trying to determine the revocation status.", kvp.Key);
                             sresult = new ServiceResult(kvp.Value.StatusCode,
                                 null, null, message, null, sresult);
                         }
@@ -1501,7 +1507,7 @@ namespace Opc.Ua
             {
                 foreach (KeyValuePair<X509Certificate2, ServiceResultException> kvp in p3List)
                 {
-                    var message = CertificateMessage("Certificate revocation list not found.", kvp.Key);
+                    string message = CertificateMessage("Certificate revocation list not found.", kvp.Key);
                     sresult = new ServiceResult(StatusCodes.BadCertificateRevocationUnknown,
                         null, null, message, null, sresult);
                 }
@@ -1510,7 +1516,7 @@ namespace Opc.Ua
             {
                 foreach (KeyValuePair<X509Certificate2, ServiceResultException> kvp in p2List)
                 {
-                    var message = CertificateMessage("Certificate issuer is revoked.", kvp.Key);
+                    string message = CertificateMessage("Certificate issuer is revoked.", kvp.Key);
                     sresult = new ServiceResult(StatusCodes.BadCertificateIssuerRevoked,
                         null, null, message, null, sresult);
                 }
@@ -1519,7 +1525,7 @@ namespace Opc.Ua
             {
                 foreach (KeyValuePair<X509Certificate2, ServiceResultException> kvp in p1List)
                 {
-                    var message = CertificateMessage("Certificate is revoked.", kvp.Key);
+                    string message = CertificateMessage("Certificate is revoked.", kvp.Key);
                     sresult = new ServiceResult(StatusCodes.BadCertificateRevoked,
                         null, null, message, null, sresult);
                 }
@@ -1749,7 +1755,7 @@ namespace Opc.Ua
         /// </summary>
         private string CertificateMessage(string error, X509Certificate2 certificate)
         {
-            var message = new StringBuilder()
+            StringBuilder message = new StringBuilder()
                 .AppendLine(error)
                 .AppendFormat(CultureInfo.InvariantCulture, "Subject: {0}", certificate.Subject)
                 .AppendLine();
@@ -1997,8 +2003,8 @@ namespace Opc.Ua
         /// </summary>
         public string ApplicationErrorMsg
         {
-            get { return m_applicationErrorMsg; }
-            set { m_applicationErrorMsg = value; }
+            get => m_applicationErrorMsg;
+            set => m_applicationErrorMsg = value;
         }
         #endregion
 

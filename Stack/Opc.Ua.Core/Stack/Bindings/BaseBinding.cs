@@ -45,8 +45,8 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public IServiceMessageContext MessageContext
         {
-            get { return m_messageContext; }
-            set { m_messageContext = value; }
+            get => m_messageContext;
+            set => m_messageContext = value;
         }
         #endregion
 

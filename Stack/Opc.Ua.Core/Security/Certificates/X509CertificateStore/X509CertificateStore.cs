@@ -127,7 +127,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public Task<X509Certificate2Collection> Enumerate()
         {
-            using (X509Store store = new X509Store(m_storeName, m_storeLocation))
+            using (var store = new X509Store(m_storeName, m_storeLocation))
             {
                 store.Open(OpenFlags.ReadOnly);
                 return Task.FromResult(new X509Certificate2Collection(store.Certificates));
@@ -139,7 +139,7 @@ namespace Opc.Ua
         {
             if (certificate == null) throw new ArgumentNullException(nameof(certificate));
 
-            using (X509Store store = new X509Store(m_storeName, m_storeLocation))
+            using (var store = new X509Store(m_storeName, m_storeLocation))
             {
                 store.Open(OpenFlags.ReadWrite);
                 if (!store.Certificates.Contains(certificate))
@@ -147,13 +147,13 @@ namespace Opc.Ua
                     if (certificate.HasPrivateKey && !m_noPrivateKeys)
                     {
                         // X509Store needs a persisted private key
-                        var persistedCertificate = X509Utils.CreateCopyWithPrivateKey(certificate, true);
+                        X509Certificate2 persistedCertificate = X509Utils.CreateCopyWithPrivateKey(certificate, true);
                         store.Add(persistedCertificate);
                     }
                     else if (certificate.HasPrivateKey && m_noPrivateKeys)
                     {
                         // ensure no private key is added to store
-                        using (var publicKey = X509CertificateLoader.LoadCertificate(certificate.RawData))
+                        using (X509Certificate2 publicKey = X509CertificateLoader.LoadCertificate(certificate.RawData))
                         {
                             store.Add(publicKey);
                         }
@@ -173,7 +173,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public Task<bool> Delete(string thumbprint)
         {
-            using (X509Store store = new X509Store(m_storeName, m_storeLocation))
+            using (var store = new X509Store(m_storeName, m_storeLocation))
             {
                 store.Open(OpenFlags.ReadWrite);
 
@@ -192,11 +192,11 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public Task<X509Certificate2Collection> FindByThumbprint(string thumbprint)
         {
-            using (X509Store store = new X509Store(m_storeName, m_storeLocation))
+            using (var store = new X509Store(m_storeName, m_storeLocation))
             {
                 store.Open(OpenFlags.ReadOnly);
 
-                X509Certificate2Collection collection = new X509Certificate2Collection();
+                var collection = new X509Certificate2Collection();
 
                 foreach (X509Certificate2 certificate in store.Certificates)
                 {

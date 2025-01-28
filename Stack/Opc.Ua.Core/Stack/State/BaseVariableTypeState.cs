@@ -12,7 +12,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Text;
 
 namespace Opc.Ua
 {
@@ -78,7 +77,7 @@ namespace Opc.Ua
         /// </returns>
         public new object MemberwiseClone()
         {
-            BaseTypeState clone = (BaseTypeState)Activator.CreateInstance(this.GetType());
+            var clone = (BaseTypeState)Activator.CreateInstance(this.GetType());
             return CloneChildren(clone);
         }
         #endregion
@@ -89,14 +88,11 @@ namespace Opc.Ua
         /// </summary>
         public object Value
         {
-            get
-            {
-                return m_value;
-            }
+            get => m_value;
 
             set
             {
-                if (!Object.ReferenceEquals(m_value, value))
+                if (!ReferenceEquals(m_value, value))
                 {
                     ChangeMasks |= NodeStateChangeMasks.Value;
                 }
@@ -110,15 +106,9 @@ namespace Opc.Ua
         /// </summary>
         public Variant WrappedValue
         {
-            get
-            {
-                return new Variant(m_value);
-            }
+            get => new Variant(m_value);
 
-            set
-            {
-                Value = ExtractValueFromVariant(null, value.Value, false);
-            }
+            set => Value = ExtractValueFromVariant(null, value.Value, false);
         }
 
         /// <summary>
@@ -126,14 +116,11 @@ namespace Opc.Ua
         /// </summary>
         public NodeId DataType
         {
-            get
-            {
-                return m_dataType;
-            }
+            get => m_dataType;
 
             set
             {
-                if (!Object.ReferenceEquals(m_dataType, value))
+                if (!ReferenceEquals(m_dataType, value))
                 {
                     ChangeMasks |= NodeStateChangeMasks.NonValue;
                 }
@@ -147,10 +134,7 @@ namespace Opc.Ua
         /// </summary>
         public int ValueRank
         {
-            get
-            {
-                return m_valueRank;
-            }
+            get => m_valueRank;
 
             set
             {
@@ -168,14 +152,11 @@ namespace Opc.Ua
         /// </summary>
         public ReadOnlyList<uint> ArrayDimensions
         {
-            get
-            {
-                return m_arrayDimensions;
-            }
+            get => m_arrayDimensions;
 
             set
             {
-                if (!Object.ReferenceEquals(m_arrayDimensions, value))
+                if (!ReferenceEquals(m_arrayDimensions, value))
                 {
                     ChangeMasks |= NodeStateChangeMasks.NonValue;
                 }
@@ -571,7 +552,7 @@ namespace Opc.Ua
             {
                 case Attributes.DataType:
                 {
-                    NodeId dataType = value as NodeId;
+                    var dataType = value as NodeId;
 
                     if (dataType == null)
                     {
@@ -631,7 +612,7 @@ namespace Opc.Ua
 
                 case Attributes.ArrayDimensions:
                 {
-                    IList<uint> arrayDimensions = value as IList<uint>;
+                    var arrayDimensions = value as IList<uint>;
 
                     if ((WriteMask & AttributeWriteMask.ArrayDimensions) == 0)
                     {
@@ -694,7 +675,7 @@ namespace Opc.Ua
             }
 
             // verify data type.
-            TypeInfo typeInfo = TypeInfo.IsInstanceOfDataType(
+            var typeInfo = TypeInfo.IsInstanceOfDataType(
                 value,
                 m_dataType,
                 m_valueRank,
@@ -765,16 +746,16 @@ namespace Opc.Ua
         /// </summary>
         protected override void Initialize(ISystemContext context)
         {
-            SuperTypeId = Opc.Ua.NodeId.Create(Opc.Ua.VariableTypes.BaseVariableType, Opc.Ua.Namespaces.OpcUa, context.NamespaceUris);
-            NodeId = Opc.Ua.NodeId.Create(Opc.Ua.VariableTypes.BaseDataVariableType, Opc.Ua.Namespaces.OpcUa, context.NamespaceUris);
-            BrowseName = Opc.Ua.QualifiedName.Create(Opc.Ua.BrowseNames.BaseDataVariableType, Opc.Ua.Namespaces.OpcUa, context.NamespaceUris);
-            DisplayName = new LocalizedText(Opc.Ua.BrowseNames.BaseDataVariableType, String.Empty, Opc.Ua.BrowseNames.BaseDataVariableType);
+            SuperTypeId = NodeId.Create(VariableTypes.BaseVariableType, Namespaces.OpcUa, context.NamespaceUris);
+            NodeId = NodeId.Create(VariableTypes.BaseDataVariableType, Namespaces.OpcUa, context.NamespaceUris);
+            BrowseName = QualifiedName.Create(BrowseNames.BaseDataVariableType, Namespaces.OpcUa, context.NamespaceUris);
+            DisplayName = new LocalizedText(BrowseNames.BaseDataVariableType, String.Empty, BrowseNames.BaseDataVariableType);
             Description = null;
             WriteMask = AttributeWriteMask.None;
             UserWriteMask = AttributeWriteMask.None;
             IsAbstract = false;
             Value = null;
-            DataType = Opc.Ua.NodeId.Create(Opc.Ua.DataTypes.BaseDataType, Opc.Ua.Namespaces.OpcUa, context.NamespaceUris);
+            DataType = NodeId.Create(DataTypes.BaseDataType, Namespaces.OpcUa, context.NamespaceUris);
             ValueRank = ValueRanks.Any;
             ArrayDimensions = null;
         }
@@ -823,15 +804,9 @@ namespace Opc.Ua
         /// </summary>
         public new T Value
         {
-            get
-            {
-                return BaseVariableState.CheckTypeBeforeCast<T>(base.Value, true);
-            }
+            get => BaseVariableState.CheckTypeBeforeCast<T>(base.Value, true);
 
-            set
-            {
-                base.Value = value;
-            }
+            set => base.Value = value;
         }
         #endregion
     }
@@ -866,16 +841,16 @@ namespace Opc.Ua
         /// </summary>
         protected override void Initialize(ISystemContext context)
         {
-            SuperTypeId = Opc.Ua.NodeId.Create(Opc.Ua.VariableTypes.BaseVariableType, Opc.Ua.Namespaces.OpcUa, context.NamespaceUris);
-            NodeId = Opc.Ua.NodeId.Create(Opc.Ua.VariableTypes.PropertyType, Opc.Ua.Namespaces.OpcUa, context.NamespaceUris);
-            BrowseName = Opc.Ua.QualifiedName.Create(Opc.Ua.BrowseNames.PropertyType, Opc.Ua.Namespaces.OpcUa, context.NamespaceUris);
-            DisplayName = new LocalizedText(Opc.Ua.BrowseNames.PropertyType, String.Empty, Opc.Ua.BrowseNames.PropertyType);
+            SuperTypeId = NodeId.Create(VariableTypes.BaseVariableType, Namespaces.OpcUa, context.NamespaceUris);
+            NodeId = NodeId.Create(VariableTypes.PropertyType, Namespaces.OpcUa, context.NamespaceUris);
+            BrowseName = QualifiedName.Create(BrowseNames.PropertyType, Namespaces.OpcUa, context.NamespaceUris);
+            DisplayName = new LocalizedText(BrowseNames.PropertyType, String.Empty, BrowseNames.PropertyType);
             Description = null;
             WriteMask = AttributeWriteMask.None;
             UserWriteMask = AttributeWriteMask.None;
             IsAbstract = false;
             Value = null;
-            DataType = Opc.Ua.NodeId.Create(Opc.Ua.DataTypes.BaseDataType, Opc.Ua.Namespaces.OpcUa, context.NamespaceUris);
+            DataType = NodeId.Create(DataTypes.BaseDataType, Namespaces.OpcUa, context.NamespaceUris);
             ValueRank = ValueRanks.Any;
             ArrayDimensions = null;
         }
@@ -924,15 +899,9 @@ namespace Opc.Ua
         /// </summary>
         public new T Value
         {
-            get
-            {
-                return BaseVariableState.CheckTypeBeforeCast<T>(base.Value, true);
-            }
+            get => BaseVariableState.CheckTypeBeforeCast<T>(base.Value, true);
 
-            set
-            {
-                base.Value = value;
-            }
+            set => base.Value = value;
         }
         #endregion
     }

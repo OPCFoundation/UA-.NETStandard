@@ -20,7 +20,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             //arrange
             UInt32 uriVersion = 1234;
             var namespaceTable = new NamespaceTable(new List<string> { Namespaces.OpcUa, "http://bar", "http://foo" });
-            var expectedServerUri = "http://foobar";
+            string expectedServerUri = "http://foobar";
             var serverUris = new StringTable(new[] { Namespaces.OpcUa, expectedServerUri });
             var context = new ServiceMessageContext { NamespaceUris = namespaceTable, ServerUris = serverUris };
             string result;
@@ -34,7 +34,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
                 };
 
                 //act and validate it does not throw
-                Assert.DoesNotThrow(() => {
+                NUnit.Framework.Assert.DoesNotThrow(() => {
                     envelope.Encode(jsonEncoder);
                 });
 
@@ -45,9 +45,9 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             Assert.IsNotNull(jObject);
             UInt32 version = jObject["UriVersion"].ToObject<UInt32>();
             Assert.AreEqual(uriVersion, version);
-            var serverUrisToken = jObject["ServerUris"];
+            JToken serverUrisToken = jObject["ServerUris"];
             Assert.IsNotNull(serverUrisToken);
-            var serverUrisEncoded = serverUrisToken.ToObject<string[]>();
+            string[] serverUrisEncoded = serverUrisToken.ToObject<string[]>();
             Assert.IsNotNull(serverUrisEncoded);
             Assert.AreEqual(1, serverUrisEncoded.Length);
             Assert.Contains(expectedServerUri, serverUrisEncoded);

@@ -70,42 +70,42 @@ namespace Opc.Ua
         public int MaxStringLength
         {
             get => m_maxStringLength;
-            set { m_maxStringLength = value; }
+            set => m_maxStringLength = value;
         }
 
         /// <inheritdoc/>
         public int MaxArrayLength
         {
             get => m_maxArrayLength;
-            set { m_maxArrayLength = value; }
+            set => m_maxArrayLength = value;
         }
 
         /// <inheritdoc/>
         public int MaxByteStringLength
         {
             get => m_maxByteStringLength;
-            set { m_maxByteStringLength = value; }
+            set => m_maxByteStringLength = value;
         }
 
         /// <inheritdoc/>
         public int MaxMessageSize
         {
             get => m_maxMessageSize;
-            set { m_maxMessageSize = value; }
+            set => m_maxMessageSize = value;
         }
 
         /// <inheritdoc/>
         public int MaxEncodingNestingLevels
         {
             get => m_maxEncodingNestingLevels;
-            set { m_maxEncodingNestingLevels = value; }
+            set => m_maxEncodingNestingLevels = value;
         }
 
         /// <inheritdoc/>
         public int MaxDecoderRecoveries
         {
             get => m_maxDecoderRecoveries;
-            set { m_maxDecoderRecoveries = value; }
+            set => m_maxDecoderRecoveries = value;
         }
 
         /// <inheritdoc/>
@@ -117,7 +117,7 @@ namespace Opc.Ua
             {
                 if (value == null)
                 {
-                    m_namespaceUris = ServiceMessageContext.GlobalContext.NamespaceUris;
+                    m_namespaceUris = GlobalContext.NamespaceUris;
                     return;
                 }
                 m_namespaceUris = value;
@@ -133,7 +133,7 @@ namespace Opc.Ua
             {
                 if (value == null)
                 {
-                    m_serverUris = ServiceMessageContext.GlobalContext.ServerUris;
+                    m_serverUris = GlobalContext.ServerUris;
                     return;
                 }
 
@@ -150,7 +150,7 @@ namespace Opc.Ua
             {
                 if (value == null)
                 {
-                    m_factory = ServiceMessageContext.GlobalContext.Factory;
+                    m_factory = GlobalContext.Factory;
                     return;
                 }
 

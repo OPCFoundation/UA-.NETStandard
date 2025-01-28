@@ -34,7 +34,7 @@ namespace Opc.Ua.Gds.Client
     /// <summary>
     /// Stores the configuration the data access node manager.
     /// </summary>
-    [DataContract(Namespace = Opc.Ua.Gds.Namespaces.OpcUaGds + "Configuration.xsd")]
+    [DataContract(Namespace = Namespaces.OpcUaGds + "Configuration.xsd")]
     public class GlobalDiscoveryClientConfiguration
     {
         #region Constructors

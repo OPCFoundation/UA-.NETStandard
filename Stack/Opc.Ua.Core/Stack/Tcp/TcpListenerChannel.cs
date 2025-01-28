@@ -14,7 +14,6 @@ using System;
 using System.Net;
 using System.Net.Sockets;
 using System.Security.Cryptography.X509Certificates;
-using Microsoft.Extensions.Logging;
 using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Bindings
@@ -257,8 +256,7 @@ namespace Opc.Ua.Bindings
                     if ((SecurityPolicyUri == SecurityPolicies.Basic128Rsa15) &&
                         (reason.StatusCode == StatusCodes.BadSecurityChecksFailed || reason.StatusCode == StatusCodes.BadTcpMessageTypeInvalid))
                     {
-                        var tcpTransportListener = m_listener as TcpTransportListener;
-                        if (tcpTransportListener != null)
+                        if (m_listener is TcpTransportListener tcpTransportListener)
                         {
                             tcpTransportListener.MarkAsPotentialProblematic
                                 (((IPEndPoint)Socket.RemoteEndpoint).Address);
@@ -355,7 +353,7 @@ namespace Opc.Ua.Bindings
 
             try
             {
-                using (BinaryEncoder encoder = new BinaryEncoder(buffer, 0, SendBufferSize, Quotas.MessageContext))
+                using (var encoder = new BinaryEncoder(buffer, 0, SendBufferSize, Quotas.MessageContext))
                 {
                     encoder.WriteUInt32(null, TcpMessageType.Error);
                     encoder.WriteUInt32(null, 0);
@@ -390,11 +388,11 @@ namespace Opc.Ua.Bindings
             try
             {
                 // construct fault.
-                ServiceFault response = new ServiceFault();
+                var response = new ServiceFault();
 
                 response.ResponseHeader.ServiceResult = fault.Code;
 
-                StringTable stringTable = new StringTable();
+                var stringTable = new StringTable();
 
                 response.ResponseHeader.ServiceDiagnostics = new DiagnosticInfo(
                     fault,
@@ -465,11 +463,11 @@ namespace Opc.Ua.Bindings
             try
             {
                 // construct fault.
-                ServiceFault response = new ServiceFault();
+                var response = new ServiceFault();
 
                 response.ResponseHeader.ServiceResult = fault.Code;
 
-                StringTable stringTable = new StringTable();
+                var stringTable = new StringTable();
 
                 response.ResponseHeader.ServiceDiagnostics = new DiagnosticInfo(
                     fault,

@@ -45,7 +45,7 @@ namespace Alarms
         /// </summary>
         public static FolderState CreateFolder(NodeState parent, ushort nameSpaceIndex, string path, string name)
         {
-            FolderState folder = new FolderState(parent);
+            var folder = new FolderState(parent);
 
             folder.SymbolicName = name;
             folder.ReferenceTypeId = ReferenceTypes.Organizes;
@@ -70,10 +70,10 @@ namespace Alarms
         /// </summary>
         public static BaseDataVariableState CreateVariable(NodeState parent, ushort nameSpaceIndex, string path, string name, bool boolValue = false)
         {
-            uint dataTypeIdentifier = Opc.Ua.DataTypes.Int32;
+            uint dataTypeIdentifier = DataTypes.Int32;
             if (boolValue)
             {
-                dataTypeIdentifier = Opc.Ua.DataTypes.Boolean;
+                dataTypeIdentifier = DataTypes.Boolean;
             }
             return CreateVariable(parent, nameSpaceIndex, path, name, dataTypeIdentifier);
         }
@@ -83,7 +83,7 @@ namespace Alarms
         /// </summary>
         public static BaseDataVariableState CreateVariable(NodeState parent, ushort nameSpaceIndex, string path, string name, uint dataTypeIdentifier)
         {
-            BaseDataVariableState variable = new BaseDataVariableState(parent);
+            var variable = new BaseDataVariableState(parent);
 
             variable.SymbolicName = name;
             variable.ReferenceTypeId = ReferenceTypes.Organizes;
@@ -95,15 +95,15 @@ namespace Alarms
             variable.UserWriteMask = AttributeWriteMask.DisplayName | AttributeWriteMask.Description;
             switch (dataTypeIdentifier)
             {
-                case Opc.Ua.DataTypes.Boolean:
+                case DataTypes.Boolean:
                     variable.DataType = DataTypeIds.Boolean;
                     variable.Value = false;
                     break;
-                case Opc.Ua.DataTypes.Int32:
+                case DataTypes.Int32:
                     variable.DataType = DataTypeIds.Int32;
                     variable.Value = AlarmDefines.NORMAL_START_VALUE;
                     break;
-                case Opc.Ua.DataTypes.Double:
+                case DataTypes.Double:
                     variable.DataType = DataTypeIds.Double;
                     variable.Value = (double)AlarmDefines.NORMAL_START_VALUE;
                     break;
@@ -129,7 +129,7 @@ namespace Alarms
         /// </summary>
         public static MethodState CreateMethod(NodeState parent, ushort nameSpaceIndex, string path, string name)
         {
-            MethodState method = new MethodState(parent);
+            var method = new MethodState(parent);
 
             method.SymbolicName = name;
             method.ReferenceTypeId = ReferenceTypeIds.HasComponent;

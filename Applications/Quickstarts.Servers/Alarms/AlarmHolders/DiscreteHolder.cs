@@ -66,10 +66,7 @@ namespace Alarms
         {
             m_analog = false;
 
-            if (m_alarm == null)
-            {
-                m_alarm = new DiscreteAlarmState(m_parent);
-            }
+            m_alarm ??= new DiscreteAlarmState(m_parent);
 
             // Call the base class to set parameters
             base.Initialize(alarmTypeIdentifier, name, maxTimeShelved);

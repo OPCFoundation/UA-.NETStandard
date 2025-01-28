@@ -91,7 +91,7 @@ namespace Opc.Ua.Server.Tests
                 sb.AppendFormat(CultureInfo.InvariantCulture, "{0:yy-MM-dd HH:mm:ss.fff}: ", DateTime.UtcNow);
                 sb.Append(formatter(state, exception));
 
-                var logEntry = sb.ToString();
+                string logEntry = sb.ToString();
 
                 m_outputWriter.WriteLine(logEntry);
             }

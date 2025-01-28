@@ -86,9 +86,9 @@ namespace Opc.Ua.Security.Certificates
         {
             if (subjectKeyIdentifier == null) throw new ArgumentNullException(nameof(subjectKeyIdentifier));
             m_keyIdentifier = subjectKeyIdentifier;
-            base.Oid = new Oid(AuthorityKeyIdentifier2Oid, kFriendlyName);
-            base.Critical = false;
-            base.RawData = Encode();
+            Oid = new Oid(AuthorityKeyIdentifier2Oid, kFriendlyName);
+            Critical = false;
+            RawData = Encode();
         }
 
         /// <summary>
@@ -110,9 +110,9 @@ namespace Opc.Ua.Security.Certificates
             m_issuer = authorityName;
             m_keyIdentifier = subjectKeyIdentifier;
             m_serialNumber = serialNumber;
-            base.Oid = new Oid(AuthorityKeyIdentifier2Oid, kFriendlyName);
-            base.Critical = false;
-            base.RawData = Encode();
+            Oid = new Oid(AuthorityKeyIdentifier2Oid, kFriendlyName);
+            Critical = false;
+            RawData = Encode();
         }
 
         /// <summary>
@@ -192,8 +192,8 @@ namespace Opc.Ua.Security.Certificates
         public override void CopyFrom(AsnEncodedData asnEncodedData)
         {
             if (asnEncodedData == null) throw new ArgumentNullException(nameof(asnEncodedData));
-            base.Oid = asnEncodedData.Oid;
-            base.RawData = asnEncodedData.RawData;
+            Oid = asnEncodedData.Oid;
+            RawData = asnEncodedData.RawData;
             Decode(asnEncodedData.RawData);
         }
         #endregion
@@ -278,8 +278,8 @@ namespace Opc.Ua.Security.Certificates
 
         private void Decode(byte[] data)
         {
-            if (base.Oid.Value == AuthorityKeyIdentifierOid ||
-                base.Oid.Value == AuthorityKeyIdentifier2Oid)
+            if (Oid.Value == AuthorityKeyIdentifierOid ||
+                Oid.Value == AuthorityKeyIdentifier2Oid)
             {
                 try
                 {

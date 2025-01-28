@@ -17,7 +17,6 @@ using System.Globalization;
 using System.IO;
 using System.Text;
 using System.Xml;
-using Opc.Ua.Bindings;
 using Opc.Ua.Buffers;
 
 namespace Opc.Ua
@@ -174,15 +173,9 @@ namespace Opc.Ua
         /// </summary>
         public int Position
         {
-            get
-            {
-                return (int)m_writer.BaseStream.Position;
-            }
+            get => (int)m_writer.BaseStream.Position;
 
-            set
-            {
-                m_writer.Seek(value, SeekOrigin.Begin);
-            }
+            set => m_writer.Seek(value, SeekOrigin.Begin);
         }
 
         /// <summary>
@@ -212,7 +205,7 @@ namespace Opc.Ua
             if (context == null) throw new ArgumentNullException(nameof(context));
 
             // create encoder.
-            using (BinaryEncoder encoder = new BinaryEncoder(context))
+            using (var encoder = new BinaryEncoder(context))
             {
                 // encode message
                 encoder.EncodeMessage(message);
@@ -231,7 +224,7 @@ namespace Opc.Ua
             if (context == null) throw new ArgumentNullException(nameof(context));
 
             // create encoder.
-            using (BinaryEncoder encoder = new BinaryEncoder(stream, context, leaveOpen))
+            using (var encoder = new BinaryEncoder(stream, context, leaveOpen))
             {
                 long start = encoder.m_ostrm.Position;
 
@@ -239,7 +232,7 @@ namespace Opc.Ua
                 encoder.WriteNodeId(null, DataTypeIds.SessionlessInvokeRequestType);
 
                 // write the message.
-                SessionLessServiceMessage envelope = new SessionLessServiceMessage();
+                var envelope = new SessionLessServiceMessage();
                 envelope.NamespaceUris = context.NamespaceUris;
                 envelope.ServerUris = context.ServerUris;
                 envelope.Message = message;
@@ -268,7 +261,7 @@ namespace Opc.Ua
             if (context == null) throw new ArgumentNullException(nameof(context));
 
             // create encoder.
-            using (BinaryEncoder encoder = new BinaryEncoder(stream, context, leaveOpen))
+            using (var encoder = new BinaryEncoder(stream, context, leaveOpen))
             {
                 // encode message
                 encoder.EncodeMessage(message);
@@ -285,7 +278,7 @@ namespace Opc.Ua
             long start = m_ostrm.Position;
 
             // convert the namespace uri to an index.
-            NodeId typeId = ExpandedNodeId.ToNodeId(message.BinaryEncodingId, m_context.NamespaceUris);
+            var typeId = ExpandedNodeId.ToNodeId(message.BinaryEncodingId, m_context.NamespaceUris);
 
             // write the type id.
             WriteNodeId(null, typeId);
@@ -591,6 +584,7 @@ namespace Opc.Ua
         /// <summary>
         /// Writes a byte string to the stream.
         /// </summary>
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2265:Do not compare Span<T> to 'null' or 'default'", Justification = "Null compare works with ReadOnlySpan<byte>")]
         public void WriteByteString(string fieldName, ReadOnlySpan<byte> value)
         {
             if (value == null)
@@ -904,7 +898,7 @@ namespace Opc.Ua
                 return;
             }
 
-            IEncodeable encodeable = value.Body as IEncodeable;
+            var encodeable = value.Body as IEncodeable;
 
             // write the type id.
             ExpandedNodeId typeId = value.TypeId;
@@ -921,7 +915,7 @@ namespace Opc.Ua
                 }
             }
 
-            NodeId localTypeId = ExpandedNodeId.ToNodeId(typeId, m_context.NamespaceUris);
+            var localTypeId = ExpandedNodeId.ToNodeId(typeId, m_context.NamespaceUris);
 
             if (NodeId.IsNull(localTypeId) && !NodeId.IsNull(typeId))
             {
@@ -1007,7 +1001,7 @@ namespace Opc.Ua
             // must pre-encode and then write the bytes.
             else
             {
-                using (BinaryEncoder encoder = new BinaryEncoder(this.m_context))
+                using (var encoder = new BinaryEncoder(this.m_context))
                 {
                     encoder.WriteEncodeable(null, encodeable, null);
                     bytes = encoder.CloseAndReturnBuffer();
@@ -1705,7 +1699,7 @@ namespace Opc.Ua
                  * product of the dimensions.
                  * The number of values is 0 if one or more dimension is less than or equal to 0.*/
 
-                Matrix matrix = array as Matrix;
+                var matrix = array as Matrix;
                 if (matrix == null)
                 {
                     if (!(array is Array multiArray) || multiArray.Rank != valueRank)
@@ -1844,7 +1838,7 @@ namespace Opc.Ua
                     }
                     case BuiltInType.DateTime:
                     {
-                        DateTime[] values = (DateTime[])matrix.Elements;
+                        var values = (DateTime[])matrix.Elements;
                         for (int ii = 0; ii < values.Length; ii++)
                         {
                             WriteDateTime(null, values[ii]);
@@ -1853,7 +1847,7 @@ namespace Opc.Ua
                     }
                     case BuiltInType.Guid:
                     {
-                        Uuid[] values = (Uuid[])matrix.Elements;
+                        var values = (Uuid[])matrix.Elements;
                         for (int ii = 0; ii < values.Length; ii++)
                         {
                             WriteGuid(null, values[ii]);
@@ -1871,7 +1865,7 @@ namespace Opc.Ua
                     }
                     case BuiltInType.XmlElement:
                     {
-                        XmlElement[] values = (XmlElement[])matrix.Elements;
+                        var values = (XmlElement[])matrix.Elements;
                         for (int ii = 0; ii < values.Length; ii++)
                         {
                             WriteXmlElement(null, values[ii]);
@@ -1880,7 +1874,7 @@ namespace Opc.Ua
                     }
                     case BuiltInType.NodeId:
                     {
-                        NodeId[] values = (NodeId[])matrix.Elements;
+                        var values = (NodeId[])matrix.Elements;
                         for (int ii = 0; ii < values.Length; ii++)
                         {
                             WriteNodeId(null, values[ii]);
@@ -1889,7 +1883,7 @@ namespace Opc.Ua
                     }
                     case BuiltInType.ExpandedNodeId:
                     {
-                        ExpandedNodeId[] values = (ExpandedNodeId[])matrix.Elements;
+                        var values = (ExpandedNodeId[])matrix.Elements;
                         for (int ii = 0; ii < values.Length; ii++)
                         {
                             WriteExpandedNodeId(null, values[ii]);
@@ -1898,7 +1892,7 @@ namespace Opc.Ua
                     }
                     case BuiltInType.StatusCode:
                     {
-                        StatusCode[] values = (StatusCode[])matrix.Elements;
+                        var values = (StatusCode[])matrix.Elements;
                         for (int ii = 0; ii < values.Length; ii++)
                         {
                             WriteStatusCode(null, values[ii]);
@@ -1907,7 +1901,7 @@ namespace Opc.Ua
                     }
                     case BuiltInType.QualifiedName:
                     {
-                        QualifiedName[] values = (QualifiedName[])matrix.Elements;
+                        var values = (QualifiedName[])matrix.Elements;
                         for (int ii = 0; ii < values.Length; ii++)
                         {
                             WriteQualifiedName(null, values[ii]);
@@ -1916,7 +1910,7 @@ namespace Opc.Ua
                     }
                     case BuiltInType.LocalizedText:
                     {
-                        LocalizedText[] values = (LocalizedText[])matrix.Elements;
+                        var values = (LocalizedText[])matrix.Elements;
                         for (int ii = 0; ii < values.Length; ii++)
                         {
                             WriteLocalizedText(null, values[ii]);
@@ -1925,7 +1919,7 @@ namespace Opc.Ua
                     }
                     case BuiltInType.ExtensionObject:
                     {
-                        ExtensionObject[] values = (ExtensionObject[])matrix.Elements;
+                        var values = (ExtensionObject[])matrix.Elements;
                         for (int ii = 0; ii < values.Length; ii++)
                         {
                             WriteExtensionObject(null, values[ii]);
@@ -1934,7 +1928,7 @@ namespace Opc.Ua
                     }
                     case BuiltInType.DataValue:
                     {
-                        DataValue[] values = (DataValue[])matrix.Elements;
+                        var values = (DataValue[])matrix.Elements;
                         for (int ii = 0; ii < values.Length; ii++)
                         {
                             WriteDataValue(null, values[ii]);
@@ -1976,7 +1970,7 @@ namespace Opc.Ua
                     }
                     case BuiltInType.DiagnosticInfo:
                     {
-                        DiagnosticInfo[] values = (DiagnosticInfo[])matrix.Elements;
+                        var values = (DiagnosticInfo[])matrix.Elements;
                         for (int ii = 0; ii < values.Length; ii++)
                         {
                             WriteDiagnosticInfo(null, values[ii]);
@@ -2027,7 +2021,7 @@ namespace Opc.Ua
             }
 
             WriteInt32(null, (int)value.Length);
-            foreach (var segment in value)
+            foreach (ReadOnlyMemory<byte> segment in value)
             {
                 m_writer.Write(segment.Span);
             }

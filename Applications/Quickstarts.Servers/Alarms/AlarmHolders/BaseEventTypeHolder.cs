@@ -91,10 +91,7 @@ namespace Alarms
 
         private BaseEventState GetAlarm(BaseEventState alarm = null)
         {
-            if (alarm == null)
-            {
-                alarm = m_alarm;
-            }
+            alarm ??= m_alarm;
             return (BaseEventState)alarm;
         }
 

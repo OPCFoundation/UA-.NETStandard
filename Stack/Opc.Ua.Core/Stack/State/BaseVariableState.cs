@@ -228,7 +228,7 @@ namespace Opc.Ua
 
                 if (value is IList<ExtensionObject> extensions && typeof(IEncodeable).GetTypeInfo().IsAssignableFrom(elementType.GetTypeInfo()))
                 {
-                    Array encodeables = Array.CreateInstance(elementType, extensions.Count);
+                    var encodeables = Array.CreateInstance(elementType, extensions.Count);
 
                     for (int ii = 0; ii < extensions.Count; ii++)
                     {
@@ -290,7 +290,7 @@ namespace Opc.Ua
                 {
                     if (value is IList<Uuid> uuids)
                     {
-                        Guid[] guids = new Guid[uuids.Count];
+                        var guids = new Guid[uuids.Count];
 
                         for (int ii = 0; ii < uuids.Count; ii++)
                         {
@@ -306,7 +306,7 @@ namespace Opc.Ua
                 {
                     if (value is IList<int> values)
                     {
-                        Array enums = Array.CreateInstance(elementType, values.Count);
+                        var enums = Array.CreateInstance(elementType, values.Count);
 
                         for (int ii = 0; ii < values.Count; ii++)
                         {
@@ -320,7 +320,7 @@ namespace Opc.Ua
 
             if (typeof(Guid).GetTypeInfo().IsAssignableFrom(typeof(T).GetTypeInfo()))
             {
-                Uuid? uuid = value as Uuid?;
+                var uuid = value as Uuid?;
 
                 if (uuid != null)
                 {
@@ -454,7 +454,7 @@ namespace Opc.Ua
         /// </returns>
         public new object MemberwiseClone()
         {
-            BaseInstanceState clone = (BaseInstanceState)Activator.CreateInstance(this.GetType(), this.Parent);
+            var clone = (BaseInstanceState)Activator.CreateInstance(this.GetType(), this.Parent);
             return CloneChildren(clone);
         }
         #endregion
@@ -465,10 +465,7 @@ namespace Opc.Ua
         /// </summary>
         public object Value
         {
-            get
-            {
-                return m_value;
-            }
+            get => m_value;
 
             set
             {
@@ -477,7 +474,7 @@ namespace Opc.Ua
                     value = ExtractValueFromVariant(null, value, false);
                 }
 
-                if (!Object.ReferenceEquals(m_value, value))
+                if (!ReferenceEquals(m_value, value))
                 {
                     ChangeMasks |= NodeStateChangeMasks.Value;
                 }
@@ -498,8 +495,8 @@ namespace Opc.Ua
         /// </summary>
         public bool IsValueType
         {
-            get { return m_isValueType; }
-            set { m_isValueType = value; }
+            get => m_isValueType;
+            set => m_isValueType = value;
         }
 
         /// <summary>
@@ -509,15 +506,9 @@ namespace Opc.Ua
         [DataMember(Name = "Value", Order = 0, IsRequired = false, EmitDefaultValue = false)]
         public Variant WrappedValue
         {
-            get
-            {
-                return new Variant(m_value);
-            }
+            get => new Variant(m_value);
 
-            set
-            {
-                Value = ExtractValueFromVariant(null, value.Value, false);
-            }
+            set => Value = ExtractValueFromVariant(null, value.Value, false);
         }
 
         /// <summary>
@@ -526,10 +517,7 @@ namespace Opc.Ua
         /// <value>The timestamp.</value>
         public DateTime Timestamp
         {
-            get
-            {
-                return m_timestamp;
-            }
+            get => m_timestamp;
 
             set
             {
@@ -548,10 +536,7 @@ namespace Opc.Ua
         /// <value>The status code.</value>
         public StatusCode StatusCode
         {
-            get
-            {
-                return m_statusCode;
-            }
+            get => m_statusCode;
 
             set
             {
@@ -573,8 +558,8 @@ namespace Opc.Ua
         /// </remarks>
         public VariableCopyPolicy CopyPolicy
         {
-            get { return m_copyPolicy; }
-            set { m_copyPolicy = value; }
+            get => m_copyPolicy;
+            set => m_copyPolicy = value;
         }
 
         /// <summary>
@@ -584,14 +569,11 @@ namespace Opc.Ua
         [DataMember(Name = "DataType", Order = 1, IsRequired = false, EmitDefaultValue = false)]
         public NodeId DataType
         {
-            get
-            {
-                return m_dataType;
-            }
+            get => m_dataType;
 
             set
             {
-                if (!Object.ReferenceEquals(m_dataType, value))
+                if (!ReferenceEquals(m_dataType, value))
                 {
                     ChangeMasks |= NodeStateChangeMasks.NonValue;
                 }
@@ -608,10 +590,7 @@ namespace Opc.Ua
         [DataMember(Name = "ValueRank", Order = 2, IsRequired = false, EmitDefaultValue = false)]
         public int ValueRank
         {
-            get
-            {
-                return m_valueRank;
-            }
+            get => m_valueRank;
 
             set
             {
@@ -636,14 +615,11 @@ namespace Opc.Ua
         /// </remarks>
         public ReadOnlyList<uint> ArrayDimensions
         {
-            get
-            {
-                return m_arrayDimensions;
-            }
+            get => m_arrayDimensions;
 
             set
             {
-                if (!Object.ReferenceEquals(m_arrayDimensions, value))
+                if (!ReferenceEquals(m_arrayDimensions, value))
                 {
                     ChangeMasks |= NodeStateChangeMasks.NonValue;
                 }
@@ -659,10 +635,7 @@ namespace Opc.Ua
         [DataMember(Name = "AccessLevel", Order = 4, IsRequired = false, EmitDefaultValue = false)]
         public byte AccessLevel
         {
-            get
-            {
-                return (byte)(m_accessLevel & 0xFF);
-            }
+            get => (byte)(m_accessLevel & 0xFF);
 
             set
             {
@@ -683,10 +656,7 @@ namespace Opc.Ua
         [DataMember(Name = "UserAccessLevel", Order = 5, IsRequired = false, EmitDefaultValue = false)]
         public byte UserAccessLevel
         {
-            get
-            {
-                return m_userAccessLevel;
-            }
+            get => m_userAccessLevel;
 
             set
             {
@@ -706,10 +676,7 @@ namespace Opc.Ua
         [DataMember(Name = "MinimumSamplingInterval", Order = 6, IsRequired = false, EmitDefaultValue = false)]
         public double MinimumSamplingInterval
         {
-            get
-            {
-                return m_minimumSamplingInterval;
-            }
+            get => m_minimumSamplingInterval;
 
             set
             {
@@ -729,10 +696,7 @@ namespace Opc.Ua
         [DataMember(Name = "Historizing", Order = 7, IsRequired = false, EmitDefaultValue = false)]
         public bool Historizing
         {
-            get
-            {
-                return m_historizing;
-            }
+            get => m_historizing;
 
             set
             {
@@ -752,10 +716,7 @@ namespace Opc.Ua
         [DataMember(Name = "AccessLevelEx", Order = 8, IsRequired = false, EmitDefaultValue = false)]
         public uint AccessLevelEx
         {
-            get
-            {
-                return m_accessLevel;
-            }
+            get => m_accessLevel;
 
             set
             {
@@ -1251,7 +1212,7 @@ namespace Opc.Ua
                 return null;
             }
 
-            StringBuilder buffer = new StringBuilder();
+            var buffer = new StringBuilder();
 
             for (int ii = 0; ii < arrayDimensions.Count; ii++)
             {
@@ -1643,7 +1604,7 @@ namespace Opc.Ua
             // apply data encoding.
             if (!QualifiedName.IsNull(dataEncoding))
             {
-                ServiceMessageContext messageContext = new ServiceMessageContext();
+                var messageContext = new ServiceMessageContext();
 
                 messageContext.NamespaceUris = context.NamespaceUris;
                 messageContext.ServerUris = context.ServerUris;
@@ -1684,7 +1645,7 @@ namespace Opc.Ua
             {
                 case Attributes.DataType:
                 {
-                    NodeId dataType = value as NodeId;
+                    var dataType = value as NodeId;
 
                     if (dataType == null)
                     {
@@ -1744,7 +1705,7 @@ namespace Opc.Ua
 
                 case Attributes.ArrayDimensions:
                 {
-                    IList<uint> arrayDimensions = value as IList<uint>;
+                    var arrayDimensions = value as IList<uint>;
 
                     if ((WriteMask & AttributeWriteMask.ArrayDimensions) == 0)
                     {
@@ -1978,7 +1939,7 @@ namespace Opc.Ua
             }
 
             // verify data type.
-            TypeInfo typeInfo = TypeInfo.IsInstanceOfDataType(
+            var typeInfo = TypeInfo.IsInstanceOfDataType(
                 value,
                 m_dataType,
                 m_valueRank,
@@ -1990,7 +1951,7 @@ namespace Opc.Ua
                 //if xml element data decoding error appeared : a value of type status code is received with the error code
                 if (DataTypeIds.XmlElement == m_dataType)
                 {
-                    TypeInfo statusCodeTypeInfo = TypeInfo.IsInstanceOfDataType(value, DataTypeIds.UInt32, -1, context.NamespaceUris, context.TypeTable);
+                    var statusCodeTypeInfo = TypeInfo.IsInstanceOfDataType(value, DataTypeIds.UInt32, -1, context.NamespaceUris, context.TypeTable);
                     if (statusCodeTypeInfo != null)
                     {
                         //the error code
@@ -2111,16 +2072,16 @@ namespace Opc.Ua
         /// </summary>
         protected override void Initialize(ISystemContext context)
         {
-            SymbolicName = Utils.Format("{0}_Instance1", Opc.Ua.BrowseNames.PropertyType);
+            SymbolicName = Utils.Format("{0}_Instance1", BrowseNames.PropertyType);
             NodeId = null;
             BrowseName = new QualifiedName(SymbolicName, 1);
             DisplayName = SymbolicName;
             Description = null;
             WriteMask = AttributeWriteMask.None;
             UserWriteMask = AttributeWriteMask.None;
-            ReferenceTypeId = Opc.Ua.ReferenceTypeIds.HasProperty;
+            ReferenceTypeId = ReferenceTypeIds.HasProperty;
             TypeDefinitionId = GetDefaultTypeDefinitionId(context.NamespaceUris);
-            NumericId = Opc.Ua.VariableTypes.PropertyType;
+            NumericId = VariableTypes.PropertyType;
             Value = null;
             DataType = GetDefaultDataTypeId(context.NamespaceUris);
             ValueRank = GetDefaultValueRank();
@@ -2186,15 +2147,9 @@ namespace Opc.Ua
         /// </summary>
         public new T Value
         {
-            get
-            {
-                return CheckTypeBeforeCast<T>(base.Value, true);
-            }
+            get => CheckTypeBeforeCast<T>(base.Value, true);
 
-            set
-            {
-                base.Value = value;
-            }
+            set => base.Value = value;
         }
         #endregion
     }
@@ -2214,7 +2169,7 @@ namespace Opc.Ua
             if (parent != null)
             {
                 StatusCode = StatusCodes.BadWaitingForInitialData;
-                ReferenceTypeId = Opc.Ua.ReferenceTypeIds.HasComponent;
+                ReferenceTypeId = ReferenceTypeIds.HasComponent;
             }
         }
 
@@ -2235,16 +2190,16 @@ namespace Opc.Ua
         /// </summary>
         protected override void Initialize(ISystemContext context)
         {
-            SymbolicName = Utils.Format("{0}_Instance1", Opc.Ua.BrowseNames.BaseDataVariableType);
+            SymbolicName = Utils.Format("{0}_Instance1", BrowseNames.BaseDataVariableType);
             NodeId = null;
             BrowseName = new QualifiedName(SymbolicName, 1);
             DisplayName = SymbolicName;
             Description = null;
             WriteMask = AttributeWriteMask.None;
             UserWriteMask = AttributeWriteMask.None;
-            ReferenceTypeId = Opc.Ua.ReferenceTypeIds.HasComponent;
+            ReferenceTypeId = ReferenceTypeIds.HasComponent;
             TypeDefinitionId = GetDefaultTypeDefinitionId(context.NamespaceUris);
-            NumericId = Opc.Ua.VariableTypes.BaseDataVariableType;
+            NumericId = VariableTypes.BaseDataVariableType;
             Value = null;
             DataType = GetDefaultDataTypeId(context.NamespaceUris);
             ValueRank = GetDefaultValueRank();
@@ -2270,14 +2225,11 @@ namespace Opc.Ua
         /// </summary>
         public PropertyState<LocalizedText[]> EnumStrings
         {
-            get
-            {
-                return m_enumStrings;
-            }
+            get => m_enumStrings;
 
             set
             {
-                if (!Object.ReferenceEquals(m_enumStrings, value))
+                if (!ReferenceEquals(m_enumStrings, value))
                 {
                     ChangeMasks |= NodeStateChangeMasks.Children;
                 }
@@ -2421,15 +2373,9 @@ namespace Opc.Ua
         /// </summary>
         public new T Value
         {
-            get
-            {
-                return CheckTypeBeforeCast<T>(base.Value, true);
-            }
+            get => CheckTypeBeforeCast<T>(base.Value, true);
 
-            set
-            {
-                base.Value = value;
-            }
+            set => base.Value = value;
         }
         #endregion
     }
@@ -2449,10 +2395,7 @@ namespace Opc.Ua
             m_lock = dataLock;
             m_copyPolicy = VariableCopyPolicy.CopyOnRead;
 
-            if (m_lock == null)
-            {
-                m_lock = new object();
-            }
+            m_lock ??= new object();
         }
         #endregion
 
@@ -2470,8 +2413,8 @@ namespace Opc.Ua
         /// </summary>
         public VariableCopyPolicy CopyPolicy
         {
-            get { return m_copyPolicy; }
-            set { m_copyPolicy = value; }
+            get => m_copyPolicy;
+            set => m_copyPolicy = value;
         }
 
         /// <summary>
@@ -2479,8 +2422,8 @@ namespace Opc.Ua
         /// </summary>
         public ServiceResult Error
         {
-            get { return m_error; }
-            set { m_error = value; }
+            get => m_error;
+            set => m_error = value;
         }
 
         /// <summary>
@@ -2488,8 +2431,8 @@ namespace Opc.Ua
         /// </summary>
         public DateTime Timestamp
         {
-            get { return m_timestamp; }
-            set { m_timestamp = value; }
+            get => m_timestamp;
+            set => m_timestamp = value;
         }
 
         /// <summary>

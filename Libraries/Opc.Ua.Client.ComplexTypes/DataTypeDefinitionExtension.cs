@@ -30,8 +30,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Reflection.Emit;
-using System.Runtime.InteropServices;
 using System.Xml;
 
 namespace Opc.Ua.Client.ComplexTypes
@@ -78,7 +76,7 @@ namespace Opc.Ua.Client.ComplexTypes
             bool hasBitField = false;
             bool isUnionType = false;
 
-            foreach (var field in structuredType.Field)
+            foreach (Schema.Binary.FieldType field in structuredType.Field)
             {
                 // check for yet unsupported properties
                 if (field.IsLengthInBytes ||
@@ -134,12 +132,12 @@ namespace Opc.Ua.Client.ComplexTypes
             Int32 dataTypeFieldPosition = 0;
             var switchFieldBits = new Dictionary<string, byte>();
             // convert fields
-            foreach (var field in structuredType.Field)
+            foreach (Schema.Binary.FieldType field in structuredType.Field)
             {
                 // consume optional bits
                 if (field.TypeName.IsXmlBitType())
                 {
-                    var count = structureDefinition.Fields.Count;
+                    int count = structureDefinition.Fields.Count;
                     if (count == 0 &&
                         switchFieldBitPosition < 32)
                     {
@@ -185,7 +183,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 if (field.LengthField != null)
                 {
                     // handle array length
-                    var lastField = structureDefinition.Fields.Last();
+                    StructureField lastField = structureDefinition.Fields.Last();
                     if (lastField.Name != field.LengthField)
                     {
                         throw new DataTypeNotSupportedException(
@@ -241,7 +239,7 @@ namespace Opc.Ua.Client.ComplexTypes
         {
             var enumDefinition = new EnumDefinition();
 
-            foreach (var enumValue in enumeratedType.EnumeratedValue)
+            foreach (Schema.Binary.EnumeratedValue enumValue in enumeratedType.EnumeratedValue)
             {
                 var enumTypeField = new EnumField
                 {
@@ -264,10 +262,10 @@ namespace Opc.Ua.Client.ComplexTypes
         {
             var enumDefinition = new EnumDefinition();
 
-            foreach (var extensionObject in enumValueTypes)
+            foreach (ExtensionObject extensionObject in enumValueTypes)
             {
                 var enumValue = extensionObject.Body as EnumValueType;
-                var name = enumValue.DisplayName.Text;
+                string name = enumValue.DisplayName.Text;
 
                 var enumTypeField = new EnumField {
                     Name = name,
@@ -291,7 +289,7 @@ namespace Opc.Ua.Client.ComplexTypes
             for (int ii = 0; ii < enumFieldNames.Length; ii++)
             {
                 LocalizedText enumFieldName = enumFieldNames[ii];
-                var name = enumFieldName.Text;
+                string name = enumFieldName.Text;
 
                 var enumTypeField = new EnumField {
                     Name = name,
@@ -340,7 +338,7 @@ namespace Opc.Ua.Client.ComplexTypes
                     case "Variant": return DataTypeIds.BaseDataType;
                     case "ExtensionObject": return DataTypeIds.Structure;
                 }
-                var internalField = typeof(DataTypeIds).GetField(typeName.Name);
+                System.Reflection.FieldInfo internalField = typeof(DataTypeIds).GetField(typeName.Name);
                 if (internalField == null)
                 {
                     // The type was not found in the internal type factory.

@@ -105,7 +105,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         {
             HiResClock.Disabled = disabled;
             Assert.AreEqual(disabled, HiResClock.Disabled);
-            Stopwatch stopWatch = new Stopwatch();
+            var stopWatch = new Stopwatch();
             long lastTickCount = HiResClock.TickCount64;
             long firstTickCount = lastTickCount;
             stopWatch.Start();
@@ -124,7 +124,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             }
             if (counts < 500)
             {
-                Assert.Inconclusive("Polling tick count unsuccessful, maybe CPU is overloaded.");
+                NUnit.Framework.Assert.Inconclusive("Polling tick count unsuccessful, maybe CPU is overloaded.");
             }
             stopWatch.Stop();
             long elapsed = lastTickCount - firstTickCount;
@@ -132,11 +132,11 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             // test accuracy of counter vs. stop watch
             try
             {
-                Assert.That(elapsed, Is.EqualTo(stopWatch.ElapsedMilliseconds).Within(Percent).Percent);
+                NUnit.Framework.Assert.That(elapsed, Is.EqualTo(stopWatch.ElapsedMilliseconds).Within(Percent).Percent);
             }
             catch (Exception ex)
             {
-                Assert.Inconclusive(ex.Message);
+                NUnit.Framework.Assert.Inconclusive(ex.Message);
             }
         }
 
@@ -148,7 +148,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         {
             HiResClock.Disabled = disabled;
             Assert.AreEqual(disabled, HiResClock.Disabled);
-            Stopwatch stopWatch = new Stopwatch();
+            var stopWatch = new Stopwatch();
             stopWatch.Start();
             long lastTickCount = HiResClock.UtcNow.Ticks;
             long firstTickCount = lastTickCount;
@@ -175,11 +175,11 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             // test accuracy of counter vs. stop watch
             try
             {
-                Assert.That(elapsed, Is.EqualTo(stopWatch.ElapsedMilliseconds).Within(Percent).Percent);
+                NUnit.Framework.Assert.That(elapsed, Is.EqualTo(stopWatch.ElapsedMilliseconds).Within(Percent).Percent);
             }
             catch (Exception ex)
             {
-                Assert.Inconclusive(ex.Message);
+                NUnit.Framework.Assert.Inconclusive(ex.Message);
             }
         }
         #endregion

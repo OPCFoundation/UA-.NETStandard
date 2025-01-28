@@ -13,7 +13,6 @@
 using System;
 using System.Text;
 using System.Security.Cryptography.X509Certificates;
-using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua
 {
@@ -96,8 +95,8 @@ namespace Opc.Ua
         /// </summary>
         public string DecryptedPassword
         {
-            get { return m_decryptedPassword; }
-            set { m_decryptedPassword = value; }
+            get => m_decryptedPassword;
+            set => m_decryptedPassword = value;
         }
         #endregion
 
@@ -163,7 +162,7 @@ namespace Opc.Ua
             else
             {
 #if ECC_SUPPORT
-                EncryptedSecret secret = new EncryptedSecret();
+                var secret = new EncryptedSecret();
 
                 secret.ReceiverCertificate = receiverCertificate;
                 secret.SecurityPolicyUri = securityPolicyUri;
@@ -191,7 +190,7 @@ namespace Opc.Ua
                 secret.SenderIssuerCertificates = senderIssuerCertificates;
                 secret.SenderNonce = Nonce.CreateNonce(securityPolicyUri);
 
-                var utf8 = new UTF8Encoding(false).GetBytes(m_decryptedPassword);
+                byte[] utf8 = new UTF8Encoding(false).GetBytes(m_decryptedPassword);
                 m_password = secret.Encrypt(utf8, receiverNonce);
                 m_encryptionAlgorithm = null;
 #else
@@ -222,7 +221,7 @@ namespace Opc.Ua
             // handle RSA encryption.
             if (!EccUtils.IsEccPolicy(securityPolicyUri))
             {
-                EncryptedData encryptedData = new EncryptedData();
+                var encryptedData = new EncryptedData();
                 encryptedData.Data = m_password;
                 encryptedData.Algorithm = m_encryptionAlgorithm;
 
@@ -262,7 +261,7 @@ namespace Opc.Ua
             else
             {
 #if ECC_SUPPORT
-                EncryptedSecret secret = new EncryptedSecret();
+                var secret = new EncryptedSecret();
 
                 secret.SenderCertificate = senderCertificate;
                 secret.SenderIssuerCertificates = senderIssuerCertificates;
@@ -271,7 +270,7 @@ namespace Opc.Ua
                 secret.ReceiverNonce = ephemeralKey;
                 secret.SecurityPolicyUri = securityPolicyUri;
 
-                var plainText = secret.Decrypt(DateTime.UtcNow.AddHours(-1), receiverNonce.Data, m_password, 0, m_password.Length);
+                byte[] plainText = secret.Decrypt(DateTime.UtcNow.AddHours(-1), receiverNonce.Data, m_password, 0, m_password.Length);
                 m_decryptedPassword = new UTF8Encoding().GetString(plainText);
 #else
                 throw new NotSupportedException("Platform does not support ECC curves");
@@ -305,7 +304,7 @@ namespace Opc.Ua
                 }
                 return m_certificate;
             }
-            set { m_certificate = value; }
+            set => m_certificate = value;
         }
         #endregion
 
@@ -317,10 +316,7 @@ namespace Opc.Ua
         {
             X509Certificate2 certificate = m_certificate;
 
-            if (certificate == null)
-            {
-                certificate = CertificateFactory.Create(m_certificateData, true);
-            }
+            certificate ??= CertificateFactory.Create(m_certificateData, true);
 
             SignatureData signatureData = SecurityPolicies.Sign(
                 certificate,
@@ -341,10 +337,7 @@ namespace Opc.Ua
             {
                 X509Certificate2 certificate = m_certificate;
 
-                if (certificate == null)
-                {
-                    certificate = CertificateFactory.Create(m_certificateData, true);
-                }
+                certificate ??= CertificateFactory.Create(m_certificateData, true);
 
                 bool valid = SecurityPolicies.Verify(
                     certificate,
@@ -411,8 +404,8 @@ namespace Opc.Ua
         /// </summary>
         public byte[] DecryptedTokenData
         {
-            get { return m_decryptedTokenData; }
-            set { m_decryptedTokenData = value; }
+            get => m_decryptedTokenData;
+            set => m_decryptedTokenData = value;
         }
         #endregion
 
@@ -485,7 +478,7 @@ namespace Opc.Ua
                 return;
             }
 
-            EncryptedData encryptedData = new EncryptedData();
+            var encryptedData = new EncryptedData();
 
             encryptedData.Data = m_tokenData;
             encryptedData.Algorithm = m_encryptionAlgorithm;

@@ -11,7 +11,6 @@
 */
 
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
@@ -215,7 +214,7 @@ namespace Opc.Ua
         /// <param name="text">The string id of this new node</param>
         public NodeId(string text)
         {
-            NodeId nodeId = NodeId.Parse(text);
+            var nodeId = Parse(text);
 
             m_namespaceIndex = nodeId.NamespaceIndex;
             m_identifierType = nodeId.IdType;
@@ -303,7 +302,7 @@ namespace Opc.Ua
                 return Null;
             }
 
-            var originalText = text;
+            string originalText = text;
             int namespaceIndex = 0;
 
             if (text.StartsWith("nsu=", StringComparison.Ordinal))
@@ -315,7 +314,7 @@ namespace Opc.Ua
                     throw ServiceResultException.Create(StatusCodes.BadNodeIdInvalid, "Invalid NodeId ({0}).", originalText);
                 }
 
-                var namespaceUri = Utils.UnescapeUri(text.Substring(4, index - 4));
+                string namespaceUri = Utils.UnescapeUri(text.Substring(4, index - 4));
                 namespaceIndex = (options?.UpdateTables == true) ? context.NamespaceUris.GetIndexOrAppend(namespaceUri) : context.NamespaceUris.GetIndex(namespaceUri);
 
                 if (namespaceIndex < 0)
@@ -379,7 +378,7 @@ namespace Opc.Ua
                     {
                         try
                         {
-                            var bytes = Convert.FromBase64String(text);
+                            byte[] bytes = Convert.FromBase64String(text);
                             return new NodeId(bytes, (ushort)namespaceIndex);
                         }
                         catch (Exception)
@@ -392,7 +391,7 @@ namespace Opc.Ua
 
                     case 'g':
                     {
-                        if (Guid.TryParse(text, out var guid))
+                        if (Guid.TryParse(text, out Guid guid))
                         {
                             return new NodeId(guid, (ushort)namespaceIndex);
                         }
@@ -424,7 +423,7 @@ namespace Opc.Ua
             {
                 if (useNamespaceUri)
                 {
-                    var namespaceUri = context.NamespaceUris.GetString(m_namespaceIndex);
+                    string namespaceUri = context.NamespaceUris.GetString(m_namespaceIndex);
 
                     if (!String.IsNullOrEmpty(namespaceUri))
                     {
@@ -722,7 +721,7 @@ namespace Opc.Ua
         /// <param name="text">The <see cref="String"/> to compare this node to.</param>
         public static implicit operator NodeId(string text)
         {
-            return NodeId.Parse(text);
+            return Parse(text);
         }
 
         /// <summary>
@@ -790,7 +789,7 @@ namespace Opc.Ua
             {
                 if (String.IsNullOrEmpty(text))
                 {
-                    return NodeId.Null;
+                    return Null;
                 }
 
                 ushort namespaceIndex = 0;
@@ -890,7 +889,7 @@ namespace Opc.Ua
         /// </remarks>
         private string Format(IFormatProvider formatProvider)
         {
-            StringBuilder buffer = new StringBuilder();
+            var buffer = new StringBuilder();
             Format(formatProvider, buffer);
             return buffer.ToString();
         }
@@ -981,7 +980,7 @@ namespace Opc.Ua
                 return null;
             }
 
-            ExpandedNodeId expandedId = new ExpandedNodeId(nodeId);
+            var expandedId = new ExpandedNodeId(nodeId);
 
             if (nodeId.NamespaceIndex > 0)
             {
@@ -1054,13 +1053,13 @@ namespace Opc.Ua
         public int CompareTo(object obj)
         {
             // check for null.
-            if (Object.ReferenceEquals(obj, null))
+            if (ReferenceEquals(obj, null))
             {
                 return -1;
             }
 
             // check for reference comparisons.
-            if (Object.ReferenceEquals(this, obj))
+            if (ReferenceEquals(this, obj))
             {
                 return 0;
             }
@@ -1070,9 +1069,9 @@ namespace Opc.Ua
             object id = null;
 
             // check for expanded node ids.
-            NodeId nodeId = obj as NodeId;
+            var nodeId = obj as NodeId;
 
-            if (!Object.ReferenceEquals(nodeId, null))
+            if (!ReferenceEquals(nodeId, null))
             {
                 if (this.IsNullNodeId && nodeId.IsNullNodeId)
                 {
@@ -1120,9 +1119,9 @@ namespace Opc.Ua
                     return (id1 < id2) ? -1 : +1;
                 }
 
-                ExpandedNodeId expandedId = obj as ExpandedNodeId;
+                var expandedId = obj as ExpandedNodeId;
 
-                if (!Object.ReferenceEquals(expandedId, null))
+                if (!ReferenceEquals(expandedId, null))
                 {
                     if (expandedId.IsAbsolute)
                     {
@@ -1140,8 +1139,8 @@ namespace Opc.Ua
                 }
                 else if (obj != null)
                 {
-                    Guid? guid2 = obj as Guid?;
-                    Uuid? uuid2 = obj as Uuid?;
+                    var guid2 = obj as Guid?;
+                    var uuid2 = obj as Uuid?;
                     if (guid2 != null || uuid2 != null)
                     {
                         if (namespaceIndex != 0 || idType != IdType.Guid)
@@ -1279,7 +1278,7 @@ namespace Opc.Ua
         /// </remarks>
         public static bool operator >(NodeId value1, NodeId value2)
         {
-            if (!Object.ReferenceEquals(value1, null))
+            if (!ReferenceEquals(value1, null))
             {
                 return value1.CompareTo(value2) > 0;
             }
@@ -1295,7 +1294,7 @@ namespace Opc.Ua
         /// </remarks>
         public static bool operator <(NodeId value1, NodeId value2)
         {
-            if (!Object.ReferenceEquals(value1, null))
+            if (!ReferenceEquals(value1, null))
             {
                 return value1.CompareTo(value2) < 0;
             }
@@ -1367,7 +1366,7 @@ namespace Opc.Ua
         /// <param name="other">The NodeId to compare to</param>
         public bool Equals(NodeId other)
         {
-            if (Object.ReferenceEquals(this, other))
+            if (ReferenceEquals(this, other))
             {
                 return true;
             }
@@ -1454,9 +1453,9 @@ namespace Opc.Ua
         /// </remarks>
         public static bool operator ==(NodeId value1, object value2)
         {
-            if (Object.ReferenceEquals(value1, null))
+            if (ReferenceEquals(value1, null))
             {
-                return Object.ReferenceEquals(value2, null);
+                return ReferenceEquals(value2, null);
             }
 
             return (value1.CompareTo(value2) == 0);
@@ -1470,9 +1469,9 @@ namespace Opc.Ua
         /// </remarks>
         public static bool operator !=(NodeId value1, object value2)
         {
-            if (Object.ReferenceEquals(value1, null))
+            if (ReferenceEquals(value1, null))
             {
-                return !Object.ReferenceEquals(value2, null);
+                return !ReferenceEquals(value2, null);
             }
 
             return (value1.CompareTo(value2) != 0);
@@ -1489,13 +1488,10 @@ namespace Opc.Ua
         [DataMember(Name = "Identifier", Order = 1)]
         internal string IdentifierText
         {
-            get
-            {
-                return Format(CultureInfo.InvariantCulture);
-            }
+            get => Format(CultureInfo.InvariantCulture);
             set
             {
-                NodeId nodeId = NodeId.Parse(value);
+                var nodeId = Parse(value);
 
                 m_namespaceIndex = nodeId.NamespaceIndex;
                 m_identifierType = nodeId.IdType;
@@ -1960,7 +1956,7 @@ namespace Opc.Ua
         /// </remarks>
         public new object MemberwiseClone()
         {
-            NodeIdCollection clone = new NodeIdCollection(this.Count);
+            var clone = new NodeIdCollection(this.Count);
 
             foreach (NodeId element in this)
             {

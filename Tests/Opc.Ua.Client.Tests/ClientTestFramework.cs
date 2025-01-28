@@ -32,10 +32,8 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
-using System.Threading;
 using System.Threading.Tasks;
 using BenchmarkDotNet.Attributes;
-using Microsoft.Extensions.Logging;
 using NUnit.Framework;
 using Opc.Ua.Server.Tests;
 using Quickstarts.ReferenceServer;
@@ -180,7 +178,7 @@ namespace Opc.Ua.Client.Tests
                 }
                 catch (Exception e)
                 {
-                    Assert.Warn($"OneTimeSetup failed to create session with {ServerUrl}, tests fail. Error: {e.Message}");
+                    NUnit.Framework.Assert.Warn($"OneTimeSetup failed to create session with {ServerUrl}, tests fail. Error: {e.Message}");
                 }
             }
         }
@@ -214,7 +212,7 @@ namespace Opc.Ua.Client.Tests
             ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(new UserTokenPolicy(UserTokenType.UserName));
             ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(new UserTokenPolicy(UserTokenType.Certificate));
             ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(
-                new UserTokenPolicy(UserTokenType.IssuedToken) { IssuedTokenType = Opc.Ua.Profiles.JwtUserToken });
+                new UserTokenPolicy(UserTokenType.IssuedToken) { IssuedTokenType = Profiles.JwtUserToken });
 
             ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(new UserTokenPolicy(UserTokenType.UserName) {
                 SecurityPolicyUri = "http://opcfoundation.org/UA/SecurityPolicy#ECC_brainpoolP256r1"
@@ -243,25 +241,25 @@ namespace Opc.Ua.Client.Tests
             });
 
             ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(new UserTokenPolicy(UserTokenType.IssuedToken) {
-                IssuedTokenType = Opc.Ua.Profiles.JwtUserToken,
+                IssuedTokenType = Profiles.JwtUserToken,
                 PolicyId = Profiles.JwtUserToken,
                 SecurityPolicyUri =  "http://opcfoundation.org/UA/SecurityPolicy#ECC_brainpoolP256r1"
             });
             ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(new UserTokenPolicy(UserTokenType.IssuedToken)
             {
-                IssuedTokenType = Opc.Ua.Profiles.JwtUserToken,
+                IssuedTokenType = Profiles.JwtUserToken,
                 PolicyId = Profiles.JwtUserToken,
                 SecurityPolicyUri = "http://opcfoundation.org/UA/SecurityPolicy#ECC_brainpoolP384r1"
             });
             ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(new UserTokenPolicy(UserTokenType.IssuedToken)
             {
-                IssuedTokenType = Opc.Ua.Profiles.JwtUserToken,
+                IssuedTokenType = Profiles.JwtUserToken,
                 PolicyId = Profiles.JwtUserToken,
                 SecurityPolicyUri = "http://opcfoundation.org/UA/SecurityPolicy#ECC_nistP256"
             });
             ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(new UserTokenPolicy(UserTokenType.IssuedToken)
             {
-                IssuedTokenType = Opc.Ua.Profiles.JwtUserToken,
+                IssuedTokenType = Profiles.JwtUserToken,
                 PolicyId = Profiles.JwtUserToken,
                 SecurityPolicyUri = "http://opcfoundation.org/UA/SecurityPolicy#ECC_nistP384"
             });
@@ -304,7 +302,7 @@ namespace Opc.Ua.Client.Tests
                 }
                 catch (Exception e)
                 {
-                    Assert.Ignore($"OneTimeSetup failed to create session, tests skipped. Error: {e.Message}");
+                    NUnit.Framework.Assert.Ignore($"OneTimeSetup failed to create session, tests skipped. Error: {e.Message}");
                 }
             }
             if (ServerFixture == null)
@@ -477,13 +475,13 @@ namespace Opc.Ua.Client.Tests
         private ExpandedNodeId[] ReadCustomTestSet(string param)
         {
             // load custom test sets
-            var testSetParameter = TestContext.Parameters[param];
-            var testSetParameters = testSetParameter.Split('#');
+            string testSetParameter = TestContext.Parameters[param];
+            string[] testSetParameters = testSetParameter.Split('#');
             if (testSetParameters != null)
             {
                 // parse the custom content
                 var testSet = new List<ExpandedNodeId>();
-                foreach (var parameter in testSetParameters)
+                foreach (string parameter in testSetParameters)
                 {
                     testSet.Add(ExpandedNodeId.Parse(parameter));
                 }

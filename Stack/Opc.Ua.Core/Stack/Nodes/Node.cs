@@ -101,8 +101,8 @@ namespace Opc.Ua
         /// <value>The handle.</value>
         public object Handle
         {
-            get { return m_handle; }
-            set { m_handle = value; }
+            get => m_handle;
+            set => m_handle = value;
         }
         #endregion
 
@@ -189,8 +189,8 @@ namespace Opc.Ua
         /// <value>The write mask.</value>
         AttributeWriteMask Opc.Ua.ILocalNode.WriteMask
         {
-            get { return (AttributeWriteMask)m_writeMask; }
-            set { m_writeMask = (uint)value; }
+            get => (AttributeWriteMask)m_writeMask;
+            set => m_writeMask = (uint)value;
         }
 
         /// <summary>
@@ -199,8 +199,8 @@ namespace Opc.Ua
         /// <value>The user write mask.</value>
         AttributeWriteMask Opc.Ua.ILocalNode.UserWriteMask
         {
-            get { return (AttributeWriteMask)m_userWriteMask; }
-            set { m_userWriteMask = (uint)value; }
+            get => (AttributeWriteMask)m_userWriteMask;
+            set => m_userWriteMask = (uint)value;
         }
 
         /// <summary>
@@ -231,7 +231,7 @@ namespace Opc.Ua
         /// <returns>Copy of the node</returns>
         public ILocalNode CreateCopy(NodeId nodeId)
         {
-            Node node = Node.Copy(this);
+            var node = Copy(this);
             node.NodeId = nodeId;
             return node;
         }
@@ -333,10 +333,7 @@ namespace Opc.Ua
         {
             get
             {
-                if (m_referenceTable == null)
-                {
-                    m_referenceTable = new ReferenceCollection();
-                }
+                m_referenceTable ??= new ReferenceCollection();
 
                 return m_referenceTable;
             }
@@ -406,7 +403,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public override int GetHashCode()
         {
-            HashCode hash = new HashCode();
+            var hash = new HashCode();
             hash.Add(m_nodeId);
             hash.Add(m_nodeClass);
             hash.Add(m_browseName);
@@ -528,10 +525,7 @@ namespace Opc.Ua
                 referenceType = ReferenceTypes.GetBrowseName((uint)m_referenceTypeId.Identifier);
             }
 
-            if (referenceType == null)
-            {
-                referenceType = Utils.Format("{0}", m_referenceTypeId);
-            }
+            referenceType ??= Utils.Format("{0}", m_referenceTypeId);
 
             if (m_isInverse)
             {
@@ -568,7 +562,7 @@ namespace Opc.Ua
         /// </returns>
         public override int GetHashCode()
         {
-            HashCode hash = new HashCode();
+            var hash = new HashCode();
             hash.Add(m_referenceTypeId);
             hash.Add(m_isInverse);
             hash.Add(m_targetId);
@@ -583,9 +577,9 @@ namespace Opc.Ua
         /// <returns>The result of the operator.Returns true if the objects are equal.</returns>
 		public static bool operator ==(ReferenceNode a, object b)
         {
-            if (Object.ReferenceEquals(a, null))
+            if (ReferenceEquals(a, null))
             {
-                return Object.ReferenceEquals(b, null);
+                return ReferenceEquals(b, null);
             }
 
             return a.CompareTo(b) == 0;
@@ -599,9 +593,9 @@ namespace Opc.Ua
         /// <returns>The result of the operator.Returns true if the objects are not equal.</returns>
 		public static bool operator !=(ReferenceNode a, object b)
         {
-            if (Object.ReferenceEquals(a, null))
+            if (ReferenceEquals(a, null))
             {
-                return !Object.ReferenceEquals(b, null);
+                return !ReferenceEquals(b, null);
             }
 
             return a.CompareTo(b) != 0;
@@ -629,26 +623,26 @@ namespace Opc.Ua
         /// </exception>
         public int CompareTo(object obj)
         {
-            if (Object.ReferenceEquals(obj, null))
+            if (ReferenceEquals(obj, null))
             {
                 return +1;
             }
 
-            if (Object.ReferenceEquals(obj, this))
+            if (ReferenceEquals(obj, this))
             {
                 return 0;
             }
 
-            ReferenceNode reference = obj as ReferenceNode;
+            var reference = obj as ReferenceNode;
 
             if (reference == null)
             {
                 return -1;
             }
 
-            if (Object.ReferenceEquals(m_referenceTypeId, null))
+            if (ReferenceEquals(m_referenceTypeId, null))
             {
-                return (Object.ReferenceEquals(reference.m_referenceTypeId, null)) ? 0 : -1;
+                return (ReferenceEquals(reference.m_referenceTypeId, null)) ? 0 : -1;
             }
 
             int result = m_referenceTypeId.CompareTo(reference.m_referenceTypeId);
@@ -663,9 +657,9 @@ namespace Opc.Ua
                 return (this.m_isInverse) ? +1 : -1;
             }
 
-            if (Object.ReferenceEquals(m_targetId, null))
+            if (ReferenceEquals(m_targetId, null))
             {
-                return (Object.ReferenceEquals(reference.m_targetId, null)) ? 0 : -1;
+                return (ReferenceEquals(reference.m_targetId, null)) ? 0 : -1;
             }
 
             return m_targetId.CompareTo(reference.m_targetId);
@@ -737,10 +731,7 @@ namespace Opc.Ua
 
                 object value = variable.Value;
 
-                if (value == null)
-                {
-                    value = TypeInfo.GetDefaultValue(variable.DataType, variable.ValueRank);
-                }
+                value ??= TypeInfo.GetDefaultValue(variable.DataType, variable.ValueRank);
 
                 this.Value = new Variant(value);
 
@@ -759,15 +750,9 @@ namespace Opc.Ua
         /// <value>The value.</value>
         object IVariableBase.Value
         {
-            get
-            {
-                return m_value.Value;
-            }
+            get => m_value.Value;
 
-            set
-            {
-                m_value.Value = value;
-            }
+            set => m_value.Value = value;
         }
 
         /// <summary>
@@ -776,10 +761,7 @@ namespace Opc.Ua
         /// <value>The array dimensions.</value>
         IList<uint> IVariableBase.ArrayDimensions
         {
-            get
-            {
-                return m_arrayDimensions;
-            }
+            get => m_arrayDimensions;
 
             set
             {
@@ -894,7 +876,7 @@ namespace Opc.Ua
 
                 case Attributes.DataType:
                 {
-                    NodeId dataType = (NodeId)value;
+                    var dataType = (NodeId)value;
 
                     // must ensure the value is of the correct datatype.
                     if (dataType != m_dataType)
@@ -1134,15 +1116,9 @@ namespace Opc.Ua
         /// <value>The value.</value>
         object IVariableBase.Value
         {
-            get
-            {
-                return m_value.Value;
-            }
+            get => m_value.Value;
 
-            set
-            {
-                m_value.Value = value;
-            }
+            set => m_value.Value = value;
         }
 
         /// <summary>
@@ -1151,10 +1127,7 @@ namespace Opc.Ua
         /// <value>The number in each dimension of an array value.</value>
         IList<uint> IVariableBase.ArrayDimensions
         {
-            get
-            {
-                return m_arrayDimensions;
-            }
+            get => m_arrayDimensions;
 
             set
             {
@@ -1257,7 +1230,7 @@ namespace Opc.Ua
 
                 case Attributes.DataType:
                 {
-                    NodeId dataType = (NodeId)value;
+                    var dataType = (NodeId)value;
 
                     // must ensure the value is of the correct datatype.
                     if (dataType != m_dataType)

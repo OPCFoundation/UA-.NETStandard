@@ -88,10 +88,10 @@ namespace Opc.Ua.Server
             if (disposing)
             {
                 // create snapshot of all sessions
-                var sessions = m_sessions.ToArray();
+                KeyValuePair<NodeId, Session>[] sessions = m_sessions.ToArray();
                 m_sessions.Clear();
 
-                foreach (var sessionKeyValue in sessions)
+                foreach (KeyValuePair<NodeId, Session> sessionKeyValue in sessions)
                 {
                     Utils.SilentDispose(sessionKeyValue.Value);
                 }
@@ -127,10 +127,10 @@ namespace Opc.Ua.Server
             m_shutdownEvent.Set();
 
             // dispose of session objects using a snapshot.
-            var sessions = m_sessions.ToArray();
+            KeyValuePair<NodeId, Session>[] sessions = m_sessions.ToArray();
             m_sessions.Clear();
 
-            foreach (var sessionKeyValue in sessions)
+            foreach (KeyValuePair<NodeId, Session> sessionKeyValue in sessions)
             {
                 Utils.SilentDispose(sessionKeyValue.Value);
             }
@@ -173,7 +173,7 @@ namespace Opc.Ua.Server
                 if (clientNonce != null)
                 {
                     // iterate over key/value pairs in the dictionary with a thread safe iterator
-                    foreach (var sessionKeyValueIterator in m_sessions)
+                    foreach (KeyValuePair<NodeId, Session> sessionKeyValueIterator in m_sessions)
                     {
                         byte[] sessionClientNonce = sessionKeyValueIterator.Value?.ClientNonce;
                         if (Nonce.CompareNonce(sessionClientNonce, clientNonce))
@@ -365,7 +365,7 @@ namespace Opc.Ua.Server
                 {
                     if (m_impersonateUser != null)
                     {
-                        ImpersonateEventArgs args = new ImpersonateEventArgs(newIdentity, userTokenPolicy, context.ChannelContext.EndpointDescription);
+                        var args = new ImpersonateEventArgs(newIdentity, userTokenPolicy, context.ChannelContext.EndpointDescription);
                         m_impersonateUser(session, args);
 
                         if (ServiceResult.IsBad(args.IdentityValidationError))
@@ -381,16 +381,10 @@ namespace Opc.Ua.Server
                 }
 
                 // parse the token manually if the identity is not provided.
-                if (identity == null)
-                {
-                    identity = newIdentity != null ? new UserIdentity(newIdentity) : new UserIdentity();
-                }
+                identity ??= newIdentity != null ? new UserIdentity(newIdentity) : new UserIdentity();
 
                 // use the identity as the effectiveIdentity if not provided.
-                if (effectiveIdentity == null)
-                {
-                    effectiveIdentity = identity;
-                }
+                effectiveIdentity ??= identity;
             }
             catch (Exception e)
             {
@@ -528,9 +522,7 @@ namespace Opc.Ua.Server
             }
             catch (Exception e)
             {
-                ServiceResultException sre = e as ServiceResultException;
-
-                if (sre != null && sre.StatusCode == StatusCodes.BadSessionNotActivated)
+                if (e is ServiceResultException sre && sre.StatusCode == StatusCodes.BadSessionNotActivated)
                 {
                     if (session != null)
                     {
@@ -564,7 +556,7 @@ namespace Opc.Ua.Server
             int maxRequestAge, // TBD - Remove unused parameter.
             int maxContinuationPoints) // TBD - Remove unused parameter.
         {
-            Session session = new Session(
+            var session = new Session(
                 context,
                 m_server,
                 serverCertificate,
@@ -632,7 +624,7 @@ namespace Opc.Ua.Server
                 do
                 {
                     // enumerator is thread safe
-                    foreach (var sessionKeyValue in m_sessions)
+                    foreach (KeyValuePair<NodeId, Session> sessionKeyValue in m_sessions)
                     {
                         Session session = sessionKeyValue.Value;
                         if (session.HasExpired)
@@ -967,8 +959,8 @@ namespace Opc.Ua.Server
         /// </summary>
         public IUserIdentity Identity
         {
-            get { return m_identity; }
-            set { m_identity = value; }
+            get => m_identity;
+            set => m_identity = value;
         }
 
         /// <summary>
@@ -976,8 +968,8 @@ namespace Opc.Ua.Server
         /// </summary>
         public IUserIdentity EffectiveIdentity
         {
-            get { return m_effectiveIdentity; }
-            set { m_effectiveIdentity = value; }
+            get => m_effectiveIdentity;
+            set => m_effectiveIdentity = value;
         }
 
         /// <summary>
@@ -985,8 +977,8 @@ namespace Opc.Ua.Server
         /// </summary>
         public ServiceResult IdentityValidationError
         {
-            get { return m_identityValidationError; }
-            set { m_identityValidationError = value; }
+            get => m_identityValidationError;
+            set => m_identityValidationError = value;
         }
 
         /// <summary>

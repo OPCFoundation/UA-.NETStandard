@@ -72,7 +72,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// </returns>
         public new object MemberwiseClone()
         {
-            UnionComplexType clone = (UnionComplexType)base.MemberwiseClone();
+            var clone = (UnionComplexType)base.MemberwiseClone();
             clone.m_switchField = m_switchField;
             return clone;
         }
@@ -105,7 +105,7 @@ namespace Opc.Ua.Client.ComplexTypes
             {
                 int unionSelector = 1;
                 ComplexTypePropertyInfo unionProperty = null;
-                foreach (var property in GetPropertyEnumerator())
+                foreach (ComplexTypePropertyInfo property in GetPropertyEnumerator())
                 {
                     if (unionSelector == m_switchField)
                     {
@@ -134,7 +134,7 @@ namespace Opc.Ua.Client.ComplexTypes
             UInt32 unionSelector = m_switchField;
             if (unionSelector > 0)
             {
-                foreach (var property in GetPropertyEnumerator())
+                foreach (ComplexTypePropertyInfo property in GetPropertyEnumerator())
                 {
                     if (--unionSelector == 0)
                     {
@@ -149,7 +149,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <inheritdoc/>
         public override bool IsEqual(IEncodeable encodeable)
         {
-            if (Object.ReferenceEquals(this, encodeable))
+            if (ReferenceEquals(this, encodeable))
             {
                 return true;
             }
@@ -164,7 +164,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 return false;
             }
 
-            var valueType = valueBaseType.GetType();
+            Type valueType = valueBaseType.GetType();
             if (this.GetType() != valueType)
             {
                 return false;
@@ -173,7 +173,7 @@ namespace Opc.Ua.Client.ComplexTypes
             if (m_switchField != 0)
             {
                 UInt32 unionSelector = m_switchField;
-                foreach (var property in GetPropertyEnumerator())
+                foreach (ComplexTypePropertyInfo property in GetPropertyEnumerator())
                 {
                     if (--unionSelector == 0)
                     {
@@ -195,11 +195,11 @@ namespace Opc.Ua.Client.ComplexTypes
         {
             if (format == null)
             {
-                StringBuilder body = new StringBuilder();
+                var body = new StringBuilder();
                 if (m_switchField != 0)
                 {
                     UInt32 unionSelector = m_switchField;
-                    foreach (var property in GetPropertyEnumerator())
+                    foreach (ComplexTypePropertyInfo property in GetPropertyEnumerator())
                     {
                         if (--unionSelector == 0)
                         {

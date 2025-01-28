@@ -53,7 +53,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             using (var binaryEncoder = new BinaryEncoder(m_context))
             {
                 TestEncoding(binaryEncoder);
-                var result = binaryEncoder.CloseAndReturnBuffer();
+                byte[] result = binaryEncoder.CloseAndReturnBuffer();
                 Assert.NotNull(result);
             }
         }
@@ -70,7 +70,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             using (var binaryEncoder = new BinaryEncoder(memoryStream, m_context, true))
             {
                 TestEncoding(binaryEncoder);
-                var result = binaryEncoder.CloseAndReturnBuffer();
+                byte[] result = binaryEncoder.CloseAndReturnBuffer();
                 Assert.NotNull(result);
             }
         }
@@ -152,8 +152,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             {
                 BinaryEncoder_StreamLeaveOpen(arraySegmentStream);
                 // get buffers and return them to buffer manager
-                var buffers = arraySegmentStream.GetBuffers("writer");
-                foreach (var buffer in buffers)
+                BufferCollection buffers = arraySegmentStream.GetBuffers("writer");
+                foreach (System.ArraySegment<byte> buffer in buffers)
                 {
                     m_bufferManager.ReturnBuffer(buffer.Array, "testreturn");
                 }
@@ -176,8 +176,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             {
                 BinaryEncoder_StreamLeaveOpen(arraySegmentStream);
                 // get buffers and return them to buffer manager
-                var buffers = arraySegmentStream.GetBuffers("writer");
-                foreach (var buffer in buffers)
+                BufferCollection buffers = arraySegmentStream.GetBuffers("writer");
+                foreach (System.ArraySegment<byte> buffer in buffers)
                 {
                     m_bufferManager.ReturnBuffer(buffer.Array, "testreturn");
                 }
@@ -199,13 +199,13 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 {
                     int length = binaryEncoder.Close();
                     Assert.AreEqual(length, memoryStream.Position);
-                    var result = memoryStream.ToArray();
+                    byte[] result = memoryStream.ToArray();
                     Assert.NotNull(result);
                     Assert.AreEqual(length, result.Length);
                 }
                 else
                 {
-                    var result = binaryEncoder.CloseAndReturnBuffer();
+                    byte[] result = binaryEncoder.CloseAndReturnBuffer();
                     Assert.NotNull(result);
                 }
             }
@@ -228,7 +228,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             if (testResult)
             {
                 Assert.AreEqual(length1 * 2, length2);
-                var result = Encoding.UTF8.GetString(memoryStream.ToArray());
+                string result = Encoding.UTF8.GetString(memoryStream.ToArray());
                 Assert.NotNull(result);
                 Assert.AreEqual(length2, memoryStream.Position);
             }

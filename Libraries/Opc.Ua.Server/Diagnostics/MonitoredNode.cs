@@ -29,8 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using Opc.Ua;
-using Opc.Ua.Server;
 
 namespace Opc.Ua.Server
 {
@@ -61,8 +59,8 @@ namespace Opc.Ua.Server
         /// </summary>
         public CustomNodeManager2 NodeManager
         {
-            get { return m_nodeManager; }
-            set { m_nodeManager = value; }
+            get => m_nodeManager;
+            set => m_nodeManager = value;
         }
 
         /// <summary>
@@ -70,8 +68,8 @@ namespace Opc.Ua.Server
         /// </summary>
         public NodeState Node
         {
-            get { return m_node; }
-            set { m_node = value; }
+            get => m_node;
+            set => m_node = value;
         }
 
         /// <summary>
@@ -79,8 +77,8 @@ namespace Opc.Ua.Server
         /// </summary>
         public List<MonitoredItem> DataChangeMonitoredItems
         {
-            get { return m_dataChangeMonitoredItems; }
-            private set { m_dataChangeMonitoredItems = value; }
+            get => m_dataChangeMonitoredItems;
+            private set => m_dataChangeMonitoredItems = value;
         }
 
         /// <summary>
@@ -88,8 +86,8 @@ namespace Opc.Ua.Server
         /// </summary>
         public List<IEventMonitoredItem> EventMonitoredItems
         {
-            get { return m_eventMonitoredItems; }
-            private set { m_eventMonitoredItems = value; }
+            get => m_eventMonitoredItems;
+            private set => m_eventMonitoredItems = value;
         }
 
         /// <summary>
@@ -139,7 +137,7 @@ namespace Opc.Ua.Server
         {
             for (int ii = 0; ii < DataChangeMonitoredItems.Count; ii++)
             {
-                if (Object.ReferenceEquals(DataChangeMonitoredItems[ii], datachangeItem))
+                if (ReferenceEquals(DataChangeMonitoredItems[ii], datachangeItem))
                 {
                     DataChangeMonitoredItems.RemoveAt(ii);
                     break;
@@ -176,7 +174,7 @@ namespace Opc.Ua.Server
         {
             for (int ii = 0; ii < EventMonitoredItems.Count; ii++)
             {
-                if (Object.ReferenceEquals(EventMonitoredItems[ii], eventItem))
+                if (ReferenceEquals(EventMonitoredItems[ii], eventItem))
                 {
                     EventMonitoredItems.RemoveAt(ii);
                     break;
@@ -198,7 +196,7 @@ namespace Opc.Ua.Server
         /// <param name="e">The event.</param>
         public void OnReportEvent(ISystemContext context, NodeState node, IFilterTarget e)
         {
-            List<IEventMonitoredItem> eventMonitoredItems = new List<IEventMonitoredItem>();
+            var eventMonitoredItems = new List<IEventMonitoredItem>();
 
             lock (NodeManager.Lock)
             {
@@ -324,7 +322,7 @@ namespace Opc.Ua.Server
             NodeState node,
             MonitoredItem monitoredItem)
         {
-            DataValue value = new DataValue();
+            var value = new DataValue();
 
             value.Value = null;
             value.ServerTimestamp = DateTime.UtcNow;

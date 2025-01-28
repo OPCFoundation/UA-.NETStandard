@@ -79,7 +79,7 @@ namespace Opc.Ua.Security.Certificates
             Tbs = tbs;
             Signature = signature;
             SignatureAlgorithmIdentifier = signatureAlgorithmIdentifier;
-            SignatureAlgorithm = X509Signature.DecodeAlgorithm(signatureAlgorithmIdentifier);
+            SignatureAlgorithm = DecodeAlgorithm(signatureAlgorithmIdentifier);
             Name = Oids.GetHashAlgorithmName(SignatureAlgorithm);
         }
 

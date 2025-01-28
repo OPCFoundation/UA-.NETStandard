@@ -432,56 +432,32 @@ namespace Opc.Ua.Schema.Binary
         /// <remarks/>
         public Documentation Documentation
         {
-            get
-            {
-                return this.documentationField;
-            }
-            set
-            {
-                this.documentationField = value;
-            }
+            get => this.documentationField;
+            set => this.documentationField = value;
         }
 
         /// <remarks/>
         [System.Xml.Serialization.XmlAttributeAttribute(DataType = "NCName")]
         public string Name
         {
-            get
-            {
-                return this.nameField;
-            }
-            set
-            {
-                this.nameField = value;
-            }
+            get => this.nameField;
+            set => this.nameField = value;
         }
 
         /// <remarks/>
         [System.Xml.Serialization.XmlAttributeAttribute()]
         public ByteOrder DefaultByteOrder
         {
-            get
-            {
-                return this.defaultByteOrderField;
-            }
-            set
-            {
-                this.defaultByteOrderField = value;
-            }
+            get => this.defaultByteOrderField;
+            set => this.defaultByteOrderField = value;
         }
 
         /// <remarks/>
         [System.Xml.Serialization.XmlIgnoreAttribute()]
         public bool DefaultByteOrderSpecified
         {
-            get
-            {
-                return this.defaultByteOrderFieldSpecified;
-            }
-            set
-            {
-                this.defaultByteOrderFieldSpecified = value;
-            }
+            get => this.defaultByteOrderFieldSpecified;
+            set => this.defaultByteOrderFieldSpecified = value;
         }
     }
 

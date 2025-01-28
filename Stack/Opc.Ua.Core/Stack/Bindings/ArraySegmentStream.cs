@@ -109,7 +109,7 @@ namespace Opc.Ua.Bindings
         /// <returns></returns>
         public BufferCollection GetBuffers(string owner)
         {
-            BufferCollection buffers = new BufferCollection(m_buffers.Count);
+            var buffers = new BufferCollection(m_buffers.Count);
 
             for (int ii = 0; ii < m_buffers.Count; ii++)
             {
@@ -190,15 +190,9 @@ namespace Opc.Ua.Bindings
         /// <inheritdoc/>
         public override long Position
         {
-            get
-            {
-                return GetAbsolutePosition();
-            }
+            get => GetAbsolutePosition();
 
-            set
-            {
-                Seek(value, SeekOrigin.Begin);
-            }
+            set => Seek(value, SeekOrigin.Begin);
         }
 
         /// <inheritdoc/>

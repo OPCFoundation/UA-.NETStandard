@@ -1,6 +1,5 @@
 using System;
 using System.Diagnostics;
-using System.Globalization;
 using System.Runtime.Serialization;
 using System.Text;
 
@@ -91,7 +90,7 @@ namespace Opc.Ua
         {
             try
             {
-                Array array = Array.CreateInstance(m_elements.GetType().GetElementType(), m_dimensions);
+                var array = Array.CreateInstance(m_elements.GetType().GetElementType(), m_dimensions);
 
                 int[] indexes = new int[m_dimensions.Length];
 
@@ -131,7 +130,7 @@ namespace Opc.Ua
         /// </remarks>
         public override bool Equals(object obj)
         {
-            if (Object.ReferenceEquals(this, obj))
+            if (ReferenceEquals(this, obj))
             {
                 return true;
             }
@@ -192,7 +191,7 @@ namespace Opc.Ua
         {
             if (format == null)
             {
-                StringBuilder buffer = new StringBuilder();
+                var buffer = new StringBuilder();
 
                 buffer.AppendFormat(formatProvider, "{0}[", m_elements.GetType().GetElementType().Name);
 
@@ -246,7 +245,7 @@ namespace Opc.Ua
 
         {
 #if DEBUG
-            TypeInfo sanityCheck = TypeInfo.Construct(elements);
+            var sanityCheck = TypeInfo.Construct(elements);
             Debug.Assert(sanityCheck.BuiltInType == builtInType || builtInType == BuiltInType.Enumeration ||
                     (sanityCheck.BuiltInType == BuiltInType.ExtensionObject && builtInType == BuiltInType.Null) ||
                     (sanityCheck.BuiltInType == BuiltInType.Int32 && builtInType == BuiltInType.Enumeration) ||

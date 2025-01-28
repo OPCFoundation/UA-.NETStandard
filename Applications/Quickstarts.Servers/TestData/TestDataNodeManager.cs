@@ -29,11 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Text;
-using System.Diagnostics;
-using System.Xml;
-using System.IO;
-using System.Threading;
 using Opc.Ua;
 using Opc.Ua.Server;
 using System.Reflection;
@@ -88,10 +83,7 @@ namespace TestData
             m_configuration = configuration.ParseExtension<TestDataNodeManagerConfiguration>();
 
             // use suitable defaults if no configuration exists.
-            if (m_configuration == null)
-            {
-                m_configuration = new TestDataNodeManagerConfiguration();
-            }
+            m_configuration ??= new TestDataNodeManagerConfiguration();
 
             m_lastUsedId = m_configuration.NextUnusedId - 1;
 
@@ -181,14 +173,13 @@ namespace TestData
                 }
 #endif
                 // link all conditions to the conditions folder.
-                NodeState conditionsFolder = (NodeState)FindPredefinedNode(
+                var conditionsFolder = (NodeState)FindPredefinedNode(
                     new NodeId(Objects.Data_Conditions, m_typeNamespaceIndex),
                     typeof(NodeState));
 
                 foreach (NodeState node in PredefinedNodes.Values)
                 {
-                    ConditionState condition = node as ConditionState;
-                    if (condition != null && !Object.ReferenceEquals(condition.Parent, conditionsFolder))
+                    if (node is ConditionState condition && !ReferenceEquals(condition.Parent, conditionsFolder))
                     {
                         condition.AddNotifier(SystemContext, null, true, conditionsFolder);
                         conditionsFolder.AddNotifier(SystemContext, null, false, condition);
@@ -196,7 +187,7 @@ namespace TestData
                 }
 
                 // enable history for all numeric scalar values.
-                ScalarValueObjectState scalarValues = (ScalarValueObjectState)FindPredefinedNode(
+                var scalarValues = (ScalarValueObjectState)FindPredefinedNode(
                     new NodeId(Objects.Data_Dynamic_Scalar, m_typeNamespaceIndex),
                     typeof(ScalarValueObjectState));
 
@@ -207,27 +198,27 @@ namespace TestData
 
                 // Initialize Root Variable for structures with variables
                 {
-                    var variable = FindTypeState<ScalarStructureVariableState>(Variables.Data_Static_Structure_ScalarStructure);
+                    ScalarStructureVariableState variable = FindTypeState<ScalarStructureVariableState>(Variables.Data_Static_Structure_ScalarStructure);
                     m_dataStaticStructureScalarStructure = new ScalarStructureVariableValue(variable, m_system.GetRandomScalarStructureDataType(), null);
                 }
                 {
-                    var variable = FindTypeState<ScalarStructureVariableState>(Variables.Data_Dynamic_Structure_ScalarStructure);
+                    ScalarStructureVariableState variable = FindTypeState<ScalarStructureVariableState>(Variables.Data_Dynamic_Structure_ScalarStructure);
                     m_dataDynamicStructureScalarStructure = new ScalarStructureVariableValue(variable, m_system.GetRandomScalarStructureDataType(), null);
                 }
                 {
-                    var variable = FindTypeState<VectorVariableState>(Variables.Data_Static_Structure_VectorStructure);
+                    VectorVariableState variable = FindTypeState<VectorVariableState>(Variables.Data_Static_Structure_VectorStructure);
                     m_dataStaticStructureVectorStructure = new VectorVariableValue(variable, m_system.GetRandomVector(), null);
                 }
                 {
-                    var variable = FindTypeState<VectorVariableState>(Variables.Data_Dynamic_Structure_VectorStructure);
+                    VectorVariableState variable = FindTypeState<VectorVariableState>(Variables.Data_Dynamic_Structure_VectorStructure);
                     m_dataDynamicStructureVectorStructure = new VectorVariableValue(variable, m_system.GetRandomVector(), null);
                 }
                 {
-                    var variable = FindTypeState<VectorVariableState>(Variables.Data_Static_Scalar_VectorValue);
+                    VectorVariableState variable = FindTypeState<VectorVariableState>(Variables.Data_Static_Scalar_VectorValue);
                     m_dataStaticVectorScalarValue = new VectorVariableValue(variable, m_system.GetRandomVector(), null);
                 }
                 {
-                    var variable = FindTypeState<VectorVariableState>(Variables.Data_Dynamic_Scalar_VectorValue);
+                    VectorVariableState variable = FindTypeState<VectorVariableState>(Variables.Data_Dynamic_Scalar_VectorValue);
                     m_dataDynamicVectorScalarValue = new VectorVariableValue(variable, m_system.GetRandomVector(), null);
                 }
             }
@@ -238,7 +229,7 @@ namespace TestData
         /// </summary>
         protected override NodeStateCollection LoadPredefinedNodes(ISystemContext context)
         {
-            NodeStateCollection predefinedNodes = new NodeStateCollection();
+            var predefinedNodes = new NodeStateCollection();
             predefinedNodes.LoadFromBinaryResource(context, "Quickstarts.Servers.TestData.TestData.PredefinedNodes.uanodes", this.GetType().GetTypeInfo().Assembly, true);
             return predefinedNodes;
         }
@@ -266,7 +257,7 @@ namespace TestData
                             break;
                         }
 
-                        TestSystemConditionState activeNode = new TestSystemConditionState(passiveNode.Parent);
+                        var activeNode = new TestSystemConditionState(passiveNode.Parent);
                         activeNode.Create(context, passiveNode);
 
                         if (passiveNode.Parent != null)
@@ -284,7 +275,7 @@ namespace TestData
                             break;
                         }
 
-                        ScalarValueObjectState activeNode = new ScalarValueObjectState(passiveNode.Parent);
+                        var activeNode = new ScalarValueObjectState(passiveNode.Parent);
                         activeNode.Create(context, passiveNode);
 
                         if (passiveNode.Parent != null)
@@ -302,7 +293,7 @@ namespace TestData
                             break;
                         }
 
-                        StructureValueObjectState activeNode = new StructureValueObjectState(passiveNode.Parent);
+                        var activeNode = new StructureValueObjectState(passiveNode.Parent);
                         activeNode.Create(context, passiveNode);
 
                         if (passiveNode.Parent != null)
@@ -320,7 +311,7 @@ namespace TestData
                             break;
                         }
 
-                        AnalogScalarValueObjectState activeNode = new AnalogScalarValueObjectState(passiveNode.Parent);
+                        var activeNode = new AnalogScalarValueObjectState(passiveNode.Parent);
                         activeNode.Create(context, passiveNode);
 
                         if (passiveNode.Parent != null)
@@ -338,7 +329,7 @@ namespace TestData
                             break;
                         }
 
-                        ArrayValueObjectState activeNode = new ArrayValueObjectState(passiveNode.Parent);
+                        var activeNode = new ArrayValueObjectState(passiveNode.Parent);
                         activeNode.Create(context, passiveNode);
 
                         if (passiveNode.Parent != null)
@@ -356,7 +347,7 @@ namespace TestData
                             break;
                         }
 
-                        AnalogArrayValueObjectState activeNode = new AnalogArrayValueObjectState(passiveNode.Parent);
+                        var activeNode = new AnalogArrayValueObjectState(passiveNode.Parent);
                         activeNode.Create(context, passiveNode);
 
                         if (passiveNode.Parent != null)
@@ -374,7 +365,7 @@ namespace TestData
                             break;
                         }
 
-                        UserScalarValueObjectState activeNode = new UserScalarValueObjectState(passiveNode.Parent);
+                        var activeNode = new UserScalarValueObjectState(passiveNode.Parent);
                         activeNode.Create(context, passiveNode);
 
                         if (passiveNode.Parent != null)
@@ -392,7 +383,7 @@ namespace TestData
                             break;
                         }
 
-                        UserArrayValueObjectState activeNode = new UserArrayValueObjectState(passiveNode.Parent);
+                        var activeNode = new UserArrayValueObjectState(passiveNode.Parent);
                         activeNode.Create(context, passiveNode);
 
                         if (passiveNode.Parent != null)
@@ -410,7 +401,7 @@ namespace TestData
                             break;
                         }
 
-                        MethodTestState activeNode = new MethodTestState(passiveNode.Parent);
+                        var activeNode = new MethodTestState(passiveNode.Parent);
                         activeNode.Create(context, passiveNode);
 
                         if (passiveNode.Parent != null)
@@ -441,7 +432,7 @@ namespace TestData
                             break;
                         }
 
-                        ScalarStructureVariableState activeNode = new ScalarStructureVariableState(variableNode.Parent);
+                        var activeNode = new ScalarStructureVariableState(variableNode.Parent);
                         activeNode.Create(context, variableNode);
 
                         if (variableNode.Parent != null)
@@ -459,7 +450,7 @@ namespace TestData
                             break;
                         }
 
-                        VectorVariableState activeNode = new VectorVariableState(variableNode.Parent);
+                        var activeNode = new VectorVariableState(variableNode.Parent);
                         activeNode.Create(context, variableNode);
 
                         if (variableNode.Parent != null)
@@ -486,9 +477,8 @@ namespace TestData
                 return null;
             }
 
-            HistoryDataReader reader = context.OperationContext.Session.RestoreHistoryContinuationPoint(continuationPoint) as HistoryDataReader;
 
-            if (reader == null)
+            if (context.OperationContext.Session.RestoreHistoryContinuationPoint(continuationPoint) is not HistoryDataReader reader)
             {
                 return null;
             }
@@ -539,10 +529,10 @@ namespace TestData
             HistoryReadValueId nodeToRead,
             HistoryReadResult result)
         {
-            ServerSystemContext serverContext = context as ServerSystemContext;
+            var serverContext = context as ServerSystemContext;
 
             HistoryDataReader reader = null;
-            HistoryData data = new HistoryData();
+            var data = new HistoryData();
 
             if (nodeToRead.ContinuationPoint != null && nodeToRead.ContinuationPoint.Length > 0)
             {
@@ -625,9 +615,8 @@ namespace TestData
             }
 
             // only care about variables and properties.
-            var source = monitoredNode.Node as BaseVariableState;
 
-            if (source == null)
+            if (monitoredNode.Node is not BaseVariableState source)
             {
                 return false;
             }
@@ -635,15 +624,13 @@ namespace TestData
             // check for variables that need to be scanned.
             if (monitoredItem.AttributeId == Attributes.Value)
             {
-                TestDataObjectState test = source.Parent as TestDataObjectState;
-                if (test != null && test.SimulationActive.Value)
+                if (source.Parent is TestDataObjectState test && test.SimulationActive.Value)
                 {
                     return true;
                 }
 
                 var sourcesource = source.Parent as BaseVariableState;
-                TestDataObjectState testtest = sourcesource?.Parent as TestDataObjectState;
-                if (testtest != null && testtest.SimulationActive.Value)
+                if (sourcesource?.Parent is TestDataObjectState testtest && testtest.SimulationActive.Value)
                 {
                     return true;
                 }
@@ -690,7 +677,7 @@ namespace TestData
             {
                 if (monitoredItem.MonitoringMode != MonitoringMode.Disabled)
                 {
-                    BaseVariableState source = handle.Node as BaseVariableState;
+                    var source = handle.Node as BaseVariableState;
                     m_system.StopMonitoringValue(monitoredItem.Id);
                     m_system.StartMonitoringValue(monitoredItem.Id, monitoredItem.SamplingInterval, source);
                 }
@@ -732,7 +719,7 @@ namespace TestData
         {
             if (SystemScanRequired(handle.MonitoredNode, monitoredItem))
             {
-                BaseVariableState source = handle.Node as BaseVariableState;
+                var source = handle.Node as BaseVariableState;
 
                 if (previousMode != MonitoringMode.Disabled && monitoredItem.MonitoringMode == MonitoringMode.Disabled)
                 {

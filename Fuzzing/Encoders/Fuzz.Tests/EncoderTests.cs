@@ -76,7 +76,7 @@ namespace Opc.Ua.Fuzzing
         {
             // note: too many crash files can take forever to create
             // all permutations with nunit, so just run all in one batch
-            foreach (var messageEncoder in CrashAssets)
+            foreach (TestcaseAsset messageEncoder in CrashAssets)
             {
                 FuzzTarget(fuzzableCode, messageEncoder.Testcase);
             }
@@ -104,7 +104,7 @@ namespace Opc.Ua.Fuzzing
 
         private void FuzzTarget(FuzzTargetFunction fuzzableCode, byte[] blob)
         {
-            var parameters = fuzzableCode.MethodInfo.GetParameters();
+            ParameterInfo[] parameters = fuzzableCode.MethodInfo.GetParameters();
             if (parameters.Length != 1)
             {
                 throw new InvalidOperationException("Fuzzable function must have exactly one parameter.");
@@ -124,7 +124,7 @@ namespace Opc.Ua.Fuzzing
             else if (parameters[0].ParameterType == typeof(ReadOnlySpan<byte>))
             {
                 var span = new ReadOnlySpan<byte>(blob);
-                LibFuzzTemplate fuzzFunction = (LibFuzzTemplate)fuzzableCode.MethodInfo.CreateDelegate(typeof(LibFuzzTemplate));
+                var fuzzFunction = (LibFuzzTemplate)fuzzableCode.MethodInfo.CreateDelegate(typeof(LibFuzzTemplate));
                 fuzzFunction(span);
             }
         }
@@ -148,7 +148,7 @@ namespace Opc.Ua.Fuzzing
 
         public string ToString(string format, IFormatProvider formatProvider)
         {
-            var file = System.IO.Path.GetFileName(Path);
+            string file = System.IO.Path.GetFileName(Path);
             return $"{file}";
         }
     }
@@ -167,7 +167,7 @@ namespace Opc.Ua.Fuzzing
 
         public string ToString(string format, IFormatProvider formatProvider)
         {
-            var name = MethodInfo.Name;
+            string name = MethodInfo.Name;
             return $"{name}";
         }
     }

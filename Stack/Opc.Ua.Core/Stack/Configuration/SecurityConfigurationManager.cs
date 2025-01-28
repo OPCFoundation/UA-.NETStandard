@@ -52,16 +52,13 @@ namespace Opc.Ua.Security
 
                 try
                 {
-                    FileInfo file = new FileInfo(filePath);
+                    var file = new FileInfo(filePath);
                     string sectionName = file.Name;
                     sectionName = sectionName.Substring(0, sectionName.Length - file.Extension.Length);
 
                     configFilePath = ApplicationConfiguration.GetFilePathFromAppConfig(sectionName);
 
-                    if (configFilePath == null)
-                    {
-                        configFilePath = filePath + ".config";
-                    }
+                    configFilePath ??= filePath + ".config";
                 }
                 catch (Exception e)
                 {
@@ -103,7 +100,7 @@ namespace Opc.Ua.Security
                     // find the SecuredApplication element in the file.
                     if (data.ToString().Contains("SecuredApplication"))
                     {
-                        DataContractSerializer serializer = new DataContractSerializer(typeof(SecuredApplication));
+                        var serializer = new DataContractSerializer(typeof(SecuredApplication));
                         application = serializer.ReadObject(reader) as SecuredApplication;
 
                         application.ConfigurationFile = configFilePath;
@@ -115,7 +112,7 @@ namespace Opc.Ua.Security
                     {
                         reader.Dispose();
                         reader = File.Open(configFilePath, FileMode.Open, FileAccess.Read, FileShare.Read);
-                        DataContractSerializer serializer = new DataContractSerializer(typeof(ApplicationConfiguration));
+                        var serializer = new DataContractSerializer(typeof(ApplicationConfiguration));
                         applicationConfiguration = serializer.ReadObject(reader) as ApplicationConfiguration;
                     }
                 }
@@ -260,7 +257,7 @@ namespace Opc.Ua.Security
             }
 
             // load from file.
-            XmlDocument document = new XmlDocument();
+            var document = new XmlDocument();
             using (var stream = new FileStream(filePath, FileMode.Open))
             using (var xmlReader = XmlReader.Create(stream, Utils.DefaultXmlReaderSettings()))
             {
@@ -285,7 +282,7 @@ namespace Opc.Ua.Security
             {
                 // update configuration file.
                 Stream ostrm = File.Open(filePath, FileMode.Create, FileAccess.Write);
-                StreamWriter writer = new StreamWriter(ostrm, System.Text.Encoding.UTF8);
+                var writer = new StreamWriter(ostrm, Encoding.UTF8);
 
                 try
                 {
@@ -330,7 +327,7 @@ namespace Opc.Ua.Security
 
                 if (node.Name == "SecurityConfiguration" && node.NamespaceURI == Namespaces.OpcUaConfig)
                 {
-                    SecurityConfiguration security = (SecurityConfiguration)GetObject(typeof(SecurityConfiguration), node);
+                    var security = (SecurityConfiguration)GetObject(typeof(SecurityConfiguration), node);
 
                     if (application.ApplicationCertificate != null)
                     {
@@ -357,7 +354,7 @@ namespace Opc.Ua.Security
 
                 if (node.Name == "ServerConfiguration" && node.NamespaceURI == Namespaces.OpcUaConfig)
                 {
-                    ServerConfiguration configuration = (ServerConfiguration)GetObject(typeof(ServerConfiguration), node);
+                    var configuration = (ServerConfiguration)GetObject(typeof(ServerConfiguration), node);
 
                     SecuredApplication.FromListOfBaseAddresses(configuration, application.BaseAddresses);
                     configuration.SecurityPolicies = SecuredApplication.FromListOfSecurityProfiles(application.SecurityProfiles);
@@ -368,7 +365,7 @@ namespace Opc.Ua.Security
 
                 else if (node.Name == "DiscoveryServerConfiguration" && node.NamespaceURI == Namespaces.OpcUaConfig)
                 {
-                    DiscoveryServerConfiguration configuration = (DiscoveryServerConfiguration)GetObject(typeof(DiscoveryServerConfiguration), node);
+                    var configuration = (DiscoveryServerConfiguration)GetObject(typeof(DiscoveryServerConfiguration), node);
 
                     SecuredApplication.FromListOfBaseAddresses(configuration, application.BaseAddresses);
                     configuration.SecurityPolicies = SecuredApplication.FromListOfSecurityProfiles(application.SecurityProfiles);
@@ -384,10 +381,10 @@ namespace Opc.Ua.Security
         /// </summary>
         private static object GetObject(Type type, XmlNode element)
         {
-            using (MemoryStream memoryStream = new MemoryStream(Encoding.UTF8.GetBytes(element.InnerXml)))
+            using (var memoryStream = new MemoryStream(Encoding.UTF8.GetBytes(element.InnerXml)))
             {
-                XmlDictionaryReader reader = XmlDictionaryReader.CreateTextReader(memoryStream, Encoding.UTF8, new XmlDictionaryReaderQuotas(), null);
-                DataContractSerializer serializer = new DataContractSerializer(type);
+                var reader = XmlDictionaryReader.CreateTextReader(memoryStream, Encoding.UTF8, new XmlDictionaryReaderQuotas(), null);
+                var serializer = new DataContractSerializer(type);
                 return serializer.ReadObject(reader);
             }
         }
@@ -397,13 +394,13 @@ namespace Opc.Ua.Security
         /// </summary>
         private static string SetObject(Type type, object value)
         {
-            using (MemoryStream memoryStream = new MemoryStream())
+            using (var memoryStream = new MemoryStream())
             {
-                DataContractSerializer serializer = new DataContractSerializer(value.GetType());
+                var serializer = new DataContractSerializer(value.GetType());
                 serializer.WriteObject(memoryStream, value);
 
                 // must extract the inner xml.
-                XmlDocument document = new XmlDocument();
+                var document = new XmlDocument();
                 document.LoadInnerXml(Encoding.UTF8.GetString(memoryStream.ToArray()));
                 return document.DocumentElement.InnerXml;
             }

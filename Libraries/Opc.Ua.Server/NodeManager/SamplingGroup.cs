@@ -207,7 +207,7 @@ namespace Opc.Ua.Server
             lock (m_lock)
             {
                 // add items.
-                List<ISampledDataChangeMonitoredItem> itemsToSample = new List<ISampledDataChangeMonitoredItem>();
+                var itemsToSample = new List<ISampledDataChangeMonitoredItem>();
 
                 for (int ii = 0; ii < m_itemsToAdd.Count; ii++)
                 {
@@ -366,7 +366,7 @@ namespace Opc.Ua.Server
                     }
 
                     // get current list of items to sample.
-                    List<ISampledDataChangeMonitoredItem> items = new List<ISampledDataChangeMonitoredItem>();
+                    var items = new List<ISampledDataChangeMonitoredItem>();
 
                     lock (m_lock)
                     {
@@ -426,14 +426,12 @@ namespace Opc.Ua.Server
         {
             try
             {
-                List<ISampledDataChangeMonitoredItem> items = state as List<ISampledDataChangeMonitoredItem>;
-
                 // read values for all enabled items.
-                if (items != null && items.Count > 0)
+                if (state is List<ISampledDataChangeMonitoredItem> items && items.Count > 0)
                 {
-                    ReadValueIdCollection itemsToRead = new ReadValueIdCollection(items.Count);
-                    DataValueCollection values = new DataValueCollection(items.Count);
-                    List<ServiceResult> errors = new List<ServiceResult>(items.Count);
+                    var itemsToRead = new ReadValueIdCollection(items.Count);
+                    var values = new DataValueCollection(items.Count);
+                    var errors = new List<ServiceResult>(items.Count);
 
                     // allocate space for results.
                     for (int ii = 0; ii < items.Count; ii++)
@@ -446,7 +444,7 @@ namespace Opc.Ua.Server
                         errors.Add(null);
                     }
 
-                    OperationContext context = new OperationContext(m_session, m_diagnosticsMask);
+                    var context = new OperationContext(m_session, m_diagnosticsMask);
 
                     // read values.
                     m_nodeManager.Read(

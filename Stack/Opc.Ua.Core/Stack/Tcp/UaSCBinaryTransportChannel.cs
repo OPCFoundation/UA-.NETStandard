@@ -53,7 +53,7 @@ namespace Opc.Ua.Bindings
         {
             if (disposing)
             {
-                var channel = Interlocked.Exchange(ref m_channel, null);
+                UaSCUaBinaryClientChannel channel = Interlocked.Exchange(ref m_channel, null);
                 Utils.SilentDispose(channel);
             }
         }
@@ -116,8 +116,8 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public int OperationTimeout
         {
-            get { return m_operationTimeout; }
-            set { m_operationTimeout = value; }
+            get => m_operationTimeout;
+            set => m_operationTimeout = value;
         }
 
         /// <summary>
@@ -347,7 +347,7 @@ namespace Opc.Ua.Bindings
         /// <exception cref="ServiceResultException">Thrown if any communication error occurs.</exception>
         public Task<IServiceResponse> SendRequestAsync(IServiceRequest request, CancellationToken ct)
         {
-            var operation = BeginSendRequest(request, null, null);
+            IAsyncResult operation = BeginSendRequest(request, null, null);
             return EndSendRequestAsync(operation, ct);
         }
 
@@ -369,7 +369,7 @@ namespace Opc.Ua.Bindings
             if (channel == null)
             {
                 channel = CreateChannel();
-                var currentChannel = Interlocked.CompareExchange(ref m_channel, channel, null);
+                UaSCUaBinaryClientChannel currentChannel = Interlocked.CompareExchange(ref m_channel, channel, null);
                 if (currentChannel != null)
                 {
                     Utils.SilentDispose(channel);

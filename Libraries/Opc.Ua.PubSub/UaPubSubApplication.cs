@@ -223,12 +223,9 @@ namespace Opc.Ua.PubSub
             IUaPubSubDataStore dataStore = null)
         {
             // if no argument received, start with empty configuration
-            if (pubSubConfiguration == null)
-            {
-                pubSubConfiguration = new PubSubConfigurationDataType();
-            }
+            pubSubConfiguration ??= new PubSubConfigurationDataType();
 
-            UaPubSubApplication uaPubSubApplication = new UaPubSubApplication(dataStore);
+            var uaPubSubApplication = new UaPubSubApplication(dataStore);
             uaPubSubApplication.m_uaPubSubConfigurator.LoadConfiguration(pubSubConfiguration);
             return uaPubSubApplication;
         }
@@ -241,7 +238,7 @@ namespace Opc.Ua.PubSub
         public void Start()
         {
             Utils.Trace("UaPubSubApplication is starting.");
-            foreach (var connection in m_uaPubSubConnections)
+            foreach (IUaPubSubConnection connection in m_uaPubSubConnections)
             {
                 connection.Start();
             }
@@ -254,7 +251,7 @@ namespace Opc.Ua.PubSub
         public void Stop()
         {
             Utils.Trace("UaPubSubApplication is stopping.");
-            foreach (var connection in m_uaPubSubConnections)
+            foreach (IUaPubSubConnection connection in m_uaPubSubConnections)
             {
                 connection.Stop();
             }
@@ -387,7 +384,7 @@ namespace Opc.Ua.PubSub
         private void UaPubSubConfigurator_ConnectionRemoved(object sender, ConnectionEventArgs e)
         {
             IUaPubSubConnection removedUaPubSubConnection = null;
-            foreach (var connection in m_uaPubSubConnections)
+            foreach (IUaPubSubConnection connection in m_uaPubSubConnections)
             {
                 if (connection.PubSubConnectionConfiguration.Equals(e.PubSubConnectionDataType))
                 {
@@ -443,7 +440,7 @@ namespace Opc.Ua.PubSub
 
                 Stop();
                 // free managed resources
-                foreach (var connection in m_uaPubSubConnections)
+                foreach (IUaPubSubConnection connection in m_uaPubSubConnections)
                 {
                     connection.Dispose();
                 }

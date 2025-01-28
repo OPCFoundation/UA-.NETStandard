@@ -29,12 +29,9 @@
 
 using System;
 using System.Collections.Generic;
-using System.Text;
-using System.Threading;
-using System.Security.Principal;
 
 namespace Opc.Ua.Server
-{    
+{
     /// <summary>
     /// An object that manages aggregate factories supported by the server.
     /// </summary>

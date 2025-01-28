@@ -10,11 +10,6 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
-using System;
-using System.Collections.Generic;
-using System.Xml;
-using System.Runtime.Serialization;
-
 namespace Opc.Ua
 {
     /// <summary>
@@ -28,8 +23,8 @@ namespace Opc.Ua
         /// </summary>
         public string Algorithm
         {
-            get { return m_algorithm; }
-            set { m_algorithm = value; }
+            get => m_algorithm;
+            set => m_algorithm = value;
         }
 
         /// <summary>
@@ -37,8 +32,8 @@ namespace Opc.Ua
         /// </summary>
         public byte[] Data
         {
-            get { return m_data; }
-            set { m_data = value; }
+            get => m_data;
+            set => m_data = value;
         }
         #endregion
 

@@ -146,7 +146,7 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         private void Decode(byte[] data)
         {
-            if (base.Oid.Value == CrlNumberOid)
+            if (Oid.Value == CrlNumberOid)
             {
                 try
                 {

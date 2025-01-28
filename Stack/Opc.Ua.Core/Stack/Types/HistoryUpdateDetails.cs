@@ -10,11 +10,6 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
-using System;
-using System.Collections.Generic;
-using System.Runtime.Serialization;
-using System.Security.Cryptography.X509Certificates;
-
 namespace Opc.Ua
 {
     /// <summary>
@@ -37,8 +32,8 @@ namespace Opc.Ua
         /// </summary>
         public object Handle
         {
-            get { return m_handle; }
-            set { m_handle = value; }
+            get => m_handle;
+            set => m_handle = value;
         }
 
         /// <summary>
@@ -46,8 +41,8 @@ namespace Opc.Ua
         /// </summary>
         public bool Processed
         {
-            get { return m_processed; }
-            set { m_processed = value; }
+            get => m_processed;
+            set => m_processed = value;
         }
 
         /// <summary>

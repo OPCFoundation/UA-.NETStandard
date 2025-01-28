@@ -11,7 +11,6 @@
 */
 
 using System;
-using System.Collections.Generic;
 
 namespace Opc.Ua
 {
@@ -86,7 +85,7 @@ namespace Opc.Ua
         /// </returns>
         public new object MemberwiseClone()
         {
-            ViewState clone = (ViewState)Activator.CreateInstance(this.GetType());
+            var clone = (ViewState)Activator.CreateInstance(this.GetType());
             return CloneChildren(clone);
         }
         #endregion
@@ -97,10 +96,7 @@ namespace Opc.Ua
         /// </summary>
         public byte EventNotifier
         {
-            get
-            {
-                return m_eventNotifier;
-            }
+            get => m_eventNotifier;
 
             set
             {
@@ -118,10 +114,7 @@ namespace Opc.Ua
         /// </summary>
         public bool ContainsNoLoops
         {
-            get
-            {
-                return m_containsNoLoops;
-            }
+            get => m_containsNoLoops;
 
             set
             {

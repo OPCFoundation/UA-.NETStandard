@@ -218,7 +218,7 @@ namespace Opc.Ua.PubSub.Encoding
                 // check also the field names from reader, if any extra field names then the payload is not matching 
                 foreach (string key in payload.Keys)
                 {
-                    var field = dataSetReader.DataSetMetaData.Fields.FirstOrDefault(f => f.Name == key);
+                    FieldMetaData field = dataSetReader.DataSetMetaData.Fields.FirstOrDefault(f => f.Name == key);
                     if (field == null)
                     {
                         // the field from payload was not found in dataSetReader therefore the payload is not suitable to be decoded
@@ -250,7 +250,7 @@ namespace Opc.Ua.PubSub.Encoding
             DataSetMetaDataType dataSetMetaData = dataSetReader.DataSetMetaData;
 
             object token;
-            List<DataValue> dataValues = new List<DataValue>();
+            var dataValues = new List<DataValue>();
             for (int index = 0; index < dataSetMetaData?.Fields.Count; index++)
             {
                 FieldMetaData fieldMetaData = dataSetMetaData?.Fields[index];
@@ -269,7 +269,7 @@ namespace Opc.Ua.PubSub.Encoding
                             break;
                         case FieldTypeEncodingMask.DataValue:
                             bool wasPush2 = jsonDecoder.PushStructure(fieldMetaData.Name);
-                            DataValue dataValue = new DataValue(Variant.Null);
+                            var dataValue = new DataValue(Variant.Null);
                             try
                             {
                                 if (wasPush2 && jsonDecoder.ReadField("Value", out token))
@@ -358,10 +358,10 @@ namespace Opc.Ua.PubSub.Encoding
             }
 
             //build the DataSet Fields collection based on the decoded values and the target 
-            List<Field> dataFields = new List<Field>();
+            var dataFields = new List<Field>();
             for (int i = 0; i < dataValues.Count; i++)
             {
-                Field dataField = new Field();
+                var dataField = new Field();
                 dataField.FieldMetaData = dataSetMetaData?.Fields[i];
                 dataField.Value = dataValues[i];
 
@@ -376,7 +376,7 @@ namespace Opc.Ua.PubSub.Encoding
             }
 
             // build the dataset object
-            DataSet dataSet = new DataSet(dataSetMetaData?.Name);
+            var dataSet = new DataSet(dataSetMetaData?.Name);
             dataSet.DataSetMetaData = dataSetMetaData;
             dataSet.Fields = dataFields.ToArray();
             dataSet.DataSetWriterId = DataSetWriterId;
@@ -429,7 +429,7 @@ namespace Opc.Ua.PubSub.Encoding
                 jsonEncoder.PushStructure(kFieldPayload);
             }
 
-            foreach (var field in DataSet.Fields)
+            foreach (Field field in DataSet.Fields)
             {
                 if (field != null)
                 {
@@ -485,7 +485,7 @@ namespace Opc.Ua.PubSub.Encoding
                     break;
 
                 case FieldTypeEncodingMask.DataValue:
-                    DataValue dataValue = new DataValue();
+                    var dataValue = new DataValue();
 
                     dataValue.WrappedValue = valueToEncode;
 

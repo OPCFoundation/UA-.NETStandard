@@ -87,7 +87,7 @@ namespace Opc.Ua.Bindings
         /// <inheritdoc/>
         public IEnumerable<Type> AddBindings(Assembly assembly)
         {
-            var bindings = assembly.GetExportedTypes().Where(type => IsBindingType(type));
+            IEnumerable<Type> bindings = assembly.GetExportedTypes().Where(type => IsBindingType(type));
             return AddBindings(bindings);
         }
 
@@ -118,7 +118,7 @@ namespace Opc.Ua.Bindings
                 return false;
             }
 
-            var bindingTypeInfo = bindingType.GetTypeInfo();
+            System.Reflection.TypeInfo bindingTypeInfo = bindingType.GetTypeInfo();
             if (bindingTypeInfo.IsAbstract ||
                 !typeof(T).GetTypeInfo().IsAssignableFrom(bindingTypeInfo))
             {
@@ -157,7 +157,7 @@ namespace Opc.Ua.Bindings
 
                 if (assembly != null)
                 {
-                    var listeners = AddBindings(assembly);
+                    IEnumerable<Type> listeners = AddBindings(assembly);
                     return listeners.Any();
                 }
             }

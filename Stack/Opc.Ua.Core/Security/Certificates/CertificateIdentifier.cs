@@ -72,7 +72,7 @@ namespace Opc.Ua
         /// </summary>
         public override bool Equals(object obj)
         {
-            if (Object.ReferenceEquals(this, obj))
+            if (ReferenceEquals(this, obj))
             {
                 return true;
             }
@@ -134,8 +134,8 @@ namespace Opc.Ua
         /// </value>
         public CertificateValidationOptions ValidationOptions
         {
-            get { return m_validationOptions; }
-            set { m_validationOptions = value; }
+            get => m_validationOptions;
+            set => m_validationOptions = value;
         }
 
         /// <summary>
@@ -144,7 +144,7 @@ namespace Opc.Ua
         /// <value>The X509 certificate used by this instance.</value>
         public X509Certificate2 Certificate
         {
-            get { return m_certificate; }
+            get => m_certificate;
             set
             {
                 m_certificate = value;
@@ -281,7 +281,7 @@ namespace Opc.Ua
                 return name;
             }
 
-            StringBuilder buffer = new StringBuilder(name.Length);
+            var buffer = new StringBuilder(name.Length);
 
             // skip characters until finding the '=' character
             for (int ii = index + 2; ii < name.Length; ii++)
@@ -430,7 +430,7 @@ namespace Opc.Ua
             // check for any supporting certificates.
             if (certificates.Count > 1)
             {
-                List<byte[]> additionalData = new List<byte[]>(certificates.Count - 1);
+                var additionalData = new List<byte[]>(certificates.Count - 1);
                 int length = blobData.Length;
 
                 for (int ii = 1; ii < certificates.Count; ii++)
@@ -478,7 +478,7 @@ namespace Opc.Ua
                 throw new CryptographicException("Primary certificate in blob is not valid.");
             }
 
-            X509Certificate2Collection collection = new X509Certificate2Collection();
+            var collection = new X509Certificate2Collection();
             X509Certificate2 certificate = CertificateFactory.Create(encodedData, true);
             collection.Add(certificate);
 
@@ -583,7 +583,7 @@ namespace Opc.Ua
                 case Oids.ECDsaWithSha384:
                 case Oids.ECDsaWithSha256:
                 case Oids.ECDsaWithSha512:
-                    var certType = EccUtils.GetEccCertificateTypeId(certificate);
+                    NodeId certType = EccUtils.GetEccCertificateTypeId(certificate);
                     if (certType.IsNullNodeId)
                     {
                         return false;
@@ -674,7 +674,7 @@ namespace Opc.Ua
         /// </summary>
         public void DisposeCertificate()
         {
-            var certificate = m_certificate;
+            X509Certificate2 certificate = m_certificate;
             m_certificate = null;
             Utils.SilentDispose(certificate);
         }
@@ -801,7 +801,7 @@ namespace Opc.Ua
                 return null;
             }
 
-            foreach (var supportedCertificateType in m_supportedCertificateTypes)
+            foreach (KeyValuePair<uint, string> supportedCertificateType in m_supportedCertificateTypes)
             {
                 if (supportedCertificateType.Value == certificateType)
                 {
@@ -836,7 +836,7 @@ namespace Opc.Ua
         /// </returns>
         public new object MemberwiseClone()
         {
-            CertificateIdentifierCollection collection = new CertificateIdentifierCollection();
+            var collection = new CertificateIdentifierCollection();
 
             for (int ii = 0; ii < this.Count; ii++)
             {
@@ -897,7 +897,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public async Task<X509Certificate2Collection> Enumerate()
         {
-            X509Certificate2Collection collection = new X509Certificate2Collection();
+            var collection = new X509Certificate2Collection();
 
             for (int ii = 0; ii < this.Count; ii++)
             {

@@ -74,8 +74,8 @@ namespace Opc.Ua.Server
         /// </summary>
         public Guid Id
         {
-            get { return m_id; }
-            set { m_id = value; }
+            get => m_id;
+            set => m_id = value;
         }
 
         /// <summary>
@@ -83,8 +83,8 @@ namespace Opc.Ua.Server
         /// </summary>
         public INodeManager Manager
         {
-            get { return m_manager; }
-            set { m_manager = value; }
+            get => m_manager;
+            set => m_manager = value;
         }
 
         /// <summary>
@@ -92,8 +92,8 @@ namespace Opc.Ua.Server
         /// </summary>
         public ViewDescription View
         {
-            get { return m_view; }
-            set { m_view = value; }
+            get => m_view;
+            set => m_view = value;
         }
 
         /// <summary>
@@ -101,8 +101,8 @@ namespace Opc.Ua.Server
         /// </summary>
         public object NodeToBrowse
         {
-            get { return m_nodeToBrowse; }
-            set { m_nodeToBrowse = value; }
+            get => m_nodeToBrowse;
+            set => m_nodeToBrowse = value;
         }
 
         /// <summary>
@@ -110,8 +110,8 @@ namespace Opc.Ua.Server
         /// </summary>
         public uint MaxResultsToReturn
         {
-            get { return m_maxResultsToReturn; }
-            set { m_maxResultsToReturn = value; }
+            get => m_maxResultsToReturn;
+            set => m_maxResultsToReturn = value;
         }
 
         /// <summary>
@@ -119,8 +119,8 @@ namespace Opc.Ua.Server
         /// </summary>                
         public BrowseDirection BrowseDirection
         {
-            get { return m_browseDirection; }
-            set { m_browseDirection = value; }
+            get => m_browseDirection;
+            set => m_browseDirection = value;
         }
 
         /// <summary>
@@ -128,8 +128,8 @@ namespace Opc.Ua.Server
         /// </summary>                
         public NodeId ReferenceTypeId
         {
-            get { return m_referenceTypeId; }
-            set { m_referenceTypeId = value; }
+            get => m_referenceTypeId;
+            set => m_referenceTypeId = value;
         }
 
         /// <summary>
@@ -137,8 +137,8 @@ namespace Opc.Ua.Server
         /// </summary>        
         public bool IncludeSubtypes
         {
-            get { return m_includeSubtypes; }
-            set { m_includeSubtypes = value; }
+            get => m_includeSubtypes;
+            set => m_includeSubtypes = value;
         }
 
         /// <summary>
@@ -146,8 +146,8 @@ namespace Opc.Ua.Server
         /// </summary>  
         public uint NodeClassMask
         {
-            get { return m_nodeClassMask; }
-            set { m_nodeClassMask = value; }
+            get => m_nodeClassMask;
+            set => m_nodeClassMask = value;
         }
 
         /// <summary>
@@ -155,8 +155,8 @@ namespace Opc.Ua.Server
         /// </summary>  
         public BrowseResultMask ResultMask
         {
-            get { return m_resultMask; }
-            set { m_resultMask = value; }
+            get => m_resultMask;
+            set => m_resultMask = value;
         }
 
         /// <summary>
@@ -164,8 +164,8 @@ namespace Opc.Ua.Server
         /// </summary>
         public int Index
         {
-            get { return m_index; }
-            set { m_index = value; }
+            get => m_index;
+            set => m_index = value;
         }
 
         /// <summary>
@@ -179,8 +179,8 @@ namespace Opc.Ua.Server
         /// </remarks>
         public object Data
         {
-            get { return m_data; }
-            set { m_data = value; }
+            get => m_data;
+            set => m_data = value;
         }
 
         /// <summary>

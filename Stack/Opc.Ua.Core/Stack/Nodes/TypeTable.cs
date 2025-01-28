@@ -44,7 +44,7 @@ namespace Opc.Ua
                 return false;
             }
 
-            NodeId localId = ExpandedNodeId.ToNodeId(typeId, m_namespaceUris);
+            var localId = ExpandedNodeId.ToNodeId(typeId, m_namespaceUris);
 
             if (localId == null)
             {
@@ -79,7 +79,7 @@ namespace Opc.Ua
                 return NodeId.Null;
             }
 
-            NodeId localId = ExpandedNodeId.ToNodeId(typeId, m_namespaceUris);
+            var localId = ExpandedNodeId.ToNodeId(typeId, m_namespaceUris);
 
             if (localId == null)
             {
@@ -145,14 +145,14 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public IList<NodeId> FindSubTypes(ExpandedNodeId typeId)
         {
-            List<NodeId> subtypes = new List<NodeId>();
+            var subtypes = new List<NodeId>();
 
             if (typeId == null)
             {
                 return subtypes;
             }
 
-            NodeId localId = ExpandedNodeId.ToNodeId(typeId, m_namespaceUris);
+            var localId = ExpandedNodeId.ToNodeId(typeId, m_namespaceUris);
 
             if (localId == null)
             {
@@ -191,14 +191,14 @@ namespace Opc.Ua
                 return true;
             }
 
-            NodeId startId = ExpandedNodeId.ToNodeId(subTypeId, m_namespaceUris);
+            var startId = ExpandedNodeId.ToNodeId(subTypeId, m_namespaceUris);
 
             if (startId == null)
             {
                 return false;
             }
 
-            NodeId targetId = ExpandedNodeId.ToNodeId(superTypeId, m_namespaceUris);
+            var targetId = ExpandedNodeId.ToNodeId(superTypeId, m_namespaceUris);
 
             if (targetId == null)
             {
@@ -293,14 +293,14 @@ namespace Opc.Ua
                 return false;
             }
 
-            NodeId localId = ExpandedNodeId.ToNodeId(encodingId, m_namespaceUris);
+            var localId = ExpandedNodeId.ToNodeId(encodingId, m_namespaceUris);
 
             if (localId == null)
             {
                 return false;
             }
 
-            NodeId localTypeId = ExpandedNodeId.ToNodeId(datatypeId, m_namespaceUris);
+            var localTypeId = ExpandedNodeId.ToNodeId(datatypeId, m_namespaceUris);
 
             if (localTypeId == null)
             {
@@ -376,7 +376,7 @@ namespace Opc.Ua
             }
 
             // get the actual datatype.
-            NodeId actualTypeId = Opc.Ua.TypeInfo.GetDataTypeId(value);
+            NodeId actualTypeId = Ua.TypeInfo.GetDataTypeId(value);
 
             // value is valid if the expected datatype is same as or a supertype of the actual datatype
             // for example: expected datatype of 'Integer' matches an actual datatype of 'UInt32'.
@@ -421,7 +421,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public NodeId FindDataTypeId(ExpandedNodeId encodingId)
         {
-            NodeId localId = ExpandedNodeId.ToNodeId(encodingId, m_namespaceUris);
+            var localId = ExpandedNodeId.ToNodeId(encodingId, m_namespaceUris);
 
             if (localId == null)
             {
@@ -608,7 +608,7 @@ namespace Opc.Ua
         /// </summary>
         public bool AddEncoding(NodeId dataTypeId, ExpandedNodeId encodingId)
         {
-            NodeId localId = ExpandedNodeId.ToNodeId(encodingId, m_namespaceUris);
+            var localId = ExpandedNodeId.ToNodeId(encodingId, m_namespaceUris);
 
             if (localId == null)
             {
@@ -630,7 +630,7 @@ namespace Opc.Ua
                 }
                 else
                 {
-                    NodeId[] encodings = new NodeId[typeInfo.Encodings.Length + 1];
+                    var encodings = new NodeId[typeInfo.Encodings.Length + 1];
                     System.Array.Copy(typeInfo.Encodings, encodings, typeInfo.Encodings.Length);
                     encodings[encodings.Length - 1] = localId;
                     typeInfo.Encodings = encodings;
@@ -713,7 +713,7 @@ namespace Opc.Ua
                 return;
             }
 
-            NodeId localId = ExpandedNodeId.ToNodeId(typeId, m_namespaceUris);
+            var localId = ExpandedNodeId.ToNodeId(typeId, m_namespaceUris);
 
             if (localId == null)
             {
@@ -804,10 +804,7 @@ namespace Opc.Ua
             {
                 if (subType != null)
                 {
-                    if (SubTypes == null)
-                    {
-                        SubTypes = new NodeIdDictionary<TypeInfo>();
-                    }
+                    SubTypes ??= new NodeIdDictionary<TypeInfo>();
 
                     SubTypes[subType.NodeId] = subType;
                 }

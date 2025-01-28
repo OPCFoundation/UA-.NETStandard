@@ -12,10 +12,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Xml;
-using System.IO;
-using System.Reflection;
-using Opc.Ua;
 
 namespace Opc.Ua
 {
@@ -91,8 +87,8 @@ namespace Opc.Ua
         /// </summary>
         protected ushort ElementNamespaceIndex
         {
-            get { return m_elementNamespaceIndex; }
-            set { m_elementNamespaceIndex = value; }
+            get => m_elementNamespaceIndex;
+            set => m_elementNamespaceIndex = value;
         }
 
         /// <summary>
@@ -140,8 +136,8 @@ namespace Opc.Ua
         /// </summary>
         protected FiniteStateVariableState LastState
         {
-            get { return m_lastState; }
-            set { m_lastState = value; }
+            get => m_lastState;
+            set => m_lastState = value;
         }
 
         /// <summary>
@@ -417,8 +413,8 @@ namespace Opc.Ua
         /// </summary>
         public bool SuppressTransitionEvents
         {
-            get { return m_suppressTransitionEvents; }
-            set { m_suppressTransitionEvents = value; }
+            get => m_suppressTransitionEvents;
+            set => m_suppressTransitionEvents = value;
         }
 
         /// <summary>
@@ -581,7 +577,7 @@ namespace Opc.Ua
             AuditUpdateStateEventState e,
             ServiceResult result)
         {
-            TranslationInfo info = new TranslationInfo(
+            var info = new TranslationInfo(
                 "StateTransition",
                 "en-US",
                 "The {0} method called was on the {1} state machine.",
@@ -625,7 +621,7 @@ namespace Opc.Ua
         {
             try
             {
-                AuditProgramTransitionEventState e = new AuditProgramTransitionEventState(null);
+                var e = new AuditProgramTransitionEventState(null);
 
                 UpdateAuditEvent(context, causeMethod, inputArguments, causeId, e, result);
 
@@ -664,10 +660,7 @@ namespace Opc.Ua
             }
 
             // save the last state.
-            if (m_lastState == null)
-            {
-                m_lastState = new FiniteStateVariableState(this);
-            }
+            m_lastState ??= new FiniteStateVariableState(this);
 
             m_lastState.SetChildValue(context, null, CurrentState, false);
 
@@ -719,10 +712,7 @@ namespace Opc.Ua
             }
 
             // save the last state.
-            if (m_lastState == null)
-            {
-                m_lastState = new FiniteStateVariableState(this);
-            }
+            m_lastState ??= new FiniteStateVariableState(this);
 
             m_lastState.SetChildValue(context, null, CurrentState, false);
 
@@ -780,7 +770,7 @@ namespace Opc.Ua
             uint causeId,
             TransitionEventState e)
         {
-            TranslationInfo info = new TranslationInfo(
+            var info = new TranslationInfo(
                 "StateTransition",
                 "en-US",
                 "The {0} state machine moved to the {1} state.",

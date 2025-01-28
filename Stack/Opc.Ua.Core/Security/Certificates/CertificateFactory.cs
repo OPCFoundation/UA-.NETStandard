@@ -59,9 +59,9 @@ namespace Opc.Ua
         public static X509Certificate2 Create(ReadOnlyMemory<byte> encodedData, bool useCache)
         {
 #if NET6_0_OR_GREATER
-            var certificate = X509CertificateLoader.LoadCertificate(encodedData.Span);
+            X509Certificate2 certificate = X509CertificateLoader.LoadCertificate(encodedData.Span);
 #else
-            var certificate = X509CertificateLoader.LoadCertificate(encodedData.ToArray());
+            X509Certificate2 certificate = X509CertificateLoader.LoadCertificate(encodedData.ToArray());
 #endif
 
             if (useCache)
@@ -257,13 +257,13 @@ namespace Opc.Ua
             {
                 foreach (X509CRL issuerCrl in issuerCrls)
                 {
-                    var extension = X509Extensions.FindExtension<X509CrlNumberExtension>(issuerCrl.CrlExtensions);
+                    X509CrlNumberExtension extension = X509Extensions.FindExtension<X509CrlNumberExtension>(issuerCrl.CrlExtensions);
                     if (extension != null &&
                         extension.CrlNumber > crlSerialNumber)
                     {
                         crlSerialNumber = extension.CrlNumber;
                     }
-                    foreach (var revokedCertificate in issuerCrl.RevokedCertificates)
+                    foreach (RevokedCertificate revokedCertificate in issuerCrl.RevokedCertificates)
                     {
                         if (!crlRevokedList.ContainsKey(revokedCertificate.SerialNumber))
                         {
@@ -276,7 +276,7 @@ namespace Opc.Ua
             // add existing serial numbers
             if (revokedCertificates != null)
             {
-                foreach (var cert in revokedCertificates)
+                foreach (X509Certificate2 cert in revokedCertificates)
                 {
                     if (!crlRevokedList.ContainsKey(cert.SerialNumber))
                     {
@@ -333,21 +333,21 @@ namespace Opc.Ua
             }
             else
             {
-                var eCDsaPublicKey = certificate.GetECDsaPublicKey();
+                ECDsa eCDsaPublicKey = certificate.GetECDsaPublicKey();
                 request = new CertificateRequest(certificate.SubjectName, eCDsaPublicKey, Oids.GetHashAlgorithmName(certificate.SignatureAlgorithm.Value));
             }
-            var alternateName = X509Extensions.FindExtension<X509SubjectAltNameExtension>(certificate);
+            X509SubjectAltNameExtension alternateName = X509Extensions.FindExtension<X509SubjectAltNameExtension>(certificate);
             domainNames = domainNames ?? new List<String>();
             if (alternateName != null)
             {
-                foreach (var name in alternateName.DomainNames)
+                foreach (string name in alternateName.DomainNames)
                 {
                     if (!domainNames.Any(s => s.Equals(name, StringComparison.OrdinalIgnoreCase)))
                     {
                         domainNames.Add(name);
                     }
                 }
-                foreach (var ipAddress in alternateName.IPAddresses)
+                foreach (string ipAddress in alternateName.IPAddresses)
                 {
                     if (!domainNames.Any(s => s.Equals(ipAddress, StringComparison.OrdinalIgnoreCase)))
                     {
@@ -582,7 +582,7 @@ namespace Opc.Ua
             ICertificateBuilderCreateForRSA createBuilder;
             if (issuerCAKeyCert != null)
             {
-                var issuerBuilder = builder.SetIssuer(issuerCAKeyCert);
+                ICertificateBuilderIssuer issuerBuilder = builder.SetIssuer(issuerCAKeyCert);
                 if (publicKey != null)
                 {
                     createBuilder = issuerBuilder.SetRSAPublicKey(publicKey);
@@ -643,7 +643,7 @@ namespace Opc.Ua
             }
 
             // remove special characters from name.
-            StringBuilder buffer = new StringBuilder();
+            var buffer = new StringBuilder();
 
             for (int ii = 0; ii < applicationName.Length; ii++)
             {
@@ -669,7 +669,7 @@ namespace Opc.Ua
             // create the application uri.
             if (String.IsNullOrEmpty(applicationUri))
             {
-                StringBuilder builder = new StringBuilder();
+                var builder = new StringBuilder();
 
                 builder.Append("urn:");
                 builder.Append(domainNames[0]);

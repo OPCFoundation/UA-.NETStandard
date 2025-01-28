@@ -113,8 +113,8 @@ namespace Opc.Ua
         [DataMember(Name = "NamespaceIndex", Order = 1)]
         internal ushort XmlEncodedNamespaceIndex
         {
-            get { return m_namespaceIndex; }
-            set { m_namespaceIndex = value; }
+            get => m_namespaceIndex;
+            set => m_namespaceIndex = value;
         }
 
         /// <summary>
@@ -131,8 +131,8 @@ namespace Opc.Ua
         [DataMember(Name = "Name", Order = 2)]
         internal string XmlEncodedName
         {
-            get { return m_name; }
-            set { m_name = value; }
+            get => m_name;
+            set => m_name = value;
         }
         #endregion
 
@@ -148,17 +148,17 @@ namespace Opc.Ua
         /// </returns>
         public int CompareTo(object obj)
         {
-            if (Object.ReferenceEquals(obj, null))
+            if (ReferenceEquals(obj, null))
             {
                 return -1;
             }
 
-            if (Object.ReferenceEquals(this, obj))
+            if (ReferenceEquals(this, obj))
             {
                 return 0;
             }
 
-            QualifiedName qname = obj as QualifiedName;
+            var qname = obj as QualifiedName;
 
             if (qname == null)
             {
@@ -186,7 +186,7 @@ namespace Opc.Ua
         /// <returns>The result of the operator.</returns>
         public static bool operator >(QualifiedName value1, QualifiedName value2)
         {
-            if (!Object.ReferenceEquals(value1, null))
+            if (!ReferenceEquals(value1, null))
             {
                 return value1.CompareTo(value2) > 0;
             }
@@ -202,7 +202,7 @@ namespace Opc.Ua
         /// <returns>The result of the operator.</returns>
         public static bool operator <(QualifiedName value1, QualifiedName value2)
         {
-            if (!Object.ReferenceEquals(value1, null))
+            if (!ReferenceEquals(value1, null))
             {
                 return value1.CompareTo(value2) < 0;
             }
@@ -237,17 +237,17 @@ namespace Opc.Ua
         /// <param name="obj">The object to compare to this/me</param>
         public override bool Equals(object obj)
         {
-            if (Object.ReferenceEquals(obj, null))
+            if (ReferenceEquals(obj, null))
             {
                 return false;
             }
 
-            if (Object.ReferenceEquals(this, obj))
+            if (ReferenceEquals(this, obj))
             {
                 return true;
             }
 
-            QualifiedName qname = obj as QualifiedName;
+            var qname = obj as QualifiedName;
 
             if (qname == null)
             {
@@ -272,12 +272,12 @@ namespace Opc.Ua
         /// <param name="value2">The second value to compare</param>
         public static bool operator ==(QualifiedName value1, QualifiedName value2)
         {
-            if (!Object.ReferenceEquals(value1, null))
+            if (!ReferenceEquals(value1, null))
             {
                 return value1.Equals(value2);
             }
 
-            return Object.ReferenceEquals(value2, null);
+            return ReferenceEquals(value2, null);
         }
 
         /// <summary>
@@ -290,12 +290,12 @@ namespace Opc.Ua
         /// <param name="value2">The second value to compare</param>
         public static bool operator !=(QualifiedName value1, QualifiedName value2)
         {
-            if (!Object.ReferenceEquals(value1, null))
+            if (!ReferenceEquals(value1, null))
             {
                 return !value1.Equals(value2);
             }
 
-            return !Object.ReferenceEquals(value2, null);
+            return !ReferenceEquals(value2, null);
         }
 
         /// <summary>
@@ -326,7 +326,7 @@ namespace Opc.Ua
             {
                 int capacity = (m_name != null) ? m_name.Length : 0;
 
-                StringBuilder builder = new StringBuilder(capacity + 10);
+                var builder = new StringBuilder(capacity + 10);
 
                 if (this.m_namespaceIndex == 0)
                 {
@@ -388,7 +388,7 @@ namespace Opc.Ua
             // check for null.
             if (String.IsNullOrEmpty(name))
             {
-                return QualifiedName.Null;
+                return Null;
             }
 
             // return a name using the default namespace.
@@ -449,7 +449,7 @@ namespace Opc.Ua
             // check for null.
             if (String.IsNullOrEmpty(text))
             {
-                return QualifiedName.Null;
+                return Null;
             }
 
             // extract local namespace index. 
@@ -494,10 +494,10 @@ namespace Opc.Ua
             // check for null.
             if (String.IsNullOrEmpty(text))
             {
-                return QualifiedName.Null;
+                return Null;
             }
 
-            var originalText = text;
+            string originalText = text;
             int namespaceIndex = 0;
 
             if (text.StartsWith("nsu=", StringComparison.Ordinal))
@@ -509,7 +509,7 @@ namespace Opc.Ua
                     throw new ServiceResultException(StatusCodes.BadNodeIdInvalid, $"Invalid QualifiedName ({originalText}).");
                 }
 
-                var namespaceUri = Utils.UnescapeUri(text.Substring(4, index-4));
+                string namespaceUri = Utils.UnescapeUri(text.Substring(4, index-4));
                 namespaceIndex = (updateTables) ? context.NamespaceUris.GetIndexOrAppend(namespaceUri) : context.NamespaceUris.GetIndex(namespaceUri);
 
                 if (namespaceIndex < 0)
@@ -560,7 +560,7 @@ namespace Opc.Ua
             {
                 if (useNamespaceUri)
                 {
-                    var namespaceUri = context.NamespaceUris.GetString(m_namespaceIndex);
+                    string namespaceUri = context.NamespaceUris.GetString(m_namespaceIndex);
 
                     if (!String.IsNullOrEmpty(namespaceUri))
                     {
@@ -721,7 +721,7 @@ namespace Opc.Ua
         /// </remarks>
         public new object MemberwiseClone()
         {
-            QualifiedNameCollection clone = new QualifiedNameCollection(this.Count);
+            var clone = new QualifiedNameCollection(this.Count);
 
             foreach (QualifiedName element in this)
             {

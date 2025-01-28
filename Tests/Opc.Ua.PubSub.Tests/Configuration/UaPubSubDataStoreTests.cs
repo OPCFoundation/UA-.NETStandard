@@ -45,8 +45,8 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             (double)8, (float)9, "10")] object value)
         {
             //Arrange
-            UaPubSubDataStore dataStore = new UaPubSubDataStore();
-            NodeId nodeId = new NodeId("ns=1;i=1");
+            var dataStore = new UaPubSubDataStore();
+            var nodeId = new NodeId("ns=1;i=1");
 
             //Act     
             dataStore.WritePublishedDataItem(nodeId, Attributes.Value, new DataValue(new Variant(value)));
@@ -61,20 +61,20 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         public void ValidateWritePublishedDataItemNullNodeId()
         {
             //Arrange
-            UaPubSubDataStore dataStore = new UaPubSubDataStore();
+            var dataStore = new UaPubSubDataStore();
 
             //Assert
-            Assert.Throws(typeof(ArgumentException), () => dataStore.WritePublishedDataItem(null));
+            NUnit.Framework.Assert.Throws(typeof(ArgumentException), () => dataStore.WritePublishedDataItem(null));
         }
 
         [Test(Description = "Validate WritePublishedDataItem call with invalid Attribute")]
         public void ValidateWritePublishedDataItemInvalidAttribute()
         {
             //Arrange
-            UaPubSubDataStore dataStore = new UaPubSubDataStore();
+            var dataStore = new UaPubSubDataStore();
 
             //Assert
-            Assert.Throws(typeof(ArgumentException),
+            NUnit.Framework.Assert.Throws(typeof(ArgumentException),
                 () => dataStore.WritePublishedDataItem(new NodeId("ns=0;i=2253"), (uint)Attributes.AccessLevelEx + 1));
         }
         #endregion
@@ -84,8 +84,8 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         public void ValidateReadPublishedDataItem()
         {
             //Arrange
-            UaPubSubDataStore dataStore = new UaPubSubDataStore();
-            NodeId nodeId = new NodeId("ns=1;i=1");
+            var dataStore = new UaPubSubDataStore();
+            var nodeId = new NodeId("ns=1;i=1");
 
             //Act     
             DataValue readDataValue = dataStore.ReadPublishedDataItem(nodeId, Attributes.Value);
@@ -98,19 +98,19 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         public void ValidateReadPublishedDataItemNullNodeId()
         {
             //Arrange
-            UaPubSubDataStore dataStore = new UaPubSubDataStore();
+            var dataStore = new UaPubSubDataStore();
 
             //Assert
-            Assert.Throws(typeof(ArgumentException), () => dataStore.ReadPublishedDataItem(null));
+            NUnit.Framework.Assert.Throws(typeof(ArgumentException), () => dataStore.ReadPublishedDataItem(null));
         }
 
         [Test(Description = "Validate ReadPublishedDataItem call with invalid Attribute")]
         public void ValidateReadPublishedDataIteminvalidAttribute()
         {
             //Arrange
-            UaPubSubDataStore dataStore = new UaPubSubDataStore();
+            var dataStore = new UaPubSubDataStore();
             //Assert
-            Assert.Throws(typeof(ArgumentException),
+            NUnit.Framework.Assert.Throws(typeof(ArgumentException),
                 () => dataStore.ReadPublishedDataItem(new NodeId("ns=0;i=2253"), (uint)Attributes.AccessLevelEx + 1));
         }
         #endregion

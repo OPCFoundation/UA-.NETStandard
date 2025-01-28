@@ -283,8 +283,8 @@ namespace Opc.Ua.Security.Certificates
             {
                 sanBuilder.AddUri(new Uri(uri));
             }
-            X509SubjectAltNameExtension.EncodeGeneralNames(sanBuilder, m_domainNames);
-            X509SubjectAltNameExtension.EncodeGeneralNames(sanBuilder, m_ipAddresses);
+            EncodeGeneralNames(sanBuilder, m_domainNames);
+            EncodeGeneralNames(sanBuilder, m_ipAddresses);
             X509Extension extension = sanBuilder.Build();
             return extension.RawData;
         }
@@ -342,8 +342,8 @@ namespace Opc.Ua.Security.Certificates
         /// </remarks>
         private void Decode(byte[] data)
         {
-            if (base.Oid.Value == SubjectAltNameOid ||
-                base.Oid.Value == SubjectAltName2Oid)
+            if (Oid.Value == SubjectAltNameOid ||
+                Oid.Value == SubjectAltName2Oid)
             {
                 try
                 {
@@ -375,7 +375,7 @@ namespace Opc.Ua.Security.Certificates
                             else if (peekTag == ipTag)
                             {
                                 byte[] ip = akiReader.ReadOctetString(ipTag);
-                                ipAddresses.Add(X509SubjectAltNameExtension.IPAddressToString(ip));
+                                ipAddresses.Add(IPAddressToString(ip));
                             }
                             else  // skip over
                             {

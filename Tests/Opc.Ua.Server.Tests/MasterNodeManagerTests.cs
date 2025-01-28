@@ -62,7 +62,7 @@ namespace Opc.Ua.Server.Tests
                 nodeManager.Setup(x => x.NamespaceUris).Returns(new List<string>());
 
                 //-- Act
-                var server = await fixture.StartAsync(TestContext.Out).ConfigureAwait(false);
+                StandardServer server = await fixture.StartAsync(TestContext.Out).ConfigureAwait(false);
                 var sut = new MasterNodeManager(
                     server.CurrentInstance,
                     fixture.Config,
@@ -72,7 +72,7 @@ namespace Opc.Ua.Server.Tests
 
                 //-- Assert
                 Assert.Contains(ns, server.CurrentInstance.NamespaceUris.ToArray());
-                var registeredManagers = sut.NamespaceManagers[server.CurrentInstance.NamespaceUris.GetIndex(ns)];
+                INodeManager[] registeredManagers = sut.NamespaceManagers[server.CurrentInstance.NamespaceUris.GetIndex(ns)];
                 Assert.AreEqual(1, registeredManagers.Length);
                 Assert.Contains(nodeManager.Object, registeredManagers);
             }
@@ -104,7 +104,7 @@ namespace Opc.Ua.Server.Tests
                 newNodeManager.Setup(x => x.NamespaceUris).Returns(namespaceUris);
 
                 //-- Act
-                var server = await fixture.StartAsync(TestContext.Out).ConfigureAwait(false);
+                StandardServer server = await fixture.StartAsync(TestContext.Out).ConfigureAwait(false);
                 var sut = new MasterNodeManager(
                     server.CurrentInstance,
                     fixture.Config,
@@ -114,7 +114,7 @@ namespace Opc.Ua.Server.Tests
 
                 //-- Assert
                 Assert.Contains(ns, server.CurrentInstance.NamespaceUris.ToArray());
-                var registeredManagers = sut.NamespaceManagers[server.CurrentInstance.NamespaceUris.GetIndex(ns)];
+                INodeManager[] registeredManagers = sut.NamespaceManagers[server.CurrentInstance.NamespaceUris.GetIndex(ns)];
                 Assert.AreEqual(2, registeredManagers.Length);
                 Assert.Contains(originalNodeManager.Object, registeredManagers);
                 Assert.Contains(newNodeManager.Object, registeredManagers);
@@ -152,23 +152,23 @@ namespace Opc.Ua.Server.Tests
                     additionalManagers[ii] = nodeManager.Object;
                 }
 
-                var nodeManagerToRemove = additionalManagers[indexToRemove];
+                INodeManager nodeManagerToRemove = additionalManagers[indexToRemove];
 
                 //-- Act
-                var server = await fixture.StartAsync(TestContext.Out).ConfigureAwait(false);
+                StandardServer server = await fixture.StartAsync(TestContext.Out).ConfigureAwait(false);
                 var sut = new MasterNodeManager(
                     server.CurrentInstance,
                     fixture.Config,
                     null,
                     additionalManagers);
-                var result = sut.UnregisterNamespaceManager(ns, nodeManagerToRemove);
+                bool result = sut.UnregisterNamespaceManager(ns, nodeManagerToRemove);
 
                 //-- Assert
                 Assert.IsTrue(result);
                 Assert.Contains(ns, server.CurrentInstance.NamespaceUris.ToArray());
-                var registeredManagers = sut.NamespaceManagers[server.CurrentInstance.NamespaceUris.GetIndex(ns)];
+                INodeManager[] registeredManagers = sut.NamespaceManagers[server.CurrentInstance.NamespaceUris.GetIndex(ns)];
                 Assert.AreEqual(totalManagers - 1, registeredManagers.Length);
-                Assert.That(registeredManagers, Has.No.Member(nodeManagerToRemove));
+                NUnit.Framework.Assert.That(registeredManagers, Has.No.Member(nodeManagerToRemove));
             }
             finally
             {
@@ -201,7 +201,7 @@ namespace Opc.Ua.Server.Tests
                 thirdNodeManager.Setup(x => x.NamespaceUris).Returns(namespaceUris);
 
                 //-- Act
-                var server = await fixture.StartAsync(TestContext.Out).ConfigureAwait(false);
+                StandardServer server = await fixture.StartAsync(TestContext.Out).ConfigureAwait(false);
                 var sut = new MasterNodeManager(
                     server.CurrentInstance,
                     fixture.Config,
@@ -209,12 +209,12 @@ namespace Opc.Ua.Server.Tests
                     firstNodeManager.Object,
                     // Do not add the secondNodeManager to additionalManagers
                     thirdNodeManager.Object);
-                var result = sut.UnregisterNamespaceManager(ns, secondNodeManager.Object);
+                bool result = sut.UnregisterNamespaceManager(ns, secondNodeManager.Object);
 
                 //-- Assert
                 Assert.IsFalse(result);
                 Assert.Contains(ns, server.CurrentInstance.NamespaceUris.ToArray());
-                var registeredManagers = sut.NamespaceManagers[server.CurrentInstance.NamespaceUris.GetIndex(ns)];
+                INodeManager[] registeredManagers = sut.NamespaceManagers[server.CurrentInstance.NamespaceUris.GetIndex(ns)];
                 Assert.AreEqual(2, registeredManagers.Length);
                 Assert.Contains(firstNodeManager.Object, registeredManagers);
                 Assert.Contains(thirdNodeManager.Object, registeredManagers);
@@ -248,20 +248,20 @@ namespace Opc.Ua.Server.Tests
                 newNodeManager.Setup(x => x.NamespaceUris).Returns(new List<string> { originalNs, newNs });
 
                 //-- Act
-                var server = await fixture.StartAsync(TestContext.Out).ConfigureAwait(false);
+                StandardServer server = await fixture.StartAsync(TestContext.Out).ConfigureAwait(false);
                 var sut = new MasterNodeManager(
                     server.CurrentInstance,
                     fixture.Config,
                     null,
                     originalNodeManager.Object);
-                var result = sut.UnregisterNamespaceManager(newNs, newNodeManager.Object);
+                bool result = sut.UnregisterNamespaceManager(newNs, newNodeManager.Object);
 
                 //-- Assert
                 Assert.IsFalse(result);
-                Assert.That(server.CurrentInstance.NamespaceUris.ToArray(), Has.No.Member(newNs));
+                NUnit.Framework.Assert.That(server.CurrentInstance.NamespaceUris.ToArray(), Has.No.Member(newNs));
 
                 Assert.Contains(originalNs, server.CurrentInstance.NamespaceUris.ToArray());
-                var registeredManagers = sut.NamespaceManagers[server.CurrentInstance.NamespaceUris.GetIndex(originalNs)];
+                INodeManager[] registeredManagers = sut.NamespaceManagers[server.CurrentInstance.NamespaceUris.GetIndex(originalNs)];
                 Assert.AreEqual(1, registeredManagers.Length);
                 Assert.Contains(originalNodeManager.Object, registeredManagers);
             }

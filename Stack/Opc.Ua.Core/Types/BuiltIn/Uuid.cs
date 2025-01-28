@@ -69,7 +69,7 @@ namespace Opc.Ua
         [DataMember(Name = "String", Order = 1)]
         public string GuidString
         {
-            get { return m_guid.ToString(); }
+            get => m_guid.ToString();
 
             set
             {

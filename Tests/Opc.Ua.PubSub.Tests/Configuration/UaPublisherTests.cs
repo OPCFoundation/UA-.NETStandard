@@ -66,11 +66,11 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                     }
                 });
 
-            WriterGroupDataType writerGroupDataType = new WriterGroupDataType();
+            var writerGroupDataType = new WriterGroupDataType();
             writerGroupDataType.PublishingInterval = publishingInterval;
 
             //Act 
-            UaPublisher publisher = new UaPublisher(mockConnection.Object, writerGroupDataType);
+            var publisher = new UaPublisher(mockConnection.Object, writerGroupDataType);
             publisher.Start();
 
             //wait so many seconds

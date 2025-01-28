@@ -105,9 +105,9 @@ namespace Opc.Ua.Configuration
             pkiRoot = DefaultPKIRoot(pkiRoot);
             appRoot = appRoot == null ? pkiRoot : DefaultPKIRoot(appRoot);
             rejectedRoot = rejectedRoot == null ? pkiRoot : DefaultPKIRoot(rejectedRoot);
-            var appStoreType = CertificateStoreIdentifier.DetermineStoreType(appRoot);
-            var pkiRootType = CertificateStoreIdentifier.DetermineStoreType(pkiRoot);
-            var rejectedRootType = CertificateStoreIdentifier.DetermineStoreType(rejectedRoot);
+            string appStoreType = CertificateStoreIdentifier.DetermineStoreType(appRoot);
+            string pkiRootType = CertificateStoreIdentifier.DetermineStoreType(pkiRoot);
+            string rejectedRootType = CertificateStoreIdentifier.DetermineStoreType(rejectedRoot);
             ApplicationConfiguration.SecurityConfiguration = new SecurityConfiguration {
                 // app cert store
 #pragma warning disable CS0618 // Type or member is obsolete
@@ -164,8 +164,8 @@ namespace Opc.Ua.Configuration
         {
             pkiRoot = DefaultPKIRoot(pkiRoot);
             rejectedRoot = rejectedRoot == null ? pkiRoot : DefaultPKIRoot(rejectedRoot);
-            var pkiRootType = CertificateStoreIdentifier.DetermineStoreType(pkiRoot);
-            var rejectedRootType = CertificateStoreIdentifier.DetermineStoreType(rejectedRoot);
+            string pkiRootType = CertificateStoreIdentifier.DetermineStoreType(pkiRoot);
+            string rejectedRootType = CertificateStoreIdentifier.DetermineStoreType(rejectedRoot);
             ApplicationConfiguration.SecurityConfiguration = new SecurityConfiguration {
                 // app cert store
                 ApplicationCertificates = applicationCertificates,
@@ -961,7 +961,7 @@ namespace Opc.Ua.Configuration
             string storeType = null,
             string storePath = null)
         {
-            CertificateIdentifierCollection certificateIdentifiers = new CertificateIdentifierCollection{
+            var certificateIdentifiers = new CertificateIdentifierCollection{
                 new CertificateIdentifier {
                     StoreType = storeType,
                     StorePath = storePath,
@@ -1164,11 +1164,11 @@ namespace Opc.Ua.Configuration
         private void AddEccSecurityPolicies(bool sign = false)
         {
             // create list of supported policies
-            var defaultPolicyUris = SecurityPolicies.GetDefaultEccUris();
+            string[] defaultPolicyUris = SecurityPolicies.GetDefaultEccUris();
             MessageSecurityMode securityMode = sign ? MessageSecurityMode.Sign : MessageSecurityMode.SignAndEncrypt;
             {
-                var policies = ApplicationConfiguration.ServerConfiguration.SecurityPolicies;
-                foreach (var policyUri in defaultPolicyUris)
+                ServerSecurityPolicyCollection policies = ApplicationConfiguration.ServerConfiguration.SecurityPolicies;
+                foreach (string policyUri in defaultPolicyUris)
                 {
                     InternalAddPolicy(policies, securityMode, policyUri);
                 }

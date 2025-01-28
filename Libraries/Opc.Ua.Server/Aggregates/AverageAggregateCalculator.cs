@@ -29,7 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Text;
 
 namespace Opc.Ua.Server
 {
@@ -58,7 +57,7 @@ namespace Opc.Ua.Server
         : 
             base(aggregateId, startTime, endTime, processingInterval, stepped, configuration)
         {
-            SetPartialBit = aggregateId != Opc.Ua.ObjectIds.AggregateFunction_Average;
+            SetPartialBit = aggregateId != ObjectIds.AggregateFunction_Average;
         }
         #endregion
 
@@ -151,7 +150,7 @@ namespace Opc.Ua.Server
             double result = total/count;
 
             // set the timestamp and status.
-            DataValue value = new DataValue();
+            var value = new DataValue();
             value.WrappedValue = new Variant(result, TypeInfo.Scalars.Double);
             value.SourceTimestamp = GetTimestamp(slice);
             value.ServerTimestamp = GetTimestamp(slice);
@@ -224,7 +223,7 @@ namespace Opc.Ua.Server
             }
 
             // set the timestamp and status.
-            DataValue value = new DataValue();
+            var value = new DataValue();
             value.WrappedValue = new Variant(result, TypeInfo.Scalars.Double);
             value.SourceTimestamp = GetTimestamp(slice);
             value.ServerTimestamp = GetTimestamp(slice);

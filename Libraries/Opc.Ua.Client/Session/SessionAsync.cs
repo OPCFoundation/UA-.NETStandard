@@ -76,7 +76,7 @@ namespace Opc.Ua.Client
             bool checkDomain,
             CancellationToken ct)
         {
-            OpenValidateIdentity(ref identity, out var identityToken, out var identityPolicy, out string securityPolicyUri, out bool requireEncryption);
+            OpenValidateIdentity(ref identity, out UserIdentityToken identityToken, out UserTokenPolicy identityPolicy, out string securityPolicyUri, out bool requireEncryption);
 
             // validate the server certificate /certificate chain.
             X509Certificate2 serverCertificate = null;
@@ -115,7 +115,7 @@ namespace Opc.Ua.Client
             // send the application instance certificate for the client.
             BuildCertificateData(out byte[] clientCertificateData, out byte[] clientCertificateChainData);
 
-            ApplicationDescription clientDescription = new ApplicationDescription {
+            var clientDescription = new ApplicationDescription {
                 ApplicationUri = m_configuration.ApplicationUri,
                 ApplicationName = m_configuration.ApplicationName,
                 ApplicationType = ApplicationType.Client,
@@ -369,7 +369,7 @@ namespace Opc.Ua.Client
         {
             if (subscriptions == null) throw new ArgumentNullException(nameof(subscriptions));
 
-            List<Subscription> subscriptionsToDelete = new List<Subscription>();
+            var subscriptionsToDelete = new List<Subscription>();
 
             bool removed = PrepareSubscriptionsToDelete(subscriptions, subscriptionsToDelete);
 
@@ -463,8 +463,8 @@ namespace Opc.Ua.Client
                 CallMethodResultCollection results = response.Results;
                 DiagnosticInfoCollection diagnosticInfos = response.DiagnosticInfos;
                 ResponseHeader responseHeader = response.ResponseHeader;
-                ClientBase.ValidateResponse(results, requests);
-                ClientBase.ValidateDiagnosticInfos(diagnosticInfos, requests);
+                ValidateResponse(results, requests);
+                ValidateDiagnosticInfos(diagnosticInfos, requests);
 
                 int ii = 0;
                 foreach (CallMethodResult value in results)
@@ -472,7 +472,7 @@ namespace Opc.Ua.Client
                     ServiceResult result = ServiceResult.Good;
                     if (StatusCode.IsNotGood(value.StatusCode))
                     {
-                        result = ClientBase.GetResult(value.StatusCode, ii, diagnosticInfos, responseHeader);
+                        result = GetResult(value.StatusCode, ii, diagnosticInfos, responseHeader);
                     }
                     errors.Add(result);
                     ii++;
@@ -517,8 +517,8 @@ namespace Opc.Ua.Client
                         return false;
                     }
 
-                    ClientBase.ValidateResponse(results, subscriptionIds);
-                    ClientBase.ValidateDiagnosticInfos(diagnosticInfos, subscriptionIds);
+                    ValidateResponse(results, subscriptionIds);
+                    ValidateDiagnosticInfos(diagnosticInfos, subscriptionIds);
 
                     for (int ii = 0; ii < subscriptions.Count; ii++)
                     {
@@ -596,9 +596,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public async Task FetchTypeTreeAsync(ExpandedNodeId typeId, CancellationToken ct = default)
         {
-            Node node = await NodeCache.FindAsync(typeId, ct).ConfigureAwait(false) as Node;
-
-            if (node != null)
+            if (await NodeCache.FindAsync(typeId, ct).ConfigureAwait(false) is Node node)
             {
                 var subTypes = new ExpandedNodeIdCollection();
                 foreach (IReference reference in node.Find(ReferenceTypeIds.HasSubtype, false))
@@ -751,8 +749,8 @@ namespace Opc.Ua.Client
             DataValueCollection values = readResponse.Results;
             DiagnosticInfoCollection diagnosticInfos = readResponse.DiagnosticInfos;
 
-            ClientBase.ValidateResponse(values, attributesToRead);
-            ClientBase.ValidateDiagnosticInfos(diagnosticInfos, attributesToRead);
+            ValidateResponse(values, attributesToRead);
+            ValidateDiagnosticInfos(diagnosticInfos, attributesToRead);
 
             var serviceResults = new ServiceResult[nodeIds.Count].ToList();
             ProcessAttributesReadNodesResponse(
@@ -796,8 +794,8 @@ namespace Opc.Ua.Client
             DataValueCollection nodeClassValues = readResponse.Results;
             DiagnosticInfoCollection diagnosticInfos = readResponse.DiagnosticInfos;
 
-            ClientBase.ValidateResponse(nodeClassValues, itemsToRead);
-            ClientBase.ValidateDiagnosticInfos(diagnosticInfos, itemsToRead);
+            ValidateResponse(nodeClassValues, itemsToRead);
+            ValidateDiagnosticInfos(diagnosticInfos, itemsToRead);
 
             // second determine attributes to read per nodeclass
             var attributesPerNodeId = new List<IDictionary<uint, DataValue>>(nodeIds.Count);
@@ -821,8 +819,8 @@ namespace Opc.Ua.Client
                 DataValueCollection values = readResponse.Results;
                 diagnosticInfos = readResponse.DiagnosticInfos;
 
-                ClientBase.ValidateResponse(values, attributesToRead);
-                ClientBase.ValidateDiagnosticInfos(diagnosticInfos, attributesToRead);
+                ValidateResponse(values, attributesToRead);
+                ValidateDiagnosticInfos(diagnosticInfos, attributesToRead);
 
                 ProcessAttributesReadNodesResponse(
                     readResponse.ResponseHeader,
@@ -853,10 +851,10 @@ namespace Opc.Ua.Client
             IDictionary<uint, DataValue> attributes = CreateAttributes(nodeClass, optionalAttributes);
 
             // build list of values to read.
-            ReadValueIdCollection itemsToRead = new ReadValueIdCollection();
+            var itemsToRead = new ReadValueIdCollection();
             foreach (uint attributeId in attributes.Keys)
             {
-                ReadValueId itemToRead = new ReadValueId {
+                var itemToRead = new ReadValueId {
                     NodeId = nodeId,
                     AttributeId = attributeId
                 };
@@ -873,8 +871,8 @@ namespace Opc.Ua.Client
             DataValueCollection values = readResponse.Results;
             DiagnosticInfoCollection diagnosticInfos = readResponse.DiagnosticInfos;
 
-            ClientBase.ValidateResponse(values, itemsToRead);
-            ClientBase.ValidateDiagnosticInfos(diagnosticInfos, itemsToRead);
+            ValidateResponse(values, itemsToRead);
+            ValidateDiagnosticInfos(diagnosticInfos, itemsToRead);
 
             return ProcessReadResponse(readResponse.ResponseHeader, attributes, itemsToRead, values, diagnosticInfos);
         }
@@ -884,12 +882,12 @@ namespace Opc.Ua.Client
             NodeId nodeId,
             CancellationToken ct = default)
         {
-            ReadValueId itemToRead = new ReadValueId {
+            var itemToRead = new ReadValueId {
                 NodeId = nodeId,
                 AttributeId = Attributes.Value
             };
 
-            ReadValueIdCollection itemsToRead = new ReadValueIdCollection {
+            var itemsToRead = new ReadValueIdCollection {
                 itemToRead
             };
 
@@ -904,12 +902,12 @@ namespace Opc.Ua.Client
             DataValueCollection values = readResponse.Results;
             DiagnosticInfoCollection diagnosticInfos = readResponse.DiagnosticInfos;
 
-            ClientBase.ValidateResponse(values, itemsToRead);
-            ClientBase.ValidateDiagnosticInfos(diagnosticInfos, itemsToRead);
+            ValidateResponse(values, itemsToRead);
+            ValidateDiagnosticInfos(diagnosticInfos, itemsToRead);
 
             if (StatusCode.IsBad(values[0].StatusCode))
             {
-                ServiceResult result = ClientBase.GetResult(values[0].StatusCode, 0, diagnosticInfos, readResponse.ResponseHeader);
+                ServiceResult result = GetResult(values[0].StatusCode, 0, diagnosticInfos, readResponse.ResponseHeader);
                 throw new ServiceResultException(result);
             }
 
@@ -947,15 +945,15 @@ namespace Opc.Ua.Client
             DataValueCollection values = readResponse.Results;
             DiagnosticInfoCollection diagnosticInfos = readResponse.DiagnosticInfos;
 
-            ClientBase.ValidateResponse(values, itemsToRead);
-            ClientBase.ValidateDiagnosticInfos(diagnosticInfos, itemsToRead);
+            ValidateResponse(values, itemsToRead);
+            ValidateDiagnosticInfos(diagnosticInfos, itemsToRead);
 
             foreach (DataValue value in values)
             {
                 ServiceResult result = ServiceResult.Good;
                 if (StatusCode.IsBad(value.StatusCode))
                 {
-                    result = ClientBase.GetResult(values[0].StatusCode, 0, diagnosticInfos, readResponse.ResponseHeader);
+                    result = GetResult(values[0].StatusCode, 0, diagnosticInfos, readResponse.ResponseHeader);
                 }
                 errors.Add(result);
             }
@@ -983,10 +981,10 @@ namespace Opc.Ua.Client
             CancellationToken ct = default)
         {
 
-            BrowseDescriptionCollection browseDescriptions = new BrowseDescriptionCollection();
+            var browseDescriptions = new BrowseDescriptionCollection();
             foreach (NodeId nodeToBrowse in nodesToBrowse)
             {
-                BrowseDescription description = new BrowseDescription {
+                var description = new BrowseDescription {
                     NodeId = nodeToBrowse,
                     BrowseDirection = browseDirection,
                     ReferenceTypeId = referenceTypeId,
@@ -1005,12 +1003,12 @@ namespace Opc.Ua.Client
                 browseDescriptions,
                 ct).ConfigureAwait(false);
 
-            ClientBase.ValidateResponse(browseResponse.ResponseHeader);
+            ValidateResponse(browseResponse.ResponseHeader);
             BrowseResultCollection results = browseResponse.Results;
             DiagnosticInfoCollection diagnosticInfos = browseResponse.DiagnosticInfos;
 
-            ClientBase.ValidateResponse(results, browseDescriptions);
-            ClientBase.ValidateDiagnosticInfos(diagnosticInfos, browseDescriptions);
+            ValidateResponse(results, browseDescriptions);
+            ValidateDiagnosticInfos(diagnosticInfos, browseDescriptions);
 
             int ii = 0;
             var errors = new List<ServiceResult>();
@@ -1055,13 +1053,13 @@ namespace Opc.Ua.Client
                 continuationPoints,
                 ct).ConfigureAwait(false);
 
-            ClientBase.ValidateResponse(response.ResponseHeader);
+            ValidateResponse(response.ResponseHeader);
 
             BrowseResultCollection results = response.Results;
             DiagnosticInfoCollection diagnosticInfos = response.DiagnosticInfos;
 
-            ClientBase.ValidateResponse(results, continuationPoints);
-            ClientBase.ValidateDiagnosticInfos(diagnosticInfos, continuationPoints);
+            ValidateResponse(results, continuationPoints);
+            ValidateDiagnosticInfos(diagnosticInfos, continuationPoints);
 
             int ii = 0;
             var errors = new List<ServiceResult>();
@@ -1120,13 +1118,13 @@ namespace Opc.Ua.Client
             {
                 // in the first pass, we browse all nodes from the input.
                 // Some nodes may need to be browsed again, these are then fed into the next pass.
-                List<NodeId> nodesToBrowseForPass = new List<NodeId>(count);
+                var nodesToBrowseForPass = new List<NodeId>(count);
                 nodesToBrowseForPass.AddRange(nodesToBrowse);
 
-                List<ReferenceDescriptionCollection> resultForPass = new List<ReferenceDescriptionCollection>(count);
+                var resultForPass = new List<ReferenceDescriptionCollection>(count);
                 resultForPass.AddRange(result);
 
-                List<ServiceResult> errorsForPass = new List<ServiceResult>(count);
+                var errorsForPass = new List<ServiceResult>(count);
                 errorsForPass.AddRange(errors);
 
                 int passCount = 0;
@@ -1146,12 +1144,12 @@ namespace Opc.Ua.Client
                     // split input into batches
                     int batchOffset = 0;
 
-                    List<NodeId> nodesToBrowseForNextPass = new List<NodeId>();
-                    List<ReferenceDescriptionCollection> referenceDescriptionsForNextPass = new List<ReferenceDescriptionCollection>();
-                    List<ServiceResult> errorsForNextPass = new List<ServiceResult>();
+                    var nodesToBrowseForNextPass = new List<NodeId>();
+                    var referenceDescriptionsForNextPass = new List<ReferenceDescriptionCollection>();
+                    var errorsForNextPass = new List<ServiceResult>();
 
                     // loop over the batches
-                    foreach (var nodesToBrowseBatch in ((List<NodeId>)nodesToBrowseForPass).Batch<NodeId, List<NodeId>>(maxNodesPerBrowse))
+                    foreach (List<NodeId> nodesToBrowseBatch in ((List<NodeId>)nodesToBrowseForPass).Batch<NodeId, List<NodeId>>(maxNodesPerBrowse))
                     {
                         int nodesToBrowseBatchCount = nodesToBrowseBatch.Count;
 
@@ -1174,7 +1172,7 @@ namespace Opc.Ua.Client
                         int resultOffset = batchOffset;
                         for (int ii = 0; ii < nodesToBrowseBatchCount; ii++)
                         {
-                            var statusCode = errorsForBatch[ii].StatusCode;
+                            StatusCode statusCode = errorsForBatch[ii].StatusCode;
                             if (StatusCode.IsBad(statusCode))
                             {
                                 bool addToNextPass = false;
@@ -1310,10 +1308,10 @@ namespace Opc.Ua.Client
             result.AddRange(referenceDescriptions);
 
             // process any continuation point.
-            var previousResults = result;
+            List<ReferenceDescriptionCollection> previousResults = result;
             var errorAnchors = new List<ReferenceWrapper<ServiceResult>>();
             var previousErrors = new List<ReferenceWrapper<ServiceResult>>();
-            foreach (var error in errors)
+            foreach (ServiceResult error in errors)
             {
                 previousErrors.Add(new ReferenceWrapper<ServiceResult> { reference = error });
                 errorAnchors.Add(previousErrors.Last());
@@ -1382,7 +1380,7 @@ namespace Opc.Ua.Client
 
             }
             var finalErrors = new List<ServiceResult>(errorAnchors.Count);
-            foreach (var errorReference in errorAnchors)
+            foreach (ReferenceWrapper<ServiceResult> errorReference in errorAnchors)
             {
                 finalErrors.Add(errorReference.reference);
             }
@@ -1396,7 +1394,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public async Task<IList<object>> CallAsync(NodeId objectId, NodeId methodId, CancellationToken ct = default, params object[] args)
         {
-            VariantCollection inputArguments = new VariantCollection();
+            var inputArguments = new VariantCollection();
 
             if (args != null)
             {
@@ -1406,13 +1404,13 @@ namespace Opc.Ua.Client
                 }
             }
 
-            CallMethodRequest request = new CallMethodRequest();
+            var request = new CallMethodRequest();
 
             request.ObjectId = objectId;
             request.MethodId = methodId;
             request.InputArguments = inputArguments;
 
-            CallMethodRequestCollection requests = new CallMethodRequestCollection();
+            var requests = new CallMethodRequestCollection();
             requests.Add(request);
 
             CallMethodResultCollection results;
@@ -1423,15 +1421,15 @@ namespace Opc.Ua.Client
             results = response.Results;
             diagnosticInfos = response.DiagnosticInfos;
 
-            ClientBase.ValidateResponse(results, requests);
-            ClientBase.ValidateDiagnosticInfos(diagnosticInfos, requests);
+            ValidateResponse(results, requests);
+            ValidateDiagnosticInfos(diagnosticInfos, requests);
 
             if (StatusCode.IsBad(results[0].StatusCode))
             {
                 throw ServiceResultException.Create(results[0].StatusCode, 0, diagnosticInfos, response.ResponseHeader.StringTable);
             }
 
-            List<object> outputArguments = new List<object>();
+            var outputArguments = new List<object>();
 
             foreach (Variant arg in results[0].OutputArguments)
             {
@@ -1588,7 +1586,7 @@ namespace Opc.Ua.Client
         {
             if (transportChannel == null)
             {
-                return await Session.RecreateAsync(sessionTemplate, ct).ConfigureAwait(false);
+                return await RecreateAsync(sessionTemplate, ct).ConfigureAwait(false);
             }
 
             ServiceMessageContext messageContext = sessionTemplate.m_configuration.CreateMessageContext();
@@ -1826,7 +1824,7 @@ namespace Opc.Ua.Client
         public async Task<(bool, ServiceResult)> RepublishAsync(uint subscriptionId, uint sequenceNumber, CancellationToken ct)
         {
             // send republish request.
-            RequestHeader requestHeader = new RequestHeader {
+            var requestHeader = new RequestHeader {
                 TimeoutHint = (uint)OperationTimeout,
                 ReturnDiagnostics = (uint)(int)ReturnDiagnostics,
                 RequestHandle = Utils.IncrementIdentifier(ref m_publishCounter)

@@ -11,10 +11,6 @@
 */
 
 using System;
-using System.Collections.Generic;
-using System.Text;
-using System.Xml;
-using System.Runtime.Serialization;
 
 namespace Opc.Ua
 {
@@ -41,7 +37,7 @@ namespace Opc.Ua
             }
 
             // note: custom types must be added to the encodeable factory by the node manager to be found
-            var systemType = context.EncodeableFactory?.GetSystemType(NodeId.ToExpandedNodeId(typeId, context.NamespaceUris));
+            Type systemType = context.EncodeableFactory?.GetSystemType(NodeId.ToExpandedNodeId(typeId, context.NamespaceUris));
             if (systemType != null && Activator.CreateInstance(systemType) is IEncodeable encodeable)
             {
                 if (dataEncoding == null || dataEncoding.Name == BrowseNames.DefaultBinary)

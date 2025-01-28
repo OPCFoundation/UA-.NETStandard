@@ -71,21 +71,21 @@ namespace Opc.Ua.Server
                 // halt any outstanding timer.
                 if (m_registrationTimer != null)
                 {
-                    Utils.SilentDispose(m_registrationTimer);
+                    SilentDispose(m_registrationTimer);
                     m_registrationTimer = null;
                 }
 
                 // close the watcher.
                 if (m_configurationWatcher != null)
                 {
-                    Utils.SilentDispose(m_configurationWatcher);
+                    SilentDispose(m_configurationWatcher);
                     m_configurationWatcher = null;
                 }
 
                 // close the server.
                 if (m_serverInternal != null)
                 {
-                    Utils.SilentDispose(m_serverInternal);
+                    SilentDispose(m_serverInternal);
                     m_serverInternal = null;
                 }
             }
@@ -122,7 +122,7 @@ namespace Opc.Ua.Server
                 // parse the url provided by the client.
                 IList<BaseAddress> baseAddresses = BaseAddresses;
 
-                Uri parsedEndpointUrl = Utils.ParseUri(endpointUrl);
+                Uri parsedEndpointUrl = ParseUri(endpointUrl);
 
                 if (parsedEndpointUrl != null)
                 {
@@ -137,7 +137,7 @@ namespace Opc.Ua.Server
                 }
 
                 // build list of unique servers.
-                Dictionary<string, ApplicationDescription> uniqueServers = new Dictionary<string, ApplicationDescription>();
+                var uniqueServers = new Dictionary<string, ApplicationDescription>();
 
                 foreach (EndpointDescription description in GetEndpoints())
                 {
@@ -231,7 +231,7 @@ namespace Opc.Ua.Server
             EndpointDescriptionCollection endpoints = null;
 
             // parse the url provided by the client.
-            Uri parsedEndpointUrl = Utils.ParseUri(endpointUrl);
+            Uri parsedEndpointUrl = ParseUri(endpointUrl);
 
             if (parsedEndpointUrl != null)
             {
@@ -252,7 +252,7 @@ namespace Opc.Ua.Server
                 // translate the application description.
                 ApplicationDescription application = TranslateApplicationDescription(
                     parsedEndpointUrl,
-                    base.ServerDescription,
+                    ServerDescription,
                     baseAddresses,
                     applicationName);
 
@@ -361,7 +361,7 @@ namespace Opc.Ua.Server
                     }
                 }
 
-                bool requireEncryption = ServerBase.RequireEncryption(context?.ChannelContext?.EndpointDescription);
+                bool requireEncryption = RequireEncryption(context?.ChannelContext?.EndpointDescription);
 
                 if (!requireEncryption && clientCertificate != null)
                 {
@@ -377,7 +377,7 @@ namespace Opc.Ua.Server
                 {
                     try
                     {
-                        X509Certificate2Collection clientCertificateChain = Utils.ParseCertificateChainBlob(clientCertificate);
+                        X509Certificate2Collection clientCertificateChain = ParseCertificateChainBlob(clientCertificate);
                         parsedClientCertificate = clientCertificateChain[0];
 
                         if (clientCertificateChain.Count > 1)
@@ -459,7 +459,7 @@ namespace Opc.Ua.Server
                     try
                     {
                         // check the endpointurl
-                        ConfiguredEndpoint configuredEndpoint = new ConfiguredEndpoint() {
+                        var configuredEndpoint = new ConfiguredEndpoint() {
                             EndpointUrl = new Uri(endpointUrl)
                         };
 
@@ -467,7 +467,7 @@ namespace Opc.Ua.Server
                     }
                     catch (ServiceResultException sre) when (sre.StatusCode == StatusCodes.BadCertificateHostNameInvalid)
                     {
-                        Utils.LogWarning("Server - Client connects with an endpointUrl [{0}] which does not match Server hostnames.", endpointUrl);
+                        LogWarning("Server - Client connects with an endpointUrl [{0}] which does not match Server hostnames.", endpointUrl);
                         ServerInternal.ReportAuditUrlMismatchEvent(context?.AuditEntryId, session, revisedSessionTimeout, endpointUrl);
                     }
                 }
@@ -508,7 +508,7 @@ namespace Opc.Ua.Server
                     //  sign the client nonce (if provided).
                     if (parsedClientCertificate != null && clientNonce != null)
                     {
-                        byte[] dataToSign = Utils.Append(parsedClientCertificate.RawData, clientNonce);
+                        byte[] dataToSign = Append(parsedClientCertificate.RawData, clientNonce);
                         serverSignature = SecurityPolicies.Sign(instanceCertificate, context.SecurityPolicyUri, dataToSign);
                     }
                 }
@@ -519,7 +519,7 @@ namespace Opc.Ua.Server
                     ServerInternal.ServerDiagnostics.CumulatedSessionCount++;
                 }
 
-                Utils.LogInfo("Server - SESSION CREATED. SessionId={0}", sessionId);
+                LogInfo("Server - SESSION CREATED. SessionId={0}", sessionId);
 
                 // report audit for successful create session
                 ServerInternal.ReportAuditCreateSessionEvent(context?.AuditEntryId, session, revisedSessionTimeout);
@@ -537,7 +537,7 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException e)
             {
-                Utils.LogError("Server - SESSION CREATE failed. {0}", e.Message);
+                LogError("Server - SESSION CREATE failed. {0}", e.Message);
 
                 // report the failed AuditCreateSessionEvent
                 ServerInternal.ReportAuditCreateSessionEvent(context?.AuditEntryId, session, revisedSessionTimeout, e);
@@ -582,16 +582,16 @@ namespace Opc.Ua.Server
             {
                 response = new AdditionalParametersType();
 
-                foreach (var ii in parameters.Parameters)
+                foreach (KeyValuePair ii in parameters.Parameters)
                 {
                     if (ii.Key == "ECDHPolicyUri")
                     {
-                        var policyUri = ii.Value.ToString();
+                        string policyUri = ii.Value.ToString();
 
                         if (EccUtils.IsEccPolicy(policyUri))
                         {
                             session.SetEccUserTokenSecurityPolicy(policyUri);
-                            var key = session.GetNewEccKey();
+                            EphemeralKeyType key = session.GetNewEccKey();
                             response.Parameters.Add(new KeyValuePair() { Key = "ECDHKey", Value = new ExtensionObject(key) });
                         }
                         else
@@ -615,7 +615,7 @@ namespace Opc.Ua.Server
         {
             AdditionalParametersType response = null;
 
-            var key = session.GetNewEccKey();
+            EphemeralKeyType key = session.GetNewEccKey();
 
             if (key != null)
             {
@@ -661,7 +661,7 @@ namespace Opc.Ua.Server
 
             OperationContext context = ValidateRequest(requestHeader, RequestType.ActivateSession);
             // validate client's software certificates.
-            List<SoftwareCertificate> softwareCertificates = new List<SoftwareCertificate>();
+            var softwareCertificates = new List<SoftwareCertificate>();
 
             try
             {
@@ -742,7 +742,7 @@ namespace Opc.Ua.Server
                 parameters = ActivateSessionProcessAdditionalParameters(session, parameters);
 #endif
 
-                Utils.LogInfo("Server - SESSION ACTIVATED.");
+                LogInfo("Server - SESSION ACTIVATED.");
 
                 // report the audit event for session activate
                 ServerInternal.ReportAuditActivateSessionEvent(context?.AuditEntryId, session, softwareCertificates);
@@ -759,7 +759,7 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException e)
             {
-                Utils.LogInfo("Server - SESSION ACTIVATE failed. {0}", e.Message);
+                LogInfo("Server - SESSION ACTIVATE failed. {0}", e.Message);
 
                 // report the audit event for failed session activate
                 Session session = ServerInternal.SessionManager.GetSession(requestHeader.AuthenticationToken);
@@ -837,14 +837,14 @@ namespace Opc.Ua.Server
         /// <returns>Returns a description for the ResponseHeader DataType. </returns>
         protected ResponseHeader CreateResponse(RequestHeader requestHeader, ServiceResultException exception)
         {
-            ResponseHeader responseHeader = new ResponseHeader();
+            var responseHeader = new ResponseHeader();
 
             responseHeader.ServiceResult = exception.StatusCode;
 
             responseHeader.Timestamp = DateTime.UtcNow;
             responseHeader.RequestHandle = requestHeader.RequestHandle;
 
-            StringTable stringTable = new StringTable();
+            var stringTable = new StringTable();
             responseHeader.ServiceDiagnostics = new DiagnosticInfo(exception, (DiagnosticsMasks)requestHeader.ReturnDiagnostics, true, stringTable);
             responseHeader.StringTable = stringTable.ToArray();
 
@@ -1642,7 +1642,7 @@ namespace Opc.Ua.Server
                 }
                 */
 
-                Utils.LogTrace("PUBLISH #{0} RECEIVED. TIME={1:hh:mm:ss.fff}", requestHeader.RequestHandle, requestHeader.Timestamp);
+                LogTrace("PUBLISH #{0} RECEIVED. TIME={1:hh:mm:ss.fff}", requestHeader.RequestHandle, requestHeader.Timestamp);
 
                 notificationMessage = ServerInternal.SubscriptionManager.Publish(
                     context,
@@ -1694,12 +1694,12 @@ namespace Opc.Ua.Server
         /// <param name="request">The request.</param>
         public virtual void BeginPublish(IEndpointIncomingRequest request)
         {
-            PublishRequest input = (PublishRequest)request.Request;
+            var input = (PublishRequest)request.Request;
             OperationContext context = ValidateRequest(input.RequestHeader, RequestType.Publish);
 
             try
             {
-                AsyncPublishOperation operation = new AsyncPublishOperation(context, request, this);
+                var operation = new AsyncPublishOperation(context, request, this);
 
                 uint subscriptionId = 0;
                 UInt32Collection availableSequenceNumbers = null;
@@ -1731,7 +1731,7 @@ namespace Opc.Ua.Server
                     operation.Response.DiagnosticInfos = diagnosticInfos;
                     operation.Response.NotificationMessage = notificationMessage;
 
-                    Utils.LogTrace("PUBLISH: #{0} Completed Synchronously", input.RequestHeader.RequestHandle);
+                    LogTrace("PUBLISH: #{0} Completed Synchronously", input.RequestHeader.RequestHandle);
                     request.OperationCompleted(operation.Response, null);
                 }
             }
@@ -1759,7 +1759,7 @@ namespace Opc.Ua.Server
         /// <param name="request">The request.</param>
         public virtual void CompletePublish(IEndpointIncomingRequest request)
         {
-            AsyncPublishOperation operation = (AsyncPublishOperation)request.Calldata;
+            var operation = (AsyncPublishOperation)request.Calldata;
             OperationContext context = operation.Context;
 
             try
@@ -2350,7 +2350,7 @@ namespace Opc.Ua.Server
         /// <returns>Boolean value.</returns>
         public bool RegisterWithDiscoveryServer()
         {
-            ApplicationConfiguration configuration = new ApplicationConfiguration(base.Configuration);
+            var configuration = new ApplicationConfiguration(Configuration);
 
             // use a dedicated certificate validator with the registration, but derive behavior from server config
             var registrationCertificateValidator = new CertificateValidationEventHandler(RegistrationValidator_CertificateValidation);
@@ -2390,11 +2390,11 @@ namespace Opc.Ua.Server
                                     endpoint.UpdateBeforeConnect = false;
                                 }
 
-                                RequestHeader requestHeader = new RequestHeader();
+                                var requestHeader = new RequestHeader();
                                 requestHeader.Timestamp = DateTime.UtcNow;
 
                                 // create the client.
-                                var instanceCertificate = InstanceCertificateTypesProvider.GetInstanceCertificate(null);
+                                X509Certificate2 instanceCertificate = InstanceCertificateTypesProvider.GetInstanceCertificate(null);
                                 client = RegistrationClient.Create(
                                     configuration,
                                     endpoint.Description,
@@ -2406,14 +2406,14 @@ namespace Opc.Ua.Server
                                 // register the server.
                                 if (m_useRegisterServer2)
                                 {
-                                    ExtensionObjectCollection discoveryConfiguration = new ExtensionObjectCollection();
+                                    var discoveryConfiguration = new ExtensionObjectCollection();
                                     StatusCodeCollection configurationResults = null;
                                     DiagnosticInfoCollection diagnosticInfos = null;
-                                    MdnsDiscoveryConfiguration mdnsDiscoveryConfig = new MdnsDiscoveryConfiguration {
+                                    var mdnsDiscoveryConfig = new MdnsDiscoveryConfiguration {
                                         ServerCapabilities = configuration.ServerConfiguration.ServerCapabilities,
-                                        MdnsServerName = Utils.GetHostName()
+                                        MdnsServerName = GetHostName()
                                     };
-                                    ExtensionObject extensionObject = new ExtensionObject(mdnsDiscoveryConfig);
+                                    var extensionObject = new ExtensionObject(mdnsDiscoveryConfig);
                                     discoveryConfiguration.Add(extensionObject);
                                     client.RegisterServer2(
                                         requestHeader,
@@ -2432,7 +2432,7 @@ namespace Opc.Ua.Server
                             }
                             catch (Exception e)
                             {
-                                Utils.LogWarning("RegisterServer{0} failed for at: {1}. Exception={2}",
+                                LogWarning("RegisterServer{0} failed for at: {1}. Exception={2}",
                                     m_useRegisterServer2 ? "2" : "", endpoint.EndpointUrl, e.Message);
                                 m_useRegisterServer2 = !m_useRegisterServer2;
                             }
@@ -2447,7 +2447,7 @@ namespace Opc.Ua.Server
                                     }
                                     catch (Exception e)
                                     {
-                                        Utils.LogWarning("Could not cleanly close connection with LDS. Exception={0}", e.Message);
+                                        LogWarning("Could not cleanly close connection with LDS. Exception={0}", e.Message);
                                     }
                                 }
                             }
@@ -2473,11 +2473,11 @@ namespace Opc.Ua.Server
         /// </summary>
         private void RegistrationValidator_CertificateValidation(CertificateValidator sender, CertificateValidationEventArgs e)
         {
-            System.Net.IPAddress[] targetAddresses = Utils.GetHostAddresses(Utils.GetHostName());
+            System.Net.IPAddress[] targetAddresses = GetHostAddresses(GetHostName());
 
             foreach (string domain in X509Utils.GetDomainsFromCertificate(e.Certificate))
             {
-                System.Net.IPAddress[] actualAddresses = Utils.GetHostAddresses(domain);
+                System.Net.IPAddress[] actualAddresses = GetHostAddresses(domain);
 
                 foreach (System.Net.IPAddress actualAddress in actualAddresses)
                 {
@@ -2525,7 +2525,7 @@ namespace Opc.Ua.Server
                                 Timeout.Infinite);
 
                             m_lastRegistrationInterval = m_minRegistrationInterval;
-                            Utils.LogInfo("Register server succeeded. Registering again in {0} ms", m_maxRegistrationInterval);
+                            LogInfo("Register server succeeded. Registering again in {0} ms", m_maxRegistrationInterval);
                         }
                     }
                 }
@@ -2543,7 +2543,7 @@ namespace Opc.Ua.Server
                                 m_lastRegistrationInterval = m_maxRegistrationInterval;
                             }
 
-                            Utils.LogInfo("Register server failed. Trying again in {0} ms", m_lastRegistrationInterval);
+                            LogInfo("Register server failed. Trying again in {0} ms", m_lastRegistrationInterval);
 
                             // create timer.
                             m_registrationTimer = new Timer(OnRegisterServer, this, m_lastRegistrationInterval, Timeout.Infinite);
@@ -2553,7 +2553,7 @@ namespace Opc.Ua.Server
             }
             catch (Exception e)
             {
-                Utils.LogError(e, "Unexpected exception handling registration timer.");
+                LogError(e, "Unexpected exception handling registration timer.");
             }
         }
 #endregion
@@ -2768,7 +2768,7 @@ namespace Opc.Ua.Server
             }
 
             // create new result object.
-            ServiceResult result = new ServiceResult(
+            var result = new ServiceResult(
                 e.StatusCode,
                 e.SymbolicId,
                 e.NamespaceUri,
@@ -2836,7 +2836,7 @@ namespace Opc.Ua.Server
             }
             catch (Exception e)
             {
-                Utils.LogError(e, "Could not load updated configuration file from: {0}", args);
+                LogError(e, "Could not load updated configuration file from: {0}", args);
             }
         }
 
@@ -2920,7 +2920,7 @@ namespace Opc.Ua.Server
             // ensure at least one user token policy exists.
             if (configuration.ServerConfiguration.UserTokenPolicies.Count == 0)
             {
-                UserTokenPolicy userTokenPolicy = new UserTokenPolicy();
+                var userTokenPolicy = new UserTokenPolicy();
 
                 userTokenPolicy.TokenType = UserTokenType.Anonymous;
                 userTokenPolicy.PolicyId = userTokenPolicy.TokenType.ToString();
@@ -2940,12 +2940,12 @@ namespace Opc.Ua.Server
             endpoints = new EndpointDescriptionCollection();
             IList<EndpointDescription> endpointsForHost = null;
 
-            var baseAddresses = configuration.ServerConfiguration.BaseAddresses;
-            var requiredSchemes = Utils.DefaultUriSchemes.Where(scheme => baseAddresses.Any(a => a.StartsWith(scheme, StringComparison.Ordinal)));
+            StringCollection baseAddresses = configuration.ServerConfiguration.BaseAddresses;
+            IEnumerable<string> requiredSchemes = DefaultUriSchemes.Where(scheme => baseAddresses.Any(a => a.StartsWith(scheme, StringComparison.Ordinal)));
 
-            foreach (var scheme in requiredSchemes)
+            foreach (string scheme in requiredSchemes)
             {
-                var binding = bindingFactory.GetBinding(scheme);
+                ITransportListenerFactory binding = bindingFactory.GetBinding(scheme);
                 if (binding != null)
                 {
                     endpointsForHost = binding.CreateServiceHost(
@@ -3000,7 +3000,7 @@ namespace Opc.Ua.Server
             {
                 try
                 {
-                    Utils.LogInfo(TraceMasks.StartStop, "Server - Start application {0}.", configuration.ApplicationName);
+                    LogInfo(TraceMasks.StartStop, "Server - Start application {0}.", configuration.ApplicationName);
 
                     // Setup the minimum nonce length
                     Nonce.SetMinNonceValue((uint)configuration.SecurityConfiguration.NonceLength);
@@ -3014,15 +3014,15 @@ namespace Opc.Ua.Server
                         InstanceCertificateTypesProvider);
 
                     // create the manager responsible for providing localized string resources.                    
-                    Utils.LogInfo(TraceMasks.StartStop, "Server - CreateResourceManager.");
+                    LogInfo(TraceMasks.StartStop, "Server - CreateResourceManager.");
                     ResourceManager resourceManager = CreateResourceManager(m_serverInternal, configuration);
 
                     // create the manager responsible for incoming requests.
-                    Utils.LogInfo(TraceMasks.StartStop, "Server - CreateRequestManager.");
+                    LogInfo(TraceMasks.StartStop, "Server - CreateRequestManager.");
                     RequestManager requestManager = CreateRequestManager(m_serverInternal, configuration);
 
                     // create the master node manager.
-                    Utils.LogInfo(TraceMasks.StartStop, "Server - CreateMasterNodeManager.");
+                    LogInfo(TraceMasks.StartStop, "Server - CreateMasterNodeManager.");
                     MasterNodeManager masterNodeManager = CreateMasterNodeManager(m_serverInternal, configuration);
 
                     // add the node manager to the datastore.
@@ -3032,7 +3032,7 @@ namespace Opc.Ua.Server
                     masterNodeManager.Startup();
 
                     // create the manager responsible for handling events.
-                    Utils.LogInfo(TraceMasks.StartStop, "Server - CreateEventManager.");
+                    LogInfo(TraceMasks.StartStop, "Server - CreateEventManager.");
                     EventManager eventManager = CreateEventManager(m_serverInternal, configuration);
 
                     // creates the server object.
@@ -3045,11 +3045,11 @@ namespace Opc.Ua.Server
                     OnNodeManagerStarted(m_serverInternal);
 
                     // create the manager responsible for aggregates.
-                    Utils.LogInfo(TraceMasks.StartStop, "Server - CreateAggregateManager.");
+                    LogInfo(TraceMasks.StartStop, "Server - CreateAggregateManager.");
                     m_serverInternal.AggregateManager = CreateAggregateManager(m_serverInternal, configuration);
 
                     // start the session manager.
-                    Utils.LogInfo(TraceMasks.StartStop, "Server - CreateSessionManager.");
+                    LogInfo(TraceMasks.StartStop, "Server - CreateSessionManager.");
                     SessionManager sessionManager = CreateSessionManager(m_serverInternal, configuration);
                     sessionManager.Startup();
 
@@ -3057,7 +3057,7 @@ namespace Opc.Ua.Server
                     sessionManager.SessionChannelKeepAlive += SessionChannelKeepAliveEvent;
 
                     // start the subscription manager.
-                    Utils.LogInfo(TraceMasks.StartStop, "Server - CreateSubscriptionManager.");
+                    LogInfo(TraceMasks.StartStop, "Server - CreateSubscriptionManager.");
                     SubscriptionManager subscriptionManager = CreateSubscriptionManager(m_serverInternal, configuration);
                     subscriptionManager.Startup();
 
@@ -3083,11 +3083,11 @@ namespace Opc.Ua.Server
                         m_registrationInfo.SemaphoreFilePath = null;
 
                         // add all discovery urls.
-                        string computerName = Utils.GetHostName();
+                        string computerName = GetHostName();
 
                         for (int ii = 0; ii < BaseAddresses.Count; ii++)
                         {
-                            UriBuilder uri = new UriBuilder(BaseAddresses[ii].DiscoveryUrl);
+                            var uri = new UriBuilder(BaseAddresses[ii].DiscoveryUrl);
 
                             if (String.Equals(uri.Host, "localhost", StringComparison.OrdinalIgnoreCase))
                             {
@@ -3105,7 +3105,7 @@ namespace Opc.Ua.Server
                         if (endpoint == null)
                         {
                             endpoint = new EndpointDescription();
-                            endpoint.EndpointUrl = Utils.Format(Utils.DiscoveryUrls[0], "localhost");
+                            endpoint.EndpointUrl = Format(DiscoveryUrls[0], "localhost");
                             endpoint.SecurityLevel = ServerSecurityPolicy.CalculateSecurityLevel(MessageSecurityMode.SignAndEncrypt, SecurityPolicies.Basic256Sha256);
                             endpoint.SecurityMode = MessageSecurityMode.SignAndEncrypt;
                             endpoint.SecurityPolicyUri = SecurityPolicies.Basic256Sha256;
@@ -3127,7 +3127,7 @@ namespace Opc.Ua.Server
 
                         if (m_maxRegistrationInterval > 0)
                         {
-                            Utils.LogInfo(TraceMasks.StartStop, "Server - Registration Timer started.");
+                            LogInfo(TraceMasks.StartStop, "Server - Registration Timer started.");
                             m_registrationTimer = new Timer(OnRegisterServer, this, m_minRegistrationInterval, Timeout.Infinite);
                         }
                     }
@@ -3136,13 +3136,13 @@ namespace Opc.Ua.Server
                     SetServerState(ServerState.Running);
 
                     // all initialization is complete.
-                    Utils.LogInfo(TraceMasks.StartStop, "Server - Started.");
+                    LogInfo(TraceMasks.StartStop, "Server - Started.");
                     OnServerStarted(m_serverInternal);
 
                     // monitor the configuration file.
                     if (!String.IsNullOrEmpty(configuration.SourceFilePath))
                     {
-                        Utils.LogInfo(TraceMasks.StartStop, "Server - Configuration watcher started.");
+                        LogInfo(TraceMasks.StartStop, "Server - Configuration watcher started.");
                         m_configurationWatcher = new ConfigurationWatcher(configuration);
                         m_configurationWatcher.Changed += this.OnConfigurationChanged;
                     }
@@ -3151,10 +3151,10 @@ namespace Opc.Ua.Server
                 }
                 catch (Exception e)
                 {
-                    var message = "Unexpected error starting application";
-                    Utils.LogCritical(TraceMasks.StartStop, e, message);
+                    string message = "Unexpected error starting application";
+                    LogCritical(TraceMasks.StartStop, e, message);
                     m_serverInternal = null;
-                    ServiceResult error = ServiceResult.Create(e, StatusCodes.BadInternalError, message);
+                    var error = ServiceResult.Create(e, StatusCodes.BadInternalError, message);
                     ServerError = error;
                     throw new ServiceResultException(error);
                 }
@@ -3166,7 +3166,7 @@ namespace Opc.Ua.Server
         /// </summary>
         protected override void OnServerStopping()
         {
-            Utils.LogInfo(TraceMasks.StartStop, "Server - Stopping.");
+            LogInfo(TraceMasks.StartStop, "Server - Stopping.");
 
             ShutDownDelay();
 
@@ -3211,7 +3211,7 @@ namespace Opc.Ua.Server
                 // ensure that everything is cleaned up.
                 if (m_serverInternal != null)
                 {
-                    Utils.SilentDispose(m_serverInternal);
+                    SilentDispose(m_serverInternal);
                     m_serverInternal = null;
                 }
             }
@@ -3249,13 +3249,13 @@ namespace Opc.Ua.Server
                         ServerInternal.Status.Variable.ClearChangeMasks(ServerInternal.DefaultSystemContext, true);
 
                         // exit if all client connections are closed.
-                        var sessions = ServerInternal.SessionManager.GetSessions().Count;
+                        int sessions = ServerInternal.SessionManager.GetSessions().Count;
                         if (sessions == 0)
                         {
                             break;
                         }
 
-                        Utils.LogInfo(TraceMasks.StartStop, "{0} active sessions. Seconds until shutdown: {1}s", sessions, timeTillShutdown);
+                        LogInfo(TraceMasks.StartStop, "{0} active sessions. Seconds until shutdown: {1}s", sessions, timeTillShutdown);
 
                         Thread.Sleep(1000);
                     }
@@ -3288,7 +3288,7 @@ namespace Opc.Ua.Server
         /// <returns>The manager.</returns>
         protected virtual AggregateManager CreateAggregateManager(IServerInternal server, ApplicationConfiguration configuration)
         {
-            AggregateManager manager = new AggregateManager(server);
+            var manager = new AggregateManager(server);
 
             manager.RegisterFactory(ObjectIds.AggregateFunction_Interpolative, BrowseNames.AggregateFunction_Interpolative, Aggregators.CreateStandardCalculator);
             manager.RegisterFactory(ObjectIds.AggregateFunction_Average, BrowseNames.AggregateFunction_Average, Aggregators.CreateStandardCalculator);
@@ -3344,7 +3344,7 @@ namespace Opc.Ua.Server
         /// <returns>Returns an object that manages access to localized resources, the return type is <seealso cref="ResourceManager"/>.</returns>
         protected virtual ResourceManager CreateResourceManager(IServerInternal server, ApplicationConfiguration configuration)
         {
-            ResourceManager resourceManager = new ResourceManager(server, configuration);
+            var resourceManager = new ResourceManager(server, configuration);
 
             // load default text for all status codes.
             resourceManager.LoadDefaultText();
@@ -3362,7 +3362,7 @@ namespace Opc.Ua.Server
         {
             var nodeManagers = new List<INodeManager>();
 
-            foreach (var nodeManagerFactory in m_nodeManagerFactories)
+            foreach (INodeManagerFactory nodeManagerFactory in m_nodeManagerFactories)
             {
                 nodeManagers.Add(nodeManagerFactory.Create(server, configuration));
             }
@@ -3460,7 +3460,7 @@ namespace Opc.Ua.Server
             string secureChannelId = session?.SecureChannelId;
             if (!string.IsNullOrEmpty(secureChannelId))
             {
-                var transportListener = TransportListeners.FirstOrDefault(tl => secureChannelId.StartsWith(tl.ListenerId, StringComparison.Ordinal));
+                ITransportListener transportListener = TransportListeners.FirstOrDefault(tl => secureChannelId.StartsWith(tl.ListenerId, StringComparison.Ordinal));
                 transportListener?.UpdateChannelLastActiveTime(secureChannelId);
             }
         }

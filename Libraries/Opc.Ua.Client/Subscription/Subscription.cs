@@ -229,8 +229,8 @@ namespace Opc.Ua.Client
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1009:DeclareEventHandlersCorrectly")]
         public event SubscriptionStateChangedEventHandler StateChanged
         {
-            add { m_StateChanged += value; }
-            remove { m_StateChanged -= value; }
+            add => m_StateChanged += value;
+            remove => m_StateChanged -= value;
         }
 
         /// <summary>
@@ -238,15 +238,9 @@ namespace Opc.Ua.Client
         /// </summary>
         public event PublishStateChangedEventHandler PublishStatusChanged
         {
-            add
-            {
-                m_publishStatusChanged += value;
-            }
+            add => m_publishStatusChanged += value;
 
-            remove
-            {
-                m_publishStatusChanged -= value;
-            }
+            remove => m_publishStatusChanged -= value;
         }
         #endregion
 
@@ -339,10 +333,7 @@ namespace Opc.Ua.Client
         [DataMember(Order = 9)]
         public int MaxMessageCount
         {
-            get
-            {
-                return m_maxMessageCount;
-            }
+            get => m_maxMessageCount;
 
             set
             {
@@ -404,10 +395,7 @@ namespace Opc.Ua.Client
         [DataMember(Order = 14)]
         public bool SequentialPublishing
         {
-            get
-            {
-                return m_sequentialPublishing;
-            }
+            get => m_sequentialPublishing;
             set
             {
                 // synchronize with message list processing
@@ -430,8 +418,8 @@ namespace Opc.Ua.Client
         [DataMember(Name = "RepublishAfterTransfer", Order = 15)]
         public bool RepublishAfterTransfer
         {
-            get { return m_republishAfterTransfer; }
-            set { m_republishAfterTransfer = value; }
+            get => m_republishAfterTransfer;
+            set => m_republishAfterTransfer = value;
         }
 
         /// <summary>
@@ -669,7 +657,7 @@ namespace Opc.Ua.Client
         {
             get
             {
-                var ticks = Interlocked.Read(ref m_lastNotificationTime);
+                long ticks = Interlocked.Read(ref m_lastNotificationTime);
                 return new DateTime(ticks, DateTimeKind.Utc);
             }
         }
@@ -1156,8 +1144,8 @@ namespace Opc.Ua.Client
             VerifySubscriptionState(true);
 
             // collect list of browse paths.
-            BrowsePathCollection browsePaths = new BrowsePathCollection();
-            List<MonitoredItem> itemsToBrowse = new List<MonitoredItem>();
+            var browsePaths = new BrowsePathCollection();
+            var itemsToBrowse = new List<MonitoredItem>();
 
             PrepareResolveItemNodeIds(browsePaths, itemsToBrowse);
 
@@ -1237,8 +1225,8 @@ namespace Opc.Ua.Client
         {
             VerifySubscriptionState(true);
 
-            MonitoredItemModifyRequestCollection requestItems = new MonitoredItemModifyRequestCollection();
-            List<MonitoredItem> itemsToModify = new List<MonitoredItem>();
+            var requestItems = new MonitoredItemModifyRequestCollection();
+            var itemsToModify = new List<MonitoredItem>();
 
             PrepareItemsToModify(requestItems, itemsToModify);
 
@@ -1290,7 +1278,7 @@ namespace Opc.Ua.Client
             List<MonitoredItem> itemsToDelete = m_deletedItems;
             m_deletedItems = new List<MonitoredItem>();
 
-            UInt32Collection monitoredItemIds = new UInt32Collection();
+            var monitoredItemIds = new UInt32Collection();
 
             foreach (MonitoredItem monitoredItem in itemsToDelete)
             {
@@ -1340,7 +1328,7 @@ namespace Opc.Ua.Client
             }
 
             // get list of items to update.
-            UInt32Collection monitoredItemIds = new UInt32Collection();
+            var monitoredItemIds = new UInt32Collection();
             foreach (MonitoredItem monitoredItem in monitoredItems)
             {
                 monitoredItemIds.Add(monitoredItem.Status.Id);
@@ -1361,7 +1349,7 @@ namespace Opc.Ua.Client
             ClientBase.ValidateDiagnosticInfos(diagnosticInfos, monitoredItemIds);
 
             // update results.
-            List<ServiceResult> errors = new List<ServiceResult>();
+            var errors = new List<ServiceResult>();
             bool noErrors = UpdateMonitoringMode(
                 monitoredItems, errors, results,
                 diagnosticInfos, responseHeader,
@@ -1415,10 +1403,7 @@ namespace Opc.Ua.Client
                 m_lastNotificationTickCount = tickCount;
 
                 // create queue for the first time.
-                if (m_incomingMessages == null)
-                {
-                    m_incomingMessages = new LinkedList<IncomingMessage>();
-                }
+                m_incomingMessages ??= new LinkedList<IncomingMessage>();
 
                 // find or create an entry for the incoming sequence number.
                 IncomingMessage entry = FindOrCreateEntry(now, tickCount, message.SequenceNumber);
@@ -1732,14 +1717,11 @@ namespace Opc.Ua.Client
                 if (availableSequenceNumbers.Count != 0 && m_republishAfterTransfer)
                 {
                     // create queue for the first time.
-                    if (m_incomingMessages == null)
-                    {
-                        m_incomingMessages = new LinkedList<IncomingMessage>();
-                    }
+                    m_incomingMessages ??= new LinkedList<IncomingMessage>();
 
                     // update last sequence number processed
                     // available seq numbers may not be in order
-                    foreach (var sequenceNumber in availableSequenceNumbers)
+                    foreach (uint sequenceNumber in availableSequenceNumbers)
                     {
                         if (sequenceNumber >= m_lastSequenceNumberProcessed)
                         {
@@ -1758,7 +1740,7 @@ namespace Opc.Ua.Client
                     for (int i = 0; i < availableNumbers; i++)
                     {
                         bool found = false;
-                        foreach (var sequenceNumber in availableSequenceNumbers)
+                        foreach (uint sequenceNumber in availableSequenceNumbers)
                         {
                             if (lastSequenceNumberToRepublish == sequenceNumber)
                             {
@@ -1798,7 +1780,7 @@ namespace Opc.Ua.Client
             clientHandles = new UInt32Collection();
             try
             {
-                var outputArguments = m_session.Call(ObjectIds.Server, MethodIds.Server_GetMonitoredItems, m_transferId);
+                IList<object> outputArguments = m_session.Call(ObjectIds.Server, MethodIds.Server_GetMonitoredItems, m_transferId);
                 if (outputArguments != null && outputArguments.Count == 2)
                 {
                     serverHandles.AddRange((uint[])outputArguments[0]);
@@ -1823,7 +1805,7 @@ namespace Opc.Ua.Client
             var clientHandles = new UInt32Collection();
             try
             {
-                var outputArguments = await m_session.CallAsync(ObjectIds.Server, MethodIds.Server_GetMonitoredItems, ct, m_transferId).ConfigureAwait(false);
+                IList<object> outputArguments = await m_session.CallAsync(ObjectIds.Server, MethodIds.Server_GetMonitoredItems, ct, m_transferId).ConfigureAwait(false);
                 if (outputArguments != null && outputArguments.Count == 2)
                 {
                     serverHandles.AddRange((uint[])outputArguments[0]);
@@ -1875,7 +1857,7 @@ namespace Opc.Ua.Client
                 {
                     Utils.SilentDispose(m_messageWorkerCts);
                     m_messageWorkerCts = new CancellationTokenSource();
-                    var ct = m_messageWorkerCts.Token;
+                    CancellationToken ct = m_messageWorkerCts.Token;
                     m_messageWorkerTask = Task.Run(() => {
                         return PublishResponseMessageWorkerAsync(ct);
                     });
@@ -2227,10 +2209,7 @@ namespace Opc.Ua.Client
                         if (ii.Value.Message != null && !ii.Value.Processed &&
                             (!m_sequentialPublishing || ValidSequentialPublishMessage(ii.Value)))
                         {
-                            if (messagesToProcess == null)
-                            {
-                                messagesToProcess = new List<NotificationMessage>();
-                            }
+                            messagesToProcess ??= new List<NotificationMessage>();
 
                             messagesToProcess.Add(ii.Value.Message);
 
@@ -2260,10 +2239,7 @@ namespace Opc.Ua.Client
                         // process keep alive messages
                         else if (ii.Next == null && ii.Value.Message == null && !ii.Value.Processed)
                         {
-                            if (keepAliveToProcess == null)
-                            {
-                                keepAliveToProcess = new List<IncomingMessage>();
-                            }
+                            keepAliveToProcess ??= new List<IncomingMessage>();
                             keepAliveToProcess.Add(ii.Value);
                             publishStateChangedMask |= PublishStateChangedMask.KeepAlive;
                         }
@@ -2281,10 +2257,7 @@ namespace Opc.Ua.Client
                                 // only call republish if the sequence number is available
                                 if (m_availableSequenceNumbers?.Contains(ii.Value.SequenceNumber) == true)
                                 {
-                                    if (messagesToRepublish == null)
-                                    {
-                                        messagesToRepublish = new List<IncomingMessage>();
-                                    }
+                                    messagesToRepublish ??= new List<IncomingMessage>();
 
                                     messagesToRepublish.Add(ii.Value);
                                 }
@@ -2338,9 +2311,7 @@ namespace Opc.Ua.Client
                         {
                             foreach (ExtensionObject notificationData in message.NotificationData)
                             {
-                                var datachange = notificationData.Body as DataChangeNotification;
-
-                                if (datachange != null)
+                                if (notificationData.Body is DataChangeNotification datachange)
                                 {
                                     datachange.PublishTime = message.PublishTime;
                                     datachange.SequenceNumber = message.SequenceNumber;
@@ -2355,9 +2326,8 @@ namespace Opc.Ua.Client
                                     datachangeCallback?.Invoke(this, datachange, message.StringTable);
                                 }
 
-                                var events = notificationData.Body as EventNotificationList;
 
-                                if (events != null)
+                                if (notificationData.Body is EventNotificationList events)
                                 {
                                     events.PublishTime = message.PublishTime;
                                     events.SequenceNumber = message.SequenceNumber;
@@ -2372,9 +2342,8 @@ namespace Opc.Ua.Client
                                     eventCallback?.Invoke(this, events, message.StringTable);
                                 }
 
-                                StatusChangeNotification statusChanged = notificationData.Body as StatusChangeNotification;
 
-                                if (statusChanged != null)
+                                if (notificationData.Body is StatusChangeNotification statusChanged)
                                 {
                                     statusChanged.PublishTime = message.PublishTime;
                                     statusChanged.SequenceNumber = message.SequenceNumber;
@@ -2535,7 +2504,7 @@ namespace Opc.Ua.Client
 
             ResolveItemNodeIds();
 
-            MonitoredItemCreateRequestCollection requestItems = new MonitoredItemCreateRequestCollection();
+            var requestItems = new MonitoredItemCreateRequestCollection();
             itemsToCreate = new List<MonitoredItem>();
 
             lock (m_cache)
@@ -2549,7 +2518,7 @@ namespace Opc.Ua.Client
                     }
 
                     // build item request.
-                    MonitoredItemCreateRequest request = new MonitoredItemCreateRequest();
+                    var request = new MonitoredItemCreateRequest();
 
                     request.ItemToMonitor.NodeId = monitoredItem.ResolvedNodeId;
                     request.ItemToMonitor.AttributeId = monitoredItem.AttributeId;
@@ -2594,7 +2563,7 @@ namespace Opc.Ua.Client
                     }
 
                     // build item request.
-                    MonitoredItemModifyRequest request = new MonitoredItemModifyRequest();
+                    var request = new MonitoredItemModifyRequest();
 
                     request.MonitoredItemId = monitoredItem.Status.Id;
                     request.RequestedParameters.ClientHandle = monitoredItem.ClientHandle;
@@ -2628,10 +2597,10 @@ namespace Opc.Ua.Client
                 var updatedMonitoredItems = new Dictionary<uint, MonitoredItem>();
                 foreach (MonitoredItem monitoredItem in m_monitoredItems.Values)
                 {
-                    var index = serverHandles.FindIndex(handle => handle == monitoredItem.Status.Id);
+                    int index = serverHandles.FindIndex(handle => handle == monitoredItem.Status.Id);
                     if (index >= 0 && index < clientHandles.Count)
                     {
-                        var clientHandle = clientHandles[index];
+                        uint clientHandle = clientHandles[index];
                         updatedMonitoredItems[clientHandle] = monitoredItem;
                         monitoredItem.SetTransferResult(clientHandle);
                     }
@@ -2666,7 +2635,7 @@ namespace Opc.Ua.Client
                             throw new ServiceResultException(StatusCodes.BadInvalidState, "Cannot modify item path after it is created.");
                         }
 
-                        BrowsePath browsePath = new BrowsePath();
+                        var browsePath = new BrowsePath();
 
                         browsePath.StartingNode = monitoredItem.StartNodeId;
 
@@ -3102,7 +3071,7 @@ namespace Opc.Ua.Client
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
         {
-            SubscriptionCollection clone = new SubscriptionCollection();
+            var clone = new SubscriptionCollection();
             clone.AddRange(this.Select(item => (Subscription)item.Clone()));
             return clone;
         }
@@ -3113,7 +3082,7 @@ namespace Opc.Ua.Client
         /// </summary>
         public virtual SubscriptionCollection CloneSubscriptions(bool copyEventhandlers)
         {
-            SubscriptionCollection clone = new SubscriptionCollection();
+            var clone = new SubscriptionCollection();
             clone.AddRange(this.Select(item => (Subscription)item.CloneSubscription(copyEventhandlers)));
             return clone;
         }

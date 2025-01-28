@@ -52,7 +52,7 @@ namespace Alarms
         {
             if (create)
             {
-                Initialize(Opc.Ua.ObjectTypes.AlarmConditionType, name, maxShelveTime);
+                Initialize(ObjectTypes.AlarmConditionType, name, maxShelveTime);
             }
         }
 
@@ -63,25 +63,16 @@ namespace Alarms
         {
             // Create an alarm and trigger name - Create a base method for creating the trigger, just provide the name
 
-            if (m_alarm == null)
-            {
-                m_alarm = new AlarmConditionState(m_parent);
-            }
+            m_alarm ??= new AlarmConditionState(m_parent);
 
             AlarmConditionState alarm = GetAlarm();
 
             if (Optional)
             {
-                if (alarm.SuppressedState == null)
-                {
-                    alarm.SuppressedState = new TwoStateVariableState(alarm);
-                }
+                alarm.SuppressedState ??= new TwoStateVariableState(alarm);
 
 
-                if (alarm.OutOfServiceState == null)
-                {
-                    alarm.OutOfServiceState = new TwoStateVariableState(alarm);
-                }
+                alarm.OutOfServiceState ??= new TwoStateVariableState(alarm);
 
                 if (alarm.ShelvingState == null)
                 {
@@ -92,11 +83,8 @@ namespace Alarms
                         BrowseNames.ShelvingState,
                         false);
                 }
-                if (alarm.MaxTimeShelved == null)
-                {
-                    // Off normal does not create MaxTimeShelved.
-                    alarm.MaxTimeShelved = new PropertyState<double>(alarm);
-                }
+                // Off normal does not create MaxTimeShelved.
+                alarm.MaxTimeShelved ??= new PropertyState<double>(alarm);
 
             }
 
@@ -242,10 +230,7 @@ namespace Alarms
 
         private AlarmConditionState GetAlarm(BaseEventState alarm = null)
         {
-            if (alarm == null)
-            {
-                alarm = m_alarm;
-            }
+            alarm ??= m_alarm;
             return (AlarmConditionState)alarm;
         }
 

@@ -142,8 +142,8 @@ namespace Opc.Ua
         [DataMember(Name = "Code", Order = 1, IsRequired = false)]
         public uint Code
         {
-            get { return m_code; }
-            set { m_code = value; }
+            get => m_code;
+            set => m_code = value;
         }
         #endregion
 
@@ -202,8 +202,8 @@ namespace Opc.Ua
         /// </remarks>
         public uint SubCode
         {
-            get { return m_code & 0x0FFF0000; }
-            set { m_code = 0x0FFF0000 & value; }
+            get => m_code & 0x0FFF0000;
+            set => m_code = 0x0FFF0000 & value;
         }
         #endregion
 
@@ -217,7 +217,7 @@ namespace Opc.Ua
         [XmlIgnore()]
         public bool StructureChanged
         {
-            get { return (m_code & s_StructureChangedBit) != 0; }
+            get => (m_code & s_StructureChangedBit) != 0;
 
             set
             {
@@ -254,7 +254,7 @@ namespace Opc.Ua
         [XmlIgnore()]
         public bool SemanticsChanged
         {
-            get { return (m_code & s_SemanticsChangedBit) != 0; }
+            get => (m_code & s_SemanticsChangedBit) != 0;
 
             set
             {
@@ -291,7 +291,7 @@ namespace Opc.Ua
         [XmlIgnore()]
         public bool HasDataValueInfo
         {
-            get { return (m_code & s_DataValueInfoType) != 0; }
+            get => (m_code & s_DataValueInfoType) != 0;
 
             set
             {
@@ -321,7 +321,7 @@ namespace Opc.Ua
         [XmlIgnore()]
         public LimitBits LimitBits
         {
-            get { return (LimitBits)(m_code & s_LimitBits); }
+            get => (LimitBits)(m_code & s_LimitBits);
 
             set
             {
@@ -353,7 +353,7 @@ namespace Opc.Ua
         [XmlIgnore()]
         public bool Overflow
         {
-            get { return ((m_code & s_DataValueInfoType) != 0) && ((m_code & s_OverflowBit) != 0); }
+            get => ((m_code & s_DataValueInfoType) != 0) && ((m_code & s_OverflowBit) != 0);
 
             set
             {
@@ -393,7 +393,7 @@ namespace Opc.Ua
         [XmlIgnore()]
         public AggregateBits AggregateBits
         {
-            get { return (AggregateBits)(m_code & s_AggregateBits); }
+            get => (AggregateBits)(m_code & s_AggregateBits);
 
             set
             {
@@ -535,7 +535,7 @@ namespace Opc.Ua
         /// </remarks>
         public override string ToString()
         {
-            StringBuilder buffer = new StringBuilder();
+            var buffer = new StringBuilder();
 
             buffer.Append(LookupSymbolicId(m_code));
 

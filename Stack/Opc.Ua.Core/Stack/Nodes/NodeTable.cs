@@ -256,7 +256,7 @@ namespace Opc.Ua
         /// </returns>
         public IEnumerator<INode> GetEnumerator()
         {
-            List<INode> list = new List<INode>(Count);
+            var list = new List<INode>(Count);
 
             foreach (INode node in m_localNodes.Values)
             {
@@ -306,7 +306,7 @@ namespace Opc.Ua
         /// <returns></returns>
         public List<Node> Import(NodeSet nodeSet, IDictionary<NodeId, IList<IReference>> externalReferences)
         {
-            List<Node> importedNodes = new List<Node>();
+            var importedNodes = new List<Node>();
 
             if (nodeSet == null)
             {
@@ -399,7 +399,7 @@ namespace Opc.Ua
                         // return the reverse reference to a node outside the table.
                         if (externalReferences != null)
                         {
-                            NodeId targetId = ExpandedNodeId.ToNodeId(reference.TargetId, m_namespaceUris);
+                            var targetId = ExpandedNodeId.ToNodeId(reference.TargetId, m_namespaceUris);
 
                             if (targetId == null)
                             {
@@ -413,7 +413,7 @@ namespace Opc.Ua
                                 externalReferences[targetId] = referenceList = new List<IReference>();
                             }
 
-                            ReferenceNode reverseReference = new ReferenceNode();
+                            var reverseReference = new ReferenceNode();
 
                             reverseReference.ReferenceTypeId = reference.ReferenceTypeId;
                             reverseReference.IsInverse = !reference.IsInverse;
@@ -457,13 +457,13 @@ namespace Opc.Ua
             {
                 if (reference.NodeId.ServerIndex != 0)
                 {
-                    RemoteNode node = new RemoteNode(this, reference.NodeId);
+                    var node = new RemoteNode(this, reference.NodeId);
                     InternalAdd(node);
                     target = node;
                 }
                 else
                 {
-                    Node node = new Node();
+                    var node = new Node();
 
                     node.NodeId = ExpandedNodeId.ToNodeId(reference.NodeId, m_namespaceUris);
 
@@ -727,7 +727,7 @@ namespace Opc.Ua
 
 
             // convert to locale node id.
-            NodeId localId = ExpandedNodeId.ToNodeId(nodeId, m_namespaceUris);
+            var localId = ExpandedNodeId.ToNodeId(nodeId, m_namespaceUris);
 
             if (localId == null)
             {
@@ -797,8 +797,8 @@ namespace Opc.Ua
             /// <value>The type definition identifier.</value>
             public ExpandedNodeId TypeDefinitionId
             {
-                get { return m_typeDefinitionId; }
-                internal set { m_typeDefinitionId = value; }
+                get => m_typeDefinitionId;
+                internal set => m_typeDefinitionId = value;
             }
             #endregion
 
@@ -818,8 +818,8 @@ namespace Opc.Ua
             /// <value>The node class.</value>
             public NodeClass NodeClass
             {
-                get { return m_nodeClass; }
-                internal set { m_nodeClass = value; }
+                get => m_nodeClass;
+                internal set => m_nodeClass = value;
             }
 
             /// <summary>
@@ -828,8 +828,8 @@ namespace Opc.Ua
             /// <value>The name of the browse.</value>
             public QualifiedName BrowseName
             {
-                get { return m_browseName; }
-                internal set { m_browseName = value; }
+                get => m_browseName;
+                internal set => m_browseName = value;
             }
 
             /// <summary>
@@ -838,8 +838,8 @@ namespace Opc.Ua
             /// <value>The display name.</value>
             public LocalizedText DisplayName
             {
-                get { return m_displayName; }
-                internal set { m_displayName = value; }
+                get => m_displayName;
+                internal set => m_displayName = value;
             }
             #endregion
 

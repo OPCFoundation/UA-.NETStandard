@@ -12,8 +12,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Runtime.Serialization;
-using System.Security.Cryptography.X509Certificates;
 
 namespace Opc.Ua
 {
@@ -28,8 +26,8 @@ namespace Opc.Ua
         /// </summary>
         public StringCollection StringTable
         {
-            get { return m_stringTable; }
-            set { m_stringTable = value; }
+            get => m_stringTable;
+            set => m_stringTable = value;
         }
 
         /// <summary>
@@ -37,8 +35,8 @@ namespace Opc.Ua
         /// </summary>
         public bool MoreNotifications
         {
-            get { return m_moreNotifications; }
-            set { m_moreNotifications = value; }
+            get => m_moreNotifications;
+            set => m_moreNotifications = value;
         }
 
         /// <summary>
@@ -67,7 +65,7 @@ namespace Opc.Ua
         /// </summary>
         public IList<MonitoredItemNotification> GetDataChanges(bool reverse)
         {
-            List<MonitoredItemNotification> datachanges = new List<MonitoredItemNotification>();
+            var datachanges = new List<MonitoredItemNotification>();
 
             for (int jj = 0; jj < m_notificationData.Count; jj++)
             {
@@ -120,7 +118,7 @@ namespace Opc.Ua
         /// </summary>
         public IList<EventFieldList> GetEvents(bool reverse)
         {
-            List<EventFieldList> events = new List<EventFieldList>();
+            var events = new List<EventFieldList>();
 
             foreach (ExtensionObject extension in m_notificationData)
             {

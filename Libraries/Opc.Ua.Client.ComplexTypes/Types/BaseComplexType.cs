@@ -101,14 +101,14 @@ namespace Opc.Ua.Client.ComplexTypes
         public new object MemberwiseClone()
         {
             Type thisType = this.GetType();
-            BaseComplexType clone = Activator.CreateInstance(thisType) as BaseComplexType;
+            var clone = Activator.CreateInstance(thisType) as BaseComplexType;
 
             clone.TypeId = TypeId;
             clone.BinaryEncodingId = BinaryEncodingId;
             clone.XmlEncodingId = XmlEncodingId;
 
             // clone all properties of derived class
-            foreach (var property in GetPropertyEnumerator())
+            foreach (ComplexTypePropertyInfo property in GetPropertyEnumerator())
             {
                 property.SetValue(clone, Utils.Clone(property.GetValue(this)));
             }
@@ -159,7 +159,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
-            if (Object.ReferenceEquals(this, encodeable))
+            if (ReferenceEquals(this, encodeable))
             {
                 return true;
             }
@@ -169,13 +169,13 @@ namespace Opc.Ua.Client.ComplexTypes
                 return false;
             }
 
-            var valueType = valueBaseType.GetType();
+            Type valueType = valueBaseType.GetType();
             if (this.GetType() != valueType)
             {
                 return false;
             }
 
-            foreach (var property in GetPropertyEnumerator())
+            foreach (ComplexTypePropertyInfo property in GetPropertyEnumerator())
             {
                 if (!Utils.IsEqual(property.GetValue(this), property.GetValue(valueBaseType)))
                 {
@@ -207,9 +207,9 @@ namespace Opc.Ua.Client.ComplexTypes
         {
             if (format == null)
             {
-                StringBuilder body = new StringBuilder();
+                var body = new StringBuilder();
 
-                foreach (var property in GetPropertyEnumerator())
+                foreach (ComplexTypePropertyInfo property in GetPropertyEnumerator())
                 {
                     AppendPropertyValue(formatProvider, body, property.GetValue(this), property.ValueRank);
                 }
@@ -300,9 +300,9 @@ namespace Opc.Ua.Client.ComplexTypes
             AddSeparator(body);
             if (valueRank >= 0 && value is Array array)
             {
-                var rank = array.Rank;
-                var dimensions = new int[rank];
-                var mods = new int[rank];
+                int rank = array.Rank;
+                int[] dimensions = new int[rank];
+                int[] mods = new int[rank];
                 for (int ii = 0; ii < rank; ii++)
                 {
                     dimensions[ii] = array.GetLength(ii);
@@ -318,7 +318,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 }
 
                 int count = 0;
-                foreach (var item in array)
+                foreach (object item in array)
                 {
                     bool needSeparator = true;
                     for (int dc = 0; dc < rank; dc++)
@@ -354,7 +354,7 @@ namespace Opc.Ua.Client.ComplexTypes
             {
                 bool first = true;
                 body.Append('[');
-                foreach (var item in enumerable)
+                foreach (object item in enumerable)
                 {
                     if (!first)
                     {
@@ -435,7 +435,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// </summary>
         private void EncodeProperty(IEncoder encoder, string name, PropertyInfo property, BuiltInType builtInType)
         {
-            var propertyType = property.PropertyType;
+            Type propertyType = property.PropertyType;
             if (propertyType.IsEnum)
             {
                 builtInType = BuiltInType.Enumeration;
@@ -537,7 +537,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// </summary>
         private void DecodeProperty(IDecoder decoder, string name, PropertyInfo property, BuiltInType builtInType)
         {
-            var propertyType = property.PropertyType;
+            Type propertyType = property.PropertyType;
             if (propertyType.IsEnum)
             {
                 builtInType = BuiltInType.Enumeration;
@@ -629,10 +629,10 @@ namespace Opc.Ua.Client.ComplexTypes
             }
 
             m_propertyList = new List<ComplexTypePropertyInfo>();
-            var properties = GetType().GetProperties();
-            foreach (var property in properties)
+            PropertyInfo[] properties = GetType().GetProperties();
+            foreach (PropertyInfo property in properties)
             {
-                StructureFieldAttribute fieldAttribute = (StructureFieldAttribute)
+                var fieldAttribute = (StructureFieldAttribute)
                     property.GetCustomAttribute(typeof(StructureFieldAttribute));
 
                 if (fieldAttribute == null)
@@ -640,7 +640,7 @@ namespace Opc.Ua.Client.ComplexTypes
                     continue;
                 }
 
-                DataMemberAttribute dataAttribute = (DataMemberAttribute)
+                var dataAttribute = (DataMemberAttribute)
                     property.GetCustomAttribute(typeof(DataMemberAttribute));
 
                 var newProperty = new ComplexTypePropertyInfo(property, fieldAttribute, dataAttribute);

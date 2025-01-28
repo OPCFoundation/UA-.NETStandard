@@ -73,7 +73,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// </returns>
         public new object MemberwiseClone()
         {
-            OptionalFieldsComplexType clone = (OptionalFieldsComplexType)base.MemberwiseClone();
+            var clone = (OptionalFieldsComplexType)base.MemberwiseClone();
             clone.m_encodingMask = m_encodingMask;
             return clone;
         }
@@ -98,7 +98,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 encoder.WriteUInt32("EncodingMask", m_encodingMask);
             }
 
-            foreach (var property in GetPropertyEnumerator())
+            foreach (ComplexTypePropertyInfo property in GetPropertyEnumerator())
             {
                 if (property.IsOptional)
                 {
@@ -120,7 +120,7 @@ namespace Opc.Ua.Client.ComplexTypes
 
             m_encodingMask = decoder.ReadUInt32("EncodingMask");
 
-            foreach (var property in GetPropertyEnumerator())
+            foreach (ComplexTypePropertyInfo property in GetPropertyEnumerator())
             {
                 if (property.IsOptional)
                 {
@@ -138,7 +138,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <inheritdoc/>
         public override bool IsEqual(IEncodeable encodeable)
         {
-            if (Object.ReferenceEquals(this, encodeable))
+            if (ReferenceEquals(this, encodeable))
             {
                 return true;
             }
@@ -153,13 +153,13 @@ namespace Opc.Ua.Client.ComplexTypes
                 return false;
             }
 
-            var valueType = valueBaseType.GetType();
+            Type valueType = valueBaseType.GetType();
             if (this.GetType() != valueType)
             {
                 return false;
             }
 
-            foreach (var property in GetPropertyEnumerator())
+            foreach (ComplexTypePropertyInfo property in GetPropertyEnumerator())
             {
                 if (property.IsOptional)
                 {
@@ -185,8 +185,8 @@ namespace Opc.Ua.Client.ComplexTypes
         {
             if (format == null)
             {
-                StringBuilder body = new StringBuilder();
-                foreach (var property in GetPropertyEnumerator())
+                var body = new StringBuilder();
+                foreach (ComplexTypePropertyInfo property in GetPropertyEnumerator())
                 {
                     if (property.IsOptional)
                     {
@@ -223,7 +223,7 @@ namespace Opc.Ua.Client.ComplexTypes
         {
             get
             {
-                var property = m_propertyList.ElementAt(index);
+                ComplexTypePropertyInfo property = m_propertyList.ElementAt(index);
                 if (property.IsOptional &&
                     (property.OptionalFieldMask & m_encodingMask) == 0)
                 {
@@ -233,7 +233,7 @@ namespace Opc.Ua.Client.ComplexTypes
             }
             set
             {
-                var property = m_propertyList.ElementAt(index);
+                ComplexTypePropertyInfo property = m_propertyList.ElementAt(index);
                 property.SetValue(this, value);
                 if (property.IsOptional)
                 {
@@ -297,7 +297,7 @@ namespace Opc.Ua.Client.ComplexTypes
 
             // build optional field mask attribute
             UInt32 optionalFieldMask = 1;
-            foreach (var property in GetPropertyEnumerator())
+            foreach (ComplexTypePropertyInfo property in GetPropertyEnumerator())
             {
                 property.OptionalFieldMask = 0;
                 if (property.IsOptional)

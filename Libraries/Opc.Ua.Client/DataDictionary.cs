@@ -110,7 +110,7 @@ namespace Opc.Ua.Client
             {
                 throw new ArgumentNullException(nameof(dictionary));
             }
-            NodeId dictionaryId = ExpandedNodeId.ToNodeId(dictionary.NodeId, m_session.NamespaceUris);
+            var dictionaryId = ExpandedNodeId.ToNodeId(dictionary.NodeId, m_session.NamespaceUris);
             Load(dictionaryId, dictionary.ToString());
         }
 
@@ -184,7 +184,7 @@ namespace Opc.Ua.Client
         /// </summary>
         private void GetTypeSystem(NodeId dictionaryId)
         {
-            var references = m_session.NodeCache.FindReferences(dictionaryId, ReferenceTypeIds.HasComponent, true, false);
+            IList<INode> references = m_session.NodeCache.FindReferences(dictionaryId, ReferenceTypeIds.HasComponent, true, false);
             if (references.Count > 0)
             {
                 TypeSystemId = ExpandedNodeId.ToNodeId(references[0].NodeId, m_session.NamespaceUris);
@@ -209,14 +209,14 @@ namespace Opc.Ua.Client
             m_session.ReadValues(nodeIdCollection, out DataValueCollection values, out IList<ServiceResult> errors);
 
             int ii = 0;
-            foreach (var reference in references)
+            foreach (INode reference in references)
             {
-                NodeId datatypeId = ExpandedNodeId.ToNodeId(reference.NodeId, m_session.NamespaceUris);
+                var datatypeId = ExpandedNodeId.ToNodeId(reference.NodeId, m_session.NamespaceUris);
                 if (datatypeId != null)
                 {
                     if (ServiceResult.IsGood(errors[ii]))
                     {
-                        var dictName = (String)values[ii].Value;
+                        string dictName = (String)values[ii].Value;
                         DataTypes[datatypeId] = new QualifiedName(dictName, datatypeId.NamespaceIndex);
                     }
                     ii++;
@@ -238,11 +238,11 @@ namespace Opc.Ua.Client
                 return result;
             }
 
-            ReadValueIdCollection itemsToRead = new ReadValueIdCollection();
-            foreach (var nodeId in dictionaryIds)
+            var itemsToRead = new ReadValueIdCollection();
+            foreach (NodeId nodeId in dictionaryIds)
             {
                 // create item to read.
-                ReadValueId itemToRead = new ReadValueId {
+                var itemToRead = new ReadValueId {
                     NodeId = nodeId,
                     AttributeId = Attributes.Value,
                     IndexRange = null,
@@ -277,7 +277,7 @@ namespace Opc.Ua.Client
             ClientBase.ValidateDiagnosticInfos(diagnosticInfos, itemsToRead);
 
             int ii = 0;
-            foreach (var nodeId in dictionaryIds)
+            foreach (NodeId nodeId in dictionaryIds)
             {
                 // check for error.
                 if (StatusCode.IsBad(values[ii].StatusCode))
@@ -300,14 +300,14 @@ namespace Opc.Ua.Client
         public byte[] ReadDictionary(NodeId dictionaryId)
         {
             // create item to read.
-            ReadValueId itemToRead = new ReadValueId {
+            var itemToRead = new ReadValueId {
                 NodeId = dictionaryId,
                 AttributeId = Attributes.Value,
                 IndexRange = null,
                 DataEncoding = null
             };
 
-            ReadValueIdCollection itemsToRead = new ReadValueIdCollection {
+            var itemsToRead = new ReadValueIdCollection {
                 itemToRead
             };
 
@@ -381,7 +381,7 @@ namespace Opc.Ua.Client
         /// <param name="throwOnError">Throw if an error occurred.</param>
         internal void Validate(byte[] dictionary, IDictionary<string, byte[]> imports = null, bool throwOnError = false)
         {
-            MemoryStream istrm = new MemoryStream(dictionary);
+            var istrm = new MemoryStream(dictionary);
 
             if (TypeSystemId == Objects.XmlSchema_TypeSystem)
             {

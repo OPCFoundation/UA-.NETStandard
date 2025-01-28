@@ -70,7 +70,7 @@ namespace Opc.Ua.PubSub
         /// </summary>
         public double Interval
         {
-            get { return m_interval; }
+            get => m_interval;
             set
             {
                 lock (m_lock)
@@ -194,7 +194,7 @@ namespace Opc.Ua.PubSub
                     
                 lock (m_lock)
                 {
-                    var nextCycle = (long)m_interval * HiResClock.TicksPerMillisecond;
+                    double nextCycle = (long)m_interval * HiResClock.TicksPerMillisecond;
                     m_nextPublishTick += nextCycle;
 
                     if (IntervalAction != null && CanExecuteFunc != null && CanExecuteFunc())

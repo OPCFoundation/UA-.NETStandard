@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Globalization;
 using System.IO;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
@@ -176,7 +175,7 @@ namespace Opc.Ua.Security.Certificates
                     offset += LineLength;
                 }
 
-                var length = base64.Length - offset;
+                int length = base64.Length - offset;
                 if (length > 0)
                 {
 #if NETSTANDARD2_1 || NET5_0_OR_GREATER

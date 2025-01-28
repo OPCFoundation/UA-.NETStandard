@@ -1,9 +1,4 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Net;
-using System.Text;
-using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Bindings;
@@ -52,8 +47,8 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             var endPoint = new IPEndPoint(IPAddress.Parse("192.168.0.1"), 55062);
             messageSocketMock.Setup(x => x.LocalEndpoint).Returns(endPoint);
 
-            var messageSocket = messageSocketMock.Object;
-            var gotEndpoint = messageSocket.LocalEndpoint;
+            IMessageSocket messageSocket = messageSocketMock.Object;
+            EndPoint gotEndpoint = messageSocket.LocalEndpoint;
 
             Assert.IsTrue(gotEndpoint.Equals(endPoint));
         }

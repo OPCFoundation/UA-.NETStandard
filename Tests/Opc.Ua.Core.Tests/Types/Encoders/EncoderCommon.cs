@@ -210,13 +210,13 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             TestContext.Out.WriteLine("Expected:");
             TestContext.Out.WriteLine(expected);
             Assert.IsNotNull(expected, "Expected DataValue is Null, " + encodeInfo);
-            using (var encoderStream = CreateEncoderMemoryStream(memoryStreamType))
+            using (MemoryStream encoderStream = CreateEncoderMemoryStream(memoryStreamType))
             {
                 using (IEncoder encoder = CreateEncoder(encoderType, Context, encoderStream, typeof(DataValue), encoding))
                 {
                     encoder.WriteDataValue("DataValue", expected);
                 }
-                var buffer = encoderStream.ToArray();
+                byte[] buffer = encoderStream.ToArray();
                 return Encoding.UTF8.GetString(buffer);
             }
         }
@@ -244,7 +244,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             try
             {
                 byte[] buffer;
-                using (var encoderStream = CreateEncoderMemoryStream(memoryStreamType))
+                using (MemoryStream encoderStream = CreateEncoderMemoryStream(memoryStreamType))
                 {
                     using (IEncoder encoder = CreateEncoder(encoderType, Context, encoderStream, typeof(DataValue), jsonEncodingType))
                     {
@@ -311,7 +311,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 TestContext.Out.WriteLine(encodeInfo);
 
                 byte[] buffer;
-                using (var encoderStream = CreateEncoderMemoryStream(memoryStreamType))
+                using (MemoryStream encoderStream = CreateEncoderMemoryStream(memoryStreamType))
                 {
                     using (IEncoder encoder = CreateEncoder(encoderType, Context, encoderStream, type, jsonEncodingType))
                     {
@@ -346,7 +346,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                     expected = Utils.ToOpcUaUniversalTime((DateTime)expected);
                 }
                 Assert.AreEqual(expected, result, encodeInfo);
-                Assert.IsTrue(Opc.Ua.Utils.IsEqual(expected, result), "Opc.Ua.Utils.IsEqual failed to compare expected and result. " + encodeInfo);
+                Assert.IsTrue(Utils.IsEqual(expected, result), "Opc.Ua.Utils.IsEqual failed to compare expected and result. " + encodeInfo);
             }
             catch
             {
@@ -395,7 +395,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 bool includeDefaultNumbers = isNumber ? includeDefaults : true;
 
                 byte[] buffer;
-                using (var encoderStream = CreateEncoderMemoryStream(memoryStreamType))
+                using (MemoryStream encoderStream = CreateEncoderMemoryStream(memoryStreamType))
                 {
                     using (IEncoder encoder = CreateEncoder(EncodingType.Json, Context, encoderStream, typeof(DataValue),
                         jsonEncoding, topLevelIsArray, includeDefaultValues, includeDefaultNumbers))
@@ -418,7 +418,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 };
                 var resultParsed = JObject.Parse(result, jsonLoadSettings);
                 var expectedParsed = JObject.Parse(expected, jsonLoadSettings);
-                var areEqual = JToken.DeepEquals(expectedParsed, resultParsed);
+                bool areEqual = JToken.DeepEquals(expectedParsed, resultParsed);
                 Assert.IsTrue(areEqual, encodeInfo);
             }
             catch
@@ -426,7 +426,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 TestContext.Out.WriteLine("Data:");
                 TestContext.Out.WriteLine(data);
                 TestContext.Out.WriteLine("Expected:");
-                var formattedExpected = PrettifyAndValidateJson(expected);
+                string formattedExpected = PrettifyAndValidateJson(expected);
                 TestContext.Out.WriteLine(formattedExpected);
                 TestContext.Out.WriteLine("Result:");
                 if (!string.IsNullOrEmpty(formattedResult))
@@ -449,9 +449,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             try
             {
                 using (var reader = new MemoryStream(xml))
-                using (XmlReader xmlReader = XmlReader.Create(reader, Utils.DefaultXmlReaderSettings()))
+                using (var xmlReader = XmlReader.Create(reader, Utils.DefaultXmlReaderSettings()))
                 {
-                    XmlDocument document = new XmlDocument();
+                    var document = new XmlDocument();
                     document.Load(xmlReader);
 
                     var settings = new XmlWriterSettings {
@@ -476,7 +476,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             catch (Exception ex)
             {
                 TestContext.Out.WriteLine(xml);
-                Assert.Fail("Invalid xml data: " + ex.Message);
+                NUnit.Framework.Assert.Fail("Invalid xml data: " + ex.Message);
             }
             return Encoding.UTF8.GetString(xml);
         }
@@ -519,7 +519,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             catch (Exception ex)
             {
                 TestContext.Out.WriteLine(json);
-                Assert.Fail("Invalid json data: " + ex.Message);
+                NUnit.Framework.Assert.Fail("Invalid json data: " + ex.Message);
             }
             return json;
         }
@@ -611,8 +611,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// </summary>
         protected DataValue CreateDataValue(BuiltInType builtInType, object data)
         {
-            StatusCode statusCode = (StatusCode)DataGenerator.GetRandom(BuiltInType.StatusCode);
-            DateTime sourceTimeStamp = (DateTime)DataGenerator.GetRandom(BuiltInType.DateTime);
+            var statusCode = (StatusCode)DataGenerator.GetRandom(BuiltInType.StatusCode);
+            var sourceTimeStamp = (DateTime)DataGenerator.GetRandom(BuiltInType.DateTime);
             Variant variant = (builtInType == BuiltInType.Variant) && (data is Variant) ? (Variant)data : new Variant(data);
             return new DataValue(variant, statusCode, sourceTimeStamp, DateTime.UtcNow);
         }
@@ -671,8 +671,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             else
             {
                 Type arrayType = value.GetType().GetElementType();
-                IEnumerable enumerable = value as IEnumerable;
-                Array array = value as Array;
+                var enumerable = value as IEnumerable;
+                var array = value as Array;
                 switch (builtInType)
                 {
                     case BuiltInType.Variant: { encoder.WriteVariantArray(fieldName, (VariantCollection)value); return; }
@@ -683,7 +683,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                     }
                 }
             }
-            Assert.Fail($"Unknown BuiltInType {builtInType}");
+            NUnit.Framework.Assert.Fail($"Unknown BuiltInType {builtInType}");
         }
 
 
@@ -694,7 +694,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         {
             switch (builtInType)
             {
-                case BuiltInType.Null: { var variant = decoder.ReadVariant(fieldName); return variant.Value; }
+                case BuiltInType.Null: { Variant variant = decoder.ReadVariant(fieldName); return variant.Value; }
                 case BuiltInType.Boolean: { return decoder.ReadBoolean(fieldName); }
                 case BuiltInType.SByte: { return decoder.ReadSByte(fieldName); }
                 case BuiltInType.Byte: { return decoder.ReadByte(fieldName); }
@@ -725,7 +725,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 case BuiltInType.DiagnosticInfo: { return decoder.ReadDiagnosticInfo(fieldName); }
                 case BuiltInType.Variant: { return decoder.ReadVariant(fieldName); }
             }
-            Assert.Fail($"Unknown BuiltInType {builtInType}");
+            NUnit.Framework.Assert.Fail($"Unknown BuiltInType {builtInType}");
             return null;
         }
 
@@ -760,7 +760,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
                     if (value.GetType() == typeof(DateTime[]))
                     {
-                        DateTime[] valueArray = (DateTime[])value;
+                        var valueArray = (DateTime[])value;
                         for (int i = 0; i < valueArray.Length; i++)
                         {
                             valueArray[i] = AdjustExpectedDateTimeBinaryEncoding(valueArray[i]);
@@ -769,7 +769,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 }
                 if (builtInType == BuiltInType.DataValue)
                 {
-                    DataValue dataValue = (DataValue)value;
+                    var dataValue = (DataValue)value;
                     if (dataValue.Value?.GetType() == typeof(DateTime) || dataValue.Value?.GetType() == typeof(DateTime[]))
                     {
                         dataValue.Value = AdjustExpectedBoundaryValues(encoderType, BuiltInType.DateTime, dataValue.Value);
@@ -817,16 +817,15 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 return false;
             }
 
-            var systemTypeInfo = systemType.GetTypeInfo();
+            System.Reflection.TypeInfo systemTypeInfo = systemType.GetTypeInfo();
             if (systemTypeInfo.IsAbstract ||
                 !typeof(IEncodeable).GetTypeInfo().IsAssignableFrom(systemTypeInfo))
             {
                 return false;
             }
 
-            IEncodeable encodeable = Activator.CreateInstance(systemType) as IEncodeable;
 
-            if (encodeable == null)
+            if (Activator.CreateInstance(systemType) is not IEncodeable encodeable)
             {
                 return false;
             }
@@ -1044,7 +1043,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             {
                 InitializeFromFactory(encoder.Context?.Factory);
                 encoder.PushNamespace(m_xmlNamespace);
-                foreach (var field in m_fields.OrderBy(kv => kv.Value.FieldOrder).ToList())
+                foreach (KeyValuePair<string, (int FieldOrder, string Value)> field in m_fields.OrderBy(kv => kv.Value.FieldOrder).ToList())
                 {
                     encoder.WriteString(field.Key, field.Value.Value);
                 }
@@ -1055,7 +1054,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             {
                 InitializeFromFactory(decoder.Context?.Factory);
                 decoder.PushNamespace(m_xmlNamespace);
-                foreach (var fieldKV in m_fields.OrderBy(kv => kv.Value.FieldOrder).ToList())
+                foreach (KeyValuePair<string, (int FieldOrder, string Value)> fieldKV in m_fields.OrderBy(kv => kv.Value.FieldOrder).ToList())
                 {
                     m_fields[fieldKV.Key] = (fieldKV.Value.FieldOrder, decoder.ReadString(fieldKV.Key));
                 }
@@ -1070,7 +1069,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
                     // Obtain a previously registered instance from the Factory
                     // Other systems will want to put just type information into the factory, or have other means of finding type information given an encoding id
-                    var encodeable = (factory as DynamicEncodeableFactory)?.GetDynamicEncodeableForEncoding(TypeId);
+                    DynamicEncodeable encodeable = (factory as DynamicEncodeableFactory)?.GetDynamicEncodeableForEncoding(TypeId);
                     // Read the type information
                     TypeId = encodeable?.TypeId;
                     XmlEncodingId = encodeable?.XmlEncodingId;
@@ -1137,7 +1136,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             {
                 if (typeId != null)
                 {
-                    if (_dynamicEncodeables.TryGetValue(typeId, out var dynamicEncodeable))
+                    if (_dynamicEncodeables.TryGetValue(typeId, out DynamicEncodeable dynamicEncodeable))
                     {
                         return dynamicEncodeable;
                     }

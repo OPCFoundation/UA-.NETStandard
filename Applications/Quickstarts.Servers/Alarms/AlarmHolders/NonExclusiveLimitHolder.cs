@@ -50,7 +50,7 @@ namespace Alarms
         {
             if (create)
             {
-                Initialize(Opc.Ua.ObjectTypes.NonExclusiveLimitAlarmType, name, maxShelveTime);
+                Initialize(ObjectTypes.NonExclusiveLimitAlarmType, name, maxShelveTime);
             }
         }
 
@@ -61,10 +61,7 @@ namespace Alarms
         {
             // Create an alarm and trigger name - Create a base method for creating the trigger, just provide the name
 
-            if (m_alarm == null)
-            {
-                m_alarm = new NonExclusiveLimitAlarmState(m_parent);
-            }
+            m_alarm ??= new NonExclusiveLimitAlarmState(m_parent);
 
             NonExclusiveLimitAlarmState alarm = GetAlarm();
 

@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
 using System.Collections.Generic;
 using System.Reflection;
 using Opc.Ua;
@@ -128,7 +127,7 @@ namespace Boiler
         /// <param name="unitNumber">The unit number for the boiler.</param>
         private void CreateBoiler(SystemContext context, int unitNumber)
         {
-            BoilerState boiler = new BoilerState(null);
+            var boiler = new BoilerState(null);
 
             string name = Utils.Format("Boiler #{0}", unitNumber);
 
@@ -163,7 +162,7 @@ namespace Boiler
             MethodState start = boiler.Simulation.Start;
             IList<Variant> inputArguments = new List<Variant>();
             IList<Variant> outputArguments = new List<Variant>();
-            List<ServiceResult> errors = new List<ServiceResult>();
+            var errors = new List<ServiceResult>();
             start.Call(context, boiler.NodeId, inputArguments, errors, outputArguments);
         }
 
@@ -197,7 +196,7 @@ namespace Boiler
         /// </summary>
         protected override NodeStateCollection LoadPredefinedNodes(ISystemContext context)
         {
-            NodeStateCollection predefinedNodes = new NodeStateCollection();
+            var predefinedNodes = new NodeStateCollection();
             predefinedNodes.LoadFromBinaryResource(context, "Quickstarts.Servers.Boiler.Boiler.PredefinedNodes.uanodes", this.GetType().GetTypeInfo().Assembly, true);
             return predefinedNodes;
         }
@@ -207,9 +206,7 @@ namespace Boiler
         /// </summary>
         protected override NodeState AddBehaviourToPredefinedNode(ISystemContext context, NodeState predefinedNode)
         {
-            BaseObjectState passiveNode = predefinedNode as BaseObjectState;
-
-            if (passiveNode == null)
+            if (predefinedNode is not BaseObjectState passiveNode)
             {
                 return predefinedNode;
             }
@@ -230,7 +227,7 @@ namespace Boiler
                         break;
                     }
 
-                    BoilerState activeNode = new BoilerState(passiveNode.Parent);
+                    var activeNode = new BoilerState(passiveNode.Parent);
                     activeNode.Create(context, passiveNode);
 
                     // replace the node in the parent.
@@ -243,7 +240,7 @@ namespace Boiler
                     MethodState start = activeNode.Simulation.Start;
                     IList<Variant> inputArguments = new List<Variant>();
                     IList<Variant> outputArguments = new List<Variant>();
-                    List<ServiceResult> errors = new List<ServiceResult>();
+                    var errors = new List<ServiceResult>();
                     start.Call(context, activeNode.NodeId, inputArguments, errors, outputArguments);
 
                     return activeNode;

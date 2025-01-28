@@ -11,11 +11,8 @@
 */
 
 using System;
-using System.Xml;
 using System.Collections.Generic;
-using System.IO;
 using System.Threading;
-using System.Runtime.Serialization;
 
 namespace Opc.Ua
 {

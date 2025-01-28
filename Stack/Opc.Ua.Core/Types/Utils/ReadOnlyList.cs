@@ -29,10 +29,7 @@ namespace Opc.Ua
         {
             m_list = list;
 
-            if (m_list == null)
-            {
-                m_list = Array.Empty<T>();
-            }
+            m_list ??= Array.Empty<T>();
         }
 
         /// <summary>
@@ -42,7 +39,7 @@ namespace Opc.Ua
         {
             if (list != null && makeCopy)
             {
-                T[] values = new T[list.Count];
+                var values = new T[list.Count];
 
                 for (int ii = 0; ii < values.Length; ii++)
                 {
@@ -54,10 +51,7 @@ namespace Opc.Ua
 
             m_list = list;
 
-            if (m_list == null)
-            {
-                m_list = Array.Empty<T>();
-            }
+            m_list ??= Array.Empty<T>();
         }
         #endregion
 
@@ -143,15 +137,9 @@ namespace Opc.Ua
         /// </summary>
         public T this[int index]
         {
-            get
-            {
-                return m_list[index];
-            }
+            get => m_list[index];
 
-            set
-            {
-                throw new NotSupportedException();
-            }
+            set => throw new NotSupportedException();
         }
         #endregion
 
@@ -267,15 +255,9 @@ namespace Opc.Ua
         /// </summary>
         object IList.this[int index]
         {
-            get
-            {
-                return this[index];
-            }
+            get => this[index];
 
-            set
-            {
-                this[index] = (T)value;
-            }
+            set => this[index] = (T)value;
         }
         #endregion
 

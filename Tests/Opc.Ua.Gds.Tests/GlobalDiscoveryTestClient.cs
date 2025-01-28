@@ -211,11 +211,11 @@ namespace Opc.Ua.Gds.Tests
         #region Private Methods
         private async Task ApplyNewApplicationInstanceCertificateAsync(byte[] certificate, byte[] privateKey)
         {
-            using (var x509 = X509CertificateLoader.LoadCertificate(certificate))
+            using (X509Certificate2 x509 = X509CertificateLoader.LoadCertificate(certificate))
             {
-                var certWithPrivateKey = CertificateFactory.CreateCertificateWithPEMPrivateKey(x509, privateKey);
+                X509Certificate2 certWithPrivateKey = CertificateFactory.CreateCertificateWithPEMPrivateKey(x509, privateKey);
                 m_client.Configuration.SecurityConfiguration.ApplicationCertificate = new CertificateIdentifier(certWithPrivateKey);
-                var store = m_client.Configuration.SecurityConfiguration.ApplicationCertificate.OpenStore();
+                ICertificateStore store = m_client.Configuration.SecurityConfiguration.ApplicationCertificate.OpenStore();
                 await store.Add(certWithPrivateKey).ConfigureAwait(false);
             }
         }
@@ -237,7 +237,7 @@ namespace Opc.Ua.Gds.Tests
         {
             m_client.Connect(m_client.EndpointUrl).Wait();
             //request new Cert
-            var req_id = m_client.StartNewKeyPairRequest(
+            NodeId req_id = m_client.StartNewKeyPairRequest(
              ownApplicationTestData.ApplicationRecord.ApplicationId,
              ownApplicationTestData.CertificateGroupId,
              ownApplicationTestData.CertificateTypeId,
@@ -254,7 +254,7 @@ namespace Opc.Ua.Gds.Tests
         private NodeId Register(ApplicationTestData ownApplicationTestData)
         {
             m_client.Connect(m_client.EndpointUrl).Wait();
-            var id = m_client.RegisterApplication(ownApplicationTestData.ApplicationRecord);
+            NodeId id = m_client.RegisterApplication(ownApplicationTestData.ApplicationRecord);
             m_client.Disconnect();
             return id;
         }
@@ -276,7 +276,7 @@ namespace Opc.Ua.Gds.Tests
 
         private ApplicationTestData GetOwnApplicationData()
         {
-            ApplicationTestData
+            var
                 //fill application record data type with own Data
                 ownApplicationTestData = new ApplicationTestData {
                     ApplicationRecord = new ApplicationRecordDataType {
@@ -304,7 +304,7 @@ namespace Opc.Ua.Gds.Tests
     /// <summary>
     /// Stores the configuration the data access node manager.
     /// </summary>
-    [DataContract(Namespace = Opc.Ua.Gds.Namespaces.OpcUaGds + "Configuration.xsd")]
+    [DataContract(Namespace = Namespaces.OpcUaGds + "Configuration.xsd")]
     public class GlobalDiscoveryTestClientConfiguration
     {
         #region Constructors

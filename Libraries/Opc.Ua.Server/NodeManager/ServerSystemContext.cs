@@ -27,10 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
-using System.Collections.Generic;
-using System.Text;
-
 namespace Opc.Ua.Server
 {
     /// <summary>
@@ -91,8 +87,8 @@ namespace Opc.Ua.Server
         /// <value>The operation context.</value>
         public new OperationContext OperationContext
         {
-            get { return base.OperationContext as OperationContext; } 
-            set { base.OperationContext = value; }
+            get => base.OperationContext as OperationContext;
+            set => base.OperationContext = value;
         }
 
         /// <summary>
@@ -113,7 +109,7 @@ namespace Opc.Ua.Server
         /// </returns>
         public ServerSystemContext Copy(OperationContext context)
         {
-            ServerSystemContext copy = (ServerSystemContext)MemberwiseClone();
+            var copy = (ServerSystemContext)MemberwiseClone();
 
             if (context != null)
             {
@@ -132,7 +128,7 @@ namespace Opc.Ua.Server
         /// </returns>
         public ServerSystemContext Copy(Session session)
         {
-            ServerSystemContext copy = (ServerSystemContext)MemberwiseClone();
+            var copy = (ServerSystemContext)MemberwiseClone();
 
             copy.OperationContext = null;
 
@@ -161,7 +157,7 @@ namespace Opc.Ua.Server
         /// </returns>
         public ServerSystemContext Copy(ServerSystemContext context)
         {
-            ServerSystemContext copy = (ServerSystemContext)MemberwiseClone();
+            var copy = (ServerSystemContext)MemberwiseClone();
 
             if (context != null)
             {

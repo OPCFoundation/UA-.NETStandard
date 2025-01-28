@@ -50,7 +50,7 @@ namespace Alarms
         {
             if (create)
             {
-                Initialize(Opc.Ua.ObjectTypes.NonExclusiveLevelAlarmType, name, maxShelveTime);
+                Initialize(ObjectTypes.NonExclusiveLevelAlarmType, name, maxShelveTime);
             }
         }
 
@@ -61,10 +61,7 @@ namespace Alarms
         {
             // Create an alarm and trigger name - Create a base method for creating the trigger, just provide the name
 
-            if (m_alarm == null)
-            {
-                m_alarm = new NonExclusiveLevelAlarmState(m_parent);
-            }
+            m_alarm ??= new NonExclusiveLevelAlarmState(m_parent);
 
             // Call the base class to set parameters
             base.Initialize(alarmTypeIdentifier, name, maxTimeShelved);

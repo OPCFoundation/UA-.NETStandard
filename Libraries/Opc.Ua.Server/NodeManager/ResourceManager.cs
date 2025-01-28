@@ -29,8 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Text;
-using System.Resources;
 using System.Globalization;
 using System.Xml;
 using System.Reflection;
@@ -138,7 +136,7 @@ namespace Opc.Ua.Server
             }
 
             // construct new service result.
-            ServiceResult translatedResult = new ServiceResult(
+            var translatedResult = new ServiceResult(
                 result.StatusCode,
                 result.SymbolicId,
                 result.NamespaceUri,
@@ -196,7 +194,7 @@ namespace Opc.Ua.Server
             if (locale == null) throw new ArgumentNullException(nameof(locale));
             if (text == null) throw new ArgumentNullException(nameof(text));
 
-            CultureInfo culture = new CultureInfo(locale);
+            var culture = new CultureInfo(locale);
 
             if (culture.IsNeutralCulture)
             {
@@ -218,7 +216,7 @@ namespace Opc.Ua.Server
             if (locale == null) throw new ArgumentNullException(nameof(locale));
             if (translations == null) throw new ArgumentNullException(nameof(translations));
 
-            CultureInfo culture = new CultureInfo(locale);
+            var culture = new CultureInfo(locale);
 
             if (culture.IsNeutralCulture)
             {
@@ -247,10 +245,7 @@ namespace Opc.Ua.Server
 
                 Add(key, locale, text);
 
-                if (m_statusCodeMapping == null)
-                {
-                    m_statusCodeMapping = new Dictionary<uint, TranslationInfo>();
-                }
+                m_statusCodeMapping ??= new Dictionary<uint, TranslationInfo>();
 
                 if (String.IsNullOrEmpty(locale) || locale == "en-US")
                 {
@@ -272,10 +267,7 @@ namespace Opc.Ua.Server
 
                     Add(key, locale, text);
 
-                    if (m_symbolicIdMapping == null)
-                    {
-                        m_symbolicIdMapping = new Dictionary<XmlQualifiedName, TranslationInfo>();
-                    }
+                    m_symbolicIdMapping ??= new Dictionary<XmlQualifiedName, TranslationInfo>();
 
                     if (String.IsNullOrEmpty(locale) || locale == "en-US")
                     {
@@ -290,7 +282,7 @@ namespace Opc.Ua.Server
         /// </summary>
         public void LoadDefaultText()
         {
-            System.Reflection.FieldInfo[] fields = typeof(StatusCodes).GetFields(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static);
+            System.Reflection.FieldInfo[] fields = typeof(StatusCodes).GetFields(BindingFlags.Public | BindingFlags.Static);
 
             foreach (System.Reflection.FieldInfo field in fields)
             {
@@ -342,10 +334,7 @@ namespace Opc.Ua.Server
             // use the text as the key.
             string key = info.Key;
 
-            if (key == null)
-            {
-                key = info.Text;
-            }
+            key ??= info.Text;
 
             // find the best translation.
             string translatedText = info.Text;
@@ -394,7 +383,7 @@ namespace Opc.Ua.Server
             }
 
             // construct translated localized text.
-            Opc.Ua.LocalizedText finalText = new LocalizedText(culture.Name, formattedText);
+            var finalText = new LocalizedText(culture.Name, formattedText);
             finalText.TranslationInfo = info;
             return finalText;
         }
@@ -429,7 +418,7 @@ namespace Opc.Ua.Server
                 }
 
                 // add table.
-                TranslationTable table = new TranslationTable();
+                var table = new TranslationTable();
                 table.Locale = new CultureInfo(locale);
                 m_translationTables.Add(table);
 

@@ -29,7 +29,6 @@
 
 using System;
 using System.Text;
-using Opc.Ua;
 
 namespace Opc.Ua.Server
 {
@@ -50,8 +49,8 @@ namespace Opc.Ua.Server
         /// </summary>
         public ushort NamespaceIndex
         {
-            get { return m_namespaceIndex; }
-            set { m_namespaceIndex = value; }
+            get => m_namespaceIndex;
+            set => m_namespaceIndex = value;
         }
 
         /// <summary>
@@ -59,8 +58,8 @@ namespace Opc.Ua.Server
         /// </summary>
         public string RootId
         {
-            get { return m_rootId; }
-            set { m_rootId = value; }
+            get => m_rootId;
+            set => m_rootId = value;
         }
 
         /// <summary>
@@ -68,8 +67,8 @@ namespace Opc.Ua.Server
         /// </summary>
         public int RootType
         {
-            get { return m_rootType; }
-            set { m_rootType = value; }
+            get => m_rootType;
+            set => m_rootType = value;
         }
 
         /// <summary>
@@ -77,8 +76,8 @@ namespace Opc.Ua.Server
         /// </summary>
         public string ComponentPath
         {
-            get { return m_componentPath; }
-            set { m_componentPath = value; }
+            get => m_componentPath;
+            set => m_componentPath = value;
         }
 
         /// <summary>
@@ -101,7 +100,7 @@ namespace Opc.Ua.Server
                 return null;
             }
 
-            ParsedNodeId parsedNodeId = new ParsedNodeId();
+            var parsedNodeId = new ParsedNodeId();
             parsedNodeId.NamespaceIndex = nodeId.NamespaceIndex;
 
             // extract the type of identifier.
@@ -127,7 +126,7 @@ namespace Opc.Ua.Server
             }
 
             // extract any component path.
-            StringBuilder buffer = new StringBuilder();
+            var buffer = new StringBuilder();
 
             int index = start+1;
             int end = identifier.Length;
@@ -173,7 +172,7 @@ namespace Opc.Ua.Server
         /// </summary>
         public static NodeId Construct(int rootType, string rootId, ushort namespaceIndex, params string[] componentNames)
         {
-            ParsedNodeId pnd = new ParsedNodeId();
+            var pnd = new ParsedNodeId();
 
             pnd.RootType = rootType;
             pnd.RootId = rootId;
@@ -181,7 +180,7 @@ namespace Opc.Ua.Server
 
             if (componentNames != null)
             {
-                StringBuilder path = new StringBuilder();
+                var path = new StringBuilder();
 
                 for (int ii = 0; ii < componentNames.Length; ii++)
                 {
@@ -214,7 +213,7 @@ namespace Opc.Ua.Server
         /// <returns>The node identifier.</returns>
         public NodeId Construct(string componentName)
         {
-            StringBuilder buffer = new StringBuilder();
+            var buffer = new StringBuilder();
 
             // add the root type.
             buffer.Append(RootType);
@@ -274,22 +273,20 @@ namespace Opc.Ua.Server
             }
 
             // components must be instances with a parent.
-            BaseInstanceState instance = component as BaseInstanceState;
 
-            if (instance == null || instance.Parent == null)
+            if (component is not BaseInstanceState instance || instance.Parent == null)
             {
                 return component.NodeId;
             }
 
             // parent must have a string identifier.
-            string parentId = instance.Parent.NodeId.Identifier as string;
 
-            if (parentId == null)
+            if (instance.Parent.NodeId.Identifier is not string parentId)
             {
                 return null;
             }
 
-            StringBuilder buffer = new StringBuilder();
+            var buffer = new StringBuilder();
             buffer.Append(parentId);
 
             // check if the parent is another component.

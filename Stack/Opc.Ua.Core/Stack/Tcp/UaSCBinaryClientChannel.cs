@@ -13,6 +13,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
@@ -276,10 +277,7 @@ namespace Opc.Ua.Bindings
                 // check if this is the first call.
                 if (State == TcpChannelState.Closed)
                 {
-                    if (m_queuedOperations == null)
-                    {
-                        m_queuedOperations = new List<QueuedOperation>();
-                    }
+                    m_queuedOperations ??= new List<QueuedOperation>();
                     firstCall = m_queuedOperations.Count == 0;
                 }
 
@@ -374,8 +372,8 @@ namespace Opc.Ua.Bindings
 
             try
             {
-                MemoryStream ostrm = new MemoryStream(buffer, 0, SendBufferSize);
-                using (BinaryEncoder encoder = new BinaryEncoder(ostrm, Quotas.MessageContext, false))
+                var ostrm = new MemoryStream(buffer, 0, SendBufferSize);
+                using (var encoder = new BinaryEncoder(ostrm, Quotas.MessageContext, false))
                 {
                     encoder.WriteUInt32(null, TcpMessageType.Hello);
                     encoder.WriteUInt32(null, 0);
@@ -533,7 +531,7 @@ namespace Opc.Ua.Bindings
             token.ClientNonce = CreateNonce(ClientCertificate);
 
             // construct the request.
-            OpenSecureChannelRequest request = new OpenSecureChannelRequest();
+            var request = new OpenSecureChannelRequest();
             request.RequestHeader.Timestamp = DateTime.UtcNow;
 
             request.RequestType = (renew) ? SecurityTokenRequestType.Renew : SecurityTokenRequestType.Issue;
@@ -653,12 +651,12 @@ namespace Opc.Ua.Bindings
                     throw new ServiceResultException(StatusCodes.BadNonceInvalid);
                 }
 
-                string implementation = String.Format(g_ImplementationString, m_socketFactory.Implementation);
+                string implementation = string.Format(CultureInfo.InvariantCulture, g_ImplementationString, m_socketFactory.Implementation);
 
                 // log security information.
                 if (State == TcpChannelState.Opening)
                 {
-                    Opc.Ua.Security.Audit.SecureChannelCreated(
+                    Security.Audit.SecureChannelCreated(
                         implementation,
                         this.m_url.ToString(),
                         Utils.Format("{0}", channelId),
@@ -669,7 +667,7 @@ namespace Opc.Ua.Bindings
                 }
                 else
                 {
-                    Opc.Ua.Security.Audit.SecureChannelRenewed(
+                    Security.Audit.SecureChannelRenewed(
                         implementation,
                         Utils.Format("{0}", channelId));
                 }
@@ -862,7 +860,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         private void OnConnectComplete(object sender, IMessageSocketAsyncEventArgs e)
         {
-            WriteOperation operation = (WriteOperation)e.UserToken;
+            var operation = (WriteOperation)e.UserToken;
 
             // ConnectAsync may call in with a null UserToken, ignore
             if (operation == null)
@@ -895,7 +893,7 @@ namespace Opc.Ua.Bindings
                 }
                 catch (Exception ex)
                 {
-                    ServiceResult fault = ServiceResult.Create(
+                    var fault = ServiceResult.Create(
                         ex,
                         StatusCodes.BadTcpInternalError,
                         "An unexpected error occurred while connecting to the server.");
@@ -917,7 +915,7 @@ namespace Opc.Ua.Bindings
                 lock (DataLock)
                 {
                     // check if renewing a token.
-                    ChannelToken token = state as ChannelToken;
+                    var token = state as ChannelToken;
 
                     if (token == CurrentToken)
                     {
@@ -960,7 +958,7 @@ namespace Opc.Ua.Bindings
                     ChannelId = 0;
                     DiscardTokens();
 
-                    var socket = Socket;
+                    IMessageSocket socket = Socket;
                     if (socket != null)
                     {
                         Socket = null;
@@ -1140,7 +1138,7 @@ namespace Opc.Ua.Bindings
                 }
 
                 // cancel all requests.
-                foreach (var operation in m_requests.ToArray())
+                foreach (KeyValuePair<uint, WriteOperation> operation in m_requests.ToArray())
                 {
                     operation.Value.Fault(new ServiceResult(StatusCodes.BadSecureChannelClosed, reason));
                 }
@@ -1161,7 +1159,7 @@ namespace Opc.Ua.Bindings
                 m_requestedToken = null;
                 m_reconnecting = false;
 
-                var socket = Socket;
+                IMessageSocket socket = Socket;
                 if (socket != null)
                 {
                     Socket = null;
@@ -1197,7 +1195,7 @@ namespace Opc.Ua.Bindings
                 Utils.LogWarning("ChannelId {0}: Force reconnect reason={1}", Id, reason);
 
                 // cancel all requests.
-                foreach (var operation in m_requests.ToArray())
+                foreach (KeyValuePair<uint, WriteOperation> operation in m_requests.ToArray())
                 {
                     operation.Value.Fault(new ServiceResult(StatusCodes.BadSecureChannelClosed, reason));
                 }
@@ -1289,7 +1287,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         private WriteOperation BeginOperation(int timeout, AsyncCallback callback, object state)
         {
-            WriteOperation operation = new WriteOperation(timeout, callback, state);
+            var operation = new WriteOperation(timeout, callback, state);
             operation.RequestId = Utils.IncrementIdentifier(ref m_lastRequestId);
             if (!m_requests.TryAdd(operation.RequestId, operation))
             {
@@ -1308,7 +1306,7 @@ namespace Opc.Ua.Bindings
                 return;
             }
 
-            if (Object.ReferenceEquals(m_handshakeOperation, operation))
+            if (ReferenceEquals(m_handshakeOperation, operation))
             {
                 m_handshakeOperation = null;
             }
@@ -1345,7 +1343,7 @@ namespace Opc.Ua.Bindings
         {
             lock (DataLock)
             {
-                WriteOperation operation = (WriteOperation)state;
+                var operation = (WriteOperation)state;
 
                 for (int ii = 0; ii < m_queuedOperations.Count; ii++)
                 {
@@ -1477,7 +1475,7 @@ namespace Opc.Ua.Bindings
                 throw new ServiceResultException(StatusCodes.BadSecureChannelClosed);
             }
 
-            CloseSecureChannelRequest request = new CloseSecureChannelRequest();
+            var request = new CloseSecureChannelRequest();
             request.RequestHeader.Timestamp = DateTime.UtcNow;
 
             // limits should never be exceeded sending a close message.

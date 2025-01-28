@@ -66,7 +66,7 @@ namespace Opc.Ua.Security.Certificates.Tests
                     new string[] { "mypc", "mypc.opcfoundation.org", "192.168.1.100" }))
                 .CreateForRSA();
 
-            var crlBuilder = CrlBuilder.Create(m_issuerCert.SubjectName, HashAlgorithmName.SHA256)
+            CrlBuilder crlBuilder = CrlBuilder.Create(m_issuerCert.SubjectName, HashAlgorithmName.SHA256)
                            .SetThisUpdate(DateTime.UtcNow.Date)
                            .SetNextUpdate(DateTime.UtcNow.Date.AddDays(30));
             var revokedarray = new RevokedCertificate(m_certificate.SerialNumber);
@@ -117,7 +117,7 @@ namespace Opc.Ua.Security.Certificates.Tests
         [Benchmark]
         public void GetPrivateKey()
         {
-            using (var privateKey = m_certificate.GetRSAPrivateKey()) { }
+            using (RSA privateKey = m_certificate.GetRSAPrivateKey()) { }
         }
 
         /// <summary>
@@ -126,7 +126,7 @@ namespace Opc.Ua.Security.Certificates.Tests
         [Benchmark]
         public void GetPrivateKeyAndExport()
         {
-            using (var privateKey = m_certificate.GetRSAPrivateKey())
+            using (RSA privateKey = m_certificate.GetRSAPrivateKey())
             {
                 privateKey.ExportParameters(true);
             }
@@ -138,7 +138,7 @@ namespace Opc.Ua.Security.Certificates.Tests
         [Benchmark]
         public void GetPublicKey()
         {
-            using (var publicKey = m_certificate.GetRSAPublicKey()) { }
+            using (RSA publicKey = m_certificate.GetRSAPublicKey()) { }
         }
 
         /// <summary>
@@ -147,7 +147,7 @@ namespace Opc.Ua.Security.Certificates.Tests
         [Benchmark]
         public void GetPublicKeyAndExport()
         {
-            using (var publicKey = m_certificate.GetRSAPublicKey())
+            using (RSA publicKey = m_certificate.GetRSAPublicKey())
             {
                 publicKey.ExportParameters(false);
             }
@@ -211,7 +211,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             byte[] serial = new byte[] { 1, 2, 3 };
             var revokedarray = new RevokedCertificate(serial);
 
-            var crlBuilder = CrlBuilder.Create(m_issuerCert.SubjectName, HashAlgorithmName.SHA256)
+            CrlBuilder crlBuilder = CrlBuilder.Create(m_issuerCert.SubjectName, HashAlgorithmName.SHA256)
                 .SetThisUpdate(DateTime.UtcNow.Date)
                 .SetNextUpdate(DateTime.UtcNow.Date.AddDays(30));
             crlBuilder.RevokedCertificates.Add(revokedarray);

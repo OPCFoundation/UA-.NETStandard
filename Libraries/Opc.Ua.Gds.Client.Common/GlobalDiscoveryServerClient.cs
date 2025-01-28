@@ -31,7 +31,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using Opc.Ua.Client;
-using Opc.Ua.Configuration;
 using System.Threading.Tasks;
 using System.Reflection;
 
@@ -129,20 +128,17 @@ namespace Opc.Ua.Gds.Client
         /// </returns>
         public List<string> GetDefaultServerUrls(LocalDiscoveryServerClient lds)
         {
-            List<string> serverUrls = new List<string>();
+            var serverUrls = new List<string>();
 
             try
             {
                 DateTime lastResetTime;
 
-                if (lds == null)
-                {
-                    lds = new LocalDiscoveryServerClient(Configuration);
-                }
+                lds ??= new LocalDiscoveryServerClient(Configuration);
 
-                var servers = lds.FindServersOnNetwork(0, 1000, out lastResetTime);
+                List<ServerOnNetwork> servers = lds.FindServersOnNetwork(0, 1000, out lastResetTime);
 
-                foreach (var server in servers)
+                foreach (ServerOnNetwork server in servers)
                 {
                     if (server.ServerCapabilities != null)
                     {
@@ -173,20 +169,17 @@ namespace Opc.Ua.Gds.Client
         /// </returns>
         public List<string> GetDefaultGdsUrls(LocalDiscoveryServerClient lds)
         {
-            List<string> gdsUrls = new List<string>();
+            var gdsUrls = new List<string>();
 
             try
             {
                 DateTime lastResetTime;
 
-                if (lds == null)
-                {
-                    lds = new LocalDiscoveryServerClient(Configuration);
-                }
+                lds ??= new LocalDiscoveryServerClient(Configuration);
 
-                var servers = lds.FindServersOnNetwork(0, 1000, out lastResetTime);
+                List<ServerOnNetwork> servers = lds.FindServersOnNetwork(0, 1000, out lastResetTime);
 
-                foreach (var server in servers)
+                foreach (ServerOnNetwork server in servers)
                 {
                     if (server.ServerCapabilities != null && server.ServerCapabilities.Contains(ServerCapability.GlobalDiscoveryServer))
                     {
@@ -235,8 +228,8 @@ namespace Opc.Ua.Gds.Client
                 try
                 {
                     EndpointDescription endpointDescription = CoreClientUtils.SelectEndpoint(Configuration, endpointUrl, true);
-                    EndpointConfiguration endpointConfiguration = EndpointConfiguration.Create(Configuration);
-                    ConfiguredEndpoint endpoint = new ConfiguredEndpoint(null, endpointDescription, endpointConfiguration);
+                    var endpointConfiguration = EndpointConfiguration.Create(Configuration);
+                    var endpoint = new ConfiguredEndpoint(null, endpointDescription, endpointConfiguration);
 
                     await Connect(endpoint).ConfigureAwait(false);
                 }
@@ -300,7 +293,7 @@ namespace Opc.Ua.Gds.Client
             // TODO: implement, suppress warning/error 
             if (ServerStatusChanged != null) { }
 
-            if (Session.Factory.GetSystemType(Opc.Ua.Gds.DataTypeIds.ApplicationRecordDataType) == null)
+            if (Session.Factory.GetSystemType(DataTypeIds.ApplicationRecordDataType) == null)
             {
                 Session.Factory.AddEncodeableTypes(typeof(Opc.Ua.Gds.ObjectIds).GetTypeInfo().Assembly);
             }
@@ -361,9 +354,9 @@ namespace Opc.Ua.Gds.Client
                 Connect();
             }
 
-            var outputArguments = Session.Call(
-                ExpandedNodeId.ToNodeId(Opc.Ua.Gds.ObjectIds.Directory, Session.NamespaceUris),
-                ExpandedNodeId.ToNodeId(Opc.Ua.Gds.MethodIds.Directory_FindApplications, Session.NamespaceUris),
+            IList<object> outputArguments = Session.Call(
+                ExpandedNodeId.ToNodeId(ObjectIds.Directory, Session.NamespaceUris),
+                ExpandedNodeId.ToNodeId(MethodIds.Directory_FindApplications, Session.NamespaceUris),
                 applicationUri);
 
             ApplicationRecordDataType[] applications = null;
@@ -457,9 +450,9 @@ namespace Opc.Ua.Gds.Client
                 Connect();
             }
 
-            var outputArguments = Session.Call(
-                ExpandedNodeId.ToNodeId(Opc.Ua.Gds.ObjectIds.Directory, Session.NamespaceUris),
-                ExpandedNodeId.ToNodeId(Opc.Ua.Gds.MethodIds.Directory_QueryServers, Session.NamespaceUris),
+            IList<object> outputArguments = Session.Call(
+                ExpandedNodeId.ToNodeId(ObjectIds.Directory, Session.NamespaceUris),
+                ExpandedNodeId.ToNodeId(MethodIds.Directory_QueryServers, Session.NamespaceUris),
                 startingRecordId,
                 maxRecordsToReturn,
                 applicationName,
@@ -511,9 +504,9 @@ namespace Opc.Ua.Gds.Client
                 Connect();
             }
 
-            var outputArguments = Session.Call(
-                ExpandedNodeId.ToNodeId(Opc.Ua.Gds.ObjectIds.Directory, Session.NamespaceUris),
-                ExpandedNodeId.ToNodeId(Opc.Ua.Gds.MethodIds.Directory_QueryApplications, Session.NamespaceUris),
+            IList<object> outputArguments = Session.Call(
+                ExpandedNodeId.ToNodeId(ObjectIds.Directory, Session.NamespaceUris),
+                ExpandedNodeId.ToNodeId(MethodIds.Directory_QueryApplications, Session.NamespaceUris),
                 startingRecordId,
                 maxRecordsToReturn,
                 applicationName,
@@ -546,9 +539,9 @@ namespace Opc.Ua.Gds.Client
                 Connect();
             }
 
-            var outputArguments = Session.Call(
-                ExpandedNodeId.ToNodeId(Opc.Ua.Gds.ObjectIds.Directory, Session.NamespaceUris),
-                ExpandedNodeId.ToNodeId(Opc.Ua.Gds.MethodIds.Directory_GetApplication, Session.NamespaceUris),
+            IList<object> outputArguments = Session.Call(
+                ExpandedNodeId.ToNodeId(ObjectIds.Directory, Session.NamespaceUris),
+                ExpandedNodeId.ToNodeId(MethodIds.Directory_GetApplication, Session.NamespaceUris),
                 applicationId);
 
             if (outputArguments.Count >= 1)
@@ -571,9 +564,9 @@ namespace Opc.Ua.Gds.Client
                 Connect();
             }
 
-            var outputArguments = Session.Call(
-                ExpandedNodeId.ToNodeId(Opc.Ua.Gds.ObjectIds.Directory, Session.NamespaceUris),
-                ExpandedNodeId.ToNodeId(Opc.Ua.Gds.MethodIds.Directory_RegisterApplication, Session.NamespaceUris),
+            IList<object> outputArguments = Session.Call(
+                ExpandedNodeId.ToNodeId(ObjectIds.Directory, Session.NamespaceUris),
+                ExpandedNodeId.ToNodeId(MethodIds.Directory_RegisterApplication, Session.NamespaceUris),
                 application);
 
             if (outputArguments.Count >= 1)
@@ -608,9 +601,9 @@ namespace Opc.Ua.Gds.Client
                 Connect();
             }
 
-            var outputArguments = Session.Call(
-                ExpandedNodeId.ToNodeId(Opc.Ua.Gds.ObjectIds.Directory, Session.NamespaceUris),
-                ExpandedNodeId.ToNodeId(Opc.Ua.Gds.MethodIds.CertificateDirectoryType_GetCertificates, Session.NamespaceUris),
+            IList<object> outputArguments = Session.Call(
+                ExpandedNodeId.ToNodeId(ObjectIds.Directory, Session.NamespaceUris),
+                ExpandedNodeId.ToNodeId(MethodIds.CertificateDirectoryType_GetCertificates, Session.NamespaceUris),
                 applicationId,
                 certificateGroupId);
 
@@ -639,9 +632,9 @@ namespace Opc.Ua.Gds.Client
                 Connect();
             }
 
-            var outputArguments = Session.Call(
-                ExpandedNodeId.ToNodeId(Opc.Ua.Gds.ObjectIds.Directory, Session.NamespaceUris),
-                ExpandedNodeId.ToNodeId(Opc.Ua.Gds.MethodIds.CertificateDirectoryType_CheckRevocationStatus, Session.NamespaceUris),
+            IList<object> outputArguments = Session.Call(
+                ExpandedNodeId.ToNodeId(ObjectIds.Directory, Session.NamespaceUris),
+                ExpandedNodeId.ToNodeId(MethodIds.CertificateDirectoryType_CheckRevocationStatus, Session.NamespaceUris),
                 certificate);
 
             if (outputArguments.Count >= 2)
@@ -663,8 +656,8 @@ namespace Opc.Ua.Gds.Client
             }
 
             Session.Call(
-                ExpandedNodeId.ToNodeId(Opc.Ua.Gds.ObjectIds.Directory, Session.NamespaceUris),
-                ExpandedNodeId.ToNodeId(Opc.Ua.Gds.MethodIds.Directory_UpdateApplication, Session.NamespaceUris),
+                ExpandedNodeId.ToNodeId(ObjectIds.Directory, Session.NamespaceUris),
+                ExpandedNodeId.ToNodeId(MethodIds.Directory_UpdateApplication, Session.NamespaceUris),
                 application);
         }
 
@@ -680,8 +673,8 @@ namespace Opc.Ua.Gds.Client
             }
 
             Session.Call(
-                ExpandedNodeId.ToNodeId(Opc.Ua.Gds.ObjectIds.Directory, Session.NamespaceUris),
-                ExpandedNodeId.ToNodeId(Opc.Ua.Gds.MethodIds.Directory_UnregisterApplication, Session.NamespaceUris),
+                ExpandedNodeId.ToNodeId(ObjectIds.Directory, Session.NamespaceUris),
+                ExpandedNodeId.ToNodeId(MethodIds.Directory_UnregisterApplication, Session.NamespaceUris),
                 applicationId);
         }
 
@@ -698,8 +691,8 @@ namespace Opc.Ua.Gds.Client
             }
 
             Session.Call(
-                ExpandedNodeId.ToNodeId(Opc.Ua.Gds.ObjectIds.Directory, Session.NamespaceUris),
-                ExpandedNodeId.ToNodeId(Opc.Ua.Gds.MethodIds.CertificateDirectoryType_RevokeCertificate, Session.NamespaceUris),
+                ExpandedNodeId.ToNodeId(ObjectIds.Directory, Session.NamespaceUris),
+                ExpandedNodeId.ToNodeId(MethodIds.CertificateDirectoryType_RevokeCertificate, Session.NamespaceUris),
                 applicationId,
                 certificate);
         }
@@ -731,9 +724,9 @@ namespace Opc.Ua.Gds.Client
                 Connect();
             }
 
-            var outputArguments = Session.Call(
-                ExpandedNodeId.ToNodeId(Opc.Ua.Gds.ObjectIds.Directory, Session.NamespaceUris),
-                ExpandedNodeId.ToNodeId(Opc.Ua.Gds.MethodIds.Directory_StartNewKeyPairRequest, Session.NamespaceUris),
+            IList<object> outputArguments = Session.Call(
+                ExpandedNodeId.ToNodeId(ObjectIds.Directory, Session.NamespaceUris),
+                ExpandedNodeId.ToNodeId(MethodIds.Directory_StartNewKeyPairRequest, Session.NamespaceUris),
                 applicationId,
                 certificateGroupId,
                 certificateTypeId,
@@ -769,9 +762,9 @@ namespace Opc.Ua.Gds.Client
                 Connect();
             }
 
-            var outputArguments = Session.Call(
-                ExpandedNodeId.ToNodeId(Opc.Ua.Gds.ObjectIds.Directory, Session.NamespaceUris),
-                ExpandedNodeId.ToNodeId(Opc.Ua.Gds.MethodIds.Directory_StartSigningRequest, Session.NamespaceUris),
+            IList<object> outputArguments = Session.Call(
+                ExpandedNodeId.ToNodeId(ObjectIds.Directory, Session.NamespaceUris),
+                ExpandedNodeId.ToNodeId(MethodIds.Directory_StartSigningRequest, Session.NamespaceUris),
                 applicationId,
                 certificateGroupId,
                 certificateTypeId,
@@ -806,9 +799,9 @@ namespace Opc.Ua.Gds.Client
                 Connect();
             }
 
-            var outputArguments = Session.Call(
-                ExpandedNodeId.ToNodeId(Opc.Ua.Gds.ObjectIds.Directory, Session.NamespaceUris),
-                ExpandedNodeId.ToNodeId(Opc.Ua.Gds.MethodIds.Directory_FinishRequest, Session.NamespaceUris),
+            IList<object> outputArguments = Session.Call(
+                ExpandedNodeId.ToNodeId(ObjectIds.Directory, Session.NamespaceUris),
+                ExpandedNodeId.ToNodeId(MethodIds.Directory_FinishRequest, Session.NamespaceUris),
                 applicationId,
                 requestId);
 
@@ -845,9 +838,9 @@ namespace Opc.Ua.Gds.Client
                 Connect();
             }
 
-            var outputArguments = Session.Call(
-                ExpandedNodeId.ToNodeId(Opc.Ua.Gds.ObjectIds.Directory, Session.NamespaceUris),
-                ExpandedNodeId.ToNodeId(Opc.Ua.Gds.MethodIds.Directory_GetCertificateGroups, Session.NamespaceUris),
+            IList<object> outputArguments = Session.Call(
+                ExpandedNodeId.ToNodeId(ObjectIds.Directory, Session.NamespaceUris),
+                ExpandedNodeId.ToNodeId(MethodIds.Directory_GetCertificateGroups, Session.NamespaceUris),
                 applicationId);
 
             if (outputArguments.Count >= 1)
@@ -873,9 +866,9 @@ namespace Opc.Ua.Gds.Client
                 Connect();
             }
 
-            var outputArguments = Session.Call(
-                ExpandedNodeId.ToNodeId(Opc.Ua.Gds.ObjectIds.Directory, Session.NamespaceUris),
-                ExpandedNodeId.ToNodeId(Opc.Ua.Gds.MethodIds.Directory_GetTrustList, Session.NamespaceUris),
+            IList<object> outputArguments = Session.Call(
+                ExpandedNodeId.ToNodeId(ObjectIds.Directory, Session.NamespaceUris),
+                ExpandedNodeId.ToNodeId(MethodIds.Directory_GetTrustList, Session.NamespaceUris),
                 applicationId,
                 certificateGroupId);
 
@@ -904,9 +897,9 @@ namespace Opc.Ua.Gds.Client
                 Connect();
             }
 
-            var outputArguments = Session.Call(
-                ExpandedNodeId.ToNodeId(Opc.Ua.Gds.ObjectIds.Directory, Session.NamespaceUris),
-                ExpandedNodeId.ToNodeId(Opc.Ua.Gds.MethodIds.Directory_GetCertificateStatus, Session.NamespaceUris),
+            IList<object> outputArguments = Session.Call(
+                ExpandedNodeId.ToNodeId(ObjectIds.Directory, Session.NamespaceUris),
+                ExpandedNodeId.ToNodeId(MethodIds.Directory_GetCertificateStatus, Session.NamespaceUris),
                 applicationId,
                 certificateGroupId,
                 certificateTypeId);
@@ -933,13 +926,13 @@ namespace Opc.Ua.Gds.Client
                 Connect();
             }
 
-            var outputArguments = Session.Call(
+            IList<object> outputArguments = Session.Call(
                 trustListId,
-                Opc.Ua.MethodIds.FileType_Open,
+                Ua.MethodIds.FileType_Open,
                 (byte)OpenFileMode.Read);
 
             uint fileHandle = (uint)outputArguments[0];
-            using (MemoryStream ostrm = new MemoryStream())
+            using (var ostrm = new MemoryStream())
             {
                 try
                 {
@@ -949,7 +942,7 @@ namespace Opc.Ua.Gds.Client
 
                         outputArguments = Session.Call(
                             trustListId,
-                            Opc.Ua.MethodIds.FileType_Read,
+                            Ua.MethodIds.FileType_Read,
                             fileHandle,
                             length);
 
@@ -972,15 +965,15 @@ namespace Opc.Ua.Gds.Client
                     {
                         Session.Call(
                             trustListId,
-                            Opc.Ua.MethodIds.FileType_Close,
+                            Ua.MethodIds.FileType_Close,
                             fileHandle);
                     }
                 }
 
                 ostrm.Position = 0;
 
-                TrustListDataType trustList = new TrustListDataType();
-                using (BinaryDecoder decoder = new BinaryDecoder(ostrm, Session.MessageContext))
+                var trustList = new TrustListDataType();
+                using (var decoder = new BinaryDecoder(ostrm, Session.MessageContext))
                 {
                     trustList.Decode(decoder);
                 }
@@ -994,13 +987,13 @@ namespace Opc.Ua.Gds.Client
         {
             IUserIdentity oldUser = Session.Identity;
 
-            if (AdminCredentials == null || !Object.ReferenceEquals(Session.Identity, AdminCredentials))
+            if (AdminCredentials == null || !ReferenceEquals(Session.Identity, AdminCredentials))
             {
                 IUserIdentity newCredentials = null;
 
                 if (AdminCredentials == null)
                 {
-                    var handle = AdminCredentialsRequired;
+                    AdminCredentialsRequiredEventHandler handle = AdminCredentialsRequired;
 
                     if (handle == null)
                     {
@@ -1039,7 +1032,7 @@ namespace Opc.Ua.Gds.Client
         {
             try
             {
-                if (!Object.ReferenceEquals(Session.Identity, oldUser))
+                if (!ReferenceEquals(Session.Identity, oldUser))
                 {
                     Session.UpdateSession(oldUser, PreferredLocales);
                 }

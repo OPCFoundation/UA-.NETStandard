@@ -271,7 +271,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             m_testString = EscapeTestStrings[index];
             TestContext.Out.WriteLine(m_testString);
-            var testArray = m_testString.ToCharArray();
+            char[] testArray = m_testString.ToCharArray();
 
             m_memoryStream.Position = 0;
             EscapedStringLegacy(m_testString);
@@ -846,7 +846,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
         private void EscapeString(string value)
         {
-            StringBuilder stringBuilder = new StringBuilder(value.Length * 2);
+            var stringBuilder = new StringBuilder(value.Length * 2);
 
             foreach (char ch in value)
             {

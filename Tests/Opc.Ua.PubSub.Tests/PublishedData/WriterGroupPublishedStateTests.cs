@@ -71,7 +71,7 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
 
             DataSetFieldContentMask dataSetFieldContentMask = DataSetFieldContentMask.None;
 
-            DataSetMetaDataType[] dataSetMetaDataArray = new DataSetMetaDataType[]
+            var dataSetMetaDataArray = new DataSetMetaDataType[]
             {
                 MessagesHelper.CreateDataSetMetaData1("DataSet1"),
                 MessagesHelper.CreateDataSetMetaData2("DataSet2"),
@@ -117,7 +117,7 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
             Assert.IsNotNull(publisherConfiguration, "publisherConfiguration should not be null");
 
             // Create publisher application for multiple datasets
-            UaPubSubApplication publisherApplication = UaPubSubApplication.Create(publisherConfiguration);
+            var publisherApplication = UaPubSubApplication.Create(publisherConfiguration);
             MessagesHelper.LoadData(publisherApplication, NamespaceIndexAllTypes);
 
             IUaPubSubConnection publisherConnection = publisherApplication.PubSubConnections.First();
@@ -126,8 +126,8 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
             Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration first connection should not be null");
             Assert.IsNotNull(publisherConfiguration.Connections.First().WriterGroups.First(), "publisherConfiguration first writer group of first connection should not be null");
 
-            WriterGroupPublishState writerGroupPublishState = new WriterGroupPublishState();
-            var networkMessages = publisherConnection.CreateNetworkMessages(publisherConfiguration.Connections.First().WriterGroups.First(), writerGroupPublishState);
+            var writerGroupPublishState = new WriterGroupPublishState();
+            IList<UaNetworkMessage> networkMessages = publisherConnection.CreateNetworkMessages(publisherConfiguration.Connections.First().WriterGroups.First(), writerGroupPublishState);
             Assert.IsNotNull(networkMessages, "connection.CreateNetworkMessages shall not return null");
             Assert.GreaterOrEqual(networkMessages.Count, 1, "connection.CreateNetworkMessages shall have at least one network message");
 
@@ -147,7 +147,7 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
             Assert.IsNotNull(uaNetworkMessages, "uaNetworkMessages should not be null. Data entry is missing from configuration!?");
 
             // get datastore data
-            Dictionary<NodeId, DataValue> dataStoreData = new Dictionary<NodeId, DataValue>();
+            var dataStoreData = new Dictionary<NodeId, DataValue>();
             foreach (UaNetworkMessage uaDataNetworkMessage in uaNetworkMessages)
             {
                 Dictionary<NodeId, DataValue> dataSetsData = MessagesHelper.GetDataStoreData(publisherApplication, uaDataNetworkMessage, NamespaceIndexAllTypes);
@@ -217,11 +217,11 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
             IEnumerable<object> writerGroupDataSetStates = null;
             if (writerGroupPublishState != null)
             {
-                var dataSetStates = writerGroupPublishState.GetType()
+                object dataSetStates = writerGroupPublishState.GetType()
                         .GetField("m_dataSetStates", BindingFlags.Instance | BindingFlags.NonPublic)
                         .GetValue(writerGroupPublishState);
 
-                var dataSetStatesValues = dataSetStates.GetType()
+                object dataSetStatesValues = dataSetStates.GetType()
                      .GetProperty("Values", BindingFlags.Instance | BindingFlags.Public)
                      .GetValue(dataSetStates);
 
@@ -239,7 +239,7 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
                     DataSet lastDataSetFound = null;
                     foreach (object dataSetState in writerGroupDataSetStates)
                     {
-                        var writerGroupLastDataSet = dataSetState.GetType()
+                        object writerGroupLastDataSet = dataSetState.GetType()
                             .GetField("LastDataSet", BindingFlags.Instance | BindingFlags.Public)
                             .GetValue(dataSetState);
                         if (writerGroupLastDataSet != null)
@@ -267,7 +267,7 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
                         {
                             continue;
                         }
-                        NodeId targetNodeId = new NodeId(field.FieldMetaData.Name, NamespaceIndexAllTypes);
+                        var targetNodeId = new NodeId(field.FieldMetaData.Name, NamespaceIndexAllTypes);
                         Assert.IsTrue(dataStoreData.ContainsKey(targetNodeId), "field name: '{0}' should be exists in partial received dataset", field.FieldMetaData.Name);
                         Assert.IsNotNull(dataStoreData[targetNodeId], "field: '{0}' should not be null", field.FieldMetaData.Name);
                         Assert.AreEqual(field.Value.Value, dataStoreData[targetNodeId].Value, "field: '{0}' value: {1} should be equal to datastore value: {2}",
@@ -282,7 +282,7 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
                     foreach (Field field in datasetMessage.DataSet.Fields)
                     {
                         Assert.IsNotNull(field, "field {0}: should not be null if dataset is not delta!", field.FieldMetaData.Name);
-                        NodeId targetNodeId = new NodeId(field.FieldMetaData.Name, NamespaceIndexAllTypes);
+                        var targetNodeId = new NodeId(field.FieldMetaData.Name, NamespaceIndexAllTypes);
                         Assert.IsTrue(dataStoreData.ContainsKey(targetNodeId), "field name: {0} should be exists in partial received dataset", field.FieldMetaData.Name);
                         Assert.IsNotNull(dataStoreData[targetNodeId], "field {0}: should not be null", field.FieldMetaData.Name);
                         Assert.AreEqual(field.Value.Value, dataStoreData[targetNodeId].Value, "field: '{0}' value: {1} should be equal to datastore value: {2}",

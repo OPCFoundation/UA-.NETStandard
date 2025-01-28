@@ -71,19 +71,19 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <inheritdoc/>
         public void AddField(StructureField field, Type fieldType, int order)
         {
-            var fieldBuilder = m_structureBuilder.DefineField("_" + field.Name, fieldType, FieldAttributes.Private);
-            var propertyBuilder = m_structureBuilder.DefineProperty(
+            FieldBuilder fieldBuilder = m_structureBuilder.DefineField("_" + field.Name, fieldType, FieldAttributes.Private);
+            PropertyBuilder propertyBuilder = m_structureBuilder.DefineProperty(
                 field.Name,
                 PropertyAttributes.None,
                 fieldType,
                 null);
-            var methodAttributes =
+            System.Reflection.MethodAttributes methodAttributes =
                 System.Reflection.MethodAttributes.Public |
                 System.Reflection.MethodAttributes.HideBySig |
                 System.Reflection.MethodAttributes.Virtual;
 
-            var setBuilder = m_structureBuilder.DefineMethod("set_" + field.Name, methodAttributes, null, new[] { fieldType });
-            var setIl = setBuilder.GetILGenerator();
+            MethodBuilder setBuilder = m_structureBuilder.DefineMethod("set_" + field.Name, methodAttributes, null, new[] { fieldType });
+            ILGenerator setIl = setBuilder.GetILGenerator();
             setIl.Emit(OpCodes.Ldarg_0);
             setIl.Emit(OpCodes.Ldarg_1);
             setIl.Emit(OpCodes.Stfld, fieldBuilder);
@@ -101,8 +101,8 @@ namespace Opc.Ua.Client.ComplexTypes
             }
             setIl.Emit(OpCodes.Ret);
 
-            var getBuilder = m_structureBuilder.DefineMethod("get_" + field.Name, methodAttributes, fieldType, Type.EmptyTypes);
-            var getIl = getBuilder.GetILGenerator();
+            MethodBuilder getBuilder = m_structureBuilder.DefineMethod("get_" + field.Name, methodAttributes, fieldType, Type.EmptyTypes);
+            ILGenerator getIl = getBuilder.GetILGenerator();
             getIl.Emit(OpCodes.Ldarg_0);
             getIl.Emit(OpCodes.Ldfld, fieldBuilder);
             getIl.Emit(OpCodes.Ret);
@@ -116,7 +116,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <inheritdoc/>
         public Type CreateType()
         {
-            var complexType = m_structureBuilder.CreateType();
+            Type complexType = m_structureBuilder.CreateType();
             m_structureBuilder = null;
             return complexType;
         }

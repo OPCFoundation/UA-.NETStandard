@@ -30,7 +30,6 @@
 using System;
 using System.IO;
 using System.Runtime.Serialization;
-using System.Security.Cryptography;
 using System.Xml;
 
 namespace Opc.Ua.Client
@@ -85,10 +84,10 @@ namespace Opc.Ua.Client
         {
             // secure settings
             XmlReaderSettings settings = Utils.DefaultXmlReaderSettings();
-            using (XmlReader reader = XmlReader.Create(stream, settings))
+            using (var reader = XmlReader.Create(stream, settings))
             {
-                DataContractSerializer serializer = new DataContractSerializer(typeof(SessionConfiguration));
-                SessionConfiguration sessionConfiguration = (SessionConfiguration)serializer.ReadObject(reader);
+                var serializer = new DataContractSerializer(typeof(SessionConfiguration));
+                var sessionConfiguration = (SessionConfiguration)serializer.ReadObject(reader);
                 return sessionConfiguration;
             }
         }

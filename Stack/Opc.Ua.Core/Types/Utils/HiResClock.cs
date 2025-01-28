@@ -96,10 +96,7 @@ namespace Opc.Ua
         /// </summary>
         public static bool Disabled
         {
-            get
-            {
-                return s_Default.m_disabled;
-            }
+            get => s_Default.m_disabled;
 
             set
             {

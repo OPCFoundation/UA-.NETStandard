@@ -29,11 +29,7 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
-using System.Xml;
 using System.Threading;
-using System.Runtime.Serialization;
-using System.Text;
 using Microsoft.Extensions.Logging;
 using System.Linq;
 
@@ -367,7 +363,7 @@ namespace Opc.Ua.Server
                     // in this case we create a context with a dummy request and use the current session.
                     if (context == null)
                     {
-                        RequestHeader requestHeader = new RequestHeader();
+                        var requestHeader = new RequestHeader();
                         requestHeader.ReturnDiagnostics = (uint)(int)DiagnosticsMasks.OperationSymbolicIdAndText;
                         context = new OperationContext(requestHeader, RequestType.Unknown);
                     }
@@ -764,7 +760,7 @@ namespace Opc.Ua.Server
                     m_diagnostics.NextSequenceNumber = (uint)m_sequenceNumber;
                 }
 
-                StatusChangeNotification notification = new StatusChangeNotification {
+                var notification = new StatusChangeNotification {
                     Status = StatusCodes.BadTimeout
                 };
                 message.NotificationData.Add(new ExtensionObject(notification));
@@ -838,16 +834,16 @@ namespace Opc.Ua.Server
                 return m_sentMessages[m_lastSentMessage++];
             }
 
-            List<NotificationMessage> messages = new List<NotificationMessage>();
+            var messages = new List<NotificationMessage>();
 
             if (m_publishingEnabled)
             {
                 DateTime start1 = DateTime.UtcNow;
 
                 // collect notifications to publish.
-                Queue<EventFieldList> events = new Queue<EventFieldList>();
-                Queue<MonitoredItemNotification> datachanges = new Queue<MonitoredItemNotification>();
-                Queue<DiagnosticInfo> datachangeDiagnostics = new Queue<DiagnosticInfo>();
+                var events = new Queue<EventFieldList>();
+                var datachanges = new Queue<MonitoredItemNotification>();
+                var datachangeDiagnostics = new Queue<DiagnosticInfo>();
 
                 // check for monitored items that are ready to publish.
                 LinkedListNode<IMonitoredItem> current = m_itemsToPublish.First;
@@ -946,7 +942,7 @@ namespace Opc.Ua.Server
             if (messages.Count == 0)
             {
                 // create a keep alive message.
-                NotificationMessage message = new NotificationMessage();
+                var message = new NotificationMessage();
 
                 // use the sequence number for the next message.
                 message.SequenceNumber = (uint)m_sequenceNumber;
@@ -1035,7 +1031,7 @@ namespace Opc.Ua.Server
         {
             notificationCount = 0;
 
-            NotificationMessage message = new NotificationMessage();
+            var message = new NotificationMessage();
 
             message.SequenceNumber = (uint)m_sequenceNumber;
             message.PublishTime = DateTime.UtcNow;
@@ -1050,7 +1046,7 @@ namespace Opc.Ua.Server
             // add events.
             if (events.Count > 0 && notificationCount < m_maxNotificationsPerPublish)
             {
-                EventNotificationList notification = new EventNotificationList();
+                var notification = new EventNotificationList();
 
                 while (events.Count > 0 && notificationCount < m_maxNotificationsPerPublish)
                 {
@@ -1065,7 +1061,7 @@ namespace Opc.Ua.Server
             if (datachanges.Count > 0 && notificationCount < m_maxNotificationsPerPublish)
             {
                 bool diagnosticsExist = false;
-                DataChangeNotification notification = new DataChangeNotification();
+                var notification = new DataChangeNotification();
 
                 notification.MonitoredItems = new MonitoredItemNotificationCollection(datachanges.Count);
                 notification.DiagnosticInfos = new DiagnosticInfoCollection(datachanges.Count);
@@ -1358,9 +1354,8 @@ namespace Opc.Ua.Server
                     }
 
                     // check if triggering interface is supported.
-                    ITriggeredMonitoredItem triggeredItem = node.Value as ITriggeredMonitoredItem;
 
-                    if (triggeredItem == null)
+                    if (node.Value is not ITriggeredMonitoredItem triggeredItem)
                     {
                         addResults[ii] = StatusCodes.BadNotSupported;
 
@@ -1439,9 +1434,9 @@ namespace Opc.Ua.Server
             }
 
             // create the monitored items.
-            List<IMonitoredItem> monitoredItems = new List<IMonitoredItem>(count);
-            List<ServiceResult> errors = new List<ServiceResult>(count);
-            List<MonitoringFilterResult> filterResults = new List<MonitoringFilterResult>(count);
+            var monitoredItems = new List<IMonitoredItem>(count);
+            var errors = new List<ServiceResult>(count);
+            var filterResults = new List<MonitoringFilterResult>(count);
 
             for (int ii = 0; ii < count; ii++)
             {
@@ -1633,9 +1628,9 @@ namespace Opc.Ua.Server
             }
 
             // build list of items to modify.
-            List<IMonitoredItem> monitoredItems = new List<IMonitoredItem>(count);
-            List<ServiceResult> errors = new List<ServiceResult>(count);
-            List<MonitoringFilterResult> filterResults = new List<MonitoringFilterResult>(count);
+            var monitoredItems = new List<IMonitoredItem>(count);
+            var errors = new List<ServiceResult>(count);
+            var filterResults = new List<MonitoringFilterResult>(count);
             double[] originalSamplingIntervals = new double[count];
 
             bool validItems = false;
@@ -1711,10 +1706,7 @@ namespace Opc.Ua.Server
                         error = monitoredItems[ii].GetModifyResult(out result);
                     }
 
-                    if (result == null)
-                    {
-                        result = new MonitoredItemModifyResult();
-                    }
+                    result ??= new MonitoredItemModifyResult();
 
                     if (error == null)
                     {
@@ -1795,10 +1787,10 @@ namespace Opc.Ua.Server
             }
 
             // build list of items to modify.
-            List<IMonitoredItem> monitoredItems = new List<IMonitoredItem>(count);
-            List<ServiceResult> errors = new List<ServiceResult>(count);
+            var monitoredItems = new List<IMonitoredItem>(count);
+            var errors = new List<ServiceResult>(count);
             double[] originalSamplingIntervals = new double[count];
-            MonitoringMode[] originalMonitoringModes = new MonitoringMode[count];
+            var originalMonitoringModes = new MonitoringMode[count];
 
             bool validItems = false;
 
@@ -1951,9 +1943,9 @@ namespace Opc.Ua.Server
             }
 
             // build list of items to modify.
-            List<IMonitoredItem> monitoredItems = new List<IMonitoredItem>(count);
-            List<ServiceResult> errors = new List<ServiceResult>(count);
-            MonitoringMode[] originalMonitoringModes = new MonitoringMode[count];
+            var monitoredItems = new List<IMonitoredItem>(count);
+            var errors = new List<ServiceResult>(count);
+            var originalMonitoringModes = new MonitoringMode[count];
 
             bool validItems = false;
 
@@ -2102,16 +2094,14 @@ namespace Opc.Ua.Server
         /// </summary>
         public void ConditionRefresh()
         {
-            List<IEventMonitoredItem> monitoredItems = new List<IEventMonitoredItem>();
+            var monitoredItems = new List<IEventMonitoredItem>();
 
             lock (m_lock)
             {
                 // build list of items to refresh.
                 foreach (LinkedListNode<IMonitoredItem> monitoredItem in m_monitoredItems.Values)
                 {
-                    MonitoredItem eventMonitoredItem = monitoredItem.Value as MonitoredItem;
-
-                    if (eventMonitoredItem != null && eventMonitoredItem.EventFilter != null)
+                    if (monitoredItem.Value is MonitoredItem eventMonitoredItem && eventMonitoredItem.EventFilter != null)
                     {
                         // add to list that gets reported to the NodeManagers.
                         monitoredItems.Add(eventMonitoredItem);
@@ -2133,7 +2123,7 @@ namespace Opc.Ua.Server
         /// </summary>
         public void ConditionRefresh2(uint monitoredItemId)
         {
-            List<IEventMonitoredItem> monitoredItems = new List<IEventMonitoredItem>();
+            var monitoredItems = new List<IEventMonitoredItem>();
 
             lock (m_lock)
             {
@@ -2142,9 +2132,8 @@ namespace Opc.Ua.Server
                 {
                     LinkedListNode<IMonitoredItem> monitoredItem = m_monitoredItems[monitoredItemId];
 
-                    MonitoredItem eventMonitoredItem = monitoredItem.Value as MonitoredItem;
 
-                    if (eventMonitoredItem != null && eventMonitoredItem.EventFilter != null)
+                    if (monitoredItem.Value is MonitoredItem eventMonitoredItem && eventMonitoredItem.EventFilter != null)
                     {
                         // add to list that gets reported to the NodeManagers.
                         monitoredItems.Add(eventMonitoredItem);
@@ -2182,7 +2171,7 @@ namespace Opc.Ua.Server
             lock (m_lock)
             {
                 // generate start event.
-                RefreshStartEventState e = new RefreshStartEventState(null);
+                var e = new RefreshStartEventState(null);
 
                 TranslationInfo message = null;
 
@@ -2204,9 +2193,7 @@ namespace Opc.Ua.Server
                 // build list of items to refresh.
                 foreach (IEventMonitoredItem monitoredItem in monitoredItems)
                 {
-                    MonitoredItem eventMonitoredItem = monitoredItem as MonitoredItem;
-
-                    if (eventMonitoredItem != null && eventMonitoredItem.EventFilter != null)
+                    if (monitoredItem is MonitoredItem eventMonitoredItem && eventMonitoredItem.EventFilter != null)
                     {
                         // queue start refresh event.
                         eventMonitoredItem.QueueEvent(e, true);
@@ -2225,7 +2212,7 @@ namespace Opc.Ua.Server
             {
                 m_refreshInProgress = true;
 
-                OperationContext operationContext = new OperationContext(m_session, DiagnosticsMasks.None);
+                var operationContext = new OperationContext(m_session, DiagnosticsMasks.None);
                 m_server.NodeManager.ConditionRefresh(operationContext, monitoredItems);
             }
             finally
@@ -2236,7 +2223,7 @@ namespace Opc.Ua.Server
             lock (m_lock)
             {
                 // generate start event.
-                RefreshEndEventState e = new RefreshEndEventState(null);
+                var e = new RefreshEndEventState(null);
 
                 TranslationInfo message = null;
 
@@ -2258,7 +2245,7 @@ namespace Opc.Ua.Server
                 // send refresh end event.
                 for (int ii = 0; ii < monitoredItems.Count; ii++)
                 {
-                    MonitoredItem monitoredItem = monitoredItems[ii] as MonitoredItem;
+                    var monitoredItem = monitoredItems[ii] as MonitoredItem;
 
                     if (monitoredItem.EventFilter != null)
                     {
@@ -2340,7 +2327,7 @@ namespace Opc.Ua.Server
                 throw new ServiceResultException(StatusCodes.BadSubscriptionIdInvalid);
             }
 
-            if (!Object.ReferenceEquals(context.Session, m_session))
+            if (!ReferenceEquals(context.Session, m_session))
             {
                 throw new ServiceResultException(StatusCodes.BadSubscriptionIdInvalid, "Subscription belongs to a different session.");
             }

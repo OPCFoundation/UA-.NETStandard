@@ -21,7 +21,6 @@ using System.Linq;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading;
-using Microsoft.Extensions.Logging;
 using Opc.Ua.Bindings;
 using System.Net.Sockets;
 using Opc.Ua.Security.Certificates;
@@ -102,15 +101,9 @@ namespace Opc.Ua
         /// </value>
         public IServiceMessageContext MessageContext
         {
-            get
-            {
-                return (IServiceMessageContext)m_messageContext;
-            }
+            get => (IServiceMessageContext)m_messageContext;
 
-            set
-            {
-                Interlocked.Exchange(ref m_messageContext, value);
-            }
+            set => Interlocked.Exchange(ref m_messageContext, value);
         }
 
         /// <summary>
@@ -119,15 +112,9 @@ namespace Opc.Ua
         /// <value>The object that combines the status code and diagnostic info structures.</value>
         public ServiceResult ServerError
         {
-            get
-            {
-                return (ServiceResult)m_serverError;
-            }
+            get => (ServiceResult)m_serverError;
 
-            set
-            {
-                Interlocked.Exchange(ref m_serverError, value);
-            }
+            set => Interlocked.Exchange(ref m_serverError, value);
         }
 
         /// <summary>
@@ -211,7 +198,7 @@ namespace Opc.Ua
 
             if (TransportListeners != null)
             {
-                foreach (var ii in TransportListeners)
+                foreach (ITransportListener ii in TransportListeners)
                 {
                     if (ii.UriScheme == url.Scheme)
                     {
@@ -373,20 +360,17 @@ namespace Opc.Ua
 
             foreach (string baseAddress in sourceBaseAddresses)
             {
-                BaseAddress address = new BaseAddress() { Url = new Uri(baseAddress) };
+                var address = new BaseAddress() { Url = new Uri(baseAddress) };
 
                 if (sourceAlternateAddresses != null)
                 {
                     foreach (string alternateAddress in sourceAlternateAddresses)
                     {
-                        Uri alternateUrl = new Uri(alternateAddress);
+                        var alternateUrl = new Uri(alternateAddress);
 
                         if (alternateUrl.Scheme == address.Url.Scheme)
                         {
-                            if (address.AlternateUrls == null)
-                            {
-                                address.AlternateUrls = new List<Uri>();
-                            }
+                            address.AlternateUrls ??= new List<Uri>();
 
                             address.AlternateUrls.Add(alternateUrl);
                         }
@@ -428,12 +412,12 @@ namespace Opc.Ua
         protected StringCollection GetDiscoveryUrls()
         {
             // build list of discovery uris.
-            StringCollection discoveryUrls = new StringCollection();
+            var discoveryUrls = new StringCollection();
             string computerName = Utils.GetHostName();
 
             foreach (BaseAddress baseAddress in BaseAddresses)
             {
-                UriBuilder builder = new UriBuilder(baseAddress.DiscoveryUrl);
+                var builder = new UriBuilder(baseAddress.DiscoveryUrl);
 
                 int index = builder.Host.IndexOf("localhost", StringComparison.OrdinalIgnoreCase);
 
@@ -672,15 +656,9 @@ namespace Opc.Ua
         /// <value>The identifier for an X509 certificate.</value>
         public CertificateValidator CertificateValidator
         {
-            get
-            {
-                return (CertificateValidator)m_certificateValidator;
-            }
+            get => (CertificateValidator)m_certificateValidator;
 
-            private set
-            {
-                m_certificateValidator = value;
-            }
+            private set => m_certificateValidator = value;
         }
 
         /// <summary>
@@ -689,15 +667,9 @@ namespace Opc.Ua
         /// <value>The provider for the X.509 certificates.</value>
         public CertificateTypesProvider InstanceCertificateTypesProvider
         {
-            get
-            {
-                return m_instanceCertificateTypesProvider;
-            }
+            get => m_instanceCertificateTypesProvider;
 
-            private set
-            {
-                m_instanceCertificateTypesProvider = value;
-            }
+            private set => m_instanceCertificateTypesProvider = value;
         }
 
         /// <summary>
@@ -706,15 +678,9 @@ namespace Opc.Ua
         /// <value>The properties of the current server instance.</value>
         protected ServerProperties ServerProperties
         {
-            get
-            {
-                return (ServerProperties)m_serverProperties;
-            }
+            get => (ServerProperties)m_serverProperties;
 
-            private set
-            {
-                m_serverProperties = value;
-            }
+            private set => m_serverProperties = value;
         }
 
         /// <summary>
@@ -723,15 +689,9 @@ namespace Opc.Ua
         /// <value>Object that stores the configurable configuration information for a UA application</value>
         protected ApplicationConfiguration Configuration
         {
-            get
-            {
-                return (ApplicationConfiguration)m_configuration;
-            }
+            get => (ApplicationConfiguration)m_configuration;
 
-            private set
-            {
-                m_configuration = value;
-            }
+            private set => m_configuration = value;
         }
 
         /// <summary>
@@ -740,15 +700,9 @@ namespace Opc.Ua
         /// <value>Object that contains a description for the ApplicationDescription DataType.</value>
         protected ApplicationDescription ServerDescription
         {
-            get
-            {
-                return (ApplicationDescription)m_serverDescription;
-            }
+            get => (ApplicationDescription)m_serverDescription;
 
-            private set
-            {
-                m_serverDescription = value;
-            }
+            private set => m_serverDescription = value;
         }
 
         /// <summary>
@@ -796,7 +750,7 @@ namespace Opc.Ua
         {
             InstanceCertificateTypesProvider.Update(e.SecurityConfiguration);
 
-            foreach (var certificateIdentifier in Configuration.SecurityConfiguration.ApplicationCertificates)
+            foreach (CertificateIdentifier certificateIdentifier in Configuration.SecurityConfiguration.ApplicationCertificates)
             {
                 // preload chain
                 X509Certificate2 certificate = certificateIdentifier.Find(false).GetAwaiter().GetResult();
@@ -811,7 +765,7 @@ namespace Opc.Ua
                     InstanceCertificateTypesProvider);
             }
 
-            foreach (var listener in TransportListeners)
+            foreach (ITransportListener listener in TransportListeners)
             {
                 listener.CertificateUpdate(e.CertificateValidator, InstanceCertificateTypesProvider);
             }
@@ -836,7 +790,7 @@ namespace Opc.Ua
             // create the stack listener.
             try
             {
-                TransportListenerSettings settings = new TransportListenerSettings {
+                var settings = new TransportListenerSettings {
                     Descriptions = endpoints,
                     Configuration = endpointConfiguration,
                     ServerCertificateTypesProvider = InstanceCertificateTypesProvider,
@@ -866,7 +820,7 @@ namespace Opc.Ua
             }
             catch (Exception e)
             {
-                StringBuilder message = new StringBuilder();
+                var message = new StringBuilder();
                 message.Append("Could not load ").Append(endpointUri.Scheme).Append(" Stack Listener.");
                 if (e.InnerException != null)
                 {
@@ -889,7 +843,7 @@ namespace Opc.Ua
         /// </returns>
         public virtual UserTokenPolicyCollection GetUserTokenPolicies(ApplicationConfiguration configuration, EndpointDescription description)
         {
-            UserTokenPolicyCollection policies = new UserTokenPolicyCollection();
+            var policies = new UserTokenPolicyCollection();
 
             if (configuration.ServerConfiguration == null || configuration.ServerConfiguration.UserTokenPolicies == null)
             {
@@ -898,7 +852,7 @@ namespace Opc.Ua
 
             foreach (UserTokenPolicy policy in configuration.ServerConfiguration.UserTokenPolicies)
             {
-                UserTokenPolicy clone = (UserTokenPolicy)policy.Clone();
+                var clone = (UserTokenPolicy)policy.Clone();
 
                 if (String.IsNullOrEmpty(policy.SecurityPolicyUri))
                 {
@@ -1024,7 +978,7 @@ namespace Opc.Ua
                 return baseAddresses;
             }
 
-            List<BaseAddress> filteredAddresses = new List<BaseAddress>();
+            var filteredAddresses = new List<BaseAddress>();
 
             foreach (BaseAddress baseAddress in baseAddresses)
             {
@@ -1047,7 +1001,7 @@ namespace Opc.Ua
         protected IList<BaseAddress> FilterByEndpointUrl(Uri endpointUrl, IList<BaseAddress> baseAddresses)
         {
             // client only gets alternate addresses that match the DNS name that it used.
-            List<BaseAddress> accessibleAddresses = new List<BaseAddress>();
+            var accessibleAddresses = new List<BaseAddress>();
             foreach (BaseAddress baseAddress in baseAddresses)
             {
                 if (baseAddress.Url.DnsSafeHost == endpointUrl.DnsSafeHost)
@@ -1133,7 +1087,7 @@ namespace Opc.Ua
             LocalizedText applicationName)
         {
             // get the discovery urls.
-            StringCollection discoveryUrls = new StringCollection();
+            var discoveryUrls = new StringCollection();
 
             foreach (BaseAddress baseAddress in baseAddresses)
             {
@@ -1141,7 +1095,7 @@ namespace Opc.Ua
             }
 
             // copy the description.
-            ApplicationDescription copy = new ApplicationDescription();
+            var copy = new ApplicationDescription();
 
             copy.ApplicationName = description.ApplicationName;
             copy.ApplicationUri = description.ApplicationUri;
@@ -1173,7 +1127,7 @@ namespace Opc.Ua
             IList<EndpointDescription> endpoints,
             ApplicationDescription application)
         {
-            EndpointDescriptionCollection translations = new EndpointDescriptionCollection();
+            var translations = new EndpointDescriptionCollection();
 
             bool matchPort = false;
             do
@@ -1184,7 +1138,7 @@ namespace Opc.Ua
                 // process endpoints
                 foreach (EndpointDescription endpoint in endpoints)
                 {
-                    UriBuilder endpointUrl = new UriBuilder(endpoint.EndpointUrl);
+                    var endpointUrl = new UriBuilder(endpoint.EndpointUrl);
 
                     // find matching base address.
                     foreach (BaseAddress baseAddress in baseAddresses)
@@ -1211,7 +1165,7 @@ namespace Opc.Ua
                             continue;
                         }
 
-                        EndpointDescription translation = new EndpointDescription();
+                        var translation = new EndpointDescription();
 
                         translation.EndpointUrl = baseAddress.Url.ToString();
 
@@ -1276,7 +1230,7 @@ namespace Opc.Ua
                 throw new ServiceResultException(statusCode);
             }
 
-            ResponseHeader responseHeader = new ResponseHeader();
+            var responseHeader = new ResponseHeader();
 
             responseHeader.Timestamp = DateTime.UtcNow;
             responseHeader.RequestHandle = requestHeader.RequestHandle;
@@ -1292,12 +1246,12 @@ namespace Opc.Ua
         /// <returns>Returns a description for the ResponseHeader DataType. </returns>
         protected virtual ResponseHeader CreateResponse(RequestHeader requestHeader, Exception exception)
         {
-            ResponseHeader responseHeader = new ResponseHeader();
+            var responseHeader = new ResponseHeader();
 
             responseHeader.Timestamp = DateTime.UtcNow;
             responseHeader.RequestHandle = requestHeader.RequestHandle;
 
-            StringTable stringTable = new StringTable();
+            var stringTable = new StringTable();
             responseHeader.ServiceDiagnostics = new DiagnosticInfo(exception, (DiagnosticsMasks)requestHeader.ReturnDiagnostics, true, stringTable);
             responseHeader.StringTable = stringTable.ToArray();
 
@@ -1312,7 +1266,7 @@ namespace Opc.Ua
         /// <returns>Returns a description for the ResponseHeader DataType. </returns>
         protected virtual ResponseHeader CreateResponse(RequestHeader requestHeader, StringTable stringTable)
         {
-            ResponseHeader responseHeader = new ResponseHeader();
+            var responseHeader = new ResponseHeader();
 
             responseHeader.Timestamp = DateTime.UtcNow;
             responseHeader.RequestHandle = requestHeader.RequestHandle;
@@ -1354,7 +1308,7 @@ namespace Opc.Ua
                 // ensure at least one user token policy exists.
                 if (configuration.ServerConfiguration.UserTokenPolicies.Count == 0)
                 {
-                    UserTokenPolicy userTokenPolicy = new UserTokenPolicy();
+                    var userTokenPolicy = new UserTokenPolicy();
 
                     userTokenPolicy.TokenType = UserTokenType.Anonymous;
                     userTokenPolicy.PolicyId = userTokenPolicy.TokenType.ToString();
@@ -1368,14 +1322,14 @@ namespace Opc.Ua
             InstanceCertificateTypesProvider = new CertificateTypesProvider(configuration);
             InstanceCertificateTypesProvider.InitializeAsync().GetAwaiter().GetResult();
 
-            foreach (var securityPolicy in configuration.ServerConfiguration.SecurityPolicies)
+            foreach (ServerSecurityPolicy securityPolicy in configuration.ServerConfiguration.SecurityPolicies)
             {
                 if (securityPolicy.SecurityMode == MessageSecurityMode.None)
                 {
                     continue;
                 }
 
-                var instanceCertificate = InstanceCertificateTypesProvider.GetInstanceCertificate(securityPolicy.SecurityPolicyUri);
+                X509Certificate2 instanceCertificate = InstanceCertificateTypesProvider.GetInstanceCertificate(securityPolicy.SecurityPolicyUri);
 
                 if (instanceCertificate == null)
                 {
@@ -1391,10 +1345,7 @@ namespace Opc.Ua
                         "Server does not have access to the private key for the instance certificate.");
                 }
 
-                if (defaultInstanceCertificate == null)
-                {
-                    defaultInstanceCertificate = instanceCertificate;
-                }
+                defaultInstanceCertificate ??= instanceCertificate;
 
                 // preload chain 
                 InstanceCertificateTypesProvider.LoadCertificateChainAsync(instanceCertificate).GetAwaiter().GetResult();
@@ -1408,7 +1359,7 @@ namespace Opc.Ua
             // assign a unique identifier if none specified.
             if (String.IsNullOrEmpty(configuration.ApplicationUri))
             {
-                var instanceCertificate = InstanceCertificateTypesProvider.GetInstanceCertificate(
+                X509Certificate2 instanceCertificate = InstanceCertificateTypesProvider.GetInstanceCertificate(
                     configuration.ServerConfiguration.SecurityPolicies[0].SecurityPolicyUri);
 
                 configuration.ApplicationUri = X509Utils.GetApplicationUriFromCertificate(instanceCertificate);
@@ -1622,7 +1573,7 @@ namespace Opc.Ua
                             Monitor.Exit(m_lock);
 
                             // new threads start in an active state
-                            Thread thread = new Thread(OnProcessRequestQueue);
+                            var thread = new Thread(OnProcessRequestQueue);
                             thread.IsBackground = true;
                             thread.Start(null);
 

@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography.X509Certificates;
@@ -41,10 +40,10 @@ namespace Opc.Ua.Gds.Tests
             var configuration = new CertificateGroupConfiguration();
             configuration.SubjectName = "CN=GDS Test CA, O=OPC Foundation";
             configuration.BaseStorePath = _path;
-            configuration.CertificateTypes = new StringCollection() { nameof(Opc.Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType) };
-            var certificateGroup = new CertificateGroup().Create(_path + "/authorities", configuration);
-            Assert.That(() => certificateGroup.CreateCACertificateAsync("This is not the ValidSubjectName for my CertificateGroup", certificateGroup.CertificateTypes.First()), Throws.TypeOf<ArgumentException>());
-            Assert.That(() => certificateGroup.CreateCACertificateAsync(configuration.SubjectName, null), Throws.TypeOf<ArgumentNullException>());
+            configuration.CertificateTypes = new StringCollection() { nameof(Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType) };
+            ICertificateGroup certificateGroup = new CertificateGroup().Create(_path + "/authorities", configuration);
+            NUnit.Framework.Assert.That(() => certificateGroup.CreateCACertificateAsync("This is not the ValidSubjectName for my CertificateGroup", certificateGroup.CertificateTypes.First()), Throws.TypeOf<ArgumentException>());
+            NUnit.Framework.Assert.That(() => certificateGroup.CreateCACertificateAsync(configuration.SubjectName, null), Throws.TypeOf<ArgumentNullException>());
         }
 
         [Test]
@@ -53,9 +52,9 @@ namespace Opc.Ua.Gds.Tests
             var configuration = new CertificateGroupConfiguration();
             configuration.SubjectName = "CN=GDS Test CA, O=OPC Foundation";
             configuration.BaseStorePath = _path;
-            configuration.CertificateTypes = new StringCollection() { nameof(Opc.Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType) };
-            var certificateGroup = new CertificateGroup().Create(_path + "/authorities", configuration);
-            var certificate = await certificateGroup.CreateCACertificateAsync(configuration.SubjectName, certificateGroup.CertificateTypes.First()).ConfigureAwait(false);
+            configuration.CertificateTypes = new StringCollection() { nameof(Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType) };
+            ICertificateGroup certificateGroup = new CertificateGroup().Create(_path + "/authorities", configuration);
+            X509Certificate2 certificate = await certificateGroup.CreateCACertificateAsync(configuration.SubjectName, certificateGroup.CertificateTypes.First()).ConfigureAwait(false);
             Assert.NotNull(certificate);
             var certificateStoreIdentifier = new CertificateStoreIdentifier(configuration.TrustedListPath);
             using (ICertificateStore trustedStore = certificateStoreIdentifier.OpenStore())
@@ -73,10 +72,10 @@ namespace Opc.Ua.Gds.Tests
             applicatioConfiguration.SecurityConfiguration.TrustedIssuerCertificates.StorePath = _path + Path.DirectorySeparatorChar + "issuers";
             applicatioConfiguration.SecurityConfiguration.TrustedIssuerCertificates.StoreType = CertificateStoreType.Directory;
             var cgConfiguration = new CertificateGroupConfiguration();
-            cgConfiguration.CertificateTypes = new StringCollection() { nameof(Opc.Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType) };
+            cgConfiguration.CertificateTypes = new StringCollection() { nameof(Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType) };
             cgConfiguration.SubjectName = "CN=GDS Test CA, O=OPC Foundation";
             cgConfiguration.BaseStorePath = _path;
-            var certificateGroup = new CertificateGroup().Create(_path + Path.DirectorySeparatorChar + "authorities", cgConfiguration, applicatioConfiguration.SecurityConfiguration.TrustedIssuerCertificates.StorePath);
+            ICertificateGroup certificateGroup = new CertificateGroup().Create(_path + Path.DirectorySeparatorChar + "authorities", cgConfiguration, applicatioConfiguration.SecurityConfiguration.TrustedIssuerCertificates.StorePath);
             X509Certificate2 certificate = await certificateGroup.CreateCACertificateAsync(cgConfiguration.SubjectName, certificateGroup.CertificateTypes.First()).ConfigureAwait(false);
             Assert.NotNull(certificate);
             using (ICertificateStore trustedStore = applicatioConfiguration.SecurityConfiguration.TrustedIssuerCertificates.OpenStore())

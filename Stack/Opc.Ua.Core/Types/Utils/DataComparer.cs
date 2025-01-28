@@ -39,8 +39,8 @@ namespace Opc.Ua.Test
         /// </summary>
         public bool ThrowOnError
         {
-            get { return m_throwOnError; }
-            set { m_throwOnError = value; }
+            get => m_throwOnError;
+            set => m_throwOnError = value;
         }
         #endregion
 
@@ -548,8 +548,8 @@ namespace Opc.Ua.Test
 
             if (value1 != value2)
             {
-                NodeId nodeId1 = ExpandedNodeId.ToNodeId(value1, m_context.NamespaceUris);
-                NodeId nodeId2 = ExpandedNodeId.ToNodeId(value2, m_context.NamespaceUris);
+                var nodeId1 = ExpandedNodeId.ToNodeId(value1, m_context.NamespaceUris);
+                var nodeId2 = ExpandedNodeId.ToNodeId(value2, m_context.NamespaceUris);
 
                 if (nodeId1 != nodeId2)
                 {
@@ -595,15 +595,9 @@ namespace Opc.Ua.Test
                 return true;
             }
 
-            if (value1 == null)
-            {
-                value1 = new DiagnosticInfo();
-            }
+            value1 ??= new DiagnosticInfo();
 
-            if (value2 == null)
-            {
-                value2 = new DiagnosticInfo();
-            }
+            value2 ??= new DiagnosticInfo();
 
             if (!CompareInt32(value1.SymbolicId, value2.SymbolicId))
             {
@@ -955,8 +949,8 @@ namespace Opc.Ua.Test
 
             if (body is XmlElement xml)
             {
-                XmlQualifiedName xmlName = Opc.Ua.EncodeableFactory.GetXmlName(expectedType);
-                using (XmlDecoder decoder = new XmlDecoder(xml, context))
+                XmlQualifiedName xmlName = Ua.EncodeableFactory.GetXmlName(expectedType);
+                using (var decoder = new XmlDecoder(xml, context))
                 {
                     decoder.PushNamespace(xmlName.Namespace);
                     body = decoder.ReadEncodeable(xmlName.Name, expectedType);
@@ -970,7 +964,7 @@ namespace Opc.Ua.Test
 
             if (body is byte[] bytes)
             {
-                using (BinaryDecoder decoder = new BinaryDecoder(bytes, context))
+                using (var decoder = new BinaryDecoder(bytes, context))
                 {
                     body = decoder.ReadEncodeable(null, expectedType);
                     decoder.Close();
@@ -1045,7 +1039,7 @@ namespace Opc.Ua.Test
         /// </summary>
         protected virtual bool CompareExtensionObjectBody(object value1, object value2)
         {
-            if (Object.ReferenceEquals(value1, value2))
+            if (ReferenceEquals(value1, value2))
             {
                 return true;
             }

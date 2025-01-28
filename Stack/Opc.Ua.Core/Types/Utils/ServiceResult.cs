@@ -169,7 +169,7 @@ namespace Opc.Ua
             string additionalInfo,
             Exception innerException)
         {
-            ServiceResult innerResult = new ServiceResult(innerException);
+            var innerResult = new ServiceResult(innerException);
 
             // check if no new information provided.
             if (code.Code == innerResult.Code && symbolicId == null && localizedText == null && additionalInfo == null)
@@ -618,7 +618,7 @@ namespace Opc.Ua
         /// </summary>
         public static string BuildExceptionTrace(Exception exception)
         {
-            StringBuilder buffer = new StringBuilder();
+            var buffer = new StringBuilder();
 
             while (exception != null)
             {
@@ -656,8 +656,8 @@ namespace Opc.Ua
         /// </summary>
         public uint Code
         {
-            get { return m_code; }
-            private set { m_code = value; }
+            get => m_code;
+            private set => m_code = value;
         }
 
         /// <summary>
@@ -666,8 +666,8 @@ namespace Opc.Ua
         [DataMember(Order = 1)]
         public StatusCode StatusCode
         {
-            get { return m_code; }
-            private set { m_code = value.Code; }
+            get => m_code;
+            private set => m_code = value.Code;
         }
 
         /// <summary>
@@ -676,8 +676,8 @@ namespace Opc.Ua
         [DataMember(Order = 2)]
         public string NamespaceUri
         {
-            get { return m_namespaceUri; }
-            private set { m_namespaceUri = value; }
+            get => m_namespaceUri;
+            private set => m_namespaceUri = value;
         }
 
         /// <summary>
@@ -686,8 +686,8 @@ namespace Opc.Ua
         [DataMember(Order = 3)]
         public string SymbolicId
         {
-            get { return m_symbolicId; }
-            private set { m_symbolicId = value; }
+            get => m_symbolicId;
+            private set => m_symbolicId = value;
         }
 
         /// <summary>
@@ -696,8 +696,8 @@ namespace Opc.Ua
         [DataMember(Order = 4)]
         public LocalizedText LocalizedText
         {
-            get { return m_localizedText; }
-            private set { m_localizedText = value; }
+            get => m_localizedText;
+            private set => m_localizedText = value;
         }
 
         /// <summary>
@@ -706,8 +706,8 @@ namespace Opc.Ua
         [DataMember(Order = 5)]
         public string AdditionalInfo
         {
-            get { return m_additionalInfo; }
-            private set { m_additionalInfo = value; }
+            get => m_additionalInfo;
+            private set => m_additionalInfo = value;
         }
 
         /// <summary>
@@ -716,8 +716,8 @@ namespace Opc.Ua
         [DataMember(Order = 6)]
         public ServiceResult InnerResult
         {
-            get { return m_innerResult; }
-            private set { m_innerResult = value; }
+            get => m_innerResult;
+            private set => m_innerResult = value;
         }
         #endregion
 
@@ -727,7 +727,7 @@ namespace Opc.Ua
         /// </summary>
         public override string ToString()
         {
-            StringBuilder buffer = new StringBuilder();
+            var buffer = new StringBuilder();
 
             buffer.Append(LookupSymbolicId(m_code));
 
@@ -761,7 +761,7 @@ namespace Opc.Ua
         /// </summary>
         public string ToLongString()
         {
-            StringBuilder buffer = new StringBuilder();
+            var buffer = new StringBuilder();
 
             buffer.Append("Id: ");
             buffer.Append(StatusCodes.GetBrowseName(m_code));

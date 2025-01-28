@@ -68,7 +68,7 @@ namespace Opc.Ua.PubSub.PublishedData
         /// </summary>
         public new object MemberwiseClone()
         {
-            Field copy = base.MemberwiseClone() as Field;
+            var copy = base.MemberwiseClone() as Field;
             if (Value != null)
             {
                 if (copy != null)

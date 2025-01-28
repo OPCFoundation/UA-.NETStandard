@@ -171,7 +171,7 @@ namespace Opc.Ua.Client.Tests
             while (nodesToBrowse.Count > 0)
             {
                 var nextNodesToBrowse = new ExpandedNodeIdCollection();
-                foreach (var node in nodesToBrowse)
+                foreach (ExpandedNodeId node in nodesToBrowse)
                 {
                     try
                     {
@@ -193,8 +193,8 @@ namespace Opc.Ua.Client.Tests
                                 true);
                         }
                         nextNodesToBrowse.AddRange(organizers.Select(n => n.NodeId));
-                        var objectNodes = organizers.Where(n => n is ObjectNode);
-                        var variableNodes = organizers.Where(n => n is VariableNode);
+                        IEnumerable<INode> objectNodes = organizers.Where(n => n is ObjectNode);
+                        IEnumerable<INode> variableNodes = organizers.Where(n => n is VariableNode);
                         result.AddRange(variableNodes);
                     }
                     catch (ServiceResultException sre)
@@ -256,8 +256,8 @@ namespace Opc.Ua.Client.Tests
                             true);
                     }
                     nextNodesToBrowse.AddRange(organizers.Select(n => n.NodeId));
-                    var objectNodes = organizers.Where(n => n is ObjectNode);
-                    var variableNodes = organizers.Where(n => n is VariableNode);
+                    IEnumerable<INode> objectNodes = organizers.Where(n => n is ObjectNode);
+                    IEnumerable<INode> variableNodes = organizers.Where(n => n is VariableNode);
                     result.AddRange(variableNodes);
                 }
                 catch (ServiceResultException sre)
@@ -282,7 +282,7 @@ namespace Opc.Ua.Client.Tests
         {
             if (UseAsync)
             {
-                Assert.Ignore("no async version available");
+                NUnit.Framework.Assert.Ignore("no async version available");
             }
 
             INodeCache nodeCache = Session.NodeCache;
@@ -297,22 +297,22 @@ namespace Opc.Ua.Client.Tests
                 .ToDictionary(f => f.Name, f => (NodeId)f.GetValue(null));
 
             TestContext.Out.WriteLine("Testing {0} references", refTypeDictionary.Count);
-            foreach (var property in refTypeDictionary)
+            foreach (KeyValuePair<string, NodeId> property in refTypeDictionary)
             {
                 TestContext.Out.WriteLine("FindReferenceTypeName({0})={1}", property.Value, property.Key);
                 // find the Qualified Name
-                var qn = nodeCache.FindReferenceTypeName(property.Value);
+                QualifiedName qn = nodeCache.FindReferenceTypeName(property.Value);
                 Assert.NotNull(qn);
                 Assert.AreEqual(property.Key, qn.Name);
                 // find the node by name
-                var refId = nodeCache.FindReferenceType(new QualifiedName(property.Key));
+                NodeId refId = nodeCache.FindReferenceType(new QualifiedName(property.Key));
                 Assert.NotNull(refId);
                 Assert.AreEqual(property.Value, refId);
                 // is the node id known?
-                var isKnown = nodeCache.IsKnown(property.Value);
+                bool isKnown = nodeCache.IsKnown(property.Value);
                 Assert.IsTrue(isKnown);
                 // is it a reference?
-                var isTypeOf = nodeCache.IsTypeOf(
+                bool isTypeOf = nodeCache.IsTypeOf(
                     NodeId.ToExpandedNodeId(refId, Session.NamespaceUris),
                     NodeId.ToExpandedNodeId(ReferenceTypeIds.References, Session.NamespaceUris));
                 Assert.IsTrue(isTypeOf);
@@ -321,7 +321,7 @@ namespace Opc.Ua.Client.Tests
                     NodeId.ToExpandedNodeId(refId, Session.NamespaceUris),
                     NodeId.ToExpandedNodeId(DataTypeIds.Byte, Session.NamespaceUris));
                 Assert.IsFalse(isTypeOf);
-                var subTypes = nodeCache.FindSubTypes(NodeId.ToExpandedNodeId(refId, Session.NamespaceUris));
+                IList<NodeId> subTypes = nodeCache.FindSubTypes(NodeId.ToExpandedNodeId(refId, Session.NamespaceUris));
                 Assert.NotNull(subTypes);
             }
         }
@@ -334,7 +334,7 @@ namespace Opc.Ua.Client.Tests
                 BrowseFullAddressSpace();
             }
 
-            foreach (var reference in ReferenceDescriptions.Take(MaxReferences))
+            foreach (ReferenceDescription reference in ReferenceDescriptions.Take(MaxReferences))
             {
                 var nodeId = ExpandedNodeId.ToNodeId(reference.NodeId, Session.NamespaceUris);
                 INode node;
@@ -358,7 +358,7 @@ namespace Opc.Ua.Client.Tests
                 BrowseFullAddressSpace();
             }
 
-            foreach (var reference in ReferenceDescriptions.Take(MaxReferences))
+            foreach (ReferenceDescription reference in ReferenceDescriptions.Take(MaxReferences))
             {
                 var nodeId = ExpandedNodeId.ToNodeId(reference.NodeId, Session.NamespaceUris);
                 INode node;
@@ -393,7 +393,7 @@ namespace Opc.Ua.Client.Tests
                 nodeCollection = Session.NodeCache.FetchNodes(testSet);
             }
 
-            foreach (var node in nodeCollection)
+            foreach (Node node in nodeCollection)
             {
                 var nodeId = ExpandedNodeId.ToNodeId(node.NodeId, Session.NamespaceUris);
                 TestContext.Out.WriteLine("NodeId: {0} Node: {1}", nodeId, node);
@@ -419,7 +419,7 @@ namespace Opc.Ua.Client.Tests
                 nodes = await Session.NodeCache.FindReferencesAsync(testSet, new NodeIdCollection() { ReferenceTypeIds.NonHierarchicalReferences }, false, true).ConfigureAwait(false);
             }
 
-            foreach (var node in nodes)
+            foreach (INode node in nodes)
             {
                 var nodeId = ExpandedNodeId.ToNodeId(node.NodeId, Session.NamespaceUris);
                 TestContext.Out.WriteLine("NodeId: {0} Node: {1}", nodeId, node);
@@ -442,11 +442,11 @@ namespace Opc.Ua.Client.Tests
         [Test, Order(910)]
         public async Task FetchAllReferenceTypesAsync()
         {
-            var bindingFlags =
+            BindingFlags bindingFlags =
                 BindingFlags.Instance |
                 BindingFlags.Static |
                 BindingFlags.Public;
-            var fieldValues = typeof(ReferenceTypeIds)
+            IEnumerable<ExpandedNodeId> fieldValues = typeof(ReferenceTypeIds)
                 .GetFields(bindingFlags)
                 .Select(field => NodeId.ToExpandedNodeId((NodeId)field.GetValue(null), Session.NamespaceUris));
 
@@ -471,7 +471,7 @@ namespace Opc.Ua.Client.Tests
                 BrowseFullAddressSpace();
             }
 
-            Random random = new Random(62541);
+            var random = new Random(62541);
             var testSet = ReferenceDescriptions.OrderBy(o => random.Next()).Take(kTestSetSize).Select(r => r.NodeId).ToList();
             var taskList = new List<Task>();
 
@@ -515,7 +515,7 @@ namespace Opc.Ua.Client.Tests
                 BrowseFullAddressSpace();
             }
 
-            Random random = new Random(62541);
+            var random = new Random(62541);
             var testSet = ReferenceDescriptions.OrderBy(o => random.Next()).Take(kTestSetSize).Select(r => r.NodeId).ToList();
             var taskList = new List<Task>();
 
@@ -556,7 +556,7 @@ namespace Opc.Ua.Client.Tests
                 BrowseFullAddressSpace();
             }
 
-            Random random = new Random(62541);
+            var random = new Random(62541);
             var testSet = ReferenceDescriptions.OrderBy(o => random.Next()).Take(kTestSetSize).Select(r => r.NodeId).ToList();
             var taskList = new List<Task>();
             var refTypeIds = new List<NodeId>() { ReferenceTypeIds.HierarchicalReferences };
@@ -603,7 +603,7 @@ namespace Opc.Ua.Client.Tests
                 BrowseFullAddressSpace();
             }
 
-            Random random = new Random(62541);
+            var random = new Random(62541);
             var testSetAll = ReferenceDescriptions.OrderBy(o => random.Next()).Where(r => r.NodeClass == NodeClass.Variable).Select(r => r.NodeId).ToList();
             var testSet1 = testSetAll.Take(kTestSetSize).ToList();
             var testSet2 = testSetAll.Skip(kTestSetSize).Take(kTestSetSize).ToList();
@@ -616,7 +616,7 @@ namespace Opc.Ua.Client.Tests
             for (int i = 0; i < testCases; i++)
             {
                 int iteration = i;
-                Task t = Task.Run(async () => {
+                var t = Task.Run(async () => {
                     DateTime start = DateTime.UtcNow;
                     do
                     {
@@ -699,7 +699,7 @@ namespace Opc.Ua.Client.Tests
                                 Assert.NotNull(text);
                                 break;
                             case 7:
-                                NodeId number = new NodeId((int)BuiltInType.Number);
+                                var number = new NodeId((int)BuiltInType.Number);
                                 bool isKnown = Session.NodeCache.IsKnown(new ExpandedNodeId((int)BuiltInType.Int64));
                                 Assert.True(isKnown);
                                 bool isKnown2 = Session.NodeCache.IsKnown(TestData.DataTypeIds.ScalarStructureDataType);
@@ -737,7 +737,7 @@ namespace Opc.Ua.Client.Tests
                                 // NodeId findDataTypeId2 = Session.NodeCache.FindDataTypeId((int)Objects.DataTypeAttributes_Encoding_DefaultBinary);
                                 break;
                             default:
-                                Assert.Fail("Invalid test case");
+                                NUnit.Framework.Assert.Fail("Invalid test case");
                                 break;
                         }
                     } while ((DateTime.UtcNow - start).TotalMilliseconds < testCaseRunTime);

@@ -30,7 +30,6 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
-using System.Threading;
 using System.Xml;
 
 namespace Opc.Ua.Server
@@ -135,7 +134,7 @@ namespace Opc.Ua.Server
             }
 
             // create aggregate calculator.
-            ServerAggregateFilter aggregateFilter = filterToUse as ServerAggregateFilter;
+            var aggregateFilter = filterToUse as ServerAggregateFilter;
 
             if (filterToUse is ServerAggregateFilter)
             {
@@ -516,7 +515,7 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
-                ReadValueId valueId = new ReadValueId();
+                var valueId = new ReadValueId();
 
                 valueId.NodeId = m_nodeId;
                 valueId.AttributeId = m_attributeId;
@@ -628,11 +627,11 @@ namespace Opc.Ua.Server
                 m_queueSize = queueSize;
 
                 // check if aggregate filter has been updated.
-                ServerAggregateFilter aggregateFilter = filterToUse as ServerAggregateFilter;
+                var aggregateFilter = filterToUse as ServerAggregateFilter;
 
                 if (filterToUse is ServerAggregateFilter)
                 {
-                    ServerAggregateFilter existingFilter = filterToUse as ServerAggregateFilter;
+                    var existingFilter = filterToUse as ServerAggregateFilter;
 
                     bool match = existingFilter != null;
 
@@ -801,7 +800,7 @@ namespace Opc.Ua.Server
                 {
                     Utils.LogTrace(Utils.TraceMasks.OperationDetail, "RECEIVED VALUE[{0}] Value={1}", this.m_id, value.WrappedValue);
 
-                    DataValue copy = new DataValue();
+                    var copy = new DataValue();
 
                     copy.WrappedValue = value.WrappedValue;
                     copy.StatusCode = value.StatusCode;
@@ -881,9 +880,7 @@ namespace Opc.Ua.Server
             object value,
             ServiceResult error)
         {
-            DataValue dataValue = value as DataValue;
-
-            if (dataValue != null)
+            if (value is DataValue dataValue)
             {
                 dataValue.StatusCode = dataValue.StatusCode.SetOverflow(true);
             }
@@ -935,7 +932,7 @@ namespace Opc.Ua.Server
         private EventFieldList GetEventFields(FilterContext context, EventFilter filter, IFilterTarget instance)
         {
             // fetch the event fields.
-            EventFieldList fields = new EventFieldList();
+            var fields = new EventFieldList();
 
             fields.ClientHandle = m_clientHandle;
             fields.Handle = instance;
@@ -954,7 +951,7 @@ namespace Opc.Ua.Server
                 if (value != null)
                 {
                     // translate any localized text.
-                    LocalizedText text = value as LocalizedText;
+                    var text = value as LocalizedText;
 
                     if (text != null)
                     {
@@ -1007,11 +1004,9 @@ namespace Opc.Ua.Server
                 // check for duplicate instances being reported via multiple paths.
                 for (int ii = 0; ii < m_events.Count; ii++)
                 {
-                    EventFieldList processedEvent = m_events[ii] as EventFieldList;
-
-                    if (processedEvent != null)
+                    if (m_events[ii] is EventFieldList processedEvent)
                     {
-                        if (Object.ReferenceEquals(instance, processedEvent.Handle))
+                        if (ReferenceEquals(instance, processedEvent.Handle))
                         {
                             return;
                         }
@@ -1029,12 +1024,11 @@ namespace Opc.Ua.Server
                 }
 
                 // construct the context to use for the event filter.
-                FilterContext context = new FilterContext(m_server.NamespaceUris, m_server.TypeTree, Session?.PreferredLocales);
+                var context = new FilterContext(m_server.NamespaceUris, m_server.TypeTree, Session?.PreferredLocales);
 
                 // event filter must be specified.
-                EventFilter filter = m_filterToUse as EventFilter;
 
-                if (filter == null)
+                if (m_filterToUse is not EventFilter filter)
                 {
                     throw new ServiceResultException(StatusCodes.BadInternalError);
                 }
@@ -1172,9 +1166,9 @@ namespace Opc.Ua.Server
                     if (m_overflow)
                     {
                         // construct event.
-                        EventQueueOverflowEventState e = new EventQueueOverflowEventState(null);
+                        var e = new EventQueueOverflowEventState(null);
 
-                        TranslationInfo message = new TranslationInfo(
+                        var message = new TranslationInfo(
                             "EventQueueOverflowEventState",
                             "en-US",
                             "Events lost due to queue overflow.");
@@ -1205,16 +1199,15 @@ namespace Opc.Ua.Server
 
                     for (int ii = 0; ii < m_events.Count; ii++)
                     {
-                        EventFieldList fields = (EventFieldList)m_events[ii];
+                        var fields = (EventFieldList)m_events[ii];
 
                         // apply any diagnostic masks.
                         for (int jj = 0; jj < fields.EventFields.Count; jj++)
                         {
                             object value = fields.EventFields[jj].Value;
 
-                            StatusResult result = value as StatusResult;
 
-                            if (result != null)
+                            if (value is StatusResult result)
                             {
                                 result.ApplyDiagnosticMasks(context.DiagnosticsMask, context.StringTable);
                             }
@@ -1384,7 +1377,7 @@ namespace Opc.Ua.Server
             }
 
             // copy data value.
-            MonitoredItemNotification item = new MonitoredItemNotification();
+            var item = new MonitoredItemNotification();
 
             item.ClientHandle = m_clientHandle;
             item.Value = value;
@@ -1458,7 +1451,7 @@ namespace Opc.Ua.Server
                         return 0;
                     }
 
-                    var now = HiResClock.TickCount64;
+                    long now = HiResClock.TickCount64;
 
                     if (m_nextSamplingTime <= now)
                     {
@@ -1589,7 +1582,7 @@ namespace Opc.Ua.Server
         protected static bool Equals(object value1, object value2, DeadbandType deadbandType, double deadband, double range)
         {
             // check if reference to same object.
-            if (Object.ReferenceEquals(value1, value2))
+            if (ReferenceEquals(value1, value2))
             {
                 return true;
             }
@@ -1621,17 +1614,9 @@ namespace Opc.Ua.Server
                 return true;
             }
 
-            // check for arrays.
-            Array array1 = value1 as Array;
-            Array array2 = value2 as Array;
-
-            if (array1 == null || array2 == null)
+            if (value1 is not Array array1 || value2 is not Array array2)
             {
-
-                XmlElement xmlElement1 = value1 as XmlElement;
-                XmlElement xmlElement2 = value2 as XmlElement;
-
-                if (xmlElement1 != null && xmlElement2 != null)
+                if (value1 is XmlElement xmlElement1 && value2 is XmlElement xmlElement2)
                 {
                     return xmlElement1.OuterXml.Equals(xmlElement2.OuterXml);
                 }
@@ -1796,10 +1781,7 @@ namespace Opc.Ua.Server
                     }
                     else // create event queue.
                     {
-                        if (m_events == null)
-                        {
-                            m_events = new List<EventFieldList>();
-                        }
+                        m_events ??= new List<EventFieldList>();
 
                         // check if existing queue entries must be discarded;
                         if (m_events.Count > m_queueSize)

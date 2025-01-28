@@ -536,20 +536,20 @@ namespace Opc.Ua
             if (systemType != null)
             {
                 PushNamespace(m_reader.NamespaceURI);
-                var encodeable = ReadEncodeable(m_reader.LocalName, systemType, typeId);
+                IEncodeable encodeable = ReadEncodeable(m_reader.LocalName, systemType, typeId);
                 PopNamespace();
 
                 return encodeable;
             }
 
             // check for empty body.
-            XmlDocument document = new XmlDocument();
+            var document = new XmlDocument();
 
             // return undecoded xml body.
-            var xmlString = m_reader.ReadOuterXml();
+            string xmlString = m_reader.ReadOuterXml();
 
-            using (StringReader stream = new StringReader(xmlString))
-            using (XmlReader reader = XmlReader.Create(stream, Utils.DefaultXmlReaderSettings()))
+            using (var stream = new StringReader(xmlString))
+            using (var reader = XmlReader.Create(stream, Utils.DefaultXmlReaderSettings()))
             {
                 document.Load(reader);
             }
@@ -651,7 +651,7 @@ namespace Opc.Ua
             PushNamespace(ns);
 
             // read the message.
-            var encodeable = ReadEncodeable(name, expectedType);
+            IEncodeable encodeable = ReadEncodeable(name, expectedType);
 
             PopNamespace();
 
@@ -925,7 +925,7 @@ namespace Opc.Ua
                 {
                     try
                     {
-                        DateTime value = XmlConvert.ToDateTime(xml, XmlDateTimeSerializationMode.Utc);
+                        var value = XmlConvert.ToDateTime(xml, XmlDateTimeSerializationMode.Utc);
                         EndField(fieldName);
                         return value;
                     }
@@ -944,12 +944,12 @@ namespace Opc.Ua
         /// </summary>
         public Uuid ReadGuid(string fieldName)
         {
-            Uuid value = new Uuid();
+            var value = new Uuid();
 
             if (BeginField(fieldName, true))
             {
                 PushNamespace(Namespaces.OpcUaXsd);
-                var guidString = ReadString("String");
+                string guidString = ReadString("String");
                 PopNamespace();
 
                 try
@@ -1067,7 +1067,7 @@ namespace Opc.Ua
             {
                 if (MoveToElement(null))
                 {
-                    XmlDocument document = new XmlDocument();
+                    var document = new XmlDocument();
                     XmlElement value = document.CreateElement(m_reader.Prefix, m_reader.LocalName, m_reader.NamespaceURI);
                     document.AppendChild(value);
 
@@ -1099,7 +1099,7 @@ namespace Opc.Ua
         /// </summary>
         public NodeId ReadNodeId(string fieldName)
         {
-            NodeId value = new NodeId();
+            var value = new NodeId();
 
             if (BeginField(fieldName, true))
             {
@@ -1136,7 +1136,7 @@ namespace Opc.Ua
         /// </summary>
         public ExpandedNodeId ReadExpandedNodeId(string fieldName)
         {
-            ExpandedNodeId value = new ExpandedNodeId();
+            var value = new ExpandedNodeId();
 
             if (BeginField(fieldName, true))
             {
@@ -1178,7 +1178,7 @@ namespace Opc.Ua
         /// </summary>
         public StatusCode ReadStatusCode(string fieldName)
         {
-            StatusCode value = new StatusCode();
+            var value = new StatusCode();
 
             if (BeginField(fieldName, true))
             {
@@ -1289,7 +1289,7 @@ namespace Opc.Ua
                     text = string.Empty;
                 }
 
-                LocalizedText value = new LocalizedText(locale, text);
+                var value = new LocalizedText(locale, text);
 
                 PopNamespace();
 
@@ -1309,7 +1309,7 @@ namespace Opc.Ua
 
             try
             {
-                Variant value = new Variant();
+                var value = new Variant();
 
                 if (BeginField(fieldName, true))
                 {
@@ -1349,7 +1349,7 @@ namespace Opc.Ua
         /// </summary>
         public DataValue ReadDataValue(string fieldName)
         {
-            DataValue value = new DataValue();
+            var value = new DataValue();
 
             if (BeginField(fieldName, true))
             {
@@ -1393,7 +1393,7 @@ namespace Opc.Ua
             NodeId typeId = ReadNodeId("TypeId");
 
             // convert to absolute type id.
-            ExpandedNodeId absoluteId = NodeId.ToExpandedNodeId(typeId, m_context.NamespaceUris);
+            var absoluteId = NodeId.ToExpandedNodeId(typeId, m_context.NamespaceUris);
 
             if (!NodeId.IsNull(typeId) && NodeId.IsNull(absoluteId))
             {
@@ -1506,7 +1506,7 @@ namespace Opc.Ua
         /// </summary>
         public Enum ReadEnumerated(string fieldName, Type enumType)
         {
-            Enum value = (Enum)Enum.GetValues(enumType).GetValue(0);
+            var value = (Enum)Enum.GetValues(enumType).GetValue(0);
 
             if (BeginField(fieldName, true))
             {
@@ -1547,7 +1547,7 @@ namespace Opc.Ua
         {
             bool isNil = false;
 
-            BooleanCollection values = new BooleanCollection();
+            var values = new BooleanCollection();
 
             if (BeginField(fieldName, true, out isNil))
             {
@@ -1585,7 +1585,7 @@ namespace Opc.Ua
         {
             bool isNil = false;
 
-            SByteCollection values = new SByteCollection();
+            var values = new SByteCollection();
 
             if (BeginField(fieldName, true, out isNil))
             {
@@ -1623,7 +1623,7 @@ namespace Opc.Ua
         {
             bool isNil = false;
 
-            ByteCollection values = new ByteCollection();
+            var values = new ByteCollection();
 
             if (BeginField(fieldName, true, out isNil))
             {
@@ -1661,7 +1661,7 @@ namespace Opc.Ua
         {
             bool isNil = false;
 
-            Int16Collection values = new Int16Collection();
+            var values = new Int16Collection();
 
             if (BeginField(fieldName, true, out isNil))
             {
@@ -1699,7 +1699,7 @@ namespace Opc.Ua
         {
             bool isNil = false;
 
-            UInt16Collection values = new UInt16Collection();
+            var values = new UInt16Collection();
 
             if (BeginField(fieldName, true, out isNil))
             {
@@ -1737,7 +1737,7 @@ namespace Opc.Ua
         {
             bool isNil = false;
 
-            Int32Collection values = new Int32Collection();
+            var values = new Int32Collection();
 
             if (BeginField(fieldName, true, out isNil))
             {
@@ -1775,7 +1775,7 @@ namespace Opc.Ua
         {
             bool isNil = false;
 
-            UInt32Collection values = new UInt32Collection();
+            var values = new UInt32Collection();
 
             if (BeginField(fieldName, true, out isNil))
             {
@@ -1813,7 +1813,7 @@ namespace Opc.Ua
         {
             bool isNil = false;
 
-            Int64Collection values = new Int64Collection();
+            var values = new Int64Collection();
 
             if (BeginField(fieldName, true, out isNil))
             {
@@ -1851,7 +1851,7 @@ namespace Opc.Ua
         {
             bool isNil = false;
 
-            UInt64Collection values = new UInt64Collection();
+            var values = new UInt64Collection();
 
             if (BeginField(fieldName, true, out isNil))
             {
@@ -1889,7 +1889,7 @@ namespace Opc.Ua
         {
             bool isNil = false;
 
-            FloatCollection values = new FloatCollection();
+            var values = new FloatCollection();
 
             if (BeginField(fieldName, true, out isNil))
             {
@@ -1927,7 +1927,7 @@ namespace Opc.Ua
         {
             bool isNil = false;
 
-            DoubleCollection values = new DoubleCollection();
+            var values = new DoubleCollection();
 
             if (BeginField(fieldName, true, out isNil))
             {
@@ -1965,7 +1965,7 @@ namespace Opc.Ua
         {
             bool isNil = false;
 
-            StringCollection values = new StringCollection();
+            var values = new StringCollection();
 
             if (BeginField(fieldName, true, out isNil))
             {
@@ -2003,7 +2003,7 @@ namespace Opc.Ua
         {
             bool isNil = false;
 
-            DateTimeCollection values = new DateTimeCollection();
+            var values = new DateTimeCollection();
 
             if (BeginField(fieldName, true, out isNil))
             {
@@ -2041,7 +2041,7 @@ namespace Opc.Ua
         {
             bool isNil = false;
 
-            UuidCollection values = new UuidCollection();
+            var values = new UuidCollection();
 
             if (BeginField(fieldName, true, out isNil))
             {
@@ -2079,7 +2079,7 @@ namespace Opc.Ua
         {
             bool isNil = false;
 
-            ByteStringCollection values = new ByteStringCollection();
+            var values = new ByteStringCollection();
 
             if (BeginField(fieldName, true, out isNil))
             {
@@ -2117,7 +2117,7 @@ namespace Opc.Ua
         {
             bool isNil = false;
 
-            XmlElementCollection values = new XmlElementCollection();
+            var values = new XmlElementCollection();
 
             if (BeginField(fieldName, true, out isNil))
             {
@@ -2155,7 +2155,7 @@ namespace Opc.Ua
         {
             bool isNil = false;
 
-            NodeIdCollection values = new NodeIdCollection();
+            var values = new NodeIdCollection();
 
             if (BeginField(fieldName, true, out isNil))
             {
@@ -2193,7 +2193,7 @@ namespace Opc.Ua
         {
             bool isNil = false;
 
-            ExpandedNodeIdCollection values = new ExpandedNodeIdCollection();
+            var values = new ExpandedNodeIdCollection();
 
             if (BeginField(fieldName, true, out isNil))
             {
@@ -2231,7 +2231,7 @@ namespace Opc.Ua
         {
             bool isNil = false;
 
-            StatusCodeCollection values = new StatusCodeCollection();
+            var values = new StatusCodeCollection();
 
             if (BeginField(fieldName, true, out isNil))
             {
@@ -2269,7 +2269,7 @@ namespace Opc.Ua
         {
             bool isNil = false;
 
-            DiagnosticInfoCollection values = new DiagnosticInfoCollection();
+            var values = new DiagnosticInfoCollection();
 
             if (BeginField(fieldName, true, out isNil))
             {
@@ -2307,7 +2307,7 @@ namespace Opc.Ua
         {
             bool isNil = false;
 
-            QualifiedNameCollection values = new QualifiedNameCollection();
+            var values = new QualifiedNameCollection();
 
             if (BeginField(fieldName, true, out isNil))
             {
@@ -2345,7 +2345,7 @@ namespace Opc.Ua
         {
             bool isNil = false;
 
-            LocalizedTextCollection values = new LocalizedTextCollection();
+            var values = new LocalizedTextCollection();
 
             if (BeginField(fieldName, true, out isNil))
             {
@@ -2383,7 +2383,7 @@ namespace Opc.Ua
         {
             bool isNil = false;
 
-            VariantCollection values = new VariantCollection();
+            var values = new VariantCollection();
 
             if (BeginField(fieldName, true, out isNil))
             {
@@ -2421,7 +2421,7 @@ namespace Opc.Ua
         {
             bool isNil = false;
 
-            DataValueCollection values = new DataValueCollection();
+            var values = new DataValueCollection();
 
             if (BeginField(fieldName, true, out isNil))
             {
@@ -2459,7 +2459,7 @@ namespace Opc.Ua
         {
             bool isNil = false;
 
-            ExtensionObjectCollection values = new ExtensionObjectCollection();
+            var values = new ExtensionObjectCollection();
 
             if (BeginField(fieldName, true, out isNil))
             {
@@ -2503,7 +2503,7 @@ namespace Opc.Ua
 
             bool isNil = false;
 
-            IEncodeableCollection encodeables = new IEncodeableCollection();
+            var encodeables = new IEncodeableCollection();
 
             if (BeginField(fieldName, true, out isNil))
             {
@@ -2526,7 +2526,7 @@ namespace Opc.Ua
                 EndField(fieldName);
 
                 // convert to an array of the specified type.
-                Array values = Array.CreateInstance(systemType, encodeables.Count);
+                var values = Array.CreateInstance(systemType, encodeables.Count);
 
                 for (int ii = 0; ii < encodeables.Count; ii++)
                 {
@@ -2553,7 +2553,7 @@ namespace Opc.Ua
 
             bool isNil = false;
 
-            List<Enum> enums = new List<Enum>();
+            var enums = new List<Enum>();
 
             if (BeginField(fieldName, true, out isNil))
             {
@@ -2574,7 +2574,7 @@ namespace Opc.Ua
                 PopNamespace();
                 EndField(fieldName);
 
-                Array values = Array.CreateInstance(enumType, enums.Count);
+                var values = Array.CreateInstance(enumType, enums.Count);
 
                 for (int ii = 0; ii < enums.Count; ii++)
                 {
@@ -2662,7 +2662,7 @@ namespace Opc.Ua
 
             try
             {
-                DiagnosticInfo value = new DiagnosticInfo();
+                var value = new DiagnosticInfo();
                 bool hasDiagnosticInfo = false;
 
                 if (BeginField("SymbolicId", true))
@@ -2752,7 +2752,7 @@ namespace Opc.Ua
                 if (dimensions != null && dimensions.Count > 0)
                 {
                     int length = elements.Length;
-                    var dimensionsArray = dimensions.ToArray();
+                    int[] dimensionsArray = dimensions.ToArray();
                     (bool valid, int matrixLength) = Matrix.ValidateDimensions(dimensionsArray, length, Context.MaxArrayLength);
 
                     if (!valid || (matrixLength != length))
@@ -2836,9 +2836,9 @@ namespace Opc.Ua
                                 DetermineIEncodeableSystemType(ref systemType, encodeableTypeId);
                                 if (systemType?.IsEnum == true)
                                 {
-                                    Array array = Array.CreateInstance(systemType, collection.Count);
+                                    var array = Array.CreateInstance(systemType, collection.Count);
                                     int ii = 0;
-                                    foreach (var item in collection)
+                                    foreach (int item in collection)
                                     {
                                         array.SetValue(Enum.ToObject(systemType, item), ii++);
                                     }

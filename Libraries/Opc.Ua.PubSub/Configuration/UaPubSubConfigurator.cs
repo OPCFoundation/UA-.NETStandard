@@ -29,7 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.IO;
 
 namespace Opc.Ua.PubSub.Configuration
@@ -269,7 +268,7 @@ namespace Opc.Ua.PubSub.Configuration
         {
             uint parentId = FindIdForObject(configurationObject);
 
-            List<uint> childrenIds = new List<uint>();
+            var childrenIds = new List<uint>();
             if (parentId != InvalidId && m_idsToParentId.ContainsValue(parentId))
             {
                 foreach (uint key in m_idsToParentId.Keys)
@@ -329,7 +328,7 @@ namespace Opc.Ua.PubSub.Configuration
                     //remove previous configured connections
                     if (m_pubSubConfiguration != null && m_pubSubConfiguration.Connections.Count > 0)
                     {
-                        foreach (var connection in m_pubSubConfiguration.Connections.ToArray())
+                        foreach (PubSubConnectionDataType connection in m_pubSubConfiguration.Connections.ToArray())
                         {
                             RemoveConnection(connection);
                         }
@@ -377,7 +376,7 @@ namespace Opc.Ua.PubSub.Configuration
                 {
                     //validate duplicate name 
                     bool duplicateName = false;
-                    foreach (var publishedDataSet in m_pubSubConfiguration.PublishedDataSets)
+                    foreach (PublishedDataSetDataType publishedDataSet in m_pubSubConfiguration.PublishedDataSets)
                     {
                         if (publishedDataSetDataType.Name == publishedDataSet.Name)
                         {
@@ -400,11 +399,8 @@ namespace Opc.Ua.PubSub.Configuration
                     // raise PublishedDataSetAdded event
                     PublishedDataSetAdded?.Invoke(this, new PublishedDataSetEventArgs() { PublishedDataSetId = newPublishedDataSetId, PublishedDataSetDataType = publishedDataSetDataType });
 
-                    if (publishedDataSetDataType.ExtensionFields == null)
-                    {
-                        publishedDataSetDataType.ExtensionFields = new KeyValuePairCollection();
-                    }
-                    KeyValuePairCollection extensionFields = new KeyValuePairCollection(publishedDataSetDataType.ExtensionFields);
+                    publishedDataSetDataType.ExtensionFields ??= new KeyValuePairCollection();
+                    var extensionFields = new KeyValuePairCollection(publishedDataSetDataType.ExtensionFields);
                     publishedDataSetDataType.ExtensionFields.Clear();
                     foreach (KeyValuePair extensionField in extensionFields)
                     {
@@ -466,11 +462,11 @@ namespace Opc.Ua.PubSub.Configuration
                          * Before the Objects are removed, their state is changed to Disabled_0*/
 
                         // Find all associated DataSetWriter objects
-                        foreach (var connection in m_pubSubConfiguration.Connections)
+                        foreach (PubSubConnectionDataType connection in m_pubSubConfiguration.Connections)
                         {
-                            foreach (var writerGroup in connection.WriterGroups)
+                            foreach (WriterGroupDataType writerGroup in connection.WriterGroups)
                             {
-                                foreach (var dataSetWriter in writerGroup.DataSetWriters.ToArray())
+                                foreach (DataSetWriterDataType dataSetWriter in writerGroup.DataSetWriters.ToArray())
                                 {
                                     if (dataSetWriter.DataSetName == publishedDataSetDataType.Name)
                                     {
@@ -612,7 +608,7 @@ namespace Opc.Ua.PubSub.Configuration
                 {
                     //validate connection name 
                     bool duplicateName = false;
-                    foreach (var connection in m_pubSubConfiguration.Connections)
+                    foreach (PubSubConnectionDataType connection in m_pubSubConfiguration.Connections)
                     {
                         if (connection.Name == pubSubConnectionDataType.Name)
                         {
@@ -627,9 +623,9 @@ namespace Opc.Ua.PubSub.Configuration
                     }
 
                     // remember collections 
-                    WriterGroupDataTypeCollection writerGroups = new WriterGroupDataTypeCollection(pubSubConnectionDataType.WriterGroups);
+                    var writerGroups = new WriterGroupDataTypeCollection(pubSubConnectionDataType.WriterGroups);
                     pubSubConnectionDataType.WriterGroups.Clear();
-                    ReaderGroupDataTypeCollection readerGroups = new ReaderGroupDataTypeCollection(pubSubConnectionDataType.ReaderGroups);
+                    var readerGroups = new ReaderGroupDataTypeCollection(pubSubConnectionDataType.ReaderGroups);
                     pubSubConnectionDataType.ReaderGroups.Clear();
 
                     uint newConnectionId = m_nextId++;
@@ -720,13 +716,13 @@ namespace Opc.Ua.PubSub.Configuration
                     if (pubSubConnectionDataType != null && connectionId != InvalidId)
                     {
                         // remove children
-                        WriterGroupDataTypeCollection writerGroups = new WriterGroupDataTypeCollection(pubSubConnectionDataType.WriterGroups);
-                        foreach (var writerGroup in writerGroups)
+                        var writerGroups = new WriterGroupDataTypeCollection(pubSubConnectionDataType.WriterGroups);
+                        foreach (WriterGroupDataType writerGroup in writerGroups)
                         {
                             RemoveWriterGroup(writerGroup);
                         }
-                        ReaderGroupDataTypeCollection readerGroups = new ReaderGroupDataTypeCollection(pubSubConnectionDataType.ReaderGroups);
-                        foreach (var readerGroup in readerGroups)
+                        var readerGroups = new ReaderGroupDataTypeCollection(pubSubConnectionDataType.ReaderGroups);
+                        foreach (ReaderGroupDataType readerGroup in readerGroups)
                         {
                             RemoveReaderGroup(readerGroup);
                         }
@@ -783,13 +779,13 @@ namespace Opc.Ua.PubSub.Configuration
                 lock (m_lock)
                 {
                     // remember collections 
-                    DataSetWriterDataTypeCollection dataSetWriters = new DataSetWriterDataTypeCollection(writerGroupDataType.DataSetWriters);
+                    var dataSetWriters = new DataSetWriterDataTypeCollection(writerGroupDataType.DataSetWriters);
                     writerGroupDataType.DataSetWriters.Clear();
                     if (value is PubSubConnectionDataType parentConnection)
                     {
                         //validate duplicate name 
                         bool duplicateName = false;
-                        foreach (var writerGroup in parentConnection.WriterGroups)
+                        foreach (WriterGroupDataType writerGroup in parentConnection.WriterGroups)
                         {
                             if (writerGroup.Name == writerGroupDataType.Name)
                             {
@@ -883,13 +879,13 @@ namespace Opc.Ua.PubSub.Configuration
                     if (writerGroupDataType != null && writerGroupId != InvalidId)
                     {
                         // remove children
-                        DataSetWriterDataTypeCollection dataSetWriters = new DataSetWriterDataTypeCollection(writerGroupDataType.DataSetWriters);
-                        foreach (var dataSetWriter in dataSetWriters)
+                        var dataSetWriters = new DataSetWriterDataTypeCollection(writerGroupDataType.DataSetWriters);
+                        foreach (DataSetWriterDataType dataSetWriter in dataSetWriters)
                         {
                             RemoveDataSetWriter(dataSetWriter);
                         }
                         // find parent connection
-                        PubSubConnectionDataType parentConnection = FindParentForObject(writerGroupDataType) as PubSubConnectionDataType;
+                        var parentConnection = FindParentForObject(writerGroupDataType) as PubSubConnectionDataType;
                         uint parentConnectionId = FindIdForObject(parentConnection);
                         if (parentConnection != null && parentConnectionId != InvalidId)
                         {
@@ -952,7 +948,7 @@ namespace Opc.Ua.PubSub.Configuration
                     {
                         //validate duplicate name 
                         bool duplicateName = false;
-                        foreach (var writer in parentWriterGroup.DataSetWriters)
+                        foreach (DataSetWriterDataType writer in parentWriterGroup.DataSetWriters)
                         {
                             if (writer.Name == dataSetWriterDataType.Name)
                             {
@@ -1035,7 +1031,7 @@ namespace Opc.Ua.PubSub.Configuration
                     if (dataSetWriterDataType != null && dataSetWriterId != InvalidId)
                     {
                         // find parent writerGroup
-                        WriterGroupDataType parentWriterGroup = FindParentForObject(dataSetWriterDataType) as WriterGroupDataType;
+                        var parentWriterGroup = FindParentForObject(dataSetWriterDataType) as WriterGroupDataType;
                         uint parentWriterGroupId = FindIdForObject(parentWriterGroup);
                         if (parentWriterGroup != null && parentWriterGroupId != InvalidId)
                         {
@@ -1094,13 +1090,13 @@ namespace Opc.Ua.PubSub.Configuration
                 lock (m_lock)
                 {
                     // remember collections 
-                    DataSetReaderDataTypeCollection dataSetReaders = new DataSetReaderDataTypeCollection(readerGroupDataType.DataSetReaders);
+                    var dataSetReaders = new DataSetReaderDataTypeCollection(readerGroupDataType.DataSetReaders);
                     readerGroupDataType.DataSetReaders.Clear();
                     if (value is PubSubConnectionDataType parentConnection)
                     {
                         //validate duplicate name 
                         bool duplicateName = false;
-                        foreach (var readerGroup in parentConnection.ReaderGroups)
+                        foreach (ReaderGroupDataType readerGroup in parentConnection.ReaderGroups)
                         {
                             if (readerGroup.Name == readerGroupDataType.Name)
                             {
@@ -1195,13 +1191,13 @@ namespace Opc.Ua.PubSub.Configuration
                     if (readerGroupDataType != null && readerGroupId != InvalidId)
                     {
                         // remove children
-                        DataSetReaderDataTypeCollection dataSetReaders = new DataSetReaderDataTypeCollection(readerGroupDataType.DataSetReaders);
-                        foreach (var dataSetReader in dataSetReaders)
+                        var dataSetReaders = new DataSetReaderDataTypeCollection(readerGroupDataType.DataSetReaders);
+                        foreach (DataSetReaderDataType dataSetReader in dataSetReaders)
                         {
                             RemoveDataSetReader(dataSetReader);
                         }
                         // find parent connection
-                        PubSubConnectionDataType parentConnection = FindParentForObject(readerGroupDataType) as PubSubConnectionDataType;
+                        var parentConnection = FindParentForObject(readerGroupDataType) as PubSubConnectionDataType;
                         uint parentConnectionId = FindIdForObject(parentConnection);
                         if (parentConnection != null && parentConnectionId != InvalidId)
                         {
@@ -1264,7 +1260,7 @@ namespace Opc.Ua.PubSub.Configuration
                     {
                         //validate duplicate name 
                         bool duplicateName = false;
-                        foreach (var reader in parentReaderGroup.DataSetReaders)
+                        foreach (DataSetReaderDataType reader in parentReaderGroup.DataSetReaders)
                         {
                             if (reader.Name == dataSetReaderDataType.Name)
                             {
@@ -1347,7 +1343,7 @@ namespace Opc.Ua.PubSub.Configuration
                     if (dataSetReaderDataType != null && dataSetReaderId != InvalidId)
                     {
                         // find parent readerGroup
-                        ReaderGroupDataType parentWriterGroup = FindParentForObject(dataSetReaderDataType) as ReaderGroupDataType;
+                        var parentWriterGroup = FindParentForObject(dataSetReaderDataType) as ReaderGroupDataType;
                         uint parenReaderGroupId = FindIdForObject(parentWriterGroup);
                         if (parentWriterGroup != null && parenReaderGroupId != InvalidId)
                         {
@@ -1528,7 +1524,7 @@ namespace Opc.Ua.PubSub.Configuration
         {
             PubSubState parentState = FindStateForObject(configurationObject);
             //find child ids
-            var childrenIds = FindChildrenIdsForObject(configurationObject);
+            List<uint> childrenIds = FindChildrenIdsForObject(configurationObject);
             if (parentState == PubSubState.Operational)
             {
                 // Enabled and parent Operational

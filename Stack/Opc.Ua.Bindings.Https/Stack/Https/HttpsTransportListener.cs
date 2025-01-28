@@ -11,7 +11,6 @@
 */
 
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Net;
 using System.Net.Security;
@@ -178,7 +177,7 @@ namespace Opc.Ua.Bindings
             m_uri = baseAddress;
             m_discovery = m_uri.AbsolutePath?.TrimEnd('/') + ConfiguredEndpoint.DiscoverySuffix;
             m_descriptions = settings.Descriptions;
-            var configuration = settings.Configuration;
+            EndpointConfiguration configuration = settings.Configuration;
 
             // initialize the quotas.
             m_quotas = new ChannelQuotas {
@@ -268,7 +267,7 @@ namespace Opc.Ua.Bindings
             m_hostBuilder = new WebHostBuilder();
 
             // prepare the server TLS certificate
-            var serverCertificate = m_serverCertProvider.GetInstanceCertificate(SecurityPolicies.Https);
+            X509Certificate2 serverCertificate = m_serverCertProvider.GetInstanceCertificate(SecurityPolicies.Https);
 #if NETCOREAPP3_1_OR_GREATER || NETSTANDARD2_1 || NET472_OR_GREATER || NET5_0_OR_GREATER
             try
             {
@@ -317,7 +316,7 @@ namespace Opc.Ua.Bindings
             else
             {
                 // bind to specific address
-                IPAddress ipAddress = IPAddress.Parse(m_uri.Host);
+                var ipAddress = IPAddress.Parse(m_uri.Host);
                 m_hostBuilder.UseKestrel(options => {
                     options.Listen(ipAddress, m_uri.Port, listenOptions => {
                         listenOptions.UseHttps(httpsOptions);
@@ -372,7 +371,7 @@ namespace Opc.Ua.Bindings
                     return;
                 }
 
-                IServiceRequest input = (IServiceRequest)BinaryDecoder.DecodeMessage(buffer, null, m_quotas.MessageContext);
+                var input = (IServiceRequest)BinaryDecoder.DecodeMessage(buffer, null, m_quotas.MessageContext);
 
                 if (m_mutualTlsEnabled && input.TypeId == DataTypeIds.CreateSessionRequest)
                 {
@@ -390,15 +389,12 @@ namespace Opc.Ua.Bindings
                 }
 
                 // extract the JWT token from the HTTP headers.
-                if (input.RequestHeader == null)
-                {
-                    input.RequestHeader = new RequestHeader();
-                }
+                input.RequestHeader ??= new RequestHeader();
 
                 if (NodeId.IsNull(input.RequestHeader.AuthenticationToken) &&
                     input.TypeId != DataTypeIds.CreateSessionRequest)
                 {
-                    if (context.Request.Headers.TryGetValue(kAuthorizationKey, out var keys))
+                    if (context.Request.Headers.TryGetValue(kAuthorizationKey, out Microsoft.Extensions.Primitives.StringValues keys))
                     {
                         foreach (string value in keys)
                         {
@@ -411,13 +407,13 @@ namespace Opc.Ua.Bindings
                     }
                 }
 
-                if (!context.Request.Headers.TryGetValue(Profiles.HttpsSecurityPolicyHeader, out var header))
+                if (!context.Request.Headers.TryGetValue(Profiles.HttpsSecurityPolicyHeader, out Microsoft.Extensions.Primitives.StringValues header))
                 {
                     header = SecurityPolicies.None;
                 }
 
                 EndpointDescription endpoint = null;
-                foreach (var ep in m_descriptions)
+                foreach (EndpointDescription ep in m_descriptions)
                 {
                     if (Utils.IsUriHttpsScheme(ep.EndpointUrl))
                     {
@@ -457,7 +453,7 @@ namespace Opc.Ua.Bindings
                 }
 
                 // note: do not use Task.Factory.FromAsync here 
-                var result = m_callback.BeginProcessRequest(
+                IAsyncResult result = m_callback.BeginProcessRequest(
                     m_listenerId,
                     endpoint,
                     input as IServiceRequest,

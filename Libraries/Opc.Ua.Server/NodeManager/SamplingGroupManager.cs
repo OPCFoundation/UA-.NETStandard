@@ -29,9 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Text;
-using System.Threading;
-using System.Security.Principal;
 
 namespace Opc.Ua.Server
 {
@@ -69,10 +66,7 @@ namespace Opc.Ua.Server
                 }
             }
 
-            if (m_samplingRates == null)
-            {
-                m_samplingRates = new List<SamplingRateGroup>(s_DefaultSamplingRates);
-            }
+            m_samplingRates ??= new List<SamplingRateGroup>(s_DefaultSamplingRates);
         }
         #endregion
 
@@ -394,7 +388,7 @@ namespace Opc.Ua.Server
                 }
 
                 // create a new sampling group.
-                SamplingGroup samplingGroup2 = new SamplingGroup(
+                var samplingGroup2 = new SamplingGroup(
                     m_server,
                     m_nodeManager,
                     m_samplingRates,
@@ -475,7 +469,7 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
-                List<SamplingGroup> unusedGroups = new List<SamplingGroup>();
+                var unusedGroups = new List<SamplingGroup>();
 
                 // apply changes to groups.
                 foreach (SamplingGroup samplingGroup in m_samplingGroups)

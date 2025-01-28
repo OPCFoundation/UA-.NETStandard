@@ -61,8 +61,8 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected X509Certificate2Collection ServerCertificateChain
         {
-            get { return m_serverCertificateChain; }
-            set { m_serverCertificateChain = value; }
+            get => m_serverCertificateChain;
+            set => m_serverCertificateChain = value;
         }
 
         /// <summary>
@@ -85,8 +85,8 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected X509Certificate2 ClientCertificate
         {
-            get { return m_clientCertificate; }
-            set { m_clientCertificate = value; }
+            get => m_clientCertificate;
+            set => m_clientCertificate = value;
         }
 
         /// <summary>
@@ -94,8 +94,8 @@ namespace Opc.Ua.Bindings
         /// </summary>
         internal X509Certificate2Collection ClientCertificateChain
         {
-            get { return m_clientCertificateChain; }
-            set { m_clientCertificateChain = value; }
+            get => m_clientCertificateChain;
+            set => m_clientCertificateChain = value;
         }
 
         /// <summary>
@@ -108,7 +108,7 @@ namespace Opc.Ua.Bindings
                 return null;
             }
 
-            StringBuilder builder = new StringBuilder(thumbprint.Length * 2);
+            var builder = new StringBuilder(thumbprint.Length * 2);
 
             for (int ii = 0; ii < thumbprint.Length; ii++)
             {
@@ -523,7 +523,7 @@ namespace Opc.Ua.Bindings
                 {
                     X509Certificate2 currentCertificate = senderCertificateChain[0];
                     int maxSenderCertificateSize = GetMaxSenderCertificateSize(currentCertificate, securityPolicyUri);
-                    List<byte> senderCertificateList = new List<byte>(currentCertificate.RawData);
+                    var senderCertificateList = new List<byte>(currentCertificate.RawData);
                     senderCertificateSize = currentCertificate.RawData.Length;
 
                     for (int i = 1; i < senderCertificateChain.Count; i++)
@@ -615,7 +615,7 @@ namespace Opc.Ua.Bindings
             ArraySegment<byte> messageBody)
         {
             bool success = false;
-            BufferCollection chunksToSend = new BufferCollection();
+            var chunksToSend = new BufferCollection();
 
             byte[] buffer = BufferManager.TakeBuffer(SendBufferSize, "WriteAsymmetricMessage");
             BinaryEncoder encoder = null;
@@ -657,7 +657,7 @@ namespace Opc.Ua.Bindings
                 int signatureSize = GetAsymmetricSignatureSize(senderCertificate);
 
                 // save the header.
-                ArraySegment<byte> header = new ArraySegment<byte>(buffer, 0, headerSize);
+                var header = new ArraySegment<byte>(buffer, 0, headerSize);
 
                 // calculate the space available.
                 int plainTextBlockSize = GetPlainTextBlockSize(receiverCertificate);
@@ -785,7 +785,7 @@ namespace Opc.Ua.Bindings
                     {
                         Utils.SilentDispose(encoder);
                         // ostrm is disposed by the encoder.
-                        MemoryStream ostrm = new MemoryStream(buffer, 0, SendBufferSize);
+                        var ostrm = new MemoryStream(buffer, 0, SendBufferSize);
                         ostrm.Seek(header.Count, SeekOrigin.Current);
                         encoder = new BinaryEncoder(ostrm, Quotas.MessageContext, false);
                     }
@@ -1098,7 +1098,7 @@ namespace Opc.Ua.Bindings
             }
 
             // verify the signature.
-            ArraySegment<byte> dataToVerify = new ArraySegment<byte>(plainText.Array, plainText.Offset, plainText.Count - signatureSize);
+            var dataToVerify = new ArraySegment<byte>(plainText.Array, plainText.Offset, plainText.Count - signatureSize);
 
             if (!Verify(dataToVerify, signature, senderCertificate))
             {

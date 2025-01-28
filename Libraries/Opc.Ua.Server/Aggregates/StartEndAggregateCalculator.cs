@@ -29,7 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Text;
 
 namespace Opc.Ua.Server
 {
@@ -213,7 +212,7 @@ namespace Opc.Ua.Server
                 return GetNoDataValue(slice);
             }
             
-            DataValue value = new DataValue();
+            var value = new DataValue();
             value.SourceTimestamp = GetTimestamp(slice);
             value.ServerTimestamp = GetTimestamp(slice);
 
@@ -343,7 +342,7 @@ namespace Opc.Ua.Server
                 return GetNoDataValue(slice);
             }
 
-            DataValue value = new DataValue();
+            var value = new DataValue();
             value.SourceTimestamp = GetTimestamp(slice);
             value.ServerTimestamp = GetTimestamp(slice);
 

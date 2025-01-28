@@ -55,7 +55,7 @@ namespace Opc.Ua.Gds.Tests
         public async Task LoadClientConfiguration(int port = -1)
         {
             ApplicationInstance.MessageDlg = new ApplicationMessageDlg();
-            ApplicationInstance application = new ApplicationInstance {
+            var application = new ApplicationInstance {
                 ApplicationName = "Server Configuration Push Test Client",
                 ApplicationType = ApplicationType.Client,
                 ConfigSectionName = "Opc.Ua.ServerConfigurationPushTestClient"
@@ -176,7 +176,7 @@ namespace Opc.Ua.Gds.Tests
     /// <summary>
     /// Stores the configuration the data access node manager.
     /// </summary>
-    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaConfig)]
+    [DataContract(Namespace = Ua.Namespaces.OpcUaConfig)]
     public class ServerConfigurationPushTestClientConfiguration
     {
         #region Constructors

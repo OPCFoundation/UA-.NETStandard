@@ -55,7 +55,7 @@ namespace Opc.Ua.X509StoreExtensions.Internal
 
             var crls = new List<byte[]>();
 
-            CRL_CONTEXT* crlContext = (CRL_CONTEXT*)IntPtr.Zero;
+            var crlContext = (CRL_CONTEXT*)IntPtr.Zero;
             try
             {
                 //read until Pointer to crlContext is NullPtr  (no more crls in store)
@@ -196,7 +196,7 @@ namespace Opc.Ua.X509StoreExtensions.Internal
             {
                 throw new PlatformNotSupportedException();
             }
-            CRL_CONTEXT* crlContext = (CRL_CONTEXT*)IntPtr.Zero;
+            var crlContext = (CRL_CONTEXT*)IntPtr.Zero;
             try
             {
                 //read until Pointer to crlContext is NullPtr (no more crls in store)
@@ -213,7 +213,7 @@ namespace Opc.Ua.X509StoreExtensions.Internal
                         {
                             if (!PInvokeHelper.CertDeleteCRLFromStore(crlContext))
                             {
-                                var error = Marshal.GetLastWin32Error();
+                                int error = Marshal.GetLastWin32Error();
                                 if (error != 0)
                                 {
                                     Utils.LogError("Error while deleting Crl from X509Store, Win32Error-Code: {0}", error);
@@ -230,7 +230,7 @@ namespace Opc.Ua.X509StoreExtensions.Internal
                     }
                     else
                     {
-                        var error = Marshal.GetLastWin32Error();
+                        int error = Marshal.GetLastWin32Error();
                         if (error == -2146885628)
                         {
                             //No more crls found in store

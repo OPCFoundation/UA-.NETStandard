@@ -85,10 +85,10 @@ namespace Opc.Ua
             // create a registration channel.
             if (channel == null)
             {
-                Uri endpointUrl = new Uri(description.EndpointUrl);
+                var endpointUrl = new Uri(description.EndpointUrl);
                 channel = new RegistrationChannel();
 
-                TransportChannelSettings settings = new TransportChannelSettings();
+                var settings = new TransportChannelSettings();
                 settings.Configuration = endpointConfiguration;
                 settings.Description = description;
                 settings.ClientCertificate = clientCertificate;

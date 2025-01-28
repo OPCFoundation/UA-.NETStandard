@@ -27,10 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
-using System.Linq;
 using NUnit.Framework;
-using Opc.Ua.Test;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 
@@ -83,10 +80,10 @@ namespace Opc.Ua.Core.Tests.Types.NumericRange
                 { 7, 8, 9 },
             };
 
-            Matrix matrix = new Matrix(int3x3Matrix, BuiltInType.Int32);
+            var matrix = new Matrix(int3x3Matrix, BuiltInType.Int32);
 
             // Select the center element
-            Opc.Ua.NumericRange numericRange = Opc.Ua.NumericRange.Parse("1,1");
+            var numericRange = Ua.NumericRange.Parse("1,1");
 
             object value = matrix;
 
@@ -115,10 +112,10 @@ namespace Opc.Ua.Core.Tests.Types.NumericRange
                 { 7, 8, 9 },
             };
 
-            Matrix dstMatrix = new Matrix(dstInt3x3Matrix, BuiltInType.Int32);
+            var dstMatrix = new Matrix(dstInt3x3Matrix, BuiltInType.Int32);
 
             // Update the center element
-            Opc.Ua.NumericRange numericRange = Opc.Ua.NumericRange.Parse("1,1");
+            var numericRange = Ua.NumericRange.Parse("1,1");
             object dst = dstMatrix;
             StatusCode statusCode = numericRange.UpdateRange(ref dst, new int[,] { { 10 } });
 
@@ -145,7 +142,7 @@ namespace Opc.Ua.Core.Tests.Types.NumericRange
         public void UpdateStringArrayTest()
         {
             // Update the middle element "Test2" to "That2" by modifying "es" to "ha".
-            Opc.Ua.NumericRange numericRange = Opc.Ua.NumericRange.Parse("1,1:2");
+            var numericRange = Ua.NumericRange.Parse("1,1:2");
             object dst = new string[] { "Test1", "Test2", "Test3" };
             StatusCode statusCode = numericRange.UpdateRange(ref dst, new string[] { "ha" });
             Assert.AreEqual(new StatusCode(StatusCodes.Good), statusCode);
@@ -163,7 +160,7 @@ namespace Opc.Ua.Core.Tests.Types.NumericRange
         public void UpdateByteStringArrayTest()
         {
             // Update the middle element <0x55, 0x66, 0x77, 0x88> to <0x55, 0xDD, 0xEE, 0x88> by modifying 0x66 to 0xDD and 0x77 to 0xEE.
-            Opc.Ua.NumericRange numericRange = Opc.Ua.NumericRange.Parse("1,1:2");
+            var numericRange = Ua.NumericRange.Parse("1,1:2");
             object dst = new byte[][]
             {
                 new byte[] { 0x11, 0x22, 0x33, 0x44 },

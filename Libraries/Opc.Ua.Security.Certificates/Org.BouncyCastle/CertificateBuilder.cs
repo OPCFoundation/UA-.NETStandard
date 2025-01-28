@@ -190,7 +190,7 @@ namespace Opc.Ua.Security.Certificates
             if (certificate == null) throw new ArgumentNullException(nameof(certificate));
             using (var cfrg = new CryptoApiRandomGenerator())
             {
-                SecureRandom random = new SecureRandom(cfrg);
+                var random = new SecureRandom(cfrg);
 
                 // try to get signing/private key from certificate passed in
                 AsymmetricKeyParameter signingKey = X509Utils.GetRsaPrivateKeyParameter(certificate);
@@ -201,7 +201,7 @@ namespace Opc.Ua.Security.Certificates
 
                 Asn1Set attributes = null;
                 X509SubjectAltNameExtension san = X509Extensions.FindExtension<X509SubjectAltNameExtension>(certificate);
-                X509SubjectAltNameExtension alternateName = new X509SubjectAltNameExtension(san, san.Critical);
+                var alternateName = new X509SubjectAltNameExtension(san, san.Critical);
 
                 string applicationUri = null;
                 domainNames = domainNames ?? new List<String>();
@@ -327,7 +327,7 @@ namespace Opc.Ua.Security.Certificates
             }
 
             // Basic constraints
-            BasicConstraints basicConstraints = new BasicConstraints(m_isCA);
+            var basicConstraints = new BasicConstraints(m_isCA);
             if (m_isCA && m_pathLengthConstraint >= 0)
             {
                 basicConstraints = new BasicConstraints(m_pathLengthConstraint);
@@ -470,11 +470,11 @@ namespace Opc.Ua.Security.Certificates
             using (var cfrg = new CryptoApiRandomGenerator())
             {
                 // cert generators
-                SecureRandom random = new SecureRandom(cfrg);
+                var random = new SecureRandom(cfrg);
 
                 CreateDefaults(cfrg);
 
-                X509V3CertificateGenerator cg = new X509V3CertificateGenerator();
+                var cg = new X509V3CertificateGenerator();
                 CreateMandatoryFields(cg);
 
                 // create Private/Public Keypair

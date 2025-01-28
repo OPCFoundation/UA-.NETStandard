@@ -107,7 +107,7 @@ namespace Opc.Ua.PubSub.Transport
             {
                 if (m_discoveryUdpClients != null && m_discoveryUdpClients.Count > 0)
                 {
-                    foreach (var udpClient in m_discoveryUdpClients)
+                    foreach (UdpClient udpClient in m_discoveryUdpClients)
                     {
                         udpClient.Close();
                         udpClient.Dispose();

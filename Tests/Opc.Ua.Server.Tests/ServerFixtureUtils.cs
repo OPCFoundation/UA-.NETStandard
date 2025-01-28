@@ -67,8 +67,8 @@ namespace Opc.Ua.Server.Tests
             uint maxResponseMessageSize = DefaultMaxResponseMessageSize)
         {
             // Find TCP endpoint
-            var endpoints = server.GetEndpoints();
-            var endpoint = endpoints.FirstOrDefault(e =>
+            EndpointDescriptionCollection endpoints = server.GetEndpoints();
+            EndpointDescription endpoint = endpoints.FirstOrDefault(e =>
                 e.TransportProfileUri.Equals(Profiles.UaTcpTransport, StringComparison.Ordinal) ||
                 e.TransportProfileUri.Equals(Profiles.HttpsBinaryTransport, StringComparison.Ordinal));
 
@@ -99,14 +99,14 @@ namespace Opc.Ua.Server.Tests
             var requestHeader = new RequestHeader();
 
             // Create session
-            var response = server.CreateSession(
+            ResponseHeader response = server.CreateSession(
                 requestHeader,
                 null, null, null,
                 sessionName,
                 null, null, sessionTimeout, maxResponseMessageSize,
-                out var sessionId, out var authenticationToken, out sessionTimeout,
-                out var serverNonce, out var serverCertificate, out var endpointDescriptions,
-                out var serverSoftwareCertificates, out var signatureData, out var maxRequestMessageSize);
+                out NodeId sessionId, out NodeId authenticationToken, out sessionTimeout,
+                out byte[] serverNonce, out byte[] serverCertificate, out EndpointDescriptionCollection endpointDescriptions,
+                out SignedSoftwareCertificateCollection serverSoftwareCertificates, out SignatureData signatureData, out uint maxRequestMessageSize);
             ValidateResponse(response);
 
             // Activate session
@@ -114,7 +114,7 @@ namespace Opc.Ua.Server.Tests
             response = server.ActivateSession(requestHeader, signatureData,
                 new SignedSoftwareCertificateCollection(), new StringCollection(),
                 (identityToken != null) ? new ExtensionObject(identityToken) : null, null,
-                out serverNonce, out var results, out var diagnosticInfos);
+                out serverNonce, out StatusCodeCollection results, out DiagnosticInfoCollection diagnosticInfos);
             ValidateResponse(response);
 
             return requestHeader;
@@ -128,7 +128,7 @@ namespace Opc.Ua.Server.Tests
         public static void CloseSession(this SessionServerBase server, RequestHeader requestHeader)
         {
             // close session
-            var response = server.CloseSession(requestHeader, true);
+            ResponseHeader response = server.CloseSession(requestHeader, true);
             ValidateResponse(response);
         }
 
@@ -224,9 +224,9 @@ namespace Opc.Ua.Server.Tests
             BrowseDescription template)
         {
             var browseDescriptionCollection = new BrowseDescriptionCollection();
-            foreach (var nodeId in nodeIdCollection)
+            foreach (NodeId nodeId in nodeIdCollection)
             {
-                BrowseDescription browseDescription = (BrowseDescription)template.MemberwiseClone();
+                var browseDescription = (BrowseDescription)template.MemberwiseClone();
                 browseDescription.NodeId = nodeId;
                 browseDescriptionCollection.Add(browseDescription);
             }
@@ -242,7 +242,7 @@ namespace Opc.Ua.Server.Tests
         public static ByteStringCollection PrepareBrowseNext(BrowseResultCollection browseResultCollection)
         {
             var continuationPoints = new ByteStringCollection();
-            foreach (var browseResult in browseResultCollection)
+            foreach (BrowseResult browseResult in browseResultCollection)
             {
                 if (browseResult.ContinuationPoint != null)
                 {
@@ -290,7 +290,7 @@ namespace Opc.Ua.Server.Tests
         /// </summary>
         public static int GetNextFreeIPPort()
         {
-            IPEndPoint endpoint = new IPEndPoint(IPAddress.Any, 0);
+            var endpoint = new IPEndPoint(IPAddress.Any, 0);
             using (var socket = new Socket(endpoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp))
             {
                 socket.Bind(endpoint);

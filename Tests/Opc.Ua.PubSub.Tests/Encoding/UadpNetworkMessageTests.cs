@@ -457,35 +457,35 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             #region DataSet Simple
             // DataSet 'Simple' fill with data
-            DataValue booleanValue = new DataValue(new Variant(true));
+            var booleanValue = new DataValue(new Variant(true));
             m_publisherApplication.DataStore.WritePublishedDataItem(new NodeId("BoolToggle", NamespaceIndexSimple), Attributes.Value, booleanValue);
-            DataValue scalarInt32XValue = new DataValue(new Variant(100));
+            var scalarInt32XValue = new DataValue(new Variant(100));
             m_publisherApplication.DataStore.WritePublishedDataItem(new NodeId("Int32", NamespaceIndexSimple), Attributes.Value, scalarInt32XValue);
-            DataValue scalarInt32YValue = new DataValue(new Variant(50));
+            var scalarInt32YValue = new DataValue(new Variant(50));
             m_publisherApplication.DataStore.WritePublishedDataItem(new NodeId("Int32Fast", NamespaceIndexSimple), Attributes.Value, scalarInt32YValue);
-            DataValue dateTimeValue = new DataValue(new Variant(DateTime.UtcNow));
+            var dateTimeValue = new DataValue(new Variant(DateTime.UtcNow));
             m_publisherApplication.DataStore.WritePublishedDataItem(new NodeId("DateTime", NamespaceIndexSimple), Attributes.Value, dateTimeValue);
             #endregion
 
             #region DataSet AllTypes
             // DataSet 'AllTypes' fill with data
-            DataValue allTypesBooleanValue = new DataValue(new Variant(false));
+            var allTypesBooleanValue = new DataValue(new Variant(false));
             m_publisherApplication.DataStore.WritePublishedDataItem(new NodeId("BoolToggle", NamespaceIndexAllTypes), Attributes.Value, allTypesBooleanValue);
-            DataValue byteValue = new DataValue(new Variant((byte)10));
+            var byteValue = new DataValue(new Variant((byte)10));
             m_publisherApplication.DataStore.WritePublishedDataItem(new NodeId("Byte", NamespaceIndexAllTypes), Attributes.Value, byteValue);
-            DataValue int16Value = new DataValue(new Variant((short)100));
+            var int16Value = new DataValue(new Variant((short)100));
             m_publisherApplication.DataStore.WritePublishedDataItem(new NodeId("Int16", NamespaceIndexAllTypes), Attributes.Value, int16Value);
-            DataValue int32Value = new DataValue(new Variant((int)1000));
+            var int32Value = new DataValue(new Variant((int)1000));
             m_publisherApplication.DataStore.WritePublishedDataItem(new NodeId("Int32", NamespaceIndexAllTypes), Attributes.Value, int32Value);
-            DataValue sByteValue = new DataValue(new Variant((sbyte)11));
+            var sByteValue = new DataValue(new Variant((sbyte)11));
             m_publisherApplication.DataStore.WritePublishedDataItem(new NodeId("SByte", NamespaceIndexAllTypes), Attributes.Value, sByteValue);
-            DataValue uInt16Value = new DataValue(new Variant((ushort)110));
+            var uInt16Value = new DataValue(new Variant((ushort)110));
             m_publisherApplication.DataStore.WritePublishedDataItem(new NodeId("UInt16", NamespaceIndexAllTypes), Attributes.Value, uInt16Value);
-            DataValue uInt32Value = new DataValue(new Variant((uint)1100));
+            var uInt32Value = new DataValue(new Variant((uint)1100));
             m_publisherApplication.DataStore.WritePublishedDataItem(new NodeId("UInt32", NamespaceIndexAllTypes), Attributes.Value, uInt32Value);
-            DataValue floatValue = new DataValue(new Variant((float)1100.5));
+            var floatValue = new DataValue(new Variant((float)1100.5));
             m_publisherApplication.DataStore.WritePublishedDataItem(new NodeId("Float", NamespaceIndexAllTypes), Attributes.Value, floatValue);
-            DataValue doubleValue = new DataValue(new Variant((double)1100));
+            var doubleValue = new DataValue(new Variant((double)1100));
             m_publisherApplication.DataStore.WritePublishedDataItem(new NodeId("Double", NamespaceIndexAllTypes), Attributes.Value, doubleValue);
             #endregion
 
@@ -494,7 +494,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             // DataSet 'MassTest' fill with data
             for (uint index = 0; index < 100; index++)
             {
-                DataValue value = new DataValue(new Variant(index));
+                var value = new DataValue(new Variant(index));
                 m_publisherApplication.DataStore.WritePublishedDataItem(new NodeId(Utils.Format("Mass_{0}", index), NamespaceIndexMassTest),
                     Attributes.Value, value);
             }
@@ -532,7 +532,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 dataSetWriter.DataSetFieldContentMask = (uint)dataSetFieldContentMask;
             }
 
-            var networkMessages = m_firstPublisherConnection.CreateNetworkMessages(m_firstWriterGroup, new WriterGroupPublishState());
+            IList<UaNetworkMessage> networkMessages = m_firstPublisherConnection.CreateNetworkMessages(m_firstWriterGroup, new WriterGroupPublishState());
             // filter out the metadata message
             networkMessages = (from m in networkMessages
                                where !m.IsMetaDataMessage
@@ -540,7 +540,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.IsNotNull(networkMessages, "connection.CreateNetworkMessages shall not return null");
             Assert.AreEqual(1, networkMessages.Count, "connection.CreateNetworkMessages shall return only one network message");
 
-            UadpNetworkMessage uaNetworkMessage = networkMessages[0] as UadpNetworkMessage;
+            var uaNetworkMessage = networkMessages[0] as UadpNetworkMessage;
 
             Assert.IsNotNull(uaNetworkMessage, "networkMessageEncode should not be null");
 
@@ -556,7 +556,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         {
             byte[] bytes = uadpNetworkMessage.Encode(ServiceMessageContext.GlobalContext);
 
-            UadpNetworkMessage uaNetworkMessageDecoded = new UadpNetworkMessage();
+            var uaNetworkMessageDecoded = new UadpNetworkMessage();
             uaNetworkMessageDecoded.Decode(new ServiceMessageContext(), bytes, m_firstDataSetReadersType);
 
             // compare uaNetworkMessage with uaNetworkMessageDecoded
@@ -572,7 +572,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         {
             byte[] bytes = uadpNetworkMessage.Encode(ServiceMessageContext.GlobalContext);
 
-            UadpNetworkMessage uaNetworkMessageDecoded = new UadpNetworkMessage();
+            var uaNetworkMessageDecoded = new UadpNetworkMessage();
             uaNetworkMessageDecoded.Decode(new ServiceMessageContext(), bytes, m_firstDataSetReadersType);
 
             // compare uaNetworkMessage with uaNetworkMessageDecoded
@@ -678,7 +678,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
                 foreach (UadpDataSetMessage uadpDataSetMessage in uadpNetworkMessageEncode.DataSetMessages)
                 {
-                    UadpDataSetMessage uadpDataSetMessageDecoded =
+                    var uadpDataSetMessageDecoded =
                         uadpNetworkMessageDecoded.DataSetMessages.FirstOrDefault(decoded =>
                             ((UadpDataSetMessage)decoded).DataSetWriterId == uadpDataSetMessage.DataSetWriterId) as UadpDataSetMessage;
 
@@ -791,7 +791,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         private byte[] ReadBytes(Stream stream)
         {
             stream.Position = 0;
-            using (MemoryStream ms = new MemoryStream())
+            using (var ms = new MemoryStream())
             {
                 stream.CopyTo(ms);
                 return ms.ToArray();

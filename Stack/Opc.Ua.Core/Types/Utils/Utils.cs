@@ -85,10 +85,10 @@ namespace Opc.Ua
         /// </summary>
         public static readonly string[] DefaultUriSchemes = new string[]
         {
-            Utils.UriSchemeOpcTcp,
-            Utils.UriSchemeOpcHttps,
-            Utils.UriSchemeHttps,
-            Utils.UriSchemeOpcWss
+            UriSchemeOpcTcp,
+            UriSchemeOpcHttps,
+            UriSchemeHttps,
+            UriSchemeOpcWss
         };
 
         /// <summary>
@@ -151,8 +151,8 @@ namespace Opc.Ua
         /// </summary>
         public static readonly ReadOnlyDictionary<string, string> DefaultBindings = new ReadOnlyDictionary<string, string>(
             new Dictionary<string, string>() {
-                { Utils.UriSchemeHttps, "Opc.Ua.Bindings.Https"},
-                { Utils.UriSchemeOpcHttps, "Opc.Ua.Bindings.Https"}
+                { UriSchemeHttps, "Opc.Ua.Bindings.Https"},
+                { UriSchemeOpcHttps, "Opc.Ua.Bindings.Https"}
             });
 
         /// <summary>
@@ -161,8 +161,8 @@ namespace Opc.Ua
         /// <param name="url">The url</param>
         public static bool IsUriHttpsScheme(string url)
         {
-            return url.StartsWith(Utils.UriSchemeHttps, StringComparison.Ordinal) ||
-                url.StartsWith(Utils.UriSchemeOpcHttps, StringComparison.Ordinal);
+            return url.StartsWith(UriSchemeHttps, StringComparison.Ordinal) ||
+                url.StartsWith(UriSchemeOpcHttps, StringComparison.Ordinal);
         }
 
         /// <summary>
@@ -171,7 +171,7 @@ namespace Opc.Ua
         /// <param name="url">The url</param>
         public static bool IsUriHttpRelatedScheme(string url)
         {
-            return url.StartsWith(Utils.UriSchemeHttps, StringComparison.Ordinal) ||
+            return url.StartsWith(UriSchemeHttps, StringComparison.Ordinal) ||
                  IsUriHttpsScheme(url);
         }
         #endregion
@@ -359,7 +359,7 @@ namespace Opc.Ua
                 {
                     try
                     {
-                        FileInfo file = new FileInfo(traceFileName);
+                        var file = new FileInfo(traceFileName);
 
                         // limit the file size
                         bool truncated = false;
@@ -370,7 +370,7 @@ namespace Opc.Ua
                             truncated = true;
                         }
 
-                        using (StreamWriter writer = new StreamWriter(File.Open(file.FullName, FileMode.Append, FileAccess.Write, FileShare.Read)))
+                        using (var writer = new StreamWriter(File.Open(file.FullName, FileMode.Append, FileAccess.Write, FileShare.Read)))
                         {
                             if (truncated)
                             {
@@ -414,7 +414,7 @@ namespace Opc.Ua
 
                 try
                 {
-                    FileInfo file = new FileInfo(s_traceFileName);
+                    var file = new FileInfo(s_traceFileName);
 
                     if (deleteExisting && file.Exists)
                     {
@@ -481,7 +481,7 @@ namespace Opc.Ua
         /// </summary>
         internal static StringBuilder TraceExceptionMessage(Exception e, string format, params object[] args)
         {
-            StringBuilder message = new StringBuilder();
+            var message = new StringBuilder();
 
             // format message.            
             if (args != null && args.Length > 0)
@@ -519,7 +519,7 @@ namespace Opc.Ua
                 {
                     message.AppendLine();
                     message.AppendLine();
-                    var separator = new String('=', 40);
+                    string separator = new String('=', 40);
                     message.AppendLine(separator);
                     message.AppendLine(new ServiceResult(e).ToLongString());
                     message.AppendLine(separator);
@@ -582,7 +582,7 @@ namespace Opc.Ua
                 return;
             }
 
-            StringBuilder message = new StringBuilder();
+            var message = new StringBuilder();
             try
             {
                 // append process and timestamp.
@@ -598,7 +598,7 @@ namespace Opc.Ua
                 return;
             }
 
-            var output = message.ToString();
+            string output = message.ToString();
             if (tracingEnabled)
             {
                 Tracing.Instance.RaiseTraceEvent(new TraceEventArgs(traceMask, output, string.Empty, exception, Array.Empty<object>()));
@@ -625,7 +625,7 @@ namespace Opc.Ua
                 return;
             }
 
-            StringBuilder message = new StringBuilder();
+            var message = new StringBuilder();
 
             // append process and timestamp.
             message.AppendFormat(CultureInfo.InvariantCulture, "{0:d} {0:HH:mm:ss.fff} ", DateTime.UtcNow.ToLocalTime());
@@ -686,7 +686,7 @@ namespace Opc.Ua
             }
 
             // check for absolute path.
-            if (Utils.IsPathRooted(input))
+            if (IsPathRooted(input))
             {
                 return input;
             }
@@ -714,7 +714,7 @@ namespace Opc.Ua
                 path = input.Substring(index + 1);
             }
 
-            StringBuilder buffer = new StringBuilder();
+            var buffer = new StringBuilder();
 #if !NETSTANDARD1_4 && !NETSTANDARD1_3
             // check for special folder.
             Environment.SpecialFolder specialFolder;
@@ -761,16 +761,16 @@ namespace Opc.Ua
             string path = null;
 
             // check source tree.
-            DirectoryInfo directory = new DirectoryInfo(Directory.GetCurrentDirectory());
+            var directory = new DirectoryInfo(Directory.GetCurrentDirectory());
 
             while (directory != null)
             {
-                StringBuilder buffer = new StringBuilder();
+                var buffer = new StringBuilder();
                 buffer.Append(directory.FullName);
                 buffer.Append(Path.DirectorySeparatorChar).Append("Bin").Append(Path.DirectorySeparatorChar);
                 buffer.Append(fileName);
 
-                path = Utils.GetAbsoluteFilePath(buffer.ToString(), false, false, false);
+                path = GetAbsoluteFilePath(buffer.ToString(), false, false, false);
 
                 if (path != null)
                 {
@@ -797,14 +797,14 @@ namespace Opc.Ua
         /// </summary>
         public static string GetAbsoluteFilePath(string filePath, bool checkCurrentDirectory, bool throwOnError, bool createAlways, bool writable = false)
         {
-            filePath = Utils.ReplaceSpecialFolderNames(filePath);
+            filePath = ReplaceSpecialFolderNames(filePath);
 
             if (!String.IsNullOrEmpty(filePath))
             {
-                FileInfo file = new FileInfo(filePath);
+                var file = new FileInfo(filePath);
 
                 // check for absolute path.
-                bool isAbsolute = Utils.IsPathRooted(filePath);
+                bool isAbsolute = IsPathRooted(filePath);
 
                 if (isAbsolute)
                 {
@@ -828,11 +828,11 @@ namespace Opc.Ua
                         FileInfo localFile = null;
                         if (!writable)
                         {
-                            localFile = new FileInfo(Utils.Format("{0}{1}{2}", Directory.GetCurrentDirectory(), Path.DirectorySeparatorChar, filePath));
+                            localFile = new FileInfo(Format("{0}{1}{2}", Directory.GetCurrentDirectory(), Path.DirectorySeparatorChar, filePath));
 #if NETFRAMEWORK
                             if (!localFile.Exists)
                             {
-                                var localFile2 = new FileInfo(Utils.Format("{0}{1}{2}",
+                                var localFile2 = new FileInfo(Format("{0}{1}{2}",
                                     Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location),
                                     Path.DirectorySeparatorChar, filePath));
                                 if (localFile2.Exists)
@@ -844,7 +844,7 @@ namespace Opc.Ua
                         }
                         else
                         {
-                            localFile = new FileInfo(Utils.Format("{0}{1}{2}", Path.GetTempPath(), Path.DirectorySeparatorChar, filePath));
+                            localFile = new FileInfo(Format("{0}{1}{2}", Path.GetTempPath(), Path.DirectorySeparatorChar, filePath));
                         }
 
                         if (localFile.Exists)
@@ -902,7 +902,7 @@ namespace Opc.Ua
             }
             catch (Exception e)
             {
-                Utils.LogError(e, "Could not create file: {0}", filePath);
+                LogError(e, "Could not create file: {0}", filePath);
 
                 if (throwOnError)
                 {
@@ -927,14 +927,14 @@ namespace Opc.Ua
         public static string GetAbsoluteDirectoryPath(string dirPath, bool checkCurrentDirectory, bool throwOnError, bool createAlways)
         {
             string originalPath = dirPath;
-            dirPath = Utils.ReplaceSpecialFolderNames(dirPath);
+            dirPath = ReplaceSpecialFolderNames(dirPath);
 
             if (!String.IsNullOrEmpty(dirPath))
             {
-                DirectoryInfo directory = new DirectoryInfo(dirPath);
+                var directory = new DirectoryInfo(dirPath);
 
                 // check for absolute path.
-                bool isAbsolute = Utils.IsPathRooted(dirPath);
+                bool isAbsolute = IsPathRooted(dirPath);
 
                 if (isAbsolute)
                 {
@@ -957,11 +957,11 @@ namespace Opc.Ua
                     {
                         if (!directory.Exists)
                         {
-                            directory = new DirectoryInfo(Utils.Format("{0}{1}{2}", Directory.GetCurrentDirectory(), Path.DirectorySeparatorChar, dirPath));
+                            directory = new DirectoryInfo(Format("{0}{1}{2}", Directory.GetCurrentDirectory(), Path.DirectorySeparatorChar, dirPath));
 #if NETFRAMEWORK
                             if (!directory.Exists)
                             {
-                                var directory2 = new DirectoryInfo(Utils.Format("{0}{1}{2}",
+                                var directory2 = new DirectoryInfo(Format("{0}{1}{2}",
                                     Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location),
                                     Path.DirectorySeparatorChar, dirPath));
                                 if (directory2.Exists)
@@ -1017,7 +1017,7 @@ namespace Opc.Ua
 
             if (start == -1)
             {
-                return Utils.Format("{0}...", filePath.Substring(0, maxLength));
+                return Format("{0}...", filePath.Substring(0, maxLength));
             }
 
             // keep file name.
@@ -1035,7 +1035,7 @@ namespace Opc.Ua
             }
 
             // format the result.
-            return Utils.Format("{0}...{1}", filePath.Substring(0, start + 1), filePath.Substring(end));
+            return Format("{0}...{1}", filePath.Substring(0, start + 1), filePath.Substring(end));
         }
         #endregion
 
@@ -1048,7 +1048,7 @@ namespace Opc.Ua
         /// </remarks>
         public static void SilentDispose(object objectToDispose)
         {
-            IDisposable disposable = objectToDispose as IDisposable;
+            var disposable = objectToDispose as IDisposable;
             SilentDispose(disposable);
         }
 
@@ -1067,7 +1067,7 @@ namespace Opc.Ua
 #if DEBUG
             catch (Exception e)
             {
-                Utils.LogError(e, "Error disposing object: {0}", disposable.GetType().Name);
+                LogError(e, "Error disposing object: {0}", disposable.GetType().Name);
             }
 #else
             catch (Exception) {;}
@@ -1183,7 +1183,7 @@ namespace Opc.Ua
         {
             try
             {
-                IPAddress normalizedAddress = IPAddress.Parse(ipAddress);
+                var normalizedAddress = IPAddress.Parse(ipAddress);
                 return normalizedAddress.ToString();
             }
             catch
@@ -1210,7 +1210,7 @@ namespace Opc.Ua
             }
 
             // check if the string localhost is specified.
-            var localhost = "localhost";
+            string localhost = "localhost";
             int index = uri.IndexOf(localhost, StringComparison.OrdinalIgnoreCase);
 
             if (index == -1)
@@ -1250,7 +1250,7 @@ namespace Opc.Ua
             }
 
             // check if the string DC=localhost is specified.
-            var dclocalhost = "DC=localhost";
+            string dclocalhost = "DC=localhost";
             int index = subjectName.IndexOf(dclocalhost, StringComparison.OrdinalIgnoreCase);
 
             if (index == -1)
@@ -1410,9 +1410,9 @@ namespace Opc.Ua
             // check for null.
             if (String.IsNullOrEmpty(instanceUri))
             {
-                UriBuilder builder = new UriBuilder();
+                var builder = new UriBuilder();
 
-                builder.Scheme = Utils.UriSchemeHttps;
+                builder.Scheme = UriSchemeHttps;
                 builder.Host = GetHostName();
                 builder.Port = -1;
                 builder.Path = Guid.NewGuid().ToString();
@@ -1421,11 +1421,11 @@ namespace Opc.Ua
             }
 
             // prefix non-urls with the hostname.
-            if (!instanceUri.StartsWith(Utils.UriSchemeHttps, StringComparison.Ordinal))
+            if (!instanceUri.StartsWith(UriSchemeHttps, StringComparison.Ordinal))
             {
-                UriBuilder builder = new UriBuilder();
+                var builder = new UriBuilder();
 
-                builder.Scheme = Utils.UriSchemeHttps;
+                builder.Scheme = UriSchemeHttps;
                 builder.Host = GetHostName();
                 builder.Port = -1;
                 builder.Path = Uri.EscapeDataString(instanceUri);
@@ -1434,11 +1434,11 @@ namespace Opc.Ua
             }
 
             // replace localhost with the current hostname.
-            Uri parsedUri = Utils.ParseUri(instanceUri);
+            Uri parsedUri = ParseUri(instanceUri);
 
             if (parsedUri != null && parsedUri.DnsSafeHost == "localhost")
             {
-                UriBuilder builder = new UriBuilder(parsedUri);
+                var builder = new UriBuilder(parsedUri);
                 builder.Host = GetHostName();
                 return builder.Uri.ToString();
             }
@@ -1521,7 +1521,7 @@ namespace Opc.Ua
         /// </remarks>
         public static Array FlattenArray(Array array)
         {
-            Array flatArray = Array.CreateInstance(array.GetType().GetElementType(), array.Length);
+            var flatArray = Array.CreateInstance(array.GetType().GetElementType(), array.Length);
 
             int[] indexes = new int[array.Rank];
             int[] dimensions = new int[array.Rank];
@@ -1593,7 +1593,7 @@ namespace Opc.Ua
             else
 #endif
             {
-                StringBuilder builder = new StringBuilder(buffer.Length * 2);
+                var builder = new StringBuilder(buffer.Length * 2);
 
 #if !NET6_0_OR_GREATER
                 if (!invertEndian)
@@ -1706,7 +1706,7 @@ namespace Opc.Ua
 
             try
             {
-                CultureInfo culture = new CultureInfo(localeId);
+                var culture = new CultureInfo(localeId);
 
                 if (culture != null)
                 {
@@ -1835,10 +1835,10 @@ namespace Opc.Ua
             {
                 if (array.Rank == 1)
                 {
-                    Array clone = Array.CreateInstance(type.GetElementType(), array.Length);
+                    var clone = Array.CreateInstance(type.GetElementType(), array.Length);
                     for (int ii = 0; ii < array.Length; ii++)
                     {
-                        clone.SetValue(Utils.Clone(array.GetValue(ii)), ii);
+                        clone.SetValue(Clone(array.GetValue(ii)), ii);
                     }
                     return clone;
                 }
@@ -1851,10 +1851,10 @@ namespace Opc.Ua
                         arrayRanks[ii] = array.GetLength(ii);
                         arrayIndex[ii] = 0;
                     }
-                    Array clone = Array.CreateInstance(type.GetElementType(), arrayRanks);
+                    var clone = Array.CreateInstance(type.GetElementType(), arrayRanks);
                     for (int ii = 0; ii < array.Length; ii++)
                     {
-                        clone.SetValue(Utils.Clone(array.GetValue(arrayIndex)), arrayIndex);
+                        clone.SetValue(Clone(array.GetValue(arrayIndex)), arrayIndex);
 
                         // iterate the index array
                         for (int ix = 0; ix < array.Rank; ix++)
@@ -1890,7 +1890,7 @@ namespace Opc.Ua
                 object clone = memberwiseCloneMethod.Invoke(value, null);
                 if (clone != null)
                 {
-                    Utils.LogTrace("MemberwiseClone without ICloneable in class '{0}'", type.FullName);
+                    LogTrace("MemberwiseClone without ICloneable in class '{0}'", type.FullName);
                     return clone;
                 }
             }
@@ -1902,13 +1902,13 @@ namespace Opc.Ua
                 object clone = cloneMethod.Invoke(value, null);
                 if (clone != null)
                 {
-                    Utils.LogTrace("Clone without ICloneable in class '{0}'", type.FullName);
+                    LogTrace("Clone without ICloneable in class '{0}'", type.FullName);
                     return clone;
                 }
             }
 
             // don't know how to clone object.
-            throw new NotSupportedException(Utils.Format("Don't know how to clone objects of type '{0}'", type.FullName));
+            throw new NotSupportedException(Format("Don't know how to clone objects of type '{0}'", type.FullName));
         }
 
         /// <summary>
@@ -1917,7 +1917,7 @@ namespace Opc.Ua
         public static bool IsEqualUserIdentity(UserIdentityToken identity1, UserIdentityToken identity2)
         {
             // check for reference equality.
-            if (Object.ReferenceEquals(identity1, identity2))
+            if (ReferenceEquals(identity1, identity2))
             {
                 return true;
             }
@@ -1942,13 +1942,13 @@ namespace Opc.Ua
             if (identity1 is X509IdentityToken x509Token1 &&
                 identity2 is X509IdentityToken x509Token2)
             {
-                return Utils.IsEqual(x509Token1.CertificateData, x509Token2.CertificateData);
+                return IsEqual(x509Token1.CertificateData, x509Token2.CertificateData);
             }
 
             if (identity1 is IssuedIdentityToken issuedToken1 &&
                 identity2 is IssuedIdentityToken issuedToken2)
             {
-                return Utils.IsEqual(issuedToken1.DecryptedTokenData, issuedToken2.DecryptedTokenData);
+                return IsEqual(issuedToken1.DecryptedTokenData, issuedToken2.DecryptedTokenData);
             }
 
             return false;
@@ -1959,8 +1959,8 @@ namespace Opc.Ua
         /// </summary>
         public static bool IsEqual(DateTime time1, DateTime time2)
         {
-            var utcTime1 = Utils.ToOpcUaUniversalTime(time1);
-            var utcTime2 = Utils.ToOpcUaUniversalTime(time2);
+            DateTime utcTime1 = ToOpcUaUniversalTime(time1);
+            DateTime utcTime2 = ToOpcUaUniversalTime(time2);
 
             // values smaller than Timebase can not be binary encoded and are considered equal
             if (utcTime1 <= TimeBase && utcTime2 <= TimeBase)
@@ -1982,14 +1982,14 @@ namespace Opc.Ua
         public static bool IsEqual<T>(T value1, T value2) where T : IEquatable<T>
         {
             // check for reference equality.
-            if (Object.ReferenceEquals(value1, value2))
+            if (ReferenceEquals(value1, value2))
             {
                 return true;
             }
 
-            if (Object.ReferenceEquals(value1, null))
+            if (ReferenceEquals(value1, null))
             {
-                if (!Object.ReferenceEquals(value2, null))
+                if (!ReferenceEquals(value2, null))
                 {
                     return value2.Equals(value1);
                 }
@@ -2007,12 +2007,12 @@ namespace Opc.Ua
         public static bool IsEqual<T>(IEnumerable<T> value1, IEnumerable<T> value2) where T : IEquatable<T>
         {
             // check for reference equality.
-            if (Object.ReferenceEquals(value1, value2))
+            if (ReferenceEquals(value1, value2))
             {
                 return true;
             }
 
-            if (Object.ReferenceEquals(value1, null) || Object.ReferenceEquals(value2, null))
+            if (ReferenceEquals(value1, null) || ReferenceEquals(value2, null))
             {
                 return false;
             }
@@ -2026,12 +2026,12 @@ namespace Opc.Ua
         public static bool IsEqual<T>(T[] value1, T[] value2) where T : unmanaged, IEquatable<T>
         {
             // check for reference equality.
-            if (Object.ReferenceEquals(value1, value2))
+            if (ReferenceEquals(value1, value2))
             {
                 return true;
             }
 
-            if (Object.ReferenceEquals(value1, null) || Object.ReferenceEquals(value2, null))
+            if (ReferenceEquals(value1, null) || ReferenceEquals(value2, null))
             {
                 return false;
             }
@@ -2049,12 +2049,12 @@ namespace Opc.Ua
         public static bool IsEqual(byte[] value1, byte[] value2)
         {
             // check for reference equality.
-            if (Object.ReferenceEquals(value1, value2))
+            if (ReferenceEquals(value1, value2))
             {
                 return true;
             }
 
-            if (Object.ReferenceEquals(value1, null) || Object.ReferenceEquals(value2, null))
+            if (ReferenceEquals(value1, null) || ReferenceEquals(value2, null))
             {
                 return false;
             }
@@ -2071,15 +2071,15 @@ namespace Opc.Ua
         public static bool IsEqual(object value1, object value2)
         {
             // check for reference equality.
-            if (Object.ReferenceEquals(value1, value2))
+            if (ReferenceEquals(value1, value2))
             {
                 return true;
             }
 
             // check for null values.
-            if (Object.ReferenceEquals(value1, null))
+            if (ReferenceEquals(value1, null))
             {
-                if (!Object.ReferenceEquals(value2, null))
+                if (!ReferenceEquals(value2, null))
                 {
                     return value2.Equals(value1);
                 }
@@ -2088,7 +2088,7 @@ namespace Opc.Ua
             }
 
             // check for null values.
-            if (Object.ReferenceEquals(value2, null))
+            if (ReferenceEquals(value2, null))
             {
                 return value1.Equals(value2);
             }
@@ -2102,7 +2102,7 @@ namespace Opc.Ua
             // check for DateTime objects
             if (value1 is DateTime time1)
             {
-                return Utils.IsEqual(time1, (DateTime)value2);
+                return IsEqual(time1, (DateTime)value2);
             }
 
             // check for compareable objects.
@@ -2183,7 +2183,7 @@ namespace Opc.Ua
                     // length is already checked
                     enumerator2.MoveNext();
 
-                    bool result = Utils.IsEqual(enumerator1.Current, enumerator2.Current);
+                    bool result = IsEqual(enumerator1.Current, enumerator2.Current);
 
                     if (!result)
                     {
@@ -2216,7 +2216,7 @@ namespace Opc.Ua
                         return false;
                     }
 
-                    bool result = Utils.IsEqual(enumerator1.Current, enumerator2.Current);
+                    bool result = IsEqual(enumerator1.Current, enumerator2.Current);
 
                     if (!result)
                     {
@@ -2479,7 +2479,7 @@ namespace Opc.Ua
         /// <returns>The TimeZone information for the current local time.</returns>
         public static TimeZoneDataType GetTimeZoneInfo()
         {
-            TimeZoneDataType info = new TimeZoneDataType();
+            var info = new TimeZoneDataType();
 
             info.Offset = (short)TimeZoneInfo.Local.GetUtcOffset(DateTime.Now).TotalMinutes;
             info.DaylightSavingInOffset = true;
@@ -2529,16 +2529,16 @@ namespace Opc.Ua
                 }
 
                 // type found.
-                XmlReader reader = XmlReader.Create(new StringReader(element.OuterXml), Utils.DefaultXmlReaderSettings());
+                var reader = XmlReader.Create(new StringReader(element.OuterXml), DefaultXmlReaderSettings());
 
                 try
                 {
-                    DataContractSerializer serializer = new DataContractSerializer(typeof(T));
+                    var serializer = new DataContractSerializer(typeof(T));
                     return (T)serializer.ReadObject(reader);
                 }
                 catch (Exception ex)
                 {
-                    Utils.LogError("Exception parsing extension: " + ex.Message);
+                    LogError("Exception parsing extension: " + ex.Message);
                     throw;
                 }
                 finally
@@ -2564,17 +2564,17 @@ namespace Opc.Ua
         /// </remarks>
         public static void UpdateExtension<T>(ref XmlElementCollection extensions, XmlQualifiedName elementName, object value)
         {
-            XmlDocument document = new XmlDocument();
+            var document = new XmlDocument();
 
             // serialize value.
-            StringBuilder buffer = new StringBuilder();
-            using (XmlWriter writer = XmlWriter.Create(buffer, DefaultXmlWriterSettings()))
+            var buffer = new StringBuilder();
+            using (var writer = XmlWriter.Create(buffer, DefaultXmlWriterSettings()))
             {
                 if (value != null)
                 {
                     try
                     {
-                        DataContractSerializer serializer = new DataContractSerializer(typeof(T));
+                        var serializer = new DataContractSerializer(typeof(T));
                         serializer.WriteObject(writer, value);
                     }
                     finally
@@ -2623,10 +2623,7 @@ namespace Opc.Ua
             // add new element.
             if (value != null)
             {
-                if (extensions == null)
-                {
-                    extensions = new XmlElementCollection();
-                }
+                extensions ??= new XmlElementCollection();
 
                 extensions.Add(document.DocumentElement);
             }
@@ -2705,7 +2702,7 @@ namespace Opc.Ua
         /// <returns>The current time in milliseconds since 1/1/2000.</returns>
         public static uint GetVersionTime()
         {
-            var ticks = (DateTime.UtcNow - kBaseDateTime).TotalMilliseconds;
+            double ticks = (DateTime.UtcNow - kBaseDateTime).TotalMilliseconds;
             return (uint)ticks;
         }
 
@@ -2838,7 +2835,7 @@ namespace Opc.Ua
 #if !NETFRAMEWORK
                 if (useAsnParser)
                 {
-                    var certBlob = AsnUtils.ParseX509Blob(certificateData);
+                    ReadOnlyMemory<byte> certBlob = AsnUtils.ParseX509Blob(certificateData);
                     return CertificateFactory.Create(certBlob, true);
                 }
                 else
@@ -2863,7 +2860,7 @@ namespace Opc.Ua
         /// <returns></returns>
         public static X509Certificate2Collection ParseCertificateChainBlob(ReadOnlyMemory<byte> certificateData)
         {
-            X509Certificate2Collection certificateChain = new X509Certificate2Collection();
+            var certificateChain = new X509Certificate2Collection();
 
             // macOS X509Certificate2 constructor throws exception if a certchain is encoded
             // use AsnParser on macOS to parse for byteblobs,
@@ -2880,7 +2877,7 @@ namespace Opc.Ua
 #if !NETFRAMEWORK
                     if (useAsnParser)
                     {
-                        var certBlob = AsnUtils.ParseX509Blob(certificateData.Slice(offset));
+                        ReadOnlyMemory<byte> certBlob = AsnUtils.ParseX509Blob(certificateData.Slice(offset));
                         certificate = CertificateFactory.Create(certBlob, true);
                     }
                     else
@@ -2999,7 +2996,7 @@ namespace Opc.Ua
         {
             if (secret == null) throw new ArgumentNullException(nameof(secret));
             // create the hmac.
-            using (HMACSHA1 hmac = new HMACSHA1(secret))
+            using (var hmac = new HMACSHA1(secret))
             {
                 return PSHA(hmac, label, data, offset, length);
             }
@@ -3012,7 +3009,7 @@ namespace Opc.Ua
         {
             if (secret == null) throw new ArgumentNullException(nameof(secret));
             // create the hmac.
-            using (HMACSHA256 hmac = new HMACSHA256(secret))
+            using (var hmac = new HMACSHA256(secret))
             {
                 return PSHA(hmac, label, data, offset, length);
             }
@@ -3207,7 +3204,7 @@ namespace Opc.Ua
             try
             {
                 // Create a ECDsa object and generate a new keypair on the given curve
-                using (ECDsa eCDsa = ECDsa.Create(eCCurve))
+                using (var eCDsa = ECDsa.Create(eCCurve))
                 {
                     ECParameters parameters = eCDsa.ExportParameters(false);
                     return parameters.Q.X != null && parameters.Q.Y != null;

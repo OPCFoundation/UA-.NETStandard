@@ -356,7 +356,7 @@ namespace Opc.Ua.Server
 
                 m_eccUserTokenNonce = Nonce.CreateNonce(m_eccUserTokenSecurityPolicyUri);
 
-                EphemeralKeyType key = new EphemeralKeyType() {
+                var key = new EphemeralKeyType() {
                     PublicKey = m_eccUserTokenNonce.Data
                 };
 
@@ -371,10 +371,7 @@ namespace Opc.Ua.Server
         /// </summary>
         public EphemeralKeyType EphemeralKey
         {
-            set
-            {
-                m_ephemeralKey = value;
-            }
+            set => m_ephemeralKey = value;
         }
 #endif
         /// <summary>
@@ -447,7 +444,7 @@ namespace Opc.Ua.Server
             const uint additionalInfoDiagnosticsMask = (uint)(DiagnosticsMasks.ServiceAdditionalInfo | DiagnosticsMasks.OperationAdditionalInfo);
             if ((requestHeader.ReturnDiagnostics & additionalInfoDiagnosticsMask) != 0)
             {
-                var currentRoleIds = m_effectiveIdentity?.GrantedRoleIds;
+                NodeIdCollection currentRoleIds = m_effectiveIdentity?.GrantedRoleIds;
                 if ((currentRoleIds?.Contains(ObjectIds.WellKnownRole_SecurityAdmin)) == true ||
                     (currentRoleIds?.Contains(ObjectIds.WellKnownRole_ConfigureAdmin)) == true)
                 {
@@ -542,7 +539,7 @@ namespace Opc.Ua.Server
 
                         if (serverCertificateChain.Count > 1)
                         {
-                            List<byte> serverCertificateChainList = new List<byte>();
+                            var serverCertificateChainList = new List<byte>();
 
                             for (int i = 0; i < serverCertificateChain.Count; i++)
                             {
@@ -642,13 +639,13 @@ namespace Opc.Ua.Server
                 m_serverNonce = serverNonce;
 
                 // build list of signed certificates for audit event.
-                List<SignedSoftwareCertificate> signedSoftwareCertificates = new List<SignedSoftwareCertificate>();
+                var signedSoftwareCertificates = new List<SignedSoftwareCertificate>();
 
                 if (clientSoftwareCertificates != null)
                 {
                     foreach (SoftwareCertificate softwareCertificate in clientSoftwareCertificates)
                     {
-                        SignedSoftwareCertificate item = new SignedSoftwareCertificate();
+                        var item = new SignedSoftwareCertificate();
                         item.CertificateData = softwareCertificate.SignedCertificate.RawData;
                         signedSoftwareCertificates.Add(item);
                     }
@@ -689,10 +686,7 @@ namespace Opc.Ua.Server
 
             lock (m_lock)
             {
-                if (m_browseContinuationPoints == null)
-                {
-                    m_browseContinuationPoints = new List<ContinuationPoint>();
-                }
+                m_browseContinuationPoints ??= new List<ContinuationPoint>();
 
                 // remove the first continuation point if too many points.
                 while (m_browseContinuationPoints.Count > m_maxBrowseContinuationPoints)
@@ -727,7 +721,7 @@ namespace Opc.Ua.Server
                     return null;
                 }
 
-                Guid id = new Guid(continuationPoint);
+                var id = new Guid(continuationPoint);
 
                 for (int ii = 0; ii < m_browseContinuationPoints.Count; ii++)
                 {
@@ -758,10 +752,7 @@ namespace Opc.Ua.Server
 
             lock (m_lock)
             {
-                if (m_historyContinuationPoints == null)
-                {
-                    m_historyContinuationPoints = new List<HistoryContinuationPoint>();
-                }
+                m_historyContinuationPoints ??= new List<HistoryContinuationPoint>();
 
                 // remove existing continuation point if space needed.
                 while (m_historyContinuationPoints.Count >= m_maxHistoryContinuationPoints)
@@ -772,7 +763,7 @@ namespace Opc.Ua.Server
                 }
 
                 // create the cp.
-                HistoryContinuationPoint cp = new HistoryContinuationPoint();
+                var cp = new HistoryContinuationPoint();
 
                 cp.Id = id;
                 cp.Value = continuationPoint;
@@ -801,7 +792,7 @@ namespace Opc.Ua.Server
                     return null;
                 }
 
-                Guid id = new Guid(continuationPoint);
+                var id = new Guid(continuationPoint);
 
                 for (int ii = 0; ii < m_historyContinuationPoints.Count; ii++)
                 {
@@ -907,7 +898,7 @@ namespace Opc.Ua.Server
                 }
 
                 // create an anonymous token to use for subsequent validation.
-                AnonymousIdentityToken anonymousToken = new AnonymousIdentityToken();
+                var anonymousToken = new AnonymousIdentityToken();
                 anonymousToken.PolicyId = policy.PolicyId;
                 return anonymousToken;
             }
@@ -919,8 +910,7 @@ namespace Opc.Ua.Server
                 //handle the use case when the UserIdentityToken is binary encoded over xml message encoding
                 if (identityToken.Encoding == ExtensionObjectEncoding.Binary && typeof(byte[]).IsInstanceOfType(identityToken.Body))
                 {
-                    UserIdentityToken newToken = BaseVariableState.DecodeExtensionObject(null, typeof(UserIdentityToken), identityToken, false) as UserIdentityToken;
-                    if (newToken == null)
+                    if (BaseVariableState.DecodeExtensionObject(null, typeof(UserIdentityToken), identityToken, false) is not UserIdentityToken newToken)
                     {
                         throw ServiceResultException.Create(StatusCodes.BadUserAccessDenied, "Invalid user identity token provided.");
                     }
@@ -1030,7 +1020,7 @@ namespace Opc.Ua.Server
 
                         if (serverCertificateChain.Count > 1)
                         {
-                            List<byte> serverCertificateChainList = new List<byte>();
+                            var serverCertificateChainList = new List<byte>();
 
                             for (int i = 0; i < serverCertificateChain.Count; i++)
                             {

@@ -41,8 +41,8 @@ namespace Alarms
             m_controller = controller;
         }
 
-        public AlarmController Controller { get { return m_controller; } set { m_controller = value; } }
-        public BaseDataVariableState Source { get { return m_source; } set { m_source = value; } }
+        public AlarmController Controller { get => m_controller; set => m_controller = value; }
+        public BaseDataVariableState Source { get => m_source; set => m_source = value; }
         AlarmController m_controller;
         BaseDataVariableState m_source;
     }

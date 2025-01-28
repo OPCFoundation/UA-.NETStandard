@@ -11,7 +11,6 @@
 */
 
 using System;
-using System.Collections.Generic;
 
 namespace Opc.Ua
 {
@@ -83,7 +82,7 @@ namespace Opc.Ua
         /// </returns>
         public new object MemberwiseClone()
         {
-            ReferenceTypeState clone = (ReferenceTypeState)Activator.CreateInstance(this.GetType());
+            var clone = (ReferenceTypeState)Activator.CreateInstance(this.GetType());
             return CloneChildren(clone);
         }
         #endregion
@@ -94,14 +93,11 @@ namespace Opc.Ua
         /// </summary>
         public LocalizedText InverseName
         {
-            get
-            {
-                return m_inverseName;
-            }
+            get => m_inverseName;
 
             set
             {
-                if (!Object.ReferenceEquals(m_inverseName, value))
+                if (!ReferenceEquals(m_inverseName, value))
                 {
                     ChangeMasks |= NodeStateChangeMasks.NonValue;
                 }
@@ -115,10 +111,7 @@ namespace Opc.Ua
         /// </summary>
         public bool Symmetric
         {
-            get
-            {
-                return m_symmetric;
-            }
+            get => m_symmetric;
 
             set
             {
@@ -363,7 +356,7 @@ namespace Opc.Ua
             {
                 case Attributes.InverseName:
                 {
-                    LocalizedText inverseName = value as LocalizedText;
+                    var inverseName = value as LocalizedText;
 
                     if (inverseName == null && value != null)
                     {

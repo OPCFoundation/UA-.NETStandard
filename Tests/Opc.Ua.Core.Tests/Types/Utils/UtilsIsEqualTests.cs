@@ -32,7 +32,6 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.InteropServices;
-using System.Runtime.Versioning;
 using System.Xml;
 using BenchmarkDotNet.Attributes;
 using NUnit.Framework;
@@ -239,12 +238,12 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         public static bool IsEqual(byte[] value1, byte[] value2)
         {
             // check for reference equality.
-            if (Object.ReferenceEquals(value1, value2))
+            if (ReferenceEquals(value1, value2))
             {
                 return true;
             }
 
-            if (Object.ReferenceEquals(value1, null) || Object.ReferenceEquals(value2, null))
+            if (ReferenceEquals(value1, null) || ReferenceEquals(value2, null))
             {
                 return false;
             }
@@ -260,7 +259,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         public static bool IsEqualGeneric(object value1, object value2)
         {
             // check for reference equality.
-            if (Object.ReferenceEquals(value1, value2))
+            if (ReferenceEquals(value1, value2))
             {
                 return true;
             }

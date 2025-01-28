@@ -29,7 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Text;
 
 namespace Opc.Ua.Server
 {
@@ -44,7 +43,7 @@ namespace Opc.Ua.Server
         /// </summary>
         protected AggregateCalculator(NodeId aggregateId)
         {
-            AggregateConfiguration configuration = new AggregateConfiguration();
+            var configuration = new AggregateConfiguration();
             configuration.TreatUncertainAsBad = false;
             configuration.PercentDataBad = 100;
             configuration.PercentDataGood = 100;
@@ -574,7 +573,7 @@ namespace Opc.Ua.Server
         /// <returns>The new time slice.</returns>
         protected TimeSlice CreateSlice(TimeSlice previousSlice)
         {
-            TimeSlice slice = new TimeSlice();
+            var slice = new TimeSlice();
 
             // ensure slice is oriented from past to future even if request is going backwards.
             if (TimeFlowsBackward)
@@ -680,10 +679,7 @@ namespace Opc.Ua.Server
                     }
 
                     // save first value in the slice.
-                    if (slice.End == null)
-                    {
-                        slice.End = ii;
-                    }
+                    slice.End ??= ii;
 
                     // save end of slice.
                     if (slice.Begin == null)
@@ -721,10 +717,7 @@ namespace Opc.Ua.Server
                     }
 
                     // save first value in the slice.
-                    if (slice.Begin == null)
-                    {
-                        slice.Begin = ii;
-                    }
+                    slice.Begin ??= ii;
 
                     // save end of slice.
                     slice.End = ii;
@@ -832,7 +825,7 @@ namespace Opc.Ua.Server
         /// <returns>The interpolated value.</returns>
         protected DataValue Interpolate(DateTime timestamp, TimeSlice reference)
         {
-            TimeSlice slice = new TimeSlice();
+            var slice = new TimeSlice();
             slice.StartTime = timestamp;
             slice.EndTime = timestamp;
             UpdateSlice(slice);
@@ -857,7 +850,7 @@ namespace Opc.Ua.Server
                 {
                     dataValue = SlopedInterpolate(timestamp, slice.EarlyBound.Value, slice.LateBound.Value);
                     
-                    if (!Object.ReferenceEquals(slice.EarlyBound.Next, slice.LateBound))
+                    if (!ReferenceEquals(slice.EarlyBound.Next, slice.LateBound))
                     {
                         dataValue.StatusCode = dataValue.StatusCode.SetCodeBits(StatusCodes.UncertainDataSubNormal);
                     }
@@ -916,7 +909,7 @@ namespace Opc.Ua.Server
                 return new DataValue(Variant.Null, StatusCodes.BadNoData, timestamp, timestamp);
             }
 
-            DataValue dataValue = new DataValue();
+            var dataValue = new DataValue();
             dataValue.WrappedValue = earlyBound.WrappedValue;
             dataValue.SourceTimestamp = timestamp;
             dataValue.ServerTimestamp = timestamp;
@@ -974,7 +967,7 @@ namespace Opc.Ua.Server
                 double calculatedValue = slope * (timestamp - earlyBound.SourceTimestamp).TotalMilliseconds + earlyValue;
 
                 // convert back to original type.
-                DataValue dataValue = new DataValue();
+                var dataValue = new DataValue();
                 dataValue.WrappedValue = CastToOriginalType(calculatedValue, earlyBound);
                 dataValue.SourceTimestamp = timestamp;
                 dataValue.ServerTimestamp = timestamp;
@@ -1023,10 +1016,7 @@ namespace Opc.Ua.Server
             // choose the start point 
             LinkedListNode<DataValue> start = slice.EarlyBound;
 
-            if (start == null)
-            {
-                start = m_values.First;
-            }
+            start ??= m_values.First;
 
             // look for a raw value at or immediately before the timestamp.
             LinkedListNode<DataValue> startBound = start;
@@ -1111,7 +1101,7 @@ namespace Opc.Ua.Server
                 return null;
             }
 
-            List<DataValue> values = new List<DataValue>();
+            var values = new List<DataValue>();
 
             // add the start point.
             DataValue startBound = GetSimpleBound(slice.StartTime, slice);
@@ -1157,7 +1147,7 @@ namespace Opc.Ua.Server
                 return null;
             }
 
-            List<DataValue> values = new List<DataValue>();
+            var values = new List<DataValue>();
 
             // initialize slice from value list.
             for (LinkedListNode<DataValue> ii = slice.Begin; ii != null; ii = ii.Next)
@@ -1202,7 +1192,7 @@ namespace Opc.Ua.Server
                 return null;
             }
 
-            List<DataValue> values = new List<DataValue>();
+            var values = new List<DataValue>();
 
             // add the start point.
             DataValue startBound = Interpolate(slice.StartTime, slice);
@@ -1285,7 +1275,7 @@ namespace Opc.Ua.Server
             }
 
             SubRegion currentRegion = null;
-            List<SubRegion> regions = new List<SubRegion>();
+            var regions = new List<SubRegion>();
 
             for (int ii = 0; ii < values.Count; ii++)
             {

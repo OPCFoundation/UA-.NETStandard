@@ -302,10 +302,7 @@ namespace Opc.Ua.Bindings
             {
                 lock (m_lock)
                 {
-                    if (m_properties == null)
-                    {
-                        m_properties = new Dictionary<string, object>();
-                    }
+                    m_properties ??= new Dictionary<string, object>();
 
                     return m_properties;
                 }
@@ -338,10 +335,7 @@ namespace Opc.Ua.Bindings
             {
                 lock (m_lock)
                 {
-                    if (m_event == null)
-                    {
-                        m_event = new ManualResetEvent(m_completed);
-                    }
+                    m_event ??= new ManualResetEvent(m_completed);
 
                     return m_event;
                 }

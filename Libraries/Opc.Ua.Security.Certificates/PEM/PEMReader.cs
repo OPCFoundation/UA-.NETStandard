@@ -60,7 +60,7 @@ namespace Opc.Ua.Security.Certificates
             {
                 string pemText = Encoding.UTF8.GetString(pemDataBlob);
                 int count = 0;
-                foreach (var label in labels)
+                foreach (string label in labels)
                 {
                     count++;
                     string beginlabel = $"-----BEGIN {label}-----";
@@ -76,12 +76,12 @@ namespace Opc.Ua.Security.Certificates
                     {
                         continue;
                     }
-                    var pemData = pemText.Substring(beginIndex, endIndex - beginIndex);
+                    string pemData = pemText.Substring(beginIndex, endIndex - beginIndex);
                     byte[] pemDecoded = new byte[pemData.Length];
                     int bytesDecoded;
                     if (Convert.TryFromBase64Chars(pemData, pemDecoded, out bytesDecoded))
                     {
-                        RSA rsaPrivateKey = RSA.Create();
+                        var rsaPrivateKey = RSA.Create();
                         int bytesRead;
                         switch (count)
                         {
@@ -135,7 +135,7 @@ namespace Opc.Ua.Security.Certificates
                 string pemText = Encoding.UTF8.GetString(pemDataBlob);
 
                 int labelIndex = 0;
-                foreach (var label in labels)
+                foreach (string label in labels)
                 {
                     labelIndex++;
                     string beginLabel = $"-----BEGIN {label}-----";
@@ -162,7 +162,7 @@ namespace Opc.Ua.Security.Certificates
                         Array.Resize(ref decodedBytes, bytesDecoded);
 
                         // Create an ECDsa object
-                        ECDsa ecdsaKey = ECDsa.Create();
+                        var ecdsaKey = ECDsa.Create();
                         switch (labelIndex)
                         {
                             case 1:

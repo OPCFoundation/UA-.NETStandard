@@ -47,7 +47,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected ChannelToken CreateToken()
         {
-            ChannelToken token = new ChannelToken {
+            var token = new ChannelToken {
                 ChannelId = m_channelId,
                 TokenId = 0,
                 CreatedAt = DateTime.UtcNow,
@@ -225,13 +225,13 @@ namespace Opc.Ua.Bindings
         {
             int length = m_signatureKeySize + m_encryptionKeySize + m_encryptionBlockSize;
 
-            using (var hmac = Utils.CreateHMAC(algorithmName, secret))
+            using (HMAC hmac = Utils.CreateHMAC(algorithmName, secret))
             {
-                var output = Utils.PSHA(hmac, null, seed, 0, length);
+                byte[] output = Utils.PSHA(hmac, null, seed, 0, length);
 
-                var signingKey = new byte[m_signatureKeySize];
-                var encryptingKey = new byte[m_encryptionKeySize];
-                var iv = new byte[m_encryptionBlockSize];
+                byte[] signingKey = new byte[m_signatureKeySize];
+                byte[] encryptingKey = new byte[m_encryptionKeySize];
+                byte[] iv = new byte[m_encryptionBlockSize];
 
                 Buffer.BlockCopy(output, 0, signingKey, 0, signingKey.Length);
                 Buffer.BlockCopy(output, m_signatureKeySize, encryptingKey, 0, encryptingKey.Length);
@@ -257,11 +257,11 @@ namespace Opc.Ua.Bindings
         {
             int length = m_signatureKeySize + m_encryptionKeySize + m_encryptionBlockSize;
 
-            var output = m_localNonce.DeriveKey(m_remoteNonce, salt, algorithmName, length);
+            byte[] output = m_localNonce.DeriveKey(m_remoteNonce, salt, algorithmName, length);
 
-            var signingKey = new byte[m_signatureKeySize];
-            var encryptingKey = new byte[m_encryptionKeySize];
-            var iv = new byte[m_encryptionBlockSize];
+            byte[] signingKey = new byte[m_signatureKeySize];
+            byte[] encryptingKey = new byte[m_encryptionKeySize];
+            byte[] iv = new byte[m_encryptionBlockSize];
 
             Buffer.BlockCopy(output, 0, signingKey, 0, signingKey.Length);
             Buffer.BlockCopy(output, m_signatureKeySize, encryptingKey, 0, encryptingKey.Length);
@@ -305,9 +305,9 @@ namespace Opc.Ua.Bindings
                 case SecurityPolicies.ECC_brainpoolP256r1:
                 {
                     algorithmName = HashAlgorithmName.SHA256;
-                    var length = (SecurityMode == MessageSecurityMode.Sign) ? s_HkdfAes128SignOnlyKeyLength : s_HkdfAes128SignAndEncryptKeyLength;
-                    var serverSalt = Utils.Append(length, s_HkdfServerLabel, serverSecret, clientSecret);
-                    var clientSalt = Utils.Append(length, s_HkdfClientLabel, clientSecret, serverSecret);
+                    byte[] length = (SecurityMode == MessageSecurityMode.Sign) ? s_HkdfAes128SignOnlyKeyLength : s_HkdfAes128SignAndEncryptKeyLength;
+                    byte[] serverSalt = Utils.Append(length, s_HkdfServerLabel, serverSecret, clientSecret);
+                    byte[] clientSalt = Utils.Append(length, s_HkdfClientLabel, clientSecret, serverSecret);
 
 #if DEBUG
                     Utils.LogTrace("Length={0}", Utils.ToHexString(length));
@@ -326,9 +326,9 @@ namespace Opc.Ua.Bindings
                 case SecurityPolicies.ECC_brainpoolP384r1:
                 {
                     algorithmName = HashAlgorithmName.SHA384;
-                    var length = (SecurityMode == MessageSecurityMode.Sign) ? s_HkdfAes256SignOnlyKeyLength : s_HkdfAes256SignAndEncryptKeyLength;
-                    var serverSalt = Utils.Append(length, s_HkdfServerLabel, serverSecret, clientSecret);
-                    var clientSalt = Utils.Append(length, s_HkdfClientLabel, clientSecret, serverSecret);
+                    byte[] length = (SecurityMode == MessageSecurityMode.Sign) ? s_HkdfAes256SignOnlyKeyLength : s_HkdfAes256SignAndEncryptKeyLength;
+                    byte[] serverSalt = Utils.Append(length, s_HkdfServerLabel, serverSecret, clientSecret);
+                    byte[] clientSalt = Utils.Append(length, s_HkdfClientLabel, clientSecret, serverSecret);
 
 #if DEBUG
                     Utils.LogTrace("Length={0}", Utils.ToHexString(length));
@@ -347,9 +347,9 @@ namespace Opc.Ua.Bindings
                 case SecurityPolicies.ECC_curve448:
                 {
                     algorithmName = HashAlgorithmName.SHA256;
-                    var length = s_HkdfChaCha20Poly1305KeyLength;
-                    var serverSalt = Utils.Append(length, s_HkdfServerLabel, serverSecret, clientSecret);
-                    var clientSalt = Utils.Append(length, s_HkdfClientLabel, clientSecret, serverSecret);
+                    byte[] length = s_HkdfChaCha20Poly1305KeyLength;
+                    byte[] serverSalt = Utils.Append(length, s_HkdfServerLabel, serverSecret, clientSecret);
+                    byte[] clientSalt = Utils.Append(length, s_HkdfClientLabel, clientSecret, serverSecret);
 
 #if DEBUG
                     Utils.LogTrace("Length={0}", Utils.ToHexString(length));
@@ -492,7 +492,7 @@ namespace Opc.Ua.Bindings
                 }
 
                 // write the body to stream.
-                ArraySegmentStream ostrm = new ArraySegmentStream(
+                var ostrm = new ArraySegmentStream(
                     BufferManager,
                     SendBufferSize,
                     headerSize,
@@ -511,11 +511,11 @@ namespace Opc.Ua.Bindings
                 }
 
                 // check for raw bytes.
-                ArraySegment<byte>? rawBytes = messageBody as ArraySegment<byte>?;
+                var rawBytes = messageBody as ArraySegment<byte>?;
 
                 if (rawBytes != null)
                 {
-                    using (BinaryEncoder encoder = new BinaryEncoder(ostrm, Quotas.MessageContext, true))
+                    using (var encoder = new BinaryEncoder(ostrm, Quotas.MessageContext, true))
                     {
                         encoder.WriteRawBytes(rawBytes.Value.Array, rawBytes.Value.Offset, rawBytes.Value.Count);
                     }
@@ -530,7 +530,7 @@ namespace Opc.Ua.Bindings
                     chunksToProcess.Add(new ArraySegment<byte>(buffer, 0, 0));
                 }
 
-                BufferCollection chunksToSend = new BufferCollection(chunksToProcess.Capacity);
+                var chunksToSend = new BufferCollection(chunksToProcess.Capacity);
 
 #if NETSTANDARD2_1_OR_GREATER || NET6_0_OR_GREATER
                 Span<byte> paddingBuffer = stackalloc byte[EncryptionBlockSize];
@@ -548,8 +548,8 @@ namespace Opc.Ua.Bindings
                         continue;
                     }
 
-                    MemoryStream strm = new MemoryStream(chunkToProcess.Array, 0, SendBufferSize);
-                    using (BinaryEncoder encoder = new BinaryEncoder(strm, Quotas.MessageContext, false))
+                    var strm = new MemoryStream(chunkToProcess.Array, 0, SendBufferSize);
+                    using (var encoder = new BinaryEncoder(strm, Quotas.MessageContext, false))
                     {
                         // check if the message needs to be aborted.
                         if (MessageLimitsExceeded(isRequest, messageSize + chunkToProcess.Count - headerSize, ii + 1))
@@ -557,7 +557,7 @@ namespace Opc.Ua.Bindings
                             encoder.WriteUInt32(null, messageType | TcpMessageType.Abort);
 
                             // replace the body in the chunk with an error message.
-                            using (BinaryEncoder errorEncoder = new BinaryEncoder(
+                            using (var errorEncoder = new BinaryEncoder(
                                 chunkToProcess.Array,
                                 chunkToProcess.Offset,
                                 chunkToProcess.Count,
@@ -666,7 +666,7 @@ namespace Opc.Ua.Bindings
                             (SecurityMode != MessageSecurityMode.None && AuthenticatedEncryption))
                         {
                             // encrypt the data.
-                            ArraySegment<byte> dataToEncrypt = new ArraySegment<byte>(chunkToProcess.Array, TcpMessageLimits.SymmetricHeaderSize, encoder.Position - TcpMessageLimits.SymmetricHeaderSize);
+                            var dataToEncrypt = new ArraySegment<byte>(chunkToProcess.Array, TcpMessageLimits.SymmetricHeaderSize, encoder.Position - TcpMessageLimits.SymmetricHeaderSize);
                             Encrypt(token, dataToEncrypt, isRequest);
                         }
 
@@ -1011,7 +1011,7 @@ namespace Opc.Ua.Bindings
             // get HMAC object.
             HMAC hmac = (useClientKeys) ? token.ClientHmac : token.ServerHmac;
             // compute hash.
-            MemoryStream istrm = new MemoryStream(dataToSign.Array, dataToSign.Offset, dataToSign.Count, false);
+            var istrm = new MemoryStream(dataToSign.Array, dataToSign.Offset, dataToSign.Count, false);
             byte[] signature = hmac.ComputeHash(istrm);
             istrm.Dispose();
 
@@ -1058,7 +1058,7 @@ namespace Opc.Ua.Bindings
             // get HMAC object.
             HMAC hmac = (useClientKeys) ? token.ClientHmac : token.ServerHmac;
 
-            MemoryStream istrm = new MemoryStream(dataToVerify.Array, dataToVerify.Offset, dataToVerify.Count, false);
+            var istrm = new MemoryStream(dataToVerify.Array, dataToVerify.Offset, dataToVerify.Count, false);
             byte[] computedSignature = hmac.ComputeHash(istrm);
             istrm.Dispose();
             // compare signatures.

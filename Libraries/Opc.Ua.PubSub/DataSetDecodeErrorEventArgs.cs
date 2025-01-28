@@ -63,14 +63,8 @@ namespace Opc.Ua.PubSub
         /// </summary>
         public DataSetDecodeErrorReason DecodeErrorReason
         {
-            get
-            {
-                return m_dataSetDecodeErrorReason;
-            }
-            set
-            {
-                m_dataSetDecodeErrorReason = value;
-            }
+            get => m_dataSetDecodeErrorReason;
+            set => m_dataSetDecodeErrorReason = value;
         }
 
         /// <summary>
@@ -78,28 +72,16 @@ namespace Opc.Ua.PubSub
         /// </summary>
         public UaNetworkMessage UaNetworkMessage
         {
-            get
-            {
-                return m_networkMessage;
-            }
-            set
-            {
-                m_networkMessage = value;
-            }
+            get => m_networkMessage;
+            set => m_networkMessage = value;
         }
         /// <summary>
         /// The DataSetReader used by the decoding operation
         /// </summary>
         public DataSetReaderDataType DataSetReader
         {
-            get
-            {
-                return m_dataSetReader;
-            }
-            set
-            {
-                m_dataSetReader = value;
-            }
+            get => m_dataSetReader;
+            set => m_dataSetReader = value;
         }
         #endregion
     }

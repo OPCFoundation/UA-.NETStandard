@@ -26,8 +26,8 @@ namespace Opc.Ua
         /// <remarks>May be null if no security is used.</remarks>
         public EndpointDescription Description
         {
-            get { return m_description; }
-            set { m_description = value; }
+            get => m_description;
+            set => m_description = value;
         }
 
         /// <summary>
@@ -35,8 +35,8 @@ namespace Opc.Ua
         /// </summary>
         public EndpointConfiguration Configuration
         {
-            get { return m_configuration; }
-            set { m_configuration = value; }
+            get => m_configuration;
+            set => m_configuration = value;
         }
 
         /// <summary>
@@ -45,8 +45,8 @@ namespace Opc.Ua
         /// <remarks>May be null if no security is used.</remarks>
         public X509Certificate2 ClientCertificate
         {
-            get { return m_clientCertificate; }
-            set { m_clientCertificate = value; }
+            get => m_clientCertificate;
+            set => m_clientCertificate = value;
         }
 
         /// <summary>
@@ -57,8 +57,8 @@ namespace Opc.Ua
         /// </value>
         public X509Certificate2Collection ClientCertificateChain
         {
-            get { return m_clientCertificateChain; }
-            set { m_clientCertificateChain = value; }
+            get => m_clientCertificateChain;
+            set => m_clientCertificateChain = value;
         }
 
         /// <summary>
@@ -67,8 +67,8 @@ namespace Opc.Ua
         /// <remarks>May be null if no security is used.</remarks>
         public X509Certificate2 ServerCertificate
         {
-            get { return m_serverCertificate; }
-            set { m_serverCertificate = value; }
+            get => m_serverCertificate;
+            set => m_serverCertificate = value;
         }
 
         /// <summary>
@@ -81,8 +81,8 @@ namespace Opc.Ua
         /// </remarks>
         public ICertificateValidator CertificateValidator
         {
-            get { return m_certificateValidator; }
-            set { m_certificateValidator = value; }
+            get => m_certificateValidator;
+            set => m_certificateValidator = value;
         }
 
         /// <summary>
@@ -98,8 +98,8 @@ namespace Opc.Ua
         /// <seealso cref="Factory" />
         public NamespaceTable NamespaceUris
         {
-            get { return m_namespaceUris; }
-            set { m_namespaceUris = value; }
+            get => m_namespaceUris;
+            set => m_namespaceUris = value;
         }
 
         /// <summary>
@@ -118,8 +118,8 @@ namespace Opc.Ua
         /// <seealso cref="NamespaceUris" />
         public IEncodeableFactory Factory
         {
-            get { return m_channelFactory; }
-            set { m_channelFactory = value; }
+            get => m_channelFactory;
+            set => m_channelFactory = value;
         }
         #endregion
 

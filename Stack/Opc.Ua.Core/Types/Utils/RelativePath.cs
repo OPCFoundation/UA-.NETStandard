@@ -45,7 +45,7 @@ namespace Opc.Ua
         {
             Initialize();
 
-            RelativePathElement element = new RelativePathElement();
+            var element = new RelativePathElement();
 
             element.ReferenceTypeId = referenceTypeId;
             element.IsInverse = isInverse;
@@ -62,7 +62,7 @@ namespace Opc.Ua
         /// </summary>
         public string Format(ITypeTable typeTree)
         {
-            RelativePathFormatter formatter = new RelativePathFormatter(this, typeTree);
+            var formatter = new RelativePathFormatter(this, typeTree);
             return formatter.ToString();
         }
 
@@ -87,14 +87,14 @@ namespace Opc.Ua
             if (typeTree == null) throw new ArgumentNullException(nameof(typeTree));
 
             // parse the string.
-            RelativePathFormatter formatter = RelativePathFormatter.Parse(browsePath);
+            var formatter = RelativePathFormatter.Parse(browsePath);
 
             // convert the browse names to node ids.
-            RelativePath relativePath = new RelativePath();
+            var relativePath = new RelativePath();
 
             foreach (RelativePathFormatter.Element element in formatter.Elements)
             {
-                RelativePathElement parsedElement = new RelativePathElement();
+                var parsedElement = new RelativePathElement();
 
                 parsedElement.ReferenceTypeId = null;
                 parsedElement.IsInverse = false;
@@ -154,14 +154,14 @@ namespace Opc.Ua
 
         {
             // parse the string.
-            RelativePathFormatter formatter = RelativePathFormatter.Parse(browsePath, currentTable, targetTable);
+            var formatter = RelativePathFormatter.Parse(browsePath, currentTable, targetTable);
 
             // convert the browse names to node ids.
-            RelativePath relativePath = new RelativePath();
+            var relativePath = new RelativePath();
 
             foreach (RelativePathFormatter.Element element in formatter.Elements)
             {
-                RelativePathElement parsedElement = new RelativePathElement();
+                var parsedElement = new RelativePathElement();
 
                 parsedElement.ReferenceTypeId = null;
                 parsedElement.IsInverse = false;
@@ -396,7 +396,7 @@ namespace Opc.Ua
         {
             if (format == null)
             {
-                StringBuilder path = new StringBuilder();
+                var path = new StringBuilder();
 
                 foreach (Element element in m_elements)
                 {
@@ -457,15 +457,15 @@ namespace Opc.Ua
                 return new RelativePathFormatter();
             }
 
-            RelativePathFormatter path = new RelativePathFormatter();
+            var path = new RelativePathFormatter();
 
             try
             {
-                StringReader reader = new StringReader(textToParse);
+                var reader = new StringReader(textToParse);
 
                 while (reader.Peek() != -1)
                 {
-                    Element element = Element.Parse(reader);
+                    var element = Element.Parse(reader);
                     path.m_elements.Add(element);
                 }
             }
@@ -499,18 +499,18 @@ namespace Opc.Ua
 
                 m_referenceTypeName = null;
                 m_targetName = element.TargetName;
-                m_elementType = RelativePathFormatter.ElementType.ForwardReference;
+                m_elementType = ElementType.ForwardReference;
                 m_includeSubtypes = element.IncludeSubtypes;
 
                 if (!element.IsInverse && element.IncludeSubtypes)
                 {
                     if (element.ReferenceTypeId == ReferenceTypeIds.HierarchicalReferences)
                     {
-                        m_elementType = RelativePathFormatter.ElementType.AnyHierarchical;
+                        m_elementType = ElementType.AnyHierarchical;
                     }
                     else if (element.ReferenceTypeId == ReferenceTypeIds.Aggregates)
                     {
-                        m_elementType = RelativePathFormatter.ElementType.AnyComponent;
+                        m_elementType = ElementType.AnyComponent;
                     }
                     else
                     {
@@ -521,7 +521,7 @@ namespace Opc.Ua
                 {
                     if (element.IsInverse)
                     {
-                        m_elementType = RelativePathFormatter.ElementType.InverseReference;
+                        m_elementType = ElementType.InverseReference;
                     }
 
                     m_referenceTypeName = typeTree.FindReferenceTypeName(element.ReferenceTypeId);
@@ -533,7 +533,7 @@ namespace Opc.Ua
             /// </summary>
             public Element()
             {
-                m_elementType = RelativePathFormatter.ElementType.AnyHierarchical;
+                m_elementType = ElementType.AnyHierarchical;
                 m_referenceTypeName = null;
                 m_includeSubtypes = true;
                 m_targetName = null;
@@ -546,8 +546,8 @@ namespace Opc.Ua
             /// </summary>
             public ElementType ElementType
             {
-                get { return m_elementType; }
-                set { m_elementType = value; }
+                get => m_elementType;
+                set => m_elementType = value;
             }
 
             /// <summary>
@@ -555,8 +555,8 @@ namespace Opc.Ua
             /// </summary>
             public QualifiedName ReferenceTypeName
             {
-                get { return m_referenceTypeName; }
-                set { m_referenceTypeName = value; }
+                get => m_referenceTypeName;
+                set => m_referenceTypeName = value;
             }
 
             /// <summary>
@@ -564,8 +564,8 @@ namespace Opc.Ua
             /// </summary>
             public bool IncludeSubtypes
             {
-                get { return m_includeSubtypes; }
-                set { m_includeSubtypes = value; }
+                get => m_includeSubtypes;
+                set => m_includeSubtypes = value;
             }
 
             /// <summary>
@@ -573,8 +573,8 @@ namespace Opc.Ua
             /// </summary>
             public QualifiedName TargetName
             {
-                get { return m_targetName; }
-                set { m_targetName = value; }
+                get => m_targetName;
+                set => m_targetName = value;
             }
             #endregion
 
@@ -599,7 +599,7 @@ namespace Opc.Ua
             {
                 if (format == null)
                 {
-                    StringBuilder path = new StringBuilder();
+                    var path = new StringBuilder();
 
                     // write the reference type component.
                     switch (m_elementType)
@@ -671,7 +671,7 @@ namespace Opc.Ua
             /// <param name="reader">The string read stream containing the text to convert to a RelativePathStringElement</param>
             public static Element Parse(StringReader reader)
             {
-                Element element = new Element();
+                var element = new Element();
 
                 int next = reader.Peek();
 
@@ -736,7 +736,7 @@ namespace Opc.Ua
                 ushort namespaceIndex = 0;
 
                 // extract namespace index if present.
-                StringBuilder buffer = new StringBuilder();
+                var buffer = new StringBuilder();
 
                 int last = reader.Peek();
 

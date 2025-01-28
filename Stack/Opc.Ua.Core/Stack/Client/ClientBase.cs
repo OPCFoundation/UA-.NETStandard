@@ -166,24 +166,15 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public DiagnosticsMasks ReturnDiagnostics
         {
-            get
-            {
-                return m_returnDiagnostics;
-            }
+            get => m_returnDiagnostics;
 
-            set
-            {
-                m_returnDiagnostics = value;
-            }
+            set => m_returnDiagnostics = value;
         }
 
         /// <inheritdoc/>
         public int OperationTimeout
         {
-            get
-            {
-                return NullableTransportChannel?.OperationTimeout ?? 0;
-            }
+            get => NullableTransportChannel?.OperationTimeout ?? 0;
 
             set
             {
@@ -345,15 +336,9 @@ namespace Opc.Ua
         /// <value>The authentication token.</value>
         protected NodeId AuthenticationToken
         {
-            get
-            {
-                return m_authenticationToken;
-            }
+            get => m_authenticationToken;
 
-            set
-            {
-                m_authenticationToken = value;
-            }
+            set => m_authenticationToken = value;
         }
 
         /// <summary>
@@ -375,10 +360,7 @@ namespace Opc.Ua
         {
             lock (m_lock)
             {
-                if (request.RequestHeader == null)
-                {
-                    request.RequestHeader = new RequestHeader();
-                }
+                request.RequestHeader ??= new RequestHeader();
 
                 if (useDefaults)
                 {

@@ -56,7 +56,7 @@ namespace Alarms
         {
             if (create)
             {
-                Initialize(Opc.Ua.ObjectTypes.AcknowledgeableConditionType, name);
+                Initialize(ObjectTypes.AcknowledgeableConditionType, name);
             }
         }
 
@@ -66,10 +66,7 @@ namespace Alarms
         {
             // Create an alarm and trigger name - Create a base method for creating the trigger, just provide the name
 
-            if (m_alarm == null)
-            {
-                m_alarm = new AcknowledgeableConditionState(m_parent);
-            }
+            m_alarm ??= new AcknowledgeableConditionState(m_parent);
 
             AcknowledgeableConditionState alarm = GetAlarm();
             InitializeInternal(alarm);
@@ -91,10 +88,7 @@ namespace Alarms
             alarm.OnAcknowledge = OnAcknowledge;
 
             // Create any optional 
-            if (alarm.ConfirmedState == null)
-            {
-                alarm.ConfirmedState = new TwoStateVariableState(alarm);
-            }
+            alarm.ConfirmedState ??= new TwoStateVariableState(alarm);
 
             alarm.Confirm = new AddCommentMethodState(alarm);
         }
@@ -153,10 +147,7 @@ namespace Alarms
 
         private AcknowledgeableConditionState GetAlarm(BaseEventState alarm = null)
         {
-            if (alarm == null)
-            {
-                alarm = m_alarm;
-            }
+            alarm ??= m_alarm;
             return (AcknowledgeableConditionState)alarm;
         }
 

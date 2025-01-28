@@ -37,15 +37,9 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public IServiceMessageContext MessageContext
         {
-            get
-            {
-                return m_messageContext;
-            }
+            get => m_messageContext;
 
-            set
-            {
-                m_messageContext = value;
-            }
+            set => m_messageContext = value;
         }
 
         /// <summary>
@@ -53,15 +47,9 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public ICertificateValidator CertificateValidator
         {
-            get
-            {
-                return m_certificateValidator;
-            }
+            get => m_certificateValidator;
 
-            set
-            {
-                m_certificateValidator = value;
-            }
+            set => m_certificateValidator = value;
         }
 
         /// <summary>
@@ -69,15 +57,9 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public int MaxMessageSize
         {
-            get
-            {
-                return m_maxMessageSize;
-            }
+            get => m_maxMessageSize;
 
-            set
-            {
-                m_maxMessageSize = value;
-            }
+            set => m_maxMessageSize = value;
         }
 
         /// <summary>
@@ -85,15 +67,9 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public int MaxBufferSize
         {
-            get
-            {
-                return m_maxBufferSize;
-            }
+            get => m_maxBufferSize;
 
-            set
-            {
-                m_maxBufferSize = value;
-            }
+            set => m_maxBufferSize = value;
         }
 
 
@@ -103,15 +79,9 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public int ChannelLifetime
         {
-            get
-            {
-                return m_channelLifetime;
-            }
+            get => m_channelLifetime;
 
-            set
-            {
-                m_channelLifetime = value;
-            }
+            set => m_channelLifetime = value;
         }
 
         /// <summary>
@@ -119,15 +89,9 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public int SecurityTokenLifetime
         {
-            get
-            {
-                return m_securityTokenLifetime;
-            }
+            get => m_securityTokenLifetime;
 
-            set
-            {
-                m_securityTokenLifetime = value;
-            }
+            set => m_securityTokenLifetime = value;
         }
         #endregion
 

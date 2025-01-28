@@ -214,7 +214,7 @@ namespace Opc.Ua
             byte[] encryptedBuffer = outputBuffer.Array;
             RSAEncryptionPadding rsaPadding = GetRSAEncryptionPadding(padding);
 
-            using (MemoryStream ostrm = new MemoryStream(
+            using (var ostrm = new MemoryStream(
                 encryptedBuffer,
                 outputBuffer.Offset,
                 outputBuffer.Count))
@@ -300,7 +300,7 @@ namespace Opc.Ua
             byte[] decryptedBuffer = outputBuffer.Array;
             RSAEncryptionPadding rsaPadding = GetRSAEncryptionPadding(padding);
 
-            using (MemoryStream ostrm = new MemoryStream(
+            using (var ostrm = new MemoryStream(
                 decryptedBuffer,
                 outputBuffer.Offset,
                 outputBuffer.Count))
@@ -326,7 +326,7 @@ namespace Opc.Ua
         {
             try
             {
-                Opc.Ua.Test.RandomSource randomSource = new Opc.Ua.Test.RandomSource();
+                var randomSource = new Opc.Ua.Test.RandomSource();
                 int blockSize = 0x10;
                 byte[] testBlock = new byte[blockSize];
                 randomSource.NextBytes(testBlock, 0, blockSize);
@@ -350,7 +350,7 @@ namespace Opc.Ua
 #else
             using (var rsa = RSA.Create())
             {
-                return RsaUtils.TryVerifyRSAPssSign(rsa, rsa);
+                return TryVerifyRSAPssSign(rsa, rsa);
             }
 #endif
         });

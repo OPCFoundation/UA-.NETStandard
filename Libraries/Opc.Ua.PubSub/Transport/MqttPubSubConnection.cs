@@ -37,7 +37,6 @@ using MQTTnet.Client;
 using MQTTnet.Formatter;
 using MQTTnet.Protocol;
 using Opc.Ua.PubSub.Encoding;
-using Opc.Ua.PubSub.PublishedData;
 using DataSet = Opc.Ua.PubSub.PublishedData.DataSet;
 
 namespace Opc.Ua.PubSub.Transport
@@ -279,10 +278,7 @@ namespace Opc.Ua.PubSub.Transport
                                 if (ExtensionObject.ToEncodeable(
                                     networkMessage.WriterGroupConfiguration.TransportSettings) is BrokerWriterGroupTransportDataType transportSettings)
                                 {
-                                    if (queueName == null)
-                                    {
-                                        queueName = transportSettings.QueueName;
-                                    }
+                                    queueName ??= transportSettings.QueueName;
                                     // if the value is not specified and the value of the parent object shall be used
                                     if (qos == BrokerTransportQualityOfService.NotSpecified)
                                     {
@@ -411,10 +407,7 @@ namespace Opc.Ua.PubSub.Transport
             MqttClient publisherClient = null;
             MqttClient subscriberClient = null;
 
-            if (m_publisherMqttClientOptions == null)
-            {
-                m_publisherMqttClientOptions = GetMqttClientOptions();
-            }
+            m_publisherMqttClientOptions ??= GetMqttClientOptions();
 
             int nrOfPublishers = Publishers.Count;
             int nrOfSubscribers = GetAllDataSetReaders().Count;
@@ -460,10 +453,7 @@ namespace Opc.Ua.PubSub.Transport
                     }
                 }
 
-                if (m_subscriberMqttClientOptions == null)
-                {
-                    m_subscriberMqttClientOptions = GetMqttClientOptions();
-                }
+                m_subscriberMqttClientOptions ??= GetMqttClientOptions();
 
                 subscriberClient = (MqttClient)await MqttClientCreator.GetMqttClientAsync(
                     m_reconnectIntervalSeconds,
@@ -852,7 +842,7 @@ namespace Opc.Ua.PubSub.Transport
         /// <param name="context">The context of the validation</param>
         private bool ValidateBrokerCertificate(MqttClientCertificateValidationEventArgs context)
         {
-            var brokerCertificate = X509CertificateLoader.LoadCertificate(context.Certificate.GetRawCertData());
+            X509Certificate2 brokerCertificate = X509CertificateLoader.LoadCertificate(context.Certificate.GetRawCertData());
 
             try
             {

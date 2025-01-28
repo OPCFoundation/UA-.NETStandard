@@ -13,7 +13,6 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
 using System.Net;
@@ -51,14 +50,8 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public int LastActionTicks
         {
-            get
-            {
-                return m_lastActionTicks;
-            }
-            set
-            {
-                m_lastActionTicks = value;
-            }
+            get => m_lastActionTicks;
+            set => m_lastActionTicks = value;
         }
 
         /// <summary>
@@ -66,14 +59,8 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public int ActiveActionCount
         {
-            get
-            {
-                return m_actionCount;
-            }
-            set
-            {
-                m_actionCount = value;
-            }
+            get => m_actionCount;
+            set => m_actionCount = value;
         }
 
         /// <summary>
@@ -81,14 +68,8 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public int BlockedUntilTicks
         {
-            get
-            {
-                return m_blockedUntilTicks;
-            }
-            set
-            {
-                m_blockedUntilTicks = value;
-            }
+            get => m_blockedUntilTicks;
+            set => m_blockedUntilTicks = value;
         }
         #endregion
 
@@ -204,7 +185,7 @@ namespace Opc.Ua.Bindings
         {
             int currentTicks = HiResClock.TickCount;
 
-            foreach (var entry in m_activeClients)
+            foreach (KeyValuePair<IPAddress, ActiveClient> entry in m_activeClients)
             {
                 IPAddress clientIp = entry.Key;
                 ActiveClient rClient = entry.Value;
@@ -316,10 +297,10 @@ namespace Opc.Ua.Bindings
 
                     if (m_channels != null)
                     {
-                        var channels = m_channels.ToArray();
+                        KeyValuePair<uint, TcpListenerChannel>[] channels = m_channels.ToArray();
                         m_channels.Clear();
                         m_channels = null;
-                        foreach (var channelKeyValue in channels)
+                        foreach (KeyValuePair<uint, TcpListenerChannel> channelKeyValue in channels)
                         {
                             Utils.SilentDispose(channelKeyValue.Value);
                         }
@@ -416,8 +397,8 @@ namespace Opc.Ua.Bindings
         {
             try
             {
-                var channelIdString = globalChannelId.Substring(ListenerId.Length + 1);
-                var channelId = Convert.ToUInt32(channelIdString, CultureInfo.InvariantCulture);
+                string channelIdString = globalChannelId.Substring(ListenerId.Length + 1);
+                uint channelId = Convert.ToUInt32(channelIdString, CultureInfo.InvariantCulture);
 
                 TcpListenerChannel channel = null;
                 if (channelId > 0 &&
@@ -498,7 +479,7 @@ namespace Opc.Ua.Bindings
         /// <inheritdoc/>
         public void CreateReverseConnection(Uri url, int timeout)
         {
-            TcpServerChannel channel = new TcpServerChannel(
+            var channel = new TcpServerChannel(
                 m_listenerId,
                 this,
                 m_bufferManager,
@@ -593,9 +574,9 @@ namespace Opc.Ua.Bindings
                 // create IPv4 or IPv6 socket.
                 try
                 {
-                    IPEndPoint endpoint = new IPEndPoint(ipAddress, port);
+                    var endpoint = new IPEndPoint(ipAddress, port);
                     m_listeningSocket = new Socket(endpoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
-                    SocketAsyncEventArgs args = new SocketAsyncEventArgs();
+                    var args = new SocketAsyncEventArgs();
                     args.Completed += OnAccept;
                     args.UserToken = m_listeningSocket;
                     m_listeningSocket.Bind(endpoint);
@@ -627,9 +608,9 @@ namespace Opc.Ua.Bindings
                     // create IPv6 socket
                     try
                     {
-                        IPEndPoint endpointIPv6 = new IPEndPoint(IPAddress.IPv6Any, port);
+                        var endpointIPv6 = new IPEndPoint(IPAddress.IPv6Any, port);
                         m_listeningSocketIPv6 = new Socket(endpointIPv6.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
-                        SocketAsyncEventArgs args = new SocketAsyncEventArgs();
+                        var args = new SocketAsyncEventArgs();
                         args.Completed += OnAccept;
                         args.UserToken = m_listeningSocketIPv6;
                         m_listeningSocketIPv6.Bind(endpointIPv6);
@@ -728,7 +709,7 @@ namespace Opc.Ua.Bindings
         {
             m_quotas.CertificateValidator = validator;
             m_serverCertificateTypesProvider = certificateTypesProvider;
-            foreach (var description in m_descriptions)
+            foreach (EndpointDescription description in m_descriptions)
             {
                 // TODO: why only if SERVERCERT != null
                 if (description.ServerCertificate != null)
@@ -796,7 +777,7 @@ namespace Opc.Ua.Bindings
                         return;
                     }
 
-                    var channels = m_channels;
+                    ConcurrentDictionary<uint, TcpListenerChannel> channels = m_channels;
                     if (channels != null && !isBlocked)
                     {
                         // TODO: .Count is flagged as hotpath, implement separate counter
@@ -904,7 +885,7 @@ namespace Opc.Ua.Bindings
             var channels = new List<TcpListenerChannel>();
 
             bool cleanup = false;
-            foreach (var chEntry in m_channels)
+            foreach (KeyValuePair<uint, TcpListenerChannel> chEntry in m_channels)
             {
                 if (chEntry.Value.ElapsedSinceLastActiveTime > m_quotas.ChannelLifetime)
                 {
@@ -916,7 +897,7 @@ namespace Opc.Ua.Bindings
             if (cleanup)
             {
                 Utils.LogInfo("TCPLISTENER: {0} channels scheduled for IdleCleanup.", channels.Count);
-                foreach (var channel in channels)
+                foreach (TcpListenerChannel channel in channels)
                 {
                     channel.IdleCleanup();
                 }
@@ -1018,7 +999,7 @@ namespace Opc.Ua.Bindings
 
                 if (m_callback != null)
                 {
-                    TcpServerChannel channel = (TcpServerChannel)args[0];
+                    var channel = (TcpServerChannel)args[0];
                     IServiceResponse response = m_callback.EndProcessRequest(result);
                     channel.SendResponse((uint)args[1], response);
                 }
@@ -1063,7 +1044,7 @@ namespace Opc.Ua.Bindings
             {
                 if (!baseAddress.AbsolutePath.EndsWith("/", StringComparison.Ordinal))
                 {
-                    UriBuilder uriBuilder = new UriBuilder(baseAddress);
+                    var uriBuilder = new UriBuilder(baseAddress);
                     uriBuilder.Path = uriBuilder.Path + "/";
                     baseAddress = uriBuilder.Uri;
                 }

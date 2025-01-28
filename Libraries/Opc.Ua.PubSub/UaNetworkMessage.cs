@@ -29,7 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
 using System.IO;
 
 namespace Opc.Ua.PubSub
@@ -112,10 +111,7 @@ namespace Opc.Ua.PubSub
                 return ((m_dataSetWriterId != 0) ? m_dataSetWriterId : (UInt16?)null);
             }
 
-            set
-            {
-                m_dataSetWriterId = (value != null) ? value.Value : (ushort)0;
-            }
+            set => m_dataSetWriterId = (value != null) ? value.Value : (ushort)0;
         }
 
         /// <summary>

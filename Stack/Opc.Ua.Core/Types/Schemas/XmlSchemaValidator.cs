@@ -81,7 +81,7 @@ namespace Opc.Ua.Schema.Xml
             {
                 m_schema = XmlSchema.Read(xmlReader, new ValidationEventHandler(OnValidate));
 
-                var assembly = typeof(XmlSchemaValidator).GetTypeInfo().Assembly;
+                Assembly assembly = typeof(XmlSchemaValidator).GetTypeInfo().Assembly;
                 foreach (XmlSchemaImport import in m_schema.Includes)
                 {
                     string location = null;
@@ -91,11 +91,11 @@ namespace Opc.Ua.Schema.Xml
                         location = import.SchemaLocation;
                     }
 
-                    FileInfo fileInfo = new FileInfo(location);
-                    var settings = Utils.DefaultXmlReaderSettings();
+                    var fileInfo = new FileInfo(location);
+                    XmlReaderSettings settings = Utils.DefaultXmlReaderSettings();
                     if (!fileInfo.Exists)
                     {
-                        using (StreamReader strm = new StreamReader(assembly.GetManifestResourceStream(location)))
+                        using (var strm = new StreamReader(assembly.GetManifestResourceStream(location)))
                         using (var schemaReader = XmlReader.Create(strm, settings))
                         {
                             import.Schema = XmlSchema.Read(schemaReader, new ValidationEventHandler(OnValidate));
@@ -124,8 +124,8 @@ namespace Opc.Ua.Schema.Xml
         {
             XmlWriterSettings settings = Utils.DefaultXmlWriterSettings();
 
-            MemoryStream ostrm = new MemoryStream();
-            XmlWriter writer = XmlWriter.Create(ostrm, settings);
+            var ostrm = new MemoryStream();
+            var writer = XmlWriter.Create(ostrm, settings);
 
             try
             {
@@ -141,7 +141,7 @@ namespace Opc.Ua.Schema.Xml
                         {
                             if (element.Name == typeName)
                             {
-                                XmlSchema schema = new XmlSchema();
+                                var schema = new XmlSchema();
                                 schema.Items.Add(element.ElementSchemaType);
                                 schema.Items.Add(element);
                                 schema.Write(writer);

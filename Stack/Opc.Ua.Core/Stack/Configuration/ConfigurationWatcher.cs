@@ -28,7 +28,7 @@ namespace Opc.Ua
         {
             if (configuration == null) throw new ArgumentNullException(nameof(configuration));
 
-            FileInfo fileInfo = new FileInfo(configuration.SourceFilePath);
+            var fileInfo = new FileInfo(configuration.SourceFilePath);
 
             if (!fileInfo.Exists)
             {
@@ -73,15 +73,9 @@ namespace Opc.Ua
         /// </summary>
         public event EventHandler<ConfigurationWatcherEventArgs> Changed
         {
-            add
-            {
-                m_Changed += value;
-            }
+            add => m_Changed += value;
 
-            remove
-            {
-                m_Changed -= value;
-            }
+            remove => m_Changed -= value;
         }
         #endregion
 
@@ -93,7 +87,7 @@ namespace Opc.Ua
         {
             try
             {
-                FileInfo fileInfo = new FileInfo(m_configuration.SourceFilePath);
+                var fileInfo = new FileInfo(m_configuration.SourceFilePath);
 
                 if (!fileInfo.Exists)
                 {

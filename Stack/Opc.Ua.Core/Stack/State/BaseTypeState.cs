@@ -10,15 +10,7 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
-using System;
-using System.Collections;
 using System.Collections.Generic;
-using System.Text;
-using System.Xml;
-using System.IO;
-using System.Runtime.Serialization;
-using System.Reflection;
-using System.Threading;
 
 namespace Opc.Ua
 {
@@ -68,7 +60,7 @@ namespace Opc.Ua
         /// </returns>
         public new object MemberwiseClone()
         {
-            BaseTypeState clone = new BaseTypeState(this.NodeClass);
+            var clone = new BaseTypeState(this.NodeClass);
             return CloneChildren(clone);
         }
         #endregion
@@ -79,14 +71,11 @@ namespace Opc.Ua
         /// </summary>
         public NodeId SuperTypeId
         {
-            get
-            {
-                return m_superTypeId;
-            }
+            get => m_superTypeId;
 
             set
             {
-                if (!Object.ReferenceEquals(m_superTypeId, value))
+                if (!ReferenceEquals(m_superTypeId, value))
                 {
                     ChangeMasks |= NodeStateChangeMasks.References;
                 }
@@ -100,10 +89,7 @@ namespace Opc.Ua
         /// </summary>
         public bool IsAbstract
         {
-            get
-            {
-                return m_isAbstract;
-            }
+            get => m_isAbstract;
 
             set
             {

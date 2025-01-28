@@ -57,7 +57,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
         protected void OneTimeSetUp()
         {
             Context = new ServiceMessageContext();
-            var nameSpaceUris = Context.NamespaceUris;
+            NamespaceTable nameSpaceUris = Context.NamespaceUris;
             // namespace index 1 must be the ApplicationUri
             nameSpaceUris.GetIndexOrAppend(kApplicationUri);
             nameSpaceUris.GetIndexOrAppend(Namespaces.OpcUaGds);
@@ -79,10 +79,10 @@ namespace Opc.Ua.Core.Tests.Stack.State
             Type systemType
             )
         {
-            NodeState testObject = CreateDefaultNodeStateType(systemType) as NodeState;
+            var testObject = CreateDefaultNodeStateType(systemType) as NodeState;
             Assert.NotNull(testObject);
             Assert.False(testObject.Initialized);
-            SystemContext context = new SystemContext() { NamespaceUris = Context.NamespaceUris };
+            var context = new SystemContext() { NamespaceUris = Context.NamespaceUris };
             Assert.AreEqual(0, context.NamespaceUris.GetIndexOrAppend(OpcUa));
             testObject.Create(context, new NodeId(1000), "Name", "DisplayName", true);
             testObject.Dispose();
@@ -96,7 +96,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
         /// <param name="systemType">The type to create</param>
         private static object CreateDefaultNodeStateType(Type systemType)
         {
-            var systemTypeInfo = systemType.GetTypeInfo();
+            System.Reflection.TypeInfo systemTypeInfo = systemType.GetTypeInfo();
             object instance;
             try
             {
@@ -128,7 +128,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
                 return false;
             }
 
-            var systemTypeInfo = systemType.GetTypeInfo();
+            System.Reflection.TypeInfo systemTypeInfo = systemType.GetTypeInfo();
             if (systemTypeInfo.IsAbstract || systemTypeInfo.IsGenericType ||
                 systemTypeInfo.IsGenericTypeDefinition ||
                 !typeof(NodeState).GetTypeInfo().IsAssignableFrom(systemTypeInfo))
@@ -136,9 +136,8 @@ namespace Opc.Ua.Core.Tests.Stack.State
                 return false;
             }
 
-            var nodeState = CreateDefaultNodeStateType(systemType) as NodeState;
 
-            if (nodeState == null)
+            if (CreateDefaultNodeStateType(systemType) is not NodeState nodeState)
             {
                 return false;
             }

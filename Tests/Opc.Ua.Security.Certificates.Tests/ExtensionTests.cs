@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 
-using System.IO;
 using System.Numerics;
 using System.Security.Cryptography.X509Certificates;
 using NUnit.Framework;
@@ -56,12 +55,12 @@ namespace Opc.Ua.Security.Certificates.Tests
             CertificateAsset certAsset
             )
         {
-            using (var x509Cert = X509CertificateLoader.LoadCertificate(certAsset.Cert))
+            using (X509Certificate2 x509Cert = X509CertificateLoader.LoadCertificate(certAsset.Cert))
             {
                 Assert.NotNull(x509Cert);
                 TestContext.Out.WriteLine("CertificateAsset:");
                 TestContext.Out.WriteLine(x509Cert);
-                var altName = X509Extensions.FindExtension<X509SubjectAltNameExtension>(x509Cert);
+                X509SubjectAltNameExtension altName = X509Extensions.FindExtension<X509SubjectAltNameExtension>(x509Cert);
                 if (altName != null)
                 {
                     TestContext.Out.WriteLine("X509SubjectAltNameExtension:");
@@ -69,7 +68,7 @@ namespace Opc.Ua.Security.Certificates.Tests
                     var ext = new X509Extension(altName.Oid, altName.RawData, altName.Critical);
                     TestContext.Out.WriteLine(ext.Format(true));
                 }
-                var authority = X509Extensions.FindExtension<X509AuthorityKeyIdentifierExtension>(x509Cert);
+                X509AuthorityKeyIdentifierExtension authority = X509Extensions.FindExtension<X509AuthorityKeyIdentifierExtension>(x509Cert);
                 if (authority != null)
                 {
                     TestContext.Out.WriteLine("X509AuthorityKeyIdentifierExtension:");
@@ -78,7 +77,7 @@ namespace Opc.Ua.Security.Certificates.Tests
                     TestContext.Out.WriteLine(ext.Format(true));
                 }
                 TestContext.Out.WriteLine("All extensions:");
-                foreach (var extension in x509Cert.Extensions)
+                foreach (X509Extension extension in x509Cert.Extensions)
                 {
                     TestContext.Out.WriteLine(extension.Format(true));
                 }

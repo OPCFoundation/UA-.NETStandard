@@ -30,7 +30,7 @@ namespace Opc.Ua
         /// </summary>
         public UserIdentity()
         {
-            AnonymousIdentityToken token = new AnonymousIdentityToken();
+            var token = new AnonymousIdentityToken();
             Initialize(token);
         }
 
@@ -41,7 +41,7 @@ namespace Opc.Ua
         /// <param name="password">The password.</param>
         public UserIdentity(string username, string password)
         {
-            UserNameIdentityToken token = new UserNameIdentityToken();
+            var token = new UserNameIdentityToken();
             token.UserName = username;
             token.DecryptedPassword = password;
             Initialize(token);
@@ -126,8 +126,8 @@ namespace Opc.Ua
         [DataMember(Name = "PolicyId", IsRequired = false, Order = 10)]
         public string PolicyId
         {
-            get { return m_token.PolicyId; }
-            set { m_token.PolicyId = value; }
+            get => m_token.PolicyId;
+            set => m_token.PolicyId = value;
         }
 
         /// <summary cref="IUserIdentity.DisplayName" />
@@ -140,16 +140,16 @@ namespace Opc.Ua
         [DataMember(Name = "TokenType", IsRequired = true, Order = 20)]
         public UserTokenType TokenType
         {
-            get { return m_tokenType; }
-            private set { m_tokenType = value; }
+            get => m_tokenType;
+            private set => m_tokenType = value;
         }
 
         /// <summary cref="IUserIdentity.IssuedTokenType" />
         [DataMember(Name = "IssuedTokenType", IsRequired = false, Order = 30)]
         public XmlQualifiedName IssuedTokenType
         {
-            get { return m_issuedTokenType; }
-            private set { m_issuedTokenType = value; }
+            get => m_issuedTokenType;
+            private set => m_issuedTokenType = value;
         }
 
         /// <summary cref="IUserIdentity.SupportsSignatures" />
@@ -228,7 +228,7 @@ namespace Opc.Ua
                     }
 
                     m_tokenType = UserTokenType.IssuedToken;
-                    m_issuedTokenType = new XmlQualifiedName("", Opc.Ua.Profiles.JwtUserToken);
+                    m_issuedTokenType = new XmlQualifiedName("", Profiles.JwtUserToken);
                     m_displayName = "JWT";
                     return;
                 }
@@ -254,7 +254,7 @@ namespace Opc.Ua
         /// </summary>
         private void Initialize(X509Certificate2 certificate)
         {
-            X509IdentityToken token = new X509IdentityToken();
+            var token = new X509IdentityToken();
             token.CertificateData = certificate.RawData;
             token.Certificate = certificate;
             Initialize(token);

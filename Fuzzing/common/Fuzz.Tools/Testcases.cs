@@ -78,7 +78,7 @@ public partial class Testcases
 
     public static void ReadResponse(IEncoder encoder)
     {
-        var now = DateTime.UtcNow;
+        DateTime now = DateTime.UtcNow;
         var nodeId = new NodeId(1000);
         var readRequest = new ReadResponse {
             Results = new DataValueCollection {

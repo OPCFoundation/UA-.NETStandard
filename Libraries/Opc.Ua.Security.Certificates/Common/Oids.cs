@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
 using System.Security.Cryptography;
 
 namespace Opc.Ua.Security.Certificates
@@ -137,19 +136,19 @@ namespace Opc.Ua.Security.Certificates
         {
             if (hashAlgorithm == HashAlgorithmName.SHA1)
             {
-                return Oids.RsaPkcs1Sha1;
+                return RsaPkcs1Sha1;
             }
             else if (hashAlgorithm == HashAlgorithmName.SHA256)
             {
-                return Oids.RsaPkcs1Sha256;
+                return RsaPkcs1Sha256;
             }
             else if (hashAlgorithm == HashAlgorithmName.SHA384)
             {
-                return Oids.RsaPkcs1Sha384;
+                return RsaPkcs1Sha384;
             }
             else if (hashAlgorithm == HashAlgorithmName.SHA512)
             {
-                return Oids.RsaPkcs1Sha512;
+                return RsaPkcs1Sha512;
             }
             else
             {
@@ -165,19 +164,19 @@ namespace Opc.Ua.Security.Certificates
         {
             if (hashAlgorithm == HashAlgorithmName.SHA1)
             {
-                return Oids.ECDsaWithSha1;
+                return ECDsaWithSha1;
             }
             else if (hashAlgorithm == HashAlgorithmName.SHA256)
             {
-                return Oids.ECDsaWithSha256;
+                return ECDsaWithSha256;
             }
             else if (hashAlgorithm == HashAlgorithmName.SHA384)
             {
-                return Oids.ECDsaWithSha384;
+                return ECDsaWithSha384;
             }
             else if (hashAlgorithm == HashAlgorithmName.SHA512)
             {
-                return Oids.ECDsaWithSha512;
+                return ECDsaWithSha512;
             }
             else
             {
@@ -193,17 +192,17 @@ namespace Opc.Ua.Security.Certificates
         {
             switch (oid)
             {
-                case Oids.ECDsaWithSha1:
-                case Oids.RsaPkcs1Sha1:
+                case ECDsaWithSha1:
+                case RsaPkcs1Sha1:
                     return HashAlgorithmName.SHA1;
-                case Oids.ECDsaWithSha256:
-                case Oids.RsaPkcs1Sha256:
+                case ECDsaWithSha256:
+                case RsaPkcs1Sha256:
                     return HashAlgorithmName.SHA256;
-                case Oids.ECDsaWithSha384:
-                case Oids.RsaPkcs1Sha384:
+                case ECDsaWithSha384:
+                case RsaPkcs1Sha384:
                     return HashAlgorithmName.SHA384;
-                case Oids.ECDsaWithSha512:
-                case Oids.RsaPkcs1Sha512:
+                case ECDsaWithSha512:
+                case RsaPkcs1Sha512:
                     return HashAlgorithmName.SHA512;
             }
             throw new CryptographicException($"Hash algorithm {oid} is not supported. ");

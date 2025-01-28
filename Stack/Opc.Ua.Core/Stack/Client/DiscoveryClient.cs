@@ -43,10 +43,7 @@ namespace Opc.Ua
             Uri discoveryUrl,
             EndpointConfiguration configuration)
         {
-            if (configuration == null)
-            {
-                configuration = EndpointConfiguration.Create();
-            }
+            configuration ??= EndpointConfiguration.Create();
 
             ITransportChannel channel = DiscoveryChannel.Create(application, discoveryUrl, configuration, application.CreateMessageContext());
             return new DiscoveryClient(channel);
@@ -60,10 +57,7 @@ namespace Opc.Ua
             ITransportWaitingConnection connection,
             EndpointConfiguration configuration)
         {
-            if (configuration == null)
-            {
-                configuration = EndpointConfiguration.Create();
-            }
+            configuration ??= EndpointConfiguration.Create();
 
             ITransportChannel channel = DiscoveryChannel.Create(application, connection, configuration, application.CreateMessageContext());
             return new DiscoveryClient(channel);
@@ -76,7 +70,7 @@ namespace Opc.Ua
         /// <returns></returns>
         public static DiscoveryClient Create(Uri discoveryUrl)
         {
-            return DiscoveryClient.Create(discoveryUrl, null, null);
+            return Create(discoveryUrl, null, null);
         }
 
         /// <summary>
@@ -89,7 +83,7 @@ namespace Opc.Ua
             Uri discoveryUrl,
             EndpointConfiguration configuration)
         {
-            return DiscoveryClient.Create(discoveryUrl, configuration, null);
+            return Create(discoveryUrl, configuration, null);
         }
 
         /// <summary>
@@ -99,10 +93,7 @@ namespace Opc.Ua
             ITransportWaitingConnection connection,
             EndpointConfiguration configuration)
         {
-            if (configuration == null)
-            {
-                configuration = EndpointConfiguration.Create();
-            }
+            configuration ??= EndpointConfiguration.Create();
 
             ITransportChannel channel = DiscoveryChannel.Create(null, connection, configuration, new ServiceMessageContext());
             return new DiscoveryClient(channel);
@@ -120,10 +111,7 @@ namespace Opc.Ua
             EndpointConfiguration endpointConfiguration,
             ApplicationConfiguration applicationConfiguration)
         {
-            if (endpointConfiguration == null)
-            {
-                endpointConfiguration = EndpointConfiguration.Create();
-            }
+            endpointConfiguration ??= EndpointConfiguration.Create();
 
             // check if application configuration contains instance certificate.
             X509Certificate2 clientCertificate = null;
@@ -171,7 +159,7 @@ namespace Opc.Ua
         /// <param name="ct">The cancellation token.</param>
         public async virtual Task<EndpointDescriptionCollection> GetEndpointsAsync(StringCollection profileUris, CancellationToken ct = default)
         {
-            var response = await GetEndpointsAsync(null, this.Endpoint.EndpointUrl, null, profileUris, ct).ConfigureAwait(false);
+            GetEndpointsResponse response = await GetEndpointsAsync(null, this.Endpoint.EndpointUrl, null, profileUris, ct).ConfigureAwait(false);
             return PatchEndpointUrls(response.Endpoints);
         }
 #endif
@@ -204,7 +192,7 @@ namespace Opc.Ua
         /// <returns></returns>
         public virtual async Task<ApplicationDescriptionCollection> FindServersAsync(StringCollection serverUris, CancellationToken ct = default)
         {
-            var response = await FindServersAsync(
+            FindServersResponse response = await FindServersAsync(
                 null,
                 this.Endpoint.EndpointUrl,
                 null,
@@ -268,7 +256,7 @@ namespace Opc.Ua
                     if ((endpointUrl.Scheme == discoveryEndPointUri.Scheme) &&
                         (endpointUrl.Port == discoveryEndPointUri.Port))
                     {
-                        UriBuilder builder = new UriBuilder(discoveryEndPointUri);
+                        var builder = new UriBuilder(discoveryEndPointUri);
                         builder.Host = endpointUrl.DnsSafeHost;
                         discoveryEndPoint.EndpointUrl = builder.Uri.OriginalString;
                     }
@@ -307,7 +295,7 @@ namespace Opc.Ua
             X509Certificate2 clientCertificate = null)
         {
             // create a default description.
-            EndpointDescription endpoint = new EndpointDescription {
+            var endpoint = new EndpointDescription {
                 EndpointUrl = discoveryUrl.OriginalString,
                 SecurityMode = MessageSecurityMode.None,
                 SecurityPolicyUri = SecurityPolicies.None

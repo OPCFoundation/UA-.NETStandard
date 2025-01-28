@@ -30,7 +30,6 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
-using System.Security.Cryptography.X509Certificates;
 using Opc.Ua.Security.Certificates;
 
 #pragma warning disable 0618
@@ -326,8 +325,8 @@ namespace Opc.Ua.Server
         /// <value>The aggregate manager.</value>
         public AggregateManager AggregateManager
         {
-            get { return m_aggregateManager; }
-            set { m_aggregateManager = value; }
+            get => m_aggregateManager;
+            set => m_aggregateManager = value;
         }
 
         /// <summary>
@@ -590,8 +589,8 @@ namespace Opc.Ua.Server
                 serverObject.ServerCapabilities.MaxByteStringLength.Value = (uint)m_configuration.TransportQuotas.MaxByteStringLength;
 
                 // Any operational limits Property that is provided shall have a non zero value.
-                var operationLimits = serverObject.ServerCapabilities.OperationLimits;
-                var configOperationLimits = m_configuration.ServerConfiguration.OperationLimits;
+                OperationLimitsState operationLimits = serverObject.ServerCapabilities.OperationLimits;
+                OperationLimits configOperationLimits = m_configuration.ServerConfiguration.OperationLimits;
                 if (configOperationLimits != null)
                 {
                     operationLimits.MaxNodesPerRead = SetPropertyValue(operationLimits.MaxNodesPerRead, configOperationLimits.MaxNodesPerRead);
@@ -652,7 +651,7 @@ namespace Opc.Ua.Server
                 serverObject.ServerDiagnostics.EnabledFlag.MinimumSamplingInterval = 1000;
 
                 // initialize status.
-                ServerStatusDataType serverStatus = new ServerStatusDataType {
+                var serverStatus = new ServerStatusDataType {
                     StartTime = DateTime.UtcNow,
                     CurrentTime = DateTime.UtcNow,
                     State = ServerState.Shutdown
@@ -707,7 +706,7 @@ namespace Opc.Ua.Server
                     m_defaultSystemContext,
                     m_configuration.ServerConfiguration.DiagnosticsEnabled);
 
-                ConfigurationNodeManager configurationNodeManager = m_diagnosticsNodeManager as ConfigurationNodeManager;
+                var configurationNodeManager = m_diagnosticsNodeManager as ConfigurationNodeManager;
                 configurationNodeManager?.CreateServerConfiguration(
                     m_defaultSystemContext,
                     m_configuration);

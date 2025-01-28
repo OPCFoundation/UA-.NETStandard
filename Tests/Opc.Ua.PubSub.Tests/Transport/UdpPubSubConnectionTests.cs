@@ -159,18 +159,18 @@ namespace Opc.Ua.PubSub.Tests.Transport
 
             //Arrange
             WriterGroupDataType writerGroup0 = m_udpPublisherConnection.PubSubConnectionConfiguration.WriterGroups.First();
-            UadpWriterGroupMessageDataType messageSettings = ExtensionObject.ToEncodeable(writerGroup0.MessageSettings)
+            var messageSettings = ExtensionObject.ToEncodeable(writerGroup0.MessageSettings)
                 as UadpWriterGroupMessageDataType;
 
             //Act  
             UdpPubSubConnection.ResetSequenceNumber();
 
-            var networkMessages = m_udpPublisherConnection.CreateNetworkMessages(writerGroup0, new WriterGroupPublishState());
+            IList<UaNetworkMessage> networkMessages = m_udpPublisherConnection.CreateNetworkMessages(writerGroup0, new WriterGroupPublishState());
             Assert.IsNotNull(networkMessages, "connection.CreateNetworkMessages shall not return null");
-            var networkMessagesNetworkType = networkMessages.FirstOrDefault(net => net.IsMetaDataMessage == false);
+            UaNetworkMessage networkMessagesNetworkType = networkMessages.FirstOrDefault(net => net.IsMetaDataMessage == false);
             Assert.IsNotNull(networkMessagesNetworkType, "connection.CreateNetworkMessages shall return only one network message");
 
-            UadpNetworkMessage networkMessage0 = networkMessagesNetworkType as UadpNetworkMessage;
+            var networkMessage0 = networkMessagesNetworkType as UadpNetworkMessage;
             Assert.IsNotNull(networkMessage0, "networkMessageEncode should not be null");
 
             //Assert
@@ -203,12 +203,12 @@ namespace Opc.Ua.PubSub.Tests.Transport
             for (int i = 0; i < 10; i++)
             {
                 // Create network message
-                var networkMessages = m_udpPublisherConnection.CreateNetworkMessages(writerGroup0, new WriterGroupPublishState());
+                IList<UaNetworkMessage> networkMessages = m_udpPublisherConnection.CreateNetworkMessages(writerGroup0, new WriterGroupPublishState());
                 Assert.IsNotNull(networkMessages, "connection.CreateNetworkMessages shall not return null");
-                var networkMessagesNetworkType = networkMessages.FirstOrDefault(net => net.IsMetaDataMessage == false);
+                UaNetworkMessage networkMessagesNetworkType = networkMessages.FirstOrDefault(net => net.IsMetaDataMessage == false);
                 Assert.IsNotNull(networkMessagesNetworkType, "connection.CreateNetworkMessages shall return only one network message");
 
-                UadpNetworkMessage networkMessage = networkMessagesNetworkType as UadpNetworkMessage;
+                var networkMessage = networkMessagesNetworkType as UadpNetworkMessage;
                 Assert.IsNotNull(networkMessage, "networkMessageEncode should not be null");
 
                 //Assert
@@ -246,10 +246,16 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 if (nic.NetworkInterfaceType != NetworkInterfaceType.Loopback &&
                     nic.OperationalStatus == OperationalStatus.Up)
                 {
-                    var addreses = nic.GetIPProperties().UnicastAddresses;
+                    UnicastIPAddressInformationCollection addreses = nic.GetIPProperties().UnicastAddresses;
                     foreach (UnicastIPAddressInformation addr in addreses)
                     {
+#if NET6_0_OR_GREATER
+                        if (addr.Address.ToString().Contains(activeIp, StringComparison.OrdinalIgnoreCase))
+#else
+#pragma warning disable CA1307
                         if (addr.Address.ToString().Contains(activeIp))
+#pragma warning restore CA1307
+#endif
                         {
                             // return specified address
                             return addr;
@@ -304,10 +310,10 @@ namespace Opc.Ua.PubSub.Tests.Transport
         /// <returns></returns>
         private bool IsHostAddress(string ipAddress)
         {
-            var hostName = Dns.GetHostName();
-            foreach (var address in Dns.GetHostEntry(hostName).AddressList)
+            string hostName = Dns.GetHostName();
+            foreach (IPAddress address in Dns.GetHostEntry(hostName).AddressList)
             {
-                if (address.MapToIPv4().ToString().Equals(ipAddress))
+                if (address.MapToIPv4().ToString().Equals(ipAddress, StringComparison.InvariantCultureIgnoreCase))
                 {
                     return true;
                 }
@@ -321,7 +327,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
         public static IPAddress[] GetLocalIpAddresses()
         {
             var addresses = new List<IPAddress>();
-            foreach (var netI in NetworkInterface.GetAllNetworkInterfaces())
+            foreach (NetworkInterface netI in NetworkInterface.GetAllNetworkInterfaces())
             {
                 if (netI.NetworkInterfaceType != NetworkInterfaceType.Wireless80211 &&
                    (netI.NetworkInterfaceType != NetworkInterfaceType.Ethernet ||
@@ -329,7 +335,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 {
                     continue;
                 }
-                foreach (var uniIpAddrInfo in netI.GetIPProperties().UnicastAddresses.Where(x => netI.GetIPProperties().GatewayAddresses.Count > 0))
+                foreach (UnicastIPAddressInformation uniIpAddrInfo in netI.GetIPProperties().UnicastAddresses.Where(x => netI.GetIPProperties().GatewayAddresses.Count > 0))
                 {
                     if ((uniIpAddrInfo.Address.AddressFamily == AddressFamily.InterNetwork ||
                         uniIpAddrInfo.Address.AddressFamily == AddressFamily.InterNetworkV6) &&
@@ -376,7 +382,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             catch
             {
             }
-            Assert.Inconclusive("First active NIC was not found.");
+            NUnit.Framework.Assert.Inconclusive("First active NIC was not found.");
 
             return null;
         }

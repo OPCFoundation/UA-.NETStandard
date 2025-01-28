@@ -11,11 +11,7 @@
 */
 
 using System;
-using System.Collections.Generic;
-using System.Diagnostics;
 using System.Diagnostics.Tracing;
-using System.Diagnostics.CodeAnalysis;
-using System.Runtime.CompilerServices;
 using Microsoft.Extensions.Logging;
 using static Opc.Ua.Utils;
 
@@ -231,7 +227,7 @@ namespace Opc.Ua
             {
                 WriteEvent(ServiceCallStartId, serviceName, requestHandle, pendingRequestCount);
             }
-            else if (Utils.Logger.IsEnabled(LogLevel.Trace))
+            else if (Logger.IsEnabled(LogLevel.Trace))
             {
                 Utils.Log(LogLevel.Trace, ServiceCallStartEventId, ServiceCallStartMessage, serviceName, requestHandle, pendingRequestCount);
             }
@@ -247,7 +243,7 @@ namespace Opc.Ua
             {
                 WriteEvent(ServiceCallStopId, serviceName, requestHandle, pendingRequestCount);
             }
-            else if (Utils.Logger.IsEnabled(LogLevel.Trace))
+            else if (Logger.IsEnabled(LogLevel.Trace))
             {
                 Utils.Log(LogLevel.Trace, ServiceCallStopEventId, ServiceCallStopMessage, serviceName, requestHandle, pendingRequestCount);
             }
@@ -263,7 +259,7 @@ namespace Opc.Ua
             {
                 WriteEvent(ServiceCallBadStopId, serviceName, requestHandle, pendingRequestCount, statusCode);
             }
-            else if (Utils.Logger.IsEnabled(LogLevel.Trace))
+            else if (Logger.IsEnabled(LogLevel.Trace))
             {
                 Utils.Log(LogLevel.Trace, ServiceCallBadStopEventId, ServiceCallBadStopMessage, serviceName, requestHandle, pendingRequestCount, statusCode);
             }
@@ -281,7 +277,7 @@ namespace Opc.Ua
             }
             else
             {
-                Utils.LogWarning(ServiceFaultEventId, ServiceFaultMessage, statusCode);
+                LogWarning(ServiceFaultEventId, ServiceFaultMessage, statusCode);
             }
         }
 
@@ -295,7 +291,7 @@ namespace Opc.Ua
             {
                 WriteEvent(SendResponseId, channelId, requestId);
             }
-            else if (Utils.Logger.IsEnabled(LogLevel.Trace))
+            else if (Logger.IsEnabled(LogLevel.Trace))
             {
                 Utils.Log(LogLevel.Trace, SendResponseEventId, SendResponseMessage, channelId, requestId);
             }

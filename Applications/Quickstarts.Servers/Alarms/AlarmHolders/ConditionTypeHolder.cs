@@ -56,11 +56,8 @@ namespace Alarms
             uint alarmTypeIdentifier,
             string name)
         {
-            if (m_alarm == null)
-            {
-                // this is invalid
-                m_alarm = new ConditionState(m_parent);
-            }
+            // this is invalid
+            m_alarm ??= new ConditionState(m_parent);
 
             ConditionState alarm = GetAlarm();
 
@@ -78,7 +75,7 @@ namespace Alarms
             alarm.Retain.Value = false;
 
             alarm.SetEnableState(SystemContext, true);
-            alarm.Quality.Value = Opc.Ua.StatusCodes.Good;
+            alarm.Quality.Value = StatusCodes.Good;
             alarm.LastSeverity.Value = AlarmDefines.INACTIVE_SEVERITY;
             alarm.Severity.Value = AlarmDefines.INACTIVE_SEVERITY;
             alarm.Comment.Value = new LocalizedText("en", "");
@@ -157,10 +154,7 @@ namespace Alarms
 
         public void ReportEvent(ConditionState alarm = null)
         {
-            if (alarm == null)
-            {
-                alarm = GetAlarm();
-            }
+            alarm ??= GetAlarm();
 
             if (alarm.EnabledState.Id.Value)
             {
@@ -173,7 +167,7 @@ namespace Alarms
 
                 alarm.ClearChangeMasks(SystemContext, true);
 
-                InstanceStateSnapshot eventSnapshot = new InstanceStateSnapshot();
+                var eventSnapshot = new InstanceStateSnapshot();
                 eventSnapshot.Initialize(SystemContext, alarm);
                 alarm.ReportEvent(SystemContext, eventSnapshot);
             }
@@ -264,10 +258,7 @@ namespace Alarms
 
         private ConditionState GetAlarm(BaseEventState alarm = null)
         {
-            if (alarm == null)
-            {
-                alarm = m_alarm;
-            }
+            alarm ??= m_alarm;
             return (ConditionState)alarm;
         }
 

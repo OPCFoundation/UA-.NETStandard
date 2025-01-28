@@ -198,8 +198,8 @@ namespace Opc.Ua
         [DataMember(Name = "Locale", Order = 1)]
         internal string XmlEncodedLocale
         {
-            get { return m_locale; }
-            set { m_locale = value; }
+            get => m_locale;
+            set => m_locale = value;
         }
 
         /// <summary>
@@ -214,8 +214,8 @@ namespace Opc.Ua
         [DataMember(Name = "Text", Order = 2)]
         internal string XmlEncodedText
         {
-            get { return m_text; }
-            set { m_text = value; }
+            get => m_text;
+            set => m_text = value;
         }
 
         /// <summary>
@@ -253,8 +253,8 @@ namespace Opc.Ua
         /// </summary>
         public TranslationInfo TranslationInfo
         {
-            get { return m_translationInfo; }
-            set { m_translationInfo = value; }
+            get => m_translationInfo;
+            set => m_translationInfo = value;
         }
         #endregion
 
@@ -268,12 +268,12 @@ namespace Opc.Ua
         /// <param name="obj">The object to compare to this</param>
         public override bool Equals(object obj)
         {
-            if (Object.ReferenceEquals(this, obj))
+            if (ReferenceEquals(this, obj))
             {
                 return true;
             }
 
-            LocalizedText ltext = obj as LocalizedText;
+            var ltext = obj as LocalizedText;
 
             if (ltext == null)
             {
@@ -301,12 +301,12 @@ namespace Opc.Ua
         /// <param name="value2">The second value to compare</param>
         public static bool operator ==(LocalizedText value1, LocalizedText value2)
         {
-            if (!Object.ReferenceEquals(value1, null))
+            if (!ReferenceEquals(value1, null))
             {
                 return value1.Equals(value2);
             }
 
-            return Object.ReferenceEquals(value2, null);
+            return ReferenceEquals(value2, null);
         }
 
         /// <summary>
@@ -319,12 +319,12 @@ namespace Opc.Ua
         /// <param name="value2">The second value to compare</param>
         public static bool operator !=(LocalizedText value1, LocalizedText value2)
         {
-            if (!Object.ReferenceEquals(value1, null))
+            if (!ReferenceEquals(value1, null))
             {
                 return !value1.Equals(value2);
             }
 
-            return !Object.ReferenceEquals(value2, null);
+            return !ReferenceEquals(value2, null);
         }
 
         /// <summary>
@@ -536,7 +536,7 @@ namespace Opc.Ua
         /// </remarks>
         public new object MemberwiseClone()
         {
-            LocalizedTextCollection clone = new LocalizedTextCollection(this.Count);
+            var clone = new LocalizedTextCollection(this.Count);
 
             foreach (LocalizedText element in this)
             {

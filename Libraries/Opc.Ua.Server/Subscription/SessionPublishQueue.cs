@@ -125,7 +125,7 @@ namespace Opc.Ua.Server
                 }
 
                 // tell the subscriptions that the session is closed.
-                Subscription[] subscriptions = new Subscription[m_queuedSubscriptions.Count];
+                var subscriptions = new Subscription[m_queuedSubscriptions.Count];
 
                 for (int ii = 0; ii < m_queuedSubscriptions.Count; ii++)
                 {
@@ -149,7 +149,7 @@ namespace Opc.Ua.Server
 
             lock (m_lock)
             {
-                QueuedSubscription queuedSubscription = new QueuedSubscription();
+                var queuedSubscription = new QueuedSubscription();
 
                 queuedSubscription.ReadyToPublish = false;
                 queuedSubscription.Timestamp = DateTime.UtcNow;
@@ -173,7 +173,7 @@ namespace Opc.Ua.Server
                 // remove the subscription from the queue.
                 for (int ii = 0; ii < m_queuedSubscriptions.Count; ii++)
                 {
-                    if (Object.ReferenceEquals(m_queuedSubscriptions[ii].Subscription, subscription))
+                    if (ReferenceEquals(m_queuedSubscriptions[ii].Subscription, subscription))
                     {
                         m_queuedSubscriptions.RemoveAt(ii);
                         break;
@@ -291,7 +291,7 @@ namespace Opc.Ua.Server
 
                     if (!found)
                     {
-                        ServiceResult result = new ServiceResult(StatusCodes.BadSubscriptionIdInvalid);
+                        var result = new ServiceResult(StatusCodes.BadSubscriptionIdInvalid);
                         acknowledgeResults.Add(result.Code);
 
                         if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
@@ -329,7 +329,7 @@ namespace Opc.Ua.Server
                 }
 
                 // find the waiting subscription with the highest priority.
-                List<QueuedSubscription> subscriptions = new List<QueuedSubscription>();
+                var subscriptions = new List<QueuedSubscription>();
 
                 for (int ii = 0; ii < m_queuedSubscriptions.Count; ii++)
                 {
@@ -528,7 +528,7 @@ namespace Opc.Ua.Server
         {
             Utils.LogTrace("PUBLISH: #{0} Completing", operation.RequestHandle, requeue);
 
-            QueuedRequest request = (QueuedRequest)calldata;
+            var request = (QueuedRequest)calldata;
 
             // check if need to requeue.
             lock (m_lock)
@@ -579,7 +579,7 @@ namespace Opc.Ua.Server
             {
                 for (int ii = 0; ii < m_queuedSubscriptions.Count; ii++)
                 {
-                    if (Object.ReferenceEquals(m_queuedSubscriptions[ii].Subscription, subscription))
+                    if (ReferenceEquals(m_queuedSubscriptions[ii].Subscription, subscription))
                     {
                         m_queuedSubscriptions[ii].Publishing = false;
 
@@ -604,11 +604,11 @@ namespace Opc.Ua.Server
         /// </summary>
         public void PublishTimerExpired()
         {
-            List<Subscription> subscriptionsToDelete = new List<Subscription>();
+            var subscriptionsToDelete = new List<Subscription>();
 
             lock (m_lock)
             {
-                List<QueuedSubscription> liveSubscriptions = new List<QueuedSubscription>(m_queuedSubscriptions.Count);
+                var liveSubscriptions = new List<QueuedSubscription>(m_queuedSubscriptions.Count);
 
                 // check each available subscription.
                 for (int ii = 0; ii < m_queuedSubscriptions.Count; ii++)
@@ -864,7 +864,7 @@ namespace Opc.Ua.Server
                 return;
             }
 
-            StringBuilder buffer = new StringBuilder();
+            var buffer = new StringBuilder();
 
             lock (m_lock)
             {

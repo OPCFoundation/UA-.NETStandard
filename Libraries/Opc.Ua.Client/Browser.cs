@@ -85,7 +85,7 @@ namespace Opc.Ua.Client
             m_session = null;
             m_view = null;
             m_maxReferencesReturned = 0;
-            m_browseDirection = Opc.Ua.BrowseDirection.Forward;
+            m_browseDirection = BrowseDirection.Forward;
             m_referenceTypeId = null;
             m_includeSubtypes = true;
             m_nodeClassMask = 0;
@@ -101,7 +101,7 @@ namespace Opc.Ua.Client
         /// </summary>
         public ISession Session
         {
-            get { return m_session; }
+            get => m_session;
 
             set
             {
@@ -116,7 +116,7 @@ namespace Opc.Ua.Client
         [DataMember(Order = 1)]
         public ViewDescription View
         {
-            get { return m_view; }
+            get => m_view;
 
             set
             {
@@ -131,7 +131,7 @@ namespace Opc.Ua.Client
         [DataMember(Order = 2)]
         public uint MaxReferencesReturned
         {
-            get { return m_maxReferencesReturned; }
+            get => m_maxReferencesReturned;
 
             set
             {
@@ -146,7 +146,7 @@ namespace Opc.Ua.Client
         [DataMember(Order = 3)]
         public BrowseDirection BrowseDirection
         {
-            get { return m_browseDirection; }
+            get => m_browseDirection;
 
             set
             {
@@ -161,7 +161,7 @@ namespace Opc.Ua.Client
         [DataMember(Order = 4)]
         public NodeId ReferenceTypeId
         {
-            get { return m_referenceTypeId; }
+            get => m_referenceTypeId;
 
             set
             {
@@ -176,7 +176,7 @@ namespace Opc.Ua.Client
         [DataMember(Order = 5)]
         public bool IncludeSubtypes
         {
-            get { return m_includeSubtypes; }
+            get => m_includeSubtypes;
 
             set
             {
@@ -191,7 +191,7 @@ namespace Opc.Ua.Client
         [DataMember(Order = 6)]
         public int NodeClassMask
         {
-            get { return Utils.ToInt32(m_nodeClassMask); }
+            get => Utils.ToInt32(m_nodeClassMask);
 
             set
             {
@@ -206,7 +206,7 @@ namespace Opc.Ua.Client
         [DataMember(Order = 6)]
         public uint ResultMask
         {
-            get { return m_resultMask; }
+            get => m_resultMask;
 
             set
             {
@@ -221,8 +221,8 @@ namespace Opc.Ua.Client
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1009:DeclareEventHandlersCorrectly")]
         public event BrowserEventHandler MoreReferences
         {
-            add { m_MoreReferences += value; }
-            remove { m_MoreReferences -= value; }
+            add => m_MoreReferences += value;
+            remove => m_MoreReferences -= value;
         }
 
         /// <summary>
@@ -230,7 +230,7 @@ namespace Opc.Ua.Client
         /// </summary>
         public bool ContinueUntilDone
         {
-            get { return m_continueUntilDone; }
+            get => m_continueUntilDone;
 
             set
             {
@@ -256,7 +256,7 @@ namespace Opc.Ua.Client
                 m_browseInProgress = true;
 
                 // construct request.
-                BrowseDescription nodeToBrowse = new BrowseDescription();
+                var nodeToBrowse = new BrowseDescription();
 
                 nodeToBrowse.NodeId = nodeId;
                 nodeToBrowse.BrowseDirection = m_browseDirection;
@@ -265,7 +265,7 @@ namespace Opc.Ua.Client
                 nodeToBrowse.NodeClassMask = m_nodeClassMask;
                 nodeToBrowse.ResultMask = m_resultMask;
 
-                BrowseDescriptionCollection nodesToBrowse = new BrowseDescriptionCollection();
+                var nodesToBrowse = new BrowseDescriptionCollection();
                 nodesToBrowse.Add(nodeToBrowse);
 
                 // make the call to the server.
@@ -301,7 +301,7 @@ namespace Opc.Ua.Client
 
                     if (!m_continueUntilDone && m_MoreReferences != null)
                     {
-                        BrowserEventArgs args = new BrowserEventArgs(references);
+                        var args = new BrowserEventArgs(references);
                         m_MoreReferences(this, args);
 
                         // cancel browser and return the references fetched so far.
@@ -356,7 +356,7 @@ namespace Opc.Ua.Client
         /// <returns>The next batch of references</returns>
         private ReferenceDescriptionCollection BrowseNext(ref byte[] continuationPoint, bool cancel)
         {
-            ByteStringCollection continuationPoints = new ByteStringCollection();
+            var continuationPoints = new ByteStringCollection();
             continuationPoints.Add(continuationPoint);
 
             // make the call to the server.
@@ -425,8 +425,8 @@ namespace Opc.Ua.Client
         /// </summary>
         public bool Cancel
         {
-            get { return m_cancel; }
-            set { m_cancel = value; }
+            get => m_cancel;
+            set => m_cancel = value;
         }
 
         /// <summary>
@@ -434,8 +434,8 @@ namespace Opc.Ua.Client
         /// </summary>
         public bool ContinueUntilDone
         {
-            get { return m_continueUntilDone; }
-            set { m_continueUntilDone = value; }
+            get => m_continueUntilDone;
+            set => m_continueUntilDone = value;
         }
 
         /// <summary>

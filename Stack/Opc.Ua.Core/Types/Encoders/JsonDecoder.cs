@@ -115,10 +115,10 @@ namespace Opc.Ua
             if (buffer == null) throw new ArgumentNullException(nameof(buffer));
             if (context == null) throw new ArgumentNullException(nameof(context));
 
-            using (IJsonDecoder decoder = new JsonDecoder(UTF8Encoding.UTF8.GetString(buffer), context))
+            using (IJsonDecoder decoder = new JsonDecoder(Encoding.UTF8.GetString(buffer), context))
             {
                 // decode the actual message.
-                SessionLessServiceMessage message = new SessionLessServiceMessage();
+                var message = new SessionLessServiceMessage();
                 message.Decode(decoder);
                 return message.Message;
             }
@@ -152,7 +152,7 @@ namespace Opc.Ua
                     buffer.Count);
             }
 
-            using (JsonDecoder decoder = new JsonDecoder(UTF8Encoding.UTF8.GetString(buffer.Array, buffer.Offset, buffer.Count), context))
+            using (var decoder = new JsonDecoder(Encoding.UTF8.GetString(buffer.Array, buffer.Offset, buffer.Count), context))
             {
                 return decoder.DecodeMessage(expectedType);
             }
@@ -163,13 +163,13 @@ namespace Opc.Ua
         /// </summary>
         public IEncodeable DecodeMessage(System.Type expectedType)
         {
-            var namespaceUris = ReadStringArray("NamespaceUris");
-            var serverUris = ReadStringArray("ServerUris");
+            StringCollection namespaceUris = ReadStringArray("NamespaceUris");
+            StringCollection serverUris = ReadStringArray("ServerUris");
 
             if ((namespaceUris != null && namespaceUris.Count > 0) || (serverUris != null && serverUris.Count > 0))
             {
-                var namespaces = (namespaceUris == null || namespaceUris.Count == 0) ? m_context.NamespaceUris : new NamespaceTable(namespaceUris);
-                var servers = (serverUris == null || serverUris.Count == 0) ? m_context.ServerUris : new StringTable(serverUris);
+                NamespaceTable namespaces = (namespaceUris == null || namespaceUris.Count == 0) ? m_context.NamespaceUris : new NamespaceTable(namespaceUris);
+                StringTable servers = (serverUris == null || serverUris.Count == 0) ? m_context.ServerUris : new StringTable(serverUris);
 
                 SetMappingTables(namespaces, servers);
             }
@@ -178,7 +178,7 @@ namespace Opc.Ua
             NodeId typeId = ReadNodeId("TypeId");
 
             // convert to absolute node id.
-            ExpandedNodeId absoluteId = NodeId.ToExpandedNodeId(typeId, m_context.NamespaceUris);
+            var absoluteId = NodeId.ToExpandedNodeId(typeId, m_context.NamespaceUris);
 
             // lookup message type.
             Type actualType = m_context.Factory.GetSystemType(absoluteId);
@@ -210,7 +210,7 @@ namespace Opc.Ua
 
                 for (uint ii = 0; ii < namespaceUris.Count; ii++)
                 {
-                    var uri = namespaceUris.GetString(ii);
+                    string uri = namespaceUris.GetString(ii);
 
                     if (UpdateNamespaceTable)
                     {
@@ -218,7 +218,7 @@ namespace Opc.Ua
                     }
                     else
                     {
-                        var index = m_context.NamespaceUris.GetIndex(namespaceUris.GetString(ii));
+                        int index = m_context.NamespaceUris.GetIndex(namespaceUris.GetString(ii));
                         namespaceMappings[ii] = (index >= 0) ? (UInt16)index : UInt16.MaxValue;
                     }
                 }
@@ -234,7 +234,7 @@ namespace Opc.Ua
 
                 for (uint ii = 0; ii < serverUris.Count; ii++)
                 {
-                    var uri = serverUris.GetString(ii);
+                    string uri = serverUris.GetString(ii);
 
                     if (UpdateNamespaceTable)
                     {
@@ -242,7 +242,7 @@ namespace Opc.Ua
                     }
                     else
                     {
-                        var index = m_context.ServerUris.GetIndex(serverUris.GetString(ii));
+                        int index = m_context.ServerUris.GetIndex(serverUris.GetString(ii));
                         serverMappings[ii] = (index >= 0) ? (UInt16)index : UInt16.MaxValue;
                     }
                 }
@@ -367,7 +367,7 @@ namespace Opc.Ua
                 return false;
             }
 
-            var value = token as bool?;
+            bool? value = token as bool?;
 
             if (value == null)
             {
@@ -389,7 +389,7 @@ namespace Opc.Ua
                 return 0;
             }
 
-            var value = token as long?;
+            long? value = token as long?;
 
             if (value == null)
             {
@@ -416,7 +416,7 @@ namespace Opc.Ua
                 return 0;
             }
 
-            var value = token as long?;
+            long? value = token as long?;
 
             if (value == null)
             {
@@ -443,7 +443,7 @@ namespace Opc.Ua
                 return 0;
             }
 
-            var value = token as long?;
+            long? value = token as long?;
 
             if (value == null)
             {
@@ -470,7 +470,7 @@ namespace Opc.Ua
                 return 0;
             }
 
-            var value = token as long?;
+            long? value = token as long?;
 
             if (value == null)
             {
@@ -497,7 +497,7 @@ namespace Opc.Ua
                 return 0;
             }
 
-            var value = token as long?;
+            long? value = token as long?;
 
             if (value == null)
             {
@@ -524,7 +524,7 @@ namespace Opc.Ua
                 return 0;
             }
 
-            var value = token as long?;
+            long? value = token as long?;
 
             if (value == null)
             {
@@ -551,7 +551,7 @@ namespace Opc.Ua
                 return 0;
             }
 
-            var value = token as long?;
+            long? value = token as long?;
 
             if (value == null)
             {
@@ -585,7 +585,7 @@ namespace Opc.Ua
                 return 0;
             }
 
-            var value = token as long?;
+            long? value = token as long?;
 
             if (value == null)
             {
@@ -619,11 +619,11 @@ namespace Opc.Ua
                 return 0;
             }
 
-            var value = token as double?;
+            double? value = token as double?;
 
             if (value == null)
             {
-                var text = token as string;
+                string text = token as string;
                 float number = 0;
                 if (text == null || !Single.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out number))
                 {
@@ -643,7 +643,7 @@ namespace Opc.Ua
                         }
                     }
 
-                    var integer = token as long?;
+                    long? integer = token as long?;
                     if (integer == null)
                     {
                         return 0;
@@ -676,11 +676,11 @@ namespace Opc.Ua
                 return 0;
             }
 
-            var value = token as double?;
+            double? value = token as double?;
 
             if (value == null)
             {
-                var text = token as string;
+                string text = token as string;
                 double number = 0;
 
                 if (text == null || !Double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out number))
@@ -701,7 +701,7 @@ namespace Opc.Ua
                         }
                     }
 
-                    var integer = token as long?;
+                    long? integer = token as long?;
 
                     if (integer == null)
                     {
@@ -826,7 +826,7 @@ namespace Opc.Ua
                 return Array.Empty<byte>();
             }
 
-            var bytes = SafeConvertFromBase64String(value);
+            byte[] bytes = SafeConvertFromBase64String(value);
 
             if (m_context.MaxByteStringLength > 0 && m_context.MaxByteStringLength < bytes.Length)
             {
@@ -854,16 +854,16 @@ namespace Opc.Ua
                 return null;
             }
 
-            var bytes = SafeConvertFromBase64String(value);
+            byte[] bytes = SafeConvertFromBase64String(value);
 
             if (bytes != null && bytes.Length > 0)
             {
                 try
                 {
-                    XmlDocument document = new XmlDocument();
+                    var document = new XmlDocument();
                     string xmlString = Encoding.UTF8.GetString(bytes, 0, bytes.Length);
 
-                    using (XmlReader reader = XmlReader.Create(new StringReader(xmlString), Utils.DefaultXmlReaderSettings()))
+                    using (var reader = XmlReader.Create(new StringReader(xmlString), Utils.DefaultXmlReaderSettings()))
                     {
                         document.Load(reader);
                     }
@@ -926,7 +926,7 @@ namespace Opc.Ua
 
                 if (ReadField("Namespace", out namespaceToken))
                 {
-                    var index = namespaceToken as long?;
+                    long? index = namespaceToken as long?;
 
                     if (index == null)
                     {
@@ -1027,7 +1027,7 @@ namespace Opc.Ua
 
                 if (ReadField("Namespace", out namespaceToken))
                 {
-                    var index = namespaceToken as long?;
+                    long? index = namespaceToken as long?;
 
                     if (index == null)
                     {
@@ -1046,7 +1046,7 @@ namespace Opc.Ua
 
                 if (ReadField("ServerUri", out serverUriToken))
                 {
-                    var index = serverUriToken as long?;
+                    long? index = serverUriToken as long?;
 
                     if (index == null)
                     {
@@ -1172,7 +1172,7 @@ namespace Opc.Ua
 
                 if (qn.NamespaceIndex != 0)
                 {
-                    var ns = ToNamespaceIndex(qn.NamespaceIndex);
+                    ushort ns = ToNamespaceIndex(qn.NamespaceIndex);
 
                     if (ns != qn.NamespaceIndex)
                     {
@@ -1203,7 +1203,7 @@ namespace Opc.Ua
 
                 if (ReadField("Uri", out namespaceToken))
                 {
-                    var index = namespaceToken as long?;
+                    long? index = namespaceToken as long?;
 
                     if (index == null)
                     {
@@ -1304,7 +1304,7 @@ namespace Opc.Ua
             {
                 m_stack.Push(value);
 
-                BuiltInType type = (BuiltInType)ReadByte("Type");
+                var type = (BuiltInType)ReadByte("Type");
 
                 var context = m_stack.Peek() as Dictionary<string, object>;
 
@@ -1331,7 +1331,7 @@ namespace Opc.Ua
                 if (array.Value is Array arrayValue && dimensions != null && dimensions.Count > 1)
                 {
                     int length = arrayValue.Length;
-                    var dimensionsArray = dimensions.ToArray();
+                    int[] dimensionsArray = dimensions.ToArray();
                     (bool valid, int matrixLength) = Matrix.ValidateDimensions(dimensionsArray, length, Context.MaxArrayLength);
 
                     if (!valid || (matrixLength != length))
@@ -1370,7 +1370,7 @@ namespace Opc.Ua
                 return null;
             }
 
-            DataValue dv = new DataValue();
+            var dv = new DataValue();
 
             try
             {
@@ -1396,7 +1396,7 @@ namespace Opc.Ua
         /// </summary>
         public ExtensionObject ReadExtensionObject(string fieldName)
         {
-            var extension = ExtensionObject.Null;
+            ExtensionObject extension = ExtensionObject.Null;
             object token = null;
 
             if (!ReadField(fieldName, out token))
@@ -1432,13 +1432,13 @@ namespace Opc.Ua
 
                 if (encoding == (byte)ExtensionObjectEncoding.Binary)
                 {
-                    var bytes = ReadByteString("Body");
+                    byte[] bytes = ReadByteString("Body");
                     return new ExtensionObject(typeId, bytes ?? Array.Empty<byte>());
                 }
 
                 if (encoding == (byte)ExtensionObjectEncoding.Xml)
                 {
-                    var xml = ReadXmlElement("Body");
+                    XmlElement xml = ReadXmlElement("Body");
                     if (xml == null)
                     {
                         return extension;
@@ -1448,7 +1448,7 @@ namespace Opc.Ua
 
                 if (encoding == (byte)ExtensionObjectEncoding.Json)
                 {
-                    var json = ReadString("Body");
+                    string json = ReadString("Body");
                     if (string.IsNullOrEmpty(json))
                     {
                         return extension;
@@ -1460,7 +1460,7 @@ namespace Opc.Ua
 
                 if (systemType != null)
                 {
-                    var encodeable = ReadEncodeable("Body", systemType, typeId);
+                    IEncodeable encodeable = ReadEncodeable("Body", systemType, typeId);
                     if (encodeable == null)
                     {
                         return extension;
@@ -1472,7 +1472,7 @@ namespace Opc.Ua
                 using (var ostrm = new MemoryStream())
                 {
                     using (var stream = new StreamWriter(ostrm))
-                    using (JsonTextWriter writer = new JsonTextWriter(stream))
+                    using (var writer = new JsonTextWriter(stream))
                     {
                         EncodeAsJson(writer, token);
                     }
@@ -1991,7 +1991,7 @@ namespace Opc.Ua
                 try
                 {
                     m_stack.Push(token[ii]);
-                    var element = ReadGuid(null);
+                    Uuid element = ReadGuid(null);
                     values.Add(element);
                 }
                 finally
@@ -2022,7 +2022,7 @@ namespace Opc.Ua
                 try
                 {
                     m_stack.Push(token[ii]);
-                    var element = ReadByteString(null);
+                    byte[] element = ReadByteString(null);
                     values.Add(element);
                 }
                 finally
@@ -2053,7 +2053,7 @@ namespace Opc.Ua
                 try
                 {
                     m_stack.Push(token[ii]);
-                    var element = ReadXmlElement(null);
+                    XmlElement element = ReadXmlElement(null);
                     values.Add(element);
                 }
                 finally
@@ -2084,7 +2084,7 @@ namespace Opc.Ua
                 try
                 {
                     m_stack.Push(token[ii]);
-                    var element = ReadNodeId(null);
+                    NodeId element = ReadNodeId(null);
                     values.Add(element);
                 }
                 finally
@@ -2115,7 +2115,7 @@ namespace Opc.Ua
                 try
                 {
                     m_stack.Push(token[ii]);
-                    var element = ReadExpandedNodeId(null);
+                    ExpandedNodeId element = ReadExpandedNodeId(null);
                     values.Add(element);
                 }
                 finally
@@ -2146,7 +2146,7 @@ namespace Opc.Ua
                 try
                 {
                     m_stack.Push(token[ii]);
-                    var element = ReadStatusCode(null);
+                    StatusCode element = ReadStatusCode(null);
                     values.Add(element);
                 }
                 finally
@@ -2177,7 +2177,7 @@ namespace Opc.Ua
                 try
                 {
                     m_stack.Push(token[ii]);
-                    var element = ReadDiagnosticInfo(null);
+                    DiagnosticInfo element = ReadDiagnosticInfo(null);
                     values.Add(element);
                 }
                 finally
@@ -2208,7 +2208,7 @@ namespace Opc.Ua
                 try
                 {
                     m_stack.Push(token[ii]);
-                    var element = ReadQualifiedName(null);
+                    QualifiedName element = ReadQualifiedName(null);
                     values.Add(element);
                 }
                 finally
@@ -2239,7 +2239,7 @@ namespace Opc.Ua
                 try
                 {
                     m_stack.Push(token[ii]);
-                    var element = ReadLocalizedText(null);
+                    LocalizedText element = ReadLocalizedText(null);
                     values.Add(element);
                 }
                 finally
@@ -2270,7 +2270,7 @@ namespace Opc.Ua
                 try
                 {
                     m_stack.Push(token[ii]);
-                    var element = ReadVariant(null);
+                    Variant element = ReadVariant(null);
                     values.Add(element);
                 }
                 finally
@@ -2301,7 +2301,7 @@ namespace Opc.Ua
                 try
                 {
                     m_stack.Push(token[ii]);
-                    var element = ReadDataValue(null);
+                    DataValue element = ReadDataValue(null);
                     values.Add(element);
                 }
                 finally
@@ -2332,7 +2332,7 @@ namespace Opc.Ua
                 try
                 {
                     m_stack.Push(token[ii]);
-                    var element = ReadExtensionObject(null);
+                    ExtensionObject element = ReadExtensionObject(null);
                     values.Add(element);
                 }
                 finally
@@ -2372,7 +2372,7 @@ namespace Opc.Ua
                 try
                 {
                     m_stack.Push(token[ii]);
-                    var element = ReadEncodeable(null, systemType, encodeableTypeId);
+                    IEncodeable element = ReadEncodeable(null, systemType, encodeableTypeId);
                     values.SetValue(element, ii);
                 }
                 finally
@@ -2408,7 +2408,7 @@ namespace Opc.Ua
                 try
                 {
                     m_stack.Push(token[ii]);
-                    var element = ReadEnumerated(null, enumType);
+                    Enum element = ReadEnumerated(null, enumType);
                     values.SetValue(element, ii);
                 }
                 finally
@@ -2533,7 +2533,7 @@ namespace Opc.Ua
                         dimensions2 = new Int32Collection(valueRank);
                     }
 
-                    var array2 = ReadArray("Array", 1, builtInType, systemType, encodeableTypeId);
+                    Array array2 = ReadArray("Array", 1, builtInType, systemType, encodeableTypeId);
                     m_stack.Pop();
 
                     var matrix2 = new Matrix(array2, builtInType, dimensions2.ToArray());
@@ -2545,8 +2545,8 @@ namespace Opc.Ua
                     return null;
                 }
 
-                List<object> elements = new List<object>();
-                List<int> dimensions = new List<int>();
+                var elements = new List<object>();
+                var dimensions = new List<int>();
                 if (builtInType == BuiltInType.Enumeration || builtInType == BuiltInType.Variant || builtInType == BuiltInType.Null)
                 {
                     DetermineIEncodeableSystemType(ref systemType, encodeableTypeId);
@@ -2641,7 +2641,7 @@ namespace Opc.Ua
                         {
                             var newElements = Array.CreateInstance(systemType, elements.Count);
                             int ii = 0;
-                            foreach (var element in elements)
+                            foreach (object element in elements)
                             {
                                 newElements.SetValue(Convert.ChangeType(element, systemType, CultureInfo.InvariantCulture), ii++);
                             }
@@ -2657,7 +2657,7 @@ namespace Opc.Ua
                     {
                         if (DetermineIEncodeableSystemType(ref systemType, encodeableTypeId))
                         {
-                            Array newElements = Array.CreateInstance(systemType, elements.Count);
+                            var newElements = Array.CreateInstance(systemType, elements.Count);
                             for (int i = 0; i < elements.Count; i++)
                             {
                                 newElements.SetValue(Convert.ChangeType(elements[i], systemType, CultureInfo.InvariantCulture), i);
@@ -2678,7 +2678,7 @@ namespace Opc.Ua
                     {
                         if (DetermineIEncodeableSystemType(ref systemType, encodeableTypeId))
                         {
-                            Array newElements = Array.CreateInstance(systemType, elements.Count);
+                            var newElements = Array.CreateInstance(systemType, elements.Count);
                             for (int i = 0; i < elements.Count; i++)
                             {
                                 newElements.SetValue(Convert.ChangeType(elements[i], systemType, CultureInfo.InvariantCulture), i);
@@ -2758,7 +2758,7 @@ namespace Opc.Ua
         #region Private Methods
         private ushort ToNamespaceIndex(string uri)
         {
-            var index = m_context.NamespaceUris.GetIndex(uri);
+            int index = m_context.NamespaceUris.GetIndex(uri);
 
             if (index < 0)
             {
@@ -2792,7 +2792,7 @@ namespace Opc.Ua
 
         private ushort ToServerIndex(string uri)
         {
-            var index = m_context.ServerUris.GetIndex(uri);
+            int index = m_context.ServerUris.GetIndex(uri);
 
             if (index < 0)
             {
@@ -2891,7 +2891,7 @@ namespace Opc.Ua
             {
                 m_stack.Push(value);
 
-                DiagnosticInfo di = new DiagnosticInfo();
+                var di = new DiagnosticInfo();
 
                 bool hasDiagnosticInfo = false;
                 if (value.ContainsKey("SymbolicId"))
@@ -3043,7 +3043,7 @@ namespace Opc.Ua
 
             try
             {
-                List<object> elements = new List<object>();
+                var elements = new List<object>();
 
                 while (m_reader.Read() && m_reader.TokenType != JsonToken.EndArray)
                 {
@@ -3100,7 +3100,7 @@ namespace Opc.Ua
         /// <returns></returns>
         private Dictionary<string, object> ReadObject()
         {
-            Dictionary<string, object> fields = new Dictionary<string, object>();
+            var fields = new Dictionary<string, object>();
 
             try
             {
@@ -3215,7 +3215,7 @@ namespace Opc.Ua
                         if (part != null && part.Length > 0)
                         {
                             // add part elements to final list 
-                            foreach (var item in part)
+                            foreach (object item in part)
                             {
                                 elements.Add(item);
                             }
@@ -3275,7 +3275,7 @@ namespace Opc.Ua
                 {
                     writer.WriteStartArray();
 
-                    foreach (var element in list)
+                    foreach (object element in list)
                     {
                         EncodeAsJson(writer, element);
                     }
@@ -3296,7 +3296,7 @@ namespace Opc.Ua
         {
             writer.WriteStartObject();
 
-            foreach (var field in value)
+            foreach (KeyValuePair<string, object> field in value)
             {
                 writer.WritePropertyName(field.Key);
                 EncodeAsJson(writer, field.Value);

@@ -62,21 +62,15 @@ namespace Opc.Ua
         /// </summary>
         public byte[] Data
         {
-            get
-            {
-                return m_data;
-            }
-            private set
-            {
-                m_data = value;
-            }
+            get => m_data;
+            private set => m_data = value;
         }
 
         #endregion
 
-#region Public Methods
+        #region Public Methods
 
-#region Instance Methods
+        #region Instance Methods
 
 #if ECC_SUPPORT
         /// <summary>
@@ -133,7 +127,7 @@ namespace Opc.Ua
 #endif
             if (m_ecdh != null)
             {
-                var secret = m_ecdh.DeriveKeyFromHmac(remoteNonce.m_ecdh.PublicKey, algorithm, salt, null, null);
+                byte[] secret = m_ecdh.DeriveKeyFromHmac(remoteNonce.m_ecdh.PublicKey, algorithm, salt, null, null);
 
                 byte[] output = new byte[length];
 
@@ -175,7 +169,7 @@ namespace Opc.Ua
         }
 #endif
 
-#endregion
+        #endregion
 
         #region Factory Methods
         /// <summary>
@@ -241,7 +235,7 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(nonceData));
             }
 
-            Nonce nonce = new Nonce() {
+            var nonce = new Nonce() {
                 Data = nonceData
             };
 
@@ -435,7 +429,7 @@ namespace Opc.Ua
         private static Nonce CreateNonce(ECCurve curve, byte[] nonceData)
         {
 
-            Nonce nonce = new Nonce() {
+            var nonce = new Nonce() {
                 Data = nonceData
             };
 
@@ -478,7 +472,7 @@ namespace Opc.Ua
         {
 
             var ecdh = (ECDiffieHellman)ECDiffieHellman.Create(curve);
-            var ecdhParameters = ecdh.ExportParameters(false);
+            ECParameters ecdhParameters = ecdh.ExportParameters(false);
             int xLen = ecdhParameters.Q.X.Length;
             int yLen = ecdhParameters.Q.Y.Length;
 
@@ -575,7 +569,7 @@ namespace Opc.Ua
         protected Nonce(SerializationInfo info, StreamingContext context)
         {
 #if ECC_SUPPORT
-            var curveName = info.GetString("CurveName");
+            string curveName = info.GetString("CurveName");
 
 
             if (curveName != null)
@@ -653,7 +647,7 @@ namespace Opc.Ua
 #if ECC_SUPPORT
             if (m_ecdh != null)
             {
-                var ecParams = m_ecdh.ExportParameters(false);
+                ECParameters ecParams = m_ecdh.ExportParameters(false);
                 info.AddValue("CurveName", ecParams.Curve.Oid.FriendlyName);
                 info.AddValue("QX", ecParams.Q.X);
                 info.AddValue("QY", ecParams.Q.Y);

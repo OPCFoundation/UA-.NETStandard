@@ -36,7 +36,7 @@ namespace Opc.Ua.Gds.Server
     /// <summary>
     /// Stores the configuration the data access node manager.
     /// </summary>
-    [DataContract(Namespace = Opc.Ua.Gds.Namespaces.OpcUaGds + "Configuration.xsd")]
+    [DataContract(Namespace = Namespaces.OpcUaGds + "Configuration.xsd")]
     public class GlobalDiscoveryServerConfiguration
     {
         #region Constructors
@@ -98,7 +98,7 @@ namespace Opc.Ua.Gds.Server
     /// <summary>
     /// Stores the configuration the data access node manager.
     /// </summary>
-    [DataContract(Namespace = Opc.Ua.Gds.Namespaces.OpcUaGds + "Configuration.xsd")]
+    [DataContract(Namespace = Namespaces.OpcUaGds + "Configuration.xsd")]
     public class CertificateGroupConfiguration
     {
         #region Constructors
@@ -205,7 +205,7 @@ namespace Opc.Ua.Gds.Server
         #endregion
     }
 
-    [CollectionDataContract(Name = "ListOfCertificateGroupConfiguration", Namespace = Opc.Ua.Gds.Namespaces.OpcUaGds + "Configuration.xsd", ItemName = "CertificateGroupConfiguration")]
+    [CollectionDataContract(Name = "ListOfCertificateGroupConfiguration", Namespace = Namespaces.OpcUaGds + "Configuration.xsd", ItemName = "CertificateGroupConfiguration")]
     public class CertificateGroupConfigurationCollection : List<CertificateGroupConfiguration>
     {
         /// <summary>

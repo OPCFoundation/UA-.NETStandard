@@ -167,7 +167,7 @@ namespace Opc.Ua.Bindings
                 if (m_settings.ClientCertificate != null)
                 {
                     // prepare the server TLS certificate
-                    var clientCertificate = m_settings.ClientCertificate;
+                    X509Certificate2 clientCertificate = m_settings.ClientCertificate;
 #if NETCOREAPP3_1_OR_GREATER || NETSTANDARD2_1 || NET472_OR_GREATER || NET5_0_OR_GREATER
                     try
                     {
@@ -185,7 +185,7 @@ namespace Opc.Ua.Bindings
                     PropertyInfo certProperty = handler.GetType().GetProperty("ClientCertificates");
                     if (certProperty != null)
                     {
-                        X509CertificateCollection clientCertificates = (X509CertificateCollection)certProperty.GetValue(handler);
+                        var clientCertificates = (X509CertificateCollection)certProperty.GetValue(handler);
                         _ = clientCertificates?.Add(clientCertificate);
                     }
                 }
@@ -337,8 +337,7 @@ namespace Opc.Ua.Bindings
         /// <inheritdoc/>
         public IServiceResponse EndSendRequest(IAsyncResult result)
         {
-            var result2 = result as HttpsAsyncResult;
-            if (result2 == null)
+            if (result is not HttpsAsyncResult result2)
             {
                 throw new ArgumentException("Invalid result object passed.", nameof(result));
             }

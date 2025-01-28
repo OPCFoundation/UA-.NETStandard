@@ -38,7 +38,7 @@ namespace Opc.Ua
         {
             get
             {
-                MessageContextExtension extension = MessageContextExtension.Current;
+                MessageContextExtension extension = Current;
 
                 if (extension != null)
                 {

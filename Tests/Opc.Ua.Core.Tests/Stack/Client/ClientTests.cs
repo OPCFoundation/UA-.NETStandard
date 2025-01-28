@@ -29,11 +29,7 @@
 
 
 using System;
-using System.IO;
-using System.Text;
-using System.Xml;
 using NUnit.Framework;
-using Opc.Ua.Tests;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 
@@ -82,10 +78,10 @@ namespace Opc.Ua.Core.Tests.Stack.Client
         [TestCase("opc.tcp://[fe80::de39:6fff:feae:c78%12]:4840/Endpoint1")]
         public void DiscoveryEndPointUrls(string urlString)
         {
-            Uri uri = new Uri(urlString);
+            var uri = new Uri(urlString);
             Assert.True(uri.IsWellFormedOriginalString());
 
-            UriBuilder uriBuilder = new UriBuilder {
+            var uriBuilder = new UriBuilder {
                 Scheme = uri.Scheme,
                 Host = uri.DnsSafeHost,
                 Port = uri.Port,
@@ -105,7 +101,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                     ApplicationCertificate = new CertificateIdentifier()
                 }
             };
-            Assert.DoesNotThrow(() => appConfig.Validate(ApplicationType.Client).GetAwaiter().GetResult());
+            NUnit.Framework.Assert.DoesNotThrow(() => appConfig.Validate(ApplicationType.Client).GetAwaiter().GetResult());
         }
         #endregion
     }

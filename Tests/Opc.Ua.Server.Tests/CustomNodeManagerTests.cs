@@ -27,7 +27,7 @@ namespace Opc.Ua.Server.Tests
             {
                 // Arrange
                 const string ns = "http://test.org/UA/Data/";
-                var server = await fixture.StartAsync(TestContext.Out).ConfigureAwait(false);
+                StandardServer server = await fixture.StartAsync(TestContext.Out).ConfigureAwait(false);
 
                 var nodeManager = new TestableCustomNodeManger2(server.CurrentInstance, ns);
 
@@ -62,10 +62,10 @@ namespace Opc.Ua.Server.Tests
             {
                 // Arrange
                 const string ns = "http://test.org/UA/Data/";
-                var server = await fixture.StartAsync(TestContext.Out).ConfigureAwait(false);
+                StandardServer server = await fixture.StartAsync(TestContext.Out).ConfigureAwait(false);
 
                 var nodeManager = new TestableCustomNodeManger2(server.CurrentInstance, ns);
-                var index = server.CurrentInstance.NamespaceUris.GetIndex(ns);
+                int index = server.CurrentInstance.NamespaceUris.GetIndex(ns);
 
                 var baseObject = new DataItemState(null);
                 var nodeId = new NodeId((string)CommonTestWorkers.NodeIdTestSetStatic.First().Identifier, (ushort)index);
@@ -81,7 +81,7 @@ namespace Opc.Ua.Server.Tests
                 NodeState nodeState = nodeManager.Find(nodeId);
                 Assert.That(nodeState, Is.Not.Null);
 
-                NodeHandle handle = nodeManager.GetManagerHandle(nodeId) as NodeHandle;
+                var handle = nodeManager.GetManagerHandle(nodeId) as NodeHandle;
                 Assert.That(handle, Is.Not.Null);
 
                 nodeManager.DeleteNode(nodeManager.SystemContext, nodeId);
@@ -123,7 +123,7 @@ namespace Opc.Ua.Server.Tests
 
             NodeState nodeState = nodeManager.Find(nodeId);
 
-            NodeHandle handle = nodeManager.GetManagerHandle(nodeId) as NodeHandle;
+            var handle = nodeManager.GetManagerHandle(nodeId) as NodeHandle;
 
             nodeManager.DeleteNode(nodeManager.SystemContext, nodeId);
 
@@ -168,7 +168,7 @@ namespace Opc.Ua.Server.Tests
             var cancellationTokenSource = new CancellationTokenSource();
             Exception error = null;
             int tasksCompletedCount = 0;
-            var result = Parallel.For(0, iterations, new ParallelOptions(),
+            ParallelLoopResult result = Parallel.For(0, iterations, new ParallelOptions(),
                           async index => {
                               try
                               {

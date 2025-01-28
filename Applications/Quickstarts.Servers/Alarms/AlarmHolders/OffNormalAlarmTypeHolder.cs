@@ -52,7 +52,7 @@ namespace Alarms
         {
             if (create)
             {
-                Initialize(Opc.Ua.ObjectTypes.OffNormalAlarmType, name, maxShelveTime);
+                Initialize(ObjectTypes.OffNormalAlarmType, name, maxShelveTime);
             }
         }
 
@@ -61,10 +61,7 @@ namespace Alarms
             string name,
             double maxTimeShelved = AlarmDefines.NORMAL_MAX_TIME_SHELVED)
         {
-            if (m_alarm == null)
-            {
-                m_alarm = new OffNormalAlarmState(m_parent);
-            }
+            m_alarm ??= new OffNormalAlarmState(m_parent);
 
             OffNormalAlarmState alarm = GetAlarm();
 

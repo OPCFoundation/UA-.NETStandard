@@ -187,8 +187,8 @@ namespace Opc.Ua.Client
         [DataMember(Order = 1)]
         public string DisplayName
         {
-            get { return m_displayName; }
-            set { m_displayName = value; }
+            get => m_displayName;
+            set => m_displayName = value;
         }
 
 
@@ -198,8 +198,8 @@ namespace Opc.Ua.Client
         [DataMember(Order = 2)]
         public NodeId StartNodeId
         {
-            get { return m_startNodeId; }
-            set { m_startNodeId = value; }
+            get => m_startNodeId;
+            set => m_startNodeId = value;
         }
 
         /// <summary>
@@ -211,7 +211,7 @@ namespace Opc.Ua.Client
         [DataMember(Order = 3)]
         public string RelativePath
         {
-            get { return m_relativePath; }
+            get => m_relativePath;
 
             set
             {
@@ -231,7 +231,7 @@ namespace Opc.Ua.Client
         [DataMember(Order = 4)]
         public NodeClass NodeClass
         {
-            get { return m_nodeClass; }
+            get => m_nodeClass;
 
             set
             {
@@ -284,8 +284,8 @@ namespace Opc.Ua.Client
         [DataMember(Order = 5)]
         public uint AttributeId
         {
-            get { return m_attributeId; }
-            set { m_attributeId = value; }
+            get => m_attributeId;
+            set => m_attributeId = value;
         }
 
         /// <summary>
@@ -294,8 +294,8 @@ namespace Opc.Ua.Client
         [DataMember(Order = 6)]
         public string IndexRange
         {
-            get { return m_indexRange; }
-            set { m_indexRange = value; }
+            get => m_indexRange;
+            set => m_indexRange = value;
         }
 
         /// <summary>
@@ -304,8 +304,8 @@ namespace Opc.Ua.Client
         [DataMember(Order = 7)]
         public QualifiedName Encoding
         {
-            get { return m_encoding; }
-            set { m_encoding = value; }
+            get => m_encoding;
+            set => m_encoding = value;
         }
 
         /// <summary>
@@ -314,8 +314,8 @@ namespace Opc.Ua.Client
         [DataMember(Order = 8)]
         public MonitoringMode MonitoringMode
         {
-            get { return m_monitoringMode; }
-            set { m_monitoringMode = value; }
+            get => m_monitoringMode;
+            set => m_monitoringMode = value;
         }
 
         /// <summary>
@@ -324,7 +324,7 @@ namespace Opc.Ua.Client
         [DataMember(Order = 9)]
         public int SamplingInterval
         {
-            get { return m_samplingInterval; }
+            get => m_samplingInterval;
 
             set
             {
@@ -343,7 +343,7 @@ namespace Opc.Ua.Client
         [DataMember(Order = 10)]
         public MonitoringFilter Filter
         {
-            get { return m_filter; }
+            get => m_filter;
 
             set
             {
@@ -361,7 +361,7 @@ namespace Opc.Ua.Client
         [DataMember(Order = 11)]
         public uint QueueSize
         {
-            get { return m_queueSize; }
+            get => m_queueSize;
 
             set
             {
@@ -380,7 +380,7 @@ namespace Opc.Ua.Client
         [DataMember(Order = 12)]
         public bool DiscardOldest
         {
-            get { return m_discardOldest; }
+            get => m_discardOldest;
 
             set
             {
@@ -399,8 +399,8 @@ namespace Opc.Ua.Client
         [DataMember(Order = 13)]
         public uint ServerId
         {
-            get { return m_status.Id; }
-            set { m_status.Id = value; }
+            get => m_status.Id;
+            set => m_status.Id = value;
         }
         #endregion
 
@@ -410,8 +410,8 @@ namespace Opc.Ua.Client
         /// </summary>
         public Subscription Subscription
         {
-            get { return m_subscription; }
-            internal set { m_subscription = value; }
+            get => m_subscription;
+            internal set => m_subscription = value;
         }
 
         /// <summary>
@@ -419,8 +419,8 @@ namespace Opc.Ua.Client
         /// </summary>
         public object Handle
         {
-            get { return m_handle; }
-            set { m_handle = value; }
+            get => m_handle;
+            set => m_handle = value;
         }
 
         /// <summary>
@@ -449,7 +449,7 @@ namespace Opc.Ua.Client
                 return m_resolvedNodeId;
             }
 
-            internal set { m_resolvedNodeId = value; }
+            internal set => m_resolvedNodeId = value;
         }
 
         /// <summary>
@@ -632,7 +632,7 @@ namespace Opc.Ua.Client
                         {
                             if (validateTimestamp)
                             {
-                                var now = DateTime.UtcNow.Add(s_time_epsilon);
+                                DateTime now = DateTime.UtcNow.Add(s_time_epsilon);
 
                                 // validate the ServerTimestamp of the notification.
                                 if (datachange.Value.ServerTimestamp > now)
@@ -814,9 +814,7 @@ namespace Opc.Ua.Client
         /// </summary>
         public string GetFieldName(int index)
         {
-            EventFilter filter = m_filter as EventFilter;
-
-            if (filter == null)
+            if (m_filter is not EventFilter filter)
             {
                 return null;
             }
@@ -850,7 +848,7 @@ namespace Opc.Ua.Client
             NodeId eventTypeId,
             QualifiedName browseName)
         {
-            QualifiedNameCollection browsePath = new QualifiedNameCollection();
+            var browsePath = new QualifiedNameCollection();
             browsePath.Add(browseName);
             return GetFieldValue(eventFields, eventTypeId, browsePath, Attributes.Value);
         }
@@ -869,9 +867,8 @@ namespace Opc.Ua.Client
                 return null;
             }
 
-            EventFilter filter = m_filter as EventFilter;
 
-            if (filter == null)
+            if (m_filter is not EventFilter filter)
             {
                 return null;
             }
@@ -950,7 +947,7 @@ namespace Opc.Ua.Client
         public INode GetEventType(EventFieldList eventFields)
         {
             // get event type.
-            NodeId eventTypeId = GetFieldValue(eventFields, ObjectTypes.BaseEventType, Opc.Ua.BrowseNames.EventType) as NodeId;
+            var eventTypeId = GetFieldValue(eventFields, ObjectTypes.BaseEventType, BrowseNames.EventType) as NodeId;
 
             if (eventTypeId != null && m_subscription != null && m_subscription.Session != null)
             {
@@ -967,7 +964,7 @@ namespace Opc.Ua.Client
         public DateTime GetEventTime(EventFieldList eventFields)
         {
             // get event time.
-            DateTime? eventTime = GetFieldValue(eventFields, ObjectTypes.BaseEventType, Opc.Ua.BrowseNames.Time) as DateTime?;
+            var eventTime = GetFieldValue(eventFields, ObjectTypes.BaseEventType, BrowseNames.Time) as DateTime?;
 
             if (eventTime != null)
             {
@@ -983,9 +980,7 @@ namespace Opc.Ua.Client
         /// </summary>
         public static ServiceResult GetServiceResult(IEncodeable notification)
         {
-            MonitoredItemNotification datachange = notification as MonitoredItemNotification;
-
-            if (datachange == null)
+            if (notification is not MonitoredItemNotification datachange)
             {
                 return null;
             }
@@ -1005,9 +1000,7 @@ namespace Opc.Ua.Client
         /// </summary>
         public static ServiceResult GetServiceResult(IEncodeable notification, int index)
         {
-            EventFieldList eventFields = notification as EventFieldList;
-
-            if (eventFields == null)
+            if (notification is not EventFieldList eventFields)
             {
                 return null;
             }
@@ -1024,9 +1017,8 @@ namespace Opc.Ua.Client
                 return null;
             }
 
-            StatusResult status = ExtensionObject.ToEncodeable(eventFields.EventFields[index].Value as ExtensionObject) as StatusResult;
 
-            if (status == null)
+            if (ExtensionObject.ToEncodeable(eventFields.EventFields[index].Value as ExtensionObject) is not StatusResult status)
             {
                 return null;
             }
@@ -1104,15 +1096,15 @@ namespace Opc.Ua.Client
         {
             EventFilter filter = filter = new EventFilter();
 
-            filter.AddSelectClause(ObjectTypes.BaseEventType, Opc.Ua.BrowseNames.EventId);
-            filter.AddSelectClause(ObjectTypes.BaseEventType, Opc.Ua.BrowseNames.EventType);
-            filter.AddSelectClause(ObjectTypes.BaseEventType, Opc.Ua.BrowseNames.SourceNode);
-            filter.AddSelectClause(ObjectTypes.BaseEventType, Opc.Ua.BrowseNames.SourceName);
-            filter.AddSelectClause(ObjectTypes.BaseEventType, Opc.Ua.BrowseNames.Time);
-            filter.AddSelectClause(ObjectTypes.BaseEventType, Opc.Ua.BrowseNames.ReceiveTime);
-            filter.AddSelectClause(ObjectTypes.BaseEventType, Opc.Ua.BrowseNames.LocalTime);
-            filter.AddSelectClause(ObjectTypes.BaseEventType, Opc.Ua.BrowseNames.Message);
-            filter.AddSelectClause(ObjectTypes.BaseEventType, Opc.Ua.BrowseNames.Severity);
+            filter.AddSelectClause(ObjectTypes.BaseEventType, BrowseNames.EventId);
+            filter.AddSelectClause(ObjectTypes.BaseEventType, BrowseNames.EventType);
+            filter.AddSelectClause(ObjectTypes.BaseEventType, BrowseNames.SourceNode);
+            filter.AddSelectClause(ObjectTypes.BaseEventType, BrowseNames.SourceName);
+            filter.AddSelectClause(ObjectTypes.BaseEventType, BrowseNames.Time);
+            filter.AddSelectClause(ObjectTypes.BaseEventType, BrowseNames.ReceiveTime);
+            filter.AddSelectClause(ObjectTypes.BaseEventType, BrowseNames.LocalTime);
+            filter.AddSelectClause(ObjectTypes.BaseEventType, BrowseNames.Message);
+            filter.AddSelectClause(ObjectTypes.BaseEventType, BrowseNames.Severity);
 
             m_filter = filter;
         }
@@ -1273,10 +1265,7 @@ namespace Opc.Ua.Client
                 queueSize = 1;
                 m_values = null;
             }
-            else if (m_values == null)
-            {
-                m_values = new Queue<DataValue>(Math.Min(queueSize + 1, kDefaultMaxCapacity));
-            }
+            else m_values ??= new Queue<DataValue>(Math.Min(queueSize + 1, kDefaultMaxCapacity));
 
             m_queueSize = queueSize;
 
@@ -1326,7 +1315,7 @@ namespace Opc.Ua.Client
         /// </summary>
         public IList<EventFieldList> Publish()
         {
-            EventFieldList[] events = new EventFieldList[m_events.Count];
+            var events = new EventFieldList[m_events.Count];
 
             for (int ii = 0; ii < events.Length; ii++)
             {

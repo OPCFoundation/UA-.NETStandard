@@ -53,9 +53,9 @@ namespace Opc.Ua.PubSub.Configuration
             XmlWriterSettings settings = Utils.DefaultXmlWriterSettings();
             settings.CloseOutput = true;
 
-            using (XmlWriter writer = XmlWriter.Create(ostrm, settings))
+            using (var writer = XmlWriter.Create(ostrm, settings))
             {
-                DataContractSerializer serializer = new DataContractSerializer(typeof(PubSubConfigurationDataType));
+                var serializer = new DataContractSerializer(typeof(PubSubConfigurationDataType));
                 serializer.WriteObject(writer, pubSubConfiguration);
             }
         }
@@ -68,15 +68,15 @@ namespace Opc.Ua.PubSub.Configuration
         {
             try
             {
-                using (FileStream stream = new FileStream(filePath, FileMode.Open, FileAccess.Read))
+                using (var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read))
                 {
-                    DataContractSerializer serializer = new DataContractSerializer(typeof(PubSubConfigurationDataType));
+                    var serializer = new DataContractSerializer(typeof(PubSubConfigurationDataType));
                     return (PubSubConfigurationDataType)serializer.ReadObject(stream);
                 }
             }
             catch (Exception e)
             {
-                StringBuilder buffer = new StringBuilder();
+                var buffer = new StringBuilder();
                 buffer.AppendFormat(CultureInfo.InvariantCulture, "Configuration file could not be loaded: {0}\r\n", filePath);
                 buffer.AppendFormat(CultureInfo.InvariantCulture, "Error: {0}", e.Message);
 

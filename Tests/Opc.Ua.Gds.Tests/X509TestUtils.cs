@@ -55,27 +55,27 @@ namespace Opc.Ua.Gds.Tests
             }
             else
             {
-                Assert.Fail("Invalid private key format");
+                NUnit.Framework.Assert.Fail("Invalid private key format");
             }
             Assert.IsNotNull(newPrivateKeyCert);
             // verify the public cert matches the private key
             Assert.IsTrue(X509Utils.VerifyRSAKeyPair(newCert, newPrivateKeyCert, true));
             Assert.IsTrue(X509Utils.VerifyRSAKeyPair(newPrivateKeyCert, newPrivateKeyCert, true));
-            CertificateIdentifierCollection issuerCertIdCollection = new CertificateIdentifierCollection();
-            foreach (var issuer in issuerCertificates)
+            var issuerCertIdCollection = new CertificateIdentifierCollection();
+            foreach (byte[] issuer in issuerCertificates)
             {
-                var issuerCert = X509CertificateLoader.LoadCertificate(issuer);
+                X509Certificate2 issuerCert = X509CertificateLoader.LoadCertificate(issuer);
                 Assert.IsNotNull(issuerCert);
                 issuerCertIdCollection.Add(new CertificateIdentifier(issuerCert));
             }
 
             // verify cert with issuer chain
-            CertificateValidator certValidator = new CertificateValidator();
-            CertificateTrustList issuerStore = new CertificateTrustList();
-            CertificateTrustList trustedStore = new CertificateTrustList();
+            var certValidator = new CertificateValidator();
+            var issuerStore = new CertificateTrustList();
+            var trustedStore = new CertificateTrustList();
             trustedStore.TrustedCertificates = issuerCertIdCollection;
             certValidator.Update(trustedStore, issuerStore, null);
-            Assert.That(() => {
+            NUnit.Framework.Assert.That(() => {
                 certValidator.Validate(newCert);
             }, Throws.Exception);
             issuerStore.TrustedCertificates = issuerCertIdCollection;
@@ -131,6 +131,15 @@ namespace Opc.Ua.Gds.Tests
             Assert.True(enhancedKeyUsage.Critical);
 
             // test for authority key
+
+/* Unmerged change from project 'Opc.Ua.Gds.Tests (net9.0)'
+Before:
+            var authority = X509Extensions.FindExtension<Ua.Security.Certificates.X509AuthorityKeyIdentifierExtension>(signedCert);
+            Assert.NotNull(authority);
+After:
+            Security.Certificates.X509AuthorityKeyIdentifierExtension authority = X509Extensions.FindExtension<Ua.Security.Certificates.X509AuthorityKeyIdentifierExtension>(signedCert);
+            Assert.NotNull(authority);
+*/
             var authority = X509Extensions.FindExtension<Ua.Security.Certificates.X509AuthorityKeyIdentifierExtension>(signedCert);
             Assert.NotNull(authority);
             TestContext.Out.WriteLine($"Authority Key Identifier: {authority.Format(true)}");
@@ -150,13 +159,13 @@ namespace Opc.Ua.Gds.Tests
             Assert.NotNull(subjectAlternateName);
             TestContext.Out.WriteLine($"Issuer Subject Alternate Name: {subjectAlternateName}");
             Assert.False(subjectAlternateName.Critical);
-            var domainNames = X509Utils.GetDomainsFromCertificate(signedCert);
-            foreach (var domainName in testApp.DomainNames)
+            System.Collections.Generic.IList<string> domainNames = X509Utils.GetDomainsFromCertificate(signedCert);
+            foreach (string domainName in testApp.DomainNames)
             {
                 Assert.True(domainNames.Contains(domainName, StringComparer.OrdinalIgnoreCase));
             }
             Assert.True(subjectAlternateName.Uris.Count == 1);
-            var applicationUri = X509Utils.GetApplicationUriFromCertificate(signedCert);
+            string applicationUri = X509Utils.GetApplicationUriFromCertificate(signedCert);
             Assert.True(testApp.ApplicationRecord.ApplicationUri == applicationUri);
         }
     }

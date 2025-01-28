@@ -107,13 +107,13 @@ namespace Opc.Ua.PubSub.Transport
         /// <returns></returns>
         internal static List<UdpClient> GetUdpClients(UsedInContext pubSubContext, string networkInterface, IPEndPoint configuredEndpoint)
         {
-            StringBuilder buffer = new StringBuilder();
+            var buffer = new StringBuilder();
             buffer.AppendFormat(CultureInfo.InvariantCulture, "networkAddressUrl.NetworkInterface = {0} \n", networkInterface ?? "null");
             buffer.AppendFormat(CultureInfo.InvariantCulture, "configuredEndpoint = {0}", configuredEndpoint != null ? configuredEndpoint.ToString() : "null");
 
             Utils.Trace(Utils.TraceMasks.Information, buffer.ToString());
 
-            List<UdpClient> udpClients = new List<UdpClient>();
+            var udpClients = new List<UdpClient>();
             //validate input parameters
             if (configuredEndpoint == null)
             {
@@ -121,8 +121,8 @@ namespace Opc.Ua.PubSub.Transport
                 return udpClients;
             }
             //detect the list on network interfaces that will be used for creating the UdpClient s
-            List<NetworkInterface> usableNetworkInterfaces = new List<NetworkInterface>();
-            var interfaces = NetworkInterface.GetAllNetworkInterfaces();
+            var usableNetworkInterfaces = new List<NetworkInterface>();
+            NetworkInterface[] interfaces = NetworkInterface.GetAllNetworkInterfaces();
             if (string.IsNullOrEmpty(networkInterface))
             {
                 Utils.Trace(Utils.TraceMasks.Information, "No NetworkInterface name was provided. Use all available NICs.");
@@ -182,7 +182,7 @@ namespace Opc.Ua.PubSub.Transport
             IPInterfaceProperties ipProps = networkInterface.GetIPProperties();
             IPAddress localAddress = IPAddress.Any;
 
-            foreach (var address in ipProps.UnicastAddresses)
+            foreach (UnicastIPAddressInformation address in ipProps.UnicastAddresses)
             {
                 if (address.Address.AddressFamily == AddressFamily.InterNetwork)
                 {

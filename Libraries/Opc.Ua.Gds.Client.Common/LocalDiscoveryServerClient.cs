@@ -43,7 +43,7 @@ namespace Opc.Ua.Gds.Client
             // set some defaults for the preferred locales.
             System.Globalization.CultureInfo culture = System.Globalization.CultureInfo.CurrentUICulture;
 
-            List<string> locales = new List<string>
+            var locales = new List<string>
             {
                 culture.Name
             };
@@ -105,7 +105,7 @@ namespace Opc.Ua.Gds.Client
         {
             DiscoveryClient client = CreateClient(endpointUrl, endpointTransportProfileUri);
 
-            FindServersData data = new FindServersData(callback, callbackData, client.OperationTimeout) {
+            var data = new FindServersData(callback, callbackData, client.OperationTimeout) {
                 DiscoveryClient = client
             };
 
@@ -122,9 +122,7 @@ namespace Opc.Ua.Gds.Client
 
         public List<ApplicationDescription> EndFindServers(IAsyncResult result)
         {
-            FindServersData data = result as FindServersData;
-
-            if (data == null)
+            if (result is not FindServersData data)
             {
                 throw new ArgumentException("Did not pass the correct IAsyncResult to end method.", nameof(result));
             }
@@ -161,7 +159,7 @@ namespace Opc.Ua.Gds.Client
 
         private void OnFindServersComplete(IAsyncResult result)
         {
-            FindServersData data = result.AsyncState as FindServersData;
+            var data = result.AsyncState as FindServersData;
 
             try
             {
@@ -200,7 +198,7 @@ namespace Opc.Ua.Gds.Client
         {
             DiscoveryClient client = CreateClient(endpointUrl, endpointTransportProfileUri);
 
-            GetEndpointsData data = new GetEndpointsData(callback, callbackData, client.OperationTimeout) {
+            var data = new GetEndpointsData(callback, callbackData, client.OperationTimeout) {
                 DiscoveryClient = client
             };
 
@@ -217,9 +215,7 @@ namespace Opc.Ua.Gds.Client
 
         public List<EndpointDescription> EndGetEndpoints(IAsyncResult result)
         {
-            GetEndpointsData data = result as GetEndpointsData;
-
-            if (data == null)
+            if (result is not GetEndpointsData data)
             {
                 throw new ArgumentException("Did not pass the correct IAsyncResult to end method.", nameof(result));
             }
@@ -256,7 +252,7 @@ namespace Opc.Ua.Gds.Client
 
         private void OnGetEndpointsComplete(IAsyncResult result)
         {
-            GetEndpointsData data = result.AsyncState as GetEndpointsData;
+            var data = result.AsyncState as GetEndpointsData;
 
             try
             {
@@ -316,7 +312,7 @@ namespace Opc.Ua.Gds.Client
         {
             DiscoveryClient client = CreateClient(endpointUrl, endpointTransportProfileUri);
 
-            FindServersOnNetworkData data = new FindServersOnNetworkData(callback, callbackData, client.OperationTimeout) {
+            var data = new FindServersOnNetworkData(callback, callbackData, client.OperationTimeout) {
                 DiscoveryClient = client
             };
 
@@ -333,9 +329,7 @@ namespace Opc.Ua.Gds.Client
 
         public List<ServerOnNetwork> EndFindServersOnNetwork(IAsyncResult result, out DateTime lastCounterResetTime)
         {
-            FindServersOnNetworkData data = result as FindServersOnNetworkData;
-
-            if (data == null)
+            if (result is not FindServersOnNetworkData data)
             {
                 throw new ArgumentException("Did not pass the correct IAsyncResult to end method.", nameof(result));
             }
@@ -374,7 +368,7 @@ namespace Opc.Ua.Gds.Client
 
         private void OnFindServersOnNetworkComplete(IAsyncResult result)
         {
-            FindServersOnNetworkData data = result.AsyncState as FindServersOnNetworkData;
+            var data = result.AsyncState as FindServersOnNetworkData;
 
             try
             {
@@ -411,7 +405,7 @@ namespace Opc.Ua.Gds.Client
 
             IServiceMessageContext context = ApplicationConfiguration.CreateMessageContext();
 
-            EndpointConfiguration configuration = EndpointConfiguration.Create(ApplicationConfiguration);
+            var configuration = EndpointConfiguration.Create(ApplicationConfiguration);
 
             if (DefaultOperationTimeout != 0)
             {
@@ -420,7 +414,7 @@ namespace Opc.Ua.Gds.Client
 
             ITransportChannel channel = DiscoveryChannel.Create(new Uri(endpointUrl), configuration, context);
 
-            DiscoveryClient client = new DiscoveryClient(channel);
+            var client = new DiscoveryClient(channel);
             return client;
         }
 
