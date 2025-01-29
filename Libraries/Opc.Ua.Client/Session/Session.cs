@@ -2654,6 +2654,8 @@ namespace Opc.Ua.Client
             identityToken.PolicyId = identityPolicy.PolicyId;
             userTokenSignature = identityToken.Sign(dataToSign, securityPolicyUri);
 
+            m_userTokenSecurityPolicyUri = securityPolicyUri;
+
             // encrypt token.
             identityToken.Encrypt(
                 m_serverCertificate,
