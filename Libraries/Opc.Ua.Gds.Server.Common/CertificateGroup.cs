@@ -83,6 +83,7 @@ namespace Opc.Ua.Gds.Server
                     if (!Utils.IsSupportedCertificateType(certificateType))
                     {
                         Utils.LogError("Certificate type {0} specified for Certificate Group is not supported on this platform", certificateType);
+                        continue;
                     }
 
                     CertificateTypes.Add(certificateType);

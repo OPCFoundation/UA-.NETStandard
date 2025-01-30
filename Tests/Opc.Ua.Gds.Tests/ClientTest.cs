@@ -115,7 +115,7 @@ namespace Opc.Ua.Gds.Tests
                 .Where(cg => cg.Id == "Default")
                 .SelectMany(cg => cg.CertificateTypes)
                 .Select(s => typeof(Ua.ObjectTypeIds).GetField(s).GetValue(null) as NodeId)
-                .Where(n => n != null)
+                .Where(n => n != null && Utils.IsSupportedCertificateType(n))
                 .ToList();
         }
 
