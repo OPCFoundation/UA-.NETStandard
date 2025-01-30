@@ -2451,11 +2451,11 @@ namespace Opc.Ua.Client
                 SignatureData clientSignature = SecurityPolicies.Sign(m_instanceCertificate, securityPolicyUri, dataToSign);
 
                 // select the security policy for the user token.
-                securityPolicyUri = identityPolicy.SecurityPolicyUri;
+                string tokenSecurityPolicyUri = identityPolicy.SecurityPolicyUri;
 
-                if (String.IsNullOrEmpty(securityPolicyUri))
+                if (String.IsNullOrEmpty(tokenSecurityPolicyUri))
                 {
-                    securityPolicyUri = m_endpoint.Description.SecurityPolicyUri;
+                    tokenSecurityPolicyUri = m_endpoint.Description.SecurityPolicyUri;
                 }
 
                 // save previous nonce
@@ -2465,12 +2465,12 @@ namespace Opc.Ua.Client
                 ValidateServerNonce(
                     identity,
                     serverNonce,
-                    securityPolicyUri,
+                    tokenSecurityPolicyUri,
                     previousServerNonce,
                     m_endpoint.Description.SecurityMode);
 
                 // sign data with user token.
-                SignatureData userTokenSignature = identityToken.Sign(dataToSign, securityPolicyUri);
+                SignatureData userTokenSignature = identityToken.Sign(dataToSign, tokenSecurityPolicyUri);
 
                 // encrypt token.
                 identityToken.Encrypt(
@@ -2555,8 +2555,7 @@ namespace Opc.Ua.Client
             {
                 try
                 {
-                    CloseSession(null, false);
-                    CloseChannel();
+                    Close(true);
                 }
                 catch (Exception e)
                 {
@@ -2600,9 +2599,6 @@ namespace Opc.Ua.Client
             }
 
             // get the identity token.
-            UserIdentityToken identityToken = null;
-            SignatureData userTokenSignature = null;
-
             string securityPolicyUri = m_endpoint.Description.SecurityPolicyUri;
 
             // create the client signature.
@@ -2626,14 +2622,14 @@ namespace Opc.Ua.Client
             }
 
             // select the security policy for the user token.
-            securityPolicyUri = identityPolicy.SecurityPolicyUri;
+            string tokenSecurityPolicyUri = identityPolicy.SecurityPolicyUri;
 
-            if (String.IsNullOrEmpty(securityPolicyUri))
+            if (String.IsNullOrEmpty(tokenSecurityPolicyUri))
             {
-                securityPolicyUri = m_endpoint.Description.SecurityPolicyUri;
+                tokenSecurityPolicyUri = m_endpoint.Description.SecurityPolicyUri;
             }
 
-            bool requireEncryption = securityPolicyUri != SecurityPolicies.None;
+            bool requireEncryption = tokenSecurityPolicyUri != SecurityPolicies.None;
 
             // validate the server certificate before encrypting tokens.
             if (m_serverCertificate != null && requireEncryption && identity.TokenType != UserTokenType.Anonymous)
@@ -2645,14 +2641,16 @@ namespace Opc.Ua.Client
             ValidateServerNonce(
                 identity,
                 serverNonce,
-                securityPolicyUri,
+                tokenSecurityPolicyUri,
                 m_previousServerNonce,
                 m_endpoint.Description.SecurityMode);
 
             // sign data with user token.
-            identityToken = identity.GetIdentityToken();
+            UserIdentityToken identityToken = identity.GetIdentityToken();
             identityToken.PolicyId = identityPolicy.PolicyId;
-            userTokenSignature = identityToken.Sign(dataToSign, securityPolicyUri);
+            SignatureData userTokenSignature = identityToken.Sign(dataToSign, tokenSecurityPolicyUri);
+
+            m_userTokenSecurityPolicyUri = tokenSecurityPolicyUri;
 
             // encrypt token.
             identityToken.Encrypt(
@@ -5739,13 +5737,13 @@ namespace Opc.Ua.Client
             }
 
             // select the security policy for the user token.
-            string securityPolicyUri = identityPolicy.SecurityPolicyUri;
+            string tokenSecurityPolicyUri = identityPolicy.SecurityPolicyUri;
 
-            if (String.IsNullOrEmpty(securityPolicyUri))
+            if (String.IsNullOrEmpty(tokenSecurityPolicyUri))
             {
-                securityPolicyUri = endpoint.SecurityPolicyUri;
+                tokenSecurityPolicyUri = endpoint.SecurityPolicyUri;
             }
-            m_userTokenSecurityPolicyUri = securityPolicyUri;
+            m_userTokenSecurityPolicyUri = tokenSecurityPolicyUri;
 
             // need to refresh the identity (reprompt for password, refresh token).
             if (m_RenewUserIdentity != null)
@@ -5757,14 +5755,14 @@ namespace Opc.Ua.Client
             ValidateServerNonce(
                 m_identity,
                 m_serverNonce,
-                securityPolicyUri,
+                tokenSecurityPolicyUri,
                 m_previousServerNonce,
                 m_endpoint.Description.SecurityMode);
 
             // sign data with user token.
             UserIdentityToken identityToken = m_identity.GetIdentityToken();
             identityToken.PolicyId = identityPolicy.PolicyId;
-            SignatureData userTokenSignature = identityToken.Sign(dataToSign, securityPolicyUri);
+            SignatureData userTokenSignature = identityToken.Sign(dataToSign, tokenSecurityPolicyUri);
 
             // encrypt token.
             identityToken.Encrypt(
