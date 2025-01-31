@@ -1,7 +1,7 @@
 {
   "$schema": "https://raw.githubusercontent.com/AArnott/Nerdbank.GitVersioning/master/src/NerdBank.GitVersioning/version.schema.json",
-  "version": "1.5.375-eccpreview",
-  "versionHeightOffset": 200,
+  "version": "1.5.375",
+  "versionHeightOffset": 400,
   "nugetPackageVersion": {
     "semVer": 2
   },
