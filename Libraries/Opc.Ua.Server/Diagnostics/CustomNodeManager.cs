@@ -71,11 +71,12 @@ namespace Opc.Ua.Server
         {
             // set defaults.
             m_maxQueueSize = 1000;
-
+            m_maxDurableQueueSize = 200000; //default value in deprecated Conformance Unit Subscription Durable StorageLevel High
 
             if (configuration?.ServerConfiguration != null)
             {
                 m_maxQueueSize = (uint)configuration.ServerConfiguration.MaxNotificationQueueSize;
+                m_maxDurableQueueSize = (uint)configuration.ServerConfiguration.MaxDurableNotificationQueueSize;
             }
 
             // save a reference to the UA server instance that owns the node manager.
@@ -205,6 +206,16 @@ namespace Opc.Ua.Server
         {
             get { return m_maxQueueSize; }
             set { m_maxQueueSize = value; }
+        }
+
+        /// <summary>
+        /// Gets or sets the maximum size of a durable monitored item queue.
+        /// </summary>
+        /// <value>The maximum size of a durable monitored item queue.</value>
+        public uint MaxDurableQueueSize
+        {
+            get { return m_maxDurableQueueSize; }
+            set { m_maxDurableQueueSize = value; }
         }
 
         /// <summary>
@@ -758,7 +769,8 @@ namespace Opc.Ua.Server
             }
 
             // add reserve reference from external node.
-            ReferenceNode referenceToAdd = new ReferenceNode {
+            ReferenceNode referenceToAdd = new ReferenceNode
+            {
                 ReferenceTypeId = referenceTypeId,
                 IsInverse = isInverse,
                 TargetId = targetId
@@ -880,7 +892,8 @@ namespace Opc.Ua.Server
             NodeState node = null;
             if (m_predefinedNodes.TryGetValue(nodeId, out node) == true)
             {
-                var handle = new NodeHandle {
+                var handle = new NodeHandle
+                {
                     NodeId = nodeId,
                     Node = node,
                     Validated = true
@@ -1021,7 +1034,8 @@ namespace Opc.Ua.Server
                     Attributes.UserRolePermissions);
 
                 // construct the meta-data object.
-                NodeMetadata metadata = new NodeMetadata(target, target.NodeId) {
+                NodeMetadata metadata = new NodeMetadata(target, target.NodeId)
+                {
                     NodeClass = target.NodeClass,
                     BrowseName = target.BrowseName,
                     DisplayName = target.DisplayName
@@ -3393,6 +3407,7 @@ namespace Opc.Ua.Server
             IList<ServiceResult> errors,
             IList<MonitoringFilterResult> filterErrors,
             IList<IMonitoredItem> monitoredItems,
+            bool createDurable,
             ref long globalIdCounter)
         {
             ServerSystemContext systemContext = m_systemContext.Copy(context);
@@ -3466,6 +3481,7 @@ namespace Opc.Ua.Server
                         context.DiagnosticsMask,
                         timestampsToReturn,
                         itemToCreate,
+                        createDurable,
                         ref globalIdCounter,
                         out filterResult,
                         out monitoredItem);
@@ -3511,6 +3527,7 @@ namespace Opc.Ua.Server
             DiagnosticsMasks diagnosticsMasks,
             TimestampsToReturn timestampsToReturn,
             MonitoredItemCreateRequest itemToCreate,
+            bool createDurable,
             ref long globalIdCounter,
             out MonitoringFilterResult filterResult,
             out IMonitoredItem monitoredItem)
@@ -3567,13 +3584,10 @@ namespace Opc.Ua.Server
                 samplingInterval = 365 * 24 * 3600 * 1000.0;
             }
 
-            // put an upper limit on queue size.
-            uint queueSize = itemToCreate.RequestedParameters.QueueSize;
 
-            if (queueSize > m_maxQueueSize)
-            {
-                queueSize = m_maxQueueSize;
-            }
+
+            // put an upper limit on queue size.
+            uint revisedQueueSize = CalculateRevisedQueueSize(createDurable, itemToCreate.RequestedParameters.QueueSize);
 
             // validate the monitoring filter.
             Range euRange = null;
@@ -3584,7 +3598,7 @@ namespace Opc.Ua.Server
                 handle,
                 itemToCreate.ItemToMonitor.AttributeId,
                 samplingInterval,
-                queueSize,
+                revisedQueueSize,
                 parameters.Filter,
                 out filterToUse,
                 out euRange,
@@ -3611,9 +3625,10 @@ namespace Opc.Ua.Server
                 filterToUse,
                 euRange,
                 samplingInterval,
-                queueSize,
+                revisedQueueSize,
                 itemToCreate.RequestedParameters.DiscardOldest,
-                0);
+                0,
+                createDurable);
 
             // report the initial value.
             error = ReadInitialValue(context, handle, datachangeItem);
@@ -3651,7 +3666,8 @@ namespace Opc.Ua.Server
             NodeHandle handle,
             IDataChangeMonitoredItem2 monitoredItem)
         {
-            DataValue initialValue = new DataValue {
+            DataValue initialValue = new DataValue
+            {
                 Value = null,
                 ServerTimestamp = DateTime.UtcNow,
                 SourceTimestamp = DateTime.MinValue,
@@ -4052,12 +4068,7 @@ namespace Opc.Ua.Server
             }
 
             // put an upper limit on queue size.
-            uint queueSize = itemToModify.RequestedParameters.QueueSize;
-
-            if (queueSize > m_maxQueueSize)
-            {
-                queueSize = m_maxQueueSize;
-            }
+            uint revisedQueueSize = CalculateRevisedQueueSize(monitoredItem.IsDurable, itemToModify.RequestedParameters.QueueSize);
 
             // validate the monitoring filter.
             Range euRange = null;
@@ -4068,7 +4079,7 @@ namespace Opc.Ua.Server
                 handle,
                 datachangeItem.AttributeId,
                 samplingInterval,
-                queueSize,
+                revisedQueueSize,
                 parameters.Filter,
                 out filterToUse,
                 out euRange,
@@ -4088,7 +4099,7 @@ namespace Opc.Ua.Server
                 filterToUse,
                 euRange,
                 samplingInterval,
-                queueSize,
+                revisedQueueSize,
                 itemToModify.RequestedParameters.DiscardOldest);
 
             // report change.
@@ -4098,6 +4109,22 @@ namespace Opc.Ua.Server
             }
 
             return error;
+        }
+
+        //calculates a revised queue size based on the application confiugration limits
+        private uint CalculateRevisedQueueSize(bool isDurable, uint queueSize)
+        {
+            if (queueSize > m_maxQueueSize && !isDurable)
+            {
+                queueSize = m_maxQueueSize;
+            }
+
+            if (queueSize > m_maxDurableQueueSize && isDurable)
+            {
+                queueSize = m_maxDurableQueueSize;
+            }
+
+            return queueSize;
         }
 
         /// <summary>
@@ -4737,6 +4764,7 @@ namespace Opc.Ua.Server
                 return node;
             }
         }
+
         #endregion
 
         #region Private Fields
@@ -4750,6 +4778,7 @@ namespace Opc.Ua.Server
         private NodeIdDictionary<NodeState> m_predefinedNodes;
         private List<NodeState> m_rootNotifiers;
         private uint m_maxQueueSize;
+        private uint m_maxDurableQueueSize;
         private string m_aliasRoot;
         #endregion
     }

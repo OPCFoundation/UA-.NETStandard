@@ -73,7 +73,8 @@ namespace Opc.Ua.Server.Tests
             // start Ref server
             m_fixture = new ServerFixture<ReferenceServer>() {
                 AllNodeManagers = true,
-                OperationLimits = true
+                OperationLimits = true,
+                DurableSubscriptionsEnabled = false,
             };
             m_server = await m_fixture.StartAsync(TestContext.Out).ConfigureAwait(false);
         }
