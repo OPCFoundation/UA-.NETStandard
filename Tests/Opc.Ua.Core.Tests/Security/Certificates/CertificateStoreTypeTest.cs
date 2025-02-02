@@ -156,8 +156,13 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         public bool SupportsLoadPrivateKey => m_innerStore.SupportsLoadPrivateKey;
 
         /// <inheritdoc/>
+        [Obsolete("Method is deprecated. Use only for RSA certificates, the replacing LoadPrivateKey with certificateType parameter should be used.")]
         public Task<X509Certificate2> LoadPrivateKey(string thumbprint, string subjectName, string password)
             => m_innerStore.LoadPrivateKey(thumbprint, subjectName, password);
+
+        /// <inheritdoc/>
+        public Task<X509Certificate2> LoadPrivateKey(string thumbprint, string subjectName, string applicationUri, NodeId certificateType, string password)
+            => m_innerStore.LoadPrivateKey(thumbprint, subjectName, applicationUri, certificateType, password);
 
         /// <inheritdoc/>
         public Task AddRejected(X509Certificate2Collection certificates, int maxCertificates)

@@ -12,7 +12,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
@@ -108,6 +107,11 @@ namespace Opc.Ua
                 return false;
             }
 
+            if (CertificateType != id.CertificateType)
+            {
+                return false;
+            }
+
             return true;
         }
 
@@ -117,7 +121,7 @@ namespace Opc.Ua
         /// <returns></returns>
         public override int GetHashCode()
         {
-            return HashCode.Combine(Thumbprint, m_storeLocation, m_storeName, SubjectName);
+            return HashCode.Combine(Thumbprint, m_storeLocation, m_storeName, SubjectName, CertificateType);
         }
         #endregion
 
@@ -141,7 +145,14 @@ namespace Opc.Ua
         public X509Certificate2 Certificate
         {
             get { return m_certificate; }
-            set { m_certificate = value; }
+            set
+            {
+                m_certificate = value;
+                if (m_certificate != null)
+                {
+                    m_certificateType = GetCertificateType(m_certificate);
+                }
+            }
         }
         #endregion
 
@@ -149,21 +160,21 @@ namespace Opc.Ua
         /// <summary>
         /// Finds a certificate in a store.
         /// </summary>
-        public Task<X509Certificate2> Find()
+        public Task<X509Certificate2> Find(string applicationUri = null)
         {
-            return Find(false);
+            return Find(false, applicationUri);
         }
 
         /// <summary>
         /// Loads the private key for the certificate with an optional password.
         /// </summary>
-        public Task<X509Certificate2> LoadPrivateKey(string password)
-            => LoadPrivateKeyEx(password != null ? new CertificatePasswordProvider(password) : null);
+        public Task<X509Certificate2> LoadPrivateKey(string password, string applicationUri = null)
+            => LoadPrivateKeyEx(password != null ? new CertificatePasswordProvider(password) : null, applicationUri);
 
         /// <summary>
-        /// Loads the private key for the certificate with an optional password.
+        /// Loads the private key for the certificate with an optional password provider.
         /// </summary>
-        public async Task<X509Certificate2> LoadPrivateKeyEx(ICertificatePasswordProvider passwordProvider)
+        public async Task<X509Certificate2> LoadPrivateKeyEx(ICertificatePasswordProvider passwordProvider, string applicationUri = null)
         {
             if (this.StoreType != CertificateStoreType.X509Store)
             {
@@ -173,7 +184,14 @@ namespace Opc.Ua
                     if (store?.SupportsLoadPrivateKey == true)
                     {
                         string password = passwordProvider?.GetPassword(this);
-                        m_certificate = await store.LoadPrivateKey(this.Thumbprint, this.SubjectName, password).ConfigureAwait(false);
+                        m_certificate = await store.LoadPrivateKey(this.Thumbprint, this.SubjectName, null, this.CertificateType, password).ConfigureAwait(false);
+
+                        //find certificate by applicationUri instead of subjectName, as the subjectName could have changed after a certificate update
+                        if (m_certificate == null && !string.IsNullOrEmpty(applicationUri))
+                        {
+                            m_certificate = await store.LoadPrivateKey(this.Thumbprint, null, applicationUri, this.CertificateType, password).ConfigureAwait(false);
+                        }
+
                         return m_certificate;
                     }
                 }
@@ -185,10 +203,12 @@ namespace Opc.Ua
         /// <summary>
         /// Finds a certificate in a store.
         /// </summary>
+        /// <remarks>The certificate type is used to match the signature and public key type.</remarks>
         /// <param name="needPrivateKey">if set to <c>true</c> the returned certificate must contain the private key.</param>
+        /// <param name="applicationUri">the application uri in the extensions of the certificate.</param>
         /// <returns>An instance of the <see cref="X509Certificate2"/> that is embedded by this instance or find it in 
-        /// the selected store pointed out by the <see cref="StorePath"/> using selected <see cref="SubjectName"/>.</returns>
-        public async Task<X509Certificate2> Find(bool needPrivateKey)
+        /// the selected store pointed out by the <see cref="StorePath"/> using selected <see cref="SubjectName"/> or if specified applicationUri.</returns>
+        public async Task<X509Certificate2> Find(bool needPrivateKey, string applicationUri = null)
         {
             X509Certificate2 certificate = null;
 
@@ -210,7 +230,7 @@ namespace Opc.Ua
 
                     X509Certificate2Collection collection = await store.Enumerate().ConfigureAwait(false);
 
-                    certificate = Find(collection, m_thumbprint, m_subjectName, needPrivateKey);
+                    certificate = Find(collection, m_thumbprint, m_subjectName, applicationUri, m_certificateType, needPrivateKey);
 
                     if (certificate != null)
                     {
@@ -234,19 +254,6 @@ namespace Opc.Ua
             }
 
             return certificate;
-        }
-
-        /// <summary>
-        /// Updates the object from another object (usage is not updated).
-        /// </summary>
-        /// <param name="certificate">The certificate.</param>
-        private void Paste(CertificateIdentifier certificate)
-        {
-            this.SubjectName = certificate.SubjectName;
-            this.Thumbprint = certificate.Thumbprint;
-            this.RawData = certificate.RawData;
-            this.ValidationOptions = certificate.ValidationOptions;
-            this.Certificate = certificate.Certificate;
         }
 
         /// <summary>
@@ -316,9 +323,17 @@ namespace Opc.Ua
         /// <param name="collection">The collection.</param>
         /// <param name="thumbprint">The thumbprint of the certificate.</param>
         /// <param name="subjectName">Subject name of the certificate.</param>
+        /// <param name="applicationUri">ApplicationUri in the SubjectAltNameExtension of the certificate.</param>
+        /// <param name="certificateType">The certificate type.</param>
         /// <param name="needPrivateKey">if set to <c>true</c> [need private key].</param>
         /// <returns></returns>
-        public static X509Certificate2 Find(X509Certificate2Collection collection, string thumbprint, string subjectName, bool needPrivateKey)
+        public static X509Certificate2 Find(
+            X509Certificate2Collection collection,
+            string thumbprint,
+            string subjectName,
+            string applicationUri,
+            NodeId certificateType,
+            bool needPrivateKey)
         {
             // find by thumbprint.
             if (!String.IsNullOrEmpty(thumbprint))
@@ -352,9 +367,10 @@ namespace Opc.Ua
 
                 foreach (X509Certificate2 certificate in collection)
                 {
-                    if (X509Utils.CompareDistinguishedName(certificate, subjectName2))
+                    if (ValidateCertificateType(certificate, certificateType) &&
+                        X509Utils.CompareDistinguishedName(certificate, subjectName2))
                     {
-                        if ((!needPrivateKey || certificate.HasPrivateKey) && X509Utils.GetRSAPublicKeySize(certificate) >= 0)
+                        if (!needPrivateKey || certificate.HasPrivateKey)
                         {
                             return certificate;
                         }
@@ -365,7 +381,22 @@ namespace Opc.Ua
 
                 foreach (X509Certificate2 certificate in collection)
                 {
-                    if ((!needPrivateKey || certificate.HasPrivateKey) && X509Utils.GetRSAPublicKeySize(certificate) >= 0)
+                    if (ValidateCertificateType(certificate, certificateType) &&
+                        (!needPrivateKey || certificate.HasPrivateKey))
+                    {
+                        return certificate;
+                    }
+                }
+            }
+
+            //find by application uri
+            if (!string.IsNullOrEmpty(applicationUri))
+            {
+                foreach (X509Certificate2 certificate in collection)
+                {
+                    if (applicationUri == X509Utils.GetApplicationUriFromCertificate(certificate) &&
+                    ValidateCertificateType(certificate, certificateType) &&
+                    (!needPrivateKey || certificate.HasPrivateKey))
                     {
                         return certificate;
                     }
@@ -493,6 +524,177 @@ namespace Opc.Ua
             store.Open(this.StorePath, false);
             return store;
         }
+
+        /// <summary>
+        /// Retrieves the minimum accepted key size given the security configuration
+        /// </summary>
+        /// <param name="securityConfiguration"></param>
+        /// <returns></returns>
+        public ushort GetMinKeySize(SecurityConfiguration securityConfiguration)
+        {
+            if (CertificateType == ObjectTypeIds.RsaMinApplicationCertificateType ||
+                 CertificateType == ObjectTypeIds.RsaSha256ApplicationCertificateType ||
+                 securityConfiguration.IsDeprecatedConfiguration) // Deprecated configurations are implicitly RSA
+            {
+                return securityConfiguration.MinimumCertificateKeySize;
+            }
+            else
+            {
+                // non RSA
+                return 0;
+            }
+        }
+
+
+        /// <summary>
+        /// Get the OPC UA CertificateType.
+        /// </summary>
+        /// <param name="certificate">The certificate with a signature.</param>
+        public static NodeId GetCertificateType(X509Certificate2 certificate)
+        {
+            switch (certificate.SignatureAlgorithm.Value)
+            {
+                case Oids.ECDsaWithSha1:
+                case Oids.ECDsaWithSha384:
+                case Oids.ECDsaWithSha256:
+                case Oids.ECDsaWithSha512:
+                    return EccUtils.GetEccCertificateTypeId(certificate);
+
+                case Oids.RsaPkcs1Sha256:
+                case Oids.RsaPkcs1Sha384:
+                case Oids.RsaPkcs1Sha512:
+                    return ObjectTypeIds.RsaSha256ApplicationCertificateType;
+                case Oids.RsaPkcs1Sha1:
+                    return ObjectTypeIds.RsaMinApplicationCertificateType;
+            }
+            return NodeId.Null;
+        }
+
+        /// <summary>
+        /// Validate if the certificate matches the CertificateType.
+        /// </summary>
+        /// <param name="certificate">The certificate with a signature.</param>
+        /// <param name="certificateType">The NodeId of the certificate type.</param>
+        public static bool ValidateCertificateType(X509Certificate2 certificate, NodeId certificateType)
+        {
+            switch (certificate.SignatureAlgorithm.Value)
+            {
+                case Oids.ECDsaWithSha1:
+                case Oids.ECDsaWithSha384:
+                case Oids.ECDsaWithSha256:
+                case Oids.ECDsaWithSha512:
+                    var certType = EccUtils.GetEccCertificateTypeId(certificate);
+                    if (certType.IsNullNodeId)
+                    {
+                        return false;
+                    }
+                    else if (certType == certificateType)
+                    {
+                        return true;
+                    }
+
+
+                    // special cases
+                    if (certType == ObjectTypeIds.EccNistP384ApplicationCertificateType &&
+                        certificateType == ObjectTypeIds.EccNistP256ApplicationCertificateType)
+                    {
+                        return true;
+                    }
+
+                    if (certType == ObjectTypeIds.EccBrainpoolP384r1ApplicationCertificateType &&
+                        certificateType == ObjectTypeIds.EccBrainpoolP256r1ApplicationCertificateType)
+                    {
+                        return true;
+                    }
+
+                    break;
+
+                default:
+                    // TODO: check SHA1/key size
+                    if (certificateType == null ||
+                        certificateType == ObjectTypeIds.RsaSha256ApplicationCertificateType ||
+                        certificateType == ObjectTypeIds.RsaMinApplicationCertificateType ||
+                        certificateType == ObjectTypeIds.ApplicationCertificateType)
+                    {
+                        return true;
+                    }
+                    break;
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Map a security policy to a list of supported certificate types.
+        /// </summary>
+        /// <param name="securityPolicy"></param>
+        public static IList<NodeId> MapSecurityPolicyToCertificateTypes(string securityPolicy)
+        {
+            var result = new List<NodeId>();
+            switch (securityPolicy)
+            {
+                case SecurityPolicies.Basic128Rsa15:
+                case SecurityPolicies.Basic256:
+                    result.Add(ObjectTypeIds.RsaMinApplicationCertificateType);
+                    goto case SecurityPolicies.Basic256Sha256;
+                case SecurityPolicies.Basic256Sha256:
+                case SecurityPolicies.Aes128_Sha256_RsaOaep:
+                case SecurityPolicies.Aes256_Sha256_RsaPss:
+                    result.Add(ObjectTypeIds.RsaSha256ApplicationCertificateType);
+                    break;
+                case SecurityPolicies.ECC_nistP256:
+                    result.Add(ObjectTypeIds.EccNistP256ApplicationCertificateType);
+                    goto case SecurityPolicies.ECC_nistP384;
+                case SecurityPolicies.ECC_nistP384:
+                    result.Add(ObjectTypeIds.EccNistP384ApplicationCertificateType);
+                    break;
+                case SecurityPolicies.ECC_brainpoolP256r1:
+                    result.Add(ObjectTypeIds.EccBrainpoolP256r1ApplicationCertificateType);
+                    goto case SecurityPolicies.ECC_brainpoolP384r1;
+                case SecurityPolicies.ECC_brainpoolP384r1:
+                    result.Add(ObjectTypeIds.EccBrainpoolP384r1ApplicationCertificateType);
+                    break;
+                case SecurityPolicies.ECC_curve25519:
+                    result.Add(ObjectTypeIds.EccCurve25519ApplicationCertificateType);
+                    break;
+                case SecurityPolicies.ECC_curve448:
+                    result.Add(ObjectTypeIds.EccCurve448ApplicationCertificateType);
+                    break;
+                case SecurityPolicies.Https:
+                    result.Add(ObjectTypeIds.HttpsCertificateType);
+                    break;
+                default:
+                    break;
+            }
+            return result;
+        }
+
+
+        /// <summary>
+        /// Disposes and deletes the reference to the certificate.
+        /// </summary>
+        public void DisposeCertificate()
+        {
+            var certificate = m_certificate;
+            m_certificate = null;
+            Utils.SilentDispose(certificate);
+        }
+        #endregion
+
+        #region Private Members
+        /// <summary>
+        /// The tags of the supported certificate types.
+        /// </summary>
+        private static Dictionary<uint, string> m_supportedCertificateTypes = new Dictionary<uint, string>() {
+            { ObjectTypes.EccNistP256ApplicationCertificateType, "NistP256"},
+            { ObjectTypes.EccNistP384ApplicationCertificateType, "NistP384"},
+            { ObjectTypes.EccBrainpoolP256r1ApplicationCertificateType, "BrainpoolP256r1"},
+            { ObjectTypes.EccBrainpoolP384r1ApplicationCertificateType, "BrainpoolP384r1"},
+            { ObjectTypes.EccCurve25519ApplicationCertificateType, "Curve25519"},
+            { ObjectTypes.EccCurve448ApplicationCertificateType, "Curve448"},
+            { ObjectTypes.RsaSha256ApplicationCertificateType, "RsaSha256"},
+            { ObjectTypes.RsaMinApplicationCertificateType, "RsaMin"},
+            { ObjectTypes.ApplicationCertificateType, "Rsa"},
+        };
         #endregion
 
         #region Private Methods
@@ -564,6 +766,50 @@ namespace Opc.Ua
 
             // potentially valid.
             return true;
+        }
+
+        /// <summary>
+        /// The tags of the supported certificate types used to encode the NodeId coressponding to existing value.
+        /// </summary>
+        // TODO: remove if not used
+        private static string EncodeCertificateType(NodeId certificateType)
+        {
+            if (certificateType == null)
+            {
+                return null;
+            }
+
+            foreach (KeyValuePair<uint, string> supportedCertificateType in m_supportedCertificateTypes)
+            {
+                if (supportedCertificateType.Key == (uint)certificateType.Identifier)
+                {
+                    return supportedCertificateType.Value;
+                }
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// The tags of the supported certificate types used to decode the NodeId coressponding to existing value.
+        /// </summary>
+        // TODO: remove if not used
+        private static NodeId DecodeCertificateType(string certificateType)
+        {
+            if (certificateType == null)
+            {
+                return null;
+            }
+
+            foreach (var supportedCertificateType in m_supportedCertificateTypes)
+            {
+                if (supportedCertificateType.Value == certificateType)
+                {
+                    return new NodeId(supportedCertificateType.Key);
+                }
+            }
+
+            return null;
         }
         #endregion
     }
@@ -736,6 +982,12 @@ namespace Opc.Ua
 
         /// <inheritdoc/>
         public Task<X509Certificate2> LoadPrivateKey(string thumbprint, string subjectName, string password)
+        {
+            return Task.FromResult<X509Certificate2>(null);
+        }
+
+        /// <inheritdoc/>
+        public Task<X509Certificate2> LoadPrivateKey(string thumbprint, string subjectName, string applicationUri, NodeId certificateType, string password)
         {
             return Task.FromResult<X509Certificate2>(null);
         }

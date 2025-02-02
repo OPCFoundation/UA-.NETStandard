@@ -1460,7 +1460,7 @@ namespace Opc.Ua
         {
             if (dimensions == null || dimensions.Length == 0)
             {
-                throw new ArgumentOutOfRangeException("Array dimensions must be specifed.");
+                throw new ArgumentOutOfRangeException("Array dimensions must be specified.");
             }
 
             int length = dimensions[0];

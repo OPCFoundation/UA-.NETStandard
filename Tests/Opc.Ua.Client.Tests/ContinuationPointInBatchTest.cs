@@ -114,8 +114,6 @@ namespace Opc.Ua.Client.Tests
         }
     };
 
-
-
     /// <summary>
     /// Client tests.
     /// </summary>

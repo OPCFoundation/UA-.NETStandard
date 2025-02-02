@@ -422,9 +422,18 @@ namespace Opc.Ua
         public bool SupportsLoadPrivateKey => true;
 
         /// <summary>
-        /// Loads the private key from a PFX/PEM file in the certificate store.
+        /// Loads the private key certificate with RSA signature from a PFX file in the certificate store.
         /// </summary>
-        public async Task<X509Certificate2> LoadPrivateKey(string thumbprint, string subjectName, string password)
+        [Obsolete("Method is deprecated. Use only for RSA certificates, the replacing LoadPrivateKey with certificateType parameter should be used.")]
+        public Task<X509Certificate2> LoadPrivateKey(string thumbprint, string subjectName, string password)
+        {
+            return LoadPrivateKey(thumbprint, subjectName, null, null, password);
+        }
+
+        /// <summary>
+        /// Loads the private key from a PFX file in the certificate store.
+        /// </summary>
+        public async Task<X509Certificate2> LoadPrivateKey(string thumbprint, string subjectName, string applicationUri, NodeId certificateType, string password)
         {
             if (NoPrivateKeys || m_privateKeySubdir == null ||
                 m_certificateSubdir == null || !m_certificateSubdir.Exists)
@@ -432,7 +441,7 @@ namespace Opc.Ua
                 return null;
             }
 
-            if (string.IsNullOrEmpty(thumbprint) && string.IsNullOrEmpty(subjectName))
+            if (string.IsNullOrEmpty(thumbprint) && string.IsNullOrEmpty(subjectName) && string.IsNullOrEmpty(applicationUri))
             {
                 return null;
             }
@@ -475,8 +484,15 @@ namespace Opc.Ua
                             }
                         }
 
-                        // skip if not RSA certificate
-                        if (X509Utils.GetRSAPublicKeySize(certificate) < 0)
+                        if (!string.IsNullOrEmpty(applicationUri))
+                        {
+                            if (!string.Equals(X509Utils.GetApplicationUriFromCertificate(certificate), applicationUri, StringComparison.OrdinalIgnoreCase))
+                            {
+                                continue;
+                            }
+                        }
+
+                        if (!CertificateIdentifier.ValidateCertificateType(certificate, certificateType))
                         {
                             continue;
                         }
@@ -516,8 +532,7 @@ namespace Opc.Ua
                                         privateKeyFilePfx.FullName,
                                         password,
                                         flag);
-
-                                    if (X509Utils.VerifyRSAKeyPair(certificate, certificate, true))
+                                    if (X509Utils.VerifyKeyPair(certificate, certificate, true))
                                     {
                                         Utils.LogInfo(Utils.TraceMasks.Security, "Imported the PFX private key for [{0}].", certificate.Thumbprint);
                                         return certificate;
@@ -538,7 +553,7 @@ namespace Opc.Ua
                             {
                                 byte[] pemDataBlob = File.ReadAllBytes(privateKeyFilePem.FullName);
                                 certificate = CertificateFactory.CreateCertificateWithPEMPrivateKey(certificate, pemDataBlob, password);
-                                if (X509Utils.VerifyRSAKeyPair(certificate, certificate, true))
+                                if (X509Utils.VerifyKeyPair(certificate, certificate, true))
                                 {
                                     Utils.LogInfo(Utils.TraceMasks.Security, "Imported the PEM private key for [{0}].", certificate.Thumbprint);
                                     return certificate;
@@ -949,6 +964,14 @@ namespace Opc.Ua
                 }
 
                 fileName.Append(ch);
+            }
+
+            var signatureQualifier = X509Utils.GetECDsaQualifier(certificate);
+            if (!string.IsNullOrEmpty(signatureQualifier))
+            {
+                fileName.Append(" [");
+                fileName.Append(signatureQualifier);
+                fileName.Append(']');
             }
 
             fileName.Append(" [");

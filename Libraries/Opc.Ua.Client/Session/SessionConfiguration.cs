@@ -30,6 +30,7 @@
 using System;
 using System.IO;
 using System.Runtime.Serialization;
+using System.Security.Cryptography;
 using System.Xml;
 
 namespace Opc.Ua.Client
@@ -49,7 +50,12 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Creates a session configuration
         /// </summary>
-        public SessionConfiguration(ISession session, byte[] serverNonce, NodeId authenthicationToken)
+        public SessionConfiguration(
+            ISession session,
+            Nonce serverNonce,
+            string userIdentityTokenPolicy,
+            Nonce eccServerEphemeralKey,
+            NodeId authenthicationToken)
         {
             Timestamp = DateTime.UtcNow;
             SessionName = session.SessionName;
@@ -59,6 +65,17 @@ namespace Opc.Ua.Client
             ConfiguredEndpoint = session.ConfiguredEndpoint;
             CheckDomain = session.CheckDomain;
             ServerNonce = serverNonce;
+            ServerEccEphemeralKey = eccServerEphemeralKey;
+            UserIdentityTokenPolicy = userIdentityTokenPolicy;
+        }
+
+        /// <summary>
+        /// Creates a session configuration
+        /// </summary>
+        [Obsolete("Use SessionConfiguration(ISession session, Nonce serverNonce, string userIdentityTokenPolicy, Nonce eccServerEphemeralKey,    NodeId authenthicationToken)")]
+        public SessionConfiguration(ISession session, byte[] serverNonce, NodeId authenthicationToken)
+            :this(session, Nonce.CreateNonce("RSA-only", serverNonce), null, null, authenthicationToken)
+        {
         }
 
         /// <summary>
@@ -122,6 +139,19 @@ namespace Opc.Ua.Client
         /// The last server nonce received.
         /// </summary>
         [DataMember(IsRequired = true, Order = 80)]
-        public byte[] ServerNonce { get; set; }
+        public Nonce ServerNonce { get; set; }
+
+        /// <summary>
+        /// The user identity token policy which was used to create the session.
+        /// </summary>
+        [DataMember(IsRequired = true, Order = 90)]
+        public string UserIdentityTokenPolicy { get; set; }
+
+        /// <summary>
+        /// The last server ecc ephemeral key received.
+        /// </summary>
+        [DataMember(IsRequired = false, Order = 100)]
+        public Nonce ServerEccEphemeralKey { get; set; }
+
     }
 }

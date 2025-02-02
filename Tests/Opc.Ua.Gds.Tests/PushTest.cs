@@ -391,22 +391,15 @@ namespace Opc.Ua.Gds.Tests
             UpdateCertificateCASigned(false);
         }
 
-        public void UpdateCertificateCASigned(bool regeneratePrivateKey = false)
+        public void UpdateCertificateCASigned(bool regeneratePrivateKey)
         {
-#if NETCOREAPP3_1_OR_GREATER
-            // this test fails on macOS, ignore
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-            {
-                Assert.Ignore("Update CA signed certificate fails on mac OS.");
-            }
-#endif
             ConnectPushClient(true);
             ConnectGDSClient(true);
             TestContext.Out.WriteLine("Create Signing Request");
             byte[] csr = m_pushClient.PushClient.CreateSigningRequest(
                 null,
                 m_pushClient.PushClient.ApplicationCertificateType,
-                null,
+                m_selfSignedServerCert.Subject + "2",
                 regeneratePrivateKey,
                 null);
             Assert.IsNotNull(csr);
@@ -494,7 +487,7 @@ namespace Opc.Ua.Gds.Tests
             X509Certificate2 newCert = CertificateFactory.CreateCertificate(
                 m_applicationRecord.ApplicationUri,
                 m_applicationRecord.ApplicationNames[0].Text,
-                m_selfSignedServerCert.Subject,
+                m_selfSignedServerCert.Subject + "1",
                 null).CreateForRSA();
 
             byte[] privateKey = null;
@@ -553,7 +546,7 @@ namespace Opc.Ua.Gds.Tests
                 m_applicationRecord.ApplicationId,
                 null,
                 null,
-                m_selfSignedServerCert.Subject,
+                m_selfSignedServerCert.Subject + "3",
                 m_domainNames,
                 keyFormat,
                 null);
@@ -625,7 +618,7 @@ namespace Opc.Ua.Gds.Tests
 
             m_pushClient.PushClient.GetCertificates(m_pushClient.PushClient.DefaultApplicationGroup, out NodeId[] certificateTypeIds, out byte[][] certificates);
 
-            Assert.That(certificateTypeIds.Length == 1);
+            Assert.That(certificateTypeIds.Length == certificates.Length);
             Assert.NotNull(certificates[0]);
             using (var x509 = X509CertificateLoader.LoadCertificate(certificates[0]))
             {

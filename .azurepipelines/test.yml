@@ -81,7 +81,7 @@ jobs:
       arguments: '${{ variables.DotCliCommandline }} --configuration ${{ parameters.configuration }}'
   - task: DotNetCoreCLI@2
     displayName: Test ${{ parameters.configuration }}
-    timeoutInMinutes: 30
+    timeoutInMinutes: 45
     inputs:
       command: test
       projects: $(file)

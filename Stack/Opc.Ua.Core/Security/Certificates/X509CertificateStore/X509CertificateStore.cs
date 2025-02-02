@@ -215,7 +215,15 @@ namespace Opc.Ua
 
         /// <inheritdoc/>
         /// <remarks>The LoadPrivateKey special handling is not necessary in this store.</remarks>
+        [Obsolete("Method is deprecated. Use only for RSA certificates, the replacing LoadPrivateKey with certificateType parameter should be used.")]
         public Task<X509Certificate2> LoadPrivateKey(string thumbprint, string subjectName, string password)
+        {
+            return Task.FromResult<X509Certificate2>(null);
+        }
+
+        /// <inheritdoc/>
+        /// <remarks>The LoadPrivateKey special handling is not necessary in this store.</remarks>
+        public Task<X509Certificate2> LoadPrivateKey(string thumbprint, string subjectName, string applicationUri, NodeId certificateType, string password)
         {
             return Task.FromResult<X509Certificate2>(null);
         }
@@ -223,6 +231,8 @@ namespace Opc.Ua
         /// <inheritdoc/>
         /// <remarks>CRLs are only supported on Windows Platform.</remarks>
         public bool SupportsCRLs => PlatformHelper.IsWindowsWithCrlSupport();
+
+
 
         /// <inheritdoc/>
         /// <remarks>CRLs are only supported on Windows Platform.</remarks>

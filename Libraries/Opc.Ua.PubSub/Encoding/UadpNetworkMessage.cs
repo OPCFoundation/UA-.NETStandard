@@ -117,7 +117,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// Create new instance of <see cref="UadpNetworkMessage"/> as a DiscoveryResponse of PublisherEndpoints type
         /// </summary>
         /// <param name="publisherEndpoints"></param>
-        /// <param name="publisherProvidesEndpoints "></param>
+        /// <param name="publisherProvidesEndpoints"></param>
         public UadpNetworkMessage(EndpointDescription[] publisherEndpoints, StatusCode publisherProvidesEndpoints)
         : base(null, new List<UaDataSetMessage>())
         {

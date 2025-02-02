@@ -154,7 +154,17 @@ namespace Opc.Ua.Security
             // copy the security settings.
             if (applicationConfiguration.SecurityConfiguration != null)
             {
-                application.ApplicationCertificate = SecuredApplication.ToCertificateIdentifier(applicationConfiguration.SecurityConfiguration.ApplicationCertificate);
+                
+                if (applicationConfiguration.SecurityConfiguration.IsDeprecatedConfiguration)
+                {
+#pragma warning disable CS0618 // Type or member is obsolete
+                    application.ApplicationCertificate = SecuredApplication.ToCertificateIdentifier(applicationConfiguration.SecurityConfiguration.ApplicationCertificate);
+#pragma warning restore CS0618 // Type or member is obsolete
+                }
+                else
+                {
+                    application.ApplicationCertificates = SecuredApplication.ToCertificateList(applicationConfiguration.SecurityConfiguration.ApplicationCertificates);
+                }
 
                 if (applicationConfiguration.SecurityConfiguration.TrustedIssuerCertificates != null)
                 {
@@ -324,7 +334,15 @@ namespace Opc.Ua.Security
 
                     if (application.ApplicationCertificate != null)
                     {
+#pragma warning disable CS0618 // Type or member is obsolete
                         security.ApplicationCertificate = SecuredApplication.FromCertificateIdentifier(application.ApplicationCertificate);
+#pragma warning restore CS0618 // Type or member is obsolete
+                        security.IsDeprecatedConfiguration = true;
+                    }
+
+                    if (application.ApplicationCertificates != null)
+                    {
+                        security.ApplicationCertificates = SecuredApplication.FromCertificateList(application.ApplicationCertificates);
                     }
 
                     security.TrustedIssuerCertificates = SecuredApplication.FromCertificateStoreIdentifierToTrustList(application.IssuerCertificateStore);

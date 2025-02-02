@@ -41,7 +41,7 @@ namespace Opc.Ua.Security.Certificates
     /// </summary>
     public static class PEMReader
     {
-        #region Public Methods
+#region Public Methods
         /// <summary>
         /// Import a PKCS#8 private key or RSA private key from PEM.
         /// The PKCS#8 private key may be encrypted using a password.
@@ -49,7 +49,7 @@ namespace Opc.Ua.Security.Certificates
         /// <param name="pemDataBlob">The PEM datablob as byte array.</param>
         /// <param name="password">The password to use (optional).</param>
         /// <returns>The RSA private key.</returns>
-        public static RSA ImportPrivateKeyFromPEM(
+        public static RSA ImportRsaPrivateKeyFromPEM(
             byte[] pemDataBlob,
             string password = null)
         {
@@ -109,10 +109,102 @@ namespace Opc.Ua.Security.Certificates
             }
             throw new ArgumentException("No private PEM key found.");
         }
-        #endregion
 
-        #region Private Methods
-        #endregion
+        /// <summary>
+        /// Import ECDSA private key from PEM data
+        /// The PKCS#8 private key may be encrypted using a password
+        /// </summary>
+        /// <param name="pemDataBlob">The PEM data as byte array.</param>
+        /// <param name="password">The password to use if the key is encrypted (optional)</param>
+        /// <returns>ECDsa instance containing the private key</returns>
+        public static ECDsa ImportECDsaPrivateKeyFromPEM(
+            byte[] pemDataBlob,
+            string password = null)
+        {
+            // PEM labels for EC keys. Probably need adjustment
+            string[] labels =
+            {
+                "ENCRYPTED PRIVATE KEY",
+                "PRIVATE KEY",
+                "EC PRIVATE KEY"
+            };
+
+            try
+            {
+                // Convert PEM data to text for parsing
+                string pemText = Encoding.UTF8.GetString(pemDataBlob);
+
+                int labelIndex = 0;
+                foreach (var label in labels)
+                {
+                    labelIndex++;
+                    string beginLabel = $"-----BEGIN {label}-----";
+                    int beginIndex = pemText.IndexOf(beginLabel, StringComparison.Ordinal);
+                    if (beginIndex < 0)
+                    {
+                        continue;
+                    }
+                    string endLabel = $"-----END {label}-----";
+                    int endIndex = pemText.IndexOf(endLabel, StringComparison.Ordinal);
+
+                    beginIndex += beginLabel.Length;
+                    if (endIndex < 0 || endIndex <= beginIndex)
+                    {
+                        continue;
+                    }
+
+                    // Extract the base64-encoded section
+                    string pemData = pemText.Substring(beginIndex, endIndex - beginIndex).Trim();
+                    byte[] decodedBytes = new byte[pemData.Length];
+                    if(Convert.TryFromBase64Chars(pemData, decodedBytes, out int bytesDecoded))
+                    {
+                        // Resize array to actual decoded length
+                        Array.Resize(ref decodedBytes, bytesDecoded);
+
+                        // Create an ECDsa object
+                        ECDsa ecdsaKey = ECDsa.Create();
+                        switch (labelIndex)
+                        {
+                            case 1:
+                                // ENCRYPTED PRIVATE KEY
+                                if (string.IsNullOrEmpty(password))
+                                {
+                                    throw new ArgumentException("A password is required for an encrypted private key.");
+                                }
+                                ecdsaKey.ImportEncryptedPkcs8PrivateKey(password.ToCharArray(), decodedBytes, out _);
+                                break;
+
+                            case 2:
+                                // PRIVATE KEY (Unencrypted PKCS#8)
+                                ecdsaKey.ImportPkcs8PrivateKey(decodedBytes, out _);
+                                break;
+
+                            case 3:
+                                // EC PRIVATE KEY
+                                ecdsaKey.ImportECPrivateKey(decodedBytes, out _);
+                                break;
+                        }
+                        return ecdsaKey;
+                    }
+                }
+            }
+            catch (CryptographicException)
+            {
+                // Re-throw to handle upstream
+                throw;
+            }
+            catch (Exception ex)
+            {
+                throw new CryptographicException("Failed to decode the PEM ECDSA private key.", ex);
+            }
+
+            // If no recognized PEM label was found
+            throw new ArgumentException("No ECDSA private PEM key found.");
+        }
+#endregion
+
+#region Private Methods
+#endregion
     }
 }
 #endif

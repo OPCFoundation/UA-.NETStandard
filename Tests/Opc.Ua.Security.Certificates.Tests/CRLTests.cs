@@ -30,6 +30,7 @@
 
 using System;
 using System.Globalization;
+using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
@@ -44,6 +45,7 @@ namespace Opc.Ua.Security.Certificates.Tests
     /// </summary>
     [TestFixture, Category("CRL")]
     [Parallelizable]
+    [TestFixtureSource(nameof(FixtureArgs))]
     [SetCulture("en-us")]
     public class CRLTests
     {
@@ -58,6 +60,24 @@ namespace Opc.Ua.Security.Certificates.Tests
             { 4096, HashAlgorithmName.SHA512 } }.ToArray();
         #endregion
 
+        /// <summary>
+        /// store types to run the tests with
+        /// </summary>
+        public static readonly object[] FixtureArgs = {
+            new object [] { nameof(Opc.Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType)},
+            new object [] { nameof(Opc.Ua.ObjectTypeIds.EccNistP256ApplicationCertificateType)}
+        };
+
+        public CRLTests(string certificateType)
+        {
+            if (certificateType == CertificateStoreType.X509Store && !RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                Assert.Ignore("X509 Store with crls is only supported on Windows, skipping test run");
+            }
+            m_certifiateType = certificateType;
+        }
+
+
         #region Test Setup
         /// <summary>
         /// Set up a Global Discovery Server and Client instance and connect the session
@@ -65,9 +85,25 @@ namespace Opc.Ua.Security.Certificates.Tests
         [OneTimeSetUp]
         protected void OneTimeSetUp()
         {
-            m_issuerCert = CertificateBuilder.Create("CN=Root CA, O=OPC Foundation")
-                .SetCAConstraint()
-                .CreateForRSA();
+            if (m_certifiateType == nameof(Opc.Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType))
+            {
+                m_issuerCert = CertificateBuilder.Create("CN=Root CA, O=OPC Foundation")
+                    .SetCAConstraint()
+                    .CreateForRSA();
+            }
+#if ECC_SUPPORT
+            else if (m_certifiateType == nameof(Opc.Ua.ObjectTypeIds.EccNistP256ApplicationCertificateType))
+            {
+                m_issuerCert = CertificateBuilder.Create("CN=Root CA, O=OPC Foundation")
+                    .SetCAConstraint()
+                    .SetECCurve(ECCurve.NamedCurves.nistP256)
+                    .CreateForECDsa();
+            }
+#endif
+            else
+            {
+                Assert.Ignore($"Unsupported certificate type {m_certifiateType}");
+            }
         }
 
         /// <summary>
@@ -77,7 +113,7 @@ namespace Opc.Ua.Security.Certificates.Tests
         protected void OneTimeTearDown()
         {
         }
-        #endregion
+#endregion
 
         #region Test Methods
         /// <summary>
@@ -144,8 +180,18 @@ namespace Opc.Ua.Security.Certificates.Tests
                 crlBuilder.CrlExtensions.Add(X509Extensions.BuildCRLNumber(1111));
                 crlBuilder.CrlExtensions.Add(X509Extensions.BuildAuthorityKeyIdentifier(m_issuerCert));
             }
+            IX509CRL i509Crl;
+#if ECC_SUPPORT
+            if (X509PfxUtils.IsECDsaSignature(m_issuerCert))
+            {
 
-            var i509Crl = crlBuilder.CreateForRSA(m_issuerCert);
+                i509Crl = crlBuilder.CreateForECDsa(m_issuerCert);
+            }
+            else
+#endif
+            {
+                i509Crl = crlBuilder.CreateForRSA(m_issuerCert);
+            }
             X509CRL x509Crl = new X509CRL(i509Crl.RawData);
             Assert.NotNull(x509Crl);
             Assert.NotNull(x509Crl.CrlExtensions);
@@ -203,10 +249,23 @@ namespace Opc.Ua.Security.Certificates.Tests
             crlBuilder.CrlExtensions.Add(X509Extensions.BuildAuthorityKeyIdentifier(m_issuerCert));
 
             IX509CRL ix509Crl;
-            using (RSA rsa = m_issuerCert.GetRSAPrivateKey())
+#if ECC_SUPPORT
+            if (X509PfxUtils.IsECDsaSignature(m_issuerCert))
             {
-                X509SignatureGenerator generator = X509SignatureGenerator.CreateForRSA(rsa, RSASignaturePadding.Pkcs1);
-                ix509Crl = crlBuilder.CreateSignature(generator);
+                using (ECDsa ecdsa = m_issuerCert.GetECDsaPrivateKey())
+                {
+                    X509SignatureGenerator generator = X509SignatureGenerator.CreateForECDsa(ecdsa);
+                    ix509Crl = crlBuilder.CreateSignature(generator);
+                }
+            }
+            else
+#endif
+            {
+                using (RSA rsa = m_issuerCert.GetRSAPrivateKey())
+                {
+                    X509SignatureGenerator generator = X509SignatureGenerator.CreateForRSA(rsa, RSASignaturePadding.Pkcs1);
+                    ix509Crl = crlBuilder.CreateSignature(generator);
+                }
             }
             X509CRL x509Crl = new X509CRL(ix509Crl);
             Assert.NotNull(x509Crl);
@@ -269,7 +328,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             Assert.NotNull(crlEncoded);
             ValidateCRL(serial, serstring, hash, crlBuilder, crlEncoded);
         }
-        #endregion
+#endregion
 
         #region Private Methods
         private string WriteCRL(X509CRL x509Crl)
@@ -322,6 +381,7 @@ namespace Opc.Ua.Security.Certificates.Tests
 
         #region Private Fields
         X509Certificate2 m_issuerCert;
+        private string m_certifiateType;
         #endregion
     }
 

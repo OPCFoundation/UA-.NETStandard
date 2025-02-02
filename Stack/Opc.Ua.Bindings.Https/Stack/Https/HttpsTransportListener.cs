@@ -205,8 +205,7 @@ namespace Opc.Ua.Bindings
             // save the callback to the server.
             m_callback = callback;
 
-            m_serverCertificate = settings.ServerCertificate;
-            m_serverCertificateChain = settings.ServerCertificateChain;
+            m_serverCertProvider = settings.ServerCertificateTypesProvider;
 
             m_mutualTlsEnabled = settings.HttpsMutualTls;
             // start the listener
@@ -269,7 +268,7 @@ namespace Opc.Ua.Bindings
             m_hostBuilder = new WebHostBuilder();
 
             // prepare the server TLS certificate
-            var serverCertificate = m_serverCertificate;
+            var serverCertificate = m_serverCertProvider.GetInstanceCertificate(SecurityPolicies.Https);
 #if NETCOREAPP3_1_OR_GREATER || NETSTANDARD2_1 || NET472_OR_GREATER || NET5_0_OR_GREATER
             try
             {
@@ -277,7 +276,7 @@ namespace Opc.Ua.Bindings
                 // which default to the ephemeral KeySet. Also a new certificate must be reloaded.
                 // If the key fails to copy, its probably a non exportable key from the X509Store.
                 // Then we can use the original certificate, the private key is already in the key store.
-                serverCertificate = X509Utils.CreateCopyWithPrivateKey(m_serverCertificate, false);
+                serverCertificate = X509Utils.CreateCopyWithPrivateKey(serverCertificate, false);
             }
             catch (CryptographicException ce)
             {
@@ -490,24 +489,18 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public void CertificateUpdate(
             ICertificateValidator validator,
-            X509Certificate2 serverCertificate,
-            X509Certificate2Collection serverCertificateChain)
+            CertificateTypesProvider certificateTypeProvider)
         {
             Stop();
 
             m_quotas.CertificateValidator = validator;
-            m_serverCertificate = serverCertificate;
-            m_serverCertificateChain = serverCertificateChain;
-
-            byte[] serverCertificateChainBlob = Utils.CreateCertificateChainBlob(serverCertificateChain);
+            m_serverCertProvider = certificateTypeProvider;
 
             foreach (EndpointDescription description in m_descriptions)
             {
                 ServerBase.SetServerCertificateInEndpointDescription(description,
-                                                                     serverCertificateChain != null,
-                                                                     serverCertificate,
-                                                                     serverCertificateChainBlob,
-                                                                     false);
+                    certificateTypeProvider,
+                    false);
             }
 
             Start();
@@ -587,8 +580,7 @@ namespace Opc.Ua.Bindings
         private ITransportListenerCallback m_callback;
         private IWebHostBuilder m_hostBuilder;
         private IWebHost m_host;
-        private X509Certificate2 m_serverCertificate;
-        private X509Certificate2Collection m_serverCertificateChain;
+        private CertificateTypesProvider m_serverCertProvider;
         private bool m_mutualTlsEnabled;
         #endregion
     }

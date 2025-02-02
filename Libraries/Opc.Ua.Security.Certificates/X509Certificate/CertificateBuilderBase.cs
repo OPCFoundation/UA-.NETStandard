@@ -239,8 +239,15 @@ namespace Opc.Ua.Security.Certificates
         public virtual ICertificateBuilderCreateForECDsaAny SetECCurve(ECCurve curve)
         {
             m_curve = curve;
+
+            // HashAlgorithmName.SHA256 is the default value
+            if (m_hashAlgorithmName == X509Defaults.HashAlgorithmName)
+            {
+                SetHashAlgorithmSize(curve);
+            }
             return this;
         }
+
 
         /// <inheritdoc/>
         public abstract ICertificateBuilderCreateForECDsaAny SetECDsaPublicKey(byte[] publicKey);
@@ -274,6 +281,28 @@ namespace Opc.Ua.Security.Certificates
             return this;
         }
         #endregion
+
+#if ECC_SUPPORT
+        #region Private methods
+        /// <summary>
+        /// Set the hash algorithm depending on the curve size
+        /// </summary>
+        /// <param name="curve"></param>
+        private void SetHashAlgorithmSize(ECCurve curve)
+        {
+            if (curve.Oid.FriendlyName.CompareTo(ECCurve.NamedCurves.nistP384.Oid.FriendlyName) == 0 ||
+               (curve.Oid.FriendlyName.CompareTo(ECCurve.NamedCurves.brainpoolP384r1.Oid.FriendlyName) == 0))
+            {
+                SetHashAlgorithm(HashAlgorithmName.SHA384);
+            }
+            if (curve.Oid.FriendlyName.CompareTo(ECCurve.NamedCurves.nistP521.Oid.FriendlyName) == 0 ||
+               (curve.Oid.FriendlyName.CompareTo(ECCurve.NamedCurves.brainpoolP512r1.Oid.FriendlyName) == 0))
+            {
+                SetHashAlgorithm(HashAlgorithmName.SHA512);
+            }
+        }
+        #endregion
+#endif
 
         #region Protected Methods
         /// <summary>
@@ -359,7 +388,7 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         private protected ECCurve? m_curve;
 #endif
-        #endregion
+#endregion
 
         #region Private Fields
         private X509Certificate2 m_issuerCAKeyCert;

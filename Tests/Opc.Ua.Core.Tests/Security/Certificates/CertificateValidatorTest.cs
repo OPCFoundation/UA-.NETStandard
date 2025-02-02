@@ -39,6 +39,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Security.Certificates;
+using Opc.Ua.Security.Certificates.Tests;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 #if NETCOREAPP2_1 || !ECC_SUPPORT
@@ -55,6 +56,13 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
     [SetCulture("en-us")]
     public class CertificateValidatorTest
     {
+        #region DataPoints
+#if ECC_SUPPORT
+        [DatapointSource]
+        public static readonly ECCurveHashPair[] ECCurveHashPairs = CertificateTestsForECDsa.GetECCurveHashPairs();
+#endif
+        #endregion
+
         #region Test Setup
         public const string RootCASubject = "CN=Root CA Test Cert, O=OPC Foundation";
 
@@ -1054,7 +1062,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         {
             var validator = TemporaryCertValidator.Create();
             var certValidator = validator.Update();
-            Assert.Throws<ArgumentNullException>(() => certValidator.Update((SecurityConfiguration)null).GetAwaiter().GetResult());
+            Assert.Throws<ArgumentNullException>(() => certValidator.UpdateAsync((SecurityConfiguration)null).GetAwaiter().GetResult());
             Assert.Throws<ArgumentNullException>(() => certValidator.Update((ApplicationConfiguration)null).GetAwaiter().GetResult());
         }
 
@@ -1267,6 +1275,38 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             }
             certValidator.CertificateValidation -= approver.OnCertificateValidation;
         }
+
+#if ECC_SUPPORT
+        /// <summary>
+        /// Test that Hash sizes lower than public key sizes of certificates are not valid
+        /// </summary>
+        /// <param name="ecCurveHashPair"></param>
+        /// <returns></returns>
+        [Theory]
+        public async Task ECDsaHashSizeLowerThanPublicKeySize(
+            ECCurveHashPair ecCurveHashPair
+            )
+        {
+            if (ecCurveHashPair.HashSize > 0)
+            {
+                // default signing cert with custom key
+                X509Certificate2 cert = CertificateBuilder.Create("CN=LowHash")
+                    .SetHashAlgorithm(HashAlgorithmName.SHA512)
+                    .SetECCurve(ecCurveHashPair.Curve)
+                    .CreateForECDsa();
+
+                var validator = TemporaryCertValidator.Create();
+                await validator.TrustedStore.Add(cert).ConfigureAwait(false);
+                var certValidator = validator.Update();
+
+                var serviceResultException = Assert.Throws<ServiceResultException>(() => certValidator.Validate(cert));
+                Assert.AreEqual((StatusCode)StatusCodes.BadCertificatePolicyCheckFailed, (StatusCode)serviceResultException.StatusCode, serviceResultException.Message);
+                Assert.NotNull(serviceResultException.InnerResult);
+                ServiceResult innerResult = serviceResultException.InnerResult.InnerResult;
+                Assert.Null(innerResult);
+            }
+        }
+#endif
 
         /// <summary>
         /// Test auto accept.
@@ -1671,7 +1711,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         }
         #endregion missing revocation list when revocation is enforced
 
-        #endregion Test Methods
+#endregion Test Methods
 
         #region Private Methods
         private void OnCertificateUpdate(object sender, CertificateUpdateEventArgs e)

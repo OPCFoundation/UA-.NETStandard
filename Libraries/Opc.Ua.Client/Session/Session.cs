@@ -39,6 +39,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.Serialization;
+using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
@@ -104,7 +105,8 @@ namespace Opc.Ua.Client
             :
                 base(channel)
         {
-            Initialize(channel, configuration, endpoint, clientCertificate);
+            Initialize(channel, configuration, endpoint);
+            LoadInstanceCertificateAsync(clientCertificate).GetAwaiter().GetResult();
             m_discoveryServerEndpoints = availableEndpoints;
             m_discoveryProfileUris = discoveryProfileUris;
         }
@@ -119,8 +121,8 @@ namespace Opc.Ua.Client
         :
             base(channel)
         {
-            Initialize(channel, template.m_configuration, template.ConfiguredEndpoint, template.m_instanceCertificate);
-
+            Initialize(channel, template.m_configuration, template.ConfiguredEndpoint);
+            LoadInstanceCertificateAsync(template.m_instanceCertificate).GetAwaiter().GetResult();
             m_sessionFactory = template.m_sessionFactory;
             m_defaultSubscription = template.m_defaultSubscription;
             m_deleteSubscriptionsOnClose = template.m_deleteSubscriptionsOnClose;
@@ -167,8 +169,7 @@ namespace Opc.Ua.Client
         private void Initialize(
             ITransportChannel channel,
             ApplicationConfiguration configuration,
-            ConfiguredEndpoint endpoint,
-            X509Certificate2 clientCertificate)
+            ConfiguredEndpoint endpoint)
         {
             Initialize();
 
@@ -180,55 +181,6 @@ namespace Opc.Ua.Client
 
             // update the default subscription.
             m_defaultSubscription.MinLifetimeInterval = (uint)configuration.ClientConfiguration.MinSubscriptionLifetime;
-
-            if (m_endpoint.Description.SecurityPolicyUri != SecurityPolicies.None)
-            {
-                // update client certificate.
-                m_instanceCertificate = clientCertificate;
-
-                if (clientCertificate == null)
-                {
-                    // load the application instance certificate.
-                    if (m_configuration.SecurityConfiguration.ApplicationCertificate == null)
-                    {
-                        throw new ServiceResultException(
-                            StatusCodes.BadConfigurationError,
-                            "The client configuration does not specify an application instance certificate.");
-                    }
-
-                    m_instanceCertificate = m_configuration.SecurityConfiguration.ApplicationCertificate.Find(true).Result;
-                }
-
-                // check for valid certificate.
-                if (m_instanceCertificate == null)
-                {
-                    var cert = m_configuration.SecurityConfiguration.ApplicationCertificate;
-                    throw ServiceResultException.Create(
-                        StatusCodes.BadConfigurationError,
-                        "Cannot find the application instance certificate. Store={0}, SubjectName={1}, Thumbprint={2}.",
-                        cert.StorePath, cert.SubjectName, cert.Thumbprint);
-                }
-
-                // check for private key.
-                if (!m_instanceCertificate.HasPrivateKey)
-                {
-                    throw ServiceResultException.Create(
-                        StatusCodes.BadConfigurationError,
-                        "No private key for the application instance certificate. Subject={0}, Thumbprint={1}.",
-                        m_instanceCertificate.Subject,
-                        m_instanceCertificate.Thumbprint);
-                }
-
-                // load certificate chain.
-                m_instanceCertificateChain = new X509Certificate2Collection(m_instanceCertificate);
-                List<CertificateIdentifier> issuers = new List<CertificateIdentifier>();
-                configuration.CertificateValidator.GetIssuers(m_instanceCertificate, issuers).Wait();
-
-                for (int i = 0; i < issuers.Count; i++)
-                {
-                    m_instanceCertificateChain.Add(issuers[i].Certificate);
-                }
-            }
 
             // initialize the message context.
             IServiceMessageContext messageContext = channel.MessageContext;
@@ -359,7 +311,7 @@ namespace Opc.Ua.Client
             if (identity != null && identity.TokenType != UserTokenType.Anonymous)
             {
                 // the server nonce should be validated if the token includes a secret.
-                if (!Utils.Nonce.ValidateNonce(serverNonce, MessageSecurityMode.SignAndEncrypt, (uint)m_configuration.SecurityConfiguration.NonceLength))
+                if (!Nonce.ValidateNonce(serverNonce, MessageSecurityMode.SignAndEncrypt, (uint)m_configuration.SecurityConfiguration.NonceLength))
                 {
                     if (channelSecurityMode == MessageSecurityMode.SignAndEncrypt ||
                         m_configuration.SecurityConfiguration.SuppressNonceValidationErrors)
@@ -373,7 +325,7 @@ namespace Opc.Ua.Client
                 }
 
                 // check that new nonce is different from the previously returned server nonce.
-                if (previousServerNonce != null && Utils.CompareNonce(serverNonce, previousServerNonce))
+                if (previousServerNonce != null && Nonce.CompareNonce(serverNonce, previousServerNonce))
                 {
                     if (channelSecurityMode == MessageSecurityMode.SignAndEncrypt ||
                         m_configuration.SecurityConfiguration.SuppressNonceValidationErrors)
@@ -1085,8 +1037,8 @@ namespace Opc.Ua.Client
             X509Certificate2Collection clientCertificateChain = null;
             if (endpointDescription.SecurityPolicyUri != SecurityPolicies.None)
             {
-                clientCertificate = await LoadCertificate(configuration).ConfigureAwait(false);
-                clientCertificateChain = await LoadCertificateChain(configuration, clientCertificate).ConfigureAwait(false);
+                clientCertificate = await LoadCertificateAsync(configuration, endpointDescription.SecurityPolicyUri).ConfigureAwait(false);
+                clientCertificateChain = await LoadCertificateChainAsync(configuration, clientCertificate).ConfigureAwait(false);
             }
 
             // initialize the channel which will be created with the server.
@@ -1443,7 +1395,9 @@ namespace Opc.Ua.Client
             m_serverCertificate = serverCertificate != null ? X509CertificateLoader.LoadCertificate(serverCertificate) : null;
             m_identity = sessionConfiguration.Identity;
             m_checkDomain = sessionConfiguration.CheckDomain;
-            m_serverNonce = sessionConfiguration.ServerNonce;
+            m_serverNonce = sessionConfiguration.ServerNonce.Data;
+            m_userTokenSecurityPolicyUri = sessionConfiguration.UserIdentityTokenPolicy;
+            m_eccServerEphemeralKey = sessionConfiguration.ServerEccEphemeralKey;
             SessionCreated(sessionConfiguration.SessionId, sessionConfiguration.AuthenticationToken);
 
             return true;
@@ -1452,7 +1406,11 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public SessionConfiguration SaveSessionConfiguration(Stream stream = null)
         {
-            var sessionConfiguration = new SessionConfiguration(this, m_serverNonce, AuthenticationToken);
+
+            Nonce serverNonce = Nonce.CreateNonce(m_endpoint.Description?.SecurityPolicyUri, m_serverNonce);
+           
+            var sessionConfiguration = new SessionConfiguration(this, serverNonce, m_userTokenSecurityPolicyUri, m_eccServerEphemeralKey, AuthenticationToken);
+
             if (stream != null)
             {
                 XmlWriterSettings settings = Utils.DefaultXmlWriterSettings();
@@ -1520,11 +1478,13 @@ namespace Opc.Ua.Client
                 StatusCodeCollection certificateResults = null;
                 DiagnosticInfoCollection certificateDiagnosticInfos = null;
 
-                EndActivateSession(
+                var responseHeader = EndActivateSession(
                     result,
                     out serverNonce,
                     out certificateResults,
                     out certificateDiagnosticInfos);
+
+                ProcessResponseAdditionalHeader(responseHeader, m_serverCertificate);
 
                 Utils.LogInfo("Session RECONNECT {0} completed successfully.", SessionId);
 
@@ -1658,7 +1618,7 @@ namespace Opc.Ua.Client
                     );
 
                 // add the server capability MaxContinuationPointPerBrowse. Add further capabilities
-                // later (when support form them will be implemented and in a more generic fashion)
+                // later (when support for them will be implemented and in a more generic fashion)
                 nodeIds.Add(VariableIds.Server_ServerCapabilities_MaxBrowseContinuationPoints);
                 int maxBrowseContinuationPointIndex = nodeIds.Count - 1;
 
@@ -2372,7 +2332,7 @@ namespace Opc.Ua.Client
 
             // create a nonce.
             uint length = (uint)m_configuration.SecurityConfiguration.NonceLength;
-            byte[] clientNonce = Utils.Nonce.CreateNonce(length);
+            byte[] clientNonce = Nonce.CreateRandomNonceData(length);
             NodeId sessionId = null;
             NodeId sessionCookie = null;
             byte[] serverNonce = Array.Empty<byte>();
@@ -2396,14 +2356,19 @@ namespace Opc.Ua.Client
                 sessionTimeout = (uint)m_configuration.ClientConfiguration.DefaultSessionTimeout;
             }
 
+            // select the security policy for the user token.
+            RequestHeader requestHeader = CreateRequestHeaderPerUserTokenPolicy(identityPolicy.SecurityPolicyUri, m_endpoint.Description.SecurityPolicyUri);
+
             bool successCreateSession = false;
+            ResponseHeader responseHeader = null;
+
             //if security none, first try to connect without certificate
             if (m_endpoint.Description.SecurityPolicyUri == SecurityPolicies.None)
             {
                 //first try to connect with client certificate NULL
                 try
                 {
-                    base.CreateSession(
+                    responseHeader = base.CreateSession(
                         null,
                         clientDescription,
                         m_endpoint.Description.Server.ApplicationUri,
@@ -2434,8 +2399,8 @@ namespace Opc.Ua.Client
 
             if (!successCreateSession)
             {
-                base.CreateSession(
-                        null,
+                responseHeader = base.CreateSession(
+                        requestHeader,
                         clientDescription,
                         m_endpoint.Description.Server.ApplicationUri,
                         m_endpoint.EndpointUrl.ToString(),
@@ -2478,16 +2443,19 @@ namespace Opc.Ua.Client
 
                 HandleSignedSoftwareCertificates(serverSoftwareCertificates);
 
+                // process additional header
+                ProcessResponseAdditionalHeader(responseHeader, serverCertificate);
+
                 // create the client signature.
                 byte[] dataToSign = Utils.Append(serverCertificate != null ? serverCertificate.RawData : null, serverNonce);
                 SignatureData clientSignature = SecurityPolicies.Sign(m_instanceCertificate, securityPolicyUri, dataToSign);
 
                 // select the security policy for the user token.
-                securityPolicyUri = identityPolicy.SecurityPolicyUri;
+                string tokenSecurityPolicyUri = identityPolicy.SecurityPolicyUri;
 
-                if (String.IsNullOrEmpty(securityPolicyUri))
+                if (String.IsNullOrEmpty(tokenSecurityPolicyUri))
                 {
-                    securityPolicyUri = m_endpoint.Description.SecurityPolicyUri;
+                    tokenSecurityPolicyUri = m_endpoint.Description.SecurityPolicyUri;
                 }
 
                 // save previous nonce
@@ -2497,15 +2465,22 @@ namespace Opc.Ua.Client
                 ValidateServerNonce(
                     identity,
                     serverNonce,
-                    securityPolicyUri,
+                    tokenSecurityPolicyUri,
                     previousServerNonce,
                     m_endpoint.Description.SecurityMode);
 
                 // sign data with user token.
-                SignatureData userTokenSignature = identityToken.Sign(dataToSign, securityPolicyUri);
+                SignatureData userTokenSignature = identityToken.Sign(dataToSign, tokenSecurityPolicyUri);
 
                 // encrypt token.
-                identityToken.Encrypt(serverCertificate, serverNonce, securityPolicyUri);
+                identityToken.Encrypt(
+                    serverCertificate,
+                    serverNonce,
+                    m_userTokenSecurityPolicyUri,
+                    m_eccServerEphemeralKey,
+                    m_instanceCertificate,
+                    m_instanceCertificateChain,
+                    m_endpoint.Description.SecurityMode != MessageSecurityMode.None);
 
                 // send the software certificates assigned to the client.
                 SignedSoftwareCertificateCollection clientSoftwareCertificates = GetSoftwareCertificates();
@@ -2520,7 +2495,7 @@ namespace Opc.Ua.Client
                 DiagnosticInfoCollection certificateDiagnosticInfos = null;
 
                 // activate session.
-                ActivateSession(
+                responseHeader = ActivateSession(
                     null,
                     clientSignature,
                     clientSoftwareCertificates,
@@ -2530,6 +2505,8 @@ namespace Opc.Ua.Client
                     out serverNonce,
                     out certificateResults,
                     out certificateDiagnosticInfos);
+
+                ProcessResponseAdditionalHeader(responseHeader, serverCertificate);
 
                 if (certificateResults != null)
                 {
@@ -2578,8 +2555,7 @@ namespace Opc.Ua.Client
             {
                 try
                 {
-                    CloseSession(null, false);
-                    CloseChannel();
+                    Close(true);
                 }
                 catch (Exception e)
                 {
@@ -2623,9 +2599,6 @@ namespace Opc.Ua.Client
             }
 
             // get the identity token.
-            UserIdentityToken identityToken = null;
-            SignatureData userTokenSignature = null;
-
             string securityPolicyUri = m_endpoint.Description.SecurityPolicyUri;
 
             // create the client signature.
@@ -2639,7 +2612,7 @@ namespace Opc.Ua.Client
             }
 
             // check that the user identity is supported by the endpoint.
-            UserTokenPolicy identityPolicy = m_endpoint.Description.FindUserTokenPolicy(identity.TokenType, identity.IssuedTokenType);
+            UserTokenPolicy identityPolicy = m_endpoint.Description.FindUserTokenPolicy(identity.TokenType, identity.IssuedTokenType, securityPolicyUri);
 
             if (identityPolicy == null)
             {
@@ -2649,14 +2622,14 @@ namespace Opc.Ua.Client
             }
 
             // select the security policy for the user token.
-            securityPolicyUri = identityPolicy.SecurityPolicyUri;
+            string tokenSecurityPolicyUri = identityPolicy.SecurityPolicyUri;
 
-            if (String.IsNullOrEmpty(securityPolicyUri))
+            if (String.IsNullOrEmpty(tokenSecurityPolicyUri))
             {
-                securityPolicyUri = m_endpoint.Description.SecurityPolicyUri;
+                tokenSecurityPolicyUri = m_endpoint.Description.SecurityPolicyUri;
             }
 
-            bool requireEncryption = securityPolicyUri != SecurityPolicies.None;
+            bool requireEncryption = tokenSecurityPolicyUri != SecurityPolicies.None;
 
             // validate the server certificate before encrypting tokens.
             if (m_serverCertificate != null && requireEncryption && identity.TokenType != UserTokenType.Anonymous)
@@ -2668,17 +2641,26 @@ namespace Opc.Ua.Client
             ValidateServerNonce(
                 identity,
                 serverNonce,
-                securityPolicyUri,
+                tokenSecurityPolicyUri,
                 m_previousServerNonce,
                 m_endpoint.Description.SecurityMode);
 
             // sign data with user token.
-            identityToken = identity.GetIdentityToken();
+            UserIdentityToken identityToken = identity.GetIdentityToken();
             identityToken.PolicyId = identityPolicy.PolicyId;
-            userTokenSignature = identityToken.Sign(dataToSign, securityPolicyUri);
+            SignatureData userTokenSignature = identityToken.Sign(dataToSign, tokenSecurityPolicyUri);
+
+            m_userTokenSecurityPolicyUri = tokenSecurityPolicyUri;
 
             // encrypt token.
-            identityToken.Encrypt(m_serverCertificate, serverNonce, securityPolicyUri);
+            identityToken.Encrypt(
+                m_serverCertificate,
+                serverNonce,
+                m_userTokenSecurityPolicyUri,
+                m_eccServerEphemeralKey,
+                m_instanceCertificate,
+                m_instanceCertificateChain,
+                m_endpoint.Description.SecurityMode != MessageSecurityMode.None);
 
             // send the software certificates assigned to the client.
             SignedSoftwareCertificateCollection clientSoftwareCertificates = GetSoftwareCertificates();
@@ -2687,7 +2669,7 @@ namespace Opc.Ua.Client
             DiagnosticInfoCollection certificateDiagnosticInfos = null;
 
             // activate session.
-            ActivateSession(
+            ResponseHeader responseHeader = ActivateSession(
                 null,
                 clientSignature,
                 clientSoftwareCertificates,
@@ -2697,6 +2679,8 @@ namespace Opc.Ua.Client
                 out serverNonce,
                 out certificateResults,
                 out certificateDiagnosticInfos);
+
+            ProcessResponseAdditionalHeader(responseHeader, m_serverCertificate);
 
             // save nonce and new values.
             lock (SyncRoot)
@@ -5431,12 +5415,12 @@ namespace Opc.Ua.Client
             identityToken = identity.GetIdentityToken();
 
             // check that the user identity is supported by the endpoint.
-            identityPolicy = m_endpoint.Description.FindUserTokenPolicy(identityToken.PolicyId);
+            identityPolicy = m_endpoint.Description.FindUserTokenPolicy(identityToken.PolicyId, securityPolicyUri);
 
             if (identityPolicy == null)
             {
                 // try looking up by TokenType if the policy id was not found.
-                identityPolicy = m_endpoint.Description.FindUserTokenPolicy(identity.TokenType, identity.IssuedTokenType);
+                identityPolicy = m_endpoint.Description.FindUserTokenPolicy(identity.TokenType, identity.IssuedTokenType, securityPolicyUri);
 
                 if (identityPolicy == null)
                 {
@@ -5737,7 +5721,11 @@ namespace Opc.Ua.Client
             EndpointDescription endpoint = m_endpoint.Description;
             SignatureData clientSignature = SecurityPolicies.Sign(m_instanceCertificate, endpoint.SecurityPolicyUri, dataToSign);
 
-            UserTokenPolicy identityPolicy = m_endpoint.Description.FindUserTokenPolicy(m_identity.PolicyId);
+            // check that the user identity is supported by the endpoint.
+            UserTokenPolicy identityPolicy = endpoint.FindUserTokenPolicy(
+                m_identity.TokenType,
+                m_identity.IssuedTokenType,
+                endpoint.SecurityPolicyUri);
 
             if (identityPolicy == null)
             {
@@ -5749,12 +5737,13 @@ namespace Opc.Ua.Client
             }
 
             // select the security policy for the user token.
-            string securityPolicyUri = identityPolicy.SecurityPolicyUri;
+            string tokenSecurityPolicyUri = identityPolicy.SecurityPolicyUri;
 
-            if (String.IsNullOrEmpty(securityPolicyUri))
+            if (String.IsNullOrEmpty(tokenSecurityPolicyUri))
             {
-                securityPolicyUri = endpoint.SecurityPolicyUri;
+                tokenSecurityPolicyUri = endpoint.SecurityPolicyUri;
             }
+            m_userTokenSecurityPolicyUri = tokenSecurityPolicyUri;
 
             // need to refresh the identity (reprompt for password, refresh token).
             if (m_RenewUserIdentity != null)
@@ -5766,17 +5755,24 @@ namespace Opc.Ua.Client
             ValidateServerNonce(
                 m_identity,
                 m_serverNonce,
-                securityPolicyUri,
+                tokenSecurityPolicyUri,
                 m_previousServerNonce,
                 m_endpoint.Description.SecurityMode);
 
             // sign data with user token.
             UserIdentityToken identityToken = m_identity.GetIdentityToken();
             identityToken.PolicyId = identityPolicy.PolicyId;
-            SignatureData userTokenSignature = identityToken.Sign(dataToSign, securityPolicyUri);
+            SignatureData userTokenSignature = identityToken.Sign(dataToSign, tokenSecurityPolicyUri);
 
             // encrypt token.
-            identityToken.Encrypt(m_serverCertificate, m_serverNonce, securityPolicyUri);
+            identityToken.Encrypt(
+                m_serverCertificate,
+                m_serverNonce,
+                m_userTokenSecurityPolicyUri,
+                m_eccServerEphemeralKey,
+                m_instanceCertificate,
+                m_instanceCertificateChain,
+                m_endpoint.Description.SecurityMode != MessageSecurityMode.None);
 
             // send the software certificates assigned to the client.
             SignedSoftwareCertificateCollection clientSoftwareCertificates = GetSoftwareCertificates();
@@ -6236,29 +6232,67 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
+        /// Asynchronously load instance certificate
+        /// </summary>
+        /// <param name="clientCertificate"></param>
+        /// <returns></returns>
+        private async Task LoadInstanceCertificateAsync(X509Certificate2 clientCertificate)
+        {
+            if (m_endpoint.Description.SecurityPolicyUri != SecurityPolicies.None)
+            {
+                if (clientCertificate == null)
+                {
+                    m_instanceCertificate = await LoadCertificateAsync(m_configuration, m_endpoint.Description.SecurityPolicyUri).ConfigureAwait(false);
+                    if (m_instanceCertificate == null)
+                    {
+                        throw new ServiceResultException(
+                            StatusCodes.BadConfigurationError,
+                            "The client configuration does not specify an application instance certificate.");
+                    }
+                }
+                else
+                {
+                    // update client certificate.
+                    m_instanceCertificate = clientCertificate;
+                }
+
+                // check for private key.
+                if (!m_instanceCertificate.HasPrivateKey)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadConfigurationError,
+                        "No private key for the application instance certificate. Subject={0}, Thumbprint={1}.",
+                        m_instanceCertificate.Subject,
+                        m_instanceCertificate.Thumbprint);
+                }
+
+                // load certificate chain.
+                m_instanceCertificateChain = await LoadCertificateChainAsync(m_configuration, m_instanceCertificate).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
         /// Load certificate for connection.
         /// </summary>
-        private static async Task<X509Certificate2> LoadCertificate(ApplicationConfiguration configuration)
+        private static async Task<X509Certificate2> LoadCertificateAsync(ApplicationConfiguration configuration, string securityProfile)
         {
-            X509Certificate2 clientCertificate;
-            if (configuration.SecurityConfiguration.ApplicationCertificate == null)
-            {
-                throw ServiceResultException.Create(StatusCodes.BadConfigurationError, "ApplicationCertificate must be specified.");
-            }
-
-            clientCertificate = await configuration.SecurityConfiguration.ApplicationCertificate.Find(true).ConfigureAwait(false);
+            X509Certificate2 clientCertificate =
+                await configuration.SecurityConfiguration.FindApplicationCertificateAsync(securityProfile, true).ConfigureAwait(false);
 
             if (clientCertificate == null)
             {
-                throw ServiceResultException.Create(StatusCodes.BadConfigurationError, "ApplicationCertificate cannot be found.");
+                throw ServiceResultException.Create(StatusCodes.BadConfigurationError,
+                    "ApplicationCertificate for the security profile {0} cannot be found.",
+                    securityProfile);
             }
+
             return clientCertificate;
         }
 
         /// <summary>
         /// Load certificate chain for connection.
         /// </summary>
-        private static async Task<X509Certificate2Collection> LoadCertificateChain(ApplicationConfiguration configuration, X509Certificate2 clientCertificate)
+        private static async Task<X509Certificate2Collection> LoadCertificateChainAsync(ApplicationConfiguration configuration, X509Certificate2 clientCertificate)
         {
             X509Certificate2Collection clientCertificateChain = null;
             // load certificate chain.
@@ -6464,7 +6498,83 @@ namespace Opc.Ua.Client
                 latestSequenceNumberToSend = sequenceNumber;
             }
         }
+
+        /// <summary>
+        /// Creates a request header with additional parameters
+        /// for the ecc user token security policy, if needed.
+        /// </summary>
+        private RequestHeader CreateRequestHeaderPerUserTokenPolicy(string identityTokenSecurityPolicyUri, string endpointSecurityPolicyUri)
+        {
+            var requestHeader = new RequestHeader();
+            var userTokenSecurityPolicyUri = identityTokenSecurityPolicyUri;
+            if (String.IsNullOrEmpty(userTokenSecurityPolicyUri))
+            {
+                userTokenSecurityPolicyUri = m_endpoint.Description.SecurityPolicyUri;
+            }
+            m_userTokenSecurityPolicyUri = userTokenSecurityPolicyUri;
+
+            if (EccUtils.IsEccPolicy(userTokenSecurityPolicyUri))
+            {
+                AdditionalParametersType parameters = new AdditionalParametersType();
+                parameters.Parameters.Add(new KeyValuePair() {
+                    Key = "ECDHPolicyUri",
+                    Value = userTokenSecurityPolicyUri
+                });
+                requestHeader.AdditionalHeader = new ExtensionObject(parameters);
+            }
+
+            return requestHeader;
+        }
         #endregion
+
+        #region Protected Methods
+        /// <summary>
+        /// Process the AdditionalHeader field of a ResponseHeader
+        /// </summary>
+        /// <param name="responseHeader"></param>
+        /// <param name="serverCertificate"></param>
+        /// <exception cref="ServiceResultException"></exception>
+        protected virtual void ProcessResponseAdditionalHeader(ResponseHeader responseHeader, X509Certificate2 serverCertificate)
+        {
+            AdditionalParametersType parameters = ExtensionObject.ToEncodeable(responseHeader?.AdditionalHeader) as AdditionalParametersType;
+
+            if (parameters != null)
+            {
+                foreach (var ii in parameters.Parameters)
+                {
+#if ECC_SUPPORT
+                    if (ii.Key == "ECDHKey")
+                    {
+                        if (ii.Value.TypeInfo == TypeInfo.Scalars.StatusCode)
+                        {
+                            throw new ServiceResultException(
+                                (uint)(StatusCode)ii.Value.Value,
+                                "Server could not provide an ECDHKey. User authentication not possible.");
+                        }
+
+                        var key = ExtensionObject.ToEncodeable(ii.Value.Value as ExtensionObject) as EphemeralKeyType;
+
+                        if (key == null)
+                        {
+                            throw new ServiceResultException(
+                                StatusCodes.BadDecodingError,
+                                "Server did not provide a valid ECDHKey. User authentication not possible.");
+                        }
+
+                        if (!EccUtils.Verify(new ArraySegment<byte>(key.PublicKey), key.Signature, serverCertificate, m_userTokenSecurityPolicyUri))
+                        {
+                            throw new ServiceResultException(
+                                StatusCodes.BadDecodingError,
+                                "Could not verify signature on ECDHKey. User authentication not possible.");
+                        }
+
+                        m_eccServerEphemeralKey = Nonce.CreateNonce(m_userTokenSecurityPolicyUri, key.PublicKey);
+                    }
+#endif
+                }
+            }
+        }
+#endregion
 
         #region Protected Fields
         /// <summary>
@@ -6554,6 +6664,8 @@ namespace Opc.Ua.Client
         private int m_minPublishRequestCount;
         private int m_maxPublishRequestCount;
         private LinkedList<AsyncRequestState> m_outstandingRequests;
+        private string m_userTokenSecurityPolicyUri;
+        private Nonce m_eccServerEphemeralKey;
         private readonly EndpointDescriptionCollection m_discoveryServerEndpoints;
         private readonly StringCollection m_discoveryProfileUris;
         private uint m_serverMaxContinuationPointsPerBrowse = 0;
@@ -6736,7 +6848,7 @@ namespace Opc.Ua.Client
     #region PublishSequenceNumbersToAcknowledgeEventArgs Class
     /// <summary>
     /// Represents the event arguments provided when publish response
-    /// sequence numbers are about to be achknoledged with a publish request.
+    /// sequence numbers are about to be ackknowledged with a publish request.
     /// </summary>
     /// <remarks>
     /// A callee can defer an acknowledge to the next publish request by
@@ -6764,7 +6876,7 @@ namespace Opc.Ua.Client
         /// The acknowledgements which are sent with the next publish request.
         /// </summary>
         /// <remarks>
-        /// A client may also chose to remove an acknowledgement from this list to add it back
+        /// A client may also choose to remove an acknowledgement from this list to add it back
         /// to the list in a subsequent callback when the request is fully processed.
         /// </remarks>
         public SubscriptionAcknowledgementCollection AcknowledgementsToSend => m_acknowledgementsToSend;

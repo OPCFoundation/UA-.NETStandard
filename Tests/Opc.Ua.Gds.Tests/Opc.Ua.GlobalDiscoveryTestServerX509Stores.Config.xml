@@ -10,11 +10,14 @@
   <ApplicationType>Server_0</ApplicationType>
 
   <SecurityConfiguration>
-    <ApplicationCertificate>
-      <StoreType>X509Store</StoreType>
-      <StorePath>CurrentUser\UA_Test_GDS_Server_own</StorePath>
-      <SubjectName>CN=Global Discovery Test Server, O=OPC Foundation, DC=localhost</SubjectName>
-    </ApplicationCertificate>
+    <ApplicationCertificates>
+      <CertificateIdentifier>
+        <StoreType>X509Store</StoreType>
+        <StorePath>CurrentUser\UA_Test_GDS_Server_own</StorePath>
+        <SubjectName>CN=Global Discovery Test Server, O=OPC Foundation, DC=localhost</SubjectName>
+        <CertificateTypeString>RsaSha256</CertificateTypeString>
+      </CertificateIdentifier>
+    </ApplicationCertificates>
 
     <TrustedIssuerCertificates>
       <StoreType>X509Store</StoreType>
@@ -136,7 +139,11 @@
         <CertificateGroups>
           <CertificateGroupConfiguration>
             <Id>Default</Id>
-            <CertificateType>RsaSha256ApplicationCertificateType</CertificateType>
+            <CertificateTypes>
+              <ua:String>RsaSha256ApplicationCertificateType</ua:String>
+              <ua:String>EccNistP256ApplicationCertificateType</ua:String>
+              <ua:String>EccNistP384ApplicationCertificateType</ua:String>
+            </CertificateTypes>
             <SubjectName>CN=GDS Test CA, O=OPC Foundation</SubjectName>
             <BaseStorePath>%LocalApplicationData%/OPC/GDS/CA/default</BaseStorePath>
             <DefaultCertificateLifetime>12</DefaultCertificateLifetime>

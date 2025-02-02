@@ -11,6 +11,7 @@
 */
 
 using System.Security.Cryptography.X509Certificates;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua
 {
@@ -39,25 +40,14 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Gets or sets the server certificate.
+        /// Gets or sets the server certificate type provider.
         /// </summary>
-        public X509Certificate2 ServerCertificate
+        public CertificateTypesProvider ServerCertificateTypesProvider
         {
-            get { return m_serverCertificate; }
-            set { m_serverCertificate = value; }
+            get { return m_serverCertificateTypes; }
+            set { m_serverCertificateTypes = value; }
         }
 
-        /// <summary>
-        /// Gets or sets the server certificate chain.
-        /// </summary>
-        /// <value>
-        /// The server certificate chain.
-        /// </value>
-        public X509Certificate2Collection ServerCertificateChain
-        {
-            get { return m_serverCertificateChain; }
-            set { m_serverCertificateChain = value; }
-        }
 
         /// <summary>
         /// Gets or Sets the certificate validator.
@@ -120,7 +110,7 @@ namespace Opc.Ua
 
         /// <summary>
         /// Indicates the max number of channels that can be created by the listener.
-        /// 0 indictates no limit.
+        /// 0 indicates no limit.
         /// </summary>
         public int MaxChannelCount
         {
@@ -130,7 +120,7 @@ namespace Opc.Ua
 
         /// <summary>
         /// Indicates if Http listener requires mutual TLS
-        /// Handled only by HttpsTransportListner
+        /// Handled only by HttpsTransportListener
         /// In case true, the client should provide it's own valid TLS certificate to the TLS layer for the connection to succeed.
         /// </summary>
         public bool HttpsMutualTls
@@ -143,8 +133,7 @@ namespace Opc.Ua
         #region Private Fields
         private EndpointDescriptionCollection m_descriptions;
         private EndpointConfiguration m_configuration;
-        private X509Certificate2 m_serverCertificate;
-        private X509Certificate2Collection m_serverCertificateChain;
+        private CertificateTypesProvider m_serverCertificateTypes;
         private ICertificateValidator m_certificateValidator;
         private NamespaceTable m_namespaceUris;
         private IEncodeableFactory m_channelFactory;

@@ -30,9 +30,20 @@
 #if NETSTANDARD2_1 || NET472_OR_GREATER || NET5_0_OR_GREATER
 
 using System;
+using System.Collections.Generic;
 using System.Linq;
+using System.Numerics;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
+
+
+#if NET472_OR_GREATER
+using Org.BouncyCastle.Asn1;
+using Org.BouncyCastle.Asn1.X509;
+using Org.BouncyCastle.Asn1.X9;
+using Org.BouncyCastle.Math.EC;
+using Opc.Ua.Security.Certificates.BouncyCastle;
+#endif
 
 namespace Opc.Ua.Security.Certificates
 {
@@ -188,7 +199,7 @@ namespace Opc.Ua.Security.Certificates
             ECDsa publicKey = m_ecdsaPublicKey;
             if (publicKey == null)
             {
-                key = ECDsa.Create((ECCurve)m_curve);
+                key = ECDsa.Create((System.Security.Cryptography.ECCurve)m_curve);
                 publicKey = key;
             }
 
@@ -197,11 +208,14 @@ namespace Opc.Ua.Security.Certificates
             CreateX509Extensions(request, true);
 
             byte[] serialNumber = m_serialNumber.Reverse().ToArray();
+
+
+            X509Certificate2 cert;
             if (IssuerCAKeyCert != null)
             {
                 using (ECDsa issuerKey = IssuerCAKeyCert.GetECDsaPrivateKey())
                 {
-                    return request.Create(
+                    cert = request.Create(
                         IssuerCAKeyCert.SubjectName,
                         X509SignatureGenerator.CreateForECDsa(issuerKey),
                         NotBefore,
@@ -212,15 +226,16 @@ namespace Opc.Ua.Security.Certificates
             }
             else
             {
-                return request.Create(
+                cert = request.Create(
                     SubjectName,
                     X509SignatureGenerator.CreateForECDsa(key),
                     NotBefore,
                     NotAfter,
                     serialNumber
-                    )
-                    .CopyWithPrivateKey(key);
+                    );
             }
+
+            return (key == null) ? cert : cert.CopyWithPrivateKey(key);
         }
 
         /// <inheritdoc/>
@@ -242,7 +257,7 @@ namespace Opc.Ua.Security.Certificates
             ECDsa publicKey = m_ecdsaPublicKey;
             if (publicKey == null)
             {
-                key = ECDsa.Create((ECCurve)m_curve);
+                key = ECDsa.Create((System.Security.Cryptography.ECCurve)m_curve);
                 publicKey = key;
             }
 
@@ -266,14 +281,62 @@ namespace Opc.Ua.Security.Certificates
         public override ICertificateBuilderCreateForECDsaAny SetECDsaPublicKey(byte[] publicKey)
         {
             if (publicKey == null) throw new ArgumentNullException(nameof(publicKey));
-#if NET472_OR_GREATER
-            throw new NotSupportedException("Import a ECDsaPublicKey is not supported on this platform.");
-#else
+
             int bytes = 0;
             try
             {
                 m_ecdsaPublicKey = ECDsa.Create();
+#if NET472_OR_GREATER
+
+                var asymmetricPubKeyParameters = Org.BouncyCastle.Security.PublicKeyFactory.CreateKey(publicKey) as Org.BouncyCastle.Crypto.Parameters.ECPublicKeyParameters;
+                if (asymmetricPubKeyParameters == null)
+                {
+                    throw new ArgumentException("Invalid public key format or key type.");
+                }
+
+                var asn1Obj = Asn1Object.FromByteArray(publicKey);
+                var publicKeyInfo = SubjectPublicKeyInfo.GetInstance(asn1Obj);
+                var algParams = publicKeyInfo.Algorithm.Parameters;
+                var x962Params = X962Parameters.GetInstance(algParams);
+                    
+                ECParameters ecParameters = new ECParameters();
+
+                var domainParameters = asymmetricPubKeyParameters.Parameters;
+                var q = asymmetricPubKeyParameters.Q;
+                // calculate keySize round up (bitLength + 7) / 8
+                int keySizeBytes = (domainParameters.N.BitLength + 7) / 8;
+
+                if (x962Params.IsNamedCurve)
+                {
+                    // Named
+                    var namedCurveOid = (DerObjectIdentifier)x962Params.Parameters;
+                    string curveName = namedCurveOid.Id;
+                    var ecCurve = System.Security.Cryptography.ECCurve.CreateFromOid(new Oid(curveName));
+                    ecParameters.Curve = ecCurve;
+                }
+                else
+                {
+                    // Explicit parameters
+                    var a = X509Utils.PadWithLeadingZeros(domainParameters.Curve.A.ToBigInteger().ToByteArrayUnsigned(), keySizeBytes);
+                    var b = X509Utils.PadWithLeadingZeros(domainParameters.Curve.B.ToBigInteger().ToByteArrayUnsigned(), keySizeBytes);
+                    ecParameters.Curve = BouncyCastle.X509Utils.IdentifyEccCurveByCoefficients(a,b);
+                }
+
+                var x = X509Utils.PadWithLeadingZeros(q.AffineXCoord.ToBigInteger().ToByteArrayUnsigned(), keySizeBytes);
+                var y = X509Utils.PadWithLeadingZeros(q.AffineYCoord.ToBigInteger().ToByteArrayUnsigned(), keySizeBytes);
+                // Use the Q point
+                ecParameters.Q = new System.Security.Cryptography.ECPoint {
+                    X = x,
+                    Y = y
+                };
+
+                m_ecdsaPublicKey.ImportParameters(ecParameters);
+                bytes = publicKey.Length;
+
+#else
                 m_ecdsaPublicKey.ImportSubjectPublicKeyInfo(publicKey, out bytes);
+#endif
+                SetECCurve(m_ecdsaPublicKey.ExportParameters(false).Curve);
             }
             catch (Exception e)
             {
@@ -287,7 +350,6 @@ namespace Opc.Ua.Security.Certificates
             return this;
 #endif
         }
-#endif
 
         /// <inheritdoc/>
         public override ICertificateBuilderCreateForRSAAny SetRSAPublicKey(byte[] publicKey)
@@ -359,7 +421,7 @@ namespace Opc.Ua.Security.Certificates
             // Authority Key Identifier
             if (X509Extensions.FindExtension<X509AuthorityKeyIdentifierExtension>(m_extensions) == null)
             {
-                X509Extension authorityKeyIdentifier = IssuerCAKeyCert != null
+                System.Security.Cryptography.X509Certificates.X509Extension authorityKeyIdentifier = IssuerCAKeyCert != null
                     ? X509Extensions.BuildAuthorityKeyIdentifier(IssuerCAKeyCert)
                     : new X509AuthorityKeyIdentifierExtension(
                         ski.SubjectKeyIdentifier.FromHexString(),
@@ -403,7 +465,7 @@ namespace Opc.Ua.Security.Certificates
                                         true));
             }
 
-            if (!m_isCA)
+            if (!m_isCA && !forECDsa)
             {
                 if (X509Extensions.FindExtension<X509EnhancedKeyUsageExtension>(m_extensions) == null)
                 {
@@ -417,7 +479,7 @@ namespace Opc.Ua.Security.Certificates
                 }
             }
 
-            foreach (X509Extension extension in m_extensions)
+            foreach (System.Security.Cryptography.X509Certificates.X509Extension extension in m_extensions)
             {
                 request.CertificateExtensions.Add(extension);
             }

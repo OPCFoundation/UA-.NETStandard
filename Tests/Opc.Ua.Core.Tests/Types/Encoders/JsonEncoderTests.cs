@@ -1204,9 +1204,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             String expectedNodeIdString = $"nsu={namespaceUri};s={nodeName}";
             ExpandedNodeId expandedNodeId = new ExpandedNodeId(expectedNodeIdString);
 
-            string stringifiedExpandedNodId = expandedNodeId.ToString();
-            TestContext.Out.WriteLine(stringifiedExpandedNodId);
-            Assert.AreEqual(expectedNodeIdString, stringifiedExpandedNodId);
+            string stringifiedExpandedNodeId = expandedNodeId.ToString();
+            TestContext.Out.WriteLine(stringifiedExpandedNodeId);
+            Assert.AreEqual(expectedNodeIdString, stringifiedExpandedNodeId);
         }
 
         /// <summary>

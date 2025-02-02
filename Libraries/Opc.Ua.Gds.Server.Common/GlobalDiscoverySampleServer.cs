@@ -261,6 +261,11 @@ namespace Opc.Ua.Gds.Server
                     applicationRegistered = true;
                 }
             }
+            //skip revocation check if application is not registered
+            if (!applicationRegistered)
+            {
+                return false;
+            }
             //check if application certificate is revoked
             certificateStoreIdentifier = new CertificateStoreIdentifier(configuration.AuthoritiesStorePath);
             using (ICertificateStore AuthoritiesStore = certificateStoreIdentifier.OpenStore())

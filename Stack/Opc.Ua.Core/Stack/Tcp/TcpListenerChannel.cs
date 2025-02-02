@@ -15,6 +15,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Security.Cryptography.X509Certificates;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Bindings
 {
@@ -32,26 +33,10 @@ namespace Opc.Ua.Bindings
             ITcpChannelListener listener,
             BufferManager bufferManager,
             ChannelQuotas quotas,
-            X509Certificate2 serverCertificate,
+            CertificateTypesProvider serverCertificateTypeProvider,
             EndpointDescriptionCollection endpoints)
         :
-            this(contextId, listener, bufferManager, quotas, serverCertificate, null, endpoints)
-        {
-        }
-
-        /// <summary>
-        /// Attaches the object to an existing socket.
-        /// </summary>
-        public TcpListenerChannel(
-            string contextId,
-            ITcpChannelListener listener,
-            BufferManager bufferManager,
-            ChannelQuotas quotas,
-            X509Certificate2 serverCertificate,
-            X509Certificate2Collection serverCertificateChain,
-            EndpointDescriptionCollection endpoints)
-        :
-            base(contextId, bufferManager, quotas, serverCertificate, serverCertificateChain, endpoints, MessageSecurityMode.None, SecurityPolicies.None)
+            base(contextId, bufferManager, quotas, serverCertificateTypeProvider, endpoints, MessageSecurityMode.None, SecurityPolicies.None)
         {
             m_listener = listener;
         }
@@ -159,7 +144,7 @@ namespace Opc.Ua.Bindings
             lock (DataLock)
             {
                 state = State;
-                if (state == TcpChannelState.Open)
+                if (state == TcpChannelState.Open || state == TcpChannelState.Connecting)
                 {
                     state = State = TcpChannelState.Closing;
                 }

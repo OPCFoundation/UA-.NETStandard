@@ -36,7 +36,7 @@ namespace Opc.Ua.Gds.Server
     /// <summary>
     /// Stores the configuration the data access node manager.
     /// </summary>
-    [DataContract(Namespace=Opc.Ua.Gds.Namespaces.OpcUaGds + "Configuration.xsd")]
+    [DataContract(Namespace = Opc.Ua.Gds.Namespaces.OpcUaGds + "Configuration.xsd")]
     public class GlobalDiscoveryServerConfiguration
     {
         #region Constructors
@@ -74,7 +74,7 @@ namespace Opc.Ua.Gds.Server
 
         [DataMember(Order = 3)]
         public string BaseCertificateGroupStorePath { get; set; }
-        
+
         [DataMember(Order = 4)]
         public string DefaultSubjectNameContext { get; set; }
 
@@ -130,6 +130,7 @@ namespace Opc.Ua.Gds.Server
             CACertificateLifetime = CertificateFactory.DefaultLifeTime;
             CACertificateKeySize = CertificateFactory.DefaultKeySize;
             CACertificateHashSize = CertificateFactory.DefaultHashSize;
+            m_certificateTypes = new StringCollection();
         }
         #endregion
 
@@ -137,8 +138,39 @@ namespace Opc.Ua.Gds.Server
         [DataMember(IsRequired = true, Order = 10)]
         public string Id { get; set; }
 
-        [DataMember(IsRequired = true, Order = 20)]
-        public string CertificateType { get; set; }
+        [DataMember(IsRequired = false, Order = 20)]
+        public string CertificateType
+        {
+            get
+            {
+                if (m_certificateTypes.Count > 0)
+                {
+                    return m_certificateTypes[0];
+                }
+                return null;
+            }
+            set
+            {
+                if (m_certificateTypes.Count > 0)
+                {
+                    if (value == null)
+                    {
+                        m_certificateTypes.RemoveAt(0);
+                    }
+                    else
+                    {
+                        m_certificateTypes[0] = value;
+                    }
+                }
+                else
+                {
+                    m_certificateTypes.Add(value);
+                }
+            }
+        }
+
+        [DataMember(IsRequired = false, Order = 21)]
+        public StringCollection CertificateTypes { get => m_certificateTypes; set => m_certificateTypes = value; }
 
         [DataMember(IsRequired = true, Order = 25)]
         public string SubjectName { get; set; }
@@ -164,11 +196,12 @@ namespace Opc.Ua.Gds.Server
         [DataMember(Order = 90)]
         public ushort CACertificateHashSize { get; set; }
 
-        public string TrustedListPath { get { return BaseStorePath + Path.DirectorySeparatorChar + "trusted"; }}
+        public string TrustedListPath { get { return BaseStorePath + Path.DirectorySeparatorChar + "trusted"; } }
         public string IssuerListPath { get { return BaseStorePath + Path.DirectorySeparatorChar + "issuer"; } }
         #endregion
 
         #region Private Members
+        private StringCollection m_certificateTypes;
         #endregion
     }
 

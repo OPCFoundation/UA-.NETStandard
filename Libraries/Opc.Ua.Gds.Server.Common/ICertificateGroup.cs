@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System.Collections.Concurrent;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
@@ -58,11 +59,11 @@ namespace Opc.Ua.Gds.Server
     public interface ICertificateGroup
     {
         NodeId Id { get; set; }
-        NodeId CertificateType { get; set; }
+        NodeIdCollection CertificateTypes { get; set; }
+        ConcurrentDictionary<NodeId, X509Certificate2> Certificates { get; }
         CertificateGroupConfiguration Configuration { get; }
         CertificateStoreIdentifier AuthoritiesStore { get; }
         CertificateStoreIdentifier IssuerCertificatesStore { get; }
-        X509Certificate2 Certificate { get; set; }
         TrustListState DefaultTrustList { get; set; }
         bool UpdateRequired { get; set; }
 
@@ -74,7 +75,8 @@ namespace Opc.Ua.Gds.Server
         Task Init();
 
         Task<X509Certificate2> CreateCACertificateAsync(
-            string subjectName
+            string subjectName,
+            NodeId certificateType
             );
 
         Task<X509CRL> RevokeCertificateAsync(
@@ -88,12 +90,14 @@ namespace Opc.Ua.Gds.Server
 
         Task<X509Certificate2> SigningRequestAsync(
             ApplicationRecordDataType application,
+            NodeId certificateType,
             string[] domainNames,
             byte[] certificateRequest
             );
 
         Task<X509Certificate2KeyPair> NewKeyPairRequestAsync(
             ApplicationRecordDataType application,
+            NodeId certificateType,
             string subjectName,
             string[] domainNames,
             string privateKeyFormat,

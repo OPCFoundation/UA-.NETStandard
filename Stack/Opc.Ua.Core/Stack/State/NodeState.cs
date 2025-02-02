@@ -94,7 +94,7 @@ namespace Opc.Ua
 
         #region Initialization
         /// <summary>
-        /// When overridden in a derived class, iinitializes the instance with the default values.
+        /// When overridden in a derived class, initializes the instance with the default values.
         /// </summary>
         /// <param name="context">The object that describes how access the system containing the data.</param>
         protected virtual void Initialize(ISystemContext context)
@@ -112,7 +112,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Initializes the instance with the XML or bnary (array of bytes) representation contained in the string.
+        /// Initializes the instance with the XML or binary (array of bytes) representation contained in the string.
         /// </summary>
         /// <param name="context">The object that describes how access the system containing the data.</param>
         /// <param name="initializationString">The initialization string that is used to initializes the node.</param>
@@ -423,7 +423,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Specifies  a list of permissions for the node assigned to roles for the current user.
+        /// Specifies a list of permissions for the node assigned to roles for the current user.
         /// </summary>
         /// <value>The Permissions that apply to the node for the current user.</value>
         public RolePermissionTypeCollection UserRolePermissions
@@ -1505,7 +1505,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Saves a refernce table from an XML stream.
+        /// Saves a reference table from an XML stream.
         /// </summary>
         /// <param name="context">The context for the system being accessed.</param>
         /// <param name="encoder">The encoder wrapping the stream to write.</param>
@@ -2545,7 +2545,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Returns the last event produced for any conditions belonging to the node or its chilren.
+        /// Returns the last event produced for any conditions belonging to the node or its children.
         /// </summary>
         /// <param name="context">The system context.</param>
         /// <param name="events">The list of condition events to return.</param>
@@ -2648,7 +2648,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Recusively sets the status code and timestamp for the node and all child variables.
+        /// Recursively sets the status code and timestamp for the node and all child variables.
         /// </summary>
         /// <param name="context">The context.</param>
         /// <param name="statusCode">The status code.</param>
@@ -4247,7 +4247,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="context">The context to use.</param>
         /// <param name="browseName">The browse name.</param>
-        /// <returns>The child if avialble. Null otherwise.</returns>
+        /// <returns>The child if available. Null otherwise.</returns>
         public virtual BaseInstanceState CreateChild(
             ISystemContext context,
             QualifiedName browseName)
@@ -4564,7 +4564,7 @@ namespace Opc.Ua
         /// Adds a reference.
         /// </summary>
         /// <param name="referenceTypeId">Type of the reference.</param>
-        /// <param name="isInverse">If set to <c>true</c> the refernce is an inverse reference.</param>
+        /// <param name="isInverse">If set to <c>true</c> the reference is an inverse reference.</param>
         /// <param name="targetId">The target of the reference.</param>
         public void AddReference(
             NodeId referenceTypeId,
@@ -4593,7 +4593,7 @@ namespace Opc.Ua
         /// Removes a reference.
         /// </summary>
         /// <param name="referenceTypeId">Type of the reference.</param>
-        /// <param name="isInverse">If set to <c>true</c> the refernce is an inverse reference.</param>
+        /// <param name="isInverse">If set to <c>true</c> the reference is an inverse reference.</param>
         /// <param name="targetId">The target of the reference.</param>
         public bool RemoveReference(
             NodeId referenceTypeId,
