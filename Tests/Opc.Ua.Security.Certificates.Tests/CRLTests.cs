@@ -87,22 +87,27 @@ namespace Opc.Ua.Security.Certificates.Tests
         [OneTimeSetUp]
         protected void OneTimeSetUp()
         {
+#if ECC_SUPPORT
             ECCurve? curve = EccUtils.GetCurveFromCertificateTypeId(m_certificateType);
 
-            // RSA Certificate
-            if (curve == null)
-            {
-                m_issuerCert = CertificateBuilder.Create("CN=Root CA, O=OPC Foundation")
-                .SetCAConstraint()
-                .CreateForRSA();
-            }
-            else
+            if (curve != null)
             {
                 m_issuerCert = CertificateBuilder.Create("CN=Root CA, O=OPC Foundation")
                 .SetCAConstraint()
                 .SetECCurve(curve.Value)
                 .CreateForECDsa();
+               
             }
+            // RSA Certificate
+            else
+            {
+#endif
+                m_issuerCert = CertificateBuilder.Create("CN=Root CA, O=OPC Foundation")
+               .SetCAConstraint()
+               .CreateForRSA();
+#if ECC_SUPPORT
+            }
+#endif
         }
 
         /// <summary>
