@@ -6260,6 +6260,13 @@
   </xs:complexType>
   <xs:element name="Range" type="tns:Range" />
 
+  <xs:complexType name="ListOfRange">
+    <xs:sequence>
+      <xs:element name="Range" type="tns:Range" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfRange" type="tns:ListOfRange" nillable="true"></xs:element>
+
   <xs:complexType name="EUInformation">
     <xs:sequence>
       <xs:element name="NamespaceUri" type="xs:string" minOccurs="0" nillable="true" />
@@ -6270,6 +6277,13 @@
   </xs:complexType>
   <xs:element name="EUInformation" type="tns:EUInformation" />
 
+  <xs:complexType name="ListOfEUInformation">
+    <xs:sequence>
+      <xs:element name="EUInformation" type="tns:EUInformation" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfEUInformation" type="tns:ListOfEUInformation" nillable="true"></xs:element>
+
   <xs:simpleType  name="AxisScaleEnumeration">
     <xs:restriction base="xs:string">
       <xs:enumeration value="Linear_0" />
@@ -6279,6 +6293,13 @@
   </xs:simpleType>
   <xs:element name="AxisScaleEnumeration" type="tns:AxisScaleEnumeration" />
 
+  <xs:complexType name="ListOfAxisScaleEnumeration">
+    <xs:sequence>
+      <xs:element name="AxisScaleEnumeration" type="tns:AxisScaleEnumeration" minOccurs="0" maxOccurs="unbounded" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfAxisScaleEnumeration" type="tns:ListOfAxisScaleEnumeration" nillable="true"></xs:element>
+
   <xs:complexType name="ComplexNumberType">
     <xs:sequence>
       <xs:element name="Real" type="xs:float" minOccurs="0" />
@@ -6287,6 +6308,13 @@
   </xs:complexType>
   <xs:element name="ComplexNumberType" type="tns:ComplexNumberType" />
 
+  <xs:complexType name="ListOfComplexNumberType">
+    <xs:sequence>
+      <xs:element name="ComplexNumberType" type="tns:ComplexNumberType" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfComplexNumberType" type="tns:ListOfComplexNumberType" nillable="true"></xs:element>
+
   <xs:complexType name="DoubleComplexNumberType">
     <xs:sequence>
       <xs:element name="Real" type="xs:double" minOccurs="0" />
@@ -6294,6 +6322,13 @@
     </xs:sequence>
   </xs:complexType>
   <xs:element name="DoubleComplexNumberType" type="tns:DoubleComplexNumberType" />
+
+  <xs:complexType name="ListOfDoubleComplexNumberType">
+    <xs:sequence>
+      <xs:element name="DoubleComplexNumberType" type="tns:DoubleComplexNumberType" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfDoubleComplexNumberType" type="tns:ListOfDoubleComplexNumberType" nillable="true"></xs:element>
 
   <xs:complexType name="AxisInformation">
     <xs:sequence>
@@ -6306,6 +6341,13 @@
   </xs:complexType>
   <xs:element name="AxisInformation" type="tns:AxisInformation" />
 
+  <xs:complexType name="ListOfAxisInformation">
+    <xs:sequence>
+      <xs:element name="AxisInformation" type="tns:AxisInformation" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfAxisInformation" type="tns:ListOfAxisInformation" nillable="true"></xs:element>
+
   <xs:complexType name="XVType">
     <xs:sequence>
       <xs:element name="X" type="xs:double" minOccurs="0" />
@@ -6313,6 +6355,13 @@
     </xs:sequence>
   </xs:complexType>
   <xs:element name="XVType" type="tns:XVType" />
+
+  <xs:complexType name="ListOfXVType">
+    <xs:sequence>
+      <xs:element name="XVType" type="tns:XVType" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfXVType" type="tns:ListOfXVType" nillable="true"></xs:element>
 
   <xs:complexType name="ProgramDiagnosticDataType">
     <xs:sequence>

@@ -2698,6 +2698,66 @@ namespace Opc.Ua
             }
             return null;
         }
+
+        /// <inheritdoc/>
+        public uint ReadSwitchField(StringCollection switches)
+        {
+            if (m_stack.Peek() is Dictionary<string, object> context)
+            {
+                if (context.ContainsKey("SwitchField"))
+                {
+                    return ReadUInt32("SwitchField");
+                }
+
+                foreach (var ii in context)
+                {
+                    if (ii.Key == "UaTypeId")
+                    {
+                        continue;
+                    }
+
+                    var index = switches.IndexOf(ii.Key);
+
+                    if (index >= 0)
+                    {
+                        return (uint)index;
+                    }
+                }
+            }
+
+            return 0;
+        }
+
+        /// <inheritdoc/>
+        public uint ReadEncodingMask(StringCollection masks)
+        {
+            if (m_stack.Peek() is Dictionary<string, object> context)
+            {
+                if (context.ContainsKey("EncodingMask"))
+                {
+                    return ReadUInt32("EncodingMask");
+                }
+
+                uint mask = 0;
+
+                foreach (var fieldName in masks)
+                {
+                    if (context.ContainsKey(fieldName))
+                    {
+                        var index = masks.IndexOf(fieldName);
+
+                        if (index >= 0)
+                        {
+                            mask |= (uint)(1<<index);
+                        }
+                    }
+                }
+
+                return mask;
+            }
+
+            return 0;
+        }
         #endregion
 
         #region Public Methods

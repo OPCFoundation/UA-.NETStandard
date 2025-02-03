@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Xml;
+using System.Linq;
 using System.Runtime.Serialization;
 
 namespace Opc.Ua
@@ -71604,6 +71605,71 @@ namespace Opc.Ua
         private double m_high;
         #endregion
     }
+
+    #region RangeCollection Class
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [CollectionDataContract(Name = "ListOfRange", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "Range")]
+    public partial class RangeCollection : List<Range>, ICloneable
+    {
+        #region Constructors
+        /// <remarks />
+        public RangeCollection() {}
+
+        /// <remarks />
+        public RangeCollection(int capacity) : base(capacity) {}
+
+        /// <remarks />
+        public RangeCollection(IEnumerable<Range> collection) : base(collection) {}
+        #endregion
+
+        #region Static Operators
+        /// <remarks />
+        public static implicit operator RangeCollection(Range[] values)
+        {
+            if (values != null)
+            {
+                return new RangeCollection(values);
+            }
+
+            return new RangeCollection();
+        }
+
+        /// <remarks />
+        public static explicit operator Range[](RangeCollection values)
+        {
+            if (values != null)
+            {
+                return values.ToArray();
+            }
+
+            return null;
+        }
+        #endregion
+
+        #region ICloneable Methods
+        /// <remarks />
+        public object Clone()
+        {
+            return (RangeCollection)this.MemberwiseClone();
+        }
+        #endregion
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            RangeCollection clone = new RangeCollection(this.Count);
+
+            for (int ii = 0; ii < this.Count; ii++)
+            {
+                clone.Add((Range)Utils.Clone(this[ii]));
+            }
+
+            return clone;
+        }
+    }
+    #endregion
     #endif
     #endregion
 
@@ -71760,6 +71826,71 @@ namespace Opc.Ua
         private LocalizedText m_description;
         #endregion
     }
+
+    #region EUInformationCollection Class
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [CollectionDataContract(Name = "ListOfEUInformation", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "EUInformation")]
+    public partial class EUInformationCollection : List<EUInformation>, ICloneable
+    {
+        #region Constructors
+        /// <remarks />
+        public EUInformationCollection() {}
+
+        /// <remarks />
+        public EUInformationCollection(int capacity) : base(capacity) {}
+
+        /// <remarks />
+        public EUInformationCollection(IEnumerable<EUInformation> collection) : base(collection) {}
+        #endregion
+
+        #region Static Operators
+        /// <remarks />
+        public static implicit operator EUInformationCollection(EUInformation[] values)
+        {
+            if (values != null)
+            {
+                return new EUInformationCollection(values);
+            }
+
+            return new EUInformationCollection();
+        }
+
+        /// <remarks />
+        public static explicit operator EUInformation[](EUInformationCollection values)
+        {
+            if (values != null)
+            {
+                return values.ToArray();
+            }
+
+            return null;
+        }
+        #endregion
+
+        #region ICloneable Methods
+        /// <remarks />
+        public object Clone()
+        {
+            return (EUInformationCollection)this.MemberwiseClone();
+        }
+        #endregion
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            EUInformationCollection clone = new EUInformationCollection(this.Count);
+
+            for (int ii = 0; ii < this.Count; ii++)
+            {
+                clone.Add((EUInformation)Utils.Clone(this[ii]));
+            }
+
+            return clone;
+        }
+    }
+    #endregion
     #endif
     #endregion
 
@@ -71783,6 +71914,71 @@ namespace Opc.Ua
         [EnumMember(Value = "Ln_2")]
         Ln = 2,
     }
+
+    #region AxisScaleEnumerationCollection Class
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [CollectionDataContract(Name = "ListOfAxisScaleEnumeration", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "AxisScaleEnumeration")]
+    public partial class AxisScaleEnumerationCollection : List<AxisScaleEnumeration>, ICloneable
+    {
+        #region Constructors
+        /// <remarks />
+        public AxisScaleEnumerationCollection() {}
+
+        /// <remarks />
+        public AxisScaleEnumerationCollection(int capacity) : base(capacity) {}
+
+        /// <remarks />
+        public AxisScaleEnumerationCollection(IEnumerable<AxisScaleEnumeration> collection) : base(collection) {}
+        #endregion
+
+        #region Static Operators
+        /// <remarks />
+        public static implicit operator AxisScaleEnumerationCollection(AxisScaleEnumeration[] values)
+        {
+            if (values != null)
+            {
+                return new AxisScaleEnumerationCollection(values);
+            }
+
+            return new AxisScaleEnumerationCollection();
+        }
+
+        /// <remarks />
+        public static explicit operator AxisScaleEnumeration[](AxisScaleEnumerationCollection values)
+        {
+            if (values != null)
+            {
+                return values.ToArray();
+            }
+
+            return null;
+        }
+        #endregion
+
+        #region ICloneable Methods
+        /// <remarks />
+        public object Clone()
+        {
+            return (AxisScaleEnumerationCollection)this.MemberwiseClone();
+        }
+        #endregion
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            AxisScaleEnumerationCollection clone = new AxisScaleEnumerationCollection(this.Count);
+
+            for (int ii = 0; ii < this.Count; ii++)
+            {
+                clone.Add((AxisScaleEnumeration)Utils.Clone(this[ii]));
+            }
+
+            return clone;
+        }
+    }
+    #endregion
     #endif
     #endregion
 
@@ -71911,6 +72107,71 @@ namespace Opc.Ua
         private float m_imaginary;
         #endregion
     }
+
+    #region ComplexNumberTypeCollection Class
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [CollectionDataContract(Name = "ListOfComplexNumberType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ComplexNumberType")]
+    public partial class ComplexNumberTypeCollection : List<ComplexNumberType>, ICloneable
+    {
+        #region Constructors
+        /// <remarks />
+        public ComplexNumberTypeCollection() {}
+
+        /// <remarks />
+        public ComplexNumberTypeCollection(int capacity) : base(capacity) {}
+
+        /// <remarks />
+        public ComplexNumberTypeCollection(IEnumerable<ComplexNumberType> collection) : base(collection) {}
+        #endregion
+
+        #region Static Operators
+        /// <remarks />
+        public static implicit operator ComplexNumberTypeCollection(ComplexNumberType[] values)
+        {
+            if (values != null)
+            {
+                return new ComplexNumberTypeCollection(values);
+            }
+
+            return new ComplexNumberTypeCollection();
+        }
+
+        /// <remarks />
+        public static explicit operator ComplexNumberType[](ComplexNumberTypeCollection values)
+        {
+            if (values != null)
+            {
+                return values.ToArray();
+            }
+
+            return null;
+        }
+        #endregion
+
+        #region ICloneable Methods
+        /// <remarks />
+        public object Clone()
+        {
+            return (ComplexNumberTypeCollection)this.MemberwiseClone();
+        }
+        #endregion
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            ComplexNumberTypeCollection clone = new ComplexNumberTypeCollection(this.Count);
+
+            for (int ii = 0; ii < this.Count; ii++)
+            {
+                clone.Add((ComplexNumberType)Utils.Clone(this[ii]));
+            }
+
+            return clone;
+        }
+    }
+    #endregion
     #endif
     #endregion
 
@@ -72039,6 +72300,71 @@ namespace Opc.Ua
         private double m_imaginary;
         #endregion
     }
+
+    #region DoubleComplexNumberTypeCollection Class
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [CollectionDataContract(Name = "ListOfDoubleComplexNumberType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "DoubleComplexNumberType")]
+    public partial class DoubleComplexNumberTypeCollection : List<DoubleComplexNumberType>, ICloneable
+    {
+        #region Constructors
+        /// <remarks />
+        public DoubleComplexNumberTypeCollection() {}
+
+        /// <remarks />
+        public DoubleComplexNumberTypeCollection(int capacity) : base(capacity) {}
+
+        /// <remarks />
+        public DoubleComplexNumberTypeCollection(IEnumerable<DoubleComplexNumberType> collection) : base(collection) {}
+        #endregion
+
+        #region Static Operators
+        /// <remarks />
+        public static implicit operator DoubleComplexNumberTypeCollection(DoubleComplexNumberType[] values)
+        {
+            if (values != null)
+            {
+                return new DoubleComplexNumberTypeCollection(values);
+            }
+
+            return new DoubleComplexNumberTypeCollection();
+        }
+
+        /// <remarks />
+        public static explicit operator DoubleComplexNumberType[](DoubleComplexNumberTypeCollection values)
+        {
+            if (values != null)
+            {
+                return values.ToArray();
+            }
+
+            return null;
+        }
+        #endregion
+
+        #region ICloneable Methods
+        /// <remarks />
+        public object Clone()
+        {
+            return (DoubleComplexNumberTypeCollection)this.MemberwiseClone();
+        }
+        #endregion
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            DoubleComplexNumberTypeCollection clone = new DoubleComplexNumberTypeCollection(this.Count);
+
+            for (int ii = 0; ii < this.Count; ii++)
+            {
+                clone.Add((DoubleComplexNumberType)Utils.Clone(this[ii]));
+            }
+
+            return clone;
+        }
+    }
+    #endregion
     #endif
     #endregion
 
@@ -72245,6 +72571,71 @@ namespace Opc.Ua
         private DoubleCollection m_axisSteps;
         #endregion
     }
+
+    #region AxisInformationCollection Class
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [CollectionDataContract(Name = "ListOfAxisInformation", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "AxisInformation")]
+    public partial class AxisInformationCollection : List<AxisInformation>, ICloneable
+    {
+        #region Constructors
+        /// <remarks />
+        public AxisInformationCollection() {}
+
+        /// <remarks />
+        public AxisInformationCollection(int capacity) : base(capacity) {}
+
+        /// <remarks />
+        public AxisInformationCollection(IEnumerable<AxisInformation> collection) : base(collection) {}
+        #endregion
+
+        #region Static Operators
+        /// <remarks />
+        public static implicit operator AxisInformationCollection(AxisInformation[] values)
+        {
+            if (values != null)
+            {
+                return new AxisInformationCollection(values);
+            }
+
+            return new AxisInformationCollection();
+        }
+
+        /// <remarks />
+        public static explicit operator AxisInformation[](AxisInformationCollection values)
+        {
+            if (values != null)
+            {
+                return values.ToArray();
+            }
+
+            return null;
+        }
+        #endregion
+
+        #region ICloneable Methods
+        /// <remarks />
+        public object Clone()
+        {
+            return (AxisInformationCollection)this.MemberwiseClone();
+        }
+        #endregion
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            AxisInformationCollection clone = new AxisInformationCollection(this.Count);
+
+            for (int ii = 0; ii < this.Count; ii++)
+            {
+                clone.Add((AxisInformation)Utils.Clone(this[ii]));
+            }
+
+            return clone;
+        }
+    }
+    #endregion
     #endif
     #endregion
 
@@ -72373,6 +72764,71 @@ namespace Opc.Ua
         private float m_value;
         #endregion
     }
+
+    #region XVTypeCollection Class
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [CollectionDataContract(Name = "ListOfXVType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "XVType")]
+    public partial class XVTypeCollection : List<XVType>, ICloneable
+    {
+        #region Constructors
+        /// <remarks />
+        public XVTypeCollection() {}
+
+        /// <remarks />
+        public XVTypeCollection(int capacity) : base(capacity) {}
+
+        /// <remarks />
+        public XVTypeCollection(IEnumerable<XVType> collection) : base(collection) {}
+        #endregion
+
+        #region Static Operators
+        /// <remarks />
+        public static implicit operator XVTypeCollection(XVType[] values)
+        {
+            if (values != null)
+            {
+                return new XVTypeCollection(values);
+            }
+
+            return new XVTypeCollection();
+        }
+
+        /// <remarks />
+        public static explicit operator XVType[](XVTypeCollection values)
+        {
+            if (values != null)
+            {
+                return values.ToArray();
+            }
+
+            return null;
+        }
+        #endregion
+
+        #region ICloneable Methods
+        /// <remarks />
+        public object Clone()
+        {
+            return (XVTypeCollection)this.MemberwiseClone();
+        }
+        #endregion
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            XVTypeCollection clone = new XVTypeCollection(this.Count);
+
+            for (int ii = 0; ii < this.Count; ii++)
+            {
+                clone.Add((XVType)Utils.Clone(this[ii]));
+            }
+
+            return clone;
+        }
+    }
+    #endregion
     #endif
     #endregion
 
