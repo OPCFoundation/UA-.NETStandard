@@ -686,73 +686,76 @@ namespace Opc.Ua
             IList<object> inputArguments,
             IList<object> outputArguments)
         {
-            // check for valid transition.
-            uint newState = GetNewStateForTransition(context, transitionId);
-
-            if (newState == 0)
+            lock (m_lock)
             {
-                return StatusCodes.BadNotSupported;
-            }
+                // check for valid transition.
+                uint newState = GetNewStateForTransition(context, transitionId);
 
-            // check the cause permissions.
-            if (causeId != 0)
-            {
-                if (!IsCausePermitted(context, causeId, true))
+                if (newState == 0)
                 {
-                    return StatusCodes.BadUserAccessDenied;
+                    return StatusCodes.BadNotSupported;
                 }
-            }
 
-            // do any pre-transition processing.
-            ServiceResult result = InvokeCallback(
-                OnBeforeTransition,
-                context,
-                this,
-                transitionId,
-                causeId,
-                inputArguments,
-                outputArguments);
-
-            if (ServiceResult.IsBad(result))
-            {
-                return result;
-            }
-
-            // save the last state.
-            if (m_lastState == null)
-            {
-                m_lastState = new FiniteStateVariableState(this);
-            }
-
-            m_lastState.SetChildValue(context, null, CurrentState, false);
-
-            // update state and transition variables.
-            UpdateStateVariable(context, newState, CurrentState);
-            UpdateTransitionVariable(context, transitionId, LastTransition);
-
-            // do any post-transition processing.
-            InvokeCallback(
-                OnAfterTransition,
-                context,
-                this,
-                transitionId,
-                causeId,
-                inputArguments,
-                outputArguments);
-
-            // report the event.
-            if (this.AreEventsMonitored && !m_suppressTransitionEvents)
-            {
-                TransitionEventState e = CreateTransitionEvent(context, transitionId, causeId);
-
-                if (e != null)
+                // check the cause permissions.
+                if (causeId != 0)
                 {
-                    UpdateTransitionEvent(context, transitionId, causeId, e);
-                    ReportEvent(context, e);
+                    if (!IsCausePermitted(context, causeId, true))
+                    {
+                        return StatusCodes.BadUserAccessDenied;
+                    }
                 }
-            }
 
-            return ServiceResult.Good;
+                // do any pre-transition processing.
+                ServiceResult result = InvokeCallback(
+                    OnBeforeTransition,
+                    context,
+                    this,
+                    transitionId,
+                    causeId,
+                    inputArguments,
+                    outputArguments);
+
+                if (ServiceResult.IsBad(result))
+                {
+                    return result;
+                }
+
+                // save the last state.
+                if (m_lastState == null)
+                {
+                    m_lastState = new FiniteStateVariableState(this);
+                }
+
+                m_lastState.SetChildValue(context, null, CurrentState, false);
+
+                // update state and transition variables.
+                UpdateStateVariable(context, newState, CurrentState);
+                UpdateTransitionVariable(context, transitionId, LastTransition);
+
+                // do any post-transition processing.
+                InvokeCallback(
+                    OnAfterTransition,
+                    context,
+                    this,
+                    transitionId,
+                    causeId,
+                    inputArguments,
+                    outputArguments);
+
+                // report the event.
+                if (this.AreEventsMonitored && !m_suppressTransitionEvents)
+                {
+                    TransitionEventState e = CreateTransitionEvent(context, transitionId, causeId);
+
+                    if (e != null)
+                    {
+                        UpdateTransitionEvent(context, transitionId, causeId, e);
+                        ReportEvent(context, e);
+                    }
+                }
+
+                return ServiceResult.Good;
+            }
         }
 
         /// <summary>
@@ -804,6 +807,7 @@ namespace Opc.Ua
         private FiniteStateVariableState m_lastState;
         private uint m_causeId;
         private bool m_suppressTransitionEvents;
+        private object m_lock;
         #endregion
     }
 
