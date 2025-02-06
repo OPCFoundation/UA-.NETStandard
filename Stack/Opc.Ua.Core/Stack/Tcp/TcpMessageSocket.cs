@@ -670,35 +670,15 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Try to connect to endpoint and do callback if connected successfully
         /// </summary>
-        /// <param name="address">Endpoint address</param>
-        /// <param name="addressFamily">Endpoint address family</param>
-        /// <param name="port">Endpoint port</param>
-        /// <param name="callback">Callback that must be executed if the connection would be established</param>
-        private SocketError BeginConnect(IPAddress address, AddressFamily addressFamily, int port, CallbackAction callback)
-        {
-            var socket = new Socket(addressFamily, SocketType.Stream, ProtocolType.Tcp);
-            var args = new SocketAsyncEventArgs() {
-                UserToken = callback,
-                RemoteEndPoint = new IPEndPoint(address, port),
-            };
-            args.Completed += OnSocketConnected;
-            if (!socket.ConnectAsync(args))
-            {
-                // I/O completed synchronously
-                OnSocketConnected(socket, args);
-                return args.SocketError;
-            }
-            return SocketError.InProgress;
-        }
-
-        /// <summary>
-        /// Try to connect to endpoint and do callback if connected successfully
-        /// </summary>
         /// <param name="endpoint">The DNS endpoint</param>
         /// <param name="callback">Callback that must be executed if the connection would be established</param>
         private SocketError BeginConnect(DnsEndPoint endpoint, CallbackAction callback)
         {
-            var socket = new Socket(SocketType.Stream, ProtocolType.Tcp);
+            var socket = new Socket(SocketType.Stream, ProtocolType.Tcp){
+                NoDelay = true,
+                LingerState = new LingerOption(true, 5),
+            };
+
             var args = new SocketAsyncEventArgs() {
                 UserToken = callback,
                 RemoteEndPoint = endpoint,
