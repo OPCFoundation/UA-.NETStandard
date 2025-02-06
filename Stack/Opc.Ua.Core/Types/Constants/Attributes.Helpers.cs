@@ -11,6 +11,9 @@
 */
 
 using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Linq;
 using System.Reflection;
 using System.Xml;
 
@@ -22,6 +25,11 @@ namespace Opc.Ua
     public static partial class Attributes
     {
         #region Static Helper Functions
+        /// <summary>
+        /// Creates a dictionary of browse names for the attributes.
+        /// </summary>
+        private static readonly Lazy<ReadOnlyDictionary<uint, string>> AttributeNames = new Lazy<ReadOnlyDictionary<uint, string>>(CreateAttributeNamesDictionary);
+
         /// <summary>
         /// Returns true if the attribute id is valid.
         /// </summary>
@@ -35,36 +43,20 @@ namespace Opc.Ua
 		/// </summary>
         public static string GetBrowseName(uint identifier)
         {
-            FieldInfo[] fields = typeof(Attributes).GetFields(BindingFlags.Public | BindingFlags.Static);
-
-            foreach (FieldInfo field in fields)
+            if (AttributeNames.Value.TryGetValue(identifier, out var name))
             {
-                if (identifier == (uint)field.GetValue(typeof(Attributes)))
-                {
-                    return field.Name;
-                }
+                return name;
             }
 
-            return System.String.Empty;
+            return string.Empty;
         }
 
         /// <summary>
         /// Returns the browse names for all attributes.
         /// </summary>
-        public static string[] GetBrowseNames()
+        public static IReadOnlyCollection<string> GetBrowseNames()
         {
-            FieldInfo[] fields = typeof(Attributes).GetFields(BindingFlags.Public | BindingFlags.Static);
-
-            int ii = 0;
-
-            string[] names = new string[fields.Length];
-
-            foreach (FieldInfo field in fields)
-            {
-                names[ii++] = field.Name;
-            }
-
-            return names;
+            return AttributeNames.Value.Values;
         }
 
         /// <summary>
@@ -72,13 +64,11 @@ namespace Opc.Ua
         /// </summary>
         public static uint GetIdentifier(string browseName)
         {
-            FieldInfo[] fields = typeof(Attributes).GetFields(BindingFlags.Public | BindingFlags.Static);
-
-            foreach (FieldInfo field in fields)
+            foreach (var field in AttributeNames.Value)
             {
-                if (field.Name == browseName)
+                if (field.Value == browseName)
                 {
-                    return (uint)field.GetValue(typeof(Attributes));
+                    return field.Key;
                 }
             }
 
@@ -88,19 +78,9 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the ids for all attributes.
         /// </summary>
-        public static uint[] GetIdentifiers()
+        public static IReadOnlyCollection<uint> GetIdentifiers()
         {
-            FieldInfo[] fields = typeof(Attributes).GetFields(BindingFlags.Public | BindingFlags.Static);
-
-            int ii = 0;
-            uint[] ids = new uint[fields.Length];
-
-            foreach (FieldInfo field in fields)
-            {
-                ids[ii++] = (uint)field.GetValue(typeof(Attributes));
-            }
-
-            return ids;
+            return AttributeNames.Value.Keys;
         }
 
         /// <summary>
@@ -108,14 +88,10 @@ namespace Opc.Ua
         /// </summary>
         public static UInt32Collection GetIdentifiers(NodeClass nodeClass)
         {
-            FieldInfo[] fields = typeof(Attributes).GetFields(BindingFlags.Public | BindingFlags.Static);
+            UInt32Collection ids = new UInt32Collection(AttributeNames.Value.Count);
 
-            UInt32Collection ids = new UInt32Collection(fields.Length);
-
-            foreach (FieldInfo field in fields)
+            foreach (uint id in AttributeNames.Value.Keys)
             {
-                uint id = (uint)field.GetValue(typeof(Attributes));
-
                 if (IsValid(nodeClass, id))
                 {
                     ids.Add(id);
@@ -171,33 +147,33 @@ namespace Opc.Ua
         {
             switch (attributeId)
             {
-                case Value: return DataTypes.BaseDataType;
-                case DisplayName: return DataTypes.LocalizedText;
-                case Description: return DataTypes.LocalizedText;
-                case WriteMask: return DataTypes.UInt32;
-                case UserWriteMask: return DataTypes.UInt32;
-                case NodeId: return DataTypes.NodeId;
-                case NodeClass: return DataTypes.Enumeration;
-                case BrowseName: return DataTypes.QualifiedName;
-                case IsAbstract: return DataTypes.Boolean;
-                case Symmetric: return DataTypes.Boolean;
-                case InverseName: return DataTypes.LocalizedText;
-                case ContainsNoLoops: return DataTypes.Boolean;
-                case EventNotifier: return DataTypes.Byte;
-                case DataType: return DataTypes.NodeId;
-                case ValueRank: return DataTypes.Int32;
-                case AccessLevel: return DataTypes.Byte;
-                case UserAccessLevel: return DataTypes.Byte;
-                case MinimumSamplingInterval: return DataTypes.Duration;
-                case Historizing: return DataTypes.Boolean;
-                case Executable: return DataTypes.Boolean;
-                case UserExecutable: return DataTypes.Boolean;
-                case ArrayDimensions: return DataTypes.UInt32;
-                case DataTypeDefinition: return DataTypes.Structure;
-                case RolePermissions: return DataTypes.RolePermissionType;
-                case UserRolePermissions: return DataTypes.RolePermissionType;
-                case AccessRestrictions: return DataTypes.UInt16;
-                case AccessLevelEx: return DataTypes.UInt32;
+                case Value: return DataTypeIds.BaseDataType;
+                case DisplayName: return DataTypeIds.LocalizedText;
+                case Description: return DataTypeIds.LocalizedText;
+                case WriteMask: return DataTypeIds.UInt32;
+                case UserWriteMask: return DataTypeIds.UInt32;
+                case NodeId: return DataTypeIds.NodeId;
+                case NodeClass: return DataTypeIds.Enumeration;
+                case BrowseName: return DataTypeIds.QualifiedName;
+                case IsAbstract: return DataTypeIds.Boolean;
+                case Symmetric: return DataTypeIds.Boolean;
+                case InverseName: return DataTypeIds.LocalizedText;
+                case ContainsNoLoops: return DataTypeIds.Boolean;
+                case EventNotifier: return DataTypeIds.Byte;
+                case DataType: return DataTypeIds.NodeId;
+                case ValueRank: return DataTypeIds.Int32;
+                case AccessLevel: return DataTypeIds.Byte;
+                case UserAccessLevel: return DataTypeIds.Byte;
+                case MinimumSamplingInterval: return DataTypeIds.Duration;
+                case Historizing: return DataTypeIds.Boolean;
+                case Executable: return DataTypeIds.Boolean;
+                case UserExecutable: return DataTypeIds.Boolean;
+                case ArrayDimensions: return DataTypeIds.UInt32;
+                case DataTypeDefinition: return DataTypeIds.Structure;
+                case RolePermissions: return DataTypeIds.RolePermissionType;
+                case UserRolePermissions: return DataTypeIds.RolePermissionType;
+                case AccessRestrictions: return DataTypeIds.UInt16;
+                case AccessLevelEx: return DataTypeIds.UInt32;
             }
 
             return null;
@@ -407,6 +383,21 @@ namespace Opc.Ua
             }
 
             return 0;
+        }
+        #endregion
+
+        #region Private Methods
+        private static ReadOnlyDictionary<uint, string> CreateAttributeNamesDictionary()
+        {
+            FieldInfo[] fields = typeof(Attributes).GetFields(BindingFlags.Public | BindingFlags.Static);
+
+            var keyValuePairs = new Dictionary<uint, string>();
+            foreach (FieldInfo field in fields)
+            {
+                keyValuePairs.Add((uint)field.GetValue(typeof(Attributes)), field.Name);
+            }
+
+            return new ReadOnlyDictionary<uint, string>(keyValuePairs);
         }
         #endregion
     }
