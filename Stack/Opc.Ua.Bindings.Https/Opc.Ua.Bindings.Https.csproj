@@ -3,7 +3,7 @@
   <PropertyGroup>
     <SuppressTfmSupportBuildWarnings>true</SuppressTfmSupportBuildWarnings>
     <TargetFrameworks>$(HttpsTargetFrameworks)</TargetFrameworks>
-    <AssemblyName>Opc.Ua.Bindings.Https</AssemblyName>
+    <AssemblyName>$(AssemblyPrefix).Bindings.Https</AssemblyName>
     <PackageId>$(PackagePrefix).Opc.Ua.Bindings.Https</PackageId>
     <RootNamespace>Opc.Ua.Bindings</RootNamespace>
     <Description>OPC UA Https Binding Library for a Opc.Ua.Server.</Description>

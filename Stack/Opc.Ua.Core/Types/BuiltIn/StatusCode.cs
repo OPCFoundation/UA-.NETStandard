@@ -99,9 +99,6 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the object with a numeric value.
         /// </summary>
-        /// <remarks>
-        /// Initializes the object with a numeric value.
-        /// </remarks>
         /// <param name="code">The numeric code to apply to this status code</param>
         public StatusCode(uint code)
         {
@@ -136,9 +133,6 @@ namespace Opc.Ua
         /// <summary>
         /// The entire 32-bit status value.
         /// </summary>
-        /// <remarks>
-        /// The entire 32-bit status value.
-        /// </remarks>        
         [DataMember(Name = "Code", Order = 1, IsRequired = false)]
         public uint Code
         {
@@ -151,9 +145,6 @@ namespace Opc.Ua
         /// <summary>
         /// The 16 code bits of the status code. 
         /// </summary>
-        /// <remarks>
-        /// The 16 code bits of the status code. 
-        /// </remarks>
         public uint CodeBits => m_code & 0xFFFF0000;
 
         /// <summary>
@@ -174,9 +165,6 @@ namespace Opc.Ua
         /// <summary>
         /// The 16 flag bits of the status code. 
         /// </summary>
-        /// <remarks>
-        /// The 16 flag bits of the status code. 
-        /// </remarks>
         public uint FlagBits => m_code & 0x0000FFFF;
 
         /// <summary>
@@ -197,9 +185,6 @@ namespace Opc.Ua
         /// <summary>
         /// The sub-code portion of the status code. 
         /// </summary>
-        /// <remarks>
-        /// The sub-code portion of the status code. 
-        /// </remarks>
         public uint SubCode
         {
             get { return m_code & 0x0FFF0000; }
@@ -211,9 +196,6 @@ namespace Opc.Ua
         /// <summary>
         /// Set to indicate that the structure of the data value has changed.
         /// </summary>
-        /// <remarks>
-        /// Set to indicate that the structure of the data value has changed.
-        /// </remarks>
         [XmlIgnore()]
         public bool StructureChanged
         {
@@ -248,9 +230,6 @@ namespace Opc.Ua
         /// <summary>
         /// Set to indicate that the semantics associated with the data value have changed.
         /// </summary>
-        /// <remarks>
-        /// Set to indicate that the semantics associated with the data value have changed.
-        /// </remarks>
         [XmlIgnore()]
         public bool SemanticsChanged
         {
@@ -285,9 +264,6 @@ namespace Opc.Ua
         /// <summary>
         /// The bits that indicate the meaning of the status code
         /// </summary>
-        /// <remarks>
-        /// The bits that indicate the meaning of the status code
-        /// </remarks>
         [XmlIgnore()]
         public bool HasDataValueInfo
         {
@@ -314,9 +290,6 @@ namespace Opc.Ua
         /// <summary>
         /// The limit bits, indicating Hi/Lo etc.
         /// </summary>
-        /// <remarks>
-        /// The limit bits, indicating Hi/Lo etc.
-        /// </remarks>
         /// <seealso cref="LimitBits"/>
         [XmlIgnore()]
         public LimitBits LimitBits
@@ -386,9 +359,6 @@ namespace Opc.Ua
         /// <summary>
         /// The historian bits.
         /// </summary>
-        /// <remarks>
-        /// The historian bits.
-        /// </remarks>
         /// <seealso cref="AggregateBits"/>
         [XmlIgnore()]
         public AggregateBits AggregateBits
@@ -420,9 +390,6 @@ namespace Opc.Ua
         /// <summary>
         /// Compares the instance to another object.
         /// </summary>
-        /// <remarks>
-        /// Compares the instance to another object.
-        /// </remarks>
         /// <param name="obj">The object to compare to *this* object</param>
         public int CompareTo(object obj)
         {
@@ -451,9 +418,6 @@ namespace Opc.Ua
         /// <summary>
         /// Compares the instance to another object.
         /// </summary>
-        /// <remarks>
-        /// Compares the instance to another object.
-        /// </remarks>
         /// <param name="other">The StatusCode to compare to *this* object</param>
         public int CompareTo(StatusCode other)
         {
@@ -466,9 +430,6 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the string representation of the object.
         /// </summary>
-        /// <remarks>
-        /// Returns the string representation of the object.
-        /// </remarks>
         /// <param name="format">(Unused) The format of the string. Always specify null for this parameter</param>
         /// <param name="formatProvider">The provider to use for the formatting</param>
         /// <exception cref="FormatException">Thrown if you specify a value for the Format parameter</exception>
@@ -495,9 +456,6 @@ namespace Opc.Ua
         /// <summary>
         /// Determines if the specified object is equal to the object.
         /// </summary>
-        /// <remarks>
-        /// Determines if the specified object is equal to the object.
-        /// </remarks>
         /// <param name="obj">The object to compare to *this* object</param>
         public override bool Equals(object obj)
         {
@@ -507,9 +465,6 @@ namespace Opc.Ua
         /// <summary>
         /// Determines if the specified object is equal to the object.
         /// </summary>
-        /// <remarks>
-        /// Determines if the specified object is equal to the object.
-        /// </remarks>
         /// <param name="other">The StatusCode to compare to *this* object</param>
         public bool Equals(StatusCode other)
         {
@@ -519,9 +474,6 @@ namespace Opc.Ua
         /// <summary>
         /// Returns a unique hashcode for the object.
         /// </summary>
-        /// <remarks>
-        /// Returns a unique hashcode for the object.
-        /// </remarks>
         public override int GetHashCode()
         {
             return m_code.GetHashCode();
@@ -530,9 +482,6 @@ namespace Opc.Ua
         /// <summary>
         /// Converts the value to a human readable string.
         /// </summary>
-        /// <remarks>
-        /// Converts the value to a human readable string.
-        /// </remarks>
         public override string ToString()
         {
             StringBuilder buffer = new StringBuilder();
@@ -552,9 +501,6 @@ namespace Opc.Ua
         /// <summary>
         /// Converts a 32-bit code a StatusCode object.
         /// </summary>
-        /// <remarks>
-        /// Converts a 32-bit code a StatusCode object.
-        /// </remarks>
         /// <param name="code">The code to convert to a StatusCode</param>
         public static implicit operator StatusCode(uint code)
         {
@@ -564,9 +510,6 @@ namespace Opc.Ua
         /// <summary>
         /// Converts a StatusCode object to a 32-bit code.
         /// </summary>
-        /// <remarks>
-        /// Converts a StatusCode object to a 32-bit code.
-        /// </remarks>
         /// <param name="code">The StatusCode to convert to a 32-but number</param>
         public static explicit operator uint(StatusCode code)
         {
@@ -576,9 +519,6 @@ namespace Opc.Ua
         /// <summary>
         /// Looks up the symbolic name for a status code.
         /// </summary>
-        /// <remarks>
-        /// Looks up the symbolic name for a status code.
-        /// </remarks>
         /// <param name="code">The numeric error-code to convert to a textual description</param>
         public static string LookupSymbolicId(uint code)
         {
@@ -588,9 +528,6 @@ namespace Opc.Ua
         /// <summary>
         /// Returns true if the objects are not equal.
         /// </summary>
-        /// <remarks>
-        /// Returns true if the objects are not equal.
-        /// </remarks>
         /// <param name="a">The first object being compared</param>
         /// <param name="b">The second object being compared to</param>
         public static bool operator ==(StatusCode a, StatusCode b)
@@ -601,9 +538,6 @@ namespace Opc.Ua
         /// <summary>
         /// Returns true if the objects are not equal.
         /// </summary>
-        /// <remarks>
-        /// Returns true if the objects are not equal.
-        /// </remarks>
         /// <param name="a">The first object being compared</param>
         /// <param name="b">The second object being compared to</param>
         public static bool operator !=(StatusCode a, StatusCode b)
@@ -614,9 +548,6 @@ namespace Opc.Ua
         /// <summary>
         /// Returns true if the objects are not equal.
         /// </summary>
-        /// <remarks>
-        /// Returns true if the objects are not equal.
-        /// </remarks>
         /// <param name="a">The first object being compared</param>
         /// <param name="b">The second object being compared to</param>
         public static bool operator ==(StatusCode a, uint b)
@@ -627,9 +558,6 @@ namespace Opc.Ua
         /// <summary>
         /// Returns true if the objects are not equal.
         /// </summary>
-        /// <remarks>
-        /// Returns true if the objects are not equal.
-        /// </remarks>
         /// <param name="a">The first value being compared</param>
         /// <param name="b">The second value being compared to</param>
         public static bool operator !=(StatusCode a, uint b)
@@ -640,9 +568,6 @@ namespace Opc.Ua
         /// <summary>
         /// Returns true if the object a is less than object b.
         /// </summary>
-        /// <remarks>
-        /// Returns true if the object a is less than object b.
-        /// </remarks>
         /// <param name="a">The first value being compared</param>
         /// <param name="b">The second value being compared to</param>
         public static bool operator <(StatusCode a, StatusCode b)
@@ -653,9 +578,6 @@ namespace Opc.Ua
         /// <summary>
         /// Returns true if the object a is greater than object b.
         /// </summary>
-        /// <remarks>
-        /// Returns true if the object a is greater than object b.
-        /// </remarks>
         /// <param name="a">The first value being compared</param>
         /// <param name="b">The second value being compared to</param>
         public static bool operator >(StatusCode a, StatusCode b)
@@ -666,9 +588,6 @@ namespace Opc.Ua
         /// <summary>
         /// Returns true if the status code is good.
         /// </summary>
-        /// <remarks>
-        /// Returns true if the status code is good.
-        /// </remarks>
         /// <param name="code">The code to check</param>
         public static bool IsGood(StatusCode code)
         {
@@ -678,9 +597,6 @@ namespace Opc.Ua
         /// <summary>
         /// Returns true if the status is bad or uncertain.
         /// </summary>
-        /// <remarks>
-        /// Returns true if the status is bad or uncertain.
-        /// </remarks>
         /// <param name="code">The code to check</param>
         public static bool IsNotGood(StatusCode code)
         {
@@ -690,9 +606,6 @@ namespace Opc.Ua
         /// <summary>
         /// Returns true if the status code is uncertain.
         /// </summary>
-        /// <remarks>
-        /// Returns true if the status code is uncertain.
-        /// </remarks>
         /// <param name="code">The code to check</param>
         public static bool IsUncertain(StatusCode code)
         {
@@ -702,9 +615,6 @@ namespace Opc.Ua
         /// <summary>
         /// Returns true if the status is good or uncertain.
         /// </summary>
-        /// <remarks>
-        /// Returns true if the status is good or uncertain.
-        /// </remarks>
         /// <param name="code">The code to check</param>
         public static bool IsNotUncertain(StatusCode code)
         {
@@ -714,9 +624,6 @@ namespace Opc.Ua
         /// <summary>
         /// Returns true if the status code is bad.
         /// </summary>
-        /// <remarks>
-        /// Returns true if the status code is bad.
-        /// </remarks>
         /// <param name="code">The code to check</param>
         public static bool IsBad(StatusCode code)
         {
@@ -726,9 +633,6 @@ namespace Opc.Ua
         /// <summary>
         /// Returns true if the status is good or uncertain.
         /// </summary>
-        /// <remarks>
-        /// Returns true if the status is good or uncertain.
-        /// </remarks>
         /// <param name="code">The code to check</param>
         public static bool IsNotBad(StatusCode code)
         {
@@ -831,35 +735,23 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes an empty collection.
         /// </summary>
-        /// <remarks>
-        /// Initializes an empty collection.
-        /// </remarks>
         public StatusCodeCollection() { }
 
         /// <summary>
         /// Initializes the collection from another collection.
         /// </summary>
-        /// <remarks>
-        /// Initializes the collection from another collection.
-        /// </remarks>
         /// <param name="collection">The collection to copy</param>
         public StatusCodeCollection(IEnumerable<StatusCode> collection) : base(collection) { }
 
         /// <summary>
         /// Initializes the collection with the specified capacity.
         /// </summary>
-        /// <remarks>
-        /// Initializes the collection with the specified capacity.
-        /// </remarks>
         /// <param name="capacity">The maximum capacity allowed for this instance of the collection</param>
         public StatusCodeCollection(int capacity) : base(capacity) { }
 
         /// <summary>
         /// Converts an array to a collection.
         /// </summary>
-        /// <remarks>
-        /// Converts an array to a collection.
-        /// </remarks>
         /// <param name="values">The array of <see cref="StatusCode"/> values to return as a Collection</param>
         public static StatusCodeCollection ToStatusCodeCollection(StatusCode[] values)
         {
@@ -874,9 +766,6 @@ namespace Opc.Ua
         /// <summary>
         /// Converts an array to a collection.
         /// </summary>
-        /// <remarks>
-        /// Converts an array to a collection.
-        /// </remarks>
         /// <param name="values">The array of <see cref="StatusCode"/> values to return as a Collection</param>
         public static implicit operator StatusCodeCollection(StatusCode[] values)
         {
@@ -893,9 +782,6 @@ namespace Opc.Ua
         /// <summary>
         /// Creates a deep copy of the collection.
         /// </summary>
-        /// <remarks>
-        /// Creates a deep copy of the collection.
-        /// </remarks>
         public new object MemberwiseClone()
         {
             return new StatusCodeCollection(this);
@@ -908,9 +794,6 @@ namespace Opc.Ua
     /// <summary>
     /// Defines standard status codes.
     /// </summary>
-    /// <remarks>
-    /// Defines standard status codes.
-    /// </remarks>
     public static partial class StatusCodes
     {
         /// <summary>

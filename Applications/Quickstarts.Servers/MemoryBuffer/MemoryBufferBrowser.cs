@@ -155,7 +155,11 @@ namespace MemoryBuffer
 
                 for (int ii = 0; ii < name.Length; ii++)
                 {
+#if NET6_0_OR_GREATER
+                    if ("0123456789ABCDEF".IndexOf(name[ii], StringComparison.Ordinal) == -1)
+#else
                     if ("0123456789ABCDEF".IndexOf(name[ii]) == -1)
+#endif
                     {
                         return null;
                     }
@@ -193,7 +197,7 @@ namespace MemoryBuffer
 
             return new NodeStateReference(ReferenceTypeIds.HasComponent, false, tag);
         }
-        #endregion
+#endregion
 
         #region Stage Enumeration
         /// <summary>

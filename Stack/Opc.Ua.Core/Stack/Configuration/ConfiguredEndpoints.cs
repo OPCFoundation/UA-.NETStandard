@@ -1389,7 +1389,9 @@ namespace Opc.Ua
             }
 
             // check if list has to be narrowed down further.
-            if (matches.Count > 1)
+            // first narrows down on scheme, then again on ports 
+            bool checkWithPorts = false;
+            while (matches.Count > 1)
             {
                 collection = matches;
                 matches = new EndpointDescriptionCollection();
@@ -1412,13 +1414,20 @@ namespace Opc.Ua
                     }
 
                     // check for matching port.
-                    if (sessionUrl.Port != endpointUrl.Port)
+                    if (checkWithPorts && sessionUrl.Port != endpointUrl.Port)
                     {
                         continue;
                     }
 
                     matches.Add(description);
                 }
+
+                if (checkWithPorts)
+                {
+                    break;
+                }
+
+                checkWithPorts = true;
             }
 
             // no matches (protocol may not be supported).

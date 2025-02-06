@@ -208,7 +208,11 @@ namespace MemoryBuffer
                         return null;
                     }
 
+#if NET6_0_OR_GREATER
+                    int index = id.IndexOf('[', StringComparison.Ordinal);
+#else
                     int index = id.IndexOf('[');
+#endif
 
                     if (index == -1)
                     {
@@ -536,7 +540,7 @@ namespace MemoryBuffer
 
             return ServiceResult.Good;
         }
-        #endregion
+#endregion
 
         #region Private Fields
         private MemoryBufferConfiguration m_configuration;

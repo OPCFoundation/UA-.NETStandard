@@ -145,12 +145,21 @@ namespace Opc.Ua
         public static readonly string DefaultOpcUaCoreAssemblyName = typeof(Utils).Assembly.GetName().Name;
 
         /// <summary>
+        /// Helper to get the name of the Opc.Ua.Bindings.Https assembly.
+        /// </summary>
+        private static string OpcUaHttpsAssemblyName()
+        {
+            var assemblyName = typeof(Utils).Assembly.GetName().Name;
+            return assemblyName.Substring(0, assemblyName.IndexOf("Core")) + "Bindings.Https";
+        }
+
+        /// <summary>
         /// List of known default bindings hosted in other assemblies.
         /// </summary>
         public static readonly ReadOnlyDictionary<string, string> DefaultBindings = new ReadOnlyDictionary<string, string>(
             new Dictionary<string, string>() {
-                { Utils.UriSchemeHttps, "Opc.Ua.Bindings.Https"},
-                { Utils.UriSchemeOpcHttps, "Opc.Ua.Bindings.Https"}
+                { Utils.UriSchemeHttps, OpcUaHttpsAssemblyName() },
+                { Utils.UriSchemeOpcHttps, OpcUaHttpsAssemblyName() }
             });
 
         /// <summary>
@@ -2091,6 +2100,17 @@ namespace Opc.Ua
                 return value1.Equals(value2);
             }
 
+            // check for encodeable objects.
+            if (value1 is IEncodeable encodeable1)
+            {
+                if (!(value2 is IEncodeable encodeable2))
+                {
+                    return false;
+                }
+
+                return encodeable1.IsEqual(encodeable2);
+            }
+
             // check that data types are not the same.
             if (value1.GetType() != value2.GetType())
             {
@@ -2107,17 +2127,6 @@ namespace Opc.Ua
             if (value1 is IComparable comparable1)
             {
                 return comparable1.CompareTo(value2) == 0;
-            }
-
-            // check for encodeable objects.
-            if (value1 is IEncodeable encodeable1)
-            {
-                if (!(value2 is IEncodeable encodeable2))
-                {
-                    return false;
-                }
-
-                return encodeable1.IsEqual(encodeable2);
             }
 
             // check for XmlElement objects.

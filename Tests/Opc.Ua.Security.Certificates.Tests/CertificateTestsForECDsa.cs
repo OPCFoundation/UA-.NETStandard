@@ -368,7 +368,18 @@ namespace Opc.Ua.Security.Certificates.Tests
                 // test if curve is supported
                 try
                 {
-                    key = ECDsa.Create(result[i].Curve);
+                    // For CBL Linux 2.0 and macOS test if key can be created
+                    using (key = ECDsa.Create(result[i].Curve))
+                    {
+                    }
+
+                    // for Azure Linux 3.0 test if cert can be created
+                    using (var cert = CertificateBuilder.Create(Subject)
+                        .SetHashAlgorithm(result[i].HashAlgorithmName)
+                        .SetECCurve(result[i].Curve)
+                        .CreateForECDsa())
+                    {
+                    }
                 }
                 catch
                 {

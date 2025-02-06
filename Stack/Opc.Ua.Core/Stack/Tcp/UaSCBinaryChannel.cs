@@ -495,8 +495,8 @@ namespace Opc.Ua.Bindings
                 args.BufferList = buffers;
                 args.Completed += OnWriteComplete;
                 args.UserToken = state;
-                if (m_socket == null ||
-                    !m_socket.SendAsync(args))
+                var socket = m_socket;
+                if (socket == null || !socket.SendAsync(args))
                 {
                     // I/O completed synchronously
                     if (args.IsSocketError || (args.BytesTransferred < buffers.TotalSize))

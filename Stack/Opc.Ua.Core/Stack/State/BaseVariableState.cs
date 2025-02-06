@@ -81,7 +81,7 @@ namespace Opc.Ua
         /// <returns>Returns the id of the default type definition or <see cref="VariableTypes.BaseVariableType"/></returns> if not overridden
         protected override NodeId GetDefaultTypeDefinitionId(NamespaceTable namespaceUris)
         {
-            return VariableTypes.BaseVariableType;
+            return VariableTypeIds.BaseVariableType;
         }
 
         /// <summary>
@@ -93,7 +93,7 @@ namespace Opc.Ua
         /// </returns>
         protected virtual NodeId GetDefaultDataTypeId(NamespaceTable namespaceUris)
         {
-            return DataTypes.BaseDataType;
+            return DataTypeIds.BaseDataType;
         }
 
         /// <summary>
