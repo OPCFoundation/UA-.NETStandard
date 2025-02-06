@@ -459,9 +459,12 @@ namespace Opc.Ua.Client
                     ITransportWaitingConnection connection;
                     do
                     {
+                        var endpointDes = m_session.Endpoint;
+                        if(endpointDes == null)
+                             endpointDes = transportChannel.EndpointDescription;
                         connection = await m_reverseConnectManager.WaitForConnection(
-                                new Uri(m_session.Endpoint.EndpointUrl),
-                                m_session.Endpoint.Server.ApplicationUri
+                                new Uri(endpointDes.EndpointUrl),
+                                endpointDes.Server.ApplicationUri
                             ).ConfigureAwait(false);
 
                         if (m_updateFromServer)
