@@ -161,6 +161,21 @@ namespace Opc.Ua.Bindings
         /// or received a keep alive.
         /// </summary>
         public int ElapsedSinceLastActiveTime => (HiResClock.TickCount - LastActiveTickCount);
+
+        /// <summary>
+        /// Is a Session established on the channel
+        /// </summary>
+        public bool IsSessionEstablished
+        {
+            get
+            {
+                return m_isSessionEstablished;
+            }
+            protected set
+            {
+                m_isSessionEstablished = value;
+            }
+        }
         #endregion
 
         #region Socket Event Handlers
@@ -562,6 +577,7 @@ namespace Opc.Ua.Bindings
         private ReportAuditCloseSecureChannelEventHandler m_reportAuditCloseSecureChannelEvent;
         private ReportAuditCertificateEventHandler m_reportAuditCertificateEvent;
         private long m_lastTokenId;
+        private bool m_isSessionEstablished;
         #endregion
     }
 
