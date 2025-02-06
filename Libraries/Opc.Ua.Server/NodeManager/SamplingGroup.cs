@@ -121,6 +121,8 @@ namespace Opc.Ua.Server
             {
                 m_shutdownEvent.Set();
                 m_items.Clear();
+                Utils.SilentDispose(m_samplingTask);
+                m_samplingTask = null;
             }
         }
 
