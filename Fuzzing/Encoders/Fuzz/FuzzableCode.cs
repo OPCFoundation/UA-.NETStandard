@@ -35,6 +35,8 @@ using Opc.Ua.Bindings;
 public static partial class FuzzableCode
 {
     private static ServiceMessageContext messageContext = ServiceMessageContext.GlobalContext;
+    private static BufferManager bufferManager = new BufferManager(nameof(FuzzableCode), 65535);
+    private static ChannelQuotas channelQuotas = new ChannelQuotas();
 
     /// <summary>
     /// Print information about the fuzzer target.
@@ -42,7 +44,7 @@ public static partial class FuzzableCode
     public static void FuzzInfo()
     {
         Console.WriteLine("OPC UA Core Encoder Fuzzer for afl-fuzz and libfuzzer.");
-        Console.WriteLine("Fuzzing targets for various aspects of the Binary, Json and Xml encoders.");
+        Console.WriteLine("Fuzzing targets for various aspects of the OPC UA Binary, Json and Xml encoders.");
     }
 
     /// <summary>

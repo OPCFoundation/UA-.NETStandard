@@ -2833,12 +2833,12 @@ namespace Opc.Ua
         /// <summary>
         /// Creates a X509 certificate object from the DER encoded bytes.
         /// </summary>
-        public static X509Certificate2 ParseCertificateBlob(ReadOnlyMemory<byte> certificateData)
+        public static X509Certificate2 ParseCertificateBlob(ReadOnlyMemory<byte> certificateData, bool useAsnParser = false)
         {
             // macOS X509Certificate2 constructor throws exception if a certchain is encoded
             // use AsnParser on macOS to parse for byteblobs,
 #if !NETFRAMEWORK
-            bool useAsnParser = RuntimeInformation.IsOSPlatform(OSPlatform.OSX);
+            useAsnParser = RuntimeInformation.IsOSPlatform(OSPlatform.OSX);
 #endif
             try
             {
@@ -2867,15 +2867,16 @@ namespace Opc.Ua
         /// Creates a X509 certificate collection object from the DER encoded bytes.
         /// </summary>
         /// <param name="certificateData">The certificate data.</param>
+        /// <param name="useAsnParser">Whether the ASN.1 library should be used to decode certificate blobs.</param>
         /// <returns></returns>
-        public static X509Certificate2Collection ParseCertificateChainBlob(ReadOnlyMemory<byte> certificateData)
+        public static X509Certificate2Collection ParseCertificateChainBlob(ReadOnlyMemory<byte> certificateData, bool useAsnParser = false)
         {
             X509Certificate2Collection certificateChain = new X509Certificate2Collection();
 
             // macOS X509Certificate2 constructor throws exception if a certchain is encoded
             // use AsnParser on macOS to parse for byteblobs,
 #if !NETFRAMEWORK
-            bool useAsnParser = RuntimeInformation.IsOSPlatform(OSPlatform.OSX);
+            useAsnParser = RuntimeInformation.IsOSPlatform(OSPlatform.OSX);
 #endif
             int offset = 0;
             int length = certificateData.Length;

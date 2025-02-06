@@ -267,3 +267,7 @@ OPC\ Foundation/
 /Fuzzing/**/findings/
 /Fuzzing/**/Testcases/
 !/Fuzzing/**/Testcases/*.bin
+/Fuzzing/Encoders/Fuzz.Tests/Assets/*
+/Fuzzing/**/crash-*
+/Fuzzing/**/slow-*
+/Fuzzing/**/timeout-*

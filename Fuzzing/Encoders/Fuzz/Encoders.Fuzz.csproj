@@ -25,4 +25,9 @@
     <ProjectReference Include="..\..\..\Libraries\Opc.Ua.Security.Certificates\Opc.Ua.Security.Certificates.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Testcases.CRLs\" />
+    <Folder Include="Testcases.Certificates\" />
+  </ItemGroup>
+
 </Project>

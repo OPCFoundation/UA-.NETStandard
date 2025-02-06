@@ -12,6 +12,8 @@
     <Compile Include="..\Fuzz\FuzzableCode.BinaryDecoder.cs" Link="FuzzableCode.BinaryDecoder.cs" />
     <Compile Include="..\Fuzz\FuzzableCode.JsonDecoder.cs" Link="FuzzableCode.JsonDecoder.cs" />
     <Compile Include="..\Fuzz\FuzzableCode.XmlDecoder.cs" Link="FuzzableCode.XmlDecoder.cs" />
+    <Compile Include="..\Fuzz\FuzzableCode.Certificates.cs" Link="FuzzableCode.Certificates.cs" />
+    <Compile Include="..\Fuzz\FuzzableCode.CRLs.cs" Link="FuzzableCode.CRLs.cs" />
     <Compile Include="..\..\common\Fuzz\FuzzMethods.cs" Link="FuzzMethods.cs" />
     <Compile Include="..\..\common\Fuzz.Tools\Program.cs" Link="Program.cs" />
     <Compile Include="..\..\common\Fuzz.Tools\Playback.cs" Link="Playback.cs" />

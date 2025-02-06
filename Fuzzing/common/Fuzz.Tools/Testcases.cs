@@ -43,35 +43,48 @@ public partial class Testcases
 
     public static void ReadRequest(IEncoder encoder)
     {
-        var nodeId = new NodeId(1000);
+        var twoByteNodeIdNumeric = new NodeId(123);
+        var nodeIdNumeric = new NodeId(4444, 2);
+        var nodeIdString = new NodeId("ns=3;s=RevisionCounter");
+        var nodeIdGuid = new NodeId(Guid.NewGuid());
+        var nodeIdOpaque = new NodeId(new byte[] { 66, 22, 55, 44, 11 });
         var readRequest = new ReadRequest {
             RequestHeader = new RequestHeader {
                 Timestamp = DateTime.UtcNow,
-                RequestHandle = 42,
+                TimeoutHint = 10000,
+                RequestHandle = 422,
                 AdditionalHeader = new ExtensionObject(),
+                ReturnDiagnostics = (uint)DiagnosticsMasks.All,
             },
             NodesToRead = new ReadValueIdCollection {
                 new ReadValueId {
-                    NodeId = nodeId,
+                    NodeId = twoByteNodeIdNumeric,
+                    AttributeId = Attributes.UserRolePermissions,
+                },
+                new ReadValueId {
+                    NodeId = nodeIdNumeric,
                     AttributeId = Attributes.Description,
                 },
                 new ReadValueId {
-                    NodeId = nodeId,
+                    NodeId = nodeIdString,
                     AttributeId = Attributes.Value,
+                    IndexRange = "1:2",
                 },
                 new ReadValueId {
-                    NodeId = nodeId,
+                    NodeId = nodeIdGuid,
                     AttributeId = Attributes.DisplayName,
                 },
                 new ReadValueId {
-                    NodeId = nodeId,
+                    NodeId = nodeIdNumeric,
                     AttributeId = Attributes.AccessLevel,
                 },
                 new ReadValueId {
-                    NodeId = nodeId,
+                    NodeId = nodeIdOpaque,
                     AttributeId = Attributes.RolePermissions,
                 },
             },
+            MaxAge = 1000,
+            TimestampsToReturn = TimestampsToReturn.Source,
         };
         encoder.EncodeMessage(readRequest);
     }
@@ -80,6 +93,7 @@ public partial class Testcases
     {
         var now = DateTime.UtcNow;
         var nodeId = new NodeId(1000);
+        var matrix = new byte[2, 2, 2] { { { 1, 2 }, { 3, 4 } }, { { 11, 22 }, { 33, 44 } } };
         var readRequest = new ReadResponse {
             Results = new DataValueCollection {
                     new DataValue {
@@ -106,6 +120,11 @@ public partial class Testcases
                         Value = new Variant((byte)42),
                         SourceTimestamp = now,
                     },
+                    new DataValue {
+                        Value = new Variant(new Matrix(matrix, BuiltInType.Byte)),
+                        ServerTimestamp = now,
+                    },
+
                 },
             DiagnosticInfos = new DiagnosticInfoCollection {
                         new DiagnosticInfo {
@@ -123,16 +142,16 @@ public partial class Testcases
                 ServiceResult = StatusCodes.Good,
                 ServiceDiagnostics = new DiagnosticInfo {
                     AdditionalInfo = "NodeId not found",
-                    InnerStatusCode = StatusCodes.BadNodeIdExists,
+                    InnerStatusCode = StatusCodes.BadAggregateConfigurationRejected,
                     InnerDiagnosticInfo = new DiagnosticInfo {
                         AdditionalInfo = "Hello World",
-                        InnerStatusCode = StatusCodes.BadNodeIdUnknown,
+                        InnerStatusCode = StatusCodes.BadIndexRangeInvalid,
                         InnerDiagnosticInfo = new DiagnosticInfo {
                             AdditionalInfo = "Hello World",
-                            InnerStatusCode = StatusCodes.BadNodeIdUnknown,
+                            InnerStatusCode = StatusCodes.BadSecureChannelIdInvalid,
                             InnerDiagnosticInfo = new DiagnosticInfo {
                                 AdditionalInfo = "Hello World",
-                                InnerStatusCode = StatusCodes.BadNodeIdUnknown,
+                                InnerStatusCode = StatusCodes.BadAlreadyExists,
                             },
                         },
                     },
