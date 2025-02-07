@@ -2700,13 +2700,36 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public uint ReadSwitchField(StringCollection switches)
+        public uint ReadSwitchField(IList<string> switches, out string fieldName)
         {
+            fieldName = null;
+
             if (m_stack.Peek() is Dictionary<string, object> context)
             {
+                long index = -1;
+
                 if (context.ContainsKey("SwitchField"))
                 {
-                    return ReadUInt32("SwitchField");
+                    index = ReadUInt32("SwitchField");
+                }
+
+                if (index >= switches.Count)
+                {
+                    return (uint)index;
+                }
+
+                if (index >= 0)
+                {
+                    if (!context.ContainsKey("Value"))
+                    {
+                        fieldName = switches[(int)index];
+                    }
+                    else
+                    {
+                        fieldName = "Value";
+                    }
+
+                    return (uint)index;
                 }
 
                 foreach (var ii in context)
@@ -2716,10 +2739,11 @@ namespace Opc.Ua
                         continue;
                     }
 
-                    var index = switches.IndexOf(ii.Key);
+                    index = switches.IndexOf(ii.Key);
 
                     if (index >= 0)
                     {
+                        fieldName = ii.Key;
                         return (uint)index;
                     }
                 }
@@ -2729,7 +2753,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public uint ReadEncodingMask(StringCollection masks)
+        public uint ReadEncodingMask(IList<string> masks)
         {
             if (m_stack.Peek() is Dictionary<string, object> context)
             {

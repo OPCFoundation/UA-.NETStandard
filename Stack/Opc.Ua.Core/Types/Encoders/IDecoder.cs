@@ -11,6 +11,7 @@
 */
 
 using System;
+using System.Collections.Generic;
 using System.Xml;
 
 namespace Opc.Ua
@@ -355,12 +356,13 @@ namespace Opc.Ua
         /// Decode the switch field for a union.
         /// </summary>
         /// <param name="switches">The list of field names in the order of the union selector.</param>
-        uint ReadSwitchField(StringCollection switches);
+        /// <param name="fieldName">Returns an alternate fieldName for the encoded union property if the encoder requires it, null otherwise.</param>
+        uint ReadSwitchField(IList<string> switches, out string fieldName);
 
         /// <summary>
         /// Decode the encoding mask for a structure with optional fields.
         /// </summary>
         /// <param name="masks">The list of field names in the order of the bits in the optional fields mask.</param>
-        uint ReadEncodingMask(StringCollection masks);
+        uint ReadEncodingMask(IList<string> masks);
     }
 }
