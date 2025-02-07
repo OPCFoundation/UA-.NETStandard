@@ -123,6 +123,7 @@ namespace Opc.Ua.Server
                 m_items.Clear();
                 Utils.SilentDispose(m_samplingTask);
                 m_samplingTask = null;
+                Utils.SilentDispose(m_shutdownEvent);
             }
         }
 
