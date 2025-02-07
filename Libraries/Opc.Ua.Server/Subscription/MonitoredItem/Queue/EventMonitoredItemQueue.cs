@@ -87,6 +87,8 @@ namespace Opc.Ua.Server
     /// </summary>
     public class EventMonitoredItemQueue : IEventMonitoredItemQueue
     {
+        private const UInt32 kMaxNoOfEntriesCheckedForDuplicateEvents = 1000;
+
         /// <summary>
         /// Creates an empty queue.
         /// </summary>
@@ -133,17 +135,24 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public void Enqueue(EventFieldList value)
         {
-            if (m_events.Count == QueueSize && !Dequeue(out var _))
+            if (QueueSize == 0)
             {
-                throw new ServiceResultException(StatusCodes.BadInternalError, "Error queueing Event. Evemt Queue was full but it was not possible to discard the oldest Event");
+                throw new ServiceResultException(StatusCodes.BadInternalError, "Error queueing Event. Queue size is set to 0");
             }
+
+            //Discard oldest
+            if (m_events.Count == QueueSize)
+            {
+                Dequeue(out var _);
+            }
+
             m_events.Add(value);
         }
 
         /// <inheritdoc/>
         public bool IsEventContainedInQueue(IFilterTarget instance)
         {
-            int maxCount = m_events.Count > 1000 ? 1000 : m_events.Count;
+            int maxCount = m_events.Count > kMaxNoOfEntriesCheckedForDuplicateEvents ? (int)kMaxNoOfEntriesCheckedForDuplicateEvents : m_events.Count;
 
             for (int i = 0; i < maxCount; i++)
             {

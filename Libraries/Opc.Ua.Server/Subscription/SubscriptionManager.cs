@@ -117,6 +117,9 @@ namespace Opc.Ua.Server
                     Utils.SilentDispose(subscription);
                 }
 
+                Utils.SilentDispose(m_shutdownEvent);
+                Utils.SilentDispose(m_conditionRefreshEvent);
+
             }
         }
         #endregion
@@ -1772,7 +1775,9 @@ namespace Opc.Ua.Server
         /// </summary>
         protected virtual uint CalculateLifetimeCount(double publishingInterval, uint keepAliveCount, uint lifetimeCount, bool isDurableSubscription = false)
         {
-            ulong maxSubscriptionLifetime = isDurableSubscription ? m_maxDurableSubscriptionLifetimeInHours * 3_600_600 : m_maxSubscriptionLifetime;
+            const Int32 kMillisecondsToHours = 3_600_000;
+
+            ulong maxSubscriptionLifetime = isDurableSubscription ? m_maxDurableSubscriptionLifetimeInHours * kMillisecondsToHours : m_maxSubscriptionLifetime;
 
             double lifetimeInterval = lifetimeCount * publishingInterval;
 
