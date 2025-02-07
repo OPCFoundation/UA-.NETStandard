@@ -168,7 +168,7 @@ namespace Opc.Ua.Server
             }
 
             // calculate queue size.
-            uint revisedQueueSize = CalculateRevisedQueueSize(createDurable, itemToCreate.RequestedParameters.QueueSize);
+            uint revisedQueueSize = SubscriptionManager.CalculateRevisedQueueSize(createDurable, itemToCreate.RequestedParameters.QueueSize, m_maxQueueSize, m_maxDurableQueueSize);
 
             // get filter.
             MonitoringFilter filter = null;
@@ -222,22 +222,6 @@ namespace Opc.Ua.Server
 
             // return item.
             return monitoredItem;
-        }
-
-        //calculates a revised queue size based on the application confiugration limits
-        private uint CalculateRevisedQueueSize(bool isDurable, uint queueSize)
-        {
-            if (queueSize > m_maxQueueSize && !isDurable)
-            {
-                queueSize = m_maxQueueSize;
-            }
-
-            if (queueSize > m_maxDurableQueueSize && isDurable)
-            {
-                queueSize = m_maxDurableQueueSize;
-            }
-
-            return queueSize;
         }
 
         /// <summary>
@@ -332,7 +316,7 @@ namespace Opc.Ua.Server
             }
 
             // calculate queue size.
-            uint revisedQueueSize = CalculateRevisedQueueSize(monitoredItem.IsDurable, itemToModify.RequestedParameters.QueueSize);
+            uint revisedQueueSize = SubscriptionManager.CalculateRevisedQueueSize(monitoredItem.IsDurable, itemToModify.RequestedParameters.QueueSize, m_maxQueueSize, m_maxDurableQueueSize);
 
             if (revisedQueueSize == 0)
             {

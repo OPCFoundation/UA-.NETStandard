@@ -1660,7 +1660,36 @@ namespace Opc.Ua.Server
                 out diagnosticInfos);
         }
         #endregion
+        #region Public Static Methods
+        
+        /// <summary>
+        /// Calculate a revised queue size for a monitored item based on the provided maximum allowed queue sizes.
+        /// depending if an item is durable
+        /// </summary>
+        /// <param name="isDurable">the item to create is a part of a durable subscription</param>
+        /// <param name="queueSize">the queue size to revise</param>
+        /// <param name="maxQueueSize">the maximum queue size for regular subscriptions</param>
+        ///  <param name="maxDurableQueueSize">the maxmimum queue size for durable subscriptions</param>
+        /// <returns>the revised queue size</returns>
+        public static uint CalculateRevisedQueueSize(bool isDurable, uint queueSize, uint maxQueueSize, uint maxDurableQueueSize)
+        {
 
+            //reqular limit
+            if (queueSize > maxQueueSize && !isDurable)
+            {
+                return maxQueueSize;
+            }
+
+            //durable subscription limit
+            if (queueSize > maxDurableQueueSize && isDurable)
+            {
+                return maxDurableQueueSize;
+            }
+
+            //no revision needed as size within limits
+            return queueSize;
+        }
+        #endregion
         #region Protected Methods
         /// <summary>
         /// Calculates the publishing interval.
