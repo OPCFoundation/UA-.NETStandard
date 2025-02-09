@@ -1868,7 +1868,7 @@ namespace Opc.Ua
             {
                 PushStructure(fieldName);
 
-                value.Encode(this);
+                value?.Encode(this);
 
                 PopStructure();
             }
@@ -3114,11 +3114,10 @@ namespace Opc.Ua
             }
         }
 
-
         /// <summary>
         /// Writes the contents of a Variant to the stream.
         /// </summary>
-        private void WriteVariantContents(object value, TypeInfo typeInfo)
+        public void WriteVariantContents(object value, TypeInfo typeInfo)
         {
             bool inVariantWithEncoding = m_inVariantWithEncoding;
             try
@@ -3187,7 +3186,7 @@ namespace Opc.Ua
         /// <summary>
         /// Writes a Variant array to the stream.
         /// </summary>
-        private void WriteObjectArray(string fieldName, IList<object> values)
+        public void WriteObjectArray(string fieldName, IList<object> values)
         {
             if (CheckForSimpleFieldNull(fieldName, values))
             {

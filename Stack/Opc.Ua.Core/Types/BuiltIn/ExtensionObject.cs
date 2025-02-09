@@ -18,6 +18,7 @@ using System.Reflection;
 using System.Runtime.Serialization;
 using System.Text;
 using System.Xml;
+using Newtonsoft.Json.Linq;
 
 namespace Opc.Ua
 {
@@ -522,6 +523,11 @@ namespace Opc.Ua
                 if (m_body is XmlElement element)
                 {
                     return string.Format(formatProvider, "<{0}>", element.Name);
+                }
+
+                if (m_body is JObject json)
+                {
+                    return string.Format(formatProvider, "{0}", json.ToString());
                 }
 
                 if (m_body is IFormattable formattable)

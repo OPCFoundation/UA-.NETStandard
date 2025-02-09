@@ -135,7 +135,7 @@ namespace Opc.Ua.Client.ComplexTypes
             string fieldName = "Value";
             UInt32 unionSelector = 0;
 
-            unionSelector = decoder.ReadSwitchField(null);
+            unionSelector = decoder.ReadSwitchField(null, out var newFieldName);
 
             // maybe the switch field is implicitly defined by the JSON keys
             bool isJsonDecoder = decoder.EncodingType == EncodingType.Json;
@@ -150,7 +150,7 @@ namespace Opc.Ua.Client.ComplexTypes
                     }
                 }
 
-                unionSelector = decoder.ReadSwitchField(fields);
+                unionSelector = decoder.ReadSwitchField(fields, out var newFeildName);
             }
 
             m_switchField = unionSelector;
