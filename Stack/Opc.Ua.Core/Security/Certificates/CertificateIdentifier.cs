@@ -523,7 +523,10 @@ namespace Opc.Ua
         public ICertificateStore OpenStore()
         {
             ICertificateStore store = CertificateStoreIdentifier.CreateStore(this.StoreType);
-            store.Open(this.StorePath, false);
+            if (this.StorePath != null)
+            {
+                store.Open(this.StorePath, false);
+            }
             return store;
         }
 
@@ -941,7 +944,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public async Task<bool> Delete(string thumbprint)
+        public async Task<bool> Delete(string? thumbprint)
         {
             if (String.IsNullOrEmpty(thumbprint))
             {
@@ -963,11 +966,11 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public async Task<X509Certificate2Collection?> FindByThumbprint(string thumbprint)
+        public async Task<X509Certificate2Collection> FindByThumbprint(string thumbprint)
         {
             if (string.IsNullOrEmpty(thumbprint))
             {
-                return null;
+                return new X509Certificate2Collection();
             }
 
             for (int ii = 0; ii < this.Count; ii++)
@@ -987,13 +990,13 @@ namespace Opc.Ua
         public bool SupportsLoadPrivateKey => false;
 
         /// <inheritdoc/>
-        public Task<X509Certificate2?> LoadPrivateKey(string thumbprint, string subjectName, string password)
+        public Task<X509Certificate2?> LoadPrivateKey(string? thumbprint, string? subjectName, string? password)
         {
             return Task.FromResult<X509Certificate2?>(null);
         }
 
         /// <inheritdoc/>
-        public Task<X509Certificate2?> LoadPrivateKey(string thumbprint, string subjectName, string applicationUri, NodeId certificateType, string password)
+        public Task<X509Certificate2?> LoadPrivateKey(string? thumbprint, string? subjectName, string? applicationUri, NodeId? certificateType, string? password)
         {
             return Task.FromResult<X509Certificate2?>(null);
         }

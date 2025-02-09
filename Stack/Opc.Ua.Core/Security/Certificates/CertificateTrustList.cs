@@ -10,10 +10,11 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
+#nullable enable
+
 using System;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
-#nullable enable
 
 namespace Opc.Ua
 {

@@ -10,11 +10,12 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
+#nullable enable
+
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading;
-#nullable enable
 
 namespace Opc.Ua
 {
@@ -249,8 +250,10 @@ namespace Opc.Ua
                     store = currentStore;
                 }
             }
-
-            store?.Open(this.StorePath, m_noPrivateKeys);
+            if (this.StorePath != null)
+            {
+                store?.Open(this.StorePath, m_noPrivateKeys);
+            }
 
             return store;
         }
