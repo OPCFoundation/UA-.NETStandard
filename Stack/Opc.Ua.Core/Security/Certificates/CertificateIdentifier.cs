@@ -577,6 +577,10 @@ namespace Opc.Ua
         /// <param name="certificateType">The NodeId of the certificate type.</param>
         public static bool ValidateCertificateType(X509Certificate2 certificate, NodeId certificateType)
         {
+            if (certificateType == null)
+            {
+                return true;
+            }
             switch (certificate.SignatureAlgorithm.Value)
             {
                 case Oids.ECDsaWithSha1:
@@ -594,14 +598,16 @@ namespace Opc.Ua
                     }
 
 
-                    // special cases
-                    // disabled to test if this fixed gds tests
+                    // not needed: An end entity Certificate shall use P-256.
+                    // http://opcfoundation.org/UA/SecurityPolicy#ECC_nistP256
                     //if (certType == ObjectTypeIds.EccNistP384ApplicationCertificateType &&
                     //    certificateType == ObjectTypeIds.EccNistP256ApplicationCertificateType)
                     //{
                     //    return true;
                     //}
 
+                    // not needed: An end entity Certificate shall use P256r1.
+                    // http://opcfoundation.org/UA/SecurityPolicy#ECC_brainpoolP256r1
                     //if (certType == ObjectTypeIds.EccBrainpoolP384r1ApplicationCertificateType &&
                     //    certificateType == ObjectTypeIds.EccBrainpoolP256r1ApplicationCertificateType)
                     //{
