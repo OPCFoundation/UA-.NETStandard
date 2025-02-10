@@ -257,6 +257,61 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Azbil: Finds a certificate within the validity period in a store.
+        /// </summary>
+        /// <remarks>The certificate type is used to match the signature and public key type. And check also validity period.</remarks>
+        /// <param name="needPrivateKey">if set to <c>true</c> the returned certificate must contain the private key.</param>
+        /// <param name="dateTime">The time to check the validity period.</param>
+        /// <returns>An instance of the <see cref="X509Certificate2"/> that is embedded by this instance or find it in 
+        /// the selected store pointed out by the <see cref="StorePath"/> using selected <see cref="SubjectName"/> or if specified applicationUri.</returns>
+        public async Task<X509Certificate2> Find(bool needPrivateKey, DateTime dateTime)
+        {
+            X509Certificate2 certificate = null;
+
+            // check if the entire certificate has been specified.
+            if (m_certificate != null && (!needPrivateKey || m_certificate.HasPrivateKey))
+            {
+                certificate = m_certificate;
+            }
+            else
+            {
+                // open store.
+                using (ICertificateStore store = CertificateStoreIdentifier.CreateStore(StoreType))
+                {
+                    store.Open(StorePath);
+
+                    X509Certificate2Collection collection = await store.Enumerate().ConfigureAwait(false);
+
+                    certificate = Find(collection, m_thumbprint, m_subjectName, needPrivateKey);
+
+                    if (certificate != null)
+                    {
+                        if (certificate.NotBefore <= dateTime
+                            && dateTime <= certificate.NotAfter)
+                        {
+                            m_certificate = certificate;
+
+                            if (needPrivateKey && this.StoreType == CertificateStoreType.Directory)
+                            {
+                                var message = new StringBuilder();
+                                message.AppendLine("Loaded a certificate with private key from the directory store.");
+                                Utils.Trace(Utils.TraceMasks.Information, message.ToString());
+                            }
+                        }
+                    }
+                }
+            }
+
+            // use the single instance in the certificate cache.
+            if (needPrivateKey)
+            {
+                certificate = m_certificate = CertificateFactory.Load(certificate, true);
+            }
+
+            return certificate;
+        }
+
+        /// <summary>
         /// Returns a display name for a certificate.
         /// </summary>
         /// <param name="certificate">The certificate.</param>
