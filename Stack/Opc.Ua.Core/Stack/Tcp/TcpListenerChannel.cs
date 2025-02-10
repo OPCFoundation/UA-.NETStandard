@@ -163,17 +163,17 @@ namespace Opc.Ua.Bindings
         public int ElapsedSinceLastActiveTime => (HiResClock.TickCount - LastActiveTickCount);
 
         /// <summary>
-        /// Is a Session established on the channel
+        /// Has the channel been used in a session
         /// </summary>
-        public bool IsSessionEstablished
+        public bool UsedBySession
         {
             get
             {
-                return m_isSessionEstablished;
+                return m_usedBySession;
             }
             protected set
             {
-                m_isSessionEstablished = value;
+                m_usedBySession = value;
             }
         }
         #endregion
@@ -577,7 +577,7 @@ namespace Opc.Ua.Bindings
         private ReportAuditCloseSecureChannelEventHandler m_reportAuditCloseSecureChannelEvent;
         private ReportAuditCertificateEventHandler m_reportAuditCertificateEvent;
         private long m_lastTokenId;
-        private bool m_isSessionEstablished;
+        private bool m_usedBySession;
         #endregion
     }
 

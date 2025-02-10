@@ -1084,9 +1084,9 @@ namespace Opc.Ua.Bindings
                     return;
                 }
 
-                if (response is ActivateSessionResponse activatedSessionResponse)
+                if (response is ActivateSessionResponse activateSessionResponse)
                 {
-                    IsSessionEstablished = StatusCode.IsGood(activatedSessionResponse.ResponseHeader.ServiceResult);
+                    UsedBySession = StatusCode.IsGood(activateSessionResponse.ResponseHeader.ServiceResult);
                 }
             }
         }
