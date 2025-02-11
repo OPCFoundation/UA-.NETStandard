@@ -1090,6 +1090,11 @@ namespace Opc.Ua.Bindings
                     m_queuedResponses[requestId] = response;
                     return;
                 }
+
+                if (response is ActivateSessionResponse activateSessionResponse)
+                {
+                    UsedBySession = StatusCode.IsGood(activateSessionResponse.ResponseHeader.ServiceResult);
+                }
             }
         }
 
