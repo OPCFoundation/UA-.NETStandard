@@ -679,7 +679,7 @@ namespace Opc.Ua
         /// <summary>
         /// Causes the specified transition to occur.
         /// </summary>
-        public ServiceResult DoTransition(
+        public virtual ServiceResult DoTransition(
             ISystemContext context,
             uint transitionId,
             uint causeId,
