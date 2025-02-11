@@ -806,19 +806,21 @@ namespace Opc.Ua.Bindings
                         // before reaching m_maxChannelCount
                         if (m_maxChannelCount > 0 && m_maxChannelCount == channelCount)
                         {
+                            var snapshot = channels.Values.ToArray();
+
                             // Identify channels without established sessions
-                            var nonSessionChannels = channels.Values.Where(ch => !ch.UsedBySession).ToList();
+                            var nonSessionChannels = snapshot.Where(ch => !ch.UsedBySession).ToArray();
 
                             if (nonSessionChannels.Any())
                             {
-                                var oldestIdChannel = channels.Aggregate((max, current) =>
-                                    current.Value.ElapsedSinceLastActiveTime > max.Value.ElapsedSinceLastActiveTime ? current : max);
+                                var oldestIdChannel = nonSessionChannels.Aggregate((max, current) =>
+                                    current.ElapsedSinceLastActiveTime > max.ElapsedSinceLastActiveTime ? current : max);
 
                                 Utils.LogInfo("TCPLISTENER: Channel Id {0} scheduled for IdleCleanup - Oldest without established session.",
-                                    oldestIdChannel.Value.Id);
-                                oldestIdChannel.Value.IdleCleanup();
+                                    oldestIdChannel.Id);
+                                oldestIdChannel.IdleCleanup();
                                 Utils.LogInfo("TCPLISTENER: Channel Id {0} finished IdleCleanup - Oldest without established session.",
-                                    oldestIdChannel.Value.Id);
+                                    oldestIdChannel.Id);
 
                                 channelCount--;
                             }
