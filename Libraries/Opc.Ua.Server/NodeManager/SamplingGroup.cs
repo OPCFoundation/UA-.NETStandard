@@ -106,7 +106,7 @@ namespace Opc.Ua.Server
             {
                 m_shutdownEvent.Reset();
 
-                Task.Factory.StartNew(() => {
+                m_samplingTask = Task.Factory.StartNew(() => {
                     SampleMonitoredItems(m_samplingInterval);
                 }, TaskCreationOptions.LongRunning | TaskCreationOptions.DenyChildAttach);
             }
@@ -121,6 +121,9 @@ namespace Opc.Ua.Server
             {
                 m_shutdownEvent.Set();
                 m_items.Clear();
+                Utils.SilentDispose(m_samplingTask);
+                m_samplingTask = null;
+                Utils.SilentDispose(m_shutdownEvent);
             }
         }
 
@@ -243,7 +246,7 @@ namespace Opc.Ua.Server
                 m_itemsToRemove.Clear();
 
                 // start the group if it is not running.
-                if (m_items.Count > 0)
+                if (m_samplingTask == null && m_items.Count > 0)
                 {
                     Startup();
                 }
@@ -487,6 +490,7 @@ namespace Opc.Ua.Server
         private Dictionary<uint, ISampledDataChangeMonitoredItem> m_items;
         private ManualResetEvent m_shutdownEvent;
         private List<SamplingRateGroup> m_samplingRates;
+        private Task m_samplingTask;
         #endregion
     }
 }
