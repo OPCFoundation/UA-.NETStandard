@@ -807,7 +807,7 @@ namespace Opc.Ua
         private FiniteStateVariableState m_lastState;
         private uint m_causeId;
         private bool m_suppressTransitionEvents;
-        private object m_lock = new object();
+        private object m_lock;
         #endregion
     }
 
