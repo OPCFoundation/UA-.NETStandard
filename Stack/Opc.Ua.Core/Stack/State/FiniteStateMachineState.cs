@@ -645,7 +645,7 @@ namespace Opc.Ua
         /// <param name="context">The context.</param>
         /// <param name="causeId">The cause id.</param>
         /// <returns></returns>
-        public void CauseProcessingCompleted(ISystemContext context, uint causeId)
+        public virtual void CauseProcessingCompleted(ISystemContext context, uint causeId)
         {
             // get the transition.
             uint transitionId = GetTransitionForCause(context, causeId);
