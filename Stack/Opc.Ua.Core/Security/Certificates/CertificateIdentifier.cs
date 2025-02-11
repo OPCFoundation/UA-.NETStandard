@@ -580,7 +580,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="certificate">The certificate with a signature.</param>
         /// <param name="certificateType">The NodeId of the certificate type.</param>
-        public static bool ValidateCertificateType(X509Certificate2 certificate, NodeId certificateType)
+        public static bool ValidateCertificateType(X509Certificate2 certificate, NodeId? certificateType)
         {
             if (certificateType == null)
             {
