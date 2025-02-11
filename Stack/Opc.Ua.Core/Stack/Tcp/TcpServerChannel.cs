@@ -699,7 +699,14 @@ namespace Opc.Ua.Bindings
                 State = TcpChannelState.Open;
 
                 // send the response.
-                SendOpenSecureChannelResponse(requestId, CurrentToken, request);
+                if (requestType == SecurityTokenRequestType.Renew)
+                {
+                    SendOpenSecureChannelResponse(requestId, RenewedToken, request);
+                }
+                else
+                {
+                    SendOpenSecureChannelResponse(requestId, CurrentToken, request);
+                }
 
                 // notify reverse 
                 CompleteReverseHello(null);
