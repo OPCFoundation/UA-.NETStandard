@@ -186,8 +186,13 @@ public static partial class FuzzableCode
         if (serialized == null || encodeable == null) return;
 
         X509CRL crl2 = FuzzCRLDecoderCore(serialized, true);
-        byte[] serialized2 = crl2.RawData;
 
+        if (crl2 == null)
+        {
+            return;
+        }
+
+        byte[] serialized2 = crl2.RawData;
         using (var memoryStream2 = new MemoryStream(serialized2))
         {
             X509CRL crl3 = FuzzCRLDecoderCore(serialized2, true);

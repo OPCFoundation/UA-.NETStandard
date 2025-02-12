@@ -118,50 +118,43 @@ public static partial class FuzzableCode
     /// <param name="stream">A stream with fuzz content.</param>
     internal static IEncodeable FuzzXmlDecoderCore(Stream stream, bool throwAll = false)
     {
+        XmlReader reader = null;
         try
         {
-            XmlReader reader = null;
+            Type systemType = null;
             try
             {
-                Type systemType = null;
-                try
-                {
-                    reader = XmlReader.Create(stream, Utils.DefaultXmlReaderSettings());
-                    reader.MoveToContent();
-                    string typeName = reader.LocalName;
-                    string namespaceUri = reader.NamespaceURI;
-                    systemType = messageContext.Factory.EncodeableTypes
-                        .Where(entry => entry.Value.Name == typeName/* && entry.Key.NamespaceUri == namespaceUri*/)
-                        .Select(entry => entry.Value)
-                        .FirstOrDefault();
-                }
-                catch (XmlException ex)
-                {
-                    if (!throwAll)
-                    {
-                        return null;
-                    }
-                    throw ServiceResultException.Create(StatusCodes.BadDecodingError, ex.Message);
-                }
-
-                if (systemType == null)
-                {
-                    if (!throwAll)
-                    {
-                        return null;
-                    }
-                    throw ServiceResultException.Create(StatusCodes.BadDecodingError, "Could not find type for decoding.");
-                }
-
-                // TODO: match ns GetEncodeableFactory(typeName, namespaceUri, out IEncodeable encodeable, out _);
-                using (var decoder = new XmlDecoder(reader, messageContext))
-                {
-                    return decoder.DecodeMessage(systemType);
-                }
+                reader = XmlReader.Create(stream, Utils.DefaultXmlReaderSettings());
+                reader.MoveToContent();
+                string typeName = reader.LocalName;
+                string namespaceUri = reader.NamespaceURI;
+                systemType = messageContext.Factory.EncodeableTypes
+                    .Where(entry => entry.Value.Name == typeName/* && entry.Key.NamespaceUri == namespaceUri*/)
+                    .Select(entry => entry.Value)
+                    .FirstOrDefault();
             }
-            finally
+            catch (XmlException ex)
             {
-                Utils.SilentDispose(reader);
+                if (!throwAll)
+                {
+                    return null;
+                }
+                throw ServiceResultException.Create(StatusCodes.BadDecodingError, ex.Message);
+            }
+
+            if (systemType == null)
+            {
+                if (!throwAll)
+                {
+                    return null;
+                }
+                throw ServiceResultException.Create(StatusCodes.BadDecodingError, "Could not find type for decoding.");
+            }
+
+            // TODO: match ns GetEncodeableFactory(typeName, namespaceUri, out IEncodeable encodeable, out _);
+            using (var decoder = new XmlDecoder(reader, messageContext))
+            {
+                return decoder.DecodeMessage(systemType);
             }
         }
         catch (ServiceResultException sre)
@@ -180,6 +173,10 @@ public static partial class FuzzableCode
             Console.WriteLine("Unexpected ServiceResultException: {0} {1}", (StatusCode)sre.StatusCode, sre.Message);
 
             throw;
+        }
+        finally
+        {
+            reader?.Dispose();
         }
     }
 }

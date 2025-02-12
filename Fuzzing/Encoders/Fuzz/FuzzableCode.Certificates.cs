@@ -59,7 +59,7 @@ public static partial class FuzzableCode
     {
         using (var memoryStream = PrepareArraySegmentStream(stream))
         {
-            FuzzCertificateChainDecoderCore(memoryStream.ToArray());
+            FuzzCertificateChainDecoderCore(memoryStream.ToArray(), false);
         }
     }
 
@@ -88,7 +88,7 @@ public static partial class FuzzableCode
     /// </summary>
     public static void LibfuzzCertificateChainDecoder(ReadOnlySpan<byte> input)
     {
-        _ = FuzzCertificateChainDecoderCore(input);
+        _ = FuzzCertificateChainDecoderCore(input, false);
     }
 
     /// <summary>
@@ -123,7 +123,7 @@ public static partial class FuzzableCode
     /// The fuzz target for the Certificate chain decoder.
     /// </summary>
     /// <param name="serialized">A byte array with fuzz content.</param>
-    internal static X509Certificate2Collection FuzzCertificateChainDecoderCore(ReadOnlySpan<byte> serialized, bool useAsn1Parser = false, bool throwAll = false)
+    internal static X509Certificate2Collection FuzzCertificateChainDecoderCore(ReadOnlySpan<byte> serialized, bool useAsn1Parser, bool throwAll = false)
     {
         try
         {
