@@ -3,7 +3,7 @@ name: Build and Test .NET 9.0
 on:
   push:
   pull_request:
-    branches: [ master, main ]
+    branches: [ master, main, develop/* ]
     paths:
     - '**.cs'
     - '**.csproj'

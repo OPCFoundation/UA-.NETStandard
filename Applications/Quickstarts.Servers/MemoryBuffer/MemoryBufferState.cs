@@ -446,7 +446,8 @@ namespace MemoryBuffer
             TimestampsToReturn timestampsToReturn,
             MonitoringMode monitoringMode,
             uint clientHandle,
-            double samplingInterval)
+            double samplingInterval,
+            bool createDurable)
 
         /*
         ISystemContext context,
@@ -479,7 +480,8 @@ namespace MemoryBuffer
                     samplingInterval,
                     0,
                     false,
-                    0);
+                    0,
+                    createDurable);
 
                 /*
                 MemoryBufferMonitoredItem monitoredItem = new MemoryBufferMonitoredItem(
