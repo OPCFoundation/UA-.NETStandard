@@ -973,6 +973,30 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 Assert.AreEqual((StatusCode)StatusCodes.BadEncodingLimitsExceeded, (StatusCode)sre.StatusCode, sre.Message);
             }
         }
+
+        /// <summary>
+        /// Test if deserializing an extensionObject alters the Null NodeId.
+        /// </summary>
+        /// <remarks>
+        /// Issue was raised in github #2974.
+        /// </remarks>
+        [Test]
+        public void EnsureNodeIdNullIsNotModified()
+        {
+            var text1 = "[{\"Body\":{\"KeyValuePair\":{\"@xmlns\":\"http://opcfoundation.org/UA/2008/02/Types.xsd\"," +
+                "\"Key\":{\"Name\":\"o\",\"NamespaceIndex\":\"0\"},\"Value\":{\"Value\":" +
+                "{\"ListOfExtensionObject\":{\"ExtensionObject\":[" +
+                "{\"Body\":{\"KeyValuePair\":{\"Key\":{\"Name\":\"stringProp\",\"NamespaceIndex\":\"0\"},\"Value\":{\"Value\":" +
+                "{\"String\":\"EinString\"}}}},\"TypeId\":{\"Identifier\":\"i=14801\"}},{\"Body\":{\"KeyValuePair\":{\"Key\":" +
+                "{\"Name\":\"intProp\",\"NamespaceIndex\":\"0\"},\"Value\":{\"Value\":{\"Int32\":\"1\"}}}},\"TypeId\":" +
+                "{\"Identifier\":\"i=14802\"}}]}}}}},\"TypeId\":" +
+                "{\"Identifier\":\"i=14803\"}}]";
+
+            JsonConvert.DeserializeObject<ExtensionObject[]>(text1);
+
+            Assert.NotNull(NodeId.Null);
+            Assert.True(NodeId.Null.IsNullNodeId);
+        }
         #endregion
 
         #region Private Methods

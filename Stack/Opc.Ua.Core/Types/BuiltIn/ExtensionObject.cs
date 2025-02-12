@@ -717,7 +717,8 @@ namespace Opc.Ua
                 // check for null Id.
                 if (m_typeId.IsNull)
                 {
-                    return NodeId.Null;
+                    // note: this NodeId is modified when the ExtensionObject is deserialized.
+                    return new NodeId();
                 }
 
                 return ExpandedNodeId.ToNodeId(m_typeId, m_context.NamespaceUris);

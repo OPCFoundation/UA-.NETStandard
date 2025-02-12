@@ -79,7 +79,6 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         protected BufferManager BufferManager { get; private set; }
         protected RecyclableMemoryStreamManager RecyclableMemoryManager { get; private set; }
 
-
         #region Test Setup
         [OneTimeSetUp]
         protected void OneTimeSetUp()
@@ -112,6 +111,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [TearDown]
         protected void TearDown()
         {
+            // ensure after every test that the Null NodeId was not modified
+            Assert.True(NodeId.Null.IsNullNodeId);
         }
 
         /// <summary>
