@@ -10,6 +10,10 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
+// define to enable checks for a null NodeId modification
+// some tests are failing with this enabled, only turn on to cacth issues
+// #define IMMUTABLENULLNODEID
+
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -866,7 +870,7 @@ namespace Opc.Ua
         /// Returns an instance of a null NodeId.
         /// </summary>
         public static NodeId Null => s_Null;
-#if DEBUG
+#if IMMUTABLENULLNODEID
         private static readonly NodeId s_Null = new ImmutableNodeId();
 #else
         private static readonly NodeId s_Null = new NodeId();
@@ -1873,10 +1877,10 @@ namespace Opc.Ua
         /// Validate that an immutable NodeId is not overwritten.
         /// </summary>
         /// <exception cref="InvalidOperationException"></exception>
-        [Conditional("DEBUG")]
+        [Conditional("IMMUTABLENULLNODEID")]
         private void ValidateImmutableNodeIdIsNotModified()
         {
-#if DEBUG
+#if IMMUTABLENULLNODEID
             if (this is ImmutableNodeId)
             {
                 throw new InvalidOperationException("Cannot modify the immutable NodeId.Null.");
@@ -1892,7 +1896,7 @@ namespace Opc.Ua
         #endregion
     }
 
-#if DEBUG
+#if IMMUTABLENULLNODEID
     #region ImmutableNodeId
     /// <summary>
     /// A NodeId class as helper to catch if the immutable NodeId.Null is being modified.
