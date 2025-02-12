@@ -694,12 +694,13 @@ namespace Opc.Ua.Bindings
                 }
 
                 // ensure the token is not disposed
+                ChannelToken responseToken = token;
                 token = null;
 
                 State = TcpChannelState.Open;
 
                 // send the response.
-                SendOpenSecureChannelResponse(requestId, CurrentToken, request);
+                SendOpenSecureChannelResponse(requestId, responseToken, request);
 
                 // notify reverse 
                 CompleteReverseHello(null);
