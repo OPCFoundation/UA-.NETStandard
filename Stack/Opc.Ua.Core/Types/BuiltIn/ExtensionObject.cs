@@ -717,7 +717,7 @@ namespace Opc.Ua
                 // check for null Id.
                 if (m_typeId.IsNull)
                 {
-                    return NodeId.Null;
+                    return new NodeId();
                 }
 
                 return ExpandedNodeId.ToNodeId(m_typeId, m_context.NamespaceUris);

@@ -30,7 +30,6 @@ namespace Opc.Ua
 
             m_elements = Utils.FlattenArray(value);
             m_typeInfo = new TypeInfo(builtInType, m_dimensions.Length);
-
         }
 
         /// <summary>
@@ -61,7 +60,6 @@ namespace Opc.Ua
 
             SanityCheckArrayElements(m_elements, builtInType);
         }
-
         #endregion
 
         #region Public Members
