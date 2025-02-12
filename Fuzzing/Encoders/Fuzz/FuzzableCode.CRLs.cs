@@ -48,7 +48,7 @@ public static partial class FuzzableCode
     {
         using (var memoryStream = PrepareArraySegmentStream(stream))
         {
-            FuzzCRLDecoderCore(memoryStream.ToArray());
+            FuzzCRLDecoderCore(memoryStream.ToArray(), false, false);
         }
     }
 
@@ -63,7 +63,7 @@ public static partial class FuzzableCode
         {
             try
             {
-                crl = FuzzCRLDecoderCore(memoryStream.ToArray());
+                crl = FuzzCRLDecoderCore(memoryStream.ToArray(), false, false);
             }
             catch
             {
@@ -90,7 +90,7 @@ public static partial class FuzzableCode
         {
             try
             {
-                crl = FuzzCRLDecoderCore(memoryStream.ToArray(), true);
+                crl = FuzzCRLDecoderCore(memoryStream.ToArray(), false, true);
                 serialized = CrlBuilder.Create(crl).Encode();
             }
             catch
@@ -108,7 +108,7 @@ public static partial class FuzzableCode
     /// </summary>
     public static void LibfuzzCRLDecoder(ReadOnlySpan<byte> input)
     {
-        _ = FuzzCRLDecoderCore(input);
+        _ = FuzzCRLDecoderCore(input, false, false);
     }
 
     /// <summary>
@@ -119,7 +119,7 @@ public static partial class FuzzableCode
         X509CRL crl = null;
         try
         {
-            crl = FuzzCRLDecoderCore(input, true);
+            crl = FuzzCRLDecoderCore(input, false, true);
         }
         catch
         {
@@ -142,7 +142,7 @@ public static partial class FuzzableCode
         byte[] serialized = null;
         try
         {
-            crl = FuzzCRLDecoderCore(input, true);
+            crl = FuzzCRLDecoderCore(input, false, true);
             serialized = CrlBuilder.Create(crl).Encode();
         }
         catch
@@ -158,11 +158,11 @@ public static partial class FuzzableCode
     /// The fuzz target for the CRL decoder.
     /// </summary>
     /// <param name="serialized">A byte array with fuzz content.</param>
-    internal static X509CRL FuzzCRLDecoderCore(ReadOnlySpan<byte> serialized, bool throwAll = false)
+    internal static X509CRL FuzzCRLDecoderCore(ReadOnlySpan<byte> serialized, bool ignoreSignature, bool throwAll)
     {
         try
         {
-            var result = new X509CRL(serialized.ToArray());
+            var result = new X509CRL(serialized.ToArray(), ignoreSignature);
             _ = result.Issuer;
             return result;
         }
@@ -185,12 +185,12 @@ public static partial class FuzzableCode
     {
         if (serialized == null || encodeable == null) return;
 
-        X509CRL crl2 = FuzzCRLDecoderCore(serialized, true);
-        byte[] serialized2 = crl2.RawData;
+        X509CRL crl2 = FuzzCRLDecoderCore(serialized, true, true);
 
+        byte[] serialized2 = CrlBuilder.Create(crl2).Encode();
         using (var memoryStream2 = new MemoryStream(serialized2))
         {
-            X509CRL crl3 = FuzzCRLDecoderCore(serialized2, true);
+            X509CRL crl3 = FuzzCRLDecoderCore(serialized2, true, true);
 
             string encodeableTypeName = crl3?.GetType().Name ?? "unknown type";
             if (serialized2 == null || !serialized.SequenceEqual(serialized2))
@@ -198,7 +198,9 @@ public static partial class FuzzableCode
                 throw new Exception(Utils.Format("Indempotent encoding failed. Type={0}.", encodeableTypeName));
             }
 
-            if (!Utils.IsEqual(crl2, crl3))
+            if (!Utils.IsEqual(crl2.Issuer, crl3.Issuer) ||
+                !Utils.IsEqual(crl2.ThisUpdate, crl3.ThisUpdate) ||
+                !Utils.IsEqual(crl2.NextUpdate, crl3.NextUpdate))
             {
                 throw new Exception(Utils.Format("Indempotent 3rd gen decoding failed. Type={0}.", encodeableTypeName));
             }

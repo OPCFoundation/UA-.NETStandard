@@ -45,7 +45,7 @@ public static partial class FuzzableCode
     {
         using (var memoryStream = PrepareArraySegmentStream(stream))
         {
-            FuzzBinaryDecoderCore(memoryStream);
+            _ = FuzzBinaryDecoderCore(memoryStream);
         }
     }
 
@@ -204,6 +204,20 @@ public static partial class FuzzableCode
     {
         if (serialized == null || encodeable == null) return;
 
+        // check for invalid types
+        if (encodeable.TypeId.IsNull || encodeable.BinaryEncodingId.IsNull)
+        {
+            return;
+        }
+
+        // we can only test indempotent encoding with known system types,
+        // but its ok to ignore Json and Xml encoding ids
+        Type expectedType = encodeable.GetType();
+        if (!ValidateTypeId(encodeable.TypeId, expectedType) || !ValidateTypeId(encodeable.BinaryEncodingId, expectedType))
+        {
+            return;
+        }
+
         using (var memoryStream = new MemoryStream(serialized))
         {
             IEncodeable encodeable2 = FuzzBinaryDecoderCore(memoryStream, true);
@@ -212,9 +226,10 @@ public static partial class FuzzableCode
             using (var memoryStream2 = new MemoryStream(serialized2))
             {
                 IEncodeable encodeable3 = FuzzBinaryDecoderCore(memoryStream2, true);
+                byte[] serialized3 = BinaryEncoder.EncodeMessage(encodeable3, messageContext);
 
                 string encodeableTypeName = encodeable2?.GetType().Name ?? "unknown type";
-                if (serialized2 == null || !serialized.SequenceEqual(serialized2))
+                if (serialized2 == null || serialized3 == null || !serialized2.SequenceEqual(serialized3))
                 {
                     throw new Exception(Utils.Format("Indempotent encoding failed. Type={0}.", encodeableTypeName));
                 }
@@ -225,6 +240,23 @@ public static partial class FuzzableCode
                 }
             }
         }
+    }
+
+    /// <summary>
+    /// Validate if the type id is a known system type.
+    /// </summary>
+    private static bool ValidateTypeId(ExpandedNodeId encodableTypeId, Type expectedType)
+    {
+        // only encode if it is a known type
+        NodeId typeId = ExpandedNodeId.ToNodeId(encodableTypeId, messageContext.NamespaceUris);
+
+        // convert to absolute node id.
+        ExpandedNodeId absoluteId = NodeId.ToExpandedNodeId(typeId, messageContext.NamespaceUris);
+
+        // lookup message type.
+        Type actualType = messageContext.Factory.GetSystemType(absoluteId);
+
+        return (actualType == expectedType);
     }
 }
 

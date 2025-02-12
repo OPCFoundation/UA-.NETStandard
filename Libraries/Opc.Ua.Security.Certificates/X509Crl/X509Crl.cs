@@ -94,6 +94,23 @@ namespace Opc.Ua.Security.Certificates
             m_revokedCertificates = new List<RevokedCertificate>();
             m_crlExtensions = new X509ExtensionCollection();
         }
+
+        /// <summary>
+        /// Loads a CRL from a memory buffer, ignores the signature for fuzz testing of the ASN.1 decoder.
+        /// </summary>
+        internal X509CRL(byte[] crl, bool ignoreSignature) : this()
+        {
+            RawData = crl;
+            if (!ignoreSignature)
+            {
+                EnsureDecoded();
+            }
+            else
+            {
+                m_decoded = true;
+                DecodeCrl(crl);
+            }
+        }
         #endregion
 
         #region IX509CRL Interface
