@@ -11,7 +11,7 @@
 */
 
 // define to enable checks for a null NodeId modification
-// some tests are failing with this enabled, only turn on to cacth issues
+// some tests are failing with this enabled, only turn on to catch issues
 // #define IMMUTABLENULLNODEID
 
 using System;
