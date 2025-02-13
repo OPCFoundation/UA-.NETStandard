@@ -645,7 +645,7 @@ namespace Opc.Ua
         /// <param name="context">The context.</param>
         /// <param name="causeId">The cause id.</param>
         /// <returns></returns>
-        public void CauseProcessingCompleted(ISystemContext context, uint causeId)
+        public virtual void CauseProcessingCompleted(ISystemContext context, uint causeId)
         {
             // get the transition.
             uint transitionId = GetTransitionForCause(context, causeId);
@@ -679,7 +679,7 @@ namespace Opc.Ua
         /// <summary>
         /// Causes the specified transition to occur.
         /// </summary>
-        public ServiceResult DoTransition(
+        public virtual ServiceResult DoTransition(
             ISystemContext context,
             uint transitionId,
             uint causeId,

@@ -699,7 +699,14 @@ namespace Opc.Ua.Bindings
                 State = TcpChannelState.Open;
 
                 // send the response.
-                SendOpenSecureChannelResponse(requestId, CurrentToken, request);
+                if (requestType == SecurityTokenRequestType.Renew)
+                {
+                    SendOpenSecureChannelResponse(requestId, RenewedToken, request);
+                }
+                else
+                {
+                    SendOpenSecureChannelResponse(requestId, CurrentToken, request);
+                }
 
                 // notify reverse 
                 CompleteReverseHello(null);
@@ -1099,6 +1106,11 @@ namespace Opc.Ua.Bindings
 
                     m_queuedResponses[requestId] = response;
                     return;
+                }
+
+                if (response is ActivateSessionResponse activateSessionResponse)
+                {
+                    UsedBySession = StatusCode.IsGood(activateSessionResponse.ResponseHeader.ServiceResult);
                 }
             }
         }

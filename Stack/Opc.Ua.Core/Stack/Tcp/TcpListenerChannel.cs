@@ -159,7 +159,7 @@ namespace Opc.Ua.Bindings
             lock (DataLock)
             {
                 state = State;
-                if (state == TcpChannelState.Open)
+                if (state == TcpChannelState.Open || state == TcpChannelState.Connecting)
                 {
                     state = State = TcpChannelState.Closing;
                 }
@@ -176,6 +176,21 @@ namespace Opc.Ua.Bindings
         /// or received a keep alive.
         /// </summary>
         public int ElapsedSinceLastActiveTime => (HiResClock.TickCount - LastActiveTickCount);
+
+        /// <summary>
+        /// Has the channel been used in a session
+        /// </summary>
+        public bool UsedBySession
+        {
+            get
+            {
+                return m_usedBySession;
+            }
+            protected set
+            {
+                m_usedBySession = value;
+            }
+        }
         #endregion
 
         #region Socket Event Handlers
@@ -577,6 +592,7 @@ namespace Opc.Ua.Bindings
         private ReportAuditCloseSecureChannelEventHandler m_reportAuditCloseSecureChannelEvent;
         private ReportAuditCertificateEventHandler m_reportAuditCertificateEvent;
         private long m_lastTokenId;
+        private bool m_usedBySession;
         #endregion
     }
 
