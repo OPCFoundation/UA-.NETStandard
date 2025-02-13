@@ -29,6 +29,7 @@
 
 #if !NETSTANDARD2_1 && !NET5_0_OR_GREATER
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
@@ -128,7 +129,7 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
         }
 
         /// <summary>
-        /// Get private key parameters from a X509Certificate2.
+        /// Get RSA private key parameters from a X509Certificate2.
         /// The private key must be exportable.
         /// </summary>
         internal static RsaPrivateCrtKeyParameters GetRsaPrivateKeyParameter(X509Certificate2 certificate)
@@ -164,79 +165,55 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
 
 #if NET472_OR_GREATER
         /// <summary>
+        /// Get ECDsa private key parameters from a X509Certificate2.
+        /// The private key must be exportable.
+        /// </summary>
+        internal static ECPrivateKeyParameters GetECDsaPrivateKeyParameter(X509Certificate2 certificate)
+        {
+            // try to get signing/private key from certificate passed in
+            using (ECDsa ecdsa = certificate.GetECDsaPrivateKey())
+            {
+                if (ecdsa != null)
+                {
+                    return GetECDsaPrivateKeyParameter(ecdsa);
+                }
+            }
+            return null;
+        }
+
+        /// <summary>
         /// Get BouncyCastle format private key parameters from a System.Security.Cryptography.ECDsa.
         /// The private key must be exportable.
         /// </summary>
-        internal static ECPrivateKeyParameters GetECPrivateKeyParameter(ECDsa ec)
+        internal static ECPrivateKeyParameters GetECDsaPrivateKeyParameter(ECDsa ec)
         {
             ECParameters ecParams = ec.ExportParameters(true);
             BigInteger d = new BigInteger(1, ecParams.D);
 
             X9ECParameters curve = GetX9ECParameters(ecParams);
 
-            if (curve == null) throw new ArgumentException("Curve OID is not recognized ", ecParams.Curve.Oid.ToString());
-            ECDomainParameters domainParameters = new ECDomainParameters(curve.Curve, curve.G, curve.N, curve.H);
-            return new ECPrivateKeyParameters(d, domainParameters);
+            string friendlyName = ecParams.Curve.Oid.FriendlyName;
+            if (!FriendlyNameToOidMap.TryGetValue(friendlyName, out var oidValue))
+            {
+                throw new NotSupportedException($"Unknown friendly name: {friendlyName}");
+            }
+
+            var oid = new DerObjectIdentifier(oidValue);
+
+            var namedDomainParameters = new ECNamedDomainParameters(
+                oid,
+                curve.Curve,
+                curve.G,
+                curve.N,
+                curve.H,
+                curve.GetSeed()
+            );
+
+            return new ECPrivateKeyParameters(d, namedDomainParameters);
 
         }
 
         /// <summary>
-        /// Get BouncyCastle format public key parameters from a System.Security.Cryptography.ECDsa
-        /// </summary>
-        internal static ECPublicKeyParameters GetECPublicKeyParameters(ECDsa ec)
-        {
-            ECParameters ecParams = ec.ExportParameters(false);
-
-            X9ECParameters curve = GetX9ECParameters(ecParams);
-
-            if (curve == null) throw new ArgumentException("Curve OID is not recognized ", ecParams.Curve.Oid.ToString());
-
-            var q = curve.Curve.CreatePoint(
-                new BigInteger(1, ecParams.Q.X),
-                new BigInteger(1, ecParams.Q.Y));
-
-            ECDomainParameters domainParameters = new ECDomainParameters(curve.Curve, curve.G, curve.N, curve.H, curve.GetSeed());
-
-            return new ECPublicKeyParameters(q, domainParameters);
-
-        }
-
-        /// <summary>
-        /// Return Bouncy Castle X9ECParameters value equivalent of System.Security.Cryptography.ECparameters
-        /// </summary>
-        /// <param name="ecParams"></param>
-        /// <returns>X9ECParameters value equivalent of System.Security.Cryptography.ECparameters if found else null</returns>
-        internal static X9ECParameters GetX9ECParameters(ECParameters ecParams)
-        {
-            if (!string.IsNullOrEmpty(ecParams.Curve.Oid.Value))
-            {
-                var oid = new DerObjectIdentifier(ecParams.Curve.Oid.Value);
-                return ECNamedCurveTable.GetByOid(oid);
-            }
-            else if (!string.IsNullOrEmpty(ecParams.Curve.Oid.FriendlyName))
-            {
-                // nist curve names do not contain "nist" in the bouncy castle ECNamedCurveTable
-                // for ex: the form is "P-256" while the microsoft is "nistP256" 
-                // brainpool bouncy castle curve names are identic to the microsoft ones
-                string msFriendlyName = ecParams.Curve.Oid.FriendlyName;
-                string bcFriendlyName = msFriendlyName;
-                string nistCurveName = "nist";
-                if (msFriendlyName.StartsWith(nistCurveName))
-                {
-                    string patternMatch = @"(.*?)(\d+)$"; // divide string in two capture groups (string & numeric)
-                    bcFriendlyName = Regex.Replace(msFriendlyName, patternMatch, m => {
-                        string lastChar = m.Groups[1].Value.Length > 0 ? m.Groups[1].Value.Last().ToString() : "";
-                        string number = m.Groups[2].Value;
-                        return lastChar + "-" + number;
-                    });
-                }
-                return ECNamedCurveTable.GetByName(bcFriendlyName);
-            }
-
-            return null;
-        }
-
-         /// <summary>
         /// Identifies a named curve by the provided coefficients A and B from their first 4 bytes
         /// </summary>
         /// <param name="a"></param>
@@ -273,6 +250,71 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
             }
 
             throw new ArgumentException("EccCurveByCoefficients cannot be identified");
+
+        }
+
+        private static readonly Dictionary<string, string> FriendlyNameToOidMap
+            = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                { "nistP256", "1.2.840.10045.3.1.7"},
+                { "nistP384", "1.3.132.0.34" },
+                { "brainpoolP256r1", "1.3.36.3.3.2.8.1.1.7"},
+                { "brainpoolP384r1", "1.3.36.3.3.2.8.1.1.11"}
+            };
+
+        /// <summary>
+        /// Return Bouncy Castle X9ECParameters value equivalent of System.Security.Cryptography.ECparameters
+        /// </summary>
+        /// <param name="ecParams"></param>
+        /// <returns>X9ECParameters value equivalent of System.Security.Cryptography.ECparameters if found else null</returns>
+        internal static X9ECParameters GetX9ECParameters(ECParameters ecParams)
+        {
+            if (!string.IsNullOrEmpty(ecParams.Curve.Oid.Value))
+            {
+                var oid = new DerObjectIdentifier(ecParams.Curve.Oid.Value);
+                return ECNamedCurveTable.GetByOid(oid);
+            }
+            else if (!string.IsNullOrEmpty(ecParams.Curve.Oid.FriendlyName))
+            {
+                // nist curve names do not contain "nist" in the bouncy castle ECNamedCurveTable
+                // for ex: the form is "P-256" while the microsoft is "nistP256" 
+                // brainpool bouncy castle curve names are identic to the microsoft ones
+                string msFriendlyName = ecParams.Curve.Oid.FriendlyName;
+                string bcFriendlyName = msFriendlyName;
+                string nistCurveName = "nist";
+                if (msFriendlyName.StartsWith(nistCurveName))
+                {
+                    string patternMatch = @"(.*?)(\d+)$"; // divide string in two capture groups (string & numeric)
+                    bcFriendlyName = Regex.Replace(msFriendlyName, patternMatch, m => {
+                        string lastChar = m.Groups[1].Value.Length > 0 ? m.Groups[1].Value.Last().ToString() : "";
+                        string number = m.Groups[2].Value;
+                        return lastChar + "-" + number;
+                    });
+                }
+                return ECNamedCurveTable.GetByName(bcFriendlyName);
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Get BouncyCastle format public key parameters from a System.Security.Cryptography.ECDsa
+        /// </summary>
+        internal static ECPublicKeyParameters GetECPublicKeyParameters(ECDsa ec)
+        {
+            ECParameters ecParams = ec.ExportParameters(false);
+
+            X9ECParameters curve = GetX9ECParameters(ecParams);
+
+            if (curve == null) throw new ArgumentException("Curve OID is not recognized ", ecParams.Curve.Oid.ToString());
+
+            var q = curve.Curve.CreatePoint(
+                new BigInteger(1, ecParams.Q.X),
+                new BigInteger(1, ecParams.Q.Y));
+
+            ECDomainParameters domainParameters = new ECDomainParameters(curve.Curve, curve.G, curve.N, curve.H, curve.GetSeed());
+
+            return new ECPublicKeyParameters(q, domainParameters);
 
         }
 #endif
@@ -328,7 +370,36 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
             rsaPublicKey.ImportParameters(parameters);
             return rsaPublicKey;
         }
-        #endregion
+
+        /// <summary>
+        /// Pads a byte array with leading zeros to reach the specifieed size
+        /// If the input is allready the given size, it just returns it
+        /// </summary>
+        /// <param name="arrayToPad">Provided array to pad</param>
+        /// <param name="desiredSize">The desired total length of byte array after padding</param>
+        /// <returns></returns>
+        internal static byte[] PadWithLeadingZeros(byte[] arrayToPad,  int desiredSize)
+        {
+            if (arrayToPad.Length == desiredSize)
+            {
+                return arrayToPad;
+            }
+
+            int paddingLength = desiredSize - arrayToPad.Length;
+            if (paddingLength < 0)
+            {
+                throw new ArgumentException($"Input byte array is larger than the desired size {desiredSize} bytes.");
+            }
+
+            var paddedArray = new byte[desiredSize];
+
+            // Right-align the arrayToPad into paddedArray
+            Buffer.BlockCopy(arrayToPad, 0, paddedArray, paddingLength, arrayToPad.Length);
+
+            return paddedArray;
+
+        }
+#endregion
     }
 }
 #endif

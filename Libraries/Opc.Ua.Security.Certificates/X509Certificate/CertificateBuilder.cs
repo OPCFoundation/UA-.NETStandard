@@ -42,6 +42,7 @@ using Org.BouncyCastle.Asn1;
 using Org.BouncyCastle.Asn1.X509;
 using Org.BouncyCastle.Asn1.X9;
 using Org.BouncyCastle.Math.EC;
+using Opc.Ua.Security.Certificates.BouncyCastle;
 #endif
 
 namespace Opc.Ua.Security.Certificates
@@ -207,11 +208,14 @@ namespace Opc.Ua.Security.Certificates
             CreateX509Extensions(request, true);
 
             byte[] serialNumber = m_serialNumber.Reverse().ToArray();
+
+
+            X509Certificate2 cert;
             if (IssuerCAKeyCert != null)
             {
                 using (ECDsa issuerKey = IssuerCAKeyCert.GetECDsaPrivateKey())
                 {
-                    return request.Create(
+                    cert = request.Create(
                         IssuerCAKeyCert.SubjectName,
                         X509SignatureGenerator.CreateForECDsa(issuerKey),
                         NotBefore,
@@ -222,15 +226,16 @@ namespace Opc.Ua.Security.Certificates
             }
             else
             {
-                return request.Create(
+                cert = request.Create(
                     SubjectName,
                     X509SignatureGenerator.CreateForECDsa(key),
                     NotBefore,
                     NotAfter,
                     serialNumber
-                    )
-                    .CopyWithPrivateKey(key);
+                    );
             }
+
+            return (key == null) ? cert : cert.CopyWithPrivateKey(key);
         }
 
         /// <inheritdoc/>
@@ -293,35 +298,36 @@ namespace Opc.Ua.Security.Certificates
                 var publicKeyInfo = SubjectPublicKeyInfo.GetInstance(asn1Obj);
                 var algParams = publicKeyInfo.Algorithm.Parameters;
                 var x962Params = X962Parameters.GetInstance(algParams);
-                var ecPoint = publicKeyInfo.PublicKey.GetBytes();
                     
                 ECParameters ecParameters = new ECParameters();
-                X9ECParameters ecParametersAsn1 = null;
+
+                var domainParameters = asymmetricPubKeyParameters.Parameters;
+                var q = asymmetricPubKeyParameters.Q;
+                // calculate keySize round up (bitLength + 7) / 8
+                int keySizeBytes = (domainParameters.N.BitLength + 7) / 8;
 
                 if (x962Params.IsNamedCurve)
                 {
                     // Named
                     var namedCurveOid = (DerObjectIdentifier)x962Params.Parameters;
                     string curveName = namedCurveOid.Id;
-
                     var ecCurve = System.Security.Cryptography.ECCurve.CreateFromOid(new Oid(curveName));
                     ecParameters.Curve = ecCurve;
                 }
                 else
                 {
-                    // Explicit but still need to create the curve as named since the platform does not support it's creation
-                    // otherwise
-                    ecParametersAsn1 = X9ECParameters.GetInstance(x962Params.Parameters);
-                    ecParameters.Curve = BouncyCastle.X509Utils.IdentifyEccCurveByCoefficients(ecParametersAsn1.Curve.A.GetEncoded(),
-                        ecParametersAsn1.Curve.B.GetEncoded());// instead of ecParametersAsn1.Curve;
-
+                    // Explicit parameters
+                    var a = X509Utils.PadWithLeadingZeros(domainParameters.Curve.A.ToBigInteger().ToByteArrayUnsigned(), keySizeBytes);
+                    var b = X509Utils.PadWithLeadingZeros(domainParameters.Curve.B.ToBigInteger().ToByteArrayUnsigned(), keySizeBytes);
+                    ecParameters.Curve = BouncyCastle.X509Utils.IdentifyEccCurveByCoefficients(a,b);
                 }
 
-                //Extract the public key coordinates
-                var publicKeyPoint = new X9ECPoint(ecParametersAsn1.Curve, ecPoint).Point;
+                var x = X509Utils.PadWithLeadingZeros(q.AffineXCoord.ToBigInteger().ToByteArrayUnsigned(), keySizeBytes);
+                var y = X509Utils.PadWithLeadingZeros(q.AffineYCoord.ToBigInteger().ToByteArrayUnsigned(), keySizeBytes);
+                // Use the Q point
                 ecParameters.Q = new System.Security.Cryptography.ECPoint {
-                    X = publicKeyPoint.AffineXCoord.ToBigInteger().ToByteArrayUnsigned(),
-                    Y = publicKeyPoint.AffineYCoord?.ToBigInteger().ToByteArrayUnsigned()
+                    X = x,
+                    Y = y
                 };
 
                 m_ecdsaPublicKey.ImportParameters(ecParameters);
@@ -330,6 +336,7 @@ namespace Opc.Ua.Security.Certificates
 #else
                 m_ecdsaPublicKey.ImportSubjectPublicKeyInfo(publicKey, out bytes);
 #endif
+                SetECCurve(m_ecdsaPublicKey.ExportParameters(false).Curve);
             }
             catch (Exception e)
             {

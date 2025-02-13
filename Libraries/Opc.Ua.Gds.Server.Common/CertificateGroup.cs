@@ -28,13 +28,14 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading.Tasks;
-using Opc.Ua.Security;
 using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Gds.Server
@@ -43,9 +44,9 @@ namespace Opc.Ua.Gds.Server
     {
         #region Public Fields
         public NodeId Id { get; set; }
-        public NodeId CertificateType { get; set; }
+        public NodeIdCollection CertificateTypes { get; set; }
         public CertificateGroupConfiguration Configuration { get; }
-        public X509Certificate2 Certificate { get; set; }
+        public ConcurrentDictionary<NodeId, X509Certificate2> Certificates { get; }
         public TrustListState DefaultTrustList { get; set; }
         public bool UpdateRequired { get; set; }
         public CertificateStoreIdentifier AuthoritiesStore { get; }
@@ -70,6 +71,33 @@ namespace Opc.Ua.Gds.Server
                 IssuerCertificatesStore = new CertificateStoreIdentifier(trustedIssuerCertificatesStorePath);
             }
             SubjectName = Configuration.SubjectName.Replace("localhost", Utils.GetHostName());
+            CertificateTypes = new NodeIdCollection();
+
+            Certificates = new ConcurrentDictionary<NodeId, X509Certificate2>();
+
+            foreach (string certificateTypeString in Configuration.CertificateTypes)
+            {
+                var certificateType = typeof(Opc.Ua.ObjectTypeIds).GetField(certificateTypeString).GetValue(null) as NodeId;
+                if (certificateType != null)
+                {
+                    if (!Utils.IsSupportedCertificateType(certificateType))
+                    {
+                        Utils.LogError("Certificate type {0} specified for Certificate Group is not supported on this platform", certificateType);
+                        continue;
+                    }
+
+                    CertificateTypes.Add(certificateType);
+                    Certificates.TryAdd(certificateType, null);
+                }
+                else
+                {
+                    throw new NotImplementedException($"Unknown certificate type {certificateTypeString}. Use ApplicationCertificateType, HttpsCertificateType or UserCredentialCertificateType");
+                }
+            }
+            if (CertificateTypes.Count == 0)
+            {
+                throw new ArgumentException("Please specify at least one valid Certificate Type");
+            }
         }
 
         #region ICertificateGroupProvider
@@ -81,26 +109,32 @@ namespace Opc.Ua.Gds.Server
             try
             {
                 X509Certificate2Collection certificates = await store.Enumerate().ConfigureAwait(false);
-                foreach (var certificate in certificates)
+                foreach (X509Certificate2 certificate in certificates)
                 {
                     if (X509Utils.CompareDistinguishedName(certificate.Subject, SubjectName))
                     {
-                        if (X509Utils.GetRSAPublicKeySize(certificate) != Configuration.CACertificateKeySize)
+                        if (!X509Utils.IsECDsaSignature(certificate) && X509Utils.GetRSAPublicKeySize(certificate) != Configuration.CACertificateKeySize)
                         {
                             continue;
                         }
+
                         // TODO check hash size
 
-                        if (Certificate != null)
+                        NodeId certificateType = CertificateIdentifier.GetCertificateType(certificate);
+
+                        if (CertificateTypes.Any(c => c == certificateType))
                         {
-                            // always use latest issued cert in store
-                            if (certificate.NotBefore > DateTime.UtcNow ||
-                                Certificate.NotBefore > certificate.NotBefore)
+                            if (Certificates[certificateType] != null)
                             {
-                                continue;
+                                // always use latest issued cert in store
+                                if (certificate.NotBefore > DateTime.UtcNow ||
+                                    Certificates[certificateType].NotBefore > certificate.NotBefore)
+                                {
+                                    continue;
+                                }
                             }
+                            Certificates[certificateType] = certificate;
                         }
-                        Certificate = certificate;
                     }
                 }
             }
@@ -109,18 +143,25 @@ namespace Opc.Ua.Gds.Server
                 store?.Close();
             }
 
-            if (Certificate == null)
+            foreach (KeyValuePair<NodeId, X509Certificate2> keyValuePair in Certificates)
             {
-                Utils.LogInfo(Utils.TraceMasks.Security,
-                    "Create new CA Certificate: {0}, KeySize: {1}, HashSize: {2}, LifeTime: {3} months",
-                    SubjectName,
-                    Configuration.CACertificateKeySize,
-                    Configuration.CACertificateHashSize,
-                    Configuration.CACertificateLifetime
-                    );
-                X509Certificate2 newCertificate = await CreateCACertificateAsync(SubjectName).ConfigureAwait(false);
-                Certificate = X509CertificateLoader.LoadCertificate(newCertificate.RawData);
-                Utils.LogCertificate(Utils.TraceMasks.Security, "Created CA certificate: ", Certificate);
+                X509Certificate2 certificate = keyValuePair.Value;
+                NodeId certificateType = keyValuePair.Key;
+
+                if (certificate == null)
+                {
+                    Utils.LogInfo(Utils.TraceMasks.Security,
+                        "Create new CA Certificate: {0}, CertificateType {1}  KeySize: {2}, HashSize: {3}, LifeTime: {4} months",
+                        SubjectName,
+                        certificateType,
+                        Configuration.CACertificateKeySize,
+                        Configuration.CACertificateHashSize,
+                        Configuration.CACertificateLifetime
+                        );
+                    await CreateCACertificateAsync(SubjectName, certificateType).ConfigureAwait(false);
+                    Utils.LogCertificate(Utils.TraceMasks.Security, "Created CA certificate: ", Certificates[certificateType]);
+                }
+
             }
         }
 
@@ -136,12 +177,14 @@ namespace Opc.Ua.Gds.Server
         /// Create a certificate with a new key pair signed by the CA of the cert group.
         /// </summary>
         /// <param name="application">The application record.</param>
+        /// <param name="certificateType">The certificate type to create.</param>
         /// <param name="subjectName">The subject of the certificate.</param>
         /// <param name="domainNames">The domain names for the subject alt name extension.</param>
         /// <param name="privateKeyFormat">The private key format as PFX or PEM.</param>
         /// <param name="privateKeyPassword">A password for the private key.</param>
         public virtual async Task<X509Certificate2KeyPair> NewKeyPairRequestAsync(
             ApplicationRecordDataType application,
+            NodeId certificateType,
             string subjectName,
             string[] domainNames,
             string privateKeyFormat,
@@ -151,15 +194,25 @@ namespace Opc.Ua.Gds.Server
             if (application.ApplicationUri == null) throw new ArgumentNullException(nameof(application.ApplicationUri));
             if (application.ApplicationNames == null) throw new ArgumentNullException(nameof(application.ApplicationNames));
 
-            using (var signingKey = await LoadSigningKeyAsync(Certificate, string.Empty).ConfigureAwait(false))
-            using (var certificate = CertificateFactory.CreateCertificate(
-                application.ApplicationUri,
-                application.ApplicationNames.Count > 0 ? application.ApplicationNames[0].Text : "ApplicationName",
-                subjectName,
-                domainNames)
-                .SetIssuer(signingKey)
-                .CreateForRSA())
+            using (var signingKey = await LoadSigningKeyAsync(Certificates[certificateType], string.Empty).ConfigureAwait(false))
             {
+                X509Certificate2 certificate;
+
+                ICertificateBuilderIssuer builder = CertificateFactory.CreateCertificate(
+                    application.ApplicationUri,
+                    application.ApplicationNames.Count > 0 ? application.ApplicationNames[0].Text : "ApplicationName",
+                    subjectName,
+                    domainNames)
+                    .SetIssuer(signingKey);
+#if ECC_SUPPORT
+                certificate = TryGetECCCurve(certificateType, out ECCurve curve) ?
+                   builder.SetECCurve(curve).CreateForECDsa() :
+                   builder.CreateForRSA();
+#else
+                certificate = builder
+                       .CreateForRSA();
+#endif
+
                 byte[] privateKey;
                 if (privateKeyFormat == "PFX")
                 {
@@ -173,7 +226,11 @@ namespace Opc.Ua.Gds.Server
                 {
                     throw new ServiceResultException(StatusCodes.BadInvalidArgument, "Invalid private key format");
                 }
-                return new X509Certificate2KeyPair(X509CertificateLoader.LoadCertificate(certificate.RawData), privateKeyFormat, privateKey);
+
+                var publicKey = X509CertificateLoader.LoadCertificate(certificate.RawData);
+                Utils.SilentDispose(certificate);
+
+                return new X509Certificate2KeyPair(publicKey, privateKeyFormat, privateKey);
             }
         }
 
@@ -243,6 +300,7 @@ namespace Opc.Ua.Gds.Server
 
         public virtual async Task<X509Certificate2> SigningRequestAsync(
             ApplicationRecordDataType application,
+            NodeId certificateType,
             string[] domainNames,
             byte[] certificateRequest)
         {
@@ -286,17 +344,35 @@ namespace Opc.Ua.Gds.Server
                 }
 
                 DateTime yesterday = DateTime.Today.AddDays(-1);
-                using (var signingKey = await LoadSigningKeyAsync(Certificate, string.Empty).ConfigureAwait(false))
+                using (var signingKey = await LoadSigningKeyAsync(Certificates[certificateType], string.Empty).ConfigureAwait(false))
                 {
                     X500DistinguishedName subjectName = new X500DistinguishedName(info.Subject.GetEncoded());
-                    return CertificateBuilder.Create(subjectName)
+
+                    X509Certificate2 certificate;
+
+                    ICertificateBuilder builder = CertificateBuilder.Create(subjectName)
                         .AddExtension(new X509SubjectAltNameExtension(application.ApplicationUri, domainNames))
                         .SetNotBefore(yesterday)
-                        .SetLifeTime(Configuration.DefaultCertificateLifetime)
-                        .SetHashAlgorithm(X509Utils.GetRSAHashAlgorithmName(Configuration.DefaultCertificateHashSize))
-                        .SetIssuer(signingKey)
-                        .SetRSAPublicKey(info.SubjectPublicKeyInfo.GetEncoded())
-                        .CreateForRSA();
+                        .SetLifeTime(Configuration.DefaultCertificateLifetime);
+
+#if ECC_SUPPORT
+                    certificate = TryGetECCCurve(certificateType, out ECCurve curve) ?
+                       builder
+                       .SetIssuer(signingKey)
+                       .SetECDsaPublicKey(info.SubjectPublicKeyInfo.GetEncoded())
+                       .CreateForECDsa() :
+                       builder.SetHashAlgorithm(X509Utils.GetRSAHashAlgorithmName(Configuration.DefaultCertificateHashSize))
+                                .SetIssuer(signingKey)
+                                .SetRSAPublicKey(info.SubjectPublicKeyInfo.GetEncoded())
+                                .CreateForRSA();
+#else
+                    certificate = builder.SetHashAlgorithm(X509Utils.GetRSAHashAlgorithmName(Configuration.DefaultCertificateHashSize))
+                                    .SetIssuer(signingKey)
+                                    .SetRSAPublicKey(info.SubjectPublicKeyInfo.GetEncoded())
+                                    .CreateForRSA();
+#endif
+
+                    return certificate;
                 }
             }
             catch (Exception ex)
@@ -311,7 +387,8 @@ namespace Opc.Ua.Gds.Server
         }
 
         public virtual async Task<X509Certificate2> CreateCACertificateAsync(
-            string subjectName
+            string subjectName,
+            NodeId certificateType
             )
         {
             // validate new subjectName matches the previous subject
@@ -324,38 +401,57 @@ namespace Opc.Ua.Gds.Server
                     "CA Certificate is not created until the subjectName " + SubjectName + " is provided", subjectName);
             }
 
+            if (certificateType is null)
+            {
+                throw new ArgumentNullException(nameof(certificateType));
+            }
+
             DateTime yesterday = DateTime.Today.AddDays(-1);
-            using (X509Certificate2 newCertificate = await CertificateFactory.CreateCertificate(subjectName)
+            X509Certificate2 certificate;
+
+            ICertificateBuilder builder = CertificateFactory.CreateCertificate(subjectName)
                 .SetNotBefore(yesterday)
                 .SetLifeTime(Configuration.CACertificateLifetime)
-                .SetHashAlgorithm(X509Utils.GetRSAHashAlgorithmName(Configuration.CACertificateHashSize))
-                .SetCAConstraint()
-                .SetRSAKeySize(Configuration.CACertificateKeySize)
-                .CreateForRSA()
-                .AddToStoreAsync(AuthoritiesStore).ConfigureAwait(false))
+                .SetCAConstraint();
+
+#if ECC_SUPPORT
+            certificate = TryGetECCCurve(certificateType, out ECCurve curve) ?
+               builder.SetECCurve(curve).CreateForECDsa() :
+               builder.SetHashAlgorithm(X509Utils.GetRSAHashAlgorithmName(Configuration.CACertificateHashSize))
+                      .SetRSAKeySize(Configuration.CACertificateKeySize)
+                      .CreateForRSA();
+#else
+            certificate = builder.SetHashAlgorithm(X509Utils.GetRSAHashAlgorithmName(Configuration.CACertificateHashSize))
+                      .SetRSAKeySize(Configuration.CACertificateKeySize)
+                      .CreateForRSA();
+#endif
+
+            await certificate.AddToStoreAsync(AuthoritiesStore).ConfigureAwait(false);
+
+            // save only public key
+            Certificates[certificateType] = X509CertificateLoader.LoadCertificate(certificate.RawData);
+
+            // initialize revocation list
+            X509CRL crl = await RevokeCertificateAsync(AuthoritiesStore, certificate, null).ConfigureAwait(false);
+
+            //Update TrustedList Store
+            if (crl != null)
             {
+                // TODO: make CA trust selectable
+                var certificateStoreIdentifier = new CertificateStoreIdentifier(Configuration.TrustedListPath);
+                await UpdateAuthorityCertInCertificateStore(certificateStoreIdentifier).ConfigureAwait(false);
 
-                // save only public key
-                Certificate = X509CertificateLoader.LoadCertificate(newCertificate.RawData);
-
-                // initialize revocation list
-                X509CRL crl = await RevokeCertificateAsync(AuthoritiesStore, newCertificate, null).ConfigureAwait(false);
-
-                //Update TrustedList Store
-                if (crl != null)
+                // Update TrustedIssuerCertificates Store
+                if (IssuerCertificatesStore != null)
                 {
-                    // TODO: make CA trust selectable
-                    var certificateStoreIdentifier = new CertificateStoreIdentifier(Configuration.TrustedListPath);
-                    await UpdateAuthorityCertInCertificateStore(certificateStoreIdentifier).ConfigureAwait(false);
-
-                    // Update TrustedIssuerCertificates Store
-                    if (IssuerCertificatesStore != null)
-                    {
-                        await UpdateAuthorityCertInCertificateStore(IssuerCertificatesStore).ConfigureAwait(false);
-                    }
+                    await UpdateAuthorityCertInCertificateStore(IssuerCertificatesStore).ConfigureAwait(false);
                 }
-                return Certificate;
             }
+
+            Utils.SilentDispose(certificate);
+
+            return Certificates[certificateType];
+
         }
 
         #endregion
@@ -470,6 +566,45 @@ namespace Opc.Ua.Gds.Server
         #endregion
 
         #region Private Methods
+#if ECC_SUPPORT
+        /// <summary>
+        /// GetTheEccCurve of the CertificateGroups CertificateType
+        /// </summary>
+        /// <returns>returns false if RSA CertificateType, true if a ECCurve can be found, else throws Exception</returns>
+        /// <exception cref="ServiceResultException"></exception>
+        private bool TryGetECCCurve(NodeId certificateType, out ECCurve curve)
+        {
+            curve = default;
+            if (IsRSACertificateType(certificateType))
+            {
+                return false;
+            }
+            ECCurve? tempCurve = EccUtils.GetCurveFromCertificateTypeId(certificateType);
+
+            if (tempCurve == null)
+            {
+                throw new ServiceResultException(StatusCodes.BadNotSupported, $"The certificate type {certificateType} is not supported.");
+            }
+
+            curve = tempCurve.Value;
+
+            return true;
+        }
+#endif
+        /// <summary>
+        /// Checks if the Certificate Group is for RSA Certificates
+        /// </summary>
+        /// <returns>True if the CertificateType of the Certificate Group is an RSA Certificate Type</returns>
+        private bool IsRSACertificateType(NodeId certificateType)
+        {
+            return certificateType == null ||
+                   certificateType == Opc.Ua.ObjectTypeIds.ApplicationCertificateType ||
+                   certificateType == Opc.Ua.ObjectTypeIds.HttpsCertificateType ||
+                   certificateType == Opc.Ua.ObjectTypeIds.UserCredentialCertificateType ||
+                   certificateType == Opc.Ua.ObjectTypeIds.RsaMinApplicationCertificateType ||
+                   certificateType == Opc.Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType;
+        }
+
         /// <summary>
         /// Updates the certificate authority certificate and CRL in the provided CertificateStore
         /// </summary>

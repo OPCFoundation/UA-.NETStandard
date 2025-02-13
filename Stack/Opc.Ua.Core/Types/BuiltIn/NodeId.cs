@@ -10,6 +10,10 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
+// define to enable checks for a null NodeId modification
+// some tests are failing with this enabled, only turn on to catch issues
+// #define IMMUTABLENULLNODEID
+
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -312,7 +316,7 @@ namespace Opc.Ua
 
                 if (index < 0)
                 {
-                    throw new ServiceResultException(StatusCodes.BadNodeIdInvalid, $"Invalid NodeId ({originalText}).");
+                    throw ServiceResultException.Create(StatusCodes.BadNodeIdInvalid, "Invalid NodeId ({0}).", originalText);
                 }
 
                 var namespaceUri = Utils.UnescapeUri(text.Substring(4, index - 4));
@@ -320,7 +324,7 @@ namespace Opc.Ua
 
                 if (namespaceIndex < 0)
                 {
-                    throw new ServiceResultException(StatusCodes.BadNodeIdInvalid, $"No mapping to NamespaceIndex for NamespaceUri ({namespaceUri}).");
+                    throw ServiceResultException.Create(StatusCodes.BadNodeIdInvalid, "No mapping to NamespaceIndex for NamespaceUri ({0}).", namespaceUri);
                 }
 
                 text = text.Substring(index + 1);
@@ -332,7 +336,7 @@ namespace Opc.Ua
 
                 if (index < 0)
                 {
-                    throw new ServiceResultException(StatusCodes.BadNodeIdInvalid, $"Invalid ExpandedNodeId ({originalText}).");
+                    throw ServiceResultException.Create(StatusCodes.BadNodeIdInvalid, "Invalid ExpandedNodeId ({0}).", originalText);
                 }
 
                 if (UInt16.TryParse(text.Substring(3, index - 3), out ushort ns))
@@ -348,58 +352,61 @@ namespace Opc.Ua
                 text = text.Substring(index + 1);
             }
 
-            var idType = text.Substring(0, 1);
-            text = text.Substring(2);
-
-            switch (idType)
+            if (text.Length >= 2)
             {
-                case "i":
+                char idType = text[0];
+                text = text.Substring(2);
+
+                switch (idType)
                 {
-                    if (UInt32.TryParse(text, out uint number))
+                    case 'i':
                     {
-                        return new NodeId(number, (ushort)namespaceIndex);
+                        if (UInt32.TryParse(text, out uint number))
+                        {
+                            return new NodeId(number, (ushort)namespaceIndex);
+                        }
+
+                        break;
                     }
 
-                    break;
-                }
-
-                case "s":
-                {
-                    if (!String.IsNullOrWhiteSpace(text))
+                    case 's':
                     {
-                        return new NodeId(text, (ushort)namespaceIndex);
+                        if (!String.IsNullOrWhiteSpace(text))
+                        {
+                            return new NodeId(text, (ushort)namespaceIndex);
+                        }
+
+                        break;
                     }
 
-                    break;
-                }
-
-                case "b":
-                {
-                    try
+                    case 'b':
                     {
-                        var bytes = Convert.FromBase64String(text);
-                        return new NodeId(bytes, (ushort)namespaceIndex);
-                    }
-                    catch (Exception)
-                    {
-                        // error handled after the switch statement.
-                    }
+                        try
+                        {
+                            var bytes = Convert.FromBase64String(text);
+                            return new NodeId(bytes, (ushort)namespaceIndex);
+                        }
+                        catch (Exception)
+                        {
+                            // error handled after the switch statement.
+                        }
 
-                    break;
-                }
-
-                case "g":
-                {
-                    if (Guid.TryParse(text, out var guid))
-                    {
-                        return new NodeId(guid, (ushort)namespaceIndex);
+                        break;
                     }
 
-                    break;
+                    case 'g':
+                    {
+                        if (Guid.TryParse(text, out var guid))
+                        {
+                            return new NodeId(guid, (ushort)namespaceIndex);
+                        }
+
+                        break;
+                    }
                 }
             }
 
-            throw new ServiceResultException(StatusCodes.BadNodeIdInvalid, $"Invalid NodeId Identifier ({originalText}).");
+            throw ServiceResultException.Create(StatusCodes.BadNodeIdInvalid, "Invalid NodeId Identifier ({0}).", originalText);
         }
 
         /// <summary>
@@ -863,8 +870,11 @@ namespace Opc.Ua
         /// Returns an instance of a null NodeId.
         /// </summary>
         public static NodeId Null => s_Null;
-
+#if IMMUTABLENULLNODEID
+        private static readonly NodeId s_Null = new ImmutableNodeId();
+#else
         private static readonly NodeId s_Null = new NodeId();
+#endif
         #endregion
 
         #region Public Methods (and some Internals)
@@ -998,6 +1008,7 @@ namespace Opc.Ua
         /// </summary>
         internal void SetNamespaceIndex(ushort value)
         {
+            ValidateImmutableNodeIdIsNotModified();
             m_namespaceIndex = value;
         }
 
@@ -1006,6 +1017,7 @@ namespace Opc.Ua
         /// </summary>
         internal void SetIdentifier(IdType idType, object value)
         {
+            ValidateImmutableNodeIdIsNotModified();
             m_identifierType = idType;
 
             switch (idType)
@@ -1035,6 +1047,8 @@ namespace Opc.Ua
         /// </summary>
         internal void SetIdentifier(string value, IdType idType)
         {
+            ValidateImmutableNodeIdIsNotModified();
+
             m_identifierType = idType;
             SetIdentifier(IdType.String, value);
         }
@@ -1492,6 +1506,8 @@ namespace Opc.Ua
             }
             set
             {
+                ValidateImmutableNodeIdIsNotModified();
+
                 NodeId nodeId = NodeId.Parse(value);
 
                 m_namespaceIndex = nodeId.NamespaceIndex;
@@ -1856,6 +1872,21 @@ namespace Opc.Ua
                 }
             }
         }
+
+        /// <summary>
+        /// Validate that an immutable NodeId is not overwritten.
+        /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
+        [Conditional("IMMUTABLENULLNODEID")]
+        private void ValidateImmutableNodeIdIsNotModified()
+        {
+#if IMMUTABLENULLNODEID
+            if (this is ImmutableNodeId)
+            {
+                throw new InvalidOperationException("Cannot modify the immutable NodeId.Null.");
+            }
+#endif
+        }
         #endregion
 
         #region Private Fields
@@ -1864,6 +1895,20 @@ namespace Opc.Ua
         private object m_identifier;
         #endregion
     }
+
+#if IMMUTABLENULLNODEID
+    #region ImmutableNodeId
+    /// <summary>
+    /// A NodeId class as helper to catch if the immutable NodeId.Null is being modified.
+    /// </summary>
+    internal class ImmutableNodeId : NodeId
+    {
+        internal ImmutableNodeId()
+        {
+        }
+    }
+    #endregion
+#endif
 
     #region NodeIdCollection Class
     /// <summary>
@@ -1990,6 +2035,7 @@ namespace Opc.Ua
         /// </summary>
         public ushort[] ServerMappings { get; set; }
     }
+
     #region NodeIdComparer Class
     /// <summary>
     /// Helper which implements a NodeId IEqualityComparer for Linq queries.

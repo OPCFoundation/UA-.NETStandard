@@ -611,7 +611,7 @@ namespace Opc.Ua
         #region Private Static Members
         private static readonly RandomNumberGenerator m_rng = RandomNumberGenerator.Create();
 
-        private static uint m_minNonceLength = 0;
+        private static uint m_minNonceLength = 32;
         #endregion
 
 #region IDisposable

@@ -3191,6 +3191,7 @@ namespace Opc.Ua
                     case ObjectTypes.RsaMinApplicationCertificateType:
                     case ObjectTypes.RsaSha256ApplicationCertificateType:
                     case ObjectTypes.HttpsCertificateType:
+                    case ObjectTypes.UserCredentialCertificateType:
                         return true;
                 }
             }

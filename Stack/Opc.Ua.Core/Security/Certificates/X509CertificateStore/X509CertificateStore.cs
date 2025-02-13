@@ -14,6 +14,8 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
+#nullable enable
+
 using System;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
@@ -119,7 +121,7 @@ namespace Opc.Ua
         public string StoreType => CertificateStoreType.X509Store;
 
         /// <inheritdoc/>
-        public string StorePath => m_storePath;
+        public string? StorePath => m_storePath;
 
         /// <inheritdoc/>
         public bool NoPrivateKeys => m_noPrivateKeys;
@@ -135,7 +137,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public Task Add(X509Certificate2 certificate, string password = null)
+        public Task Add(X509Certificate2 certificate, string? password = null)
         {
             if (certificate == null) throw new ArgumentNullException(nameof(certificate));
 
@@ -216,16 +218,16 @@ namespace Opc.Ua
         /// <inheritdoc/>
         /// <remarks>The LoadPrivateKey special handling is not necessary in this store.</remarks>
         [Obsolete("Method is deprecated. Use only for RSA certificates, the replacing LoadPrivateKey with certificateType parameter should be used.")]
-        public Task<X509Certificate2> LoadPrivateKey(string thumbprint, string subjectName, string password)
+        public Task<X509Certificate2?> LoadPrivateKey(string? thumbprint, string? subjectName, string? password)
         {
-            return Task.FromResult<X509Certificate2>(null);
+            return Task.FromResult<X509Certificate2?>(null);
         }
 
         /// <inheritdoc/>
         /// <remarks>The LoadPrivateKey special handling is not necessary in this store.</remarks>
-        public Task<X509Certificate2> LoadPrivateKey(string thumbprint, string subjectName, NodeId certificateType, string password)
+        public Task<X509Certificate2?> LoadPrivateKey(string? thumbprint, string? subjectName, string? applicationUri, NodeId? certificateType, string? password)
         {
-            return Task.FromResult<X509Certificate2>(null);
+            return Task.FromResult<X509Certificate2?>(null);
         }
 
         /// <inheritdoc/>
@@ -369,9 +371,8 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(crl));
             }
 
-            X509Certificate2 issuer = null;
-            X509Certificate2Collection certificates = null;
-            certificates = await Enumerate().ConfigureAwait(false);
+            X509Certificate2? issuer = null;
+            X509Certificate2Collection certificates = await Enumerate().ConfigureAwait(false);
             foreach (X509Certificate2 certificate in certificates)
             {
                 if (X509Utils.CompareDistinguishedName(certificate.SubjectName, crl.IssuerName))
@@ -424,7 +425,7 @@ namespace Opc.Ua
 
         private bool m_noPrivateKeys;
         private string m_storeName;
-        private string m_storePath;
+        private string? m_storePath;
         private StoreLocation m_storeLocation;
     }
 }

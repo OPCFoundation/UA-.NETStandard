@@ -14,6 +14,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
@@ -416,7 +417,7 @@ namespace Opc.Ua.Bindings
             try
             {
                 var channelIdString = globalChannelId.Substring(ListenerId.Length + 1);
-                var channelId = Convert.ToUInt32(channelIdString);
+                var channelId = Convert.ToUInt32(channelIdString, CultureInfo.InvariantCulture);
 
                 TcpListenerChannel channel = null;
                 if (channelId > 0 &&
@@ -800,6 +801,31 @@ namespace Opc.Ua.Bindings
                     {
                         // TODO: .Count is flagged as hotpath, implement separate counter
                         int channelCount = channels.Count;
+
+                        // Remove oldest channel that does not have a session attached to it
+                        // before reaching m_maxChannelCount
+                        if (m_maxChannelCount > 0 && m_maxChannelCount == channelCount)
+                        {
+                            var snapshot = channels.ToArray();
+
+                            // Identify channels without established sessions
+                            var nonSessionChannels = snapshot.Where(ch => !ch.Value.UsedBySession).ToArray();
+
+                            if (nonSessionChannels.Any())
+                            {
+                                var oldestIdChannel = nonSessionChannels.Aggregate((max, current) =>
+                                    current.Value.ElapsedSinceLastActiveTime > max.Value.ElapsedSinceLastActiveTime ? current : max);
+
+                                Utils.LogInfo("TCPLISTENER: Channel Id {0} scheduled for IdleCleanup - Oldest without established session.",
+                                    oldestIdChannel.Value.Id);
+                                oldestIdChannel.Value.IdleCleanup();
+                                Utils.LogInfo("TCPLISTENER: Channel Id {0} finished IdleCleanup - Oldest without established session.",
+                                    oldestIdChannel.Value.Id);
+
+                                channelCount--;
+                            }
+                        }
+
                         bool serveChannel = !(m_maxChannelCount > 0 && m_maxChannelCount < channelCount);
                         if (!serveChannel)
                         {

@@ -18,7 +18,7 @@ using System.Security.Cryptography.X509Certificates;
 namespace Opc.Ua
 {
     /// <summary>
-    /// A message return in a Publish response.
+    /// A message returned in a Publish response.
     /// </summary>
     public partial class NotificationMessage
     {
@@ -26,10 +26,19 @@ namespace Opc.Ua
         /// <summary>
         /// The string table that was received with the message.
         /// </summary>
-        public List<string> StringTable
+        public StringCollection StringTable
         {
             get { return m_stringTable; }
             set { m_stringTable = value; }
+        }
+
+        /// <summary>
+        /// Gets a value indicating whether there are more NotificationMessages for this publish interval.
+        /// </summary>
+        public bool MoreNotifications
+        {
+            get { return m_moreNotifications; }
+            set { m_moreNotifications = value; }
         }
 
         /// <summary>
@@ -120,7 +129,6 @@ namespace Opc.Ua
                     continue;
                 }
 
-
                 if (!(extension.Body is EventNotificationList notification))
                 {
                     continue;
@@ -159,7 +167,8 @@ namespace Opc.Ua
         #endregion
 
         #region Private Fields
-        private List<string> m_stringTable;
+        private bool m_moreNotifications;
+        private StringCollection m_stringTable;
         #endregion
     }
 }

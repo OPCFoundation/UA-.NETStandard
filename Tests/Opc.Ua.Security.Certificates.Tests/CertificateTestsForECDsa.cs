@@ -107,13 +107,13 @@ namespace Opc.Ua.Security.Certificates.Tests
                     Assert.AreNotEqual(previousSerialNumber, cert.GetSerialNumber());
                     X509PfxUtils.VerifyECDsaKeyPair(cert, cert, true);
                     Assert.True(X509Utils.VerifySelfSigned(cert));
-                    CheckPEMWriter(cert);
+                    CheckPEMWriterReader(cert);
                 }
             }
         }
 
         /// <summary>
-        /// Create the default RSA certificate.
+        /// Create the default ECDsa certificate.
         /// </summary>
         [Theory, Repeat(10)]
         public void CreateSelfSignedForECDsaDefaultTest(ECCurveHashPair eccurveHashPair)
@@ -143,7 +143,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             Assert.NotNull(keyUsage);
             X509PfxUtils.VerifyECDsaKeyPair(cert, cert, true);
             Assert.True(X509Utils.VerifySelfSigned(cert), "Verify self signed.");
-            CheckPEMWriter(cert);
+            CheckPEMWriterReader(cert);
         }
 
         [Theory, Repeat(10)]
@@ -179,7 +179,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             TestUtils.ValidateSelSignedBasicConstraints(cert);
             X509PfxUtils.VerifyECDsaKeyPair(cert, cert, true);
             Assert.True(X509Utils.VerifySelfSigned(cert));
-            CheckPEMWriter(cert);
+            CheckPEMWriterReader(cert);
         }
 
         [Theory, Repeat(10)]
@@ -203,7 +203,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             Assert.False(basicConstraintsExtension.HasPathLengthConstraint);
             X509PfxUtils.VerifyECDsaKeyPair(cert, cert, true);
             Assert.True(X509Utils.VerifySelfSigned(cert));
-            CheckPEMWriter(cert);
+            CheckPEMWriterReader(cert);
         }
 
         [Test]
@@ -337,7 +337,7 @@ namespace Opc.Ua.Security.Certificates.Tests
                     .CreateForECDsa(generator);
                 Assert.NotNull(cert);
                 WriteCertificate(cert, "Default signed RSA cert");
-                CheckPEMWriter(cert);
+                CheckPEMWriterReader(cert);
             }
 
             // ensure invalid path throws argument exception
@@ -399,15 +399,22 @@ namespace Opc.Ua.Security.Certificates.Tests
             }
         }
 
-        private void CheckPEMWriter(X509Certificate2 certificate, string password = null)
+        private void CheckPEMWriterReader(X509Certificate2 certificate, string password = null)
         {
             PEMWriter.ExportCertificateAsPEM(certificate);
             if (certificate.HasPrivateKey)
             {
+#if NET48
+                byte[] exportedPrivateKey = PEMWriter.ExportPrivateKeyAsPEM(certificate, password);
+                ECDsa ecdsaPrivKey = PEMReader.ImportECDsaPrivateKeyFromPEM(exportedPrivateKey, password);
+#endif
 #if !NETFRAMEWORK
-                PEMWriter.ExportPrivateKeyAsPEM(certificate, password);
+                PEMWriter.ExportPrivateKeyAsPEM(certificate, password);        
 #if NETCOREAPP3_1 || NET5_0_OR_GREATER
-                PEMWriter.ExportECDsaPrivateKeyAsPEM(certificate);
+                byte[] exportedPrivateKey = null;
+                ECDsa ecdsaPrivKey = null;
+                exportedPrivateKey = PEMWriter.ExportECDsaPrivateKeyAsPEM(certificate);
+                ecdsaPrivKey = PEMReader.ImportECDsaPrivateKeyFromPEM(exportedPrivateKey, password);
 #endif
 #endif
             }

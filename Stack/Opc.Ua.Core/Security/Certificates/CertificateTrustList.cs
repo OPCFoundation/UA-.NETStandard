@@ -10,6 +10,8 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
+#nullable enable
+
 using System;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
@@ -47,13 +49,16 @@ namespace Opc.Ua
         {
             X509Certificate2Collection collection = new X509Certificate2Collection();
 
-            if (!String.IsNullOrEmpty(this.StorePath))
+            if (!string.IsNullOrEmpty(this.StorePath))
             {
-                ICertificateStore store = null;
+                ICertificateStore? store = null;
                 try
                 {
                     store = OpenStore();
-                    collection = await store.Enumerate().ConfigureAwait(false);
+                    if (store != null)
+                    {
+                        collection = await store.Enumerate().ConfigureAwait(false);
+                    }
                 }
                 catch (Exception)
                 {
@@ -68,7 +73,7 @@ namespace Opc.Ua
 
             foreach (CertificateIdentifier trustedCertificate in TrustedCertificates)
             {
-                X509Certificate2 certificate = await trustedCertificate.Find().ConfigureAwait(false);
+                X509Certificate2? certificate = await trustedCertificate.Find().ConfigureAwait(false);
 
                 if (certificate != null)
                 {

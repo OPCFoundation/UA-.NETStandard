@@ -426,8 +426,20 @@ namespace Opc.Ua
             byte[] pemDataBlob,
             string password = null)
         {
-            RSA rsaPrivateKey = PEMReader.ImportPrivateKeyFromPEM(pemDataBlob, password);
-            return X509CertificateLoader.LoadCertificate(certificate.RawData).CopyWithPrivateKey(rsaPrivateKey);
+            if (X509Utils.IsECDsaSignature(certificate))
+            {
+                using (ECDsa ecdsaPrivateKey = PEMReader.ImportECDsaPrivateKeyFromPEM(pemDataBlob, password))
+                {
+                    return X509CertificateLoader.LoadCertificate(certificate.RawData).CopyWithPrivateKey(ecdsaPrivateKey);
+                };
+            }
+            else
+            {
+                using (RSA rsaPrivateKey = PEMReader.ImportRsaPrivateKeyFromPEM(pemDataBlob, password))
+                {
+                    return X509CertificateLoader.LoadCertificate(certificate.RawData).CopyWithPrivateKey(rsaPrivateKey);
+                };
+            }
         }
 #else
         /// <summary>
@@ -479,38 +491,60 @@ namespace Opc.Ua
             byte[] pemDataBlob,
             string password = null)
         {
-            RSA privateKey = PEMReader.ImportPrivateKeyFromPEM(pemDataBlob, password);
-            if (privateKey == null)
+#if ECC_SUPPORT
+            if (X509Utils.IsECDsaSignature(certificate))
             {
-                throw new ServiceResultException("PEM data blob does not contain a private key.");
-            }
+                using (ECDsa privateKey = PEMReader.ImportECDsaPrivateKeyFromPEM(pemDataBlob, password))
+                {
+                    if (privateKey == null)
+                    {
+                        throw new ServiceResultException("PEM data blob does not contain a private key.");
+                    }
 
-            string passcode = X509Utils.GeneratePasscode();
-            byte[] pfxData = CertificateBuilder.CreatePfxWithRSAPrivateKey(
-                certificate, certificate.FriendlyName, privateKey, passcode);
-            return X509Utils.CreateCertificateFromPKCS12(pfxData, passcode);
+                    string passcode = X509Utils.GeneratePasscode();
+                    byte[] pfxData = CertificateBuilder.CreatePfxWithECdsaPrivateKey(
+                        certificate, certificate.FriendlyName, privateKey, passcode);
+                    return X509Utils.CreateCertificateFromPKCS12(pfxData, passcode);
+                }
+            }
+            else
+#endif
+            {
+                using (RSA privateKey = PEMReader.ImportRsaPrivateKeyFromPEM(pemDataBlob, password))
+                {
+                    if (privateKey == null)
+                    {
+                        throw new ServiceResultException("PEM data blob does not contain a private key.");
+                    }
+
+                    string passcode = X509Utils.GeneratePasscode();
+                    byte[] pfxData = CertificateBuilder.CreatePfxWithRSAPrivateKey(
+                        certificate, certificate.FriendlyName, privateKey, passcode);
+                    return X509Utils.CreateCertificateFromPKCS12(pfxData, passcode);
+                }
+            }
         }
 #endif
-        #endregion
+#endregion
 
-        #region Internal Methods
-        /// <summary>
-        /// Creates a self-signed, signed or CA certificate.
-        /// </summary>
-        /// <param name="applicationUri">The application uri (created if not specified).</param>
-        /// <param name="applicationName">Name of the application (optional if subjectName is specified).</param>
-        /// <param name="subjectName">The subject used to create the certificate (optional if applicationName is specified).</param>
-        /// <param name="domainNames">The domain names that can be used to access the server machine (defaults to local computer name if not specified).</param>
-        /// <param name="keySize">Size of the key (1024, 2048 or 4096).</param>
-        /// <param name="startTime">The start time.</param>
-        /// <param name="lifetimeInMonths">The lifetime of the key in months.</param>
-        /// <param name="hashSizeInBits">The hash size in bits.</param>
-        /// <param name="isCA">if set to <c>true</c> then a CA certificate is created.</param>
-        /// <param name="issuerCAKeyCert">The CA cert with the CA private key.</param>
-        /// <param name="publicKey">The public key if no new keypair is created.</param>
-        /// <param name="pathLengthConstraint">The path length constraint for CA certs.</param>
-        /// <returns>The certificate with a private key.</returns>
-        [Obsolete("Use the new CreateCertificate methods with CertificateBuilder.")]
+            #region Internal Methods
+            /// <summary>
+            /// Creates a self-signed, signed or CA certificate.
+            /// </summary>
+            /// <param name="applicationUri">The application uri (created if not specified).</param>
+            /// <param name="applicationName">Name of the application (optional if subjectName is specified).</param>
+            /// <param name="subjectName">The subject used to create the certificate (optional if applicationName is specified).</param>
+            /// <param name="domainNames">The domain names that can be used to access the server machine (defaults to local computer name if not specified).</param>
+            /// <param name="keySize">Size of the key (1024, 2048 or 4096).</param>
+            /// <param name="startTime">The start time.</param>
+            /// <param name="lifetimeInMonths">The lifetime of the key in months.</param>
+            /// <param name="hashSizeInBits">The hash size in bits.</param>
+            /// <param name="isCA">if set to <c>true</c> then a CA certificate is created.</param>
+            /// <param name="issuerCAKeyCert">The CA cert with the CA private key.</param>
+            /// <param name="publicKey">The public key if no new keypair is created.</param>
+            /// <param name="pathLengthConstraint">The path length constraint for CA certs.</param>
+            /// <returns>The certificate with a private key.</returns>
+            [Obsolete("Use the new CreateCertificate methods with CertificateBuilder.")]
         internal static X509Certificate2 CreateCertificate(
         string applicationUri,
         string applicationName,

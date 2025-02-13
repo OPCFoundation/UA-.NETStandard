@@ -155,6 +155,29 @@ namespace Opc.Ua.Security.Certificates
             }
         }
 
+#if NET472_OR_GREATER
+        /// <summary>
+        /// Create a Pfx with a private key by combining 
+        /// an existing X509Certificate2 and a RSA private key.
+        /// </summary>
+        public static byte[] CreatePfxWithECdsaPrivateKey(
+            X509Certificate2 certificate,
+            string friendlyName,
+            ECDsa privateKey,
+            string passcode)
+        {
+            Org.BouncyCastle.X509.X509Certificate x509 = new X509CertificateParser().ReadCertificate(certificate.RawData);
+            using (var cfrg = new CryptoApiRandomGenerator())
+            {
+                return X509Utils.CreatePfxWithPrivateKey(
+                    x509, friendlyName,
+                    X509Utils.GetECDsaPrivateKeyParameter(privateKey),
+                    passcode,
+                    new SecureRandom(cfrg));
+            }
+        }
+#endif
+
         /// <summary>
         /// Creates a certificate signing request from an
         /// existing certificate with a private key.

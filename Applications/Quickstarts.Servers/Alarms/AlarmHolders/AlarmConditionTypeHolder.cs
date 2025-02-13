@@ -28,7 +28,7 @@
  * ======================================================================*/
 
 using System;
-
+using System.Globalization;
 using Opc.Ua;
 
 #pragma warning disable CS1591
@@ -272,7 +272,7 @@ namespace Alarms
                 }
                 else
                 {
-                    dueTo = " due to TimedShelve of " + shelvingTime.ToString();
+                    dueTo = " due to TimedShelve of " + shelvingTime.ToString(CultureInfo.InvariantCulture);
                 }
             }
             else

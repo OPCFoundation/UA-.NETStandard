@@ -525,10 +525,10 @@ namespace Opc.Ua.Configuration
 
             // reload the certificate from disk in the cache.
             var passwordProvider = configuration.SecurityConfiguration.CertificatePasswordProvider;
-            await id.LoadPrivateKeyEx(passwordProvider).ConfigureAwait(false);
+            await id.LoadPrivateKeyEx(passwordProvider, configuration.ApplicationUri).ConfigureAwait(false);
 
             // load the certificate
-            X509Certificate2 certificate = await id.Find(true).ConfigureAwait(false);
+            X509Certificate2 certificate = await id.Find(true, configuration.ApplicationUri).ConfigureAwait(false);
 
             // check that it is ok.
             if (certificate != null)
@@ -550,7 +550,7 @@ namespace Opc.Ua.Configuration
             else
             {
                 // check for missing private key.
-                certificate = await id.Find(false).ConfigureAwait(false);
+                certificate = await id.Find(false, configuration.ApplicationUri).ConfigureAwait(false);
 
                 if (certificate != null)
                 {
@@ -568,7 +568,7 @@ namespace Opc.Ua.Configuration
                             StorePath = id.StorePath,
                             SubjectName = id.SubjectName
                         };
-                        certificate = await id2.Find(true).ConfigureAwait(false);
+                        certificate = await id2.Find(true, configuration.ApplicationUri).ConfigureAwait(false);
                     }
 
                     if (certificate != null)
@@ -910,44 +910,18 @@ namespace Opc.Ua.Configuration
 #if !ECC_SUPPORT
                 throw new ServiceResultException(StatusCodes.BadConfigurationError, "The Ecc certificate type is not supported.");
 #else
-                ECCurve curve = default(ECCurve);
-                if (id.CertificateType == ObjectTypeIds.EccApplicationCertificateType ||
-                    id.CertificateType == ObjectTypeIds.EccNistP256ApplicationCertificateType)
+                ECCurve? curve = EccUtils.GetCurveFromCertificateTypeId(id.CertificateType);
+
+                if(curve == null)
                 {
-                    curve = ECCurve.NamedCurves.nistP256;
-                }
-                else if (id.CertificateType == ObjectTypeIds.EccNistP384ApplicationCertificateType)
-                {
-                    curve = ECCurve.NamedCurves.nistP384;
-                }
-                else if (id.CertificateType == ObjectTypeIds.EccBrainpoolP256r1ApplicationCertificateType)
-                {
-                    curve = ECCurve.NamedCurves.brainpoolP256r1;
-                }
-                else if (id.CertificateType == ObjectTypeIds.EccBrainpoolP384r1ApplicationCertificateType)
-                {
-                    curve = ECCurve.NamedCurves.brainpoolP384r1;
-                }
-#if CURVE25519
-                else if (id.CertificateType == ObjectTypeIds.EccCurve25519ApplicationCertificateType)
-                {
-                    curve = default(ECCurve);
-                }
-                else if (id.CertificateType == ObjectTypeIds.EccCurve448ApplicationCertificateType)
-                {
-                    curve = default(ECCurve);
-                }
-#endif
-                else
-                {
-                    throw new ServiceResultException(StatusCodes.BadConfigurationError, "The ECC certificate type is not supported.");
+                    throw new ServiceResultException(StatusCodes.BadConfigurationError, "The Ecc certificate type is not supported.");
                 }
 
                 id.Certificate = builder
-                    .SetECCurve(curve)
+                    .SetECCurve(curve.Value)
                     .CreateForECDsa();
 
-                Utils.LogCertificate("Certificate created for {0}.", id.Certificate, curve.Oid.FriendlyName);
+                Utils.LogCertificate("Certificate created for {0}.", id.Certificate, curve.Value.Oid.FriendlyName);
 #endif
             }
 
@@ -965,7 +939,7 @@ namespace Opc.Ua.Configuration
             }
 
             // reload the certificate from disk.
-            id.Certificate = await id.LoadPrivateKeyEx(passwordProvider).ConfigureAwait(false);
+            id.Certificate = await id.LoadPrivateKeyEx(passwordProvider, configuration.ApplicationUri).ConfigureAwait(false);
 
             await configuration.CertificateValidator.UpdateAsync(configuration.SecurityConfiguration).ConfigureAwait(false);
 
@@ -990,7 +964,7 @@ namespace Opc.Ua.Configuration
             }
 
             // delete certificate and private key.
-            X509Certificate2 certificate = await id.Find().ConfigureAwait(false);
+            X509Certificate2 certificate = await id.Find(configuration.ApplicationUri).ConfigureAwait(false);
             if (certificate != null)
             {
                 Utils.LogCertificate(TraceMasks.Security, "Deleting application instance certificate and private key.", certificate);
@@ -1163,7 +1137,7 @@ namespace Opc.Ua.Configuration
                 return false;
             }
         }
-        #endregion
+#endregion
 
         #region Private Fields
         private string m_applicationName;

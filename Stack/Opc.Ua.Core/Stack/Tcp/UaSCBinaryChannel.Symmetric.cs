@@ -72,7 +72,6 @@ namespace Opc.Ua.Bindings
             Utils.SilentDispose(m_previousToken);
             m_previousToken = m_currentToken;
             m_currentToken = token;
-            Utils.SilentDispose(m_renewedToken);
             m_renewedToken = null;
 
             OnTokenActivated?.Invoke(token, m_previousToken);

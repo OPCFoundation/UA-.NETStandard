@@ -10,6 +10,8 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
+#nullable enable
+
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -36,7 +38,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="storePath">The store path of the store.</param>
         /// <param name="noPrivateKeys">If the store supports no private keys.</param>
-        public CertificateStoreIdentifier(string storePath, bool noPrivateKeys = true)
+        public CertificateStoreIdentifier(string? storePath, bool noPrivateKeys = true)
         {
             StorePath = storePath;
             StoreType = DetermineStoreType(storePath);
@@ -49,7 +51,7 @@ namespace Opc.Ua
         /// <param name="storePath">The store path of the store.</param>
         /// <param name="storeType">The type of the store.</param>
         /// <param name="noPrivateKeys">If the store supports no private keys.</param>
-        public CertificateStoreIdentifier(string storePath, string storeType, bool noPrivateKeys = true)
+        public CertificateStoreIdentifier(string? storePath, string? storeType, bool noPrivateKeys = true)
         {
             StorePath = storePath;
             StoreType = storeType;
@@ -86,7 +88,7 @@ namespace Opc.Ua
         /// <returns>
         /// A <see cref="System.String"/> containing the value of the current instance in the specified format.
         /// </returns>
-        public string ToString(string format, IFormatProvider formatProvider)
+        public string ToString(string? format, IFormatProvider? formatProvider)
         {
             if (format != null) throw new FormatException(Utils.Format("Invalid format string: '{0}'.", format));
             return ToString();
@@ -145,14 +147,14 @@ namespace Opc.Ua
         /// <summary>
         /// Detects the type of store represented by the path.
         /// </summary>
-        public static string DetermineStoreType(string storePath)
+        public static string DetermineStoreType(string? storePath)
         {
-            if (String.IsNullOrEmpty(storePath))
+            if (string.IsNullOrEmpty(storePath))
             {
                 return CertificateStoreType.Directory;
             }
 
-            if (storePath.StartsWith(LocalMachine, StringComparison.OrdinalIgnoreCase))
+            if (storePath!.StartsWith(LocalMachine, StringComparison.OrdinalIgnoreCase))
             {
                 return CertificateStoreType.X509Store;
             }
@@ -164,8 +166,8 @@ namespace Opc.Ua
 
             foreach (string storeTypeName in CertificateStoreType.RegisteredStoreTypeNames)
             {
-                ICertificateStoreType storeType = CertificateStoreType.GetCertificateStoreTypeByName(storeTypeName);
-                if (storeType.SupportsStorePath(storePath))
+                ICertificateStoreType? storeType = CertificateStoreType.GetCertificateStoreTypeByName(storeTypeName);
+                if (storeType?.SupportsStorePath(storePath) == true)
                 {
                     return storeTypeName;
                 }
@@ -177,11 +179,11 @@ namespace Opc.Ua
         /// <summary>
         /// Returns an object that can be used to access the store.
         /// </summary>
-        public static ICertificateStore CreateStore(string storeTypeName)
+        public static ICertificateStore CreateStore(string? storeTypeName)
         {
-            ICertificateStore store = null;
+            ICertificateStore store;
 
-            if (String.IsNullOrEmpty(storeTypeName))
+            if (string.IsNullOrEmpty(storeTypeName))
             {
                 return new CertificateIdentifierCollection();
             }
@@ -200,7 +202,7 @@ namespace Opc.Ua
                 }
                 default:
                 {
-                    ICertificateStoreType storeType = CertificateStoreType.GetCertificateStoreTypeByName(storeTypeName);
+                    ICertificateStoreType? storeType = CertificateStoreType.GetCertificateStoreTypeByName(storeTypeName);
                     if (storeType != null)
                     {
                         store = storeType.CreateStore();
@@ -222,9 +224,9 @@ namespace Opc.Ua
         /// enforce unnecessary refresh of the cached certificate store.
         /// </remarks>
         /// <returns>A disposable instance of the <see cref="ICertificateStore"/>.</returns>
-        public virtual ICertificateStore OpenStore()
+        public virtual ICertificateStore? OpenStore()
         {
-            ICertificateStore store = m_store;
+            ICertificateStore? store = m_store;
 
             // determine if the store configuration changed
             if (store != null &&
@@ -248,8 +250,10 @@ namespace Opc.Ua
                     store = currentStore;
                 }
             }
-
-            store?.Open(this.StorePath, m_noPrivateKeys);
+            if (this.StorePath != null)
+            {
+                store?.Open(this.StorePath, m_noPrivateKeys);
+            }
 
             return store;
         }
@@ -273,7 +277,7 @@ namespace Opc.Ua
         #endregion
 
         #region Private Variables
-        private ICertificateStore m_store;
+        private ICertificateStore? m_store;
         private bool m_noPrivateKeys;
         #endregion
     }
@@ -307,10 +311,15 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="storeTypeName"></param>
         /// <returns></returns>
-        public static ICertificateStoreType GetCertificateStoreTypeByName(string storeTypeName)
+        public static ICertificateStoreType? GetCertificateStoreTypeByName(string? storeTypeName)
         {
-            ICertificateStoreType result;
-            s_registeredStoreTypes.TryGetValue(storeTypeName, out result);
+            if (string.IsNullOrEmpty(storeTypeName))
+            {
+                return null;
+            }
+
+            ICertificateStoreType? result;
+            s_registeredStoreTypes.TryGetValue(storeTypeName!, out result);
             return result;
         }
 
