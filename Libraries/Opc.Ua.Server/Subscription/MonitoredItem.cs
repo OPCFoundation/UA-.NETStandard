@@ -1099,18 +1099,7 @@ namespace Opc.Ua.Server
                     alarmCondition.SupportsFilteredRetain.Value &&
                     filter.SelectClauses != null)
                 {
-                    int lastIndex = filter.SelectClauses.Count - 1;
-                    object value = instance.GetAttributeValue(
-                        context,
-                        filter.SelectClauses[lastIndex].TypeDefinitionId,
-                        filter.SelectClauses[lastIndex].BrowsePath,
-                        filter.SelectClauses[lastIndex].AttributeId,
-                        filter.SelectClauses[lastIndex].ParsedIndexRange);
-
-                    if (value != null)
-                    {
-                        conditionId = value as NodeId;
-                    }
+                    conditionId = alarmCondition.NodeId;
                 }
             }
 
