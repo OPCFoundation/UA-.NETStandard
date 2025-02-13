@@ -219,7 +219,7 @@ namespace Opc.Ua.Bindings
                         m_kBlockDurationMs);
                 }
 
-                // Remove clients that haven't had any potential problematic actions in the last m_kEntryExpirationMs interval 
+                // Remove clients that haven't had any potential problematic actions in the last m_kEntryExpirationMs interval
                 int elapsedSinceBadActionTicks = currentTicks - rClient.LastActionTicks;
                 if (elapsedSinceBadActionTicks > m_kEntryExpirationMs)
                 {
@@ -246,7 +246,7 @@ namespace Opc.Ua.Bindings
             {
                 return false;
             }
-            // C# signed arithmetic 
+            // C# signed arithmetic
             int diff = blockedUntilTicks - currentTicks;
             // If currentTicks < blockedUntilTicks then it is still blocked
             // Works even if TickCount has wrapped around due to C# signed integer arithmetic
@@ -394,6 +394,7 @@ namespace Opc.Ua.Bindings
             m_channels = new ConcurrentDictionary<uint, TcpListenerChannel>();
             m_reverseConnectListener = settings.ReverseConnectListener;
             m_maxChannelCount = settings.MaxChannelCount;
+            m_transportMode = settings.TransportMode;
 
             // save the callback to the server.
             m_callback = callback;
@@ -504,7 +505,8 @@ namespace Opc.Ua.Bindings
                 m_bufferManager,
                 m_quotas,
                 m_serverCertificateTypesProvider,
-                m_descriptions);
+                m_descriptions,
+                m_transportMode);
 
             uint channelId = GetNextChannelId();
             channel.StatusChanged += Channel_StatusChanged;
@@ -859,7 +861,8 @@ namespace Opc.Ua.Bindings
                                         m_bufferManager,
                                         m_quotas,
                                         m_serverCertificateTypesProvider,
-                                        m_descriptions);
+                                    m_descriptions,
+                                    m_transportMode);
                                 }
 
                                 if (m_callback != null)
@@ -1115,13 +1118,13 @@ namespace Opc.Ua.Bindings
         private int m_inactivityDetectPeriod;
         private Timer m_inactivityDetectionTimer;
         private int m_maxChannelCount;
-
         private ActiveClientTracker m_activeClientTracker;
+        private MessageTransportMode m_transportMode;
         #endregion
     }
 
     /// <summary>
-    /// The Tcp specific arguments passed to the ConnectionWaiting event. 
+    /// The Tcp specific arguments passed to the ConnectionWaiting event.
     /// </summary>
     public class TcpConnectionWaitingEventArgs : ConnectionWaitingEventArgs
     {
