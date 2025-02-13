@@ -855,29 +855,21 @@ namespace Opc.Ua
                 return null;
             }
 
-            var bytes = SafeConvertFromBase64String(value);
-
-            if (bytes != null && bytes.Length > 0)
+            try
             {
-                try
-                {
-                    XmlDocument document = new XmlDocument();
-                    string xmlString = Encoding.UTF8.GetString(bytes, 0, bytes.Length);
+                XmlDocument document = new XmlDocument();
 
-                    using (XmlReader reader = XmlReader.Create(new StringReader(xmlString), Utils.DefaultXmlReaderSettings()))
-                    {
-                        document.Load(reader);
-                    }
-
-                    return document.DocumentElement;
-                }
-                catch (XmlException xe)
+                using (XmlReader reader = XmlReader.Create(new StringReader(value), Utils.DefaultXmlReaderSettings()))
                 {
-                    throw ServiceResultException.Create(StatusCodes.BadDecodingError, "Unable to decode Xml: {0}", xe.Message);
+                    document.Load(reader);
                 }
+
+                return document.DocumentElement;
             }
-
-            return null;
+            catch (XmlException xe)
+            {
+                throw ServiceResultException.Create(StatusCodes.BadDecodingError, "Unable to decode Xml: {0}", xe.Message);
+            }
         }
 
         /// <summary>
@@ -894,14 +886,24 @@ namespace Opc.Ua
 
             if (token is string text)
             {
-                var nodeId = NodeId.Parse(
-                    m_context,
-                    text,
-                    new NodeIdParsingOptions() {
-                        UpdateTables = UpdateNamespaceTable,
-                        NamespaceMappings = m_namespaceMappings,
-                        ServerMappings = m_serverMappings
-                    });
+                NodeId nodeId;
+
+                try
+                {
+                    nodeId = NodeId.Parse(
+                        m_context,
+                        text,
+                        new NodeIdParsingOptions() {
+                            UpdateTables = UpdateNamespaceTable,
+                            NamespaceMappings = m_namespaceMappings,
+                            ServerMappings = m_serverMappings
+                        });
+                }
+                catch
+                {
+                    // fallback on error. this allows the application to sort out the problem.
+                    nodeId = new NodeId(text, 0);
+                }
 
                 return nodeId;
             }
@@ -993,16 +995,26 @@ namespace Opc.Ua
 
             if (token is string text)
             {
-                var nodeId = ExpandedNodeId.Parse(
-                    m_context,
-                    text,
-                    new NodeIdParsingOptions() {
-                        UpdateTables = UpdateNamespaceTable,
-                        NamespaceMappings = m_namespaceMappings,
-                        ServerMappings = m_serverMappings
-                    });
+                ExpandedNodeId nodeId;
 
-                return nodeId;
+                try
+                {
+                    nodeId = ExpandedNodeId.Parse(
+                        m_context,
+                        text,
+                        new NodeIdParsingOptions() {
+                            UpdateTables = UpdateNamespaceTable,
+                            NamespaceMappings = m_namespaceMappings,
+                            ServerMappings = m_serverMappings
+                        });
+
+                    return nodeId;
+                }
+                catch
+                {
+                    // fallback on error. this allows the application to sort out the problem.
+                    nodeId = new NodeId(text, 0);
+                }
             }
 
             if (!(token is Dictionary<string, object> value))
@@ -1173,16 +1185,26 @@ namespace Opc.Ua
 
             if (token is string text)
             {
-                var qn = QualifiedName.Parse(m_context, text, UpdateNamespaceTable);
+                QualifiedName qn;
 
-                if (qn.NamespaceIndex != 0)
+                try
                 {
-                    var ns = ToNamespaceIndex(qn.NamespaceIndex);
+                    qn = QualifiedName.Parse(m_context, text, UpdateNamespaceTable);
 
-                    if (ns != qn.NamespaceIndex)
+                    if (qn.NamespaceIndex != 0)
                     {
-                        qn = new QualifiedName(qn.Name, ns);
+                        var ns = ToNamespaceIndex(qn.NamespaceIndex);
+
+                        if (ns != qn.NamespaceIndex)
+                        {
+                            qn = new QualifiedName(qn.Name, ns);
+                        }
                     }
+                }
+                catch (Exception)
+                {
+                    // fallback on error. this allows the application to sort out the problem.
+                    qn = new QualifiedName(text, 0);
                 }
 
                 return qn;

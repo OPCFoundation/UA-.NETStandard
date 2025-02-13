@@ -1205,27 +1205,19 @@ namespace Opc.Ua
             }
 
             var xml = value.OuterXml;
-            int maxByteCount = Encoding.UTF8.GetMaxByteCount(xml.Length);
-            byte[] encodedBytes = ArrayPool<byte>.Shared.Rent(maxByteCount);
-            try
-            {
-                int count = Encoding.UTF8.GetBytes(xml, 0, xml.Length, encodedBytes, 0);
 
-                if (m_context.MaxByteStringLength > 0 && m_context.MaxByteStringLength < count)
-                {
-                    throw ServiceResultException.Create(
-                        StatusCodes.BadEncodingLimitsExceeded,
-                        "MaxByteStringLength {0} < {1}",
-                        m_context.MaxByteStringLength,
-                        count);
-                }
+            int count = xml.Length;
 
-                WriteSimpleField(fieldName, Convert.ToBase64String(encodedBytes, 0, count), EscapeOptions.Quotes | EscapeOptions.NoValueEscape);
-            }
-            finally
+            if (m_context.MaxStringLength > 0 && m_context.MaxStringLength < count)
             {
-                ArrayPool<byte>.Shared.Return(encodedBytes);
+                throw ServiceResultException.Create(
+                    StatusCodes.BadEncodingLimitsExceeded,
+                    "MaxStringLength {0} < {1}",
+                    m_context.MaxStringLength,
+                    count);
             }
+
+            WriteSimpleField(fieldName, xml, EscapeOptions.Quotes);
         }
 
         private void WriteNamespaceIndex(string fieldName, ushort namespaceIndex)
