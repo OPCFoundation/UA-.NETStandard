@@ -10,6 +10,10 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
+// define to enable checks for a null NodeId modification
+// some tests are failing with this enabled, only turn on to catch issues
+// #define IMMUTABLENULLNODEID
+
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -866,8 +870,11 @@ namespace Opc.Ua
         /// Returns an instance of a null NodeId.
         /// </summary>
         public static NodeId Null => s_Null;
-
+#if IMMUTABLENULLNODEID
+        private static readonly NodeId s_Null = new ImmutableNodeId();
+#else
         private static readonly NodeId s_Null = new NodeId();
+#endif
         #endregion
 
         #region Public Methods (and some Internals)
@@ -1001,6 +1008,7 @@ namespace Opc.Ua
         /// </summary>
         internal void SetNamespaceIndex(ushort value)
         {
+            ValidateImmutableNodeIdIsNotModified();
             m_namespaceIndex = value;
         }
 
@@ -1009,6 +1017,7 @@ namespace Opc.Ua
         /// </summary>
         internal void SetIdentifier(IdType idType, object value)
         {
+            ValidateImmutableNodeIdIsNotModified();
             m_identifierType = idType;
 
             switch (idType)
@@ -1038,6 +1047,8 @@ namespace Opc.Ua
         /// </summary>
         internal void SetIdentifier(string value, IdType idType)
         {
+            ValidateImmutableNodeIdIsNotModified();
+
             m_identifierType = idType;
             SetIdentifier(IdType.String, value);
         }
@@ -1495,6 +1506,8 @@ namespace Opc.Ua
             }
             set
             {
+                ValidateImmutableNodeIdIsNotModified();
+
                 NodeId nodeId = NodeId.Parse(value);
 
                 m_namespaceIndex = nodeId.NamespaceIndex;
@@ -1859,6 +1872,21 @@ namespace Opc.Ua
                 }
             }
         }
+
+        /// <summary>
+        /// Validate that an immutable NodeId is not overwritten.
+        /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
+        [Conditional("IMMUTABLENULLNODEID")]
+        private void ValidateImmutableNodeIdIsNotModified()
+        {
+#if IMMUTABLENULLNODEID
+            if (this is ImmutableNodeId)
+            {
+                throw new InvalidOperationException("Cannot modify the immutable NodeId.Null.");
+            }
+#endif
+        }
         #endregion
 
         #region Private Fields
@@ -1867,6 +1895,20 @@ namespace Opc.Ua
         private object m_identifier;
         #endregion
     }
+
+#if IMMUTABLENULLNODEID
+    #region ImmutableNodeId
+    /// <summary>
+    /// A NodeId class as helper to catch if the immutable NodeId.Null is being modified.
+    /// </summary>
+    internal class ImmutableNodeId : NodeId
+    {
+        internal ImmutableNodeId()
+        {
+        }
+    }
+    #endregion
+#endif
 
     #region NodeIdCollection Class
     /// <summary>
@@ -1993,6 +2035,7 @@ namespace Opc.Ua
         /// </summary>
         public ushort[] ServerMappings { get; set; }
     }
+
     #region NodeIdComparer Class
     /// <summary>
     /// Helper which implements a NodeId IEqualityComparer for Linq queries.
