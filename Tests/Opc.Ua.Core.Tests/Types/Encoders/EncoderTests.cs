@@ -55,6 +55,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         }
 
         public EncodingType EncoderType { get; }
+
         public JsonEncodingType JsonEncodingType { get; }
 
         public string ToString(string format, IFormatProvider formatProvider)

@@ -105,7 +105,7 @@
       <uax:NumericId>723</uax:NumericId>
       <uax:Value>
         <uax:Value>
-          <uax:String>1.05.02</uax:String>
+          <uax:String>1.05.04</uax:String>
         </uax:Value>
       </uax:Value>
       <uax:DataType>
@@ -133,7 +133,7 @@
       <uax:NumericId>724</uax:NumericId>
       <uax:Value>
         <uax:Value>
-          <uax:DateTime>2023-12-15T00:00:00Z</uax:DateTime>
+          <uax:DateTime>2025-01-08T00:00:00Z</uax:DateTime>
         </uax:Value>
       </uax:Value>
       <uax:DataType>
@@ -350,7 +350,7 @@
       <uax:NumericId>1756</uax:NumericId>
       <uax:Value>
         <uax:Value>
-          <uax:String>1.5.2</uax:String>
+          <uax:String>1.5.4</uax:String>
         </uax:Value>
       </uax:Value>
       <uax:DataType>
@@ -435,8 +435,8 @@
         <uax:Identifier>i=1</uax:Identifier>
       </uax:DataType>
       <uax:ValueRank>-1</uax:ValueRank>
-      <uax:AccessLevel>1</uax:AccessLevel>
-      <uax:UserAccessLevel>1</uax:UserAccessLevel>
+      <uax:AccessLevel>3</uax:AccessLevel>
+      <uax:UserAccessLevel>3</uax:UserAccessLevel>
     </ApplicationsExclude>
     <Applications xmlns="http://opcfoundation.org/UA/">
       <uax:NodeClass>Variable_2</uax:NodeClass>
@@ -482,8 +482,8 @@
         <uax:Identifier>i=1</uax:Identifier>
       </uax:DataType>
       <uax:ValueRank>-1</uax:ValueRank>
-      <uax:AccessLevel>1</uax:AccessLevel>
-      <uax:UserAccessLevel>1</uax:UserAccessLevel>
+      <uax:AccessLevel>3</uax:AccessLevel>
+      <uax:UserAccessLevel>3</uax:UserAccessLevel>
     </EndpointsExclude>
     <Endpoints xmlns="http://opcfoundation.org/UA/">
       <uax:NodeClass>Variable_2</uax:NodeClass>
@@ -968,8 +968,8 @@
         <uax:Identifier>i=1</uax:Identifier>
       </uax:DataType>
       <uax:ValueRank>-1</uax:ValueRank>
-      <uax:AccessLevel>1</uax:AccessLevel>
-      <uax:UserAccessLevel>1</uax:UserAccessLevel>
+      <uax:AccessLevel>3</uax:AccessLevel>
+      <uax:UserAccessLevel>3</uax:UserAccessLevel>
     </ApplicationsExclude>
     <Applications xmlns="http://opcfoundation.org/UA/">
       <uax:NodeClass>Variable_2</uax:NodeClass>
@@ -1015,8 +1015,8 @@
         <uax:Identifier>i=1</uax:Identifier>
       </uax:DataType>
       <uax:ValueRank>-1</uax:ValueRank>
-      <uax:AccessLevel>1</uax:AccessLevel>
-      <uax:UserAccessLevel>1</uax:UserAccessLevel>
+      <uax:AccessLevel>3</uax:AccessLevel>
+      <uax:UserAccessLevel>3</uax:UserAccessLevel>
     </EndpointsExclude>
     <Endpoints xmlns="http://opcfoundation.org/UA/">
       <uax:NodeClass>Variable_2</uax:NodeClass>
@@ -1501,8 +1501,8 @@
         <uax:Identifier>i=1</uax:Identifier>
       </uax:DataType>
       <uax:ValueRank>-1</uax:ValueRank>
-      <uax:AccessLevel>1</uax:AccessLevel>
-      <uax:UserAccessLevel>1</uax:UserAccessLevel>
+      <uax:AccessLevel>3</uax:AccessLevel>
+      <uax:UserAccessLevel>3</uax:UserAccessLevel>
     </ApplicationsExclude>
     <Applications xmlns="http://opcfoundation.org/UA/">
       <uax:NodeClass>Variable_2</uax:NodeClass>
@@ -1548,8 +1548,8 @@
         <uax:Identifier>i=1</uax:Identifier>
       </uax:DataType>
       <uax:ValueRank>-1</uax:ValueRank>
-      <uax:AccessLevel>1</uax:AccessLevel>
-      <uax:UserAccessLevel>1</uax:UserAccessLevel>
+      <uax:AccessLevel>3</uax:AccessLevel>
+      <uax:UserAccessLevel>3</uax:UserAccessLevel>
     </EndpointsExclude>
     <Endpoints xmlns="http://opcfoundation.org/UA/">
       <uax:NodeClass>Variable_2</uax:NodeClass>
@@ -2034,8 +2034,8 @@
         <uax:Identifier>i=1</uax:Identifier>
       </uax:DataType>
       <uax:ValueRank>-1</uax:ValueRank>
-      <uax:AccessLevel>1</uax:AccessLevel>
-      <uax:UserAccessLevel>1</uax:UserAccessLevel>
+      <uax:AccessLevel>3</uax:AccessLevel>
+      <uax:UserAccessLevel>3</uax:UserAccessLevel>
     </ApplicationsExclude>
     <Applications xmlns="http://opcfoundation.org/UA/">
       <uax:NodeClass>Variable_2</uax:NodeClass>
@@ -2081,8 +2081,8 @@
         <uax:Identifier>i=1</uax:Identifier>
       </uax:DataType>
       <uax:ValueRank>-1</uax:ValueRank>
-      <uax:AccessLevel>1</uax:AccessLevel>
-      <uax:UserAccessLevel>1</uax:UserAccessLevel>
+      <uax:AccessLevel>3</uax:AccessLevel>
+      <uax:UserAccessLevel>3</uax:UserAccessLevel>
     </EndpointsExclude>
     <Endpoints xmlns="http://opcfoundation.org/UA/">
       <uax:NodeClass>Variable_2</uax:NodeClass>
@@ -2567,8 +2567,8 @@
         <uax:Identifier>i=1</uax:Identifier>
       </uax:DataType>
       <uax:ValueRank>-1</uax:ValueRank>
-      <uax:AccessLevel>1</uax:AccessLevel>
-      <uax:UserAccessLevel>1</uax:UserAccessLevel>
+      <uax:AccessLevel>3</uax:AccessLevel>
+      <uax:UserAccessLevel>3</uax:UserAccessLevel>
     </ApplicationsExclude>
     <Applications xmlns="http://opcfoundation.org/UA/">
       <uax:NodeClass>Variable_2</uax:NodeClass>
@@ -2614,8 +2614,8 @@
         <uax:Identifier>i=1</uax:Identifier>
       </uax:DataType>
       <uax:ValueRank>-1</uax:ValueRank>
-      <uax:AccessLevel>1</uax:AccessLevel>
-      <uax:UserAccessLevel>1</uax:UserAccessLevel>
+      <uax:AccessLevel>3</uax:AccessLevel>
+      <uax:UserAccessLevel>3</uax:UserAccessLevel>
     </EndpointsExclude>
     <Endpoints xmlns="http://opcfoundation.org/UA/">
       <uax:NodeClass>Variable_2</uax:NodeClass>
@@ -9362,19 +9362,19 @@
         <uax:Name>CertificateGroups</uax:Name>
       </uax:BrowseName>
       <uax:ReferenceTypeId>
-        <uax:Identifier>i=47</uax:Identifier>
+        <uax:Identifier>i=35</uax:Identifier>
       </uax:ReferenceTypeId>
       <uax:TypeDefinitionId>
         <uax:Identifier>i=13813</uax:Identifier>
       </uax:TypeDefinitionId>
       <uax:NumericId>614</uax:NumericId>
-      <DefaultApplicationGroup>
+      <DefaultApplicationGroup xmlns="http://opcfoundation.org/UA/">
         <uax:NodeClass>Object_1</uax:NodeClass>
         <uax:NodeId>
           <uax:Identifier>ns=1;i=615</uax:Identifier>
         </uax:NodeId>
         <uax:BrowseName>
-          <uax:NamespaceIndex>1</uax:NamespaceIndex>
+          <uax:NamespaceIndex>0</uax:NamespaceIndex>
           <uax:Name>DefaultApplicationGroup</uax:Name>
         </uax:BrowseName>
         <uax:ReferenceTypeId>
@@ -9394,7 +9394,7 @@
             </uax:TargetId>
           </uax:Reference>
         </uax:References>
-        <TrustList xmlns="http://opcfoundation.org/UA/">
+        <TrustList>
           <uax:NodeClass>Object_1</uax:NodeClass>
           <uax:NodeId>
             <uax:Identifier>ns=1;i=616</uax:Identifier>
@@ -10466,7 +10466,7 @@
             </InputArguments>
           </RemoveCertificate>
         </TrustList>
-        <CertificateTypes xmlns="http://opcfoundation.org/UA/">
+        <CertificateTypes>
           <uax:NodeClass>Variable_2</uax:NodeClass>
           <uax:NodeId>
             <uax:Identifier>ns=1;i=648</uax:Identifier>
@@ -10491,13 +10491,13 @@
           <uax:UserAccessLevel>1</uax:UserAccessLevel>
         </CertificateTypes>
       </DefaultApplicationGroup>
-      <DefaultHttpsGroup>
+      <DefaultHttpsGroup xmlns="http://opcfoundation.org/UA/">
         <uax:NodeClass>Object_1</uax:NodeClass>
         <uax:NodeId>
           <uax:Identifier>ns=1;i=649</uax:Identifier>
         </uax:NodeId>
         <uax:BrowseName>
-          <uax:NamespaceIndex>1</uax:NamespaceIndex>
+          <uax:NamespaceIndex>0</uax:NamespaceIndex>
           <uax:Name>DefaultHttpsGroup</uax:Name>
         </uax:BrowseName>
         <uax:ReferenceTypeId>
@@ -10517,7 +10517,7 @@
             </uax:TargetId>
           </uax:Reference>
         </uax:References>
-        <TrustList xmlns="http://opcfoundation.org/UA/">
+        <TrustList>
           <uax:NodeClass>Object_1</uax:NodeClass>
           <uax:NodeId>
             <uax:Identifier>ns=1;i=650</uax:Identifier>
@@ -11589,7 +11589,7 @@
             </InputArguments>
           </RemoveCertificate>
         </TrustList>
-        <CertificateTypes xmlns="http://opcfoundation.org/UA/">
+        <CertificateTypes>
           <uax:NodeClass>Variable_2</uax:NodeClass>
           <uax:NodeId>
             <uax:Identifier>ns=1;i=682</uax:Identifier>
@@ -11614,13 +11614,13 @@
           <uax:UserAccessLevel>1</uax:UserAccessLevel>
         </CertificateTypes>
       </DefaultHttpsGroup>
-      <DefaultUserTokenGroup>
+      <DefaultUserTokenGroup xmlns="http://opcfoundation.org/UA/">
         <uax:NodeClass>Object_1</uax:NodeClass>
         <uax:NodeId>
           <uax:Identifier>ns=1;i=683</uax:Identifier>
         </uax:NodeId>
         <uax:BrowseName>
-          <uax:NamespaceIndex>1</uax:NamespaceIndex>
+          <uax:NamespaceIndex>0</uax:NamespaceIndex>
           <uax:Name>DefaultUserTokenGroup</uax:Name>
         </uax:BrowseName>
         <uax:ReferenceTypeId>
@@ -11640,7 +11640,7 @@
             </uax:TargetId>
           </uax:Reference>
         </uax:References>
-        <TrustList xmlns="http://opcfoundation.org/UA/">
+        <TrustList>
           <uax:NodeClass>Object_1</uax:NodeClass>
           <uax:NodeId>
             <uax:Identifier>ns=1;i=684</uax:Identifier>
@@ -12712,7 +12712,7 @@
             </InputArguments>
           </RemoveCertificate>
         </TrustList>
-        <CertificateTypes xmlns="http://opcfoundation.org/UA/">
+        <CertificateTypes>
           <uax:NodeClass>Variable_2</uax:NodeClass>
           <uax:NodeId>
             <uax:Identifier>ns=1;i=716</uax:Identifier>
@@ -13853,8 +13853,8 @@ c2QiDQogIHhtbG5zOnRucz0iaHR0cDovL29wY2ZvdW5kYXRpb24ub3JnL1VBL0dEUy9UeXBlcy54
 c2QiDQogIHRhcmdldE5hbWVzcGFjZT0iaHR0cDovL29wY2ZvdW5kYXRpb24ub3JnL1VBL0dEUy9U
 eXBlcy54c2QiDQogIGVsZW1lbnRGb3JtRGVmYXVsdD0icXVhbGlmaWVkIg0KPg0KICA8eHM6YW5u
 b3RhdGlvbj4NCiAgICA8eHM6YXBwaW5mbz4NCiAgICAgIDx1YTpNb2RlbCBNb2RlbFVyaT0iaHR0
-cDovL29wY2ZvdW5kYXRpb24ub3JnL1VBL0dEUy8iIFZlcnNpb249IjEuMDUuMDIiIFB1YmxpY2F0
-aW9uRGF0ZT0iMjAyMy0xMi0xNVQwMDowMDowMFoiIC8+DQogICAgPC94czphcHBpbmZvPg0KICA8
+cDovL29wY2ZvdW5kYXRpb24ub3JnL1VBL0dEUy8iIFZlcnNpb249IjEuMDUuMDQiIFB1YmxpY2F0
+aW9uRGF0ZT0iMjAyNS0wMS0wOFQwMDowMDowMFoiIC8+DQogICAgPC94czphcHBpbmZvPg0KICA8
 L3hzOmFubm90YXRpb24+DQogIA0KICA8eHM6aW1wb3J0IG5hbWVzcGFjZT0iaHR0cDovL29wY2Zv
 dW5kYXRpb24ub3JnL1VBLzIwMDgvMDIvVHlwZXMueHNkIiAvPg0KDQogIDx4czpjb21wbGV4VHlw
 ZSBuYW1lPSJBcHBsaWNhdGlvblJlY29yZERhdGFUeXBlIj4NCiAgICA8eHM6c2VxdWVuY2U+DQog
