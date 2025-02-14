@@ -10,6 +10,7 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
+#nullable enable
 
 using System;
 using System.Collections.Generic;
@@ -56,7 +57,7 @@ namespace Opc.Ua
         /// <param name="encodedData">The encoded data.</param>
         /// <param name="useCache">if set to <c>true</c> the copy of the certificate in the cache is used.</param>
         /// <returns>The certificate.</returns>
-        public static X509Certificate2 Create(ReadOnlyMemory<byte> encodedData, bool useCache)
+        public static X509Certificate2? Create(ReadOnlyMemory<byte> encodedData, bool useCache)
         {
 #if NET6_0_OR_GREATER
             var certificate = X509CertificateLoader.LoadCertificate(encodedData.Span);
@@ -82,7 +83,7 @@ namespace Opc.Ua
         /// operations must be in a key container. 
         /// Private keys stored in a PFX file have no key container by default.
         /// </remarks>
-        public static X509Certificate2 Load(X509Certificate2 certificate, bool ensurePrivateKeyAccessible)
+        public static X509Certificate2? Load(X509Certificate2? certificate, bool ensurePrivateKeyAccessible)
         {
             if (certificate == null)
             {
@@ -91,7 +92,7 @@ namespace Opc.Ua
 
             lock (m_certificatesLock)
             {
-                X509Certificate2 cachedCertificate = null;
+                X509Certificate2? cachedCertificate = null;
 
                 // check for existing cached certificate.
                 if (m_certificates.TryGetValue(certificate.Thumbprint, out cachedCertificate))
@@ -203,8 +204,8 @@ namespace Opc.Ua
             ushort lifetimeInMonths,
             ushort hashSizeInBits,
             bool isCA = false,
-            X509Certificate2 issuerCAKeyCert = null,
-            byte[] publicKey = null,
+            X509Certificate2? issuerCAKeyCert = null,
+            byte[]? publicKey = null,
             int pathLengthConstraint = 0)
         {
             return CreateCertificate(
@@ -313,8 +314,7 @@ namespace Opc.Ua
         /// </summary>
         public static byte[] CreateSigningRequest(
             X509Certificate2 certificate,
-            // TODO: provide CertificateType to return CSR per certificate type
-            IList<String> domainNames = null
+            IList<String>? domainNames = null
             )
         {
             if (!certificate.HasPrivateKey)
@@ -322,18 +322,26 @@ namespace Opc.Ua
                 throw new NotSupportedException("Need a certificate with a private key.");
             }
 
-            CertificateRequest request = null;
+            CertificateRequest request;
             bool isECDsaSignature = X509PfxUtils.IsECDsaSignature(certificate);
 
             if (!isECDsaSignature)
             {
-                RSA rsaPublicKey = certificate.GetRSAPublicKey();
+                RSA? rsaPublicKey = certificate.GetRSAPublicKey();
+                if (rsaPublicKey == null)
+                {
+                    throw new NotSupportedException("The public key is not an RSA key.");
+                }
                 request = new CertificateRequest(certificate.SubjectName, rsaPublicKey,
                     Oids.GetHashAlgorithmName(certificate.SignatureAlgorithm.Value), RSASignaturePadding.Pkcs1);
             }
             else
             {
-                var eCDsaPublicKey = certificate.GetECDsaPublicKey();
+                ECDsa? eCDsaPublicKey = certificate.GetECDsaPublicKey();
+                if (eCDsaPublicKey == null)
+                {
+                    throw new NotSupportedException("The public key is not an ECDSA key.");
+                }
                 request = new CertificateRequest(certificate.SubjectName, eCDsaPublicKey, Oids.GetHashAlgorithmName(certificate.SignatureAlgorithm.Value));
             }
             var alternateName = X509Extensions.FindExtension<X509SubjectAltNameExtension>(certificate);
@@ -363,16 +371,24 @@ namespace Opc.Ua
             request.CertificateExtensions.Add(new X509Extension(subjectAltName, false));
             if (!isECDsaSignature)
             {
-                using (RSA rsa = certificate.GetRSAPrivateKey())
+                using (RSA? rsa = certificate.GetRSAPrivateKey())
                 {
+                    if (rsa == null)
+                    {
+                        throw new NotSupportedException("The private key is not an RSA key.");
+                    }
                     var x509SignatureGenerator = X509SignatureGenerator.CreateForRSA(rsa, RSASignaturePadding.Pkcs1);
                     return request.CreateSigningRequest(x509SignatureGenerator);
                 }
             }
             else
             {
-                using (ECDsa key = certificate.GetECDsaPrivateKey())
+                using (ECDsa? key = certificate.GetECDsaPrivateKey())
                 {
+                    if (key == null)
+                    {
+                        throw new NotSupportedException("The private key is not an ECDSA key.");
+                    }
                     var x509SignatureGenerator = X509SignatureGenerator.CreateForECDsa(key);
                     return request.CreateSigningRequest(x509SignatureGenerator);
                 }
@@ -399,8 +415,12 @@ namespace Opc.Ua
                 {
                     throw new NotSupportedException("The public and the private key pair doesn't match.");
                 }
-                using (ECDsa privateKey = certificateWithPrivateKey.GetECDsaPrivateKey())
+                using (ECDsa? privateKey = certificateWithPrivateKey.GetECDsaPrivateKey())
                 {
+                    if (privateKey == null)
+                    {
+                        throw new NotSupportedException("The private key is not an ECDSA key.");
+                    }
                     return certificate.CopyWithPrivateKey(privateKey);
                 }
             }
@@ -410,8 +430,12 @@ namespace Opc.Ua
                 {
                     throw new NotSupportedException("The public and the private key pair doesn't match.");
                 }
-                using (RSA privateKey = certificateWithPrivateKey.GetRSAPrivateKey())
+                using (RSA? privateKey = certificateWithPrivateKey.GetRSAPrivateKey())
                 {
+                    if (privateKey == null)
+                    {
+                        throw new NotSupportedException("The private key is not an RSA key.");
+                    }
                     return certificate.CopyWithPrivateKey(privateKey);
                 }
             }
@@ -424,7 +448,7 @@ namespace Opc.Ua
         public static X509Certificate2 CreateCertificateWithPEMPrivateKey(
             X509Certificate2 certificate,
             byte[] pemDataBlob,
-            string password = null)
+            string? password = null)
         {
             if (X509Utils.IsECDsaSignature(certificate))
             {
@@ -447,7 +471,7 @@ namespace Opc.Ua
         /// </summary>
         public static byte[] CreateSigningRequest(
             X509Certificate2 certificate,
-            IList<String> domainNames = null
+            IList<String>? domainNames = null
             )
         {
             return CertificateBuilder.CreateSigningRequest(
@@ -489,7 +513,7 @@ namespace Opc.Ua
         public static X509Certificate2 CreateCertificateWithPEMPrivateKey(
             X509Certificate2 certificate,
             byte[] pemDataBlob,
-            string password = null)
+            string? password = null)
         {
 #if ECC_SUPPORT
             if (X509Utils.IsECDsaSignature(certificate))
@@ -525,41 +549,41 @@ namespace Opc.Ua
             }
         }
 #endif
-#endregion
+        #endregion
 
-            #region Internal Methods
-            /// <summary>
-            /// Creates a self-signed, signed or CA certificate.
-            /// </summary>
-            /// <param name="applicationUri">The application uri (created if not specified).</param>
-            /// <param name="applicationName">Name of the application (optional if subjectName is specified).</param>
-            /// <param name="subjectName">The subject used to create the certificate (optional if applicationName is specified).</param>
-            /// <param name="domainNames">The domain names that can be used to access the server machine (defaults to local computer name if not specified).</param>
-            /// <param name="keySize">Size of the key (1024, 2048 or 4096).</param>
-            /// <param name="startTime">The start time.</param>
-            /// <param name="lifetimeInMonths">The lifetime of the key in months.</param>
-            /// <param name="hashSizeInBits">The hash size in bits.</param>
-            /// <param name="isCA">if set to <c>true</c> then a CA certificate is created.</param>
-            /// <param name="issuerCAKeyCert">The CA cert with the CA private key.</param>
-            /// <param name="publicKey">The public key if no new keypair is created.</param>
-            /// <param name="pathLengthConstraint">The path length constraint for CA certs.</param>
-            /// <returns>The certificate with a private key.</returns>
-            [Obsolete("Use the new CreateCertificate methods with CertificateBuilder.")]
+        #region Internal Methods
+        /// <summary>
+        /// Creates a self-signed, signed or CA certificate.
+        /// </summary>
+        /// <param name="applicationUri">The application uri (created if not specified).</param>
+        /// <param name="applicationName">Name of the application (optional if subjectName is specified).</param>
+        /// <param name="subjectName">The subject used to create the certificate (optional if applicationName is specified).</param>
+        /// <param name="domainNames">The domain names that can be used to access the server machine (defaults to local computer name if not specified).</param>
+        /// <param name="keySize">Size of the key (1024, 2048 or 4096).</param>
+        /// <param name="startTime">The start time.</param>
+        /// <param name="lifetimeInMonths">The lifetime of the key in months.</param>
+        /// <param name="hashSizeInBits">The hash size in bits.</param>
+        /// <param name="isCA">if set to <c>true</c> then a CA certificate is created.</param>
+        /// <param name="issuerCAKeyCert">The CA cert with the CA private key.</param>
+        /// <param name="publicKey">The public key if no new keypair is created.</param>
+        /// <param name="pathLengthConstraint">The path length constraint for CA certs.</param>
+        /// <returns>The certificate with a private key.</returns>
+        [Obsolete("Use the new CreateCertificate methods with CertificateBuilder.")]
         internal static X509Certificate2 CreateCertificate(
-        string applicationUri,
-        string applicationName,
-        string subjectName,
-        IList<String> domainNames,
-        ushort keySize,
-        DateTime startTime,
-        ushort lifetimeInMonths,
-        ushort hashSizeInBits,
-        bool isCA = false,
-        X509Certificate2 issuerCAKeyCert = null,
-        byte[] publicKey = null,
-        int pathLengthConstraint = 0)
+    string applicationUri,
+    string applicationName,
+    string subjectName,
+    IList<String> domainNames,
+    ushort keySize,
+    DateTime startTime,
+    ushort lifetimeInMonths,
+    ushort hashSizeInBits,
+    bool isCA = false,
+    X509Certificate2? issuerCAKeyCert = null,
+    byte[]? publicKey = null,
+    int pathLengthConstraint = 0)
         {
-            ICertificateBuilder builder = null;
+            ICertificateBuilder builder;
             if (isCA)
             {
                 builder = CreateCertificate(subjectName);
@@ -611,7 +635,7 @@ namespace Opc.Ua
             ref IList<String> domainNames)
         {
             // parse the subject name if specified.
-            List<string> subjectNameEntries = null;
+            List<string>? subjectNameEntries = null;
 
             if (!String.IsNullOrEmpty(subjectName))
             {
@@ -619,7 +643,7 @@ namespace Opc.Ua
             }
 
             // check the application name.
-            if (String.IsNullOrEmpty(applicationName))
+            if (string.IsNullOrEmpty(applicationName))
             {
                 if (subjectNameEntries == null)
                 {

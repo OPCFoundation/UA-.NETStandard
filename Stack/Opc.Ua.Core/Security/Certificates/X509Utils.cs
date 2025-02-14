@@ -10,6 +10,7 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
+#nullable enable
 
 using System;
 using System.Collections.Generic;
@@ -111,7 +112,7 @@ namespace Opc.Ua
         /// <param name="certificate">The certificate</param>
         public static int GetRSAPublicKeySize(X509Certificate2 certificate)
         {
-            using (RSA rsaPublicKey = certificate.GetRSAPublicKey())
+            using (RSA? rsaPublicKey = certificate.GetRSAPublicKey())
             {
                 if (rsaPublicKey != null)
                 {
@@ -127,7 +128,7 @@ namespace Opc.Ua
         /// <param name="certificate">The certificate</param>
         public static int GetPublicKeySize(X509Certificate2 certificate)
         {
-            using (RSA rsaPublicKey = certificate.GetRSAPublicKey())
+            using (RSA? rsaPublicKey = certificate.GetRSAPublicKey())
             {
                 if (rsaPublicKey != null)
                 {
@@ -135,7 +136,7 @@ namespace Opc.Ua
                 }
             }
 
-            using (ECDsa ecdsaPublicKey = certificate.GetECDsaPublicKey())
+            using (ECDsa? ecdsaPublicKey = certificate.GetECDsaPublicKey())
             {
                 if (ecdsaPublicKey != null)
                 {
@@ -398,8 +399,8 @@ namespace Opc.Ua
 
             StringBuilder buffer = new StringBuilder();
 
-            string key = null;
-            string value = null;
+            string? key = null;
+            string? value = null;
             found = false;
 
             for (int ii = 0; ii < name.Length; ii++)
@@ -604,14 +605,14 @@ namespace Opc.Ua
         /// <summary>
         /// Get the certificate by issuer and serial number.
         /// </summary>
-        public static async Task<X509Certificate2> FindIssuerCABySerialNumberAsync(
+        public static async Task<X509Certificate2?> FindIssuerCABySerialNumberAsync(
             ICertificateStore store,
             X500DistinguishedName issuer,
             string serialnumber)
         {
             X509Certificate2Collection certificates = await store.Enumerate().ConfigureAwait(false);
 
-            foreach (var certificate in certificates)
+            foreach (X509Certificate2 certificate in certificates)
             {
                 if (X509Utils.CompareDistinguishedName(certificate.SubjectName, issuer) &&
                     Utils.IsEqual(certificate.SerialNumber, serialnumber))
@@ -639,13 +640,13 @@ namespace Opc.Ua
             this X509Certificate2 certificate,
             string storeType,
             string storePath,
-            string password = null)
+            string? password = null)
         {
             // add cert to the store.
             if (!String.IsNullOrEmpty(storePath) && !String.IsNullOrEmpty(storeType))
             {
                 var certificateStoreIdentifier = new CertificateStoreIdentifier(storePath, storeType, false);
-                using (ICertificateStore store = certificateStoreIdentifier.OpenStore())
+                using (ICertificateStore? store = certificateStoreIdentifier.OpenStore())
                 {
                     if (store == null)
                     {
@@ -674,12 +675,12 @@ namespace Opc.Ua
         public static X509Certificate2 AddToStore(
             this X509Certificate2 certificate,
             CertificateStoreIdentifier storeIdentifier,
-            string password = null)
+            string? password = null)
         {
             // add cert to the store.
             if (storeIdentifier != null)
             {
-                ICertificateStore store = storeIdentifier.OpenStore();
+                ICertificateStore? store = storeIdentifier.OpenStore();
                 try
                 {
                     if (store == null || store.NoPrivateKeys == true)
@@ -713,14 +714,14 @@ namespace Opc.Ua
             this X509Certificate2 certificate,
             string storeType,
             string storePath,
-            string password = null,
+            string? password = null,
             CancellationToken ct = default)
         {
             // add cert to the store.
             if (!String.IsNullOrEmpty(storePath) && !String.IsNullOrEmpty(storeType))
             {
                 var certificateStoreIdentifier = new CertificateStoreIdentifier(storePath, storeType, false);
-                using (ICertificateStore store = certificateStoreIdentifier.OpenStore())
+                using (ICertificateStore? store = certificateStoreIdentifier.OpenStore())
                 {
                     if (store == null)
                     {
@@ -748,13 +749,13 @@ namespace Opc.Ua
         public static async Task<X509Certificate2> AddToStoreAsync(
             this X509Certificate2 certificate,
             CertificateStoreIdentifier storeIdentifier,
-            string password = null,
+            string? password = null,
             CancellationToken ct = default)
         {
             // add cert to the store.
             if (storeIdentifier != null)
             {
-                ICertificateStore store = storeIdentifier.OpenStore();
+                ICertificateStore? store = storeIdentifier.OpenStore();
                 try
                 {
                     if (store == null)

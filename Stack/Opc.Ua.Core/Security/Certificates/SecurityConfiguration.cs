@@ -10,6 +10,8 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
+#nullable enable
+
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -36,7 +38,7 @@ namespace Opc.Ua
         /// Get the provider which is invoked when a password
         /// for a private key is requested.
         /// </summary>
-        public ICertificatePasswordProvider CertificatePasswordProvider { get; set; }
+        public ICertificatePasswordProvider? CertificatePasswordProvider { get; set; }
         #endregion
 
 
@@ -76,12 +78,12 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="securityPolicy"></param>
         /// <param name="privateKey"></param>
-        public async Task<X509Certificate2> FindApplicationCertificateAsync(string securityPolicy, bool privateKey)
+        public async Task<X509Certificate2?> FindApplicationCertificateAsync(string securityPolicy, bool privateKey)
         {
             var certificateTypes = CertificateIdentifier.MapSecurityPolicyToCertificateTypes(securityPolicy);
             foreach (var certType in certificateTypes)
             {
-                CertificateIdentifier id = ApplicationCertificates.FirstOrDefault(certId => certId.CertificateType == certType);
+                CertificateIdentifier? id = ApplicationCertificates.FirstOrDefault(certId => certId.CertificateType == certType);
                 if (id == null)
                 {
                     if (certType == ObjectTypeIds.RsaSha256ApplicationCertificateType)
@@ -97,7 +99,7 @@ namespace Opc.Ua
                     else if (certType == ObjectTypeIds.EccApplicationCertificateType)
                     {
                         // first Ecc certificate
-                        id = ApplicationCertificates.FirstOrDefault(certId => X509Utils.IsECDsaSignature(certId.Certificate));
+                        id = ApplicationCertificates.FirstOrDefault(certId => certId.Certificate != null && X509Utils.IsECDsaSignature(certId.Certificate));
                     }
                 }
 

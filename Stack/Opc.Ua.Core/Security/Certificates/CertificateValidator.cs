@@ -136,9 +136,9 @@ namespace Opc.Ua
         /// Updates the validator with a new set of trust lists.
         /// </summary>
         private void InternalUpdate(
-            CertificateTrustList issuerStore,
-            CertificateTrustList trustedStore,
-            CertificateStoreIdentifier rejectedCertificateStore)
+            CertificateTrustList? issuerStore,
+            CertificateTrustList? trustedStore,
+            CertificateStoreIdentifier? rejectedCertificateStore)
         {
             InternalResetValidatedCertificates();
 
@@ -1344,7 +1344,7 @@ namespace Opc.Ua
             if (issuers.Count > 0)
             {
                 var rootCertificate = issuers[issuers.Count - 1].Certificate;
-                if (!X509Utils.IsSelfSigned(rootCertificate))
+                if (rootCertificate != null && !X509Utils.IsSelfSigned(rootCertificate))
                 {
                     chainIncomplete = true;
                 }

@@ -462,7 +462,7 @@ namespace Opc.Ua
                     {
                         var certificate = X509CertificateLoader.LoadCertificateFromFile(file.FullName);
 
-                        if (!String.IsNullOrEmpty(thumbprint))
+                        if (!string.IsNullOrEmpty(thumbprint))
                         {
                             if (!string.Equals(certificate.Thumbprint, thumbprint, StringComparison.OrdinalIgnoreCase))
                             {
@@ -470,9 +470,9 @@ namespace Opc.Ua
                             }
                         }
 
-                        if (!String.IsNullOrEmpty(subjectName))
+                        if (!string.IsNullOrEmpty(subjectName))
                         {
-                            if (!X509Utils.CompareDistinguishedName(subjectName, certificate.Subject))
+                            if (!X509Utils.CompareDistinguishedName(subjectName!, certificate.Subject))
                             {
                                 if (subjectName.Contains('='))
                                 {

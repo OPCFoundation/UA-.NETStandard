@@ -346,12 +346,12 @@ namespace Opc.Ua
                 {
                     if (!needPrivateKey || certificate.HasPrivateKey)
                     {
-                        if (String.IsNullOrEmpty(subjectName))
+                        if (string.IsNullOrEmpty(subjectName))
                         {
                             return certificate;
                         }
 
-                        List<string> subjectName2 = X509Utils.ParseDistinguishedName(subjectName);
+                        List<string> subjectName2 = X509Utils.ParseDistinguishedName(subjectName!);
 
                         if (X509Utils.CompareDistinguishedName(certificate, subjectName2))
                         {
@@ -365,7 +365,7 @@ namespace Opc.Ua
             // find by subject name.
             if (!string.IsNullOrEmpty(subjectName))
             {
-                List<string> subjectName2 = X509Utils.ParseDistinguishedName(subjectName);
+                List<string> subjectName2 = X509Utils.ParseDistinguishedName(subjectName!);
 
                 foreach (X509Certificate2 certificate in collection)
                 {
@@ -481,7 +481,11 @@ namespace Opc.Ua
             }
 
             X509Certificate2Collection collection = new X509Certificate2Collection();
-            X509Certificate2 certificate = CertificateFactory.Create(encodedData, true);
+            X509Certificate2? certificate = CertificateFactory.Create(encodedData, true);
+            if(certificate == null)
+            {
+                throw new CryptographicException("Primary certificate in blob is not valid.");
+            }
             collection.Add(certificate);
 
             byte[] rawData = encodedData;
@@ -502,7 +506,11 @@ namespace Opc.Ua
                         throw new CryptographicException("Supporting certificate in blob is not valid.");
                     }
 
-                    X509Certificate2 issuerCertificate = CertificateFactory.Create(buffer, true);
+                    X509Certificate2? issuerCertificate = CertificateFactory.Create(buffer, true);
+                    if (issuerCertificate == null)
+                    {
+                        throw new CryptographicException("Supporting certificate in blob is not valid.");
+                    }
                     collection.Add(issuerCertificate);
                     data = issuerCertificate.RawData;
                     processedBytes += data.Length;

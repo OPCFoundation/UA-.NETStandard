@@ -754,6 +754,7 @@ namespace Opc.Ua
     #endregion
 
     #region SecurityConfiguration Class
+#nullable enable
     /// <summary>
     /// The security configuration for the application.
     /// </summary>
@@ -766,6 +767,15 @@ namespace Opc.Ua
         /// </summary>
         public SecurityConfiguration()
         {
+            //Set in initialize
+            m_applicationCertificates = null!;
+            m_trustedIssuerCertificates = null!;
+            m_trustedPeerCertificates = null!;
+            m_httpsIssuerCertificates = null!;
+            m_trustedHttpsCertificates = null!;
+            m_userIssuerCertificates = null!;
+            m_trustedUserCertificates = null!;
+            SupportedSecurityPolicies = null!;
             Initialize();
         }
 
@@ -777,6 +787,10 @@ namespace Opc.Ua
             m_applicationCertificates = new CertificateIdentifierCollection();
             m_trustedIssuerCertificates = new CertificateTrustList();
             m_trustedPeerCertificates = new CertificateTrustList();
+            m_httpsIssuerCertificates = new CertificateTrustList();
+            m_trustedHttpsCertificates = new CertificateTrustList();
+            m_userIssuerCertificates = new CertificateTrustList();
+            m_trustedUserCertificates = new CertificateTrustList();
             m_nonceLength = 32;
             m_maxRejectedCertificates = 5;
             m_autoAcceptUntrustedCertificates = false;
@@ -787,6 +801,7 @@ namespace Opc.Ua
             m_sendCertificateChain = true;
             m_suppressNonceValidationErrors = false;
             m_isDeprecatedConfiguration = false;
+            SupportedSecurityPolicies = new StringCollection();
         }
 
         /// <summary>
@@ -807,7 +822,7 @@ namespace Opc.Ua
         /// For servers, URLs for each supported protocol must also be present.
         /// </remarks>
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 0)]
-        public CertificateIdentifier ApplicationCertificate
+        public CertificateIdentifier? ApplicationCertificate
         {
             get
             {
@@ -933,7 +948,7 @@ namespace Opc.Ua
         /// A store where invalid certificates can be placed for later review by the administrator.
         /// </value>
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 7)]
-        public CertificateStoreIdentifier RejectedCertificateStore
+        public CertificateStoreIdentifier? RejectedCertificateStore
         {
             get { return m_rejectedCertificateStore; }
             set { m_rejectedCertificateStore = value; }
@@ -974,7 +989,7 @@ namespace Opc.Ua
         /// Gets or sets a directory which contains files representing users roles.
         /// </summary>
         [DataMember(Order = 10)]
-        public string UserRoleDirectory
+        public string? UserRoleDirectory
         {
             get { return m_userRoleDirectory; }
             set { m_userRoleDirectory = value; }
@@ -1188,10 +1203,10 @@ namespace Opc.Ua
         private CertificateTrustList m_trustedUserCertificates;
         // TODO: is this really necessary?
         private int m_nonceLength;
-        private CertificateStoreIdentifier m_rejectedCertificateStore;
+        private CertificateStoreIdentifier? m_rejectedCertificateStore;
         private int m_maxRejectedCertificates;
         private bool m_autoAcceptUntrustedCertificates;
-        private string m_userRoleDirectory;
+        private string? m_userRoleDirectory;
         private bool m_rejectSHA1SignedCertificates;
         private bool m_rejectUnknownRevocationStatus;
         private ushort m_minCertificateKeySize;
@@ -1202,6 +1217,7 @@ namespace Opc.Ua
         private bool m_isDeprecatedConfiguration;
         #endregion
     }
+#nullable disable
     #endregion
 
     #region SamplingRateGroup Class
@@ -3329,6 +3345,10 @@ namespace Opc.Ua
                 }
 
                 m_certificate = CertificateFactory.Create(value, true);
+                if (m_certificate == null)
+                {
+                    throw new ArgumentException("Invalid certificate data.");
+                }
                 m_subjectName = m_certificate.Subject;
                 m_thumbprint = m_certificate.Thumbprint;
                 m_certificateType = GetCertificateType(m_certificate);
