@@ -849,7 +849,6 @@ namespace Opc.Ua
                 return null;
             }
 
-
             if (!(token is string value))
             {
                 return null;

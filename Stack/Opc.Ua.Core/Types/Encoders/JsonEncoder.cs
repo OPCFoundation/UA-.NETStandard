@@ -2852,6 +2852,7 @@ namespace Opc.Ua
                 EscapeString(field.Name);
                 m_writer.Write(s_quotationColon);
                 m_commaRequired = false;
+                bool dimensionsInline = false;
 
                 if (mask != DataSetFieldContentMask.None && mask != DataSetFieldContentMask.RawData)
                 {
@@ -2859,6 +2860,7 @@ namespace Opc.Ua
                     m_writer.Write(s_quotation);
                     m_writer.Write("Value");
                     m_writer.Write(s_quotationColon);
+                    dimensionsInline = true;
                 }
 
                 if (mask == DataSetFieldContentMask.None && StatusCode.IsBad(dv.StatusCode))
@@ -2866,7 +2868,7 @@ namespace Opc.Ua
                     dv = new DataValue() { WrappedValue = dv.StatusCode };
                 }
 
-                WriteRawValueContents(field, dv);
+                WriteRawValueContents(field, dv, dimensionsInline);
 
                 if (mask != DataSetFieldContentMask.None && mask != DataSetFieldContentMask.RawData)
                 {
@@ -2976,7 +2978,7 @@ namespace Opc.Ua
             m_commaRequired = true;
         }
 
-        private void WriteRawValueContents(FieldMetaData field, DataValue dv)
+        private void WriteRawValueContents(FieldMetaData field, DataValue dv, bool dimensionsInline)
         {
             object value = dv.Value;
             TypeInfo typeInfo = dv.WrappedValue.TypeInfo;
@@ -3010,7 +3012,7 @@ namespace Opc.Ua
             }
 
             if (field.ValueRank == ValueRanks.Scalar)
-            {
+            {    
                 if (field.BuiltInType == (byte)BuiltInType.ExtensionObject)
                 {
                     WriteRawExtensionObject(value);
@@ -3021,8 +3023,8 @@ namespace Opc.Ua
             {
                 if (value is Matrix matrix)
                 {
-                    PushStructure(null);
-                    PushArray("Array");
+                    if (!dimensionsInline) PushStructure(null);
+                    PushArray((!dimensionsInline) ? "Array" : null);
 
                     foreach (var ii in matrix.Elements)
                     {
@@ -3061,7 +3063,7 @@ namespace Opc.Ua
 
                     PopArray();
                     WriteInt32Array("Dimensions", matrix.Dimensions);
-                    PopStructure();
+                    if (!dimensionsInline) PopStructure();
                     m_commaRequired = true;
                     return;
                 }
