@@ -184,7 +184,7 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         public static byte[] CreateSigningRequest(
             X509Certificate2 certificate,
-            IList<String> domainNames = null
+            IList<String>? domainNames = null
             )
         {
             if (certificate == null) throw new ArgumentNullException(nameof(certificate));
@@ -193,17 +193,21 @@ namespace Opc.Ua.Security.Certificates
                 SecureRandom random = new SecureRandom(cfrg);
 
                 // try to get signing/private key from certificate passed in
-                AsymmetricKeyParameter signingKey = X509Utils.GetRsaPrivateKeyParameter(certificate);
+                AsymmetricKeyParameter? signingKey = X509Utils.GetRsaPrivateKeyParameter(certificate);
                 RsaKeyParameters publicKey = X509Utils.GetRsaPublicKeyParameter(certificate);
 
                 ISignatureFactory signatureFactory =
                     new Asn1SignatureFactory(X509Utils.GetRSAHashAlgorithm(X509Defaults.HashAlgorithmName), signingKey, random);
 
-                Asn1Set attributes = null;
-                X509SubjectAltNameExtension san = X509Extensions.FindExtension<X509SubjectAltNameExtension>(certificate);
-                X509SubjectAltNameExtension alternateName = new X509SubjectAltNameExtension(san, san.Critical);
+                Asn1Set? attributes = null;
+                X509SubjectAltNameExtension? san = X509Extensions.FindExtension<X509SubjectAltNameExtension>(certificate);
+                X509SubjectAltNameExtension? alternateName = null;
+                if(san != null)
+                {
+                    alternateName = new X509SubjectAltNameExtension(san, san.Critical);
+                }
 
-                string applicationUri = null;
+                string? applicationUri = null;
                 domainNames = domainNames ?? new List<String>();
                 if (alternateName != null)
                 {
@@ -269,7 +273,7 @@ namespace Opc.Ua.Security.Certificates
         /// Create a new serial number and validate lifetime.
         /// </summary>
         /// <param name="random"></param>
-        private void CreateDefaults(IRandomGenerator random = null)
+        private void CreateDefaults(IRandomGenerator? random = null)
         {
             if (!m_presetSerial)
             {
@@ -288,8 +292,6 @@ namespace Opc.Ua.Security.Certificates
         {
             m_subjectDN = new CertificateFactoryX509Name(SubjectName);
             // subject and issuer DN, issuer of issuer for AKI
-            m_issuerDN = null;
-            m_issuerIssuerAKI = null;
             if (IssuerCAKeyCert != null)
             {
                 m_issuerDN = new CertificateFactoryX509Name(IssuerCAKeyCert.SubjectName);
@@ -412,7 +414,7 @@ namespace Opc.Ua.Security.Certificates
         /// Create the RSA certificate with a given public key.
         /// </summary>
         /// <returns>The signed certificate.</returns>
-        private X509Certificate2 CreateForRSAWithPublicKey(ISignatureFactory signatureFactory = null)
+        private X509Certificate2 CreateForRSAWithPublicKey(ISignatureFactory? signatureFactory = null)
         {
             // Cases locked out by API flow
             Debug.Assert(m_rsaPublicKey != null, "Need a public key for the certificate.");
@@ -428,7 +430,7 @@ namespace Opc.Ua.Security.Certificates
             CreateMandatoryFields(cg);
 
             // set public key
-            AsymmetricKeyParameter subjectPublicKey = X509Utils.GetRsaPublicKeyParameter(m_rsaPublicKey);
+            AsymmetricKeyParameter subjectPublicKey = X509Utils.GetRsaPublicKeyParameter(m_rsaPublicKey!);
             cg.SetPublicKey(subjectPublicKey);
 
             CreateExtensions(cg, subjectPublicKey);
@@ -436,7 +438,7 @@ namespace Opc.Ua.Security.Certificates
             // sign certificate by issuer
             if (signatureFactory == null)
             {
-                AsymmetricKeyParameter signingKey = X509Utils.GetRsaPrivateKeyParameter(IssuerCAKeyCert);
+                AsymmetricKeyParameter? signingKey = X509Utils.GetRsaPrivateKeyParameter(IssuerCAKeyCert!);
                 signatureFactory = new Asn1SignatureFactory(X509Utils.GetRSAHashAlgorithm(HashAlgorithmName), signingKey);
             }
             Org.BouncyCastle.X509.X509Certificate x509 = cg.Generate(signatureFactory);
@@ -451,7 +453,7 @@ namespace Opc.Ua.Security.Certificates
         /// <returns>
         /// Returns the Pfx with certificate and private key.
         /// </returns>
-        private byte[] CreatePfxForRSA(string passcode, ISignatureFactory signatureFactory = null)
+        private byte[] CreatePfxForRSA(string passcode, ISignatureFactory? signatureFactory = null)
         {
             // Cases locked out by API flow
             Debug.Assert(m_rsaPublicKey == null, "A public key is not supported for the certificate.");
@@ -478,8 +480,8 @@ namespace Opc.Ua.Security.Certificates
                 CreateMandatoryFields(cg);
 
                 // create Private/Public Keypair
-                AsymmetricKeyParameter subjectPublicKey = null;
-                AsymmetricKeyParameter subjectPrivateKey = null;
+                AsymmetricKeyParameter? subjectPublicKey = null;
+                AsymmetricKeyParameter? subjectPrivateKey = null;
                 using (var rsa = new RSACryptoServiceProvider(m_keySize == 0 ? X509Defaults.RSAKeySize : m_keySize))
                 {
                     subjectPublicKey = X509Utils.GetRsaPublicKeyParameter(rsa);
@@ -492,7 +494,7 @@ namespace Opc.Ua.Security.Certificates
                 // sign certificate
                 if (signatureFactory == null)
                 {
-                    AsymmetricKeyParameter signingKey;
+                    AsymmetricKeyParameter? signingKey;
                     if (IssuerCAKeyCert != null)
                     {
                         // signed by issuer
@@ -516,7 +518,7 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// Create a new random serial number.
         /// </summary>
-        private void NewSerialNumber(IRandomGenerator random)
+        private void NewSerialNumber(IRandomGenerator? random)
         {
             if (random == null)
             {
@@ -532,9 +534,9 @@ namespace Opc.Ua.Security.Certificates
         #endregion
 
         #region Private Fields
-        private X509Name m_issuerDN;
-        private X509Name m_issuerIssuerAKI;
-        private X509Name m_subjectDN;
+        private X509Name? m_issuerDN;
+        private X509Name? m_issuerIssuerAKI;
+        private X509Name? m_subjectDN;
         #endregion
     }
 }

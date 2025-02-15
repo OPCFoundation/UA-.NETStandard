@@ -40,7 +40,7 @@ namespace Opc.Ua.Security.Certificates
     /// <summary>
     /// Builds a CRL.
     /// </summary>
-    public sealed class CrlBuilder : IX509CRL
+    public sealed class CrlBuilder
     {
         #region Constructors
         /// <summary>
@@ -125,7 +125,7 @@ namespace Opc.Ua.Security.Certificates
 
         #region IX509CRL Interface
         /// <inheritdoc/>
-        public X500DistinguishedName IssuerName { get; }
+        public X500DistinguishedName IssuerName { get; } = null!;
 
         /// <inheritdoc/>
         public string Issuer => IssuerName.Name;
@@ -146,7 +146,7 @@ namespace Opc.Ua.Security.Certificates
         public X509ExtensionCollection CrlExtensions => m_crlExtensions;
 
         /// <inheritdoc/>
-        public byte[] RawData { get; private set; }
+        public byte[]? RawData { get; private set; }
         #endregion
 
         #region Public Methods
@@ -242,7 +242,7 @@ namespace Opc.Ua.Security.Certificates
             byte[] signature = generator.SignData(tbsRawData, HashAlgorithmName);
             var crlSigner = new X509Signature(tbsRawData, signature, signatureAlgorithm);
             RawData = crlSigner.Encode();
-            return this;
+            return new X509CRL(RawData);
         }
 
         /// <summary>
@@ -251,8 +251,12 @@ namespace Opc.Ua.Security.Certificates
         /// <returns>The signed CRL.</returns>
         public IX509CRL CreateForRSA(X509Certificate2 issuerCertificate)
         {
-            using (RSA rsa = issuerCertificate.GetRSAPrivateKey())
+            using (RSA? rsa = issuerCertificate.GetRSAPrivateKey())
             {
+                if (rsa == null)
+                {
+                    throw new CryptographicException("RSA private key not found.");
+                }
                 var generator = X509SignatureGenerator.CreateForRSA(rsa, RSASignaturePadding.Pkcs1);
                 return CreateSignature(generator);
             }
@@ -265,8 +269,12 @@ namespace Opc.Ua.Security.Certificates
         /// <returns>The signed CRL.</returns>
         public IX509CRL CreateForECDsa(X509Certificate2 issuerCertificate)
         {
-            using (ECDsa ecdsa = issuerCertificate.GetECDsaPrivateKey())
+            using (ECDsa? ecdsa = issuerCertificate.GetECDsaPrivateKey())
             {
+                if (ecdsa == null)
+                {
+                    throw new CryptographicException("ECDsa private key not found.");
+                }
                 var generator = X509SignatureGenerator.CreateForECDsa(ecdsa);
                 return CreateSignature(generator);
             }

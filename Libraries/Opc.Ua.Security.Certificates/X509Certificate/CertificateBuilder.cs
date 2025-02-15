@@ -37,6 +37,7 @@ using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 
 
+
 #if NET472_OR_GREATER
 using Org.BouncyCastle.Asn1;
 using Org.BouncyCastle.Asn1.X509;
@@ -98,8 +99,8 @@ namespace Opc.Ua.Security.Certificates
                 throw new NotSupportedException("Cannot use a public key without an issuer certificate with a private key.");
             }
 
-            RSA rsaKeyPair = null;
-            RSA rsaPublicKey = m_rsaPublicKey;
+            RSA? rsaKeyPair = null;
+            RSA? rsaPublicKey = m_rsaPublicKey;
             if (rsaPublicKey == null)
             {
                 rsaKeyPair = RSA.Create(m_keySize == 0 ? X509Defaults.RSAKeySize : m_keySize);
@@ -112,11 +113,15 @@ namespace Opc.Ua.Security.Certificates
             CreateX509Extensions(request, false);
 
             X509Certificate2 signedCert;
-            byte[] serialNumber = m_serialNumber.Reverse().ToArray();
+            byte[] serialNumber = m_serialNumber!.Reverse().ToArray();
             if (IssuerCAKeyCert != null)
             {
-                using (RSA rsaIssuerKey = IssuerCAKeyCert.GetRSAPrivateKey())
+                using (RSA? rsaIssuerKey = IssuerCAKeyCert.GetRSAPrivateKey())
                 {
+                    if (rsaIssuerKey == null)
+                    {
+                        throw new NotSupportedException("Issuer certificate does not have an RSA private key.");
+                    }
                     signedCert = request.Create(
                         IssuerCAKeyCert.SubjectName,
                         X509SignatureGenerator.CreateForRSA(rsaIssuerKey, padding),
@@ -128,6 +133,10 @@ namespace Opc.Ua.Security.Certificates
             }
             else
             {
+                if (rsaKeyPair == null)
+                {
+                    throw new NotSupportedException("Failed to create a new RSA key pair.");
+                }
                 signedCert = request.Create(
                     SubjectName,
                     X509SignatureGenerator.CreateForRSA(rsaKeyPair, padding),
@@ -156,8 +165,8 @@ namespace Opc.Ua.Security.Certificates
                 issuerSubjectName = IssuerCAKeyCert.SubjectName;
             }
 
-            RSA rsaKeyPair = null;
-            RSA rsaPublicKey = m_rsaPublicKey;
+            RSA? rsaKeyPair = null;
+            RSA? rsaPublicKey = m_rsaPublicKey;
             if (rsaPublicKey == null)
             {
                 rsaKeyPair = RSA.Create(m_keySize == 0 ? X509Defaults.RSAKeySize : m_keySize);
@@ -173,7 +182,7 @@ namespace Opc.Ua.Security.Certificates
                 generator,
                 NotBefore,
                 NotAfter,
-                m_serialNumber.Reverse().ToArray()
+                m_serialNumber!.Reverse().ToArray()
                 );
 
             return (rsaKeyPair == null) ? signedCert : signedCert.CopyWithPrivateKey(rsaKeyPair);
@@ -195,11 +204,11 @@ namespace Opc.Ua.Security.Certificates
 
             CreateDefaults();
 
-            ECDsa key = null;
-            ECDsa publicKey = m_ecdsaPublicKey;
+            ECDsa? key = null;
+            ECDsa? publicKey = m_ecdsaPublicKey;
             if (publicKey == null)
             {
-                key = ECDsa.Create((System.Security.Cryptography.ECCurve)m_curve);
+                key = ECDsa.Create(m_curve!.Value);
                 publicKey = key;
             }
 
@@ -207,14 +216,18 @@ namespace Opc.Ua.Security.Certificates
 
             CreateX509Extensions(request, true);
 
-            byte[] serialNumber = m_serialNumber.Reverse().ToArray();
+            byte[] serialNumber = m_serialNumber!.Reverse().ToArray();
 
 
             X509Certificate2 cert;
             if (IssuerCAKeyCert != null)
             {
-                using (ECDsa issuerKey = IssuerCAKeyCert.GetECDsaPrivateKey())
+                using (ECDsa? issuerKey = IssuerCAKeyCert.GetECDsaPrivateKey())
                 {
+                    if (issuerKey == null)
+                    {
+                        throw new NotSupportedException("Issuer certificate does not have an ECDsa private key.");
+                    }
                     cert = request.Create(
                         IssuerCAKeyCert.SubjectName,
                         X509SignatureGenerator.CreateForECDsa(issuerKey),
@@ -226,6 +239,10 @@ namespace Opc.Ua.Security.Certificates
             }
             else
             {
+                if (key == null)
+                {
+                    throw new NotSupportedException("Failed to create a new ECDSA key pair.");
+                }
                 cert = request.Create(
                     SubjectName,
                     X509SignatureGenerator.CreateForECDsa(key),
@@ -253,11 +270,11 @@ namespace Opc.Ua.Security.Certificates
 
             CreateDefaults();
 
-            ECDsa key = null;
-            ECDsa publicKey = m_ecdsaPublicKey;
+            ECDsa? key = null;
+            ECDsa? publicKey = m_ecdsaPublicKey;
             if (publicKey == null)
             {
-                key = ECDsa.Create((System.Security.Cryptography.ECCurve)m_curve);
+                key = ECDsa.Create(m_curve!.Value);
                 publicKey = key;
             }
 
@@ -270,7 +287,7 @@ namespace Opc.Ua.Security.Certificates
                 generator,
                 NotBefore,
                 NotAfter,
-                m_serialNumber.Reverse().ToArray()
+                m_serialNumber!.Reverse().ToArray()
                 );
 
             // return a X509Certificate2
@@ -298,7 +315,7 @@ namespace Opc.Ua.Security.Certificates
                 var publicKeyInfo = SubjectPublicKeyInfo.GetInstance(asn1Obj);
                 var algParams = publicKeyInfo.Algorithm.Parameters;
                 var x962Params = X962Parameters.GetInstance(algParams);
-                    
+
                 ECParameters ecParameters = new ECParameters();
 
                 var domainParameters = asymmetricPubKeyParameters.Parameters;
@@ -319,7 +336,7 @@ namespace Opc.Ua.Security.Certificates
                     // Explicit parameters
                     var a = X509Utils.PadWithLeadingZeros(domainParameters.Curve.A.ToBigInteger().ToByteArrayUnsigned(), keySizeBytes);
                     var b = X509Utils.PadWithLeadingZeros(domainParameters.Curve.B.ToBigInteger().ToByteArrayUnsigned(), keySizeBytes);
-                    ecParameters.Curve = BouncyCastle.X509Utils.IdentifyEccCurveByCoefficients(a,b);
+                    ecParameters.Curve = BouncyCastle.X509Utils.IdentifyEccCurveByCoefficients(a, b);
                 }
 
                 var x = X509Utils.PadWithLeadingZeros(q.AffineXCoord.ToBigInteger().ToByteArrayUnsigned(), keySizeBytes);
@@ -424,9 +441,9 @@ namespace Opc.Ua.Security.Certificates
                 System.Security.Cryptography.X509Certificates.X509Extension authorityKeyIdentifier = IssuerCAKeyCert != null
                     ? X509Extensions.BuildAuthorityKeyIdentifier(IssuerCAKeyCert)
                     : new X509AuthorityKeyIdentifierExtension(
-                        ski.SubjectKeyIdentifier.FromHexString(),
+                        ski.SubjectKeyIdentifier.FromHexString()!,
                         IssuerName,
-                        m_serialNumber);
+                        m_serialNumber!);
                 request.CertificateExtensions.Add(authorityKeyIdentifier);
             }
 

@@ -42,19 +42,19 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// The field contains the ASN.1 data to be signed.
         /// </summary>
-        public byte[] Tbs { get; private set; }
+        public byte[] Tbs { get; private set; } = null!;
         /// <summary>
         /// The signature of the data.
         /// </summary>
-        public byte[] Signature { get; private set; }
+        public byte[] Signature { get; private set; } = null!;
         /// <summary>
         /// The encoded signature algorithm that was used for signing.
         /// </summary>
-        public byte[] SignatureAlgorithmIdentifier { get; private set; }
+        public byte[]? SignatureAlgorithmIdentifier { get; private set; }
         /// <summary>
         /// The signature algorithm as Oid string.
         /// </summary>
-        public string SignatureAlgorithm { get; private set; }
+        public string SignatureAlgorithm { get; private set; } = null!;
         /// <summary>
         /// The hash algorithm used for signing.
         /// </summary>
@@ -188,7 +188,7 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         private bool VerifyForRSA(X509Certificate2 certificate, RSASignaturePadding padding)
         {
-            using (RSA rsa = certificate.GetRSAPublicKey())
+            using (RSA? rsa = certificate.GetRSAPublicKey())
             {
                 if (rsa == null)
                 {
@@ -203,7 +203,7 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         private bool VerifyForECDsa(X509Certificate2 certificate)
         {
-            using (ECDsa key = certificate.GetECDsaPublicKey())
+            using (ECDsa? key = certificate.GetECDsaPublicKey())
             {
                 if (key == null)
                 {

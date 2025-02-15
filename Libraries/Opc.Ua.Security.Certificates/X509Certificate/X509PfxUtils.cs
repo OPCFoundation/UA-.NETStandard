@@ -97,8 +97,8 @@ namespace Opc.Ua.Security.Certificates
             try
             {
                 // verify the public and private key match
-                using (RSA rsaPrivateKey = certWithPrivateKey.GetRSAPrivateKey())
-                using (RSA rsaPublicKey = certWithPublicKey.GetRSAPublicKey())
+                using (RSA? rsaPrivateKey = certWithPrivateKey.GetRSAPrivateKey())
+                using (RSA? rsaPublicKey = certWithPublicKey.GetRSAPublicKey())
                 {
                     // For non RSA certificates, RSA keys are null
                     if (rsaPrivateKey != null && rsaPublicKey != null)
@@ -152,8 +152,8 @@ namespace Opc.Ua.Security.Certificates
             bool noEphemeralKeySet = false
             )
         {
-            Exception ex = null;
-            X509Certificate2 certificate = null;
+            Exception? ex = null;
+            X509Certificate2? certificate = null;
 
             // By default keys are not persisted
             X509KeyStorageFlags defaultStorageSet = X509KeyStorageFlags.Exportable;
@@ -257,11 +257,22 @@ namespace Opc.Ua.Security.Certificates
             bool throwOnError = false)
         {
             bool result = false;
-            using (ECDsa ecdsaPublicKey = certWithPublicKey.GetECDsaPublicKey())
-            using (ECDsa ecdsaPrivateKey = certWithPrivateKey.GetECDsaPrivateKey())
+            using (ECDsa? ecdsaPublicKey = certWithPublicKey.GetECDsaPublicKey())
+            using (ECDsa? ecdsaPrivateKey = certWithPrivateKey.GetECDsaPrivateKey())
             {
                 try
                 {
+                    if (ecdsaPublicKey == null || ecdsaPrivateKey == null)
+                    {
+                        if (throwOnError)
+                        {
+                            throw new CryptographicException("The certificate does not contain an ECDsa public/private key pair.");
+                        }
+                        else
+                        {
+                            return false;
+                        }
+                    }
                     // verify the public and private key match
                     X509KeyUsageFlags keyUsage = GetKeyUsage(certWithPublicKey);
                     if ((keyUsage & X509KeyUsageFlags.DigitalSignature) != 0)

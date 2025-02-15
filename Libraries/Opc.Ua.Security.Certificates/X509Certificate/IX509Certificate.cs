@@ -69,7 +69,7 @@ namespace Opc.Ua.Security.Certificates
         /// The serial number of the certificate
         /// as an array of bytes in little-endian order.
         /// </summary>
-        byte[] GetSerialNumber();
+        byte[]? GetSerialNumber();
 
         /// <summary>
         /// The hash algorithm used to create the signature.

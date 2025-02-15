@@ -17,18 +17,18 @@ namespace Opc.Ua.Security.Certificates
 {
     public abstract class X509SignatureGenerator
     {
-        private PublicKey _publicKey;
+        private PublicKey m_publicKey = null!;
 
         public PublicKey PublicKey
         {
             get
             {
-                if (_publicKey == null)
+                if (m_publicKey == null)
                 {
-                    _publicKey = BuildPublicKey();
+                    m_publicKey = BuildPublicKey();
                 }
 
-                return _publicKey;
+                return m_publicKey;
             }
         }
 

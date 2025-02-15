@@ -51,7 +51,7 @@ namespace Opc.Ua.Security.Certificates
         /// <returns>The RSA private key.</returns>
         public static RSA ImportRsaPrivateKeyFromPEM(
             byte[] pemDataBlob,
-            string password = null)
+            string? password = null)
         {
             string[] labels = {
                 "ENCRYPTED PRIVATE KEY", "PRIVATE KEY", "RSA PRIVATE KEY"
@@ -119,7 +119,7 @@ namespace Opc.Ua.Security.Certificates
         /// <returns>ECDsa instance containing the private key</returns>
         public static ECDsa ImportECDsaPrivateKeyFromPEM(
             byte[] pemDataBlob,
-            string password = null)
+            string? password = null)
         {
             // PEM labels for EC keys. Probably need adjustment
             string[] labels =

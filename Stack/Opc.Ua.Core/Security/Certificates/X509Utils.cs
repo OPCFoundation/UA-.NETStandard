@@ -66,7 +66,7 @@ namespace Opc.Ua
             }
 
             // extract the alternate domains from the subject alternate name extension.
-            X509SubjectAltNameExtension alternateName = X509Extensions.FindExtension<X509SubjectAltNameExtension>(certificate);
+            X509SubjectAltNameExtension? alternateName = X509Extensions.FindExtension<X509SubjectAltNameExtension>(certificate);
             if (alternateName != null)
             {
                 for (int ii = 0; ii < alternateName.DomainNames.Count; ii++)
@@ -155,7 +155,7 @@ namespace Opc.Ua
         public static string GetApplicationUriFromCertificate(X509Certificate2 certificate)
         {
             // extract the alternate domains from the subject alternate name extension.
-            X509SubjectAltNameExtension alternateName = X509Extensions.FindExtension<X509SubjectAltNameExtension>(certificate);
+            X509SubjectAltNameExtension? alternateName = X509Extensions.FindExtension<X509SubjectAltNameExtension>(certificate);
 
             // get the application uri.
             if (alternateName != null && alternateName.Uris.Count > 0)
@@ -174,7 +174,7 @@ namespace Opc.Ua
         public static bool HasApplicationURN(X509Certificate2 certificate)
         {
             // extract the alternate domains from the subject alternate name extension.
-            X509SubjectAltNameExtension alternateName = X509Extensions.FindExtension<X509SubjectAltNameExtension>(certificate);
+            X509SubjectAltNameExtension? alternateName = X509Extensions.FindExtension<X509SubjectAltNameExtension>(certificate);
 
             // find the application urn.
             if (alternateName != null && alternateName.Uris.Count > 0)
@@ -223,7 +223,7 @@ namespace Opc.Ua
         /// </summary>
         public static bool IsIssuerAllowed(X509Certificate2 certificate)
         {
-            X509BasicConstraintsExtension constraints = X509Extensions.FindExtension<X509BasicConstraintsExtension>(certificate);
+            X509BasicConstraintsExtension? constraints = X509Extensions.FindExtension<X509BasicConstraintsExtension>(certificate);
 
             if (constraints != null)
             {

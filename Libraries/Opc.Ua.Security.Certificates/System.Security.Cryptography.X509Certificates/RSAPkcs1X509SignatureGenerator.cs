@@ -19,23 +19,23 @@ namespace Opc.Ua.Security.Certificates
 {
     internal sealed class RSAPkcs1X509SignatureGenerator : X509SignatureGenerator
     {
-        private readonly RSA _key;
+        private readonly RSA m_key = null!;
 
         internal RSAPkcs1X509SignatureGenerator(RSA key)
         {
             Debug.Assert(key != null);
 
-            _key = key;
+            m_key = key!;
         }
 
         public override byte[] SignData(byte[] data, HashAlgorithmName hashAlgorithm)
         {
-            return _key.SignData(data, hashAlgorithm, RSASignaturePadding.Pkcs1);
+            return m_key.SignData(data, hashAlgorithm, RSASignaturePadding.Pkcs1);
         }
 
         protected override PublicKey BuildPublicKey()
         {
-            return BuildPublicKey(_key);
+            return BuildPublicKey(m_key);
         }
 
         internal static PublicKey BuildPublicKey(RSA rsa)

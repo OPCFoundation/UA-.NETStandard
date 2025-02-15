@@ -58,7 +58,7 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
         /// </summary>
         internal static byte[] CreatePfxWithPrivateKey(
             Org.BouncyCastle.X509.X509Certificate certificate,
-            string friendlyName,
+            string? friendlyName,
             AsymmetricKeyParameter privateKey,
             string passcode,
             SecureRandom random)
@@ -132,7 +132,7 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
         /// Get RSA private key parameters from a X509Certificate2.
         /// The private key must be exportable.
         /// </summary>
-        internal static RsaPrivateCrtKeyParameters GetRsaPrivateKeyParameter(X509Certificate2 certificate)
+        internal static RsaPrivateCrtKeyParameters? GetRsaPrivateKeyParameter(X509Certificate2 certificate)
         {
             // try to get signing/private key from certificate passed in
             using (RSA rsa = certificate.GetRSAPrivateKey())
@@ -168,7 +168,7 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
         /// Get ECDsa private key parameters from a X509Certificate2.
         /// The private key must be exportable.
         /// </summary>
-        internal static ECPrivateKeyParameters GetECDsaPrivateKeyParameter(X509Certificate2 certificate)
+        internal static ECPrivateKeyParameters? GetECDsaPrivateKeyParameter(X509Certificate2 certificate)
         {
             // try to get signing/private key from certificate passed in
             using (ECDsa ecdsa = certificate.GetECDsaPrivateKey())
@@ -190,7 +190,9 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
             ECParameters ecParams = ec.ExportParameters(true);
             BigInteger d = new BigInteger(1, ecParams.D);
 
-            X9ECParameters curve = GetX9ECParameters(ecParams);
+            X9ECParameters? curve = GetX9ECParameters(ecParams);
+
+            if (curve == null) throw new ArgumentException("Curve OID is not recognized ", nameof(ec));
 
             string friendlyName = ecParams.Curve.Oid.FriendlyName;
             if (!FriendlyNameToOidMap.TryGetValue(friendlyName, out var oidValue))
@@ -267,7 +269,7 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
         /// </summary>
         /// <param name="ecParams"></param>
         /// <returns>X9ECParameters value equivalent of System.Security.Cryptography.ECparameters if found else null</returns>
-        internal static X9ECParameters GetX9ECParameters(ECParameters ecParams)
+        internal static X9ECParameters? GetX9ECParameters(ECParameters ecParams)
         {
             if (!string.IsNullOrEmpty(ecParams.Curve.Oid.Value))
             {
@@ -304,7 +306,7 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
         {
             ECParameters ecParams = ec.ExportParameters(false);
 
-            X9ECParameters curve = GetX9ECParameters(ecParams);
+            X9ECParameters? curve = GetX9ECParameters(ecParams);
 
             if (curve == null) throw new ArgumentException("Curve OID is not recognized ", ecParams.Curve.Oid.ToString());
 
@@ -363,8 +365,8 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
             AsymmetricKeyParameter asymmetricKeyParameter = PublicKeyFactory.CreateKey(publicKey);
             var rsaKeyParameters = asymmetricKeyParameter as RsaKeyParameters;
             var parameters = new RSAParameters {
-                Exponent = rsaKeyParameters.Exponent.ToByteArrayUnsigned(),
-                Modulus = rsaKeyParameters.Modulus.ToByteArrayUnsigned()
+                Exponent = rsaKeyParameters?.Exponent.ToByteArrayUnsigned(),
+                Modulus = rsaKeyParameters?.Modulus.ToByteArrayUnsigned()
             };
             var rsaPublicKey = RSA.Create();
             rsaPublicKey.ImportParameters(parameters);

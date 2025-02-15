@@ -50,7 +50,7 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         public static RSA ImportRsaPrivateKeyFromPEM(
             byte[] pemDataBlob,
-            string password = null)
+            string? password = null)
         {
             AsymmetricAlgorithm key = ImportPrivateKey(pemDataBlob, password);
             if (key is RSA rsaKey)
@@ -68,7 +68,7 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         public static ECDsa ImportECDsaPrivateKeyFromPEM(
             byte[] pemDataBlob,
-            string password = null)
+            string? password = null)
         {
             AsymmetricAlgorithm key = ImportPrivateKey(pemDataBlob, password);
             if (key is ECDsa ecKey)
@@ -90,23 +90,23 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         private static AsymmetricAlgorithm ImportPrivateKey(
             byte[] pemDataBlob,
-            string password = null)
+            string? password = null)
         {
             
             Org.BouncyCastle.OpenSsl.PemReader pemReader;
             using (var pemStreamReader = new StreamReader(new MemoryStream(pemDataBlob), Encoding.UTF8, true))
             {
-                if (String.IsNullOrEmpty(password))
+                if (string.IsNullOrEmpty(password))
                 {
                     pemReader = new Org.BouncyCastle.OpenSsl.PemReader(pemStreamReader);
                 }
                 else
                 {
-                    var pwFinder = new Password(password.ToCharArray());
+                    var pwFinder = new Password(password!.ToCharArray());
                     pemReader = new Org.BouncyCastle.OpenSsl.PemReader(pemStreamReader, pwFinder);
                 }
 
-                AsymmetricAlgorithm key = null;
+                AsymmetricAlgorithm? key = null;
                 try
                 {
                     // find the private key in the PEM blob

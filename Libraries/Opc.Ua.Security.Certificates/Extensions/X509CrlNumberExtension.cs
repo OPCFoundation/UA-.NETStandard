@@ -57,7 +57,7 @@ namespace Opc.Ua.Security.Certificates
         /// Creates an extension from ASN.1 encoded data.
         /// </summary>
         public X509CrlNumberExtension(AsnEncodedData encodedExtension, bool critical)
-            : this(encodedExtension.Oid, encodedExtension.RawData, critical)
+            : this(encodedExtension.Oid ?? throw new ArgumentException("Oid cannot be null", nameof(encodedExtension)), encodedExtension.RawData, critical)
         {
         }
 
@@ -146,7 +146,7 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         private void Decode(byte[] data)
         {
-            if (base.Oid.Value == CrlNumberOid)
+            if (base.Oid?.Value == CrlNumberOid)
             {
                 try
                 {

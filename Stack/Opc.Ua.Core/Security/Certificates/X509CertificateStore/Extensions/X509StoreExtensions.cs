@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
 using System;
 using System.Security.Cryptography.X509Certificates;
 using Opc.Ua.X509StoreExtensions.Internal;

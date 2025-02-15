@@ -49,7 +49,7 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         public static byte[] ExportPrivateKeyAsPEM(
             X509Certificate2 certificate,
-            string password = null
+            string? password = null
             )
         {
             bool isECDsaSignature = X509PfxUtils.IsECDsaSignature(certificate);
@@ -57,7 +57,7 @@ namespace Opc.Ua.Security.Certificates
             if (!isECDsaSignature)
             {
                 if (!String.IsNullOrEmpty(password)) throw new ArgumentException("Export with password not supported on this platform.", nameof(password));
-                RsaPrivateCrtKeyParameters privateKeyParameter = X509Utils.GetRsaPrivateKeyParameter(certificate);
+                RsaPrivateCrtKeyParameters? privateKeyParameter = X509Utils.GetRsaPrivateKeyParameter(certificate);
                 // write private key as PKCS#8
                 PrivateKeyInfo privateKeyInfo = PrivateKeyInfoFactory.CreatePrivateKeyInfo(privateKeyParameter);
                 byte[] serializedPrivateBytes = privateKeyInfo.ToAsn1Object().GetDerEncoded();

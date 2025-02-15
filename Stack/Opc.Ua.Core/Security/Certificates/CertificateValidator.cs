@@ -102,14 +102,14 @@ namespace Opc.Ua
         /// <summary>
         /// Updates the validator with the current state of the configuration.
         /// </summary>
-        public virtual async Task Update(ApplicationConfiguration configuration)
+        public virtual async Task UpdateAsync(ApplicationConfiguration configuration)
         {
             if (configuration == null)
             {
                 throw new ArgumentNullException(nameof(configuration));
             }
 
-            await UpdateAsync(configuration.SecurityConfiguration).ConfigureAwait(false);
+            await UpdateAsync(configuration.SecurityConfiguration, configuration.ApplicationUri).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -983,7 +983,7 @@ namespace Opc.Ua
             // check for authority key id match.
             if (!string.IsNullOrEmpty(authorityKeyId))
             {
-                X509SubjectKeyIdentifierExtension subjectKeyId = X509Extensions.FindExtension<X509SubjectKeyIdentifierExtension>(certificate);
+                X509SubjectKeyIdentifierExtension? subjectKeyId = X509Extensions.FindExtension<X509SubjectKeyIdentifierExtension>(certificate);
 
                 if (subjectKeyId != null)
                 {

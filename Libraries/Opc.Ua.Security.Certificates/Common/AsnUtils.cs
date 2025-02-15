@@ -43,11 +43,11 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// Converts a buffer to a hexadecimal string.
         /// </summary>
-        internal static string ToHexString(this byte[] buffer, bool invertEndian = false)
+        internal static string ToHexString(this byte[]? buffer, bool invertEndian = false)
         {
             if (buffer == null || buffer.Length == 0)
             {
-                return String.Empty;
+                return string.Empty;
             }
 
 #if NET6_0_OR_GREATER
@@ -58,7 +58,7 @@ namespace Opc.Ua.Security.Certificates
             else
 #endif
             {
-                StringBuilder builder = new StringBuilder(buffer.Length * 2);
+                var builder = new StringBuilder(buffer.Length * 2);
 
 #if !NET6_0_OR_GREATER
                 if (!invertEndian)
@@ -84,7 +84,7 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// Converts a hexadecimal string to an array of bytes.
         /// </summary>
-        internal static byte[] FromHexString(this string buffer)
+        internal static byte[]? FromHexString(this string? buffer)
         {
             if (buffer == null)
             {

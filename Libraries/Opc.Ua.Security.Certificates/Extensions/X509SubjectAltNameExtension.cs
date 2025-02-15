@@ -85,7 +85,7 @@ namespace Opc.Ua.Security.Certificates
         /// Creates an extension from ASN.1 encoded data.
         /// </summary>
         public X509SubjectAltNameExtension(AsnEncodedData encodedExtension, bool critical)
-            : this(encodedExtension.Oid, encodedExtension.RawData, critical)
+            : this(encodedExtension.Oid ?? throw new ArgumentException("Oid cannot be null", nameof(encodedExtension)), encodedExtension.RawData, critical)
         {
         }
 
@@ -298,8 +298,8 @@ namespace Opc.Ua.Security.Certificates
         {
             foreach (string generalName in generalNames)
             {
-                IPAddress ipAddr;
-                if (String.IsNullOrWhiteSpace(generalName))
+                IPAddress? ipAddr;
+                if (string.IsNullOrWhiteSpace(generalName))
                 {
                     continue;
                 }
@@ -342,8 +342,8 @@ namespace Opc.Ua.Security.Certificates
         /// </remarks>
         private void Decode(byte[] data)
         {
-            if (base.Oid.Value == SubjectAltNameOid ||
-                base.Oid.Value == SubjectAltName2Oid)
+            if (base.Oid?.Value is SubjectAltNameOid or
+                SubjectAltName2Oid)
             {
                 try
                 {
@@ -439,9 +439,9 @@ namespace Opc.Ua.Security.Certificates
         private const string kDnsName = "DNS Name";
         private const string kIpAddress = "IP Address";
         private const string kFriendlyName = "Subject Alternative Name";
-        private List<string> m_uris;
-        private List<string> m_domainNames;
-        private List<string> m_ipAddresses;
+        private List<string> m_uris = null!;
+        private List<string> m_domainNames = null!;
+        private List<string> m_ipAddresses = null!;
         private bool m_decoded;
         #endregion
     }

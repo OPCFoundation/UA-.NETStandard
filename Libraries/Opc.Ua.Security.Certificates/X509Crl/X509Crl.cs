@@ -155,7 +155,7 @@ namespace Opc.Ua.Security.Certificates
         }
 
         /// <inheritdoc/>
-        public byte[] RawData { get; private set; }
+        public byte[] RawData { get; private set; } = null!;
         #endregion
 
         #region Public Methods
@@ -286,8 +286,11 @@ namespace Opc.Ua.Security.Certificates
                                     AsnReader crlEntryExtensions = crlEntry.ReadSequence();
                                     while (crlEntryExtensions.HasData)
                                     {
-                                        X509Extension extension = crlEntryExtensions.ReadExtension();
-                                        revokedCertificate.CrlEntryExtensions.Add(extension);
+                                        X509Extension? extension = crlEntryExtensions.ReadExtension();
+                                        if (extension != null)
+                                        {
+                                            revokedCertificate.CrlEntryExtensions.Add(extension);
+                                        }
                                     }
                                     crlEntryExtensions.ThrowIfNotEmpty();
                                 }
@@ -308,8 +311,11 @@ namespace Opc.Ua.Security.Certificates
                             AsnReader crlExtensions = optReader.ReadSequence();
                             while (crlExtensions.HasData)
                             {
-                                X509Extension extension = crlExtensions.ReadExtension();
-                                crlExtensionList.Add(extension);
+                                X509Extension? extension = crlExtensions.ReadExtension();
+                                if (extension != null)
+                                {
+                                    crlExtensionList.Add(extension);
+                                }
                             }
                             m_crlExtensions = crlExtensionList;
                         }
@@ -368,8 +374,8 @@ namespace Opc.Ua.Security.Certificates
 
         #region Private Fields
         private bool m_decoded = false;
-        private X509Signature m_signature;
-        private X500DistinguishedName m_issuerName;
+        private X509Signature m_signature = null!;
+        private X500DistinguishedName m_issuerName = null!;
         private DateTime m_thisUpdate;
         private DateTime m_nextUpdate;
         private HashAlgorithmName m_hashAlgorithmName;

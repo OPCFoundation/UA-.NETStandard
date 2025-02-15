@@ -74,11 +74,24 @@ namespace Opc.Ua.Security.Certificates
             X509Certificate2 certificate
             )
         {
-            byte[] exportedPublicKey = null;
-            using (RSA rsaPublicKey = certificate.GetRSAPublicKey())
+            byte[]? exportedPublicKey = null;
+            using (RSA? rsaPublicKey = certificate.GetRSAPublicKey())
             {
-                exportedPublicKey = rsaPublicKey.ExportSubjectPublicKeyInfo();
+                exportedPublicKey = rsaPublicKey?.ExportSubjectPublicKeyInfo();
             }
+            if (exportedPublicKey == null)
+            {
+                using (ECDsa? ecdsaPublicKey = certificate.GetECDsaPublicKey())
+                {
+                    exportedPublicKey = ecdsaPublicKey?.ExportSubjectPublicKeyInfo();
+                }
+            }
+
+            if (exportedPublicKey == null)
+            {
+                throw new InvalidOperationException("Certificate does not contain a public key.");
+            }
+
             return EncodeAsPEM(exportedPublicKey, "PUBLIC KEY");
         }
 
@@ -88,12 +101,18 @@ namespace Opc.Ua.Security.Certificates
         public static byte[] ExportRSAPrivateKeyAsPEM(
             X509Certificate2 certificate)
         {
-            byte[] exportedRSAPrivateKey = null;
-            using (RSA rsaPrivateKey = certificate.GetRSAPrivateKey())
+            byte[]? exportedRSAPrivateKey = null;
+            using (RSA? rsaPrivateKey = certificate.GetRSAPrivateKey())
             {
                 // write private key as PKCS#1
-                exportedRSAPrivateKey = rsaPrivateKey.ExportRSAPrivateKey();
+                exportedRSAPrivateKey = rsaPrivateKey?.ExportRSAPrivateKey();
             }
+
+            if (exportedRSAPrivateKey == null)
+            {
+                throw new InvalidOperationException("Certificate does not contain an RSA private key.");
+            }
+
             return EncodeAsPEM(exportedRSAPrivateKey, "RSA PRIVATE KEY");
         }
 
@@ -103,12 +122,18 @@ namespace Opc.Ua.Security.Certificates
         public static byte[] ExportECDsaPrivateKeyAsPEM(
             X509Certificate2 certificate)
         {
-            byte[] exportedECPrivateKey = null;
-            using (ECDsa ecdsaPrivateKey = certificate.GetECDsaPrivateKey())
+            byte[]? exportedECPrivateKey = null;
+            using (ECDsa? ecdsaPrivateKey = certificate.GetECDsaPrivateKey())
             {
                 // write private key as PKCS#1
-                exportedECPrivateKey = ecdsaPrivateKey.ExportECPrivateKey();
+                exportedECPrivateKey = ecdsaPrivateKey?.ExportECPrivateKey();
             }
+
+            if (exportedECPrivateKey == null)
+            {
+                throw new InvalidOperationException("Certificate does not contain an ECDSA private key.");
+            }
+
             return EncodeAsPEM(exportedECPrivateKey, "EC PRIVATE KEY");
         }
 
@@ -117,11 +142,11 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         public static byte[] ExportPrivateKeyAsPEM(
             X509Certificate2 certificate,
-            string password = null
+            string? password = null
             )
         {
-            byte[] exportedPkcs8PrivateKey = null;
-            using (RSA rsaPrivateKey = certificate.GetRSAPrivateKey())
+            byte[]? exportedPkcs8PrivateKey = null;
+            using (RSA? rsaPrivateKey = certificate.GetRSAPrivateKey())
             {
                 if (rsaPrivateKey != null)
                 {
@@ -133,7 +158,7 @@ namespace Opc.Ua.Security.Certificates
                 }
                 else
                 {
-                    using (ECDsa ecdsaPrivateKey = certificate.GetECDsaPrivateKey())
+                    using (ECDsa? ecdsaPrivateKey = certificate.GetECDsaPrivateKey())
                     {
                         if (ecdsaPrivateKey != null)
                         {
@@ -145,6 +170,11 @@ namespace Opc.Ua.Security.Certificates
                         }
                     }
                 }
+            }
+
+            if (exportedPkcs8PrivateKey == null)
+            {
+                throw new InvalidOperationException("Certificate does not contain a private key.");
             }
 
             return EncodeAsPEM(exportedPkcs8PrivateKey,

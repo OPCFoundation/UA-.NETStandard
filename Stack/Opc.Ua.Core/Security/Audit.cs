@@ -10,6 +10,8 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
+#nullable enable
+
 using System.Text;
 using System.Globalization;
 using System.Security.Cryptography.X509Certificates;
@@ -35,9 +37,9 @@ namespace Opc.Ua.Security
             string implementationInfo,
             string endpointUrl,
             string secureChannelId,
-            EndpointDescription endpoint,
-            X509Certificate2 clientCertificate,
-            X509Certificate2 serverCertificate,
+            EndpointDescription? endpoint,
+            X509Certificate2? clientCertificate,
+            X509Certificate2? serverCertificate,
             BinaryEncodingSupport encodingSupport)
         {
             // do nothing if security turned off.

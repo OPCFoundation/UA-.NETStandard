@@ -10,6 +10,8 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
+#nullable enable
+
 using System;
 using System.Collections.Generic;
 using System.Reflection;
@@ -149,14 +151,14 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the uri associated with the display name.
         /// </summary>
-        public static string GetUri(string displayName)
+        public static string? GetUri(string displayName)
         {
             FieldInfo[] fields = typeof(SecurityPolicies).GetFields(BindingFlags.Public | BindingFlags.Static);
             foreach (FieldInfo field in fields)
             {
                 if (field.Name == displayName && IsPlatformSupportedName(field.Name))
                 {
-                    return (string)field.GetValue(typeof(SecurityPolicies));
+                    return (string?)field.GetValue(typeof(SecurityPolicies));
                 }
             }
 
@@ -166,13 +168,13 @@ namespace Opc.Ua
         /// <summary>
         /// Returns a display name for a security policy uri.
         /// </summary>
-        public static string GetDisplayName(string policyUri)
+        public static string? GetDisplayName(string policyUri)
         {
             FieldInfo[] fields = typeof(SecurityPolicies).GetFields(BindingFlags.Public | BindingFlags.Static);
 
             foreach (FieldInfo field in fields)
             {
-                if (policyUri == (string)field.GetValue(typeof(SecurityPolicies)) &&
+                if (policyUri == (string?)field.GetValue(typeof(SecurityPolicies)) &&
                     IsPlatformSupportedName(field.Name))
                 {
                     return field.Name;
@@ -197,7 +199,7 @@ namespace Opc.Ua
 
             foreach (FieldInfo field in fields)
             {
-                if (policyUri == (string)field.GetValue(typeof(SecurityPolicies)))
+                if (policyUri == (string?)field.GetValue(typeof(SecurityPolicies)))
                 {
                     return true;
                 }
@@ -294,7 +296,7 @@ namespace Opc.Ua
         /// <summary>
         /// Encrypts the text using the SecurityPolicyUri and returns the result.
         /// </summary>
-        public static EncryptedData Encrypt(X509Certificate2 certificate, string securityPolicyUri, byte[] plainText)
+        public static EncryptedData Encrypt(X509Certificate2 certificate, string? securityPolicyUri, byte[]? plainText)
         {
             EncryptedData encryptedData = new EncryptedData();
 
@@ -308,7 +310,7 @@ namespace Opc.Ua
             }
 
             // nothing more to do if no encryption.
-            if (String.IsNullOrEmpty(securityPolicyUri))
+            if (string.IsNullOrEmpty(securityPolicyUri))
             {
                 return encryptedData;
             }
@@ -369,16 +371,16 @@ namespace Opc.Ua
         /// <summary>
         /// Decrypts the CipherText using the SecurityPolicyUri and returns the PlainText.
         /// </summary>
-        public static byte[] Decrypt(X509Certificate2 certificate, string securityPolicyUri, EncryptedData dataToDecrypt)
+        public static byte[]? Decrypt(X509Certificate2 certificate, string? securityPolicyUri, EncryptedData? dataToDecrypt)
         {
             // check if nothing to do.
-            if (dataToDecrypt == null)
+            if (dataToDecrypt?.Data == null)
             {
                 return null;
             }
 
             // nothing more to do if no encryption.
-            if (String.IsNullOrEmpty(securityPolicyUri))
+            if (string.IsNullOrEmpty(securityPolicyUri))
             {
                 return dataToDecrypt.Data;
             }
@@ -448,9 +450,9 @@ namespace Opc.Ua
         /// <summary>
         /// Signs the data using the SecurityPolicyUri and returns the signature.
         /// </summary>
-        public static SignatureData Sign(X509Certificate2 certificate, string securityPolicyUri, byte[] dataToSign)
+        public static SignatureData Sign(X509Certificate2 certificate, string? securityPolicyUri, byte[]? dataToSign)
         {
-            SignatureData signatureData = new SignatureData();
+            var signatureData = new SignatureData();
 
             // check if nothing to do.
             if (dataToSign == null)
@@ -459,7 +461,7 @@ namespace Opc.Ua
             }
 
             // nothing more to do if no encryption.
-            if (String.IsNullOrEmpty(securityPolicyUri))
+            if (string.IsNullOrEmpty(securityPolicyUri))
             {
                 return signatureData;
             }
@@ -532,7 +534,7 @@ namespace Opc.Ua
         /// <summary>
         /// Verifies the signature using the SecurityPolicyUri and return true if valid.
         /// </summary>
-        public static bool Verify(X509Certificate2 certificate, string securityPolicyUri, byte[] dataToVerify, SignatureData signature)
+        public static bool Verify(X509Certificate2 certificate, string? securityPolicyUri, byte[] dataToVerify, SignatureData? signature)
         {
             // check if nothing to do.
             if (signature == null)
@@ -541,7 +543,7 @@ namespace Opc.Ua
             }
 
             // nothing more to do if no encryption.
-            if (String.IsNullOrEmpty(securityPolicyUri))
+            if (string.IsNullOrEmpty(securityPolicyUri))
             {
                 return true;
             }

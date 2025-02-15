@@ -10,6 +10,8 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
+#nullable enable
+
 namespace Opc.Ua
 {
     /// <summary>
@@ -148,9 +150,9 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="profileUri">The profile URI.</param>
         /// <returns>The normalized URI.</returns>
-        public static string NormalizeUri(string profileUri)
+        public static string? NormalizeUri(string? profileUri)
         {
-            if (System.String.IsNullOrEmpty(profileUri))
+            if (string.IsNullOrEmpty(profileUri))
             {
                 return profileUri;
             }

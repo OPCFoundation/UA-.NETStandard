@@ -189,7 +189,7 @@ namespace Opc.Ua.Security.Certificates
         /// Get the hash algorithm used to sign a certificate.
         /// </summary>
         /// <param name="oid">The signature algorithm oid.</param>
-        public static HashAlgorithmName GetHashAlgorithmName(string oid)
+        public static HashAlgorithmName GetHashAlgorithmName(string? oid)
         {
             switch (oid)
             {

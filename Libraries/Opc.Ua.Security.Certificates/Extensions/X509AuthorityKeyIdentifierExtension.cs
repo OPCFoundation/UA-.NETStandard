@@ -63,7 +63,7 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         public X509AuthorityKeyIdentifierExtension(AsnEncodedData encodedExtension, bool critical)
         :
-            this(encodedExtension.Oid, encodedExtension.RawData, critical)
+            this(encodedExtension.Oid ?? throw new ArgumentException("Oid cannot be null", nameof(encodedExtension)), encodedExtension.RawData, critical)
         {
         }
 
@@ -278,8 +278,8 @@ namespace Opc.Ua.Security.Certificates
 
         private void Decode(byte[] data)
         {
-            if (base.Oid.Value == AuthorityKeyIdentifierOid ||
-                base.Oid.Value == AuthorityKeyIdentifier2Oid)
+            if (base.Oid?.Value is AuthorityKeyIdentifierOid or
+                AuthorityKeyIdentifier2Oid)
             {
                 try
                 {
@@ -342,9 +342,9 @@ namespace Opc.Ua.Security.Certificates
         private const string kIssuer = "Issuer";
         private const string kSerialNumber = "SerialNumber";
         private const string kFriendlyName = "Authority Key Identifier";
-        private byte[] m_keyIdentifier;
-        private X500DistinguishedName m_issuer;
-        private byte[] m_serialNumber;
+        private byte[] m_keyIdentifier = null!;
+        private X500DistinguishedName m_issuer = null!;
+        private byte[] m_serialNumber = null!;
         #endregion
     }
 }
