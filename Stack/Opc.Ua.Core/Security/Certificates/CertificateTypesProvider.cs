@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
-
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -47,12 +45,7 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// Disallow to create types provider without configuration.
         /// </summary>
-        private CertificateTypesProvider()
-        {
-            m_securityConfiguration = null!;
-            m_certificateValidator = null!;
-            m_certificateChain = null!;
-        }
+        private CertificateTypesProvider() { }
 
         /// <summary>
         /// Create an instance of the certificate provider.
@@ -91,12 +84,12 @@ namespace Opc.Ua.Security.Certificates
         /// Return the instance certificate for a security policy.
         /// </summary>
         /// <param name="securityPolicyUri">The security policy Uri</param>
-        public X509Certificate2? GetInstanceCertificate(string securityPolicyUri)
+        public X509Certificate2 GetInstanceCertificate(string securityPolicyUri)
         {
             if (securityPolicyUri == SecurityPolicies.None)
             {
                 // return the default certificate for None
-                return m_securityConfiguration.ApplicationCertificates.FirstOrDefault()?.Certificate;
+                return m_securityConfiguration.ApplicationCertificates.FirstOrDefault().Certificate;
             }
             var certificateTypes = Opc.Ua.CertificateIdentifier.MapSecurityPolicyToCertificateTypes(securityPolicyUri);
             foreach (var certType in certificateTypes)
@@ -129,7 +122,7 @@ namespace Opc.Ua.Security.Certificates
         /// Loads the cached certificate chain blob of a certificate for use in a secure channel as raw byte array from cache.
         /// </summary>
         /// <param name="certificate">The application certificate.</param>
-        public byte[]? LoadCertificateChainRaw(X509Certificate2 certificate)
+        public byte[] LoadCertificateChainRaw(X509Certificate2 certificate)
         {
             if (certificate == null)
             {
@@ -148,7 +141,7 @@ namespace Opc.Ua.Security.Certificates
         /// Loads the certificate chain for an application certificate.
         /// </summary>
         /// <param name="certificate">The application certificate.</param>
-        public async Task<X509Certificate2Collection?> LoadCertificateChainAsync(X509Certificate2 certificate)
+        public async Task<X509Certificate2Collection> LoadCertificateChainAsync(X509Certificate2 certificate)
         {
             if (certificate == null)
             {
@@ -167,10 +160,7 @@ namespace Opc.Ua.Security.Certificates
             {
                 for (int i = 0; i < issuers.Count; i++)
                 {
-                    if (issuers[i]?.Certificate != null)
-                    {
-                        certificateChain.Add(issuers[i].Certificate!);
-                    }
+                    certificateChain.Add(issuers[i].Certificate);
                 }
             }
 
@@ -187,7 +177,7 @@ namespace Opc.Ua.Security.Certificates
         /// Loads the certificate chain for an application certificate from cache.
         /// </summary>
         /// <param name="certificate">The application certificate.</param>
-        public X509Certificate2Collection? LoadCertificateChain(X509Certificate2 certificate)
+        public X509Certificate2Collection LoadCertificateChain(X509Certificate2 certificate)
         {
             if (certificate == null)
             {
