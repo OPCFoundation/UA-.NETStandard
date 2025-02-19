@@ -82,7 +82,8 @@ namespace Opc.Ua.Gds.Server
                 {
                     if (!Utils.IsSupportedCertificateType(certificateType))
                     {
-                        throw new NotImplementedException($"Unsupported certificate type {certificateType}");
+                        Utils.LogError("Certificate type {0} specified for Certificate Group is not supported on this platform", certificateType);
+                        continue;
                     }
 
                     CertificateTypes.Add(certificateType);
@@ -356,7 +357,10 @@ namespace Opc.Ua.Gds.Server
 
 #if ECC_SUPPORT
                     certificate = TryGetECCCurve(certificateType, out ECCurve curve) ?
-                       builder.SetIssuer(signingKey).SetECDsaPublicKey(info.SubjectPublicKeyInfo.GetEncoded()).CreateForECDsa() :
+                       builder
+                       .SetIssuer(signingKey)
+                       .SetECDsaPublicKey(info.SubjectPublicKeyInfo.GetEncoded())
+                       .CreateForECDsa() :
                        builder.SetHashAlgorithm(X509Utils.GetRSAHashAlgorithmName(Configuration.DefaultCertificateHashSize))
                                 .SetIssuer(signingKey)
                                 .SetRSAPublicKey(info.SubjectPublicKeyInfo.GetEncoded())

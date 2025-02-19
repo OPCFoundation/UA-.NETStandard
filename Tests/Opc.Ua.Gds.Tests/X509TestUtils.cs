@@ -59,8 +59,8 @@ namespace Opc.Ua.Gds.Tests
             }
             Assert.IsNotNull(newPrivateKeyCert);
             // verify the public cert matches the private key
-            Assert.IsTrue(X509Utils.VerifyRSAKeyPair(newCert, newPrivateKeyCert, true));
-            Assert.IsTrue(X509Utils.VerifyRSAKeyPair(newPrivateKeyCert, newPrivateKeyCert, true));
+            Assert.IsTrue(X509Utils.VerifyKeyPair(newCert, newPrivateKeyCert, true));
+            Assert.IsTrue(X509Utils.VerifyKeyPair(newPrivateKeyCert, newPrivateKeyCert, true));
             CertificateIdentifierCollection issuerCertIdCollection = new CertificateIdentifierCollection();
             foreach (var issuer in issuerCertificates)
             {
@@ -115,20 +115,32 @@ namespace Opc.Ua.Gds.Tests
             TestContext.Out.WriteLine($"KeyUsage: {keyUsage.Format(true)}");
             Assert.True(keyUsage.Critical);
             Assert.True((keyUsage.KeyUsages & X509KeyUsageFlags.CrlSign) == 0);
-            Assert.True((keyUsage.KeyUsages & X509KeyUsageFlags.DataEncipherment) == X509KeyUsageFlags.DataEncipherment);
             Assert.True((keyUsage.KeyUsages & X509KeyUsageFlags.DecipherOnly) == 0);
             Assert.True((keyUsage.KeyUsages & X509KeyUsageFlags.DigitalSignature) == X509KeyUsageFlags.DigitalSignature);
             Assert.True((keyUsage.KeyUsages & X509KeyUsageFlags.EncipherOnly) == 0);
-            Assert.True((keyUsage.KeyUsages & X509KeyUsageFlags.KeyAgreement) == 0);
             Assert.True((keyUsage.KeyUsages & X509KeyUsageFlags.KeyCertSign) == 0);
-            Assert.True((keyUsage.KeyUsages & X509KeyUsageFlags.KeyEncipherment) == X509KeyUsageFlags.KeyEncipherment);
             Assert.True((keyUsage.KeyUsages & X509KeyUsageFlags.NonRepudiation) == X509KeyUsageFlags.NonRepudiation);
 
-            // enhanced key usage
-            X509EnhancedKeyUsageExtension enhancedKeyUsage = X509Extensions.FindExtension<X509EnhancedKeyUsageExtension>(signedCert);
-            Assert.NotNull(enhancedKeyUsage);
-            TestContext.Out.WriteLine($"Enhanced Key Usage: {enhancedKeyUsage.Format(true)}");
-            Assert.True(enhancedKeyUsage.Critical);
+            //ECC
+            if (X509PfxUtils.IsECDsaSignature(signedCert))
+            {
+                Assert.True((keyUsage.KeyUsages & X509KeyUsageFlags.DataEncipherment) == 0);
+                Assert.True((keyUsage.KeyUsages & X509KeyUsageFlags.KeyEncipherment) == 0);
+                Assert.True((keyUsage.KeyUsages & X509KeyUsageFlags.KeyAgreement) == X509KeyUsageFlags.KeyAgreement);
+            }
+            //RSA
+            else
+            {
+                Assert.True((keyUsage.KeyUsages & X509KeyUsageFlags.DataEncipherment) == X509KeyUsageFlags.DataEncipherment);
+                Assert.True((keyUsage.KeyUsages & X509KeyUsageFlags.KeyEncipherment) == X509KeyUsageFlags.KeyEncipherment);
+                Assert.True((keyUsage.KeyUsages & X509KeyUsageFlags.KeyAgreement) == 0);
+
+                // enhanced key usage
+                X509EnhancedKeyUsageExtension enhancedKeyUsage = X509Extensions.FindExtension<X509EnhancedKeyUsageExtension>(signedCert);
+                Assert.NotNull(enhancedKeyUsage);
+                TestContext.Out.WriteLine($"Enhanced Key Usage: {enhancedKeyUsage.Format(true)}");
+                Assert.True(enhancedKeyUsage.Critical);
+            }
 
             // test for authority key
             var authority = X509Extensions.FindExtension<Ua.Security.Certificates.X509AuthorityKeyIdentifierExtension>(signedCert);

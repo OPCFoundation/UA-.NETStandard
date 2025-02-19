@@ -36,6 +36,7 @@ using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Opc.Ua.Gds.Server;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 
@@ -108,6 +109,14 @@ namespace Opc.Ua.Gds.Tests
             m_invalidRegistrationOk = false;
             m_goodNewKeyPairRequestOk = false;
             m_gdsRegisteredTestClient = false;
+
+            //get supported CertificateTypes from GDS
+            m_supportedCertificateTypes = m_server.Config.ParseExtension<GlobalDiscoveryServerConfiguration>().CertificateGroups
+                .Where(cg => cg.Id == "Default")
+                .SelectMany(cg => cg.CertificateTypes)
+                .Select(s => typeof(Ua.ObjectTypeIds).GetField(s).GetValue(null) as NodeId)
+                .Where(n => n != null && Utils.IsSupportedCertificateType(n))
+                .ToList();
         }
 
         /// <summary>
@@ -652,8 +661,12 @@ namespace Opc.Ua.Gds.Tests
         {
             AssertIgnoreTestWithoutGoodRegistration();
             ConnectGDS(true);
+            int certificateTypeIndex = 0;
             foreach (var application in m_goodApplicationTestSet)
             {
+                application.CertificateTypeId = m_supportedCertificateTypes[certificateTypeIndex];
+                certificateTypeIndex = (certificateTypeIndex + 1) % m_supportedCertificateTypes.Count;
+
                 Assert.Null(application.CertificateRequestId);
                 NodeId requestId = m_gdsClient.GDSClient.StartNewKeyPairRequest(
                     application.ApplicationRecord.ApplicationId,
@@ -875,7 +888,7 @@ namespace Opc.Ua.Gds.Tests
 
         }
 
-        
+
         [Test, Order(540)]
         public void GetGoodCertificates()
         {
@@ -1531,6 +1544,7 @@ namespace Opc.Ua.Gds.Tests
         private bool m_goodRegistrationOk;
         private bool m_invalidRegistrationOk;
         private bool m_gdsRegisteredTestClient;
+        private List<NodeId> m_supportedCertificateTypes;
         private bool m_goodNewKeyPairRequestOk;
         private string m_storeType;
         #endregion

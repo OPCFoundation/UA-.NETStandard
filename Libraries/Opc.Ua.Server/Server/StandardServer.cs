@@ -2394,7 +2394,7 @@ namespace Opc.Ua.Server
                                 requestHeader.Timestamp = DateTime.UtcNow;
 
                                 // create the client.
-                                var instanceCertificate = InstanceCertificateTypesProvider.GetInstanceCertificate(null);
+                                var instanceCertificate = InstanceCertificateTypesProvider.GetInstanceCertificate(endpoint.Description?.SecurityPolicyUri ?? SecurityPolicies.None);
                                 client = RegistrationClient.Create(
                                     configuration,
                                     endpoint.Description,

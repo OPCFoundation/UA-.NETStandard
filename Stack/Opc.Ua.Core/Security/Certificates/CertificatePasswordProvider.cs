@@ -10,6 +10,8 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
+#nullable enable
+
 namespace Opc.Ua
 {
     #region ICertificatePasswordProvider Interface

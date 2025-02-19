@@ -291,7 +291,9 @@ namespace Opc.Ua.Security.Certificates
         private void SetHashAlgorithmSize(ECCurve curve)
         {
             if (curve.Oid.FriendlyName.CompareTo(ECCurve.NamedCurves.nistP384.Oid.FriendlyName) == 0 ||
-               (curve.Oid.FriendlyName.CompareTo(ECCurve.NamedCurves.brainpoolP384r1.Oid.FriendlyName) == 0))
+                curve.Oid.FriendlyName.CompareTo(ECCurve.NamedCurves.brainpoolP384r1.Oid.FriendlyName) == 0 ||
+                // special case for linux where friendly name could be ECDSA_P384 instead of nistP384
+                (curve.Oid?.Value != null && curve.Oid.Value.CompareTo(ECCurve.NamedCurves.nistP384.Oid.Value) == 0))
             {
                 SetHashAlgorithm(HashAlgorithmName.SHA384);
             }
@@ -388,7 +390,7 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         private protected ECCurve? m_curve;
 #endif
-#endregion
+        #endregion
 
         #region Private Fields
         private X509Certificate2 m_issuerCAKeyCert;

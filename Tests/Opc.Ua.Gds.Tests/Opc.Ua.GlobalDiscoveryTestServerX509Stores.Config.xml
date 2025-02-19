@@ -17,6 +17,30 @@
         <SubjectName>CN=Global Discovery Test Server, O=OPC Foundation, DC=localhost</SubjectName>
         <CertificateTypeString>RsaSha256</CertificateTypeString>
       </CertificateIdentifier>
+      <CertificateIdentifier>
+        <StoreType>X509Store</StoreType>
+        <StorePath>CurrentUser\UA_Test_GDS_Server_own</StorePath>
+        <SubjectName>CN=Global Discovery Test Server, O=OPC Foundation, DC=localhost</SubjectName>
+        <CertificateTypeString>NistP256</CertificateTypeString>
+      </CertificateIdentifier>
+      <CertificateIdentifier>
+        <StoreType>X509Store</StoreType>
+        <StorePath>CurrentUser\UA_Test_GDS_Server_own</StorePath>
+        <SubjectName>CN=Global Discovery Test Server, O=OPC Foundation, DC=localhost</SubjectName>
+        <CertificateTypeString>NistP384</CertificateTypeString>
+      </CertificateIdentifier>
+      <CertificateIdentifier>
+        <StoreType>X509Store</StoreType>
+        <StorePath>CurrentUser\UA_Test_GDS_Server_own</StorePath>
+        <SubjectName>CN=Global Discovery Test Server, O=OPC Foundation, DC=localhost</SubjectName>
+        <CertificateTypeString>BrainpoolP256r1</CertificateTypeString>
+      </CertificateIdentifier>
+      <CertificateIdentifier>
+        <StoreType>X509Store</StoreType>
+        <StorePath>CurrentUser\UA_Test_GDS_Server_own</StorePath>
+        <SubjectName>CN=Global Discovery Test Server, O=OPC Foundation, DC=localhost</SubjectName>
+        <CertificateTypeString>BrainpoolP384r1</CertificateTypeString>
+      </CertificateIdentifier>
     </ApplicationCertificates>
 
     <TrustedIssuerCertificates>
@@ -143,6 +167,8 @@
               <ua:String>RsaSha256ApplicationCertificateType</ua:String>
               <ua:String>EccNistP256ApplicationCertificateType</ua:String>
               <ua:String>EccNistP384ApplicationCertificateType</ua:String>
+              <ua:String>EccBrainpoolP256r1ApplicationCertificateType</ua:String>
+              <ua:String>EccBrainpoolP384r1ApplicationCertificateType</ua:String>
             </CertificateTypes>
             <SubjectName>CN=GDS Test CA, O=OPC Foundation</SubjectName>
             <BaseStorePath>%LocalApplicationData%/OPC/GDS/CA/default</BaseStorePath>

@@ -216,7 +216,13 @@ namespace Opc.Ua.Gds.Tests
                 {
                     new CertificateGroupConfiguration() {
                         Id = "Default",
-                        CertificateType = "RsaSha256ApplicationCertificateType",
+                        CertificateTypes = new StringCollection() {
+                            "RsaSha256ApplicationCertificateType",
+                            "EccNistP256ApplicationCertificateType",
+                            "EccNistP384ApplicationCertificateType",
+                            "EccBrainpoolP256r1ApplicationCertificateType",
+                            "EccBrainpoolP384r1ApplicationCertificateType"
+                        },
                         SubjectName = "CN=GDS Test CA, O=OPC Foundation",
                         BaseStorePath = Path.Combine(gdsRoot, "CA", "default"),
                         DefaultCertificateHashSize = 256,

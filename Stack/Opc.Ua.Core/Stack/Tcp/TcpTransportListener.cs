@@ -577,24 +577,18 @@ namespace Opc.Ua.Bindings
                     port = Utils.UaTcpDefaultPort;
                 }
 
-                bool bindToSpecifiedAddress = true;
                 UriHostNameType hostType = Uri.CheckHostName(m_uri.Host);
-                if (hostType == UriHostNameType.Dns || hostType == UriHostNameType.Unknown || hostType == UriHostNameType.Basic)
-                {
-                    bindToSpecifiedAddress = false;
-                }
-
-                IPAddress ipAddress = IPAddress.Any;
-                if (bindToSpecifiedAddress)
-                {
-                    ipAddress = IPAddress.Parse(m_uri.Host);
-                }
+                bool bindToSpecifiedAddress = hostType != UriHostNameType.Dns && hostType != UriHostNameType.Unknown && hostType != UriHostNameType.Basic;
+                IPAddress ipAddress = bindToSpecifiedAddress ? IPAddress.Parse(m_uri.Host) : IPAddress.Any;
 
                 // create IPv4 or IPv6 socket.
                 try
                 {
                     IPEndPoint endpoint = new IPEndPoint(ipAddress, port);
-                    m_listeningSocket = new Socket(endpoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
+                    m_listeningSocket = new Socket(endpoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp) {
+                        NoDelay = true,
+                        LingerState = new LingerOption(true, 5),
+                    };
                     SocketAsyncEventArgs args = new SocketAsyncEventArgs();
                     args.Completed += OnAccept;
                     args.UserToken = m_listeningSocket;
@@ -628,12 +622,17 @@ namespace Opc.Ua.Bindings
                     try
                     {
                         IPEndPoint endpointIPv6 = new IPEndPoint(IPAddress.IPv6Any, port);
-                        m_listeningSocketIPv6 = new Socket(endpointIPv6.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
-                        SocketAsyncEventArgs args = new SocketAsyncEventArgs();
+                        m_listeningSocketIPv6 = new Socket(endpointIPv6.AddressFamily, SocketType.Stream, ProtocolType.Tcp) {
+                            NoDelay = true,
+                            LingerState = new LingerOption(true, 5),
+                        };
+                        SocketAsyncEventArgs args = new SocketAsyncEventArgs() {
+                            UserToken = m_listeningSocketIPv6
+                        };
                         args.Completed += OnAccept;
-                        args.UserToken = m_listeningSocketIPv6;
+
                         m_listeningSocketIPv6.Bind(endpointIPv6);
-                        m_listeningSocketIPv6.Listen(Int32.MaxValue);
+                        m_listeningSocketIPv6.Listen(kSocketBacklog);
                         if (!m_listeningSocketIPv6.AcceptAsync(args))
                         {
                             OnAccept(null, args);
@@ -801,6 +800,31 @@ namespace Opc.Ua.Bindings
                     {
                         // TODO: .Count is flagged as hotpath, implement separate counter
                         int channelCount = channels.Count;
+
+                        // Remove oldest channel that does not have a session attached to it
+                        // before reaching m_maxChannelCount
+                        if (m_maxChannelCount > 0 && m_maxChannelCount == channelCount)
+                        {
+                            var snapshot = channels.ToArray();
+
+                            // Identify channels without established sessions
+                            var nonSessionChannels = snapshot.Where(ch => !ch.Value.UsedBySession).ToArray();
+
+                            if (nonSessionChannels.Any())
+                            {
+                                var oldestIdChannel = nonSessionChannels.Aggregate((max, current) =>
+                                    current.Value.ElapsedSinceLastActiveTime > max.Value.ElapsedSinceLastActiveTime ? current : max);
+
+                                Utils.LogInfo("TCPLISTENER: Channel Id {0} scheduled for IdleCleanup - Oldest without established session.",
+                                    oldestIdChannel.Value.Id);
+                                oldestIdChannel.Value.IdleCleanup();
+                                Utils.LogInfo("TCPLISTENER: Channel Id {0} finished IdleCleanup - Oldest without established session.",
+                                    oldestIdChannel.Value.Id);
+
+                                channelCount--;
+                            }
+                        }
+
                         bool serveChannel = !(m_maxChannelCount > 0 && m_maxChannelCount < channelCount);
                         if (!serveChannel)
                         {
