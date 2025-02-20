@@ -509,7 +509,8 @@ namespace Opc.Ua
         /// </summary>
         public void WriteDateTime(string fieldName, DateTime value)
         {
-            value = Utils.ToOpcUaUniversalTime(value);
+            // Azbil: Comment out the line below to unify the time zone of DateTime handled in requests and responses to UTC.
+            //value = Utils.ToOpcUaUniversalTime(value);
 
             long ticks = value.Ticks;
 
