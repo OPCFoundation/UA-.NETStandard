@@ -257,10 +257,9 @@ namespace Opc.Ua
 
             try
             {
-
+                m_applicationCertificates.Clear();
                 foreach (var applicationCertificate in securityConfiguration.ApplicationCertificates)
                 {
-                    m_applicationCertificates.RemoveAll(cert => Utils.IsEqual(cert.RawData, applicationCertificate.RawData));
                     applicationCertificate.DisposeCertificate();
                 }
 

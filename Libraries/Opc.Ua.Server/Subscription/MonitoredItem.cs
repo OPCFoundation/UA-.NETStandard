@@ -1042,7 +1042,7 @@ namespace Opc.Ua.Server
                 // apply filter.
                 if (!bypassFilter)
                 {
-                    if (!filter.WhereClause.Evaluate(context, instance))
+                    if ( !CanSendFilteredAlarm( context, filter, instance ) )
                     {
                         return;
                     }
@@ -1078,6 +1078,78 @@ namespace Opc.Ua.Server
                 m_readyToTrigger = true;
             }
         }
+
+        /// <summary>
+        /// Determines whether an event can be sent with SupportsFilteredRetain in consideration.
+        /// </summary>
+        /// <returns></returns>
+        protected bool CanSendFilteredAlarm(FilterContext context, EventFilter filter, IFilterTarget instance)
+        {
+            bool passedFilter = filter.WhereClause.Evaluate(context, instance);
+
+            ConditionState alarmCondition = null;
+            NodeId conditionId = null;
+            InstanceStateSnapshot instanceStateSnapshot = instance as InstanceStateSnapshot;
+            if (instanceStateSnapshot != null)
+            {
+                alarmCondition = instanceStateSnapshot.Handle as ConditionState;
+
+                if (alarmCondition != null &&
+                    alarmCondition.SupportsFilteredRetain != null &&
+                    alarmCondition.SupportsFilteredRetain.Value &&
+                    filter.SelectClauses != null)
+                {
+                    conditionId = alarmCondition.NodeId;
+                }
+            }
+
+            bool canSend = passedFilter;
+
+            // ConditionId is valid only if FilteredRetain is set for the alarm condition
+            if (conditionId != null && alarmCondition != null)
+            {
+                HashSet<string> conditionIds = GetFilteredRetainConditionIds();
+
+                string key = conditionId.ToString();
+
+                bool saved = conditionIds.Contains(key);
+
+                if ( saved )
+                {
+                    conditionIds.Remove(key);
+                }
+
+                if ( passedFilter )
+                {
+                    // Archie - December 17 2024
+                    // Requires discussion with Part 9 Editor
+                    // if (alarmCondition.Retain.Value)
+                    {
+                        conditionIds.Add(key);
+                    }
+                }
+                else
+                {
+                    if ( saved )
+                    {
+                        canSend = true;
+                    }
+                }
+            }
+
+            return canSend;
+        }
+
+        private HashSet<string> GetFilteredRetainConditionIds()
+        {
+            if (m_filteredRetainConditionIds == null)
+            {
+                m_filteredRetainConditionIds = new HashSet<string>();
+            }
+
+            return m_filteredRetainConditionIds;
+        }
+
 
         /// <summary>
         /// Whether the item has notifications that are ready to publish.
@@ -1873,6 +1945,9 @@ namespace Opc.Ua.Server
         private IAggregateCalculator m_calculator;
         private bool m_triggered;
         private bool m_resendData;
+        private HashSet<string> m_filteredRetainConditionIds = null;
+
+
         #endregion
     }
 }
