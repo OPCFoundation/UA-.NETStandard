@@ -10,8 +10,6 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
-#nullable enable
-
 using System;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
@@ -47,7 +45,7 @@ namespace Opc.Ua
         /// <summary>
         /// The store path used to open the store.
         /// </summary>
-        string? StorePath { get; }
+        string StorePath { get; }
 
         /// <summary>
         /// Gets a value indicating whether any private keys are found in the store.
@@ -67,7 +65,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="certificate">The certificate.</param>
         /// <param name="password">The certificate password.</param>
-        Task Add(X509Certificate2 certificate, string? password = null);
+        Task Add(X509Certificate2 certificate, string password = null);
 
         /// <summary>
         /// Adds a rejected certificate chain to the store.
@@ -105,7 +103,7 @@ namespace Opc.Ua
         /// <remarks>Returns always null if SupportsLoadPrivateKey returns false.</remarks>
         /// <returns>The matching certificate with private key</returns>
         [Obsolete("Method is deprecated. Use only for RSA certificates, the replacing LoadPrivateKey with certificateType parameter should be used.")]
-        Task<X509Certificate2?> LoadPrivateKey(string? thumbprint, string? subjectName, string? password);
+        Task<X509Certificate2> LoadPrivateKey(string thumbprint, string subjectName, string password);
 
         /// <summary>
         /// Finds the certificate with the specified thumbprint.
@@ -117,7 +115,7 @@ namespace Opc.Ua
         /// <param name="password">The certificate password.</param>
         /// <remarks>Returns always null if SupportsLoadPrivateKey returns false.</remarks>
         /// <returns>The matching certificate with private key</returns>
-        Task<X509Certificate2?> LoadPrivateKey(string? thumbprint, string? subjectName, string? applicationUri, NodeId? certificateType, string? password);
+        Task<X509Certificate2> LoadPrivateKey(string thumbprint, string subjectName, string applicationUri, NodeId certificateType, string password);
 
         /// <summary>
         /// Checks if issuer has revoked the certificate.

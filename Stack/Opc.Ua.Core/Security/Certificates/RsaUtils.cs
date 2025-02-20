@@ -10,8 +10,6 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
-#nullable enable
-
 using System;
 using System.IO;
 using System.Security.Cryptography;
@@ -50,7 +48,7 @@ namespace Opc.Ua
         /// </summary>
         internal static int GetPlainTextBlockSize(X509Certificate2 encryptingCertificate, Padding padding)
         {
-            using (RSA? rsa = encryptingCertificate.GetRSAPublicKey())
+            using (RSA rsa = encryptingCertificate.GetRSAPublicKey())
             {
                 return GetPlainTextBlockSize(rsa, padding);
             }
@@ -59,7 +57,7 @@ namespace Opc.Ua
         /// <summary>
         /// Return the plaintext block size for RSA OAEP encryption.
         /// </summary>
-        internal static int GetPlainTextBlockSize(RSA? rsa, Padding padding)
+        internal static int GetPlainTextBlockSize(RSA rsa, Padding padding)
         {
             if (rsa != null)
             {
@@ -78,7 +76,7 @@ namespace Opc.Ua
         /// </summary>
         internal static int GetCipherTextBlockSize(X509Certificate2 encryptingCertificate, Padding padding)
         {
-            using (RSA? rsa = encryptingCertificate.GetRSAPublicKey())
+            using (RSA rsa = encryptingCertificate.GetRSAPublicKey())
             {
                 return GetCipherTextBlockSize(rsa, padding);
             }
@@ -87,7 +85,7 @@ namespace Opc.Ua
         /// <summary>
         /// Return the ciphertext block size for RSA OAEP encryption.
         /// </summary>
-        internal static int GetCipherTextBlockSize(RSA? rsa, Padding padding)
+        internal static int GetCipherTextBlockSize(RSA rsa, Padding padding)
         {
             if (rsa != null)
             {
@@ -101,7 +99,7 @@ namespace Opc.Ua
         /// </summary>
         internal static int GetSignatureLength(X509Certificate2 signingCertificate)
         {
-            using (RSA? rsa = signingCertificate.GetRSAPublicKey())
+            using (RSA rsa = signingCertificate.GetRSAPublicKey())
             {
                 if (rsa == null)
                 {
@@ -121,7 +119,7 @@ namespace Opc.Ua
             RSASignaturePadding rsaSignaturePadding)
         {
             // extract the private key.
-            using (RSA? rsa = signingCertificate.GetRSAPrivateKey())
+            using (RSA rsa = signingCertificate.GetRSAPrivateKey())
             {
                 if (rsa == null)
                 {
@@ -129,7 +127,7 @@ namespace Opc.Ua
                 }
 
                 // create the signature.
-                return rsa.SignData(dataToSign.Array!, dataToSign.Offset, dataToSign.Count, hashAlgorithm, rsaSignaturePadding);
+                return rsa.SignData(dataToSign.Array, dataToSign.Offset, dataToSign.Count, hashAlgorithm, rsaSignaturePadding);
             }
         }
 
@@ -144,7 +142,7 @@ namespace Opc.Ua
             RSASignaturePadding rsaSignaturePadding)
         {
             // extract the public key.
-            using (RSA? rsa = signingCertificate.GetRSAPublicKey())
+            using (RSA rsa = signingCertificate.GetRSAPublicKey())
             {
                 if (rsa == null)
                 {
@@ -152,7 +150,7 @@ namespace Opc.Ua
                 }
 
                 // verify signature.
-                return rsa.VerifyData(dataToVerify.Array!, dataToVerify.Offset, dataToVerify.Count, signature, hashAlgorithm, rsaSignaturePadding);
+                return rsa.VerifyData(dataToVerify.Array, dataToVerify.Offset, dataToVerify.Count, signature, hashAlgorithm, rsaSignaturePadding);
             }
         }
 
@@ -164,7 +162,7 @@ namespace Opc.Ua
             X509Certificate2 encryptingCertificate,
             Padding padding)
         {
-            using (RSA? rsa = encryptingCertificate.GetRSAPublicKey())
+            using (RSA rsa = encryptingCertificate.GetRSAPublicKey())
             {
                 if (rsa == null)
                 {
@@ -213,11 +211,11 @@ namespace Opc.Ua
                 Utils.LogError("Message is not an integral multiple of the block size. Length = {0}, BlockSize = {1}.", dataToEncrypt.Count, inputBlockSize);
             }
 
-            byte[]? encryptedBuffer = outputBuffer.Array;
+            byte[] encryptedBuffer = outputBuffer.Array;
             RSAEncryptionPadding rsaPadding = GetRSAEncryptionPadding(padding);
 
             using (MemoryStream ostrm = new MemoryStream(
-                encryptedBuffer!,
+                encryptedBuffer,
                 outputBuffer.Offset,
                 outputBuffer.Count))
             {
@@ -226,7 +224,7 @@ namespace Opc.Ua
 
                 for (int ii = dataToEncrypt.Offset; ii < dataToEncrypt.Offset + dataToEncrypt.Count; ii += inputBlockSize)
                 {
-                    Array.Copy(dataToEncrypt.Array!, ii, input, 0, input.Length);
+                    Array.Copy(dataToEncrypt.Array, ii, input, 0, input.Length);
                     byte[] cipherText = rsa.Encrypt(input, rsaPadding);
                     ostrm.Write(cipherText, 0, cipherText.Length);
                 }
@@ -234,7 +232,7 @@ namespace Opc.Ua
 
             // return buffer
             return new ArraySegment<byte>(
-                encryptedBuffer!,
+                encryptedBuffer,
                 outputBuffer.Offset,
                 (dataToEncrypt.Count / inputBlockSize) * outputBlockSize);
         }
@@ -247,7 +245,7 @@ namespace Opc.Ua
             X509Certificate2 encryptingCertificate,
             Padding padding)
         {
-            using (RSA? rsa = encryptingCertificate.GetRSAPrivateKey())
+            using (RSA rsa = encryptingCertificate.GetRSAPrivateKey())
             {
                 if (rsa == null)
                 {
@@ -264,7 +262,7 @@ namespace Opc.Ua
                 // decode length.
                 int length = 0;
 
-                length += (((int)plainText.Array![plainText.Offset + 0]));
+                length += (((int)plainText.Array[plainText.Offset + 0]));
                 length += (((int)plainText.Array[plainText.Offset + 1]) << 8);
                 length += (((int)plainText.Array[plainText.Offset + 2]) << 16);
                 length += (((int)plainText.Array[plainText.Offset + 3]) << 24);
@@ -299,11 +297,11 @@ namespace Opc.Ua
                 Utils.LogError("Message is not an integral multiple of the block size. Length = {0}, BlockSize = {1}.", dataToDecrypt.Count, inputBlockSize);
             }
 
-            byte[]? decryptedBuffer = outputBuffer.Array;
+            byte[] decryptedBuffer = outputBuffer.Array;
             RSAEncryptionPadding rsaPadding = GetRSAEncryptionPadding(padding);
 
             using (MemoryStream ostrm = new MemoryStream(
-                decryptedBuffer!,
+                decryptedBuffer,
                 outputBuffer.Offset,
                 outputBuffer.Count))
             {
@@ -311,14 +309,14 @@ namespace Opc.Ua
                 byte[] input = new byte[inputBlockSize];
                 for (int ii = dataToDecrypt.Offset; ii < dataToDecrypt.Offset + dataToDecrypt.Count; ii += inputBlockSize)
                 {
-                    Array.Copy(dataToDecrypt.Array!, ii, input, 0, input.Length);
+                    Array.Copy(dataToDecrypt.Array, ii, input, 0, input.Length);
                     byte[] plainText = rsa.Decrypt(input, rsaPadding);
                     ostrm.Write(plainText, 0, plainText.Length);
                 }
             }
 
             // return buffers.
-            return new ArraySegment<byte>(decryptedBuffer!, outputBuffer.Offset, (dataToDecrypt.Count / inputBlockSize) * outputBlockSize);
+            return new ArraySegment<byte>(decryptedBuffer, outputBuffer.Offset, (dataToDecrypt.Count / inputBlockSize) * outputBlockSize);
         }
 
         /// <summary>
