@@ -183,7 +183,7 @@ namespace Opc.Ua
             }
             catch (NotSupportedException)
             {
-                nodeId = NodeId.Null;
+                nodeId = ExpandedNodeId.Null;
             }
 
             if (!NodeId.IsNull(nodeId))
@@ -205,7 +205,7 @@ namespace Opc.Ua
                 }
                 catch (NotSupportedException)
                 {
-                    nodeId = NodeId.Null;
+                    nodeId = ExpandedNodeId.Null;
                 }
 
                 if (!NodeId.IsNull(nodeId))

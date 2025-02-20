@@ -66,7 +66,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Initializes the object when it is created directly.
+        /// Initializes the when it is created directly.
         /// </summary>
         public SessionEndpoint(IServiceHostBase host) : base(host)
         {
@@ -4282,7 +4282,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Initializes the object when it is created directly.
+        /// Initializes the when it is created directly.
         /// </summary>
         public DiscoveryEndpoint(IServiceHostBase host) : base(host)
         {

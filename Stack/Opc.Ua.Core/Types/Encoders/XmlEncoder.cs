@@ -534,6 +534,7 @@ namespace Opc.Ua
         /// <summary>
         /// Writes a byte string to the stream.
         /// </summary>
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2265:Do not compare Span<T> to 'null' or 'default'", Justification = "Null compare works with ReadOnlySpan<byte>")]
         public void WriteByteString(string fieldName, ReadOnlySpan<byte> value)
         {
             if (BeginField(fieldName, value == null, true, false))
@@ -1777,6 +1778,16 @@ namespace Opc.Ua
                 EndField(fieldName);
             }
         }
+
+        /// <inheritdoc/>
+        public void WriteSwitchField(uint switchField, out string fieldName)
+        {
+            fieldName = null;
+            WriteUInt32("SwitchField", switchField);
+        }
+
+        /// <inheritdoc/>
+        public void WriteEncodingMask(uint encodingMask) => WriteUInt32("EncodingMask", encodingMask);
         #endregion
 
         #region Public Methods

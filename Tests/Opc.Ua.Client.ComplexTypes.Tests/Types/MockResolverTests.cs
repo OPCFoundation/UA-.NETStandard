@@ -274,7 +274,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             _ = PrettifyAndValidateJson(Encoding.UTF8.GetString(buffer));
 
             // test encoder/decoder
-            EncodeDecodeComplexType(encoderContext, memoryStreamType, encoderType, jsonEncodingType, StructureType.Structure, nodeId, car);
+            EncodeDecodeComplexType(encoderContext, memoryStreamType, encoderType, jsonEncodingType, StructureType.Structure, dataTypeNode.NodeId, car);
 
             // Test extracting type definition
 
