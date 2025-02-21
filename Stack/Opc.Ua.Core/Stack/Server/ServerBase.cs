@@ -16,14 +16,13 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
-using System.Net;
 using System.Linq;
+using System.Net;
+using System.Net.Sockets;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading;
-using Microsoft.Extensions.Logging;
 using Opc.Ua.Bindings;
-using System.Net.Sockets;
 using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua
@@ -31,7 +30,7 @@ namespace Opc.Ua
     /// <summary>
     /// A base class for a UA server implementation.
     /// </summary>
-    public partial class ServerBase : IServerBase, IDisposable
+    public partial class ServerBase : IServerBase
     {
         #region Constructors
         /// <summary>
@@ -97,7 +96,7 @@ namespace Opc.Ua
         /// <summary>
         /// The message context to use with the service.
         /// </summary>
-        /// <value>The message context that stores context information associated with a UA 
+        /// <value>The message context that stores context information associated with a UA
         /// server that is used during message processing.
         /// </value>
         public IServiceMessageContext MessageContext
@@ -164,7 +163,7 @@ namespace Opc.Ua
             X509Certificate2 clientCertificate,
             Exception exception)
         {
-            // raise an audit open secure channel event.            
+            // raise an audit open secure channel event.
         }
 
         /// <inheritdoc/>
@@ -172,7 +171,7 @@ namespace Opc.Ua
             string globalChannelId,
             Exception exception)
         {
-            // raise an audit close secure channel event.    
+            // raise an audit close secure channel event.
         }
 
         /// <inheritdoc/>
@@ -230,7 +229,7 @@ namespace Opc.Ua
         /// <summary>
         /// Starts the server.
         /// </summary>
-        /// <param name="configuration">The object that stores the configurable configuration information 
+        /// <param name="configuration">The object that stores the configurable configuration information
         /// for a UA application</param>
         /// <param name="baseAddresses">The array of Uri elements which contains base addresses.</param>
         /// <returns>Returns a host for a UA service.</returns>
@@ -294,8 +293,8 @@ namespace Opc.Ua
         /// <summary>
         /// Starts the server (called from a dedicated host process).
         /// </summary>
-        /// <param name="configuration">The object that stores the configurable configuration 
-        /// information for a UA application. 
+        /// <param name="configuration">The object that stores the configurable configuration
+        /// information for a UA application.
         /// </param>
         public void Start(ApplicationConfiguration configuration)
         {
@@ -1396,7 +1395,7 @@ namespace Opc.Ua
                     defaultInstanceCertificate = instanceCertificate;
                 }
 
-                // preload chain 
+                // preload chain
                 InstanceCertificateTypesProvider.LoadCertificateChainAsync(instanceCertificate).GetAwaiter().GetResult();
             }
 

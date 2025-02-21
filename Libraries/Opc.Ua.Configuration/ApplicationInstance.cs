@@ -44,7 +44,7 @@ namespace Opc.Ua.Configuration
     /// <summary>
     /// A class that install, configures and runs a UA application.
     /// </summary>
-    public class ApplicationInstance
+    public class ApplicationInstance : IApplicationInstance
     {
         #region Ctors
         /// <summary>
@@ -111,7 +111,7 @@ namespace Opc.Ua.Configuration
         /// Gets the server.
         /// </summary>
         /// <value>The server.</value>
-        public ServerBase Server => m_server;
+        public IServerBase Server => m_server;
 
         /// <summary>
         /// Gets the application configuration used when the Start() method was called.
@@ -164,7 +164,7 @@ namespace Opc.Ua.Configuration
         /// Starts the UA server as a Windows Service.
         /// </summary>
         /// <param name="server">The server.</param>
-        public void StartAsService(ServerBase server)
+        public void StartAsService(IServerBase server)
         {
             throw new NotImplementedException(".NetStandard Opc.Ua libraries do not support to start as a windows service");
         }
@@ -173,7 +173,7 @@ namespace Opc.Ua.Configuration
         /// Starts the UA server.
         /// </summary>
         /// <param name="server">The server.</param>
-        public async Task Start(ServerBase server)
+        public async Task Start(IServerBase server)
         {
             m_server = server;
 
@@ -1144,7 +1144,7 @@ namespace Opc.Ua.Configuration
         private ApplicationType m_applicationType;
         private string m_configSectionName;
         private Type m_configurationType;
-        private ServerBase m_server;
+        private IServerBase m_server;
         private ApplicationConfiguration m_applicationConfiguration;
         #endregion
     }

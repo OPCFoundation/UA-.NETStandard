@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -34,6 +34,8 @@ using System.Threading.Tasks;
 using Opc.Ua.Configuration;
 using Opc.Ua.Gds.Server;
 using Opc.Ua.Gds.Server.Database.Linq;
+using Opc.Ua.Server;
+using Opc.Ua.Server.NodeManager;
 using Opc.Ua.Server.UserDatabase;
 
 namespace Opc.Ua.Gds.Tests
@@ -41,12 +43,20 @@ namespace Opc.Ua.Gds.Tests
     public class GlobalDiscoveryTestServer
     {
         public GlobalDiscoverySampleServer Server => m_server;
-        public ApplicationInstance Application { get; private set; }
+        public IApplicationInstance Application { get; private set; }
         public ApplicationConfiguration Config { get; private set; }
         public int BasePort { get; private set; }
 
-        public GlobalDiscoveryTestServer(bool autoAccept)
+        public GlobalDiscoveryTestServer(
+            IApplicationInstance applicationInstance,
+            IServerInternal serverInternal,
+            IMainNodeManagerFactory mainNodeManagerFactory,
+            bool autoAccept)
         {
+            m_applicationInstance = applicationInstance;
+            Application = m_applicationInstance;
+            m_serverInternal = serverInternal;
+            m_mainNodeManagerFactory = mainNodeManagerFactory;
             s_autoAccept = autoAccept;
         }
 
@@ -63,14 +73,13 @@ namespace Opc.Ua.Gds.Tests
                 }
                 configSectionName = "Opc.Ua.GlobalDiscoveryTestServerX509Stores";
             }
-            Application = new ApplicationInstance {
-                ApplicationName = "Global Discovery Server",
-                ApplicationType = ApplicationType.Server,
-                ConfigSectionName = configSectionName
-            };
+
+            m_applicationInstance.ApplicationName = "Global Discovery Server";
+            m_applicationInstance.ApplicationType = ApplicationType.Server;
+            m_applicationInstance.ConfigSectionName = configSectionName;
 
             BasePort = basePort;
-            Config = await Load(Application, basePort).ConfigureAwait(false);
+            Config = await Load(m_applicationInstance, basePort).ConfigureAwait(false);
 
             if (clean)
             {
@@ -135,14 +144,16 @@ namespace Opc.Ua.Gds.Tests
 
             // start the server.
             m_server = new GlobalDiscoverySampleServer(
+                m_applicationInstance,
+                m_serverInternal,
+                m_mainNodeManagerFactory,
                 applicationsDatabase,
                 applicationsDatabase,
                 new CertificateGroup(),
                 usersDatabase);
             await Application.Start(m_server).ConfigureAwait(false);
 
-            ServerState serverState = Server.GetStatus().State;
-            if (serverState != ServerState.Running)
+            if (Server.CurrentState != ServerState.Running)
             {
                 throw new ServiceResultException("Server failed to start");
             }
@@ -200,7 +211,7 @@ namespace Opc.Ua.Gds.Tests
             }
         }
 
-        private static async Task<ApplicationConfiguration> Load(ApplicationInstance application, int basePort)
+        private static async Task<ApplicationConfiguration> Load(IApplicationInstance application, int basePort)
         {
 #if !USE_FILE_CONFIG
             // load the application configuration.
@@ -272,6 +283,9 @@ namespace Opc.Ua.Gds.Tests
             return config;
         }
 
+        private readonly IApplicationInstance m_applicationInstance;
+        private readonly IMainNodeManagerFactory m_mainNodeManagerFactory;
+        private readonly IServerInternal m_serverInternal;
         private GlobalDiscoverySampleServer m_server;
         private static bool s_autoAccept = false;
     }
