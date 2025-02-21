@@ -902,7 +902,7 @@ namespace Opc.Ua.Server
 
                     if (!found)
                     {
-                        throw ServiceResultException.Create(StatusCodes.BadUserAccessDenied, "Anonymous user token policy not supported.");
+                        throw ServiceResultException.Create(StatusCodes.BadIdentityTokenInvalid, "Anonymous user token policy not supported.");
                     }
                 }
 

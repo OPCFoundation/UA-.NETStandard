@@ -5425,7 +5425,7 @@ namespace Opc.Ua.Client
                 if (identityPolicy == null)
                 {
                     throw ServiceResultException.Create(
-                        StatusCodes.BadUserAccessDenied,
+                        StatusCodes.BadIdentityTokenInvalid,
                         "Endpoint does not support the user identity type provided.");
                 }
 
