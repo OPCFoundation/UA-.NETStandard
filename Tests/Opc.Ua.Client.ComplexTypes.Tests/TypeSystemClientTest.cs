@@ -35,8 +35,12 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
 using Opc.Ua.Client.Tests;
+using Opc.Ua.Configuration;
+using Opc.Ua.Configuration.Extensions.DependencyInjection;
+using Opc.Ua.Server.Extensions.DependencyInjection;
 using Opc.Ua.Server.Tests;
 using Quickstarts;
 using Quickstarts.ReferenceServer;
@@ -57,9 +61,9 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
 
         const int kMaxReferences = 100;
         const int kMaxTimeout = 10000;
-        ServerFixture<ReferenceServer> m_serverFixture;
+        ServerFixture<IReferenceServer> m_serverFixture;
         ClientFixture m_clientFixture;
-        ReferenceServer m_server;
+        IReferenceServer m_server;
         ISession m_session;
         string m_uriScheme;
         string m_pkiRoot;
@@ -101,8 +105,17 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
             // pki directory root for test runs.
             m_pkiRoot = Path.GetTempPath() + Path.GetRandomFileName();
 
+            IServiceCollection services = new ServiceCollection()
+                .AddConfigurationServices()
+                .AddServerServices()
+                .AddScoped<IReferenceServer, ReferenceServer>();
+
+            IServiceProvider serviceProvider = services.BuildServiceProvider();
+
             // start Ref server
-            m_serverFixture = new ServerFixture<ReferenceServer> {
+            m_serverFixture = new ServerFixture<IReferenceServer>(
+                serviceProvider.GetRequiredService<IReferenceServer>(),
+                serviceProvider.GetRequiredService<IApplicationInstance>()) {
                 UriScheme = m_uriScheme,
                 SecurityNone = true,
                 AutoAccept = true,

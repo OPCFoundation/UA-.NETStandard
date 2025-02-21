@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -70,7 +70,7 @@ namespace Opc.Ua.Server
         }
         #endregion
 
-        #region IDisposable Members        
+        #region IDisposable Members
         /// <summary>
         /// Frees any unmanaged resources.
         /// </summary>
@@ -479,7 +479,7 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <remarks>
         /// This method verifies that the session id is valid and that it uses secure channel id
-        /// associated with current thread. It also verifies that the timestamp is not too 
+        /// associated with current thread. It also verifies that the timestamp is not too
         /// and that the sequence number is not out of order (update requests only).
         /// </remarks>
         public virtual OperationContext ValidateRequest(RequestHeader requestHeader, RequestType requestType)
@@ -888,10 +888,65 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <returns>The requested session.</returns>
         Session GetSession(NodeId authenticationToken);
+
+        /// <summary>
+        /// Stops the session manager and closes all sessions.
+        /// </summary>
+        void Shutdown();
+
+        /// <summary>
+        /// Creates a new session.
+        /// </summary>
+        Session CreateSession(
+            OperationContext context,
+            X509Certificate2 serverCertificate,
+            string sessionName,
+            byte[] clientNonce,
+            ApplicationDescription clientDescription,
+            string endpointUrl,
+            X509Certificate2 clientCertificate,
+            X509Certificate2Collection clientCertificateChain,
+            double requestedSessionTimeout,
+            uint maxResponseMessageSize,
+            out NodeId sessionId,
+            out NodeId authenticationToken,
+            out byte[] serverNonce,
+            out double revisedSessionTimeout);
+
+        /// <summary>
+        /// Activates an existing session
+        /// </summary>
+        bool ActivateSession(
+            OperationContext context,
+            NodeId authenticationToken,
+            SignatureData clientSignature,
+            List<SoftwareCertificate> clientSoftwareCertificates,
+            ExtensionObject userIdentityToken,
+            SignatureData userTokenSignature,
+            StringCollection localeIds,
+            out byte[] serverNonce);
+
+        /// <summary>
+        /// Closes the specified session.
+        /// </summary>
+        /// <remarks>
+        /// This method should not throw an exception if the session no longer exists.
+        /// </remarks>
+        void CloseSession(NodeId sessionId);
+
+        /// <summary>
+        /// Validates request header and returns a request context.
+        /// </summary>
+        /// <remarks>
+        /// This method verifies that the session id is valid and that it uses secure channel id
+        /// associated with current thread. It also verifies that the timestamp is not too
+        /// and that the sequence number is not out of order (update requests only).
+        /// </remarks>
+        OperationContext ValidateRequest(RequestHeader requestHeader, RequestType requestType);
     }
 
     /// <summary>
-    /// The possible reasons for a session related event. 
+    /// The possible reasons for a session related event.
     /// </summary>
     public enum SessionEventReason
     {
@@ -990,7 +1045,7 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Get the EndpointDescription  
+        /// Get the EndpointDescription
         /// </summary>
         public EndpointDescription EndpointDescription
         {
