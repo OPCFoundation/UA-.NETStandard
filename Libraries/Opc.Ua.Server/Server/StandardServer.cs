@@ -36,6 +36,8 @@ using System.Linq;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using Opc.Ua.Bindings;
+using Opc.Ua.Configuration;
+using Opc.Ua.Server.NodeManager;
 using static Opc.Ua.Utils;
 
 namespace Opc.Ua.Server
@@ -44,15 +46,20 @@ namespace Opc.Ua.Server
     /// The standard implementation of a UA server.
     /// </summary>
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Maintainability", "CA1506:AvoidExcessiveClassCoupling")]
-    public partial class StandardServer : SessionServerBase
+    public partial class StandardServer : SessionServerBase, IStandardServer
     {
         #region Constructors
         /// <summary>
         /// Initializes the object with default values.
         /// </summary>
-        public StandardServer()
+        public StandardServer(
+            IApplicationInstance applicationInstance,
+            IServerInternal serverInternal,
+            IMainNodeManagerFactory mainNodeManagerFactory)
         {
-            m_nodeManagerFactories = new List<INodeManagerFactory>();
+            m_applicationInstance = applicationInstance;
+            m_serverInternal = serverInternal;
+            m_mainNodeManagerFactory = mainNodeManagerFactory;
         }
         #endregion
 
@@ -83,11 +90,11 @@ namespace Opc.Ua.Server
                 }
 
                 // close the server.
-                if (m_serverInternal != null)
-                {
-                    Utils.SilentDispose(m_serverInternal);
-                    m_serverInternal = null;
-                }
+                //if (m_serverInternal != null)
+                //{
+                //    Utils.SilentDispose(m_serverInternal);
+                //    m_serverInternal = null;
+                //}
             }
 
             base.Dispose(disposing);
@@ -472,7 +479,7 @@ namespace Opc.Ua.Server
                     }
                 }
 
-#if ECC_SUPPORT 
+#if ECC_SUPPORT
                 var parameters = ExtensionObject.ToEncodeable(requestHeader.AdditionalHeader) as AdditionalParametersType;
 
                 if (parameters != null)
@@ -526,7 +533,7 @@ namespace Opc.Ua.Server
 
                 ResponseHeader responseHeader = CreateResponse(requestHeader, StatusCodes.Good);
 
-#if ECC_SUPPORT 
+#if ECC_SUPPORT
                 if (parameters != null)
                 {
                     responseHeader.AdditionalHeader = new ExtensionObject(parameters);
@@ -606,7 +613,7 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Process additional parameters during ECC session activation 
+        /// Process additional parameters during ECC session activation
         /// </summary>
         /// <param name="session">The session</param>
         /// <param name="parameters">The additional parameters for the session</param>
@@ -869,7 +876,7 @@ namespace Opc.Ua.Server
 
                 ServerInternal.CloseSession(context, context.Session.Id, deleteSubscriptions);
 
-                // report the audit event for close session                
+                // report the audit event for close session
                 ServerInternal.ReportAuditCloseSessionEvent(context.AuditEntryId, session, "Session/CloseSession");
 
                 return CreateResponse(requestHeader, context.StringTable);
@@ -1657,7 +1664,7 @@ namespace Opc.Ua.Server
                 /*
                 if (notificationMessage != null)
                 {
-                    Utils.LogTrace(m_eventId, 
+                    Utils.LogTrace(m_eventId,
                         "PublishResponse: SubId={0} SeqNo={1}, PublishTime={2:mm:ss.fff}, Time={3:mm:ss.fff}",
                         subscriptionId,
                         notificationMessage.SequenceNumber,
@@ -2317,7 +2324,7 @@ namespace Opc.Ua.Server
             {
                 lock (m_lock)
                 {
-                    if (m_serverInternal == null)
+                    if (!m_serverInternal.Initialized)
                     {
                         throw new ServiceResultException(StatusCodes.BadServerHalted);
                     }
@@ -2331,11 +2338,12 @@ namespace Opc.Ua.Server
         /// Returns the current status of the server.
         /// </summary>
         /// <returns>Returns a ServerStatusDataType object</returns>
+        [Obsolete("No longer thread safe. Must not use.")]
         public ServerStatusDataType GetStatus()
         {
             lock (m_lock)
             {
-                if (m_serverInternal == null)
+                if (!m_serverInternal.Initialized)
                 {
                     throw new ServiceResultException(StatusCodes.BadServerHalted);
                 }
@@ -2343,6 +2351,11 @@ namespace Opc.Ua.Server
                 return m_serverInternal.Status.Value;
             }
         }
+
+        /// <summary>
+        /// Gets the current server state.
+        /// </summary>
+        public ServerState CurrentState => m_serverInternal.CurrentState;
 
         /// <summary>
         /// Registers the server with the discovery server.
@@ -2568,18 +2581,16 @@ namespace Opc.Ua.Server
         /// The state object associated with the server.
         /// </summary>
         /// <value>The server internal data.</value>
-        protected ServerInternalData ServerInternal
+        protected IServerInternal ServerInternal
         {
             get
             {
-                ServerInternalData serverInternal = m_serverInternal;
-
-                if (serverInternal == null)
+                if (!m_serverInternal.Initialized)
                 {
                     throw new ServiceResultException(StatusCodes.BadServerHalted);
                 }
 
-                return serverInternal;
+                return m_serverInternal;
             }
         }
 
@@ -2598,9 +2609,7 @@ namespace Opc.Ua.Server
             }
 
             // check server state.
-            ServerInternalData serverInternal = m_serverInternal;
-
-            if (serverInternal == null || !serverInternal.IsRunning)
+            if (!m_serverInternal.Initialized || !m_serverInternal.IsRunning)
             {
                 throw new ServiceResultException(StatusCodes.BadServerHalted);
             }
@@ -2621,7 +2630,7 @@ namespace Opc.Ua.Server
                     throw new ServiceResultException(ServerError);
                 }
 
-                if (m_serverInternal == null)
+                if (!m_serverInternal.Initialized)
                 {
                     throw new ServiceResultException(StatusCodes.BadServerHalted);
                 }
@@ -2806,7 +2815,7 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
-                if (m_serverInternal == null)
+                if (!m_serverInternal.Initialized)
                 {
                     throw new ServiceResultException(StatusCodes.BadServerHalted);
                 }
@@ -2815,6 +2824,7 @@ namespace Opc.Ua.Server
             }
         }
 #endregion
+
 
 #region Protected Members used for Initialization
         /// <summary>
@@ -2920,9 +2930,8 @@ namespace Opc.Ua.Server
             // ensure at least one user token policy exists.
             if (configuration.ServerConfiguration.UserTokenPolicies.Count == 0)
             {
-                UserTokenPolicy userTokenPolicy = new UserTokenPolicy();
+                var userTokenPolicy = new UserTokenPolicy { TokenType = UserTokenType.Anonymous };
 
-                userTokenPolicy.TokenType = UserTokenType.Anonymous;
                 userTokenPolicy.PolicyId = userTokenPolicy.TokenType.ToString();
 
                 configuration.ServerConfiguration.UserTokenPolicies.Add(userTokenPolicy);
@@ -3006,14 +3015,9 @@ namespace Opc.Ua.Server
                     Nonce.SetMinNonceValue((uint)configuration.SecurityConfiguration.NonceLength);
 
                     // create the datastore for the instance.
-                    m_serverInternal = new ServerInternalData(
-                        ServerProperties,
-                        configuration,
-                        MessageContext,
-                        new CertificateValidator(),
-                        InstanceCertificateTypesProvider);
+                    m_serverInternal.Initialize(ServerProperties, MessageContext);
 
-                    // create the manager responsible for providing localized string resources.                    
+                    // create the manager responsible for providing localized string resources.
                     Utils.LogInfo(TraceMasks.StartStop, "Server - CreateResourceManager.");
                     ResourceManager resourceManager = CreateResourceManager(m_serverInternal, configuration);
 
@@ -3023,7 +3027,7 @@ namespace Opc.Ua.Server
 
                     // create the master node manager.
                     Utils.LogInfo(TraceMasks.StartStop, "Server - CreateMasterNodeManager.");
-                    MasterNodeManager masterNodeManager = CreateMasterNodeManager(m_serverInternal, configuration);
+                    IMasterNodeManager masterNodeManager = CreateMasterNodeManager(m_serverInternal, configuration);
 
                     // add the node manager to the datastore.
                     m_serverInternal.SetNodeManager(masterNodeManager);
@@ -3159,7 +3163,7 @@ namespace Opc.Ua.Server
                 {
                     var message = "Unexpected error starting application";
                     Utils.LogCritical(TraceMasks.StartStop, e, message);
-                    m_serverInternal = null;
+                    m_serverInternal.Reset();
                     ServiceResult error = ServiceResult.Create(e, StatusCodes.BadInternalError, message);
                     ServerError = error;
                     throw new ServiceResultException(error);
@@ -3215,11 +3219,11 @@ namespace Opc.Ua.Server
             finally
             {
                 // ensure that everything is cleaned up.
-                if (m_serverInternal != null)
-                {
-                    Utils.SilentDispose(m_serverInternal);
-                    m_serverInternal = null;
-                }
+                //if (m_serverInternal != null)
+                //{
+                //    Utils.SilentDispose(m_serverInternal);
+                //    m_serverInternal = null;
+                //}
             }
         }
 
@@ -3236,11 +3240,7 @@ namespace Opc.Ua.Server
                 if (currentessions.Count > 0)
                 {
                     // provide some time for the connected clients to detect the shutdown state.
-                    ServerInternal.Status.Value.ShutdownReason = new LocalizedText("en-US", "Application closed.");
-                    ServerInternal.Status.Variable.ShutdownReason.Value = new LocalizedText("en-US", "Application closed.");
-                    ServerInternal.Status.Value.State = ServerState.Shutdown;
-                    ServerInternal.Status.Variable.State.Value = ServerState.Shutdown;
-                    ServerInternal.Status.Variable.ClearChangeMasks(ServerInternal.DefaultSystemContext, true);
+                    ServerInternal.SetServerCurrentShutdown(new LocalizedText("en-US", "Application closed."));
 
                     foreach (Session session in currentessions)
                     {
@@ -3250,9 +3250,7 @@ namespace Opc.Ua.Server
 
                     for (int timeTillShutdown = Configuration.ServerConfiguration.ShutdownDelay; timeTillShutdown > 0; timeTillShutdown--)
                     {
-                        ServerInternal.Status.Value.SecondsTillShutdown = (uint)timeTillShutdown;
-                        ServerInternal.Status.Variable.SecondsTillShutdown.Value = (uint)timeTillShutdown;
-                        ServerInternal.Status.Variable.ClearChangeMasks(ServerInternal.DefaultSystemContext, true);
+                        ServerInternal.SetServerSecondsTillShutdown((uint)timeTillShutdown);
 
                         // exit if all client connections are closed.
                         var sessions = ServerInternal.SessionManager.GetSessions().Count;
@@ -3364,7 +3362,9 @@ namespace Opc.Ua.Server
         /// <param name="server">The server.</param>
         /// <param name="configuration">The configuration.</param>
         /// <returns>Returns the master node manager for the server, the return type is <seealso cref="MasterNodeManager"/>.</returns>
-        protected virtual MasterNodeManager CreateMasterNodeManager(IServerInternal server, ApplicationConfiguration configuration)
+        protected virtual IMasterNodeManager CreateMasterNodeManager(
+            IServerInternal server,
+            ApplicationConfiguration configuration)
         {
             var nodeManagers = new List<INodeManager>();
 
@@ -3373,7 +3373,7 @@ namespace Opc.Ua.Server
                 nodeManagers.Add(nodeManagerFactory.Create(server, configuration));
             }
 
-            return new MasterNodeManager(server, configuration, null, nodeManagers.ToArray());
+            return m_mainNodeManagerFactory.CreateMasterNodeManager(null, nodeManagers.ToArray());
         }
 
         /// <summary>
@@ -3487,12 +3487,15 @@ namespace Opc.Ua.Server
 
         #region Private Properties
         private OperationLimitsState OperationLimits => ServerInternal.ServerObject.ServerCapabilities.OperationLimits;
-#endregion
+        #endregion
 
-#region Private Fields
-        private readonly object m_lock = new object();
-        private readonly object m_registrationLock = new object();
-        private ServerInternalData m_serverInternal;
+        #region Private Fields
+        private readonly IApplicationInstance m_applicationInstance;
+        private readonly IServerInternal m_serverInternal;
+        private readonly IMainNodeManagerFactory m_mainNodeManagerFactory;
+        private readonly object m_lock = new();
+        private readonly object m_registrationLock = new();
+        private readonly List<INodeManagerFactory> m_nodeManagerFactories = new();
         private ConfigurationWatcher m_configurationWatcher;
         private ConfiguredEndpointCollection m_registrationEndpoints;
         private RegisteredServer m_registrationInfo;
@@ -3503,7 +3506,6 @@ namespace Opc.Ua.Server
         private bool m_registeredWithDiscoveryServer;
         private int m_minNonceLength;
         private bool m_useRegisterServer2;
-        private List<INodeManagerFactory> m_nodeManagerFactories;
         #endregion
     }
 }

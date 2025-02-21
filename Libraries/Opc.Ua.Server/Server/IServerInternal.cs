@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -37,7 +37,7 @@ namespace Opc.Ua.Server
     /// <summary>
     /// The interface that a server exposes to objects that it contains.
     /// </summary>
-    public interface IServerInternal : IAuditEventServer
+    public interface IServerInternal : IAuditEventServer, IDisposable
     {
         /// <summary>
         /// The endpoint addresses used by the server.
@@ -81,7 +81,7 @@ namespace Opc.Ua.Server
         /// <value>The type tree.</value>
         /// <remarks>
         /// The type tree table is a global object that all components of a server have access to.
-        /// Node managers must populate this table with all types that they define. 
+        /// Node managers must populate this table with all types that they define.
         /// This object is thread safe.
         /// </remarks>
         TypeTable TypeTree { get; }
@@ -90,19 +90,19 @@ namespace Opc.Ua.Server
         /// The master node manager for the server.
         /// </summary>
         /// <value>The node manager.</value>
-        MasterNodeManager NodeManager { get; }
+        IMasterNodeManager NodeManager { get; }
 
         /// <summary>
         /// The internal node manager for the servers.
         /// </summary>
         /// <value>The core node manager.</value>
-        CoreNodeManager CoreNodeManager { get; }
+        ICoreNodeManager CoreNodeManager { get; }
 
         /// <summary>
         /// Returns the node manager that managers the server diagnostics.
         /// </summary>
         /// <value>The diagnostics node manager.</value>
-        DiagnosticsNodeManager DiagnosticsNodeManager { get; }
+        IDiagnosticsNodeManager DiagnosticsNodeManager { get; }
 
         /// <summary>
         /// The manager for events that all components use to queue events that occur.
@@ -121,12 +121,6 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <value>The request manager.</value>
         RequestManager RequestManager { get; }
-
-        /// <summary>
-        /// A manager for aggregate calculators supported by the server.
-        /// </summary>
-        /// <value>The aggregate manager.</value>
-        AggregateManager AggregateManager { get; }
 
         /// <summary>
         /// The manager for active sessions.
@@ -200,6 +194,29 @@ namespace Opc.Ua.Server
         bool DiagnosticsEnabled { get; }
 
         /// <summary>
+        /// Indicates that the server internal data object to be ready for usage (true) or not (false).
+        /// </summary>
+        bool Initialized { get; }
+
+        /// <summary>
+        /// A manager for aggregate calculators supported by the server.
+        /// </summary>
+        /// <value>The aggregate manager.</value>
+        AggregateManager AggregateManager { get; set; }
+
+        /// <summary>
+        /// Initializes the server internal data object to be ready for usage.
+        /// </summary>
+        /// <param name="serverDescription">Server description.</param>
+        /// <param name="messageContext">Server message context.</param>
+        void Initialize(ServerProperties serverDescription, IServiceMessageContext messageContext);
+
+        /// <summary>
+        /// Resets the server internal data, cannot be used until it is initialized again.
+        /// </summary>
+        void Reset();
+
+        /// <summary>
         /// Closes the specified session.
         /// </summary>
         /// <param name="context">The context.</param>
@@ -240,5 +257,44 @@ namespace Opc.Ua.Server
         /// <param name="subscriptionId">The subscription identifier.</param>
         /// <param name="monitoredItemId">The monitored item identifier.</param>
         void ConditionRefresh2(OperationContext context, uint subscriptionId, uint monitoredItemId);
+
+        /// <summary>
+        /// Sets the server current state to shutdown with the given reason.
+        /// </summary>
+        /// <param name="shutdownReason">Reason of the shutdown.</param>
+        void SetServerCurrentShutdown(LocalizedText shutdownReason);
+
+        /// <summary>
+        /// Sets the duration in seconds until shutdown.
+        /// </summary>
+        /// <param name="timeTillShutdown">Time until shutdown in seconds.</param>
+        void SetServerSecondsTillShutdown(uint timeTillShutdown);
+
+        /// <summary>
+        /// Sets the EventManager, the ResourceManager, the RequestManager and the AggregateManager.
+        /// </summary>
+        /// <param name="eventManager">The event manager.</param>
+        /// <param name="resourceManager">The resource manager.</param>
+        /// <param name="requestManager">The request manager.</param>
+        public void CreateServerObject(EventManager eventManager, ResourceManager resourceManager, RequestManager requestManager);
+
+        /// <summary>
+        /// Stores the MasterNodeManager and the CoreNodeManager
+        /// </summary>
+        /// <param name="nodeManager">The node manager.</param>
+        public void SetNodeManager(IMasterNodeManager nodeManager);
+
+        /// <summary>
+        /// Stores the SessionManager, the SubscriptionManager in the datastore.
+        /// </summary>
+        /// <param name="sessionManager">The session manager.</param>
+        /// <param name="subscriptionManager">The subscription manager.</param>
+        public void SetSessionManager(SessionManager sessionManager, SubscriptionManager subscriptionManager);
+
+        /// <summary>
+        /// Updates the server status safely.
+        /// </summary>
+        /// <param name="action">Action to perform on the server status object.</param>
+        void UpdateServerStatus(Action<ServerStatusValue> action);
     }
 }
