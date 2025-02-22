@@ -709,7 +709,7 @@ namespace Opc.Ua.Sample
         /// <summary>
         /// Called by the subscription to publish any notification.
         /// </summary>
-        public bool Publish(OperationContext context, Queue<MonitoredItemNotification> notifications, Queue<DiagnosticInfo> diagnostics)
+        public bool Publish(OperationContext context, Queue<MonitoredItemNotification> notifications, Queue<DiagnosticInfo> diagnostics, uint maxNotificationsPerPublish)
         {
             lock (m_lock)
             {
@@ -727,9 +727,6 @@ namespace Opc.Ua.Sample
                     IncrementSampleTime();
                 }
 
-                // update publish flag.
-                m_readyToPublish = false;
-                m_readyToTrigger = false;
 
                 // check if queuing is enabled.
                 if (m_queue != null && (!m_resendData || m_queue.ItemsInQueue != 0))
@@ -737,13 +734,15 @@ namespace Opc.Ua.Sample
                     DataValue value = null;
                     ServiceResult error = null;
 
-                    while (m_queue.Publish(out value, out error))
+                    uint notificationCount = 0;
+
+                    while (notificationCount < maxNotificationsPerPublish && m_queue.Publish(out value, out error))
                     {
                         Publish(context, value, error, notifications, diagnostics);
+                        notificationCount++;
 
                         if (m_resendData)
                         {
-                            m_readyToPublish = m_queue.ItemsInQueue > 0;
                             break;
                         }
                     }
@@ -753,10 +752,14 @@ namespace Opc.Ua.Sample
                     Publish(context, m_lastValue, m_lastError, notifications, diagnostics);
                 }
 
+                bool moreValuesToPublish = m_queue?.ItemsInQueue > 0;
+
                 // update flags
+                m_readyToPublish = moreValuesToPublish;
+                m_readyToTrigger = moreValuesToPublish;
                 m_resendData = false;
 
-                return true;
+                return moreValuesToPublish;
             }
         }
 
