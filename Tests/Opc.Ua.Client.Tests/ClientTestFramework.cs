@@ -68,7 +68,7 @@ namespace Opc.Ua.Client.Tests
         public ReferenceServer ReferenceServer { get; set; }
         public EndpointDescriptionCollection Endpoints { get; set; }
         public ReferenceDescriptionCollection ReferenceDescriptions { get; set; }
-        public ISession Session { get; private set; }
+        public ISession Session { get; protected set; }
         public OperationLimits OperationLimits { get; private set; }
         public string UriScheme { get; private set; }
         public string PkiRoot { get; set; }

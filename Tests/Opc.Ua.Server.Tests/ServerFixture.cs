@@ -58,6 +58,7 @@ namespace Opc.Ua.Server.Tests
         public string UriScheme { get; set; } = Utils.UriSchemeOpcTcp;
         public int Port { get; private set; }
         public bool UseTracing { get; set; }
+        public bool DurableSubscriptionsEnabled { get; set; } = false;
         public ActivityListener ActivityListener { get; private set; }
 
         public ServerFixture(bool useTracing, bool disableActivityLogging)
@@ -152,6 +153,14 @@ namespace Opc.Ua.Server.Tests
                 "CN=" + typeof(T).Name + ", C=US, S=Arizona, O=OPC Foundation, DC=localhost",
                 CertificateStoreType.Directory,
                 pkiRoot);
+
+            if (DurableSubscriptionsEnabled)
+            {
+                serverConfig.SetDurableSubscriptionsEnabled(true)
+                    .SetMaxDurableEventQueueSize(10000)
+                    .SetMaxDurableNotificationQueueSize(1000)
+                    .SetMaxDurableSubscriptionLifetime(3600);
+            }
 
             Config = await serverConfig.AddSecurityConfiguration(
                     applicationCerts,

@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2024 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  *
@@ -29,9 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
-using System.Xml;
-using System.Threading;
 
 namespace Opc.Ua.Server
 {
@@ -39,8 +36,9 @@ namespace Opc.Ua.Server
 
     /// <summary>
     /// Manages a monitored item created by a client.
+    /// Disposable to dispose unmanaged resources of durable queues
     /// </summary>
-    public interface IMonitoredItem
+    public interface IMonitoredItem : IDisposable
     {
         /// <summary>
         /// The node manager that created the item.
@@ -66,6 +64,12 @@ namespace Opc.Ua.Server
         /// The identifier for the subscription that is unique within the server.
         /// </summary>
         uint SubscriptionId { get; }
+
+        /// <summary>
+        /// True if the subscription the item belongs to is a durable subscription, false if not
+        /// If true the monitored Item needs to use a persistent queue
+        /// </summary>
+        bool IsDurable { get; }
 
         /// <summary>
         /// The identifier for the client handle assigned to the monitored item.
@@ -173,7 +177,7 @@ namespace Opc.Ua.Server
         /// Publishes all available event notifications.
         /// </summary>
         /// <returns>True if the caller should re-queue the item for publishing after the next interval elaspses.</returns>
-        bool Publish(OperationContext context, Queue<EventFieldList> notifications);
+        bool Publish(OperationContext context, Queue<EventFieldList> notifications, uint maxNotificationsPerPublish);
 
         /// <summary>
         /// Modifies the attributes for monitored item.
@@ -217,7 +221,8 @@ namespace Opc.Ua.Server
         bool Publish(
             OperationContext context,
             Queue<MonitoredItemNotification> notifications,
-            Queue<DiagnosticInfo> diagnostics);
+            Queue<DiagnosticInfo> diagnostics,
+            uint maxNotificationsPerPublish);
     }
 
     /// <summary>

@@ -47,7 +47,7 @@ namespace Opc.Ua.Server
         public AggregateManager(IServerInternal server)
         {
             m_server = server;
-            m_factories = new Dictionary<NodeId,AggregatorFactory>();
+            m_factories = new NodeIdDictionary<AggregatorFactory>();
             m_minimumProcessingInterval = 1000;
         }
         #endregion
@@ -238,7 +238,7 @@ namespace Opc.Ua.Server
         private readonly object m_lock = new object();
         private IServerInternal m_server;
         private AggregateConfiguration m_defaultConfiguration;
-        private Dictionary<NodeId,AggregatorFactory> m_factories;
+        private NodeIdDictionary<AggregatorFactory> m_factories;
         private double m_minimumProcessingInterval;
         #endregion
     }

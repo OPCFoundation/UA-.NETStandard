@@ -269,6 +269,7 @@ namespace MemoryBuffer
             DiagnosticsMasks diagnosticsMasks,
             TimestampsToReturn timestampsToReturn,
             MonitoredItemCreateRequest itemToCreate,
+            bool createDurable,
             ref long globalIdCounter,
             out MonitoringFilterResult filterError,
             out IMonitoredItem monitoredItem)
@@ -289,6 +290,7 @@ namespace MemoryBuffer
                     diagnosticsMasks,
                     timestampsToReturn,
                     itemToCreate,
+                    createDurable,
                     ref globalIdCounter,
                     out filterError,
                     out monitoredItem);
@@ -367,7 +369,8 @@ namespace MemoryBuffer
                 timestampsToReturn,
                 itemToCreate.MonitoringMode,
                 itemToCreate.RequestedParameters.ClientHandle,
-                samplingInterval);
+                samplingInterval,
+                createDurable);
 
             // report the initial value.
             datachangeItem.QueueValue(initialValue, null);

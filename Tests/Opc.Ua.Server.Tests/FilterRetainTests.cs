@@ -625,6 +625,7 @@ namespace Opc.Ua.Server.Tests
             SystemContext systemContext = GetSystemContext();
             serverMock.Setup(s => s.NamespaceUris).Returns(systemContext.NamespaceUris);
             serverMock.Setup(s => s.TypeTree).Returns((TypeTable)systemContext.TypeTable);
+            serverMock.Setup(s => s.MonitoredItemQueueFactory).Returns(new MonitoredItemQueueFactory());
 
             var nodeMangerMock = new Mock<INodeManager>();
 

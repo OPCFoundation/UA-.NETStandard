@@ -375,6 +375,10 @@ namespace Opc.Ua.Server.Tests
                     QueueSize = queueSize
                 }
             });
+
+            //add event item
+            itemsToCreate.Add(CreateEventMonitoredItem(queueSize, ref handleCounter));
+
             response = services.CreateMonitoredItems(requestHeader, id, TimestampsToReturn.Neither, itemsToCreate,
                 out MonitoredItemCreateResultCollection itemCreateResults, out DiagnosticInfoCollection diagnosticInfos);
             ServerFixtureUtils.ValidateResponse(response, itemCreateResults, itemsToCreate);
@@ -681,6 +685,49 @@ namespace Opc.Ua.Server.Tests
                 out MonitoredItemCreateResultCollection itemCreateResults, out DiagnosticInfoCollection diagnosticInfos);
             ServerFixtureUtils.ValidateResponse(response, itemCreateResults, itemsToCreate);
             ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, itemsToCreate, response.StringTable);
+        }
+
+        private static MonitoredItemCreateRequest CreateEventMonitoredItem(uint queueSize, ref uint handleCounter)
+        {
+            var whereClause = new ContentFilter();
+
+            whereClause.Push(FilterOperator.Equals, new FilterOperand[] {
+                new SimpleAttributeOperand() {
+                    AttributeId = Attributes.Value,
+                    TypeDefinitionId = ObjectTypeIds.BaseEventType,
+                    BrowsePath = new QualifiedNameCollection(new QualifiedName[] { "EventType" })
+                },
+                new LiteralOperand {
+                    Value = new Variant(new NodeId(ObjectTypeIds.BaseEventType))
+                }
+            });
+
+            var mi = new MonitoredItemCreateRequest() {
+                ItemToMonitor = new ReadValueId() {
+                    AttributeId = Attributes.EventNotifier,
+                    NodeId = ObjectIds.Server
+                },
+                MonitoringMode = MonitoringMode.Reporting,
+                RequestedParameters = new MonitoringParameters() {
+                    ClientHandle = ++handleCounter,
+                    SamplingInterval = -1,
+                    Filter = new ExtensionObject(
+                        new EventFilter {
+                            SelectClauses = new SimpleAttributeOperandCollection(
+                            new SimpleAttributeOperand[] {
+                                new SimpleAttributeOperand{
+                                    AttributeId = Attributes.Value,
+                                    TypeDefinitionId = ObjectTypeIds.BaseEventType,
+                                    BrowsePath = new QualifiedNameCollection(new QualifiedName[] { BrowseNames.Message})
+                                }
+                            }),
+                            WhereClause = whereClause,
+                        }),
+                    DiscardOldest = true,
+                    QueueSize = queueSize
+                }
+            };
+            return mi;
         }
         #endregion
 
