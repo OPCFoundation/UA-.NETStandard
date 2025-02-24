@@ -37,6 +37,11 @@ namespace Opc.Ua.Server
     public interface IDataChangeMonitoredItemQueue : IDisposable
     {
         /// <summary>
+        /// The Id of the MonitoredItem associated with the queue
+        /// </summary>
+        uint MonitoredItemId { get; }
+
+        /// <summary>
         /// True if the queue is in durable mode and persists the queue values / supports a large queue size
         /// </summary>
         bool IsDurable { get; }
@@ -99,14 +104,14 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Creates an empty queue.
         /// </summary>
-        public DataChangeMonitoredItemQueue(bool createDurable)
+        public DataChangeMonitoredItemQueue(bool createDurable, uint monitoredItemId)
         {
             if (createDurable)
             {
                 Utils.LogError("DataChangeMonitoredItemQueue does not support durable queues, please provide full implementation of IDurableMonitoredItemQueue using Server.CreateDurableMonitoredItemQueueFactory to supply own factory");
                 throw new ArgumentException("DataChangeMonitoredItemQueue does not support durable Queues", nameof(createDurable));
             }
-
+            m_monitoredItemId = monitoredItemId;
             m_values = null;
             m_errors = null;
             m_start = -1;
@@ -114,6 +119,8 @@ namespace Opc.Ua.Server
         }
 
         #region Public Methods
+        /// <inheritdoc/>
+        public uint MonitoredItemId => m_monitoredItemId;
 
         /// <summary>
         /// Gets the current queue size.
@@ -329,6 +336,7 @@ namespace Opc.Ua.Server
         #endregion
 
         #region Private Fields
+        private readonly uint m_monitoredItemId;
         private DataValue[] m_values;
         private ServiceResult[] m_errors;
         private int m_start;

@@ -40,33 +40,33 @@ namespace Quickstarts.Servers
         /// <inheritdoc/>
         public bool SupportsDurableQueues => true;
         /// <inheritdoc/>
-        public IDataChangeMonitoredItemQueue CreateDataChangeQueue(bool createDurable)
+        public IDataChangeMonitoredItemQueue CreateDataChangeQueue(bool createDurable, uint monitoredItemId)
         {
             //use durable queue only if MI is durable
             if (createDurable)
             {
 
-                return new DurableDataChangeMonitoredItemQueue(createDurable);
+                return new DurableDataChangeMonitoredItemQueue(createDurable, monitoredItemId);
             }
             else
             {
-                return new DataChangeMonitoredItemQueue(createDurable);
+                return new DataChangeMonitoredItemQueue(createDurable, monitoredItemId);
             }
             
         }
 
         /// <inheritdoc/>
-        public IEventMonitoredItemQueue CreateEventQueue(bool createDurable)
+        public IEventMonitoredItemQueue CreateEventQueue(bool createDurable, uint monitoredItemId)
         {
             //use durable queue only if MI is durable
             if (createDurable)
             {
 
-                return new DurableEventMonitoredItemQueue(createDurable);
+                return new DurableEventMonitoredItemQueue(createDurable, monitoredItemId);
             }
             else
             {
-                return new EventMonitoredItemQueue(createDurable);
+                return new EventMonitoredItemQueue(createDurable, monitoredItemId);
             }
         }
 
@@ -82,7 +82,7 @@ namespace Quickstarts.Servers
         /// <summary>
         /// Creates an empty queue.
         /// </summary>
-        public DurableEventMonitoredItemQueue(bool createDurable) : base(false)
+        public DurableEventMonitoredItemQueue(bool createDurable, uint monitoredItemId) : base(false, monitoredItemId)
         {
             IsDurable = createDurable;
         }
@@ -98,7 +98,7 @@ namespace Quickstarts.Servers
         /// <summary>
         /// Creates an empty queue.
         /// </summary>
-        public DurableDataChangeMonitoredItemQueue(bool createDurable) : base(false)
+        public DurableDataChangeMonitoredItemQueue(bool createDurable, uint monitoredItemId) : base(false, monitoredItemId)
         {
             IsDurable = createDurable;
         }

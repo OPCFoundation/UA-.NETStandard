@@ -39,7 +39,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void EnqueueDequeueDataValue()
         {
-            var queue = m_factory.CreateDataChangeQueue(false);
+            var queue = m_factory.CreateDataChangeQueue(false, 1);
 
             Assert.That(queue.QueueSize, Is.EqualTo(0));
             Assert.That(queue.ItemsInQueue, Is.EqualTo(0));
@@ -101,7 +101,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void DataValueOverflow()
         {
-            var queue = m_factory.CreateDataChangeQueue(false);
+            var queue = m_factory.CreateDataChangeQueue(false, 1);
 
             queue.ResetQueue(2, true);
 
@@ -168,7 +168,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void DataValueQueueSize1()
         {
-            var queue = m_factory.CreateDataChangeQueue(false);
+            var queue = m_factory.CreateDataChangeQueue(false, 1);
 
             queue.ResetQueue(1, false);
 
@@ -212,7 +212,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void DataValueQueueSize10()
         {
-            var queue = m_factory.CreateDataChangeQueue(false);
+            var queue = m_factory.CreateDataChangeQueue(false, 1);
 
             queue.ResetQueue(10, true);
 
@@ -252,7 +252,7 @@ namespace Opc.Ua.Server.Tests
         [Benchmark]
         public void QueueDequeueValues()
         {
-            var queue = m_factory.CreateDataChangeQueue(false);
+            var queue = m_factory.CreateDataChangeQueue(false, 1);
             queue.ResetQueue(1000, false);
 
             for (int j = 0; j < 10_000; j++)
@@ -265,7 +265,7 @@ namespace Opc.Ua.Server.Tests
         [Benchmark]
         public void QueueDequeueValuesWithOverflow()
         {
-            var queue = m_factory.CreateDataChangeQueue(false);
+            var queue = m_factory.CreateDataChangeQueue(false, 1);
             queue.ResetQueue(100, false);
 
             for (int j = 0; j < 100; j++)
@@ -284,7 +284,7 @@ namespace Opc.Ua.Server.Tests
         [Benchmark]
         public void QueueDequeueEvents()
         {
-            var queue = m_factory.CreateEventQueue(false);
+            var queue = m_factory.CreateEventQueue(false, 1);
             queue.SetQueueSize(1000, false);
 
             for (int j = 0; j < 10_000; j++)
@@ -301,7 +301,7 @@ namespace Opc.Ua.Server.Tests
         [Benchmark]
         public void QueueDequeueEventssWithOverflow()
         {
-            var queue = m_factory.CreateEventQueue(false);
+            var queue = m_factory.CreateEventQueue(false, 1);
             queue.SetQueueSize(100, false);
 
             for (int j = 0; j < 100; j++)
@@ -327,7 +327,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void EnqueueDequeueEvent()
         {
-            var queue = m_factory.CreateEventQueue(false);
+            var queue = m_factory.CreateEventQueue(false, 1);
 
             Assert.That(queue.QueueSize, Is.EqualTo(0));
             Assert.That(queue.ItemsInQueue, Is.EqualTo(0));
@@ -386,7 +386,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void EventOverflow()
         {
-            var queue = m_factory.CreateEventQueue(false);
+            var queue = m_factory.CreateEventQueue(false, 1);
 
             queue.SetQueueSize(2, false);
 
@@ -449,7 +449,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void EventQueueSize1()
         {
-            var queue = m_factory.CreateEventQueue(false);
+            var queue = m_factory.CreateEventQueue(false, 1);
 
             queue.SetQueueSize(1, false);
 
@@ -494,7 +494,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void EventQueueIsEventContainedInQueue()
         {
-            var queue = m_factory.CreateEventQueue(false);
+            var queue = m_factory.CreateEventQueue(false, 1);
 
             queue.SetQueueSize(2, false);
 
@@ -542,7 +542,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void EventQueueSize10()
         {
-            var queue = m_factory.CreateEventQueue(false);
+            var queue = m_factory.CreateEventQueue(false, 1);
 
             queue.SetQueueSize(10, false);
 
@@ -582,7 +582,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void EventQueueSizeChangeRequeuesValues()
         {
-            var queue = m_factory.CreateEventQueue(false);
+            var queue = m_factory.CreateEventQueue(false, 1);
 
             queue.SetQueueSize(10, false);
 
@@ -632,7 +632,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void EventDecreaseQueueSizeDiscardsOldest()
         {
-            var queue = m_factory.CreateEventQueue(false);
+            var queue = m_factory.CreateEventQueue(false, 1);
 
             queue.SetQueueSize(10, false);
 
@@ -688,7 +688,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void EventDecreaseQueueSizeDiscardsNewest()
         {
-            var queue = m_factory.CreateEventQueue(false);
+            var queue = m_factory.CreateEventQueue(false, 1);
 
             queue.SetQueueSize(10, false);
 
@@ -745,7 +745,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void EventQueueHandlerOverflow()
         {
-            var queueHandler = new EventQueueHandler(false, m_factory);
+            var queueHandler = new EventQueueHandler(false, m_factory, 1);
 
             queueHandler.SetQueueSize(1, false);
 
@@ -766,7 +766,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void EventQueueHandlerEnqueueSize1()
         {
-            var queueHandler = new EventQueueHandler(false, m_factory);
+            var queueHandler = new EventQueueHandler(false, m_factory, 1);
 
             queueHandler.SetQueueSize(1, true);
 
@@ -799,7 +799,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void EventQueueHandlerEnqueueSize2()
         {
-            var queueHandler = new EventQueueHandler(false, m_factory);
+            var queueHandler = new EventQueueHandler(false, m_factory, 1);
 
             queueHandler.SetQueueSize(2, false);
 
@@ -843,7 +843,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void EventQueueHandlerPublish()
         {
-            var queueHandler = new EventQueueHandler(false, m_factory);
+            var queueHandler = new EventQueueHandler(false, m_factory, 1);
 
             queueHandler.SetQueueSize(2, false);
 
@@ -1169,18 +1169,18 @@ namespace Opc.Ua.Server.Tests
         {
             if (m_factory.SupportsDurableQueues)
             {
-                var dataChangeQueue = m_factory.CreateDataChangeQueue(true);
+                var dataChangeQueue = m_factory.CreateDataChangeQueue(true, 1);
 
                 Assert.That(dataChangeQueue.IsDurable, Is.True);
 
-                var eventQueue = m_factory.CreateEventQueue(true);
+                var eventQueue = m_factory.CreateEventQueue(true, 1);
 
                 Assert.That(eventQueue.IsDurable, Is.True);
             }
             else
             {
-                Assert.Throws<ArgumentException>(() => m_factory.CreateDataChangeQueue(true));
-                Assert.Throws<ArgumentException>(() => m_factory.CreateEventQueue(true));
+                Assert.Throws<ArgumentException>(() => m_factory.CreateDataChangeQueue(true, 1));
+                Assert.Throws<ArgumentException>(() => m_factory.CreateEventQueue(true, 1));
             }
         }
 

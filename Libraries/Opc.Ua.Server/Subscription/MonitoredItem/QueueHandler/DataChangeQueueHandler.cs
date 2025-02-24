@@ -81,7 +81,7 @@ namespace Opc.Ua.Server
         /// <param name="discardedValueHandler"></param>
         public DataChangeQueueHandler(uint monitoredItemId, bool createDurable, IMonitoredItemQueueFactory queueFactory, Action discardedValueHandler = null)
         {
-            m_dataValueQueue = queueFactory.CreateDataChangeQueue(createDurable);
+            m_dataValueQueue = queueFactory.CreateDataChangeQueue(createDurable, monitoredItemId);
 
             m_discardedValueHandler = discardedValueHandler;
             m_monitoredItemId = monitoredItemId;

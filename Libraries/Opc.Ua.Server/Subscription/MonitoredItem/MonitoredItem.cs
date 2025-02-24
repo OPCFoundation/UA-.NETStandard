@@ -1810,7 +1810,7 @@ namespace Opc.Ua.Server
                     {
                         if (m_eventQueueHandler == null)
                         {
-                            m_eventQueueHandler = new EventQueueHandler(IsDurable, m_monitoredItemQueueFactory);
+                            m_eventQueueHandler = new EventQueueHandler(IsDurable, m_monitoredItemQueueFactory, Id);
                         }
                         m_eventQueueHandler.SetQueueSize(m_queueSize, m_discardOldest);
                     }

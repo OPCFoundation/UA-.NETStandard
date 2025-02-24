@@ -90,9 +90,10 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="createDurable">create a durable queue</param>
         /// <param name="queueFactory">the factory for creating the the factory for <see cref="IEventMonitoredItemQueue"/></param>
-        public EventQueueHandler(bool createDurable, IMonitoredItemQueueFactory queueFactory)
+        /// <param name="monitoredItemId">the id of the monitoredItem associated with the queue</param>
+        public EventQueueHandler(bool createDurable, IMonitoredItemQueueFactory queueFactory, uint monitoredItemId)
         {
-            m_eventQueue = queueFactory.CreateEventQueue(createDurable);
+            m_eventQueue = queueFactory.CreateEventQueue(createDurable, monitoredItemId);
             m_discardOldest = false;
             m_overflow = false;
         }

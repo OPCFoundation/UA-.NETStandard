@@ -39,6 +39,11 @@ namespace Opc.Ua.Server
     public interface IEventMonitoredItemQueue : IDisposable
     {
         /// <summary>
+        /// The Id of the MonitoredItem associated with the queue
+        /// </summary>
+        uint MonitoredItemId { get; }
+
+        /// <summary>
         /// True if the queue is in durable mode and persists the queue values / supports a large queue size
         /// </summary>
         bool IsDurable { get; }
@@ -92,7 +97,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Creates an empty queue.
         /// </summary>
-        public EventMonitoredItemQueue(bool createDurable)
+        public EventMonitoredItemQueue(bool createDurable, uint monitoredItemId)
         {
             if (createDurable)
             {
@@ -100,10 +105,14 @@ namespace Opc.Ua.Server
                 throw new ArgumentException("DataChangeMonitoredItemQueue does not support durable Queues", nameof(createDurable));
             }
             m_events = new List<EventFieldList>();
+            m_monitoredItemId = monitoredItemId;
             QueueSize = 0;
         }
 
         #region Public Methods
+        /// <inheritdoc/>
+        public uint MonitoredItemId => m_monitoredItemId;
+
         /// <inheritdoc/>
         public virtual bool IsDurable => false;
 
@@ -188,6 +197,7 @@ namespace Opc.Ua.Server
 
         #region Private Fields
         private readonly List<EventFieldList> m_events;
+        private readonly uint m_monitoredItemId;
         #endregion
     }
 

@@ -39,12 +39,12 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Creates an empty queue for data values.
         /// </summary>
-        IDataChangeMonitoredItemQueue CreateDataChangeQueue(bool isDurable);
+        IDataChangeMonitoredItemQueue CreateDataChangeQueue(bool isDurable, uint monitoredItemId);
 
         /// <summary>
         /// Creates an empty queue for events.
         /// </summary>
-        IEventMonitoredItemQueue CreateEventQueue(bool isDurable);
+        IEventMonitoredItemQueue CreateEventQueue(bool isDurable, uint monitoredItemId);
 
         /// <summary>
         /// If true durable queues can be created by the factory, if false only regular queues with small queue sizes are returned
@@ -59,15 +59,15 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public bool SupportsDurableQueues => false;
         /// <inheritdoc/>
-        public IDataChangeMonitoredItemQueue CreateDataChangeQueue(bool createDurable)
+        public IDataChangeMonitoredItemQueue CreateDataChangeQueue(bool createDurable, uint monitoredItemId)
         {
-            return new DataChangeMonitoredItemQueue(createDurable);
+            return new DataChangeMonitoredItemQueue(createDurable, monitoredItemId);
         }
 
         /// <inheritdoc/>
-        public IEventMonitoredItemQueue CreateEventQueue(bool createDurable)
+        public IEventMonitoredItemQueue CreateEventQueue(bool createDurable, uint monitoredItemId)
         {
-            return new EventMonitoredItemQueue(createDurable);
+            return new EventMonitoredItemQueue(createDurable, monitoredItemId);
         }
 
         /// <inheritdoc/>

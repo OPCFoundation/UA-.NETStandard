@@ -65,8 +65,8 @@ namespace Opc.Ua.Server
             m_maxSubscriptionCount = configuration.ServerConfiguration.MaxSubscriptionCount;
 
             m_subscriptions = new Dictionary<uint, Subscription>();
-            m_publishQueues = new Dictionary<NodeId, SessionPublishQueue>();
-            m_statusMessages = new Dictionary<NodeId, Queue<StatusMessage>>();
+            m_publishQueues = new NodeIdDictionary<SessionPublishQueue>();
+            m_statusMessages = new NodeIdDictionary<Queue<StatusMessage>>();
             m_lastSubscriptionId = BitConverter.ToInt64(Nonce.CreateRandomNonceData(sizeof(long)), 0);
 
             // create a event to signal shutdown.
@@ -2155,8 +2155,8 @@ namespace Opc.Ua.Server
         private int m_maxSubscriptionCount;
         private Dictionary<uint, Subscription> m_subscriptions;
         private List<Subscription> m_abandonedSubscriptions;
-        private Dictionary<NodeId, Queue<StatusMessage>> m_statusMessages;
-        private Dictionary<NodeId, SessionPublishQueue> m_publishQueues;
+        private NodeIdDictionary<Queue<StatusMessage>> m_statusMessages;
+        private NodeIdDictionary<SessionPublishQueue> m_publishQueues;
         private ManualResetEvent m_shutdownEvent;
         private Queue<ConditionRefreshTask> m_conditionRefreshQueue;
         private ManualResetEvent m_conditionRefreshEvent;
