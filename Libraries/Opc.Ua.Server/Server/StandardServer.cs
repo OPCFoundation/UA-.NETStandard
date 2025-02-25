@@ -3067,8 +3067,14 @@ namespace Opc.Ua.Server
                     //create the MonitoredItemQueueFactory
                     IMonitoredItemQueueFactory monitoredItemQueueFactory = CreateMonitoredItemQueueFactory(m_serverInternal, configuration);
 
-                    //add the eMonitoredItemQueueFactory to the datastore.
+                    //add the MonitoredItemQueueFactory to the datastore.
                     m_serverInternal.SetMonitoredItemQueueFactory(monitoredItemQueueFactory);
+
+                    //create the SubscriptionStore
+                    ISubscriptionStore subscriptionStore = CreateSubscriptionStore(m_serverInternal, configuration);
+
+                    //add the SubscriptionStore to the datastore
+                    m_serverInternal.SetSubscriptionStore(subscriptionStore);
 
                     ServerError = null;
 
@@ -3420,6 +3426,17 @@ namespace Opc.Ua.Server
         protected virtual IMonitoredItemQueueFactory CreateMonitoredItemQueueFactory(IServerInternal server, ApplicationConfiguration configuration)
         {
            return new MonitoredItemQueueFactory();
+        }
+
+        /// <summary>
+        /// Creates the subscriptionStore for the server.
+        /// </summary>
+        /// <param name="server">The server.</param>
+        /// <param name="configuration">The configuration.</param>
+        /// <returns>Returns a subscriptionStoe for a server, the return type is <seealso cref="ISubscriptionStore"/>.</returns>
+        protected virtual ISubscriptionStore CreateSubscriptionStore(IServerInternal server, ApplicationConfiguration configuration)
+        {
+            return new SubscriptionStore();
         }
 
         /// <summary>

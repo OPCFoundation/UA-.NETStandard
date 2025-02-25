@@ -287,6 +287,14 @@ namespace Opc.Ua.Server
             ref long globalIdCounter);
 
         /// <summary>
+        /// Restore a set of monitored items after a restart.
+        /// </summary>
+        void RestoreMonitoredItems(
+            IList<IStoredMonitoredItem> itemsToRestore,
+            IList<IMonitoredItem> monitoredItems,
+            IUserIdentity savedOwnerIdentity);
+
+        /// <summary>
         /// Modifies a set of monitored items.
         /// </summary>
         void ModifyMonitoredItems(

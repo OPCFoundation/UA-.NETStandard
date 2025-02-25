@@ -49,7 +49,8 @@ namespace Opc.Ua.Server
             INodeManager nodeManager,
             List<SamplingRateGroup> samplingRates,
             OperationContext context,
-            double samplingInterval)
+            double samplingInterval,
+            IUserIdentity savedOwnerIdentity = null)
         {
             if (server == null) throw new ArgumentNullException(nameof(server));
             if (nodeManager == null) throw new ArgumentNullException(nameof(nodeManager));
@@ -59,6 +60,14 @@ namespace Opc.Ua.Server
             m_nodeManager = nodeManager;
             m_samplingRates = samplingRates;
             m_session = context.Session;
+            if (m_session == null)
+            {
+                if (savedOwnerIdentity == null)
+                {
+                    throw new ArgumentNullException(nameof(savedOwnerIdentity), "Either a context with a Session or an owner identity need to be provided");
+                }
+                m_effectiveIdentity = savedOwnerIdentity;
+            }
             m_diagnosticsMask = (DiagnosticsMasks)context.DiagnosticsMask & DiagnosticsMasks.OperationAll;
             m_samplingInterval = AdjustSamplingInterval(samplingInterval);
 
@@ -136,11 +145,11 @@ namespace Opc.Ua.Server
         /// <remarks>
         /// The ApplyChanges() method must be called to actually start sampling the item. 
         /// </remarks>
-        public bool StartMonitoring(OperationContext context, ISampledDataChangeMonitoredItem monitoredItem)
+        public bool StartMonitoring(OperationContext context, ISampledDataChangeMonitoredItem monitoredItem, IUserIdentity savedOwnerIdentity = null)
         {
             lock (m_lock)
             {
-                if (MeetsGroupCriteria(context, monitoredItem))
+                if (MeetsGroupCriteria(context, monitoredItem, savedOwnerIdentity))
                 {
                     m_itemsToAdd.Add(monitoredItem);
                     monitoredItem.SetSamplingInterval(m_samplingInterval);
@@ -267,7 +276,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Checks if the item meets the group's criteria.
         /// </summary>
-        private bool MeetsGroupCriteria(OperationContext context, ISampledDataChangeMonitoredItem monitoredItem)
+        private bool MeetsGroupCriteria(OperationContext context, ISampledDataChangeMonitoredItem monitoredItem, IUserIdentity savedOwnerIdentity = null)
         {
             // can only sample variables.
             if ((monitoredItem.MonitoredItemType & MonitoredItemTypeMask.DataChange) == 0)
@@ -287,10 +296,21 @@ namespace Opc.Ua.Server
                 return false;
             }
 
-            // compare session.
-            if (context.SessionId != m_session.Id)
+            if (m_session != null)
             {
-                return false;
+                //compare session
+                if (context.SessionId != m_session.Id)
+                {
+                    return false;
+                }
+            }
+            //fallback to compare user Identity
+            else
+            {
+                if (savedOwnerIdentity?.GetIdentityToken() != m_effectiveIdentity.GetIdentityToken())
+                {
+                    return false;
+                }
             }
 
             // check the diagnostics marks.
@@ -483,6 +503,7 @@ namespace Opc.Ua.Server
         private IServerInternal m_server;
         private INodeManager m_nodeManager;
         private Session m_session;
+        private IUserIdentity m_effectiveIdentity;
         private DiagnosticsMasks m_diagnosticsMask;
         private double m_samplingInterval;
         private List<ISampledDataChangeMonitoredItem> m_itemsToAdd;

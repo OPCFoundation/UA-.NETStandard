@@ -290,6 +290,24 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Restores a monitored item after a restard and calls StartMonitoring().
+        /// </summary>
+        public virtual MonitoredItem RestoreMonitoredItem(
+            object managerHandle,
+            IStoredMonitoredItem storedMonitoredItem,
+            IUserIdentity savedOwnerIdentity)
+        {
+            // create monitored item.
+            MonitoredItem monitoredItem = new MonitoredItem(m_server, m_nodeManager, managerHandle, storedMonitoredItem);
+
+            // start sampling.
+            StartMonitoring(new OperationContext(monitoredItem), monitoredItem, savedOwnerIdentity);
+
+            // return item.
+            return monitoredItem;
+        }
+
+        /// <summary>
         /// Modifies a monitored item and calls ModifyMonitoring().
         /// </summary>
         public virtual ServiceResult ModifyMonitoredItem(
@@ -370,7 +388,7 @@ namespace Opc.Ua.Server
         /// It will use the external source for monitoring if the source accepts the item.
         /// The changes will not take affect until the ApplyChanges() method is called.
         /// </remarks>
-        public virtual void StartMonitoring(OperationContext context, ISampledDataChangeMonitoredItem monitoredItem)
+        public virtual void StartMonitoring(OperationContext context, ISampledDataChangeMonitoredItem monitoredItem, IUserIdentity savedOwnerIdentity = null)
         {
             lock (m_lock)
             {
@@ -384,7 +402,7 @@ namespace Opc.Ua.Server
                 // find a suitable sampling group.
                 foreach (SamplingGroup samplingGroup in m_samplingGroups)
                 {
-                    if (samplingGroup.StartMonitoring(context, monitoredItem))
+                    if (samplingGroup.StartMonitoring(context, monitoredItem, savedOwnerIdentity))
                     {
                         m_sampledItems.Add(monitoredItem, samplingGroup);
                         return;
@@ -397,9 +415,10 @@ namespace Opc.Ua.Server
                     m_nodeManager,
                     m_samplingRates,
                     context,
-                    monitoredItem.SamplingInterval);
+                    monitoredItem.SamplingInterval,
+                    savedOwnerIdentity);
 
-                samplingGroup2.StartMonitoring(context, monitoredItem);
+                samplingGroup2.StartMonitoring(context, monitoredItem, savedOwnerIdentity);
 
                 m_samplingGroups.Add(samplingGroup2);
                 m_sampledItems.Add(monitoredItem, samplingGroup2);

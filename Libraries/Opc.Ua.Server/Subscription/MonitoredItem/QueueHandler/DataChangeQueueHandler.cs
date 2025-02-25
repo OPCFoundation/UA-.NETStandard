@@ -92,6 +92,27 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Create a DatachangeQueueHandler from an existing queue
+        /// Used for restore after a server restart
+        /// </summary>
+        public DataChangeQueueHandler(
+            IDataChangeMonitoredItemQueue dataValueQueue,
+            bool discardOldest,
+            double samplingInterval,
+            Action discardedValueHandler = null)
+        {
+            m_dataValueQueue = dataValueQueue;
+            m_monitoredItemId = dataValueQueue.QueueSize;
+            m_discardOldest = discardOldest;
+            m_discardedValueHandler = discardedValueHandler;
+            m_nextSampleTime = 0;
+            m_overflow = null;
+            SetSamplingInterval(samplingInterval);
+        }
+
+
+
+        /// <summary>
         /// Sets the queue size.
         /// </summary>
         /// <param name="queueSize">The new queue size.</param>

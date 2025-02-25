@@ -554,6 +554,32 @@ namespace Opc.Ua.Sample
                 }
             }
         }
+
+        /// <inheritdoc/>
+        public IStoredMonitoredItem ToStorableMonitoredItem()
+        {
+            return new StoredMonitoredItem {
+                SamplingInterval = m_samplingInterval,
+                SubscriptionId = m_subscription.Id,
+                QueueSize = m_queueSize,
+                AlwaysReportUpdates = m_alwaysReportUpdates,
+                AttributeId = m_attributeId,
+                ClientHandle = m_clientHandle,
+                DiagnosticsMasks = m_diagnosticsMasks,
+                IsDurable = false,
+                Encoding = m_dataEncoding,
+                FilterToUse = m_filter,
+                Id = m_id,
+                LastError = m_lastError,
+                LastValue = m_lastValue,
+                MonitoringMode = m_monitoringMode,
+                NodeId = m_source.Node.NodeId,
+                OriginalFilter = m_filter,
+                Range = m_range,
+                TimestampsToReturn = m_timestampsToReturn,
+                ParsedIndexRange = m_indexRange
+            };
+        }
         #endregion
 
         #region IDataChangeMonitoredItem Members

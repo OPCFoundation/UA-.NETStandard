@@ -3393,6 +3393,150 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Restore a set of monitored items after a restart.
+        /// </summary>
+        public virtual void RestoreMonitoredItems(
+            IList<IStoredMonitoredItem> itemsToRestore,
+            IList<IMonitoredItem> monitoredItems,
+            IUserIdentity savedOwnerIdentity)
+        {
+            if (itemsToRestore == null) throw new ArgumentNullException(nameof(itemsToRestore));
+            if (monitoredItems == null) throw new ArgumentNullException(nameof(monitoredItems));
+
+            if (m_server.IsRunning)
+            {
+                throw new InvalidOperationException("Subscription restore can only occur on startup");
+            }
+
+            ServerSystemContext systemContext = m_systemContext.Copy();
+            IDictionary<NodeId, NodeState> operationCache = new NodeIdDictionary<NodeState>();
+            List<NodeHandle> nodesToValidate = new List<NodeHandle>();
+
+            for (int ii = 0; ii < itemsToRestore.Count; ii++)
+            {
+                IStoredMonitoredItem itemToCreate = itemsToRestore[ii];
+
+                // skip items that have already been processed.
+                if (itemToCreate.IsRestored)
+                {
+                    continue;
+                }
+
+                // check for valid handle.
+                NodeHandle handle = GetManagerHandle(systemContext, itemToCreate.NodeId, operationCache);
+
+                if (handle == null)
+                {
+                    continue;
+                }
+
+                // owned by this node manager.
+                itemToCreate.IsRestored = true;
+
+                handle.Index = ii;
+                nodesToValidate.Add(handle);
+            }
+
+            // check for nothing to do.
+            if (nodesToValidate.Count == 0)
+            {
+                return;
+            }
+
+            // validates the nodes (reads values from the underlying data source if required).
+            for (int ii = 0; ii < nodesToValidate.Count; ii++)
+            {
+                NodeHandle handle = nodesToValidate[ii];
+
+                bool success = false;
+                IMonitoredItem monitoredItem = null;
+
+                lock (Lock)
+                {
+                    // validate node.
+                    NodeState source = ValidateNode(systemContext, handle, operationCache);
+
+                    if (source == null)
+                    {
+                        continue;
+                    }
+
+                    IStoredMonitoredItem itemToCreate = itemsToRestore[handle.Index];
+
+                    // create monitored item.
+                    success = RestoreMonitoredItem(
+                        systemContext,
+                        handle,
+                        itemToCreate,
+                        out monitoredItem);
+                }
+
+                if (!success)
+                {
+                    continue;
+                }
+
+                // save the monitored item.
+                monitoredItems[handle.Index] = monitoredItem;
+            }
+
+            // do any post processing.
+            OnCreateMonitoredItemsComplete(systemContext, monitoredItems);
+        }
+
+        /// <summary>
+        /// Restore a single monitored Item after a restart
+        /// </summary>
+        /// <returns>true if sucesfully restored</returns>
+        protected virtual bool RestoreMonitoredItem(
+            ServerSystemContext context,
+            NodeHandle handle,
+            IStoredMonitoredItem storedMonitoredItem,
+            out IMonitoredItem monitoredItem)
+        {
+            monitoredItem = null;
+
+            // validate attribute.
+            if (!Attributes.IsValid(handle.Node.NodeClass, storedMonitoredItem.AttributeId))
+            {
+                return false;
+            }
+
+            // check if the node is already being monitored.
+            MonitoredNode2 monitoredNode = null;
+
+            if (!m_monitoredNodes.TryGetValue(handle.Node.NodeId, out monitoredNode))
+            {
+                NodeState cachedNode = AddNodeToComponentCache(context, handle, handle.Node);
+                m_monitoredNodes[handle.Node.NodeId] = monitoredNode = new MonitoredNode2(this, cachedNode);
+            }
+
+            handle.Node = monitoredNode.Node;
+            handle.MonitoredNode = monitoredNode;
+
+            // put an upper limit on queue size.
+            storedMonitoredItem.QueueSize = SubscriptionManager.CalculateRevisedQueueSize(storedMonitoredItem.IsDurable, storedMonitoredItem.QueueSize, m_maxQueueSize, m_maxDurableQueueSize);
+
+            // create the item.
+            MonitoredItem datachangeItem = new MonitoredItem(
+                Server,
+                this,
+                handle,
+                storedMonitoredItem);
+
+            // update monitored item list.
+            monitoredItem = datachangeItem;
+
+            // save the monitored item.
+            monitoredNode.Add(datachangeItem);
+
+            // report change.
+            OnMonitoredItemCreated(context, handle, datachangeItem);
+
+            return true;
+        }
+
+        /// <summary>
         /// Creates a new set of monitored items for a set of variables.
         /// </summary>
         /// <remarks>

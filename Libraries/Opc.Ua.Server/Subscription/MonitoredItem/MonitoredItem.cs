@@ -122,6 +122,7 @@ namespace Opc.Ua.Server
             m_nextSamplingTime = HiResClock.TickCount64;
             m_alwaysReportUpdates = false;
             m_monitoredItemQueueFactory = m_server.MonitoredItemQueueFactory;
+            m_subscriptionStore = m_server.SubscriptionStore;
             m_isDurable = createDurable;
 
             if (!m_monitoredItemQueueFactory.SupportsDurableQueues && m_isDurable)
@@ -172,6 +173,77 @@ namespace Opc.Ua.Server
                 m_monitoringMode);
 
             InitializeQueue();
+        }
+
+        /// <summary>
+        /// Restore a MonitoredItem afer a restart.
+        /// </summary>
+        public MonitoredItem(
+            IServerInternal server,
+            INodeManager nodeManager,
+            object mangerHandle,
+            IStoredMonitoredItem storedMonitoredItem)
+        {
+
+            Initialize();
+
+            m_server = server;
+            m_nodeManager = nodeManager;
+            m_managerHandle = mangerHandle;
+            m_subscriptionId = storedMonitoredItem.SubscriptionId;
+            m_id = storedMonitoredItem.Id;
+            m_nodeId = storedMonitoredItem.NodeId;
+            m_attributeId = storedMonitoredItem.AttributeId;
+            m_indexRange = storedMonitoredItem.IndexRange;
+            m_parsedIndexRange = storedMonitoredItem.ParsedIndexRange;
+            m_encoding = storedMonitoredItem.Encoding;
+            m_diagnosticsMasks = storedMonitoredItem.DiagnosticsMasks;
+            m_timestampsToReturn = storedMonitoredItem.TimestampsToReturn;
+            m_monitoringMode = storedMonitoredItem.MonitoringMode;
+            m_clientHandle = storedMonitoredItem.ClientHandle;
+            m_originalFilter = storedMonitoredItem.OriginalFilter;
+            m_filterToUse = storedMonitoredItem.FilterToUse;
+            m_range = 0;
+            m_samplingInterval = storedMonitoredItem.SamplingInterval;
+            m_queueSize = storedMonitoredItem.QueueSize;
+            m_discardOldest = storedMonitoredItem.DiscardOldest;
+            m_sourceSamplingInterval = storedMonitoredItem.SourceSamplingInterval;
+            m_calculator = null;
+            m_nextSamplingTime = HiResClock.TickCount64;
+            m_alwaysReportUpdates = false;
+            m_monitoredItemQueueFactory = m_server.MonitoredItemQueueFactory;
+            m_isDurable = storedMonitoredItem.IsDurable;
+            m_alwaysReportUpdates = storedMonitoredItem.AlwaysReportUpdates;
+            m_lastError = storedMonitoredItem.LastError;
+            m_lastValue = storedMonitoredItem.LastValue;
+
+            m_typeMask = storedMonitoredItem.TypeMask;
+
+            // create aggregate calculator.
+            if (storedMonitoredItem.FilterToUse is ServerAggregateFilter aggregateFilter)
+            {
+                m_calculator = m_server.AggregateManager.CreateCalculator(
+                    aggregateFilter.AggregateType,
+                    aggregateFilter.StartTime,
+                    DateTime.MaxValue,
+                    aggregateFilter.ProcessingInterval,
+                    aggregateFilter.Stepped,
+                    aggregateFilter.AggregateConfiguration);
+            }
+
+            m_range = storedMonitoredItem.Range;
+
+            // report change to item state.
+            ServerUtils.ReportCreateMonitoredItem(
+                m_nodeId,
+                m_id,
+                m_samplingInterval,
+                m_queueSize,
+                m_discardOldest,
+                m_filterToUse,
+                m_monitoringMode);
+
+            RestoreQueue();
         }
 
         /// <summary>
@@ -1008,7 +1080,7 @@ namespace Opc.Ua.Server
                 // apply filter.
                 if (!bypassFilter)
                 {
-                    if ( !CanSendFilteredAlarm( context, filter, instance ) )
+                    if (!CanSendFilteredAlarm(context, filter, instance))
                     {
                         return;
                     }
@@ -1057,12 +1129,12 @@ namespace Opc.Ua.Server
 
                 bool saved = conditionIds.Contains(key);
 
-                if ( saved )
+                if (saved)
                 {
                     conditionIds.Remove(key);
                 }
 
-                if ( passedFilter )
+                if (passedFilter)
                 {
                     // Archie - December 17 2024
                     // Requires discussion with Part 9 Editor
@@ -1073,7 +1145,7 @@ namespace Opc.Ua.Server
                 }
                 else
                 {
-                    if ( saved )
+                    if (saved)
                     {
                         canSend = true;
                     }
@@ -1478,6 +1550,36 @@ namespace Opc.Ua.Server
         }
         /// <inheritdoc/>
         public bool IsDurable => m_isDurable;
+
+        /// <inheritdoc/>
+        public IStoredMonitoredItem ToStorableMonitoredItem()
+        {
+            return new StoredMonitoredItem {
+                SamplingInterval = m_samplingInterval,
+                SourceSamplingInterval = m_sourceSamplingInterval,
+                SubscriptionId = m_subscriptionId,
+                QueueSize = m_queueSize,
+                AlwaysReportUpdates = m_alwaysReportUpdates,
+                AttributeId = m_attributeId,
+                ClientHandle = m_clientHandle,
+                DiagnosticsMasks = m_diagnosticsMasks,
+                DiscardOldest = m_discardOldest,
+                IsDurable = m_isDurable,
+                Encoding = m_encoding,
+                FilterToUse = m_filterToUse,
+                Id = m_id,
+                IndexRange = m_indexRange,
+                LastError = m_lastError,
+                LastValue = m_lastValue,
+                MonitoringMode = m_monitoringMode,
+                NodeId = m_nodeId,
+                OriginalFilter = m_originalFilter,
+                Range = m_range,
+                TimestampsToReturn = m_timestampsToReturn,
+                TypeMask = m_typeMask,
+                ParsedIndexRange = m_parsedIndexRange
+            };
+        }
         #endregion
 
         #region Private Methods
@@ -1821,6 +1923,82 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Restore a persitent queue after a restart
+        /// </summary>
+        protected void RestoreQueue()
+        {
+            switch (m_monitoringMode)
+            {
+                default:
+                case MonitoringMode.Disabled:
+                {
+                    break;
+                }
+
+                case MonitoringMode.Reporting:
+                case MonitoringMode.Sampling:
+                {
+                    // check if queuing is disabled.
+                    if (m_queueSize == 0)
+                    {
+                        if (m_typeMask == MonitoredItemTypeMask.DataChange)
+                        {
+                            m_queueSize = 1;
+                        }
+
+                        if ((m_typeMask & MonitoredItemTypeMask.Events) != 0)
+                        {
+                            m_queueSize = 1000;
+                        }
+                    }
+
+                    // create data queue.
+                    if (m_typeMask == MonitoredItemTypeMask.DataChange)
+                    {
+                        if (m_queueSize <= 1)
+                        {
+                            break; // queueing is disabled
+                        }
+
+                        IDataChangeMonitoredItemQueue restoredQueue = m_subscriptionStore.RestoreDataChangeMonitoredItemQueue(m_id);
+
+                        if (restoredQueue != null)
+                        {
+                            // initialize with existing queue
+                            m_dataChangeQueueHandler = new DataChangeQueueHandler(restoredQueue, m_discardOldest, m_samplingInterval, QueueOverflowHandler);
+                        }
+                        else
+                        {
+                            // create new queue
+                            m_dataChangeQueueHandler = new DataChangeQueueHandler(Id, IsDurable, m_monitoredItemQueueFactory, QueueOverflowHandler);
+
+                            m_dataChangeQueueHandler.SetQueueSize(m_queueSize, m_discardOldest, m_diagnosticsMasks);
+                            m_dataChangeQueueHandler.SetSamplingInterval(m_samplingInterval);
+                        }
+                    }
+                    else // create event queue.
+                    {
+                        IEventMonitoredItemQueue restoredQueue = m_subscriptionStore.RestoreEventMonitoredItemQueue(m_id);
+                        if (restoredQueue != null)
+                        {
+                            // initialize with existing queue
+                            m_eventQueueHandler = new EventQueueHandler(restoredQueue, m_discardOldest);
+                        }
+                        else
+                        {
+                            // create new queue
+                            m_eventQueueHandler = new EventQueueHandler(IsDurable, m_monitoredItemQueueFactory, Id);
+                            m_eventQueueHandler.SetQueueSize(m_queueSize, m_discardOldest);
+                        }
+                        
+                    }
+
+                    break;
+                }
+            }
+        }
+
+        /// <summary>
         /// Update the overflow count.
         /// </summary>
         private void QueueOverflowHandler()
@@ -1869,6 +2047,7 @@ namespace Opc.Ua.Server
         private readonly IMonitoredItemQueueFactory m_monitoredItemQueueFactory;
         private IDataChangeQueueHandler m_dataChangeQueueHandler;
         private IEventQueueHandler m_eventQueueHandler;
+        private ISubscriptionStore m_subscriptionStore;
         private bool m_readyToPublish;
         private bool m_readyToTrigger;
         private bool m_semanticsChanged;
@@ -1879,8 +2058,6 @@ namespace Opc.Ua.Server
         private bool m_triggered;
         private bool m_resendData;
         private HashSet<string> m_filteredRetainConditionIds = null;
-
-
         #endregion
     }
 }

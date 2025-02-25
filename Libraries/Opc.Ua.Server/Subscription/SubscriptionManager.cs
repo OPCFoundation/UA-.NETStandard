@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Globalization;
 using System.Threading.Tasks;
+using System.Linq;
 
 namespace Opc.Ua.Server
 {
@@ -58,11 +59,14 @@ namespace Opc.Ua.Server
             m_publishingResolution = configuration.ServerConfiguration.PublishingResolution;
             m_maxSubscriptionLifetime = (uint)configuration.ServerConfiguration.MaxSubscriptionLifetime;
             m_maxDurableSubscriptionLifetimeInHours = (uint)configuration.ServerConfiguration.MaxDurableSubscriptionLifetimeInHours;
+            m_durableSubscriptionsEnabled = configuration.ServerConfiguration.DurableSubscriptionsEnabled;
             m_minSubscriptionLifetime = (uint)configuration.ServerConfiguration.MinSubscriptionLifetime;
             m_maxMessageCount = (uint)configuration.ServerConfiguration.MaxMessageQueueSize;
             m_maxNotificationsPerPublish = (uint)configuration.ServerConfiguration.MaxNotificationsPerPublish;
             m_maxPublishRequestCount = configuration.ServerConfiguration.MaxPublishRequestCount;
             m_maxSubscriptionCount = configuration.ServerConfiguration.MaxSubscriptionCount;
+
+            m_subscriptionStore = server.SubscriptionStore;
 
             m_subscriptions = new Dictionary<uint, Subscription>();
             m_publishQueues = new NodeIdDictionary<SessionPublishQueue>();
@@ -224,6 +228,9 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
+                // restore subscriptions on startup
+                RestoreSubscriptions();
+
                 m_shutdownEvent.Reset();
 
                 Task.Factory.StartNew(() => {
@@ -259,6 +266,9 @@ namespace Opc.Ua.Server
 
                 m_publishQueues.Clear();
 
+                // store subscriptions to be able to restore them after a restart
+                StoreSubscriptions();
+
                 // dispose of subscriptions objects.
                 foreach (Subscription subscription in m_subscriptions.Values)
                 {
@@ -269,6 +279,117 @@ namespace Opc.Ua.Server
             }
         }
 
+        #region Subscription Store / Restore
+        /// <summary>
+        /// Stores durable subscriptions to  be able to restore them after a restart
+        /// </summary>
+        public virtual void StoreSubscriptions()
+        {
+            // only store subscriptions if durable subscriptions are enabeld
+            if (!m_durableSubscriptionsEnabled || m_subscriptionStore == null)
+            {
+                return;
+            }
+            var subscriptionsToStore = new List<IStoredSubscription>();
+
+            foreach (Subscription subscription in m_subscriptions.Values)
+            {
+                // only store durable subscriptions
+                if (!subscription.IsDurable)
+                {
+                    continue;
+                }
+                subscriptionsToStore.Add(subscription.ToStorableSubscription());
+            }
+
+            if (subscriptionsToStore.Count == 0)
+            {
+                return;
+            }
+
+            m_subscriptionStore.StoreSubscriptions(subscriptionsToStore);
+        }
+
+        /// <summary>
+        /// Restore durable subscriptions after a server restart
+        /// </summary>
+        public virtual void RestoreSubscriptions()
+        {
+            if (m_server.IsRunning)
+            {
+                throw new InvalidOperationException("Subscription restore can only occur on startup");
+            }
+
+            // only restore subscriptions if durable subscriptions are enabeld
+            if (!m_durableSubscriptionsEnabled || m_subscriptionStore == null)
+            {
+                return;
+            }
+            IEnumerable<IStoredSubscription> subscriptionsToRestore = m_subscriptionStore.RestoreSubscriptions();
+            var createdSubscriptions = new Dictionary<uint, uint[]>();
+
+            foreach (IStoredSubscription storedSubscription in subscriptionsToRestore)
+            {
+                var subscription = RestoreSubscription(storedSubscription);
+                subscription.GetMonitoredItems(out uint[] monitoredItemsIds, out _);
+                createdSubscriptions.Add(subscription.Id, monitoredItemsIds);
+            }
+
+            m_lastSubscriptionId = subscriptionsToRestore.Max(s => s.Id);
+
+            m_subscriptionStore.OnSubscriptionRestoreComplete(createdSubscriptions);
+        }
+        /// <summary>
+        /// Restore a subscription after a restart
+        /// </summary>
+        protected virtual Subscription RestoreSubscription(
+            IStoredSubscription storedSubscription)
+        {
+            if (m_subscriptions.Count >= m_maxSubscriptionCount)
+            {
+                throw new ServiceResultException(StatusCodes.BadTooManySubscriptions);
+            }
+
+            // calculate publishing interval.
+            storedSubscription.PublishingInterval = CalculatePublishingInterval(storedSubscription.PublishingInterval);
+
+            // calculate the keep alive count.
+            storedSubscription.MaxKeepaliveCount = CalculateKeepAliveCount(storedSubscription.PublishingInterval, storedSubscription.MaxKeepaliveCount, storedSubscription.IsDurable);
+
+            // calculate the lifetime count.
+            storedSubscription.MaxLifetimeCount = CalculateLifetimeCount(storedSubscription.PublishingInterval, storedSubscription.MaxKeepaliveCount, storedSubscription.MaxLifetimeCount, storedSubscription.IsDurable);
+
+            // calculate the max notification count.
+            storedSubscription.MaxNotificationsPerPublish = CalculateMaxNotificationsPerPublish(storedSubscription.MaxNotificationsPerPublish);
+
+            // create the subscription.
+            var subscription = new Subscription(m_server, storedSubscription);
+
+            uint publishingIntervalCount;
+            lock (m_lock)
+            {
+                // save subscription.
+                m_subscriptions.Add(subscription.Id, subscription);
+
+
+                // get the count for the diagnostics.
+                publishingIntervalCount = GetPublishingIntervalCount();
+            }
+
+            lock (m_server.DiagnosticsWriteLock)
+            {
+                ServerDiagnosticsSummaryDataType diagnostics = m_server.ServerDiagnostics;
+                diagnostics.CurrentSubscriptionCount++;
+                diagnostics.CumulatedSubscriptionCount++;
+                diagnostics.PublishingIntervalCount = publishingIntervalCount;
+            }
+
+            // raise subscription event.
+            RaiseSubscriptionEvent(subscription, false);
+
+            return subscription;
+        }
+        #endregion
         /// <summary>
         /// Signals that a session is closing.
         /// </summary>
@@ -1664,7 +1785,7 @@ namespace Opc.Ua.Server
         }
         #endregion
         #region Public Static Methods
-        
+
         /// <summary>
         /// Calculate a revised queue size for a monitored item based on the provided maximum allowed queue sizes.
         /// depending if an item is durable
@@ -2153,6 +2274,7 @@ namespace Opc.Ua.Server
         private uint m_maxNotificationsPerPublish;
         private int m_maxPublishRequestCount;
         private int m_maxSubscriptionCount;
+        private bool m_durableSubscriptionsEnabled;
         private Dictionary<uint, Subscription> m_subscriptions;
         private List<Subscription> m_abandonedSubscriptions;
         private NodeIdDictionary<Queue<StatusMessage>> m_statusMessages;
@@ -2160,6 +2282,7 @@ namespace Opc.Ua.Server
         private ManualResetEvent m_shutdownEvent;
         private Queue<ConditionRefreshTask> m_conditionRefreshQueue;
         private ManualResetEvent m_conditionRefreshEvent;
+        private ISubscriptionStore m_subscriptionStore;
 
         private readonly object m_statusMessagesLock = new object();
         private readonly object m_eventLock = new object();
