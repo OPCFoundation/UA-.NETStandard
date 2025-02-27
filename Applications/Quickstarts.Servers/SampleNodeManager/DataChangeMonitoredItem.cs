@@ -127,6 +127,43 @@ namespace Opc.Ua.Sample
                 m_queue.SetSamplingInterval(samplingInterval);
             }
         }
+
+        /// <summary>
+        /// Constructs a new instance from a template.
+        /// </summary>
+        public DataChangeMonitoredItem(
+            ISubscriptionStore subscriptionStore,
+            IMonitoredItemQueueFactory monitoredItemQueueFactory,
+            MonitoredNode source,
+            IStoredMonitoredItem storedMonitoredItem)
+        {
+            m_source = source;
+            m_monitoredItemQueueFactory = monitoredItemQueueFactory;
+            m_id = storedMonitoredItem.Id;
+            m_attributeId = storedMonitoredItem.AttributeId;
+            m_indexRange = storedMonitoredItem.ParsedIndexRange;
+            m_dataEncoding = storedMonitoredItem.Encoding;
+            m_timestampsToReturn = storedMonitoredItem.TimestampsToReturn;
+            m_diagnosticsMasks = storedMonitoredItem.DiagnosticsMasks;
+            m_monitoringMode = storedMonitoredItem.MonitoringMode;
+            m_clientHandle = storedMonitoredItem.ClientHandle;
+            m_samplingInterval = storedMonitoredItem.SamplingInterval;
+            m_nextSampleTime = DateTime.UtcNow.Ticks;
+            m_readyToPublish = false;
+            m_readyToTrigger = false;
+            m_resendData = false;
+            m_queue = null;
+            m_queueSize = storedMonitoredItem.QueueSize;
+            m_filter = storedMonitoredItem.FilterToUse as DataChangeFilter;
+            m_range = storedMonitoredItem.Range;
+            m_alwaysReportUpdates = storedMonitoredItem.AlwaysReportUpdates;
+
+            if (storedMonitoredItem.QueueSize > 1)
+            {
+                IDataChangeMonitoredItemQueue queue = subscriptionStore.RestoreDataChangeMonitoredItemQueue(storedMonitoredItem.Id);
+                m_queue = new DataChangeQueueHandler(queue, storedMonitoredItem.DiscardOldest, storedMonitoredItem.SamplingInterval);
+            }
+        }
         #endregion
 
         #region Public Members

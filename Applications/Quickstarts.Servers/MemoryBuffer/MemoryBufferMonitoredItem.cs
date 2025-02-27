@@ -88,6 +88,25 @@ namespace MemoryBuffer
         }
 
         /// <summary>
+        /// Initializes the object from a template
+        /// </summary>
+        public MemoryBufferMonitoredItem(
+            IServerInternal server,
+            INodeManager nodeManager,
+            object mangerHandle,
+            uint offset,
+            IStoredMonitoredItem storedMonitoredItem)
+        :
+            base(
+                server,
+                nodeManager,
+                mangerHandle,
+                storedMonitoredItem)
+        {
+            m_offset = offset;
+        }
+
+        /// <summary>
         /// Modifies the monitored item parameters,
         /// </summary>
         public ServiceResult Modify(
