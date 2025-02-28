@@ -867,12 +867,15 @@ namespace Opc.Ua
                     ICertificateStore store = rejectedCertificateStore.OpenStore();
                     try
                     {
-                        // number of certs for history + current chain
-                        await store.AddRejected(certificateChain, m_maxRejectedCertificates).ConfigureAwait(false);
+                        if (store != null)
+                        {
+                            // number of certs for history + current chain
+                            await store.AddRejected(certificateChain, m_maxRejectedCertificates).ConfigureAwait(false);
+                        }
                     }
                     finally
                     {
-                        store.Close();
+                        store?.Close();
                     }
                 }
                 finally
@@ -1046,6 +1049,12 @@ namespace Opc.Ua
 
                 try
                 {
+                    if (store == null)
+                    {
+                        // not a trusted issuer.
+                        return (null, null);
+                    }
+
                     X509Certificate2Collection certificates = await store.Enumerate().ConfigureAwait(false);
 
                     for (int ii = 0; ii < certificates.Count; ii++)
@@ -1103,7 +1112,7 @@ namespace Opc.Ua
                 }
                 finally
                 {
-                    store.Close();
+                    store?.Close();
                 }
             }
 
@@ -1902,7 +1911,7 @@ namespace Opc.Ua
             }
         }
 #endif
-#endregion
+        #endregion
 
         #region Private Enum
         /// <summary>

@@ -53,7 +53,10 @@ namespace Opc.Ua
                 try
                 {
                     store = OpenStore();
-                    collection = await store.Enumerate().ConfigureAwait(false);
+                    if (store != null)
+                    {
+                        collection = await store.Enumerate().ConfigureAwait(false);
+                    }
                 }
                 catch (Exception)
                 {
