@@ -387,6 +387,15 @@ namespace Opc.Ua.Server
 
 
         /// <summary>
+        /// The factory for durable monitored item queues
+        /// </summary>
+        public IMonitoredItemQueueFactory MonitoredItemQueueFactory
+        {
+            get { return m_monitoredItemQueueFactory; }
+        }
+
+
+        /// <summary>
         /// Returns the status object for the server.
         /// </summary>
         /// <value>The status.</value>

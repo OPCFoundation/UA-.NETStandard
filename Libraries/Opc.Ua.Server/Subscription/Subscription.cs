@@ -352,7 +352,7 @@ namespace Opc.Ua.Server
                 }
             }
         }
-
+              
         /// <summary>
         /// True if the subscription is set to durable and supports long lifetime and queue size
         /// </summary>

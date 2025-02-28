@@ -1581,6 +1581,8 @@ namespace Opc.Ua.Server
                 ParsedIndexRange = m_parsedIndexRange
             };
         }
+        /// <inheritdoc/>
+        public bool IsDurable => m_isDurable;
         #endregion
 
         #region Private Methods

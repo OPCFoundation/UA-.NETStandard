@@ -2902,7 +2902,6 @@ namespace Opc.Ua
     #endregion
 
     #region CertificateStoreIdentifier Class
-#nullable enable
     /// <summary>
     /// Describes a certificate store.
     /// </summary>
@@ -2917,7 +2916,7 @@ namespace Opc.Ua
         /// If the StoreName is not empty, the CertificateStoreType.X509Store is returned, otherwise the StoreType is returned.
         /// </value>
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 0)]
-        public string? StoreType
+        public string StoreType
         {
             get
             {
@@ -2944,13 +2943,13 @@ namespace Opc.Ua
         /// If the StoreName is empty, the m_storePath is returned.
         /// </value>
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 1)]
-        public string? StorePath
+        public string StorePath
         {
             get
             {
-                if (!string.IsNullOrEmpty(m_storeName))
+                if (!String.IsNullOrEmpty(m_storeName))
                 {
-                    if (string.IsNullOrEmpty(m_storeLocation))
+                    if (String.IsNullOrEmpty(m_storeLocation))
                     {
                         return CurrentUser + m_storeName;
                     }
@@ -2980,7 +2979,7 @@ namespace Opc.Ua
         /// </summary>
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 2)]
         [Obsolete("Use StoreType/StorePath instead")]
-        public string? StoreName
+        public string StoreName
         {
             get { return m_storeName; }
             set { m_storeName = value; }
@@ -2991,7 +2990,7 @@ namespace Opc.Ua
         /// </summary>
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 3)]
         [Obsolete("Use StoreType/StorePath instead")]
-        public string? StoreLocation
+        public string StoreLocation
         {
             get { return m_storeLocation; }
             set { m_storeLocation = value; }
@@ -3009,18 +3008,16 @@ namespace Opc.Ua
         #endregion
 
         #region Private Fields
-        private string? m_storeType;
-        private string? m_storePath;
-        private string? m_storeLocation;
-        private string? m_storeName;
+        private string m_storeType;
+        private string m_storePath;
+        private string m_storeLocation;
+        private string m_storeName;
         private CertificateValidationOptions m_validationOptions;
         #endregion
     }
-#nullable disable
     #endregion
 
     #region CertificateTrustList Class
-#nullable enable
     [DataContract(Namespace = Namespaces.OpcUaConfig)]
     [KnownType(typeof(CertificateTrustList))]
     public partial class CertificateTrustList : CertificateStoreIdentifier
@@ -3031,8 +3028,6 @@ namespace Opc.Ua
         /// </summary>
         public CertificateTrustList()
         {
-            //set in initialize
-            m_trustedCertificates = null!;
             Initialize();
         }
 
@@ -3083,7 +3078,6 @@ namespace Opc.Ua
         private CertificateIdentifierCollection m_trustedCertificates;
         #endregion
     }
-#nullable disable
     #endregion
 
     #region CertificateIdentifierCollection Class
@@ -3109,7 +3103,6 @@ namespace Opc.Ua
     #endregion
 
     #region CertificateIdentifier Class
-#nullable enable
     [DataContract(Namespace = Namespaces.OpcUaConfig)]
     public partial class CertificateIdentifier
     {
@@ -3171,11 +3164,11 @@ namespace Opc.Ua
         /// </summary>
         /// <value>The type of the store - defined in the <see cref="CertificateStoreType"/>.</value>
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 10)]
-        public string? StoreType
+        public string StoreType
         {
             get
             {
-                if (!string.IsNullOrEmpty(m_storeName))
+                if (!String.IsNullOrEmpty(m_storeName))
                 {
                     return CertificateStoreType.X509Store;
                 }
@@ -3194,13 +3187,13 @@ namespace Opc.Ua
         /// </summary>
         /// <value>The store path in the form <c>StoreName\\Store Location</c> .</value>
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 15)]
-        public string? StorePath
+        public string StorePath
         {
             get
             {
-                if (!string.IsNullOrEmpty(m_storeName))
+                if (!String.IsNullOrEmpty(m_storeName))
                 {
-                    if (string.IsNullOrEmpty(m_storeLocation))
+                    if (String.IsNullOrEmpty(m_storeLocation))
                     {
                         return Utils.Format("LocalMachine\\{0}", m_storeName);
                     }
@@ -3215,9 +3208,9 @@ namespace Opc.Ua
             {
                 m_storePath = value;
 
-                if (!string.IsNullOrEmpty(m_storePath))
+                if (!String.IsNullOrEmpty(m_storePath))
                 {
-                    if (string.IsNullOrEmpty(m_storeType))
+                    if (String.IsNullOrEmpty(m_storeType))
                     {
                         m_storeType = CertificateStoreIdentifier.DetermineStoreType(m_storePath);
                     }
@@ -3232,7 +3225,7 @@ namespace Opc.Ua
         /// <seealso cref="System.Security.Cryptography.X509Certificates.StoreName"/>
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 20)]
         [Obsolete("Use StoreType/StorePath instead")]
-        public string? StoreName
+        public string StoreName
         {
             get { return m_storeName; }
             set { m_storeName = value; }
@@ -3245,7 +3238,7 @@ namespace Opc.Ua
         /// <seealso cref="System.Security.Cryptography.X509Certificates.StoreLocation"/>
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 30)]
         [Obsolete("Use StoreType/StorePath instead")]
-        public string? StoreLocation
+        public string StoreLocation
         {
             get { return m_storeLocation; }
             set { m_storeLocation = value; }
@@ -3299,7 +3292,7 @@ namespace Opc.Ua
         /// <seealso cref="System.Security.Cryptography.X509Certificates.X500DistinguishedName"/>
         /// <seealso cref="System.Security.Cryptography.AsnEncodedData"/>
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 40)]
-        public string? SubjectName
+        public string SubjectName
         {
             get
             {
@@ -3331,7 +3324,7 @@ namespace Opc.Ua
         /// <value>The thumbprint of a certificate..</value>
         /// <seealso cref="X509Certificate2"/>
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 50)]
-        public string? Thumbprint
+        public string Thumbprint
         {
             get
             {
@@ -3362,7 +3355,7 @@ namespace Opc.Ua
         /// </summary>
         /// <value>A byte array containing the X.509 certificate data.</value>
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 60)]
-        public byte[]? RawData
+        public byte[] RawData
         {
             get
             {
@@ -3405,7 +3398,7 @@ namespace Opc.Ua
         /// </summary>
         /// <value>The NodeId of the certificate type, e.g. EccNistP256ApplicationCertificateType.</value>
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 80)]
-        public NodeId? CertificateType
+        public NodeId CertificateType
         {
             get => m_certificateType;
             set => m_certificateType = value;
@@ -3416,7 +3409,7 @@ namespace Opc.Ua
         /// </summary>
         /// <value>Rsa, RsaMin, RsaSha256, NistP256, NistP384, BrainpoolP256r1, BrainpoolP384r1, Curve25519, Curve448</value>
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 90)]
-        public string? CertificateTypeString
+        public string CertificateTypeString
         {
             get => EncodeCertificateType(m_certificateType);
             set => m_certificateType = DecodeCertificateType(value);
@@ -3424,19 +3417,19 @@ namespace Opc.Ua
         #endregion
 
         #region Private Fields
-        private string? m_storeType;
-        private string? m_storePath;
-        private string? m_storeLocation;
-        private string? m_storeName;
-        private string? m_subjectName;
-        private string? m_thumbprint;
-        private X509Certificate2? m_certificate;
-        private NodeId? m_certificateType;
+        private string m_storeType;
+        private string m_storePath;
+        private string m_storeLocation;
+        private string m_storeName;
+        private string m_subjectName;
+        private string m_thumbprint;
+        private X509Certificate2 m_certificate;
+        private NodeId m_certificateType;
         private CertificateValidationOptions m_validationOptions;
         #endregion
     }
-#nullable disable
     #endregion
+
     #region ConfiguredEndpointCollection Class
     /// <summary>
     /// Stores a list of cached endpoints.
