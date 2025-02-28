@@ -62,7 +62,7 @@ namespace Opc.Ua.Server
             m_maxBrowseContinuationPoints = configuration.ServerConfiguration.MaxBrowseContinuationPoints;
             m_maxHistoryContinuationPoints = configuration.ServerConfiguration.MaxHistoryContinuationPoints;
 
-            m_sessions = new ConcurrentDictionary<NodeId, Session>(Environment.ProcessorCount, m_maxSessionCount);
+            m_sessions = new NodeIdDictionary<Session>(m_maxSessionCount);
             m_lastSessionId = BitConverter.ToInt64(Nonce.CreateRandomNonceData(sizeof(long)), 0);
 
             // create a event to signal shutdown.
@@ -674,7 +674,7 @@ namespace Opc.Ua.Server
 #region Private Fields
         private readonly object m_lock = new object();
         private IServerInternal m_server;
-        private ConcurrentDictionary<NodeId, Session> m_sessions;
+        private NodeIdDictionary<Session> m_sessions;
         private long m_lastSessionId;
         private ManualResetEvent m_shutdownEvent;
 
