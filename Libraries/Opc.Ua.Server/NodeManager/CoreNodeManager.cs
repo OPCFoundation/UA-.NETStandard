@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2022 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -40,12 +40,12 @@ namespace Opc.Ua.Server
     /// The default node manager for the server.
     /// </summary>
     /// <remarks>
-    /// Every Server has one instance of this NodeManager. 
+    /// Every Server has one instance of this NodeManager.
     /// It stores objects that implement ILocalNode and indexes them by NodeId.
     /// </remarks>
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Maintainability", "CA1506:AvoidExcessiveClassCoupling")]
-    public partial class CoreNodeManager : INodeManager, IDisposable
-    {        
+    public partial class CoreNodeManager : ICoreNodeManager
+    {
         #region Constructors
         /// <summary>
         /// Initializes the object with default values.
@@ -57,7 +57,7 @@ namespace Opc.Ua.Server
         {
             if (server == null)        throw new ArgumentNullException(nameof(server));
             if (configuration == null) throw new ArgumentNullException(nameof(configuration));
-                  
+
             m_server                         = server;
             m_nodes                          = new NodeTable(server.NamespaceUris, server.ServerUris, server.TypeTree);
             m_monitoredItems                 = new Dictionary<uint,MonitoredItem>();
@@ -72,19 +72,19 @@ namespace Opc.Ua.Server
             }
 
             m_samplingGroupManager = new SamplingGroupManager(
-                server, 
+                server,
                 this,
                 (uint)configuration.ServerConfiguration.MaxNotificationQueueSize,
                 configuration.ServerConfiguration.AvailableSamplingRates);
         }
         #endregion
-        
-        #region IDisposable Members        
+
+        #region IDisposable Members
         /// <summary>
         /// Frees any unmanaged resources.
         /// </summary>
         public void Dispose()
-        {   
+        {
             Dispose(true);
             GC.SuppressFinalize(this);
         }
@@ -93,10 +93,10 @@ namespace Opc.Ua.Server
         /// An overrideable version of the Dispose.
         /// </summary>
         protected virtual void Dispose(bool disposing)
-        {  
+        {
             if (disposing)
             {
-                List<INode> nodes = null;                
+                List<INode> nodes = null;
 
                 lock(m_lock)
                 {
@@ -137,7 +137,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Imports the nodes from a dictionary of NodeState objects.
         /// </summary>
-        internal void ImportNodes(ISystemContext context, IEnumerable<NodeState> predefinedNodes, bool isInternal)
+        public void ImportNodes(ISystemContext context, IEnumerable<NodeState> predefinedNodes, bool isInternal)
         {
             NodeTable nodesToExport = new NodeTable(Server.NamespaceUris, Server.ServerUris, Server.TypeTree);
 
@@ -146,15 +146,15 @@ namespace Opc.Ua.Server
                 node.Export(context, nodesToExport);
             }
 
-            lock (Server.CoreNodeManager.DataLock)
+            lock (m_lock)
             {
                 foreach (ILocalNode nodeToExport in nodesToExport)
                 {
-                    Server.CoreNodeManager.AttachNode(nodeToExport, isInternal);
+                    AttachNode(nodeToExport, isInternal);
                 }
             }
         }
- 
+
         #region INodeManager Members
         /// <summary cref="INodeManager.NamespaceUris" />
         public IEnumerable<string> NamespaceUris
@@ -173,7 +173,7 @@ namespace Opc.Ua.Server
         {
             // TBD
         }
-                
+
         /// <summary cref="INodeManager.DeleteAddressSpace" />
         /// <remarks>
         /// Disposes all of the nodes.
@@ -195,7 +195,7 @@ namespace Opc.Ua.Server
                     }
                 }
 
-                m_nodes.Clear();    
+                m_nodes.Clear();
             }
 
             // dispose of the nodes.
@@ -211,7 +211,7 @@ namespace Opc.Ua.Server
                 }
             }
         }
-        
+
         /// <see cref="INodeManager.GetManagerHandle" />
         public object GetManagerHandle(NodeId nodeId)
         {
@@ -225,12 +225,12 @@ namespace Opc.Ua.Server
                 return GetLocalNode(nodeId);
             }
         }
-                
+
         /// <see cref="INodeManager.TranslateBrowsePath(OperationContext,object,RelativePathElement,IList{ExpandedNodeId},IList{NodeId})" />
         public void TranslateBrowsePath(
             OperationContext      context,
-            object                sourceHandle, 
-            RelativePathElement   relativePath, 
+            object                sourceHandle,
+            RelativePathElement   relativePath,
             IList<ExpandedNodeId> targetIds,
             IList<NodeId>         unresolvedTargetIds)
         {
@@ -246,14 +246,14 @@ namespace Opc.Ua.Server
             {
                 return;
             }
-            
+
             lock(m_lock)
             {
                 // find the references that meet the filter criteria.
                 IList<IReference> references = source.References.Find(
-                    relativePath.ReferenceTypeId, 
-                    relativePath.IsInverse, 
-                    relativePath.IncludeSubtypes, 
+                    relativePath.ReferenceTypeId,
+                    relativePath.IsInverse,
+                    relativePath.IncludeSubtypes,
                     m_server.TypeTree);
 
                 // nothing more to do.
@@ -296,11 +296,11 @@ namespace Opc.Ua.Server
             OperationContext            context,
             ref ContinuationPoint       continuationPoint,
             IList<ReferenceDescription> references)
-        {              
+        {
             if (context == null) throw new ArgumentNullException(nameof(context));
             if (continuationPoint == null) throw new ArgumentNullException(nameof(continuationPoint));
             if (references == null) throw new ArgumentNullException(nameof(references));
-            
+
             // check for valid handle.
             ILocalNode source = continuationPoint.NodeToBrowse as ILocalNode;
 
@@ -308,7 +308,7 @@ namespace Opc.Ua.Server
             {
                 throw new ServiceResultException(StatusCodes.BadNodeIdUnknown);
             }
-            
+
             // check for view.
             if (!ViewDescription.IsDefault(continuationPoint.View))
             {
@@ -322,7 +322,7 @@ namespace Opc.Ua.Server
 
                 // get previous enumerator.
                 IEnumerator<IReference> enumerator = continuationPoint.Data as IEnumerator<IReference>;
-            
+
                 // fetch a snapshot all references for node.
                 if (enumerator == null)
                 {
@@ -349,15 +349,15 @@ namespace Opc.Ua.Server
                         continuationPoint.IncludeSubtypes);
 
                     if (include)
-                    {                 
+                    {
                         ReferenceDescription description = new ReferenceDescription();
-                        
+
                         description.NodeId = reference.TargetId;
                         description.SetReferenceType(continuationPoint.ResultMask, reference.ReferenceTypeId, !reference.IsInverse);
 
                         // only fetch the metadata if it is requested.
                         if (continuationPoint.TargetAttributesRequired)
-                        {                        
+                        {
                             // get the metadata for the node.
                             NodeMetadata metadata = GetNodeMetadata(context, GetManagerHandle(reference.TargetId), continuationPoint.ResultMask);
 
@@ -390,7 +390,7 @@ namespace Opc.Ua.Server
 
                         // construct continuation point if max results reached.
                         if (maxResultsToReturn > 0 && references.Count >= maxResultsToReturn)
-                        { 
+                        {
                             continuationPoint.Index = 0;
                             continuationPoint.Data  = enumerator;
                             enumerator.MoveNext();
@@ -399,13 +399,13 @@ namespace Opc.Ua.Server
                     }
                 }
                 while (enumerator.MoveNext());
-                
+
                 // nothing more to browse if it exits from the loop normally.
                 continuationPoint.Dispose();
                 continuationPoint = null;
             }
         }
-        
+
         /// <summary>
         /// Returns true if the target meets the filter criteria.
         /// </summary>
@@ -443,16 +443,16 @@ namespace Opc.Ua.Server
                             return true;
                         }
                     }
-                        
+
                     return false;
                 }
             }
-                   
+
             // include reference for now.
             return true;
         }
         #endregion
-        
+
         /// <see cref="INodeManager.GetNodeMetadata" />
         public NodeMetadata GetNodeMetadata(
             OperationContext context,
@@ -460,7 +460,7 @@ namespace Opc.Ua.Server
             BrowseResultMask resultMask)
         {
             if (context == null) throw new ArgumentNullException(nameof(context));
-            
+
             // find target.
             ILocalNode target = targetHandle as ILocalNode;
 
@@ -473,7 +473,7 @@ namespace Opc.Ua.Server
             {
                 // copy the default metadata.
                 NodeMetadata metadata = new NodeMetadata(target, target.NodeId);
-                
+
                 // copy target attributes.
                 if ((resultMask & BrowseResultMask.NodeClass) != 0)
                 {
@@ -484,7 +484,7 @@ namespace Opc.Ua.Server
                 {
                     metadata.BrowseName = target.BrowseName;
                 }
-                
+
                 if ((resultMask & BrowseResultMask.DisplayName) != 0)
                 {
                     metadata.DisplayName = target.DisplayName;
@@ -495,7 +495,7 @@ namespace Opc.Ua.Server
                         metadata.DisplayName = Server.ResourceManager.Translate(context.PreferredLocales, metadata.DisplayName);
                     }
                 }
-                
+
                 metadata.WriteMask = target.WriteMask;
 
                 if (metadata.WriteMask != AttributeWriteMask.None)
@@ -516,7 +516,7 @@ namespace Opc.Ua.Server
                 metadata.EventNotifier = EventNotifiers.None;
                 metadata.AccessLevel   = AccessLevels.None;
                 metadata.Executable    = false;
-                
+
                 switch (target.NodeClass)
                 {
                     case NodeClass.Object:
@@ -536,7 +536,7 @@ namespace Opc.Ua.Server
                         IVariable variable = (IVariable)target;
                         metadata.DataType = variable.DataType;
                         metadata.ValueRank = variable.ValueRank;
-                        metadata.ArrayDimensions = variable.ArrayDimensions;                        
+                        metadata.ArrayDimensions = variable.ArrayDimensions;
                         metadata.AccessLevel = variable.AccessLevel;
 
                         DataValue value = new DataValue(variable.UserAccessLevel);
@@ -547,7 +547,7 @@ namespace Opc.Ua.Server
                             metadata.AccessLevel = 0;
                             break;
                         }
-                        
+
                         metadata.AccessLevel = (byte)(metadata.AccessLevel & (byte)value.Value);
                         break;
                     }
@@ -567,14 +567,14 @@ namespace Opc.Ua.Server
                                 metadata.Executable = false;
                                 break;
                             }
-                            
+
                             metadata.Executable = (bool)value.Value;
                         }
 
                         break;
                     }
                 }
-                
+
                 // look up type definition.
                 if ((resultMask & BrowseResultMask.TypeDefinition) != 0)
                 {
@@ -586,7 +586,7 @@ namespace Opc.Ua.Server
 
                 // Set AccessRestrictions and RolePermissions
                 Node node = (Node)target;
-                metadata.AccessRestrictions = (AccessRestrictionType)Enum.Parse(typeof(AccessRestrictionType), node.AccessRestrictions.ToString(CultureInfo.InvariantCulture)); 
+                metadata.AccessRestrictions = (AccessRestrictionType)Enum.Parse(typeof(AccessRestrictionType), node.AccessRestrictions.ToString(CultureInfo.InvariantCulture));
                 metadata.RolePermissions = node.RolePermissions;
                 metadata.UserRolePermissions = node.UserRolePermissions;
 
@@ -597,7 +597,7 @@ namespace Opc.Ua.Server
                 {
                     metadata.DefaultAccessRestrictions = (AccessRestrictionType)Enum.ToObject(typeof(AccessRestrictionType),
                         namespaceMetadataState.DefaultAccessRestrictions.Value);
-                  
+
                     metadata.DefaultRolePermissions = namespaceMetadataState.DefaultRolePermissions.Value;
                     metadata.DefaultUserRolePermissions = namespaceMetadataState.DefaultUserRolePermissions.Value;
                 }
@@ -609,7 +609,7 @@ namespace Opc.Ua.Server
 
         /// <summary cref="INodeManager.AddReferences" />
         /// <remarks>
-        /// This method must not be called without first acquiring 
+        /// This method must not be called without first acquiring
         /// </remarks>
         public void AddReferences(IDictionary<NodeId,IList<IReference>> references)
         {
@@ -629,7 +629,7 @@ namespace Opc.Ua.Server
                         {
                             AddReference(actualNode, reference.ReferenceTypeId, reference.IsInverse, reference.TargetId);
                         }
-                    }                        
+                    }
                 }
             }
         }
@@ -658,7 +658,7 @@ namespace Opc.Ua.Server
                     {
                         continue;
                     }
-                    
+
                     // look up the node.
                     ILocalNode node = GetLocalNode(nodeToRead.NodeId) as ILocalNode;
 
@@ -668,7 +668,7 @@ namespace Opc.Ua.Server
                     }
 
                     DataValue value = values[ii] = new DataValue();
-                    
+
                     value.Value           = null;
                     value.ServerTimestamp = DateTime.UtcNow;
                     value.SourceTimestamp = DateTime.MinValue;
@@ -676,15 +676,15 @@ namespace Opc.Ua.Server
 
                     // owned by this node manager.
                     nodeToRead.Processed = true;
-                    
-                    // read the default value (also verifies that the attribute id is valid for the node).                   
+
+                    // read the default value (also verifies that the attribute id is valid for the node).
                     ServiceResult error = node.Read(context, nodeToRead.AttributeId, value);
 
                     if (ServiceResult.IsBad(error))
                     {
                         errors[ii] = error;
                         continue;
-                    }                    
+                    }
 
                     // always use default value for base attributes.
                     bool useDefault = false;
@@ -705,26 +705,26 @@ namespace Opc.Ua.Server
                         errors[ii] = error;
                         continue;
                     }
-                      
+
                     // apply index range to value attributes.
                     if (nodeToRead.AttributeId == Attributes.Value)
                     {
                         object defaultValue = value.Value;
 
                         error = nodeToRead.ParsedIndexRange.ApplyRange(ref defaultValue);
-                    
+
                         if (ServiceResult.IsBad(error))
                         {
                             value.Value = null;
                             errors[ii] = error;
                             continue;
                         }
-                        
+
                         // apply data encoding.
                         if (!QualifiedName.IsNull(nodeToRead.DataEncoding))
                         {
                             error = EncodeableObject.ApplyDataEncoding(Server.MessageContext, nodeToRead.DataEncoding, ref defaultValue);
-                                
+
                             if (ServiceResult.IsBad(error))
                             {
                                 value.Value = null;
@@ -732,29 +732,29 @@ namespace Opc.Ua.Server
                                 continue;
                             }
                         }
-                            
-                        value.Value = defaultValue;                     
-                        
-                        // don't replace timestamp if it was set in the NodeSource 
-                        if (value.SourceTimestamp == DateTime.MinValue) 
-                        { 
-                            value.SourceTimestamp = DateTime.UtcNow; 
-                        } 
+
+                        value.Value = defaultValue;
+
+                        // don't replace timestamp if it was set in the NodeSource
+                        if (value.SourceTimestamp == DateTime.MinValue)
+                        {
+                            value.SourceTimestamp = DateTime.UtcNow;
+                        }
                     }
                 }
-            }   
-                
+            }
+
         }
- 
+
         /// <see cref="INodeManager.HistoryRead" />
         public void HistoryRead(
             OperationContext          context,
-            HistoryReadDetails        details, 
-            TimestampsToReturn        timestampsToReturn, 
-            bool                      releaseContinuationPoints, 
-            IList<HistoryReadValueId> nodesToRead, 
-            IList<HistoryReadResult>  results, 
-            IList<ServiceResult>      errors) 
+            HistoryReadDetails        details,
+            TimestampsToReturn        timestampsToReturn,
+            bool                      releaseContinuationPoints,
+            IList<HistoryReadValueId> nodesToRead,
+            IList<HistoryReadResult>  results,
+            IList<ServiceResult>      errors)
         {
             if (context == null)     throw new ArgumentNullException(nameof(context));
             if (details == null)     throw new ArgumentNullException(nameof(details));
@@ -778,7 +778,7 @@ namespace Opc.Ua.Server
                     {
                         continue;
                     }
-                    
+
                     // look up the node.
                     ILocalNode node = GetLocalNode(nodeToRead.NodeId) as ILocalNode;
 
@@ -786,22 +786,22 @@ namespace Opc.Ua.Server
                     {
                         continue;
                     }
-                    
+
                     // owned by this node manager.
                     nodeToRead.Processed = true;
 
                     errors[ii] = StatusCodes.BadNotReadable;
                 }
-                
+
             }
-            
+
         }
 
         /// <see cref="INodeManager.Write" />
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Maintainability", "CA1506:AvoidExcessiveClassCoupling"), System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Maintainability", "CA1502:AvoidExcessiveComplexity")]
         public void Write(
             OperationContext     context,
-            IList<WriteValue>    nodesToWrite, 
+            IList<WriteValue>    nodesToWrite,
             IList<ServiceResult> errors)
         {
             if (context == null)      throw new ArgumentNullException(nameof(context));
@@ -819,7 +819,7 @@ namespace Opc.Ua.Server
                     {
                         continue;
                     }
-                    
+
                     // look up the node.
                     ILocalNode node = GetLocalNode(nodeToWrite.NodeId) as ILocalNode;
 
@@ -827,7 +827,7 @@ namespace Opc.Ua.Server
                     {
                         continue;
                     }
-                    
+
                     // owned by this node manager.
                     nodeToWrite.Processed = true;
 
@@ -836,10 +836,10 @@ namespace Opc.Ua.Server
                         errors[ii] = StatusCodes.BadAttributeIdInvalid;
                         continue;
                     }
-                    
+
                     // fetch the node metadata.
                     NodeMetadata metadata = GetNodeMetadata(context, node, BrowseResultMask.All);
-                    
+
                     // check access.
                     bool writeable = true;
                     ServiceResult error = null;
@@ -882,7 +882,7 @@ namespace Opc.Ua.Server
                     // determine expected datatype and value rank.
                     NodeId expectedDatatypeId = metadata.DataType;
                     int expectedValueRank = metadata.ValueRank;
-                    
+
                     if (nodeToWrite.AttributeId != Attributes.Value)
                     {
                         expectedDatatypeId = Attributes.GetDataTypeId(nodeToWrite.AttributeId);
@@ -921,14 +921,14 @@ namespace Opc.Ua.Server
 
                     // check index range.
                     if (nodeToWrite.ParsedIndexRange.Count > 0)
-                    {                            
+                    {
                         // check index range for scalars.
                         if (typeInfo.ValueRank < 0)
                         {
                             errors[ii] = StatusCodes.BadIndexRangeInvalid;
                             continue;
                         }
-                            
+
                         // check index range for arrays.
                         else
                         {
@@ -941,7 +941,7 @@ namespace Opc.Ua.Server
                             }
                         }
                     }
-                            
+
                     // write the default value.
                     error = node.Write(nodeToWrite.AttributeId, nodeToWrite.Value);
 
@@ -953,15 +953,15 @@ namespace Opc.Ua.Server
                 }
             }
         }
-               
+
         /// <see cref="INodeManager.HistoryUpdate" />
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Maintainability", "CA1502:AvoidExcessiveComplexity")]
         public void HistoryUpdate(
             OperationContext            context,
             Type                        detailsType,
-            IList<HistoryUpdateDetails> nodesToUpdate, 
-            IList<HistoryUpdateResult>  results, 
-            IList<ServiceResult>        errors) 
+            IList<HistoryUpdateDetails> nodesToUpdate,
+            IList<HistoryUpdateResult>  results,
+            IList<ServiceResult>        errors)
         {
             if (context == null)       throw new ArgumentNullException(nameof(context));
             if (nodesToUpdate == null) throw new ArgumentNullException(nameof(nodesToUpdate));
@@ -979,7 +979,7 @@ namespace Opc.Ua.Server
                     {
                         continue;
                     }
-                    
+
                     // look up the node.
                     ILocalNode node = GetLocalNode(nodeToUpdate.NodeId) as ILocalNode;
 
@@ -987,14 +987,14 @@ namespace Opc.Ua.Server
                     {
                         continue;
                     }
-                    
+
                     // owned by this node manager.
                     nodeToUpdate.Processed = true;
-                    
+
                     errors[ii] = StatusCodes.BadNotWritable;
                 }
             }
-                
+
         }
 
         /// <see cref="INodeManager.Call" />
@@ -1021,7 +1021,7 @@ namespace Opc.Ua.Server
                     {
                         continue;
                     }
-                                        
+
                     // look up the node.
                     ILocalNode node = GetLocalNode(methodToCall.ObjectId) as ILocalNode;
 
@@ -1029,9 +1029,9 @@ namespace Opc.Ua.Server
                     {
                         continue;
                     }
-                    
-                    methodToCall.Processed = true;                                      
-                                        
+
+                    methodToCall.Processed = true;
+
                     // look up the method.
                     ILocalNode method = GetLocalNode(methodToCall.MethodId) as ILocalNode;
 
@@ -1046,14 +1046,14 @@ namespace Opc.Ua.Server
                     {
                         errors[ii] = ServiceResult.Create(StatusCodes.BadMethodInvalid, "Method is not a component of the Object.");
                         continue;
-                    } 
-                             
+                    }
+
                     errors[ii] = StatusCodes.BadNotImplemented;
                 }
             }
-                  
+
         }
-        
+
         /// <see cref="INodeManager.SubscribeToEvents" />
         public ServiceResult SubscribeToEvents(
             OperationContext    context,
@@ -1087,7 +1087,7 @@ namespace Opc.Ua.Server
                 {
                     return StatusCodes.BadNotSupported;
                 }
-                
+
                 return ServiceResult.Good;
             }
         }
@@ -1098,20 +1098,20 @@ namespace Opc.Ua.Server
             uint                subscriptionId,
             IEventMonitoredItem monitoredItem,
             bool                unsubscribe)
-        {  
+        {
             if (context == null)  throw new ArgumentNullException(nameof(context));
             if (monitoredItem == null)  throw new ArgumentNullException(nameof(monitoredItem));
-            
+
             return ServiceResult.Good;
         }
 
         /// <see cref="INodeManager.ConditionRefresh" />
-        public ServiceResult ConditionRefresh(        
+        public ServiceResult ConditionRefresh(
             OperationContext           context,
             IList<IEventMonitoredItem> monitoredItems)
-        {            
+        {
             if (context == null)  throw new ArgumentNullException(nameof(context));
-            
+
             return ServiceResult.Good;
         }
 
@@ -1145,7 +1145,7 @@ namespace Opc.Ua.Server
                     {
                         continue;
                     }
-                    
+
                     // look up the node.
                     ILocalNode node = this.GetLocalNode(itemToCreate.ItemToMonitor.NodeId) as ILocalNode;
 
@@ -1179,7 +1179,7 @@ namespace Opc.Ua.Server
                     if (itemToCreate.ItemToMonitor.ParsedIndexRange != NumericRange.Empty)
                     {
                         int valueRank = metadata.ValueRank;
-                        
+
                         if (itemToCreate.ItemToMonitor.AttributeId != Attributes.Value)
                         {
                             valueRank = Attributes.GetValueRank(itemToCreate.ItemToMonitor.AttributeId);
@@ -1193,7 +1193,7 @@ namespace Opc.Ua.Server
                     }
 
                     bool rangeRequired = false;
-                                        
+
                     // validate the filter against the node/attribute being monitored.
                     errors[ii] = ValidateFilter(
                         metadata,
@@ -1212,13 +1212,13 @@ namespace Opc.Ua.Server
                     if (rangeRequired)
                     {
                         errors[ii] = ReadEURange(context, node, out range);
-                                                
+
                         if (ServiceResult.IsBad(errors[ii]))
                         {
                              continue;
                         }
                     }
-                    
+
                     // create a globally unique identifier.
                     uint monitoredItemId = Utils.IncrementIdentifier(ref globalIdCounter);
 
@@ -1229,7 +1229,7 @@ namespace Opc.Ua.Server
                     {
                         // use the MinimumSamplingInterval attribute to limit the sampling rate for value attributes.
                         IVariable variableNode = node as IVariable;
- 
+
                         if (variableNode != null)
                         {
                             minimumSamplingInterval = variableNode.MinimumSamplingInterval;
@@ -1241,7 +1241,7 @@ namespace Opc.Ua.Server
                             }
                         }
                     }
-                    
+
                     // create monitored item.
                     MonitoredItem monitoredItem = m_samplingGroupManager.CreateMonitoredItem(
                         context,
@@ -1277,7 +1277,7 @@ namespace Opc.Ua.Server
                     errors[ii] = StatusCodes.Good;
                 }
             }
- 
+
             // update all groups with any new items.
             m_samplingGroupManager.ApplyChanges();
         }
@@ -1323,7 +1323,7 @@ namespace Opc.Ua.Server
             IList<MonitoredItemModifyRequest> itemsToModify,
             IList<ServiceResult>              errors,
             IList<MonitoringFilterResult>     filterErrors)
-        { 
+        {
             if (context == null)         throw new ArgumentNullException(nameof(context));
             if (monitoredItems == null)  throw new ArgumentNullException(nameof(monitoredItems));
             if (itemsToModify == null)   throw new ArgumentNullException(nameof(itemsToModify));
@@ -1340,16 +1340,16 @@ namespace Opc.Ua.Server
                     {
                         continue;
                     }
-                    
-                    // check if the node manager created the item.                    
+
+                    // check if the node manager created the item.
                     if (!Object.ReferenceEquals(this, monitoredItems[ii].NodeManager))
                     {
                         continue;
                     }
-                                        
+
                     // owned by this node manager.
                     itemToModify.Processed = true;
-                    
+
                     // validate monitored item.
                     MonitoredItem monitoredItem = null;
 
@@ -1364,7 +1364,7 @@ namespace Opc.Ua.Server
                         errors[ii] = StatusCodes.BadMonitoredItemIdInvalid;
                         continue;
                     }
-                    
+
                     // find the node being monitored.
                     ILocalNode node = monitoredItem.ManagerHandle as ILocalNode;
 
@@ -1376,7 +1376,7 @@ namespace Opc.Ua.Server
 
                     // fetch the metadata for the node.
                     NodeMetadata metadata = GetNodeMetadata(context, monitoredItem.ManagerHandle, BrowseResultMask.All);
-                                        
+
                     bool rangeRequired = false;
 
                     // validate the filter against the node/attribute being monitored.
@@ -1390,7 +1390,7 @@ namespace Opc.Ua.Server
                     {
                          continue;
                     }
-                                      
+
                     // lookup EU range if required.
                     Range range = null;
 
@@ -1398,7 +1398,7 @@ namespace Opc.Ua.Server
                     {
                         // look up EU range.
                         errors[ii] = ReadEURange(context, node, out range);
-                                                
+
                         if (ServiceResult.IsBad(errors[ii]))
                         {
                              continue;
@@ -1412,14 +1412,14 @@ namespace Opc.Ua.Server
                         monitoredItem,
                         itemToModify,
                         range);
-                    
+
                     // state of item did not change if an error returned here.
                     if (ServiceResult.IsBad(errors[ii]))
                     {
                         continue;
                     }
 
-                    // item has been modified successfully. 
+                    // item has been modified successfully.
                     // errors updating the sampling groups will be reported in notifications.
                     errors[ii] = StatusCodes.Good;
                 }
@@ -1434,7 +1434,7 @@ namespace Opc.Ua.Server
         /// </summary>
         public void DeleteMonitoredItems(
             OperationContext      context,
-            IList<IMonitoredItem> monitoredItems, 
+            IList<IMonitoredItem> monitoredItems,
             IList<bool>           processedItems,
             IList<ServiceResult>  errors)
         {
@@ -1451,8 +1451,8 @@ namespace Opc.Ua.Server
                     {
                         continue;
                     }
-                    
-                    // check if the node manager created the item.                    
+
+                    // check if the node manager created the item.
                     if (!Object.ReferenceEquals(this, monitoredItems[ii].NodeManager))
                     {
                         continue;
@@ -1460,7 +1460,7 @@ namespace Opc.Ua.Server
 
                     // owned by this node manager.
                     processedItems[ii]  = true;
-                    
+
                     // validate monitored item.
                     MonitoredItem monitoredItem = null;
 
@@ -1486,7 +1486,7 @@ namespace Opc.Ua.Server
                     errors[ii] = StatusCodes.Good;
                 }
             }
- 
+
             // remove all items from groups.
             m_samplingGroupManager.ApplyChanges();
         }
@@ -1555,7 +1555,7 @@ namespace Opc.Ua.Server
         public void SetMonitoringMode(
             OperationContext      context,
             MonitoringMode        monitoringMode,
-            IList<IMonitoredItem> monitoredItems, 
+            IList<IMonitoredItem> monitoredItems,
             IList<bool>           processedItems,
             IList<ServiceResult>  errors)
         {
@@ -1567,14 +1567,14 @@ namespace Opc.Ua.Server
             lock (m_lock)
             {
                 for (int ii = 0; ii < errors.Count; ii++)
-                {                  
+                {
                     // skip items that have already been processed.
                     if (processedItems[ii] || monitoredItems[ii] == null)
                     {
                         continue;
                     }
-  
-                    // check if the node manager created the item.                    
+
+                    // check if the node manager created the item.
                     if (!Object.ReferenceEquals(this, monitoredItems[ii].NodeManager))
                     {
                         continue;
@@ -1582,7 +1582,7 @@ namespace Opc.Ua.Server
 
                     // owned by this node manager.
                     processedItems[ii]  = true;
-                    
+
                     // validate monitored item.
                     MonitoredItem monitoredItem = null;
 
@@ -1608,10 +1608,10 @@ namespace Opc.Ua.Server
 
                         initialValue.ServerTimestamp = DateTime.UtcNow;
                         initialValue.StatusCode      = StatusCodes.BadWaitingForInitialData;
-                        
+
                         // read the initial value.
                         Node node = monitoredItem.ManagerHandle as Node;
-                        
+
                         if (node != null)
                         {
                             ServiceResult error = node.Read(context, monitoredItem.AttributeId, initialValue);
@@ -1622,24 +1622,24 @@ namespace Opc.Ua.Server
                                 initialValue.StatusCode = error.StatusCode;
                             }
                         }
-                                
+
                         monitoredItem.QueueValue(initialValue, null);
                     }
-            
-                    // modify the item attributes.   
+
+                    // modify the item attributes.
                     m_samplingGroupManager.ModifyMonitoring(context, monitoredItem);
-                  
-                    // item has been modified successfully. 
+
+                    // item has been modified successfully.
                     // errors updating the sampling groups will be reported in notifications.
                     errors[ii] = StatusCodes.Good;
                 }
             }
-   
+
             // update all sampling groups.
             m_samplingGroupManager.ApplyChanges();
         }
         #endregion
-        
+
         #region Static Members
         /// <summary>
         /// Returns true if the node class matches the node class mask.
@@ -1664,13 +1664,13 @@ namespace Opc.Ua.Server
             get { return m_server; }
         }
         #endregion
-     
+
         #region Browsing/Searching
         /// <summary>
         /// Returns an index for the NamespaceURI (Adds it to the server namespace table if it does not already exist).
         /// </summary>
         /// <remarks>
-        /// Returns the server's default index (1) if the namespaceUri is empty or null. 
+        /// Returns the server's default index (1) if the namespaceUri is empty or null.
         /// </remarks>
         public ushort GetNamespaceIndex(string namespaceUri)
         {
@@ -1688,7 +1688,7 @@ namespace Opc.Ua.Server
 
             return (ushort)namespaceIndex;
         }
-    
+
         /// <summary>
         /// Returns all targets of the specified reference.
         /// </summary>
@@ -1707,7 +1707,7 @@ namespace Opc.Ua.Server
                 }
 
                 NodeIdCollection targets = new NodeIdCollection();
-                
+
                 foreach (IReference reference in source.References)
                 {
                     if (reference.IsInverse != isInverse || !m_server.TypeTree.IsTypeOf(reference.ReferenceTypeId, referenceTypeId))
@@ -1724,7 +1724,7 @@ namespace Opc.Ua.Server
 
                     targets.Add((NodeId)targetId);
                 }
-                    
+
                 return targets;
             }
         }
@@ -1745,7 +1745,7 @@ namespace Opc.Ua.Server
                 {
                     return null;
                 }
-                
+
                 foreach (ReferenceNode reference in source.References)
                 {
                     if (reference.IsInverse != isInverse || !m_server.TypeTree.IsTypeOf(reference.ReferenceTypeId, referenceTypeId))
@@ -1766,16 +1766,16 @@ namespace Opc.Ua.Server
                     {
                         continue;
                     }
-                    
+
                     if (QualifiedName.IsNull(browseName) || target.BrowseName == browseName)
                     {
                         return (NodeId)targetId;
                     }
                 }
-                    
+
                 return null;
             }
-        }            
+        }
 
         /// <summary>
         /// Returns the first target that matches the browse path.
@@ -1796,39 +1796,39 @@ namespace Opc.Ua.Server
         /// Returns a list of targets the match the browse path.
         /// </summary>
         public IList<NodeId> TranslateBrowsePath(
-            OperationContext context, 
-            NodeId           sourceId, 
+            OperationContext context,
+            NodeId           sourceId,
             string           browsePath)
         {
             return TranslateBrowsePath(context, sourceId, RelativePath.Parse(browsePath, m_server.TypeTree));
         }
-             
+
         /// <summary>
         /// Returns a list of targets the match the browse path.
         /// </summary>
         public IList<NodeId> TranslateBrowsePath(
-            NodeId sourceId, 
+            NodeId sourceId,
             string browsePath)
         {
             return TranslateBrowsePath(null, sourceId, RelativePath.Parse(browsePath, m_server.TypeTree));
         }
-             
+
         /// <summary>
         /// Returns a list of targets the match the browse path.
         /// </summary>
         public IList<NodeId> TranslateBrowsePath(
-            NodeId       sourceId, 
+            NodeId       sourceId,
             RelativePath relativePath)
         {
             return TranslateBrowsePath(null, sourceId, relativePath);
         }
-             
+
         /// <summary>
         /// Returns a list of targets the match the browse path.
         /// </summary>
         public IList<NodeId> TranslateBrowsePath(
-            OperationContext context, 
-            NodeId           sourceId, 
+            OperationContext context,
+            NodeId           sourceId,
             RelativePath     relativePath)
         {
             List<NodeId> targets = new List<NodeId>();
@@ -1868,7 +1868,7 @@ namespace Opc.Ua.Server
         {
             if (nodeId == null) throw new ArgumentNullException(nameof(nodeId));
             if (source == null) throw new ArgumentNullException(nameof(source));
-        }   
+        }
 
         /// <summary>
         /// Called when the source is no longer used.
@@ -1884,16 +1884,16 @@ namespace Opc.Ua.Server
         #endregion
 
         #region Adding/Removing Nodes
-        
+
         #region Apply Modelling Rules
         /// <summary>
         /// Applys the modelling rules to any existing instance.
         /// </summary>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Maintainability", "CA1502:AvoidExcessiveComplexity")]
         public void ApplyModellingRules(
-            ILocalNode instance, 
-            ILocalNode typeDefinition, 
-            ILocalNode templateDeclaration, 
+            ILocalNode instance,
+            ILocalNode typeDefinition,
+            ILocalNode templateDeclaration,
             ushort     namespaceIndex)
         {
             if (instance == null) throw new ArgumentNullException(nameof(instance));
@@ -1905,7 +1905,7 @@ namespace Opc.Ua.Server
             // create list of declarations for the type definition (recursively collects definitions from supertypes).
             List<DeclarationNode> declarations = new List<DeclarationNode>();
             BuildDeclarationList(typeDefinition, declarations);
-            
+
             // add instance declaration if provided.
             if (templateDeclaration != null)
             {
@@ -1923,13 +1923,13 @@ namespace Opc.Ua.Server
             List<ILocalNode> typeDefinitions = new List<ILocalNode>();
             SortedDictionary<string,ILocalNode> instanceDeclarations = new SortedDictionary<string,ILocalNode>();
             SortedDictionary<NodeId,ILocalNode> possibleTargets = new SortedDictionary<NodeId,ILocalNode>();
-            
+
             // create instances from declarations.
             // subtypes appear in list last so traversing the list backwards find the overridden nodes first.
             for (int ii = declarations.Count-1; ii >= 0; ii--)
             {
                 DeclarationNode declaration = declarations[ii];
-                
+
                 // update type definition list.
                 if (String.IsNullOrEmpty(declaration.BrowsePath))
                 {
@@ -1943,21 +1943,21 @@ namespace Opc.Ua.Server
                 {
                     continue;
                 }
-                
+
                 // update instance declaration list.
                 instanceDeclarations[declaration.BrowsePath] = declaration.Node;
-                                        
+
                 // save the node as a possible target of references.
-                possibleTargets[declaration.Node.NodeId] = declaration.Node; 
+                possibleTargets[declaration.Node.NodeId] = declaration.Node;
             }
-            
+
             // build list of instances that already exist.
             SortedDictionary<string,ILocalNode> existingInstances = new SortedDictionary<string,ILocalNode>();
             BuildInstanceList(instance, String.Empty, existingInstances);
 
             // maps the instance declaration onto an instance node.
-            Dictionary<NodeId,ILocalNode> instancesToCreate = new Dictionary<NodeId,ILocalNode>(); 
-            
+            Dictionary<NodeId,ILocalNode> instancesToCreate = new Dictionary<NodeId,ILocalNode>();
+
             // apply modelling rules to instance declarations.
             foreach (KeyValuePair<string,ILocalNode> current in instanceDeclarations)
             {
@@ -1966,12 +1966,12 @@ namespace Opc.Ua.Server
 
                 // check if the same instance has multiple browse paths to it.
                 ILocalNode newInstance = null;
-                
+
                 if (instancesToCreate.TryGetValue(instanceDeclaration.NodeId, out newInstance))
-                {   
+                {
                     continue;
                 }
- 
+
                 // check for an existing instance.
                 if (existingInstances.TryGetValue(browsePath, out newInstance))
                 {
@@ -1980,10 +1980,10 @@ namespace Opc.Ua.Server
 
                 // apply modelling rule to determine whether to create a new instance.
                 NodeId modellingRule = instanceDeclaration.ModellingRule;
-                
+
                 // always create a new instance if one does not already exist.
                 if (modellingRule == Objects.ModellingRule_Mandatory)
-                {               
+                {
                     if (newInstance == null)
                     {
                         newInstance = instanceDeclaration.CreateCopy(CreateUniqueNodeId());
@@ -1993,7 +1993,7 @@ namespace Opc.Ua.Server
 
                 // ignore optional instances unless one has been specified in the existing tree.
                 else if (modellingRule == Objects.ModellingRule_Optional)
-                {                            
+                {
                     if (newInstance == null)
                     {
                         continue;
@@ -2009,7 +2009,7 @@ namespace Opc.Ua.Server
                 // save the mapping between the instance declaration and the new instance.
                 instancesToCreate[instanceDeclaration.NodeId] = newInstance;
             }
-            
+
             // add references from type definitions to top level.
             foreach (ILocalNode type in typeDefinitions)
             {
@@ -2020,11 +2020,11 @@ namespace Opc.Ua.Server
                     {
                         continue;
                     }
-                    
+
                     // ignore subtype references.
                     if (m_nodes.TypeTree.IsTypeOf(reference.ReferenceTypeId, ReferenceTypeIds.HasSubtype))
                     {
-                        continue;                            
+                        continue;
                     }
 
                     // ignore targets that are not in the instance tree.
@@ -2037,9 +2037,9 @@ namespace Opc.Ua.Server
 
                     // add forward and backward reference.
                     AddReference(instance, reference.ReferenceTypeId, reference.IsInverse, target, true);
-                }                  
+                }
             }
-           
+
             // add references between instance declarations.
             foreach (ILocalNode instanceDeclaration in instanceDeclarations.Values)
             {
@@ -2050,7 +2050,7 @@ namespace Opc.Ua.Server
                 {
                     continue;
                 }
-                
+
                 // check if the source is a shared node.
                 bool sharedNode = Object.ReferenceEquals(instanceDeclaration, source);
 
@@ -2075,18 +2075,18 @@ namespace Opc.Ua.Server
                             AddReference(source, reference.ReferenceTypeId, false, reference.TargetId);
                         }
 
-                        continue;                            
+                        continue;
                     }
 
                     // check for type definition.
                     if (reference.ReferenceTypeId == ReferenceTypeIds.HasTypeDefinition)
                     {
                         if (!sharedNode)
-                        {                        
+                        {
                             UpdateTypeDefinition(source, instanceDeclaration.TypeDefinitionId);
                         }
 
-                        continue;                            
+                        continue;
                     }
 
                     // add targets that are not in the instance tree.
@@ -2116,18 +2116,18 @@ namespace Opc.Ua.Server
                         source.References.Add(reference.ReferenceTypeId, reference.IsInverse, reference.TargetId);
                         continue;
                     }
-                                                                    
+
                     // add forward and backward reference.
                     AddReference(source, reference.ReferenceTypeId, reference.IsInverse, target, true);
                 }
             }
-        }        
+        }
 
         /// <summary>
         /// Returns true if a one-way reference to external nodes is permitted.
         /// </summary>
         private bool IsExternalReferenceAllowed(NodeId referenceTypeId)
-        {                        
+        {
             // always exclude hierarchial references.
             if (m_nodes.TypeTree.IsTypeOf(referenceTypeId, ReferenceTypeIds.HierarchicalReferences))
             {
@@ -2182,9 +2182,9 @@ namespace Opc.Ua.Server
             public ILocalNode Node;
             public string BrowsePath;
         }
-        
+
         /// <summary>
-        /// Builds the list of declaration nodes for a type definition. 
+        /// Builds the list of declaration nodes for a type definition.
         /// </summary>
         private void BuildDeclarationList(ILocalNode typeDefinition, List<DeclarationNode> declarations)
         {
@@ -2222,14 +2222,14 @@ namespace Opc.Ua.Server
             }
 
             // add children of type.
-            BuildDeclarationList(declaration, declarations);            
+            BuildDeclarationList(declaration, declarations);
         }
 
         /// <summary>
         /// Builds a list of declarations from the nodes aggregated by a parent.
         /// </summary>
         private void BuildDeclarationList(DeclarationNode parent, List<DeclarationNode> declarations)
-        {            
+        {
             if (parent == null) throw new ArgumentNullException(nameof(parent));
             if (declarations == null) throw new ArgumentNullException(nameof(declarations));
 
@@ -2269,22 +2269,22 @@ namespace Opc.Ua.Server
                 }
             }
         }
-        
+
         /// <summary>
         /// Builds a table of instances indexed by browse path from the nodes aggregated by a parent
         /// </summary>
         private void BuildInstanceList(ILocalNode parent, string browsePath, IDictionary<string,ILocalNode> instances)
-        { 
+        {
             if (parent == null) throw new ArgumentNullException(nameof(parent));
             if (instances == null) throw new ArgumentNullException(nameof(instances));
-            
+
             // guard against loops.
             if (instances.ContainsKey(browsePath))
             {
                 return;
             }
 
-            // index parent by browse path.    
+            // index parent by browse path.
             instances[browsePath] = parent;
 
             // get list of children.
@@ -2299,7 +2299,7 @@ namespace Opc.Ua.Server
                 {
                     continue;
                 }
-                
+
                 // recursively include aggregated children.
                 BuildInstanceList(child, Utils.Format("{0}.{1}", browsePath, child.BrowseName), instances);
             }
@@ -2353,12 +2353,12 @@ namespace Opc.Ua.Server
                     {
                         export = false;
                     }
-       
+
                     if (export)
                     {
                         nodeSet.AddReference(nodeToExport, reference, m_nodes.NamespaceUris, m_nodes.ServerUris);
                     }
-                    
+
                     if (reference.IsInverse || m_server.TypeTree.IsTypeOf(reference.ReferenceTypeId, ReferenceTypeIds.HasSubtype))
                     {
                         nodeSet.AddReference(nodeToExport, reference, m_nodes.NamespaceUris, m_nodes.ServerUris);
@@ -2370,7 +2370,7 @@ namespace Opc.Ua.Server
                         {
                             continue;
                         }
-                        
+
                         ILocalNode child = GetLocalNode(reference.TargetId) as ILocalNode;
 
                         if (child != null)
@@ -2391,7 +2391,7 @@ namespace Opc.Ua.Server
                 }
             }
         }
-        
+
         #if XXX
         /// <summary>
         /// Changes the type definition for an instance.
@@ -2404,7 +2404,7 @@ namespace Opc.Ua.Server
             {
                 m_lock.Enter();
 
-                // find the instance.                
+                // find the instance.
                 ILocalNode instance = GetLocalNode(instanceId) as ILocalNode;
 
                 if (instance == null)
@@ -2456,7 +2456,7 @@ namespace Opc.Ua.Server
             }
         }
         #endif
-        
+
         /// <summary>
         /// Updates the attributes for the node.
         /// </summary>
@@ -2466,7 +2466,7 @@ namespace Opc.Ua.Server
             if (attributes != null && (attributes.SpecifiedAttributes & (uint)NodeAttributesMask.DisplayName) != 0)
             {
                 node.DisplayName = attributes.DisplayName;
-            
+
                 if (node.DisplayName == null)
                 {
                     node.DisplayName = new LocalizedText(node.BrowseName.Name);
@@ -2476,13 +2476,13 @@ namespace Opc.Ua.Server
             {
                 node.DisplayName = new LocalizedText(node.BrowseName.Name);
             }
-            
+
             // Description
             if (attributes != null && (attributes.SpecifiedAttributes & (uint)NodeAttributesMask.Description) != 0)
             {
                 node.Description = attributes.Description;
             }
-                     
+
             // WriteMask
             if (attributes != null && (attributes.SpecifiedAttributes & (uint)NodeAttributesMask.WriteMask) != 0)
             {
@@ -2492,8 +2492,8 @@ namespace Opc.Ua.Server
             {
                 node.WriteMask = AttributeWriteMask.None;
             }
-                    
-            // WriteMask    
+
+            // WriteMask
             if (attributes != null && (attributes.SpecifiedAttributes & (uint)NodeAttributesMask.UserWriteMask) != 0)
             {
                 node.UserWriteMask = (AttributeWriteMask)attributes.UserWriteMask;
@@ -2503,14 +2503,14 @@ namespace Opc.Ua.Server
                 node.UserWriteMask = AttributeWriteMask.None;
             }
         }
-        
+
         /// <summary>
         /// Deletes a node from the address sapce.
         /// </summary>
         public void DeleteNode(NodeId nodeId, bool deleteChildren, bool silent)
         {
             if (nodeId == null) throw new ArgumentNullException(nameof(nodeId));
-            
+
             // find the node to delete.
             ILocalNode node = GetManagerHandle(nodeId) as ILocalNode;
 
@@ -2527,7 +2527,7 @@ namespace Opc.Ua.Server
             bool instance = (node.NodeClass & (NodeClass.Object | NodeClass.Variable)) != 0;
 
             Dictionary<NodeId,IList<IReference>> referencesToDelete = new Dictionary<NodeId,IList<IReference>>();
-            
+
             if (silent)
             {
                 try
@@ -2551,7 +2551,7 @@ namespace Opc.Ua.Server
                     OnDeleteReferences(referencesToDelete);
                 });
             }
-        }       
+        }
 
         /// <summary>
         /// Deletes a node from the address sapce.
@@ -2567,10 +2567,10 @@ namespace Opc.Ua.Server
             {
                 // remove the node.
                 m_nodes.Remove(node.NodeId);
-                    
+
                 // check need to connect subtypes to the supertype if they are being deleted.
                 ExpandedNodeId supertypeId = m_server.TypeTree.FindSuperType(node.NodeId);
-                
+
                 if (!NodeId.IsNull(supertypeId))
                 {
                     m_server.TypeTree.Remove(node.NodeId);
@@ -2593,7 +2593,7 @@ namespace Opc.Ua.Server
                         referencesForNode.Add(reference);
                         continue;
                     }
-                    
+
                     // delete the backward reference.
                     target.References.Remove(reference.ReferenceTypeId, !reference.IsInverse, node.NodeId);
 
@@ -2618,20 +2618,20 @@ namespace Opc.Ua.Server
             {
                 DeleteNode(nodeToDelete, deleteChildren, instance, referencesToDelete);
             }
-        }         
+        }
 
         /// <summary>
         /// Deletes the external references to a node in a background thread.
         /// </summary>
         private void OnDeleteReferences(object state)
-        {            
+        {
             Dictionary<NodeId,IList<IReference>> referencesToDelete = state as Dictionary<NodeId,IList<IReference>>;
 
             if (state == null)
             {
                 return;
             }
-            
+
             foreach (KeyValuePair<NodeId,IList<IReference>> current in referencesToDelete)
             {
                 try
@@ -2642,7 +2642,7 @@ namespace Opc.Ua.Server
                 {
                     Utils.LogError(e, "Error deleting references for node: {0}", current.Key);
                 }
-            }            
+            }
         }
 
         #region Add/Remove Node Support Functions
@@ -2684,7 +2684,7 @@ namespace Opc.Ua.Server
                 {
                     throw ServiceResultException.Create(StatusCodes.BadReferenceNotAllowed, "Target node cannot be used with HasComponent references.");
                 }
-                
+
                 if (targetNodeClass == NodeClass.Variable)
                 {
                     if ((targetNodeClass & (NodeClass.Variable | NodeClass.VariableType)) == 0)
@@ -2701,14 +2701,14 @@ namespace Opc.Ua.Server
                     }
                 }
             }
-            
+
             // check HasProperty references.
             if (m_server.TypeTree.IsTypeOf(referenceTypeId, ReferenceTypes.HasProperty))
             {
                 if (targetNodeClass != NodeClass.Variable)
                 {
                     throw ServiceResultException.Create(StatusCodes.BadReferenceNotAllowed, "Targets of HasProperty references must be Variables.");
-                }                
+                }
             }
 
             // check HasSubtype references.
@@ -2723,13 +2723,13 @@ namespace Opc.Ua.Server
                 {
                     throw ServiceResultException.Create(StatusCodes.BadReferenceNotAllowed, "The source and target cannot be connected by a HasSubtype reference.");
                 }
-            }                      
+            }
 
             // TBD - check rules for other reference types.
         }
         #endregion
         #endregion
-        
+
         #region Adding/Removing References
         /// <summary>
         /// Adds a reference between two existing nodes.
@@ -2750,10 +2750,10 @@ namespace Opc.Ua.Server
                 {
                     return StatusCodes.BadParentNodeIdInvalid;
                 }
-                                
-                // add reference from target to source.      
+
+                // add reference from target to source.
                 if (bidirectional)
-                {              
+                {
                     // find target.
                     ILocalNode target = GetManagerHandle(targetId) as ILocalNode;
 
@@ -2761,15 +2761,15 @@ namespace Opc.Ua.Server
                     {
                         return StatusCodes.BadNodeIdUnknown;
                     }
-                 
+
                     // ensure the reference is valid.
                     ValidateReference(source, referenceTypeId, isInverse, target.NodeClass);
 
                     // add reference from target to source.
                     AddReferenceToLocalNode(target, referenceTypeId, !isInverse, sourceId, false);
                 }
-                
-                // add reference from source to target.                
+
+                // add reference from source to target.
                 AddReferenceToLocalNode(source, referenceTypeId, isInverse, targetId, false);
 
                 return null;
@@ -2851,27 +2851,27 @@ namespace Opc.Ua.Server
         /// Adds a reference to the address space.
         /// </summary>
         private void AddReference(
-            ILocalNode source, 
-            NodeId     referenceTypeId, 
-            bool       isInverse, 
-            ILocalNode target, 
+            ILocalNode source,
+            NodeId     referenceTypeId,
+            bool       isInverse,
+            ILocalNode target,
             bool       bidirectional)
         {
             AddReferenceToLocalNode(source, referenceTypeId, isInverse, target.NodeId, false);
-            
+
             if (bidirectional)
             {
                 AddReferenceToLocalNode(target, referenceTypeId, !isInverse, source.NodeId, false);
-            }            
-        }        
+            }
+        }
 
         /// <summary>
         /// Adds a reference to the address space.
         /// </summary>
         private void AddReference(
-            ILocalNode     source, 
-            NodeId         referenceTypeId, 
-            bool           isInverse, 
+            ILocalNode     source,
+            NodeId         referenceTypeId,
+            bool           isInverse,
             ExpandedNodeId targetId)
         {
             AddReferenceToLocalNode(source, referenceTypeId, isInverse, targetId, false);
@@ -2881,10 +2881,10 @@ namespace Opc.Ua.Server
         /// Deletes a reference.
         /// </summary>
         public ServiceResult DeleteReference(
-            object         sourceHandle, 
+            object         sourceHandle,
             NodeId         referenceTypeId,
-            bool           isInverse, 
-            ExpandedNodeId targetId, 
+            bool           isInverse,
+            ExpandedNodeId targetId,
             bool           deleteBidirectional)
         {
             if (sourceHandle == null)    throw new ArgumentNullException(nameof(sourceHandle));
@@ -2911,26 +2911,26 @@ namespace Opc.Ua.Server
                         target.References.Remove(referenceTypeId, !isInverse, source.NodeId);
                     }
                 }
-                   
+
                 return ServiceResult.Good;
             }
         }
-        
+
         /// <summary>
         /// Deletes a reference.
         /// </summary>
         public void DeleteReference(
-            NodeId sourceId, 
-            NodeId referenceTypeId, 
-            bool isInverse, 
-            ExpandedNodeId targetId, 
+            NodeId sourceId,
+            NodeId referenceTypeId,
+            bool isInverse,
+            ExpandedNodeId targetId,
             bool deleteBidirectional)
-        { 
+        {
             ServiceResult result = DeleteReference(
-                GetManagerHandle(sourceId) as ILocalNode, 
-                referenceTypeId, 
-                isInverse, 
-                targetId, 
+                GetManagerHandle(sourceId) as ILocalNode,
+                referenceTypeId,
+                isInverse,
+                targetId,
                 deleteBidirectional);
 
             if (ServiceResult.IsBad(result))
@@ -2943,11 +2943,11 @@ namespace Opc.Ua.Server
         /// Adds a node to the address space.
         /// </summary>
         private void AddNode(ILocalNode node)
-        {            
+        {
             m_nodes.Attach(node);
         }
         #endregion
-        
+
         /// <summary>
         /// Returns a node managed by the manager with the specified node id.
         /// </summary>
@@ -2965,9 +2965,9 @@ namespace Opc.Ua.Server
                 {
                     return null;
                 }
-                 
+
                 int namespaceIndex = this.Server.NamespaceUris.GetIndex(nodeId.NamespaceUri);
-                
+
                 if (namespaceIndex < 0 || nodeId.NamespaceIndex >= this.Server.NamespaceUris.Count)
                 {
                     return null;
@@ -2978,7 +2978,7 @@ namespace Opc.Ua.Server
 
             return GetLocalNode((NodeId)nodeId);
         }
-        
+
         /// <summary>
         /// Returns a node managed by the manager with the specified node id.
         /// </summary>
@@ -3010,9 +3010,9 @@ namespace Opc.Ua.Server
         /// Returns a list of nodes which are targets of the specified references.
         /// </summary>
         public IList<ILocalNode> GetLocalNodes(
-            NodeId        sourceId, 
+            NodeId        sourceId,
             NodeId        referenceTypeId,
-            bool          isInverse, 
+            bool          isInverse,
             bool          includeSubtypes)
         {
             lock (m_lock)
@@ -3027,7 +3027,7 @@ namespace Opc.Ua.Server
                 }
 
                 foreach (IReference reference in source.References.Find(referenceTypeId, isInverse, true, m_nodes.TypeTree))
-                {                    
+                {
                     ILocalNode target = GetLocalNode(reference.TargetId) as ILocalNode;
 
                     if (target != null)
@@ -3039,15 +3039,15 @@ namespace Opc.Ua.Server
                 return targets;
             }
         }
-        
+
         /// <summary>
         /// Returns a node managed by the manager that has the specified browse name.
         /// </summary>
         public ILocalNode GetTargetNode(
-            NodeId        sourceId, 
+            NodeId        sourceId,
             NodeId        referenceTypeId,
-            bool          isInverse, 
-            bool          includeSubtypes, 
+            bool          isInverse,
+            bool          includeSubtypes,
             QualifiedName browseName)
         {
             lock (m_lock)
@@ -3062,15 +3062,15 @@ namespace Opc.Ua.Server
                 return GetTargetNode(source, referenceTypeId, isInverse, includeSubtypes, browseName);
             }
         }
-        
+
         /// <summary>
         /// Returns a node managed by the manager that has the specified browse name.
         /// </summary>
         private ILocalNode GetTargetNode(
-            ILocalNode    source, 
+            ILocalNode    source,
             NodeId        referenceTypeId,
-            bool          isInverse, 
-            bool          includeSubtypes, 
+            bool          isInverse,
+            bool          includeSubtypes,
             QualifiedName browseName)
         {
             foreach (IReference reference in source.References.Find(referenceTypeId, isInverse, includeSubtypes, m_server.TypeTree))
@@ -3111,7 +3111,7 @@ namespace Opc.Ua.Server
                 if (m_nodes.Exists(node.NodeId))
                 {
                     throw ServiceResultException.Create(
-                        StatusCodes.BadNodeIdExists, 
+                        StatusCodes.BadNodeIdExists,
                         "A node with the same node id already exists: {0}",
                         node.NodeId);
                 }
@@ -3131,14 +3131,14 @@ namespace Opc.Ua.Server
                     if (target != null)
                     {
                         AddReferenceToLocalNode(target, reference.ReferenceTypeId, !reference.IsInverse, node.NodeId, isInternal);
-                    }                  
+                    }
                 }
-                
+
                 // must generate a model change event.
                 AddNode(node);
             }
         }
-        
+
         /// <summary>
         /// Creates a unique node identifier.
         /// </summary>
@@ -3146,7 +3146,7 @@ namespace Opc.Ua.Server
         {
             return CreateUniqueNodeId(m_dynamicNamespaceIndex);
         }
-        
+
         #region Private Methods
         /// <see cref="INodeManager.GetManagerHandle" />
         private object GetManagerHandle(ExpandedNodeId nodeId)
@@ -3177,7 +3177,7 @@ namespace Opc.Ua.Server
             }
 
             range = target.Value as Range;
-            
+
             if (range == null)
             {
                 return StatusCodes.BadTypeMismatch;
@@ -3185,14 +3185,14 @@ namespace Opc.Ua.Server
 
             return ServiceResult.Good;
         }
-        
+
         /// <summary>
         /// Validates a filter for a monitored item.
         /// </summary>
         private ServiceResult ValidateFilter(
-            NodeMetadata    metadata, 
-            uint            attributeId, 
-            ExtensionObject filter, 
+            NodeMetadata    metadata,
+            uint            attributeId,
+            ExtensionObject filter,
             out bool        rangeRequired)
         {
             rangeRequired = false;
@@ -3204,12 +3204,12 @@ namespace Opc.Ua.Server
             {
                 datachangeFilter = filter.Body as DataChangeFilter;
             }
-            
+
             if (datachangeFilter != null)
             {
-                // get the datatype of the node.                
+                // get the datatype of the node.
                 NodeId datatypeId = metadata.DataType;
-                
+
                 // check that filter is valid.
                 ServiceResult error = datachangeFilter.Validate();
 
@@ -3217,7 +3217,7 @@ namespace Opc.Ua.Server
                 {
                     return error;
                 }
-                
+
                 // check datatype of the variable.
                 if (!m_server.TypeTree.IsTypeOf(datatypeId, DataTypes.Number))
                 {
@@ -3233,7 +3233,7 @@ namespace Opc.Ua.Server
                     {
                         return StatusCodes.BadDeadbandFilterInvalid;
                     }
-                    
+
                     // percent deadbands only allowed for analog data items.
                     if (!m_server.TypeTree.IsTypeOf(typeDefinitionId, VariableTypes.AnalogItemType))
                     {
@@ -3244,7 +3244,7 @@ namespace Opc.Ua.Server
                     rangeRequired = true;
                 }
             }
-        
+
             // filter is valid
             return ServiceResult.Good;
         }
@@ -3257,7 +3257,7 @@ namespace Opc.Ua.Server
             return new NodeId(Utils.IncrementIdentifier(ref m_lastId), namespaceIndex);
         }
         #endregion
-        
+
         #region Private Fields
         private readonly object m_lock = new object();
         private IServerInternal m_server;
@@ -3268,7 +3268,7 @@ namespace Opc.Ua.Server
         private double m_defaultMinimumSamplingInterval;
         private List<string> m_namespaceUris;
         private ushort m_dynamicNamespaceIndex;
-        #endregion            
-    }    
-    
+        #endregion
+    }
+
 }
