@@ -212,6 +212,7 @@ namespace Opc.Ua.Server
             m_nextSamplingTime = HiResClock.TickCount64;
             m_alwaysReportUpdates = false;
             m_monitoredItemQueueFactory = m_server.MonitoredItemQueueFactory;
+            m_subscriptionStore = m_server.SubscriptionStore;
             m_isDurable = storedMonitoredItem.IsDurable;
             m_alwaysReportUpdates = storedMonitoredItem.AlwaysReportUpdates;
             m_lastError = storedMonitoredItem.LastError;

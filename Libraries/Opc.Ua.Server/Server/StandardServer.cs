@@ -3056,14 +3056,6 @@ namespace Opc.Ua.Server
                     // use event to trigger channel that should not be closed.
                     sessionManager.SessionChannelKeepAlive += SessionChannelKeepAliveEvent;
 
-                    // start the subscription manager.
-                    Utils.LogInfo(TraceMasks.StartStop, "Server - CreateSubscriptionManager.");
-                    SubscriptionManager subscriptionManager = CreateSubscriptionManager(m_serverInternal, configuration);
-                    subscriptionManager.Startup();
-
-                    // add the session manager to the datastore.
-                    m_serverInternal.SetSessionManager(sessionManager, subscriptionManager);
-
                     //create the MonitoredItemQueueFactory
                     IMonitoredItemQueueFactory monitoredItemQueueFactory = CreateMonitoredItemQueueFactory(m_serverInternal, configuration);
 
@@ -3075,6 +3067,14 @@ namespace Opc.Ua.Server
 
                     //add the SubscriptionStore to the datastore
                     m_serverInternal.SetSubscriptionStore(subscriptionStore);
+
+                    // start the subscription manager.
+                    Utils.LogInfo(TraceMasks.StartStop, "Server - CreateSubscriptionManager.");
+                    SubscriptionManager subscriptionManager = CreateSubscriptionManager(m_serverInternal, configuration);
+                    subscriptionManager.Startup();
+
+                    // add the session manager to the datastore.
+                    m_serverInternal.SetSessionManager(sessionManager, subscriptionManager);
 
                     ServerError = null;
 
