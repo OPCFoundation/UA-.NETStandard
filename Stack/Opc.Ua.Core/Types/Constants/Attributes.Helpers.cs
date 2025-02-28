@@ -171,33 +171,33 @@ namespace Opc.Ua
         {
             switch (attributeId)
             {
-                case Value: return DataTypes.BaseDataType;
-                case DisplayName: return DataTypes.LocalizedText;
-                case Description: return DataTypes.LocalizedText;
-                case WriteMask: return DataTypes.UInt32;
-                case UserWriteMask: return DataTypes.UInt32;
-                case NodeId: return DataTypes.NodeId;
-                case NodeClass: return DataTypes.Enumeration;
-                case BrowseName: return DataTypes.QualifiedName;
-                case IsAbstract: return DataTypes.Boolean;
-                case Symmetric: return DataTypes.Boolean;
-                case InverseName: return DataTypes.LocalizedText;
-                case ContainsNoLoops: return DataTypes.Boolean;
-                case EventNotifier: return DataTypes.Byte;
-                case DataType: return DataTypes.NodeId;
-                case ValueRank: return DataTypes.Int32;
-                case AccessLevel: return DataTypes.Byte;
-                case UserAccessLevel: return DataTypes.Byte;
-                case MinimumSamplingInterval: return DataTypes.Duration;
-                case Historizing: return DataTypes.Boolean;
-                case Executable: return DataTypes.Boolean;
-                case UserExecutable: return DataTypes.Boolean;
-                case ArrayDimensions: return DataTypes.UInt32;
-                case DataTypeDefinition: return DataTypes.Structure;
-                case RolePermissions: return DataTypes.RolePermissionType;
-                case UserRolePermissions: return DataTypes.RolePermissionType;
-                case AccessRestrictions: return DataTypes.UInt16;
-                case AccessLevelEx: return DataTypes.UInt32;
+                case Value: return DataTypeIds.BaseDataType;
+                case DisplayName: return DataTypeIds.LocalizedText;
+                case Description: return DataTypeIds.LocalizedText;
+                case WriteMask: return DataTypeIds.UInt32;
+                case UserWriteMask: return DataTypeIds.UInt32;
+                case NodeId: return DataTypeIds.NodeId;
+                case NodeClass: return DataTypeIds.Enumeration;
+                case BrowseName: return DataTypeIds.QualifiedName;
+                case IsAbstract: return DataTypeIds.Boolean;
+                case Symmetric: return DataTypeIds.Boolean;
+                case InverseName: return DataTypeIds.LocalizedText;
+                case ContainsNoLoops: return DataTypeIds.Boolean;
+                case EventNotifier: return DataTypeIds.Byte;
+                case DataType: return DataTypeIds.NodeId;
+                case ValueRank: return DataTypeIds.Int32;
+                case AccessLevel: return DataTypeIds.Byte;
+                case UserAccessLevel: return DataTypeIds.Byte;
+                case MinimumSamplingInterval: return DataTypeIds.Duration;
+                case Historizing: return DataTypeIds.Boolean;
+                case Executable: return DataTypeIds.Boolean;
+                case UserExecutable: return DataTypeIds.Boolean;
+                case ArrayDimensions: return DataTypeIds.UInt32;
+                case DataTypeDefinition: return DataTypeIds.Structure;
+                case RolePermissions: return DataTypeIds.RolePermissionType;
+                case UserRolePermissions: return DataTypeIds.RolePermissionType;
+                case AccessRestrictions: return DataTypeIds.UInt16;
+                case AccessLevelEx: return DataTypeIds.UInt32;
             }
 
             return null;

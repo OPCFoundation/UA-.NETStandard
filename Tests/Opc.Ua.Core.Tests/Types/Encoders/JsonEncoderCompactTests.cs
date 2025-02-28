@@ -1094,21 +1094,19 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             var data = $@"
                 {{
                     ""D0"": {{ 
-                        ""TypeId"": ""i=884"",
-                        ""Body"": {{ ""High"": 9876.5432 }}
+                        ""UaTypeId"": ""i=884"",
+                        ""High"": 9876.5432
                     }},
                     ""D1"": {{ 
-                        ""Type"": 22,
+                        ""UaType"": 22,
                         ""Body"": {{ 
-                            ""TypeId"": ""nsu=http://opcfoundation.org/UA/GDS/;i=1"", 
-                            ""Body"": {{ 
-                                ""ApplicationId"": ""nsu=urn:localhost:server;s=urn:123456789"",  
-                                ""ApplicationUri"": ""urn:localhost:test.org:client"",
-                                ""ApplicationType"": 1,
-                                ""ApplicationNames"": [{{ ""Text"":""Test Client"", ""Locale"":""en"" }}],
-                                ""ProductUri"": ""http://test.org/client"",
-                                ""DiscoveryUrls"": [""opc.tcp://localhost/""]
-                            }}
+                            ""UaTypeId"": ""nsu=http://opcfoundation.org/UA/GDS/;i=1"", 
+                            ""ApplicationId"": ""nsu=urn:localhost:server;s=urn:123456789"",  
+                            ""ApplicationUri"": ""urn:localhost:test.org:client"",
+                            ""ApplicationType"": 1,
+                            ""ApplicationNames"": [{{ ""Text"":""Test Client"", ""Locale"":""en"" }}],
+                            ""ProductUri"": ""http://test.org/client"",
+                            ""DiscoveryUrls"": [""opc.tcp://localhost/""]
                         }}
                     }}
                 }}
@@ -1147,22 +1145,20 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             var data = $@"
                 {{
                     ""D0"": {{ 
-                        ""TypeId"": ""i=884"",
-                        ""Body"": {{ ""High"": 9876.5432 }}
+                        ""UaTypeId"": ""i=884"",
+                        ""High"": 9876.5432
                     }},
                     ""D1"": {{ 
-                        ""Type"": 22,
-                        ""Body"": {{ 
-                            ""TypeId"": ""nsu=http://opcfoundation.org/UA/GDS/;i=1"", 
-                            ""Body"": {{ 
-                                ""ApplicationId"": ""nsu=urn:localhost:server;s=urn:123456789"",  
-                                ""ApplicationUri"": ""urn:localhost:test.org:client"",
-                                ""ApplicationType"": 0,
-                                ""ApplicationNames"": [{{ ""Text"":""Test Client"", ""Locale"":""en"" }}],
-                                ""ProductUri"": ""http://test.org/client"",
-                                ""DiscoveryUrls"": [""opc.tcp://localhost/""],
-                                ""ServerCapabilities"": []
-                            }}
+                        ""UaType"": 22,
+                        ""Value"": {{ 
+                            ""UaTypeId"": ""nsu=http://opcfoundation.org/UA/GDS/;i=1"", 
+                            ""ApplicationId"": ""nsu=urn:localhost:server;s=urn:123456789"",  
+                            ""ApplicationUri"": ""urn:localhost:test.org:client"",
+                            ""ApplicationType"": 0,
+                            ""ApplicationNames"": [{{ ""Text"":""Test Client"", ""Locale"":""en"" }}],
+                            ""ProductUri"": ""http://test.org/client"",
+                            ""DiscoveryUrls"": [""opc.tcp://localhost/""],
+                            ""ServerCapabilities"": []
                         }}
                     }}
                 }}
@@ -1264,22 +1260,21 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             var data = $@"
                 {{
                     ""D0"": {{ 
-                        ""TypeId"": ""i=884"",
-                        ""Body"": {{ ""Low"": 0, ""High"": 9876.5432 }}
+                        ""UaTypeId"": ""i=884"",
+                        ""Low"": 0,
+                        ""High"": 9876.5432
                     }},
                     ""D1"": {{ 
-                        ""Type"": 22,
-                        ""Body"": {{ 
-                            ""TypeId"": ""nsu=http://opcfoundation.org/UA/GDS/;i=1"", 
-                            ""Body"": {{ 
-                                ""ApplicationId"": ""nsu=urn:localhost:server;s=urn:123456789"",  
-                                ""ApplicationUri"": ""urn:localhost:test.org:client"",
-                                ""ApplicationType"": ""Client_1"",
-                                ""ApplicationNames"": [{{ ""Text"":""Test Client"", ""Locale"":""en"" }}],
-                                ""ProductUri"": ""http://test.org/client"",
-                                ""DiscoveryUrls"": [""opc.tcp://localhost/""],
-                                ""ServerCapabilities"": []
-                            }}
+                        ""UaType"": 22,
+                        ""Value"": {{ 
+                            ""UaTypeId"": ""nsu=http://opcfoundation.org/UA/GDS/;i=1"", 
+                            ""ApplicationId"": ""nsu=urn:localhost:server;s=urn:123456789"",  
+                            ""ApplicationUri"": ""urn:localhost:test.org:client"",
+                            ""ApplicationType"": ""Client_1"",
+                            ""ApplicationNames"": [{{ ""Text"":""Test Client"", ""Locale"":""en"" }}],
+                            ""ProductUri"": ""http://test.org/client"",
+                            ""DiscoveryUrls"": [""opc.tcp://localhost/""],
+                            ""ServerCapabilities"": []
                         }}
                     }}
                 }}

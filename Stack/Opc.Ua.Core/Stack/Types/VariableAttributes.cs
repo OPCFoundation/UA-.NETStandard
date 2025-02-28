@@ -37,7 +37,7 @@ namespace Opc.Ua
 
             if (value == null)
             {
-                DataType = DataTypes.BaseDataType;
+                DataType = DataTypeIds.BaseDataType;
                 ValueRank = ValueRanks.Any;
             }
             else

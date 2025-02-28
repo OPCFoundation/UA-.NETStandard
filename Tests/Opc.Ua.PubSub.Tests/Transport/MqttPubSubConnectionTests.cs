@@ -33,7 +33,7 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using NUnit.Framework;
-using Opc.Ua.PubSub.Encoding;
+using PubSubEncoding = Opc.Ua.PubSub.Encoding;
 using Opc.Ua.PubSub.Transport;
 using Opc.Ua.PubSub.Tests.Encoding;
 using System.Collections.Generic;
@@ -126,7 +126,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             Assert.IsNotNull(networkMessages, "connection.CreateNetworkMessages shall not return null");
             Assert.GreaterOrEqual(networkMessages.Count, 1, "connection.CreateNetworkMessages shall have at least one network message");
 
-            UadpNetworkMessage uaNetworkMessage = networkMessages[0] as UadpNetworkMessage;
+            PubSubEncoding.UadpNetworkMessage uaNetworkMessage = networkMessages[0] as PubSubEncoding.UadpNetworkMessage;
             Assert.IsNotNull(uaNetworkMessage, "networkMessageEncode should not be null");
 
             bool hasDataSetWriterId = (uadpNetworkMessageContentMask & UadpNetworkMessageContentMask.PayloadHeader) != 0;
@@ -237,7 +237,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             Assert.IsNotNull(networkMessages, "connection.CreateNetworkMessages shall not return null");
             Assert.GreaterOrEqual(networkMessages.Count, 1, "connection.CreateNetworkMessages shall have at least one network message");
 
-            UadpNetworkMessage uaNetworkMessage = networkMessages[0] as UadpNetworkMessage;
+            PubSubEncoding.UadpNetworkMessage uaNetworkMessage = networkMessages[0] as PubSubEncoding.UadpNetworkMessage;
             Assert.IsNotNull(uaNetworkMessage, "networkMessageEncode should not be null");
 
             bool hasDataSetWriterId = (uadpNetworkMessageContentMask & UadpNetworkMessageContentMask.PayloadHeader) != 0;
@@ -375,10 +375,10 @@ namespace Opc.Ua.PubSub.Tests.Transport
             Assert.IsNotNull(networkMessages, "connection.CreateNetworkMessages shall not return null");
             Assert.GreaterOrEqual(networkMessages.Count, 1, "connection.CreateNetworkMessages shall have at least one network message");
 
-            List<JsonNetworkMessage> uaNetworkMessages = MessagesHelper.GetJsonUaDataNetworkMessages(networkMessages.Cast<JsonNetworkMessage>().ToList());
+            List<PubSubEncoding.JsonNetworkMessage> uaNetworkMessages = MessagesHelper.GetJsonUaDataNetworkMessages(networkMessages.Cast<PubSubEncoding.JsonNetworkMessage>().ToList());
             Assert.IsNotNull(uaNetworkMessages, "Json ua-data entries are missing from configuration!");
 
-            List<JsonNetworkMessage> uaMetaDataNetworkMessages = MessagesHelper.GetJsonUaMetaDataNetworkMessages(networkMessages.Cast<JsonNetworkMessage>().ToList());
+            List<PubSubEncoding.JsonNetworkMessage> uaMetaDataNetworkMessages = MessagesHelper.GetJsonUaMetaDataNetworkMessages(networkMessages.Cast<PubSubEncoding.JsonNetworkMessage>().ToList());
             Assert.IsNotNull(uaMetaDataNetworkMessages, "Json ua-metadata entries are missing from configuration!");
 
             bool hasDataSetWriterId = (jsonNetworkMessageContentMask & JsonNetworkMessageContentMask.DataSetMessageHeader) != 0
@@ -499,10 +499,10 @@ namespace Opc.Ua.PubSub.Tests.Transport
             Assert.IsNotNull(networkMessages, "connection.CreateNetworkMessages shall not return null");
             Assert.GreaterOrEqual(networkMessages.Count, 1, "connection.CreateNetworkMessages shall have at least one network message");
 
-            List<JsonNetworkMessage> uaNetworkMessages = MessagesHelper.GetJsonUaDataNetworkMessages(networkMessages.Cast<JsonNetworkMessage>().ToList());
+            List<PubSubEncoding.JsonNetworkMessage> uaNetworkMessages = MessagesHelper.GetJsonUaDataNetworkMessages(networkMessages.Cast<PubSubEncoding.JsonNetworkMessage>().ToList());
             Assert.IsNotNull(uaNetworkMessages, "Json ua-data entries are missing from configuration!");
 
-            List<JsonNetworkMessage> uaMetaDataNetworkMessages = MessagesHelper.GetJsonUaMetaDataNetworkMessages(networkMessages.Cast<JsonNetworkMessage>().ToList());
+            List<PubSubEncoding.JsonNetworkMessage> uaMetaDataNetworkMessages = MessagesHelper.GetJsonUaMetaDataNetworkMessages(networkMessages.Cast<PubSubEncoding.JsonNetworkMessage>().ToList());
             Assert.IsNotNull(uaMetaDataNetworkMessages, "Json ua-metadata entries are missing from configuration!");
 
             bool hasDataSetWriterId = (jsonNetworkMessageContentMask & JsonNetworkMessageContentMask.DataSetMessageHeader) != 0

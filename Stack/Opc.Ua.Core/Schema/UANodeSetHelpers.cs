@@ -138,6 +138,7 @@ namespace Opc.Ua.Export
                     BaseObjectState o = (BaseObjectState)node;
                     UAObject value = new UAObject();
                     value.EventNotifier = o.EventNotifier;
+                    value.DesignToolOnly = node.DesignToolOnly;
 
                     if (o.Parent != null)
                     {
@@ -158,6 +159,7 @@ namespace Opc.Ua.Export
                     value.AccessLevel = o.AccessLevelEx;
                     value.MinimumSamplingInterval = o.MinimumSamplingInterval;
                     value.Historizing = o.Historizing;
+                    value.DesignToolOnly = node.DesignToolOnly;
 
                     if (o.Parent != null)
                     {
@@ -186,6 +188,7 @@ namespace Opc.Ua.Export
                     MethodState o = (MethodState)node;
                     UAMethod value = new UAMethod();
                     value.Executable = o.Executable;
+                    value.DesignToolOnly = node.DesignToolOnly;
 
                     if (o.MethodDeclarationId != null && !o.MethodDeclarationId.IsNullNodeId && o.MethodDeclarationId != o.NodeId)
                     {
@@ -206,6 +209,7 @@ namespace Opc.Ua.Export
                     ViewState o = (ViewState)node;
                     UAView value = new UAView();
                     value.ContainsNoLoops = o.ContainsNoLoops;
+                    value.DesignToolOnly = node.DesignToolOnly;
                     exportedNode = value;
                     break;
                 }
@@ -493,6 +497,7 @@ namespace Opc.Ua.Export
                     UAObject o = (UAObject)node;
                     BaseObjectState value = new BaseObjectState(null);
                     value.EventNotifier = o.EventNotifier;
+                    value.DesignToolOnly = o.DesignToolOnly;
                     importedNode = value;
                     break;
                 }
@@ -537,6 +542,7 @@ namespace Opc.Ua.Export
                     value.UserAccessLevel = (byte)(o.AccessLevel & 0xFF);
                     value.MinimumSamplingInterval = o.MinimumSamplingInterval;
                     value.Historizing = o.Historizing;
+                    value.DesignToolOnly = o.DesignToolOnly;
 
                     if (o.Value != null)
                     {
@@ -559,6 +565,7 @@ namespace Opc.Ua.Export
                     value.Executable = o.Executable;
                     value.UserExecutable = o.Executable;
                     value.MethodDeclarationId = ImportNodeId(o.MethodDeclarationId, context.NamespaceUris, true);
+                    value.DesignToolOnly = o.DesignToolOnly;
                     importedNode = value;
                     break;
                 }
@@ -568,6 +575,7 @@ namespace Opc.Ua.Export
                     UAView o = (UAView)node;
                     ViewState value = new ViewState();
                     value.ContainsNoLoops = o.ContainsNoLoops;
+                    value.DesignToolOnly = o.DesignToolOnly;
                     importedNode = value;
                     break;
                 }

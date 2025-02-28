@@ -11,6 +11,7 @@
 */
 
 using System;
+using System.Collections.Generic;
 using System.Xml;
 
 namespace Opc.Ua
@@ -344,7 +345,24 @@ namespace Opc.Ua
         /// <param name="systemType">The system type of an encodeable or enum element of the array.</param>
         /// <param name="encodeableTypeId">The type id of an encodeable or enum element of the array.</param>
         /// <returns>An array of the specified builtInType, systemType or encodeableTypeId.</returns>
-        Array ReadArray(string fieldName, int valueRank, BuiltInType builtInType,
-            Type systemType = null, ExpandedNodeId encodeableTypeId = null);
+        Array ReadArray(
+            string fieldName,
+            int valueRank,
+            BuiltInType builtInType,
+            Type systemType = null,
+            ExpandedNodeId encodeableTypeId = null);
+
+        /// <summary>
+        /// Decode the switch field for a union.
+        /// </summary>
+        /// <param name="switches">The list of field names in the order of the union selector.</param>
+        /// <param name="fieldName">Returns an alternate fieldName for the encoded union property if the encoder requires it, null otherwise.</param>
+        uint ReadSwitchField(IList<string> switches, out string fieldName);
+
+        /// <summary>
+        /// Decode the encoding mask for a structure with optional fields.
+        /// </summary>
+        /// <param name="masks">The list of field names in the order of the bits in the optional fields mask.</param>
+        uint ReadEncodingMask(IList<string> masks);
     }
 }

@@ -252,7 +252,7 @@ namespace Opc.Ua
             {
                 if (type.GetTypeInfo().IsEnum || (type.IsArray && type.GetElementType().GetTypeInfo().IsEnum))
                 {
-                    return DataTypes.Enumeration;
+                    return DataTypeIds.Enumeration;
                 }
             }
 
@@ -713,7 +713,7 @@ namespace Opc.Ua
             {
                 if (expectedValueRank == ValueRanks.OneOrMoreDimensions || expectedValueRank == ValueRanks.OneDimension)
                 {
-                    if (typeTree.IsTypeOf(expectedDataTypeId, DataTypes.Byte))
+                    if (typeTree.IsTypeOf(expectedDataTypeId, DataTypeIds.Byte))
                     {
                         return typeInfo;
                     }
@@ -877,7 +877,7 @@ namespace Opc.Ua
                 // check for enumerations.
                 if (typeInfo.BuiltInType == BuiltInType.Int32)
                 {
-                    if (typeTree.IsTypeOf(expectedDataTypeId, DataTypes.Enumeration))
+                    if (typeTree.IsTypeOf(expectedDataTypeId, DataTypeIds.Enumeration))
                     {
                         return typeInfo;
                     }
@@ -1029,7 +1029,7 @@ namespace Opc.Ua
                     return typeTree.FindDataTypeId(extension.TypeId);
                 }
 
-                return DataTypes.Structure;
+                return DataTypeIds.Structure;
             }
 
             return new NodeId((uint)(int)BuiltInType);

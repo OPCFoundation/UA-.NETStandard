@@ -14,7 +14,7 @@
     <IsPackable>false</IsPackable>
     <PlatformTarget>AnyCPU</PlatformTarget>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-    <!-- Highest language version supported by .NET Standard 2.0 and .NET Framework -->
+    <!-- Highest language version supported by Visual Studio 2019 -->
     <LangVersion>9</LangVersion>
     <EnablePackageValidation>true</EnablePackageValidation>
     <!-- to check the package validation on a release build, uncomment here -->

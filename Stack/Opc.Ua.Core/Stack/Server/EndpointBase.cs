@@ -646,12 +646,7 @@ namespace Opc.Ua
             /// <returns></returns>
             public IServiceResponse Invoke(IServiceRequest request)
             {
-                if (m_InvokeService != null)
-                {
-                    return m_InvokeService(request);
-                }
-
-                return null;
+                return m_InvokeService?.Invoke(request);
             }
 
             #region Private Fields

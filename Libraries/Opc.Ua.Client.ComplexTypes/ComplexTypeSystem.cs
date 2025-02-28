@@ -1158,7 +1158,7 @@ namespace Opc.Ua.Client.ComplexTypes
                     {
                         // enumerations of namespace 0 in a structure
                         // which are not in the type system are encoded as UInt32
-                        return new NodeId((uint)BuiltInType.UInt32);
+                        return DataTypeIds.UInt32;
                     }
                     if (superType == DataTypeIds.Enumeration)
                     {

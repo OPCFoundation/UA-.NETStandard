@@ -669,7 +669,7 @@ namespace Quickstarts.ReferenceServer
                         string referenceString = "Has3ForwardReferences";
                         if (i > 1)
                         {
-                            referenceString += i.ToString();
+                            referenceString += i.ToString(CultureInfo.InvariantCulture);
                         }
                         BaseDataVariableState has3ForwardReferences = CreateMeshVariable(referencesFolder, referencesPrefix + referenceString, referenceString);
                         has3ForwardReferences.AddReference(ReferenceTypes.HasCause, false, variables[0].NodeId);
