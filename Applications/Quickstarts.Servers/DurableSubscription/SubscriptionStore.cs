@@ -1,0 +1,102 @@
+/* ========================================================================
+ * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
+ *
+ * OPC Foundation MIT License 1.00
+ * 
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ * 
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * The complete license agreement can be found here:
+ * http://opcfoundation.org/License/MIT/1.00/
+ * ======================================================================*/
+
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using Newtonsoft.Json;
+using Opc.Ua.Server;
+
+namespace Quickstarts.Servers
+{
+    public class SubscriptionStore : ISubscriptionStore
+    {
+        private static readonly JsonSerializerSettings s_settings = new JsonSerializerSettings { TypeNameHandling = TypeNameHandling.All };
+        private static readonly string s_storage_path = Path.Combine(Environment.CurrentDirectory, "Durable Subscriptions");
+        private static readonly string s_filename = "subscriptionsStore.txt";
+        private readonly DurableMonitoredItemQueueFactory m_durableMonitoredItemQueueFactory;
+
+        public SubscriptionStore(IServerInternal server)
+        {
+            m_durableMonitoredItemQueueFactory = server.MonitoredItemQueueFactory as DurableMonitoredItemQueueFactory;
+        }
+
+        public void StoreSubscriptions(IEnumerable<IStoredSubscription> subscriptions)
+        {
+            string result = JsonConvert.SerializeObject(subscriptions, s_settings);
+            File.WriteAllText(Path.Combine(s_storage_path, s_filename), result);
+
+            if (m_durableMonitoredItemQueueFactory != null)
+            {
+                IEnumerable<uint> ids = subscriptions.SelectMany(s => s.MonitoredItems.Select(m => m.Id));
+                m_durableMonitoredItemQueueFactory.PersistQueues(ids, s_storage_path);
+            }
+        }
+
+        public IEnumerable<IStoredSubscription> RestoreSubscriptions()
+        {
+            string filePath = Path.Combine(s_storage_path, s_filename);
+            if (File.Exists(filePath))
+            {
+                string json = File.ReadAllText(filePath);
+                List<IStoredSubscription> result = JsonConvert.DeserializeObject<List<IStoredSubscription>>(json, s_settings);
+
+                File.Delete(filePath);
+
+                return result;
+            }
+            return null;
+        }
+
+        public IDataChangeMonitoredItemQueue RestoreDataChangeMonitoredItemQueue(uint monitoredItemId)
+        {
+            return m_durableMonitoredItemQueueFactory?.RestoreDataChangeQueue(monitoredItemId);
+        }
+        public IEventMonitoredItemQueue RestoreEventMonitoredItemQueue(uint monitoredItemId)
+        {
+            return m_durableMonitoredItemQueueFactory?.RestoreEventQueue(monitoredItemId);
+        }
+
+        public void OnSubscriptionRestoreComplete(Dictionary<uint, uint[]> createdSubscriptions)
+        {
+            if (Directory.Exists(s_storage_path))
+            {
+                try
+                {
+                    Directory.Delete(s_storage_path, true);
+                }
+                catch (Exception ex)
+                {
+                    Opc.Ua.Utils.LogWarning(ex, "Failed to cleanup files for stored subscsription");
+                }
+            }
+        }
+    }
+}

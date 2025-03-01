@@ -14,6 +14,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Globalization;
+using Newtonsoft.Json;
 
 namespace Opc.Ua
 {
@@ -47,7 +48,6 @@ namespace Opc.Ua
 
             Begin = begin;
         }
-
         /// <summary>
         /// Initializes the object with a begin and end indexes.
         /// </summary>
@@ -56,6 +56,7 @@ namespace Opc.Ua
         /// </remarks>
         /// <param name="begin">The end of the range</param>
         /// <param name="end">The beginning of the range</param>
+        [JsonConstructor]
         public NumericRange(int begin, int end)
         {
             m_begin = -1;

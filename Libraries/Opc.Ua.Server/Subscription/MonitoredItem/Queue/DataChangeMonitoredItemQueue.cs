@@ -215,7 +215,7 @@ namespace Opc.Ua.Server
             m_end = next + 1;
         }
         /// <inheritdoc/>
-        public void Dispose()
+        public virtual void Dispose()
         {
             //only needed for unmanaged resources
         }

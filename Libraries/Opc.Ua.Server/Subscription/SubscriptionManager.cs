@@ -307,6 +307,7 @@ namespace Opc.Ua.Server
             {
                 return;
             }
+
             try
             {
                 m_subscriptionStore.StoreSubscriptions(subscriptionsToStore);
@@ -315,6 +316,8 @@ namespace Opc.Ua.Server
             {
                 Utils.LogError(ex, "Failed to store {0} subscriptions", subscriptionsToStore.Count);
             }
+
+            Utils.LogInfo("{0} Subscriptions stored", subscriptionsToStore.Count);
         }
 
         /// <summary>

@@ -28,6 +28,11 @@
  * ======================================================================*/
 
 
+using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.ComponentModel;
+using Opc.Ua;
 using Opc.Ua.Server;
 
 namespace Quickstarts.Servers
@@ -37,6 +42,8 @@ namespace Quickstarts.Servers
     /// </summary>
     public class DurableMonitoredItemQueueFactory : IMonitoredItemQueueFactory
     {
+        private ConcurrentDictionary<uint, DurableDataChangeMonitoredItemQueue> m_dataChangeQueues = new ConcurrentDictionary<uint, DurableDataChangeMonitoredItemQueue>();
+        private ConcurrentDictionary<uint, DurableEventMonitoredItemQueue> m_eventQueues = new ConcurrentDictionary<uint, DurableEventMonitoredItemQueue>();
         /// <inheritdoc/>
         public bool SupportsDurableQueues => true;
         /// <inheritdoc/>
@@ -45,14 +52,16 @@ namespace Quickstarts.Servers
             //use durable queue only if MI is durable
             if (createDurable)
             {
-
-                return new DurableDataChangeMonitoredItemQueue(createDurable, monitoredItemId);
+                var queue = new DurableDataChangeMonitoredItemQueue(createDurable, monitoredItemId);
+                queue.Disposed += DataChangeQeueDisposed;
+                m_dataChangeQueues.AddOrUpdate(monitoredItemId, queue, (_, _) => queue);
+                return queue;
             }
             else
             {
                 return new DataChangeMonitoredItemQueue(createDurable, monitoredItemId);
             }
-            
+
         }
 
         /// <inheritdoc/>
@@ -61,8 +70,10 @@ namespace Quickstarts.Servers
             //use durable queue only if MI is durable
             if (createDurable)
             {
-
-                return new DurableEventMonitoredItemQueue(createDurable, monitoredItemId);
+                var queue = new DurableEventMonitoredItemQueue(createDurable, monitoredItemId);
+                queue.Disposed += EventQueueDisposed;
+                m_eventQueues.AddOrUpdate(monitoredItemId, queue, (_, _) => queue);
+                return queue;
             }
             else
             {
@@ -70,15 +81,93 @@ namespace Quickstarts.Servers
             }
         }
 
+        private void DataChangeQeueDisposed(object sender, EventArgs eventArgs)
+        {
+            if (sender is DataChangeMonitoredItemQueue queue)
+            {
+                m_dataChangeQueues.TryRemove(queue.MonitoredItemId, out _);
+            }
+        }
+
+        private void EventQueueDisposed(object sender, EventArgs eventArgs)
+        {
+            if (sender is EventMonitoredItemQueue queue)
+            {
+                m_eventQueues.TryRemove(queue.MonitoredItemId, out _);
+            }
+        }
+
+        /// <summary>
+        /// Persist the queues of the monitored items with the provided ids
+        /// </summary>
+        /// <param name="ids">the MonitoredItem ids of the queues to store</param>
+        public void PersistQueues(IEnumerable<uint> ids, string targetDirectory)
+        {
+            foreach (uint id in ids)
+            {
+                try
+                {
+                    DurableDataChangeMonitoredItemQueue queue = m_dataChangeQueues[id];
+                    if (queue != null)
+                    {
+
+                        continue;
+                    }
+
+                    var eventQueue = m_eventQueues[id];
+
+                    if (eventQueue != null)
+                    {
+
+                        continue;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Opc.Ua.Utils.LogWarning(ex, "Failed to persist queue for monitored item with id {0}", id);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Restore an Event queue
+        /// </summary>
+        public IEventMonitoredItemQueue RestoreEventQueue(uint id)
+        {
+            throw new NotImplementedException();
+        }
+
+        /// <summary>
+        /// Restore a DataChange queue
+        /// </summary>
+        public IDataChangeMonitoredItemQueue RestoreDataChangeQueue(uint id)
+        {
+            throw new NotImplementedException();
+        }
+
         /// <inheritdoc/>
         public void Dispose()
         {
-            //only needed for managed resources
+            foreach (DurableEventMonitoredItemQueue queue in m_eventQueues.Values)
+            {
+                Opc.Ua.Utils.SilentDispose(queue);
+            }
+            foreach (DurableDataChangeMonitoredItemQueue queue in m_dataChangeQueues.Values)
+            {
+                Opc.Ua.Utils.SilentDispose(queue);
+            }
+            m_dataChangeQueues = null;
+            m_eventQueues = null;
         }
     }
 
     public class DurableEventMonitoredItemQueue : EventMonitoredItemQueue
     {
+        /// <summary>
+        /// Invoked when the queue is disposed
+        /// </summary>
+        public event EventHandler Disposed;
+
         /// <summary>
         /// Creates an empty queue.
         /// </summary>
@@ -90,11 +179,21 @@ namespace Quickstarts.Servers
         #region Public Methods
         /// <inheritdoc/>
         public override bool IsDurable { get; }
+
+        public override void Dispose()
+        {
+            Disposed?.Invoke(this, new EventArgs());
+        }
         #endregion
     }
 
     public class DurableDataChangeMonitoredItemQueue : DataChangeMonitoredItemQueue
     {
+        /// <summary>
+        /// Invoked when the queue is disposed
+        /// </summary>
+        public event EventHandler Disposed;
+
         /// <summary>
         /// Creates an empty queue.
         /// </summary>
@@ -106,6 +205,11 @@ namespace Quickstarts.Servers
         #region Public Methods
         /// <inheritdoc/>
         public override bool IsDurable { get; }
+
+        public override void Dispose()
+        {
+            Disposed?.Invoke(this, new EventArgs());
+        }
         #endregion
     }
 

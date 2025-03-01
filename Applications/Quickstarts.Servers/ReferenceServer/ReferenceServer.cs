@@ -91,6 +91,21 @@ namespace Quickstarts.ReferenceServer
         }
 
         /// <summary>
+        /// Creates the subscriptionStore for the server.
+        /// </summary>
+        /// <param name="server">The server.</param>
+        /// <param name="configuration">The configuration.</param>
+        /// <returns>Returns a subscriptionStoe for a server, the return type is <seealso cref="ISubscriptionStore"/>.</returns>
+        protected override ISubscriptionStore CreateSubscriptionStore(IServerInternal server, ApplicationConfiguration configuration)
+        {
+            if (configuration?.ServerConfiguration?.DurableSubscriptionsEnabled == true)
+            {
+                return new Servers.SubscriptionStore();
+            }
+            return null;
+        }
+
+        /// <summary>
         /// Loads the non-configurable properties for the application.
         /// </summary>
         /// <remarks>

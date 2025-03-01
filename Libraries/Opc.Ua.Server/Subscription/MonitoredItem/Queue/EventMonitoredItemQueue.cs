@@ -136,7 +136,7 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public void Dispose()
+        public virtual void Dispose()
         {
             //Only needed for unmanaged resources
         }
