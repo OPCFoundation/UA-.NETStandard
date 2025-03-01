@@ -204,7 +204,6 @@ namespace Opc.Ua.Server
 
             // initialize diagnostics.
             m_diagnostics = new SubscriptionDiagnosticsDataType {
-                SessionId = m_session.Id,
                 SubscriptionId = m_id,
                 Priority = m_priority,
                 PublishingInterval = m_publishingInterval,
@@ -242,7 +241,7 @@ namespace Opc.Ua.Server
                 m_diagnostics,
                 OnUpdateDiagnostics);
 
-            TraceState(LogLevel.Information, TraceStateId.Config, "RECREATED");
+            TraceState(LogLevel.Information, TraceStateId.Config, "RESTORED");
 
             RestoreMonitoredItems(storedSubscription.MonitoredItems);
         }
@@ -352,7 +351,7 @@ namespace Opc.Ua.Server
                 }
             }
         }
-              
+
         /// <summary>
         /// True if the subscription is set to durable and supports long lifetime and queue size
         /// </summary>
@@ -2414,7 +2413,7 @@ namespace Opc.Ua.Server
 
                 }
 
-                TraceState(LogLevel.Information, TraceStateId.Config, "MODIFIED");
+                TraceState(LogLevel.Information, TraceStateId.Config, "SET DURABLE");
 
                 return StatusCodes.Good;
             }
@@ -2465,7 +2464,7 @@ namespace Opc.Ua.Server
                 MaxNotificationsPerPublish = m_maxNotificationsPerPublish,
                 Priority = Priority,
                 PublishingInterval = PublishingInterval,
-                UserIdentityToken = EffectiveIdentity.GetIdentityToken(),
+                UserIdentityToken = EffectiveIdentity?.GetIdentityToken(),
                 MonitoredItems = monitoredItemsToStore,
                 IsDurable = IsDurable,
             };
@@ -2490,9 +2489,9 @@ namespace Opc.Ua.Server
             }
 
             m_server.NodeManager.RestoreMonitoredItems(
-                storedMonitoredItems.ToList(),
-                monitoredItems,
-                m_savedOwnerIdentity);
+                 storedMonitoredItems.ToList(),
+                 monitoredItems,
+                 m_savedOwnerIdentity);
 
             lock (m_lock)
             {

@@ -33,6 +33,7 @@ using System.Threading;
 using System.Globalization;
 using System.Threading.Tasks;
 using System.Linq;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Server
 {
@@ -306,8 +307,14 @@ namespace Opc.Ua.Server
             {
                 return;
             }
-
-            m_subscriptionStore.StoreSubscriptions(subscriptionsToStore);
+            try
+            {
+                m_subscriptionStore.StoreSubscriptions(subscriptionsToStore);
+            }
+            catch (Exception ex)
+            {
+                Utils.LogError(ex, "Failed to store {0} subscriptions", subscriptionsToStore.Count);
+            }
         }
 
         /// <summary>
@@ -325,12 +332,41 @@ namespace Opc.Ua.Server
             {
                 return;
             }
-            IEnumerable<IStoredSubscription> subscriptionsToRestore = m_subscriptionStore.RestoreSubscriptions();
+
+            IEnumerable<IStoredSubscription> subscriptionsToRestore;
+
+            try
+            {
+                subscriptionsToRestore = m_subscriptionStore.RestoreSubscriptions();
+            }
+            catch (Exception ex)
+            {
+                Utils.LogError(ex, "Failed to restore subscriptions");
+                return;
+            }
+            
+
+            if (subscriptionsToRestore == null || !subscriptionsToRestore.Any())
+            {
+                return;
+            }
+
             var createdSubscriptions = new Dictionary<uint, uint[]>();
 
             foreach (IStoredSubscription storedSubscription in subscriptionsToRestore)
             {
-                var subscription = RestoreSubscription(storedSubscription);
+                Subscription subscription;
+
+                try
+                {
+                    subscription = RestoreSubscription(storedSubscription);
+                }
+                catch (Exception ex)
+                {
+                    Utils.LogError(ex, "Failed to restore subscritption with id {0}", storedSubscription.Id);
+                    continue;
+                }
+
                 subscription.GetMonitoredItems(out uint[] monitoredItemsIds, out _);
                 createdSubscriptions.Add(subscription.Id, monitoredItemsIds);
             }
@@ -339,6 +375,7 @@ namespace Opc.Ua.Server
 
             m_subscriptionStore.OnSubscriptionRestoreComplete(createdSubscriptions);
         }
+
         /// <summary>
         /// Restore a subscription after a restart
         /// </summary>
@@ -1271,10 +1308,6 @@ namespace Opc.Ua.Server
             uint requestedLifeTimeCount = (uint)(lifetimeInSeconds / subscription.PublishingInterval);
 
             return subscription.SetSubscriptionDurable(requestedLifeTimeCount);
-
-            // According Paul Hunkar, the spec is deliberately quiet
-            // on this. It is not expected to respect the KeepAlive * 3, nor to recalculate the
-            // revisedLifetimeInHours, as this is an extreme edge case
         }
 
         /// <summary>

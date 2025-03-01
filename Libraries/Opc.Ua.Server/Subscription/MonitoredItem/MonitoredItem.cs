@@ -203,7 +203,7 @@ namespace Opc.Ua.Server
             m_clientHandle = storedMonitoredItem.ClientHandle;
             m_originalFilter = storedMonitoredItem.OriginalFilter;
             m_filterToUse = storedMonitoredItem.FilterToUse;
-            m_range = 0;
+            m_range = storedMonitoredItem.Range;
             m_samplingInterval = storedMonitoredItem.SamplingInterval;
             m_queueSize = storedMonitoredItem.QueueSize;
             m_discardOldest = storedMonitoredItem.DiscardOldest;
@@ -217,7 +217,6 @@ namespace Opc.Ua.Server
             m_alwaysReportUpdates = storedMonitoredItem.AlwaysReportUpdates;
             m_lastError = storedMonitoredItem.LastError;
             m_lastValue = storedMonitoredItem.LastValue;
-
             m_typeMask = storedMonitoredItem.TypeMask;
 
             // create aggregate calculator.
@@ -232,7 +231,6 @@ namespace Opc.Ua.Server
                     aggregateFilter.AggregateConfiguration);
             }
 
-            m_range = storedMonitoredItem.Range;
 
             // report change to item state.
             ServerUtils.ReportCreateMonitoredItem(
@@ -1581,8 +1579,6 @@ namespace Opc.Ua.Server
                 ParsedIndexRange = m_parsedIndexRange
             };
         }
-        /// <inheritdoc/>
-        public bool IsDurable => m_isDurable;
         #endregion
 
         #region Private Methods

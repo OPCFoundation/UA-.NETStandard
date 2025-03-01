@@ -226,22 +226,6 @@ namespace Opc.Ua.Server
             return queueSize;
         }
 
-        //calculates a revised queue size based on the application confiugration limits
-        private uint CalculateRevisedQueueSize(bool isDurable, uint queueSize)
-        {
-            if (queueSize > m_maxEventQueueSize && !isDurable)
-            {
-                queueSize = m_maxEventQueueSize;
-            }
-
-            if (queueSize > m_maxDurableEventQueueSize && isDurable)
-            {
-                queueSize = m_maxDurableEventQueueSize;
-            }
-
-            return queueSize;
-        }
-
         /// <summary>
         /// Modifies a monitored item.
         /// </summary>

@@ -26,10 +26,10 @@ namespace Opc.Ua.Server
 
     public class SubscriptionStore : ISubscriptionStore
     {
-
+        private static JsonSerializerSettings m_settings = new JsonSerializerSettings { TypeNameHandling = TypeNameHandling.All };
         public void StoreSubscriptions(IEnumerable<IStoredSubscription> subscriptions)
         {
-            string result = JsonConvert.SerializeObject(subscriptions);
+            string result = JsonConvert.SerializeObject(subscriptions, m_settings);
             File.WriteAllText(Path.Combine(Environment.CurrentDirectory, "subscriptionsStore.txt"), result);
         }
 
@@ -38,13 +38,14 @@ namespace Opc.Ua.Server
             var path = Path.Combine(Environment.CurrentDirectory, "subscriptionsStore.txt");
             if (File.Exists(path))
             {
-
                 string json = File.ReadAllText(path);
-                List<StoredSubscription> result = JsonConvert.DeserializeObject<List<StoredSubscription>>(json);
+                List<IStoredSubscription> result = JsonConvert.DeserializeObject<List<IStoredSubscription>>(json, m_settings);
+
+                File.Delete(path);
+
                 return result;
             }
             return null;
-            //throw new NotImplementedException();
         }
 
         public IDataChangeMonitoredItemQueue RestoreDataChangeMonitoredItemQueue(uint monitoredItemId)
@@ -74,7 +75,7 @@ namespace Opc.Ua.Server
         uint MaxLifetimeCount { get; set; }
         uint MaxMessageCount { get; set; }
         uint MaxNotificationsPerPublish { get; set; }
-        IEnumerable<StoredMonitoredItem> MonitoredItems { get; set; }
+        IEnumerable<IStoredMonitoredItem> MonitoredItems { get; set; }
         byte Priority { get; set; }
         double PublishingInterval { get; set; }
         List<NotificationMessage> SentMessages { get; set; }
@@ -97,7 +98,7 @@ namespace Opc.Ua.Server
         public bool IsDurable { get; set; }
         public long SequenceNumber { get; set; }
         public List<NotificationMessage> SentMessages { get; set; }
-        public IEnumerable<StoredMonitoredItem> MonitoredItems { get; set; }
+        public IEnumerable<IStoredMonitoredItem> MonitoredItems { get; set; }
     }
 
     public interface IStoredMonitoredItem
@@ -156,7 +157,6 @@ namespace Opc.Ua.Server
         public bool IsDurable { get; set; }
         public DataValue LastValue { get; set; }
         public ServiceResult LastError { get; set; }
-        [JsonIgnore]
         public NumericRange ParsedIndexRange { get; set; }
     }
 

@@ -385,16 +385,6 @@ namespace Opc.Ua.Server
             get { return m_subscriptionStore; }
         }
 
-
-        /// <summary>
-        /// The factory for durable monitored item queues
-        /// </summary>
-        public IMonitoredItemQueueFactory MonitoredItemQueueFactory
-        {
-            get { return m_monitoredItemQueueFactory; }
-        }
-
-
         /// <summary>
         /// Returns the status object for the server.
         /// </summary>

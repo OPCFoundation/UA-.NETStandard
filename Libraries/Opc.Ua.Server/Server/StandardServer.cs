@@ -3076,12 +3076,6 @@ namespace Opc.Ua.Server
                     // add the session manager to the datastore.
                     m_serverInternal.SetSessionManager(sessionManager, subscriptionManager);
 
-                    //create the MonitoredItemQueueFactory
-                    IMonitoredItemQueueFactory monitoredItemQueueFactory = CreateMonitoredItemQueueFactory(m_serverInternal, configuration);
-
-                    //add the eMonitoredItemQueueFactory to the datastore.
-                    m_serverInternal.SetMonitoredItemQueueFactory(monitoredItemQueueFactory);
-
                     ServerError = null;
 
                     // setup registration information.

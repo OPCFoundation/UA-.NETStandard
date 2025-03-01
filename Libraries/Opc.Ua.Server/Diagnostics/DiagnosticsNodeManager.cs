@@ -988,11 +988,14 @@ namespace Opc.Ua.Server
                     array.AddReference(ReferenceTypeIds.HasComponent, false, diagnosticsNode.NodeId);
                 }
 
-                // add reference to session subscription array.
-                diagnosticsNode.AddReference(
-                    ReferenceTypeIds.HasComponent,
-                    true,
-                    diagnostics.SessionId);
+                if (diagnostics.SessionId != null)
+                {
+                    // add reference to session subscription array.
+                    diagnosticsNode.AddReference(
+                        ReferenceTypeIds.HasComponent,
+                        true,
+                        diagnostics.SessionId);
+                }
 
                 // add reference from session subscription array.
                 SessionDiagnosticsObjectState sessionNode = (SessionDiagnosticsObjectState)FindPredefinedNode(
