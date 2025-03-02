@@ -1958,8 +1958,16 @@ namespace Opc.Ua.Server
                         {
                             break; // queueing is disabled
                         }
-
-                        IDataChangeMonitoredItemQueue restoredQueue = m_subscriptionStore.RestoreDataChangeMonitoredItemQueue(m_id);
+                        IDataChangeMonitoredItemQueue restoredQueue = null;
+                        try
+                        {
+                            restoredQueue = m_subscriptionStore.RestoreDataChangeMonitoredItemQueue(m_id);
+                        }
+                        catch (Exception ex)
+                        {
+                            Utils.LogError(ex, "Failed to restore queue for monitored item with id {0}", Id);
+                        }
+                        
 
                         if (restoredQueue != null)
                         {
@@ -1977,7 +1985,15 @@ namespace Opc.Ua.Server
                     }
                     else // create event queue.
                     {
-                        IEventMonitoredItemQueue restoredQueue = m_subscriptionStore.RestoreEventMonitoredItemQueue(m_id);
+                        IEventMonitoredItemQueue restoredQueue = null;
+                        try
+                        {
+                            restoredQueue = m_subscriptionStore.RestoreEventMonitoredItemQueue(m_id);
+                        }
+                        catch (Exception ex)
+                        {
+                            Utils.LogError(ex, "Failed to restore queue for monitored item with id {0}", Id);
+                        }
                         if (restoredQueue != null)
                         {
                             // initialize with existing queue

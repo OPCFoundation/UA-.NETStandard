@@ -100,7 +100,7 @@ namespace Quickstarts.ReferenceServer
         {
             if (configuration?.ServerConfiguration?.DurableSubscriptionsEnabled == true)
             {
-                return new Servers.SubscriptionStore();
+                return new Servers.SubscriptionStore(server);
             }
             return null;
         }

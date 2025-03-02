@@ -310,14 +310,15 @@ namespace Opc.Ua.Server
 
             try
             {
-                m_subscriptionStore.StoreSubscriptions(subscriptionsToStore);
+                if (m_subscriptionStore.StoreSubscriptions(subscriptionsToStore))
+                {
+                    Utils.LogInfo("{0} Subscriptions stored", subscriptionsToStore.Count);
+                }
             }
             catch (Exception ex)
             {
                 Utils.LogError(ex, "Failed to store {0} subscriptions", subscriptionsToStore.Count);
             }
-
-            Utils.LogInfo("{0} Subscriptions stored", subscriptionsToStore.Count);
         }
 
         /// <summary>

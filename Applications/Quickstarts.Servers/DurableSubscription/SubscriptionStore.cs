@@ -48,9 +48,15 @@ namespace Quickstarts.Servers
             m_durableMonitoredItemQueueFactory = server.MonitoredItemQueueFactory as DurableMonitoredItemQueueFactory;
         }
 
-        public void StoreSubscriptions(IEnumerable<IStoredSubscription> subscriptions)
+        public bool StoreSubscriptions(IEnumerable<IStoredSubscription> subscriptions)
         {
             string result = JsonConvert.SerializeObject(subscriptions, s_settings);
+
+            if (!Directory.Exists(s_storage_path))
+            {
+                Directory.CreateDirectory(s_storage_path);
+            }
+
             File.WriteAllText(Path.Combine(s_storage_path, s_filename), result);
 
             if (m_durableMonitoredItemQueueFactory != null)
@@ -58,6 +64,7 @@ namespace Quickstarts.Servers
                 IEnumerable<uint> ids = subscriptions.SelectMany(s => s.MonitoredItems.Select(m => m.Id));
                 m_durableMonitoredItemQueueFactory.PersistQueues(ids, s_storage_path);
             }
+            return true;
         }
 
         public IEnumerable<IStoredSubscription> RestoreSubscriptions()
@@ -77,11 +84,11 @@ namespace Quickstarts.Servers
 
         public IDataChangeMonitoredItemQueue RestoreDataChangeMonitoredItemQueue(uint monitoredItemId)
         {
-            return m_durableMonitoredItemQueueFactory?.RestoreDataChangeQueue(monitoredItemId);
+            return m_durableMonitoredItemQueueFactory?.RestoreDataChangeQueue(monitoredItemId, s_storage_path);
         }
         public IEventMonitoredItemQueue RestoreEventMonitoredItemQueue(uint monitoredItemId)
         {
-            return m_durableMonitoredItemQueueFactory?.RestoreEventQueue(monitoredItemId);
+            return m_durableMonitoredItemQueueFactory?.RestoreEventQueue(monitoredItemId, s_storage_path);
         }
 
         public void OnSubscriptionRestoreComplete(Dictionary<uint, uint[]> createdSubscriptions)

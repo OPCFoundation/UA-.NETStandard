@@ -31,8 +31,8 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.ComponentModel;
-using Opc.Ua;
+using System.IO;
+using Newtonsoft.Json;
 using Opc.Ua.Server;
 
 namespace Quickstarts.Servers
@@ -42,6 +42,8 @@ namespace Quickstarts.Servers
     /// </summary>
     public class DurableMonitoredItemQueueFactory : IMonitoredItemQueueFactory
     {
+        private static readonly string s_queueDirectory = "Queues";
+        private static readonly string s_base_filename = "_queue.txt";
         private ConcurrentDictionary<uint, DurableDataChangeMonitoredItemQueue> m_dataChangeQueues = new ConcurrentDictionary<uint, DurableDataChangeMonitoredItemQueue>();
         private ConcurrentDictionary<uint, DurableEventMonitoredItemQueue> m_eventQueues = new ConcurrentDictionary<uint, DurableEventMonitoredItemQueue>();
         /// <inheritdoc/>
@@ -101,26 +103,33 @@ namespace Quickstarts.Servers
         /// Persist the queues of the monitored items with the provided ids
         /// </summary>
         /// <param name="ids">the MonitoredItem ids of the queues to store</param>
-        public void PersistQueues(IEnumerable<uint> ids, string targetDirectory)
+        public void PersistQueues(IEnumerable<uint> ids, string baseDirectory)
         {
+            string targetPath = Path.Combine(baseDirectory, s_queueDirectory);
+            if (!Directory.Exists(targetPath))
+            {
+                Directory.CreateDirectory(targetPath);
+            }
             foreach (uint id in ids)
             {
                 try
                 {
-                    DurableDataChangeMonitoredItemQueue queue = m_dataChangeQueues[id];
-                    if (queue != null)
+                    if (m_dataChangeQueues.TryGetValue(id, out DurableDataChangeMonitoredItemQueue queue))
                     {
-
+                        //store
+                        string result = JsonConvert.SerializeObject(queue.ToStorableQueue());
+                        File.WriteAllText(Path.Combine(targetPath, id + s_base_filename), result);
                         continue;
                     }
 
-                    var eventQueue = m_eventQueues[id];
-
-                    if (eventQueue != null)
+                    if (m_eventQueues.TryGetValue(id, out DurableEventMonitoredItemQueue eventQueue))
                     {
-
+                        //store
+                        string result = JsonConvert.SerializeObject(eventQueue.ToStorableQueue());
+                        File.WriteAllText(Path.Combine(targetPath, id + s_base_filename), result);
                         continue;
                     }
+                    Opc.Ua.Utils.LogWarning("Failed to persist queue for monitored item with id {0} as the queue was not known to the server", id);
                 }
                 catch (Exception ex)
                 {
@@ -132,17 +141,31 @@ namespace Quickstarts.Servers
         /// <summary>
         /// Restore an Event queue
         /// </summary>
-        public IEventMonitoredItemQueue RestoreEventQueue(uint id)
+        public IEventMonitoredItemQueue RestoreEventQueue(uint id, string baseDirectory)
         {
-            throw new NotImplementedException();
+            string targetFile = Path.Combine(baseDirectory, s_queueDirectory, id + s_base_filename);
+            if (!File.Exists(targetFile))
+            {
+                return null;
+            }
+            string result = File.ReadAllText(targetFile);
+            StorableEventQueue queue = JsonConvert.DeserializeObject<StorableEventQueue>(result);
+            return new DurableEventMonitoredItemQueue(queue);
         }
 
         /// <summary>
         /// Restore a DataChange queue
         /// </summary>
-        public IDataChangeMonitoredItemQueue RestoreDataChangeQueue(uint id)
+        public IDataChangeMonitoredItemQueue RestoreDataChangeQueue(uint id, string baseDirectory)
         {
-            throw new NotImplementedException();
+            string targetFile = Path.Combine(baseDirectory, s_queueDirectory, id + s_base_filename);
+            if (!File.Exists(targetFile))
+            {
+                return null;
+            }
+            string result = File.ReadAllText(targetFile);
+            StorableDataChangeQueue queue = JsonConvert.DeserializeObject<StorableDataChangeQueue>(result);
+            return new DurableDataChangeMonitoredItemQueue(queue);
         }
 
         /// <inheritdoc/>
@@ -160,57 +183,4 @@ namespace Quickstarts.Servers
             m_eventQueues = null;
         }
     }
-
-    public class DurableEventMonitoredItemQueue : EventMonitoredItemQueue
-    {
-        /// <summary>
-        /// Invoked when the queue is disposed
-        /// </summary>
-        public event EventHandler Disposed;
-
-        /// <summary>
-        /// Creates an empty queue.
-        /// </summary>
-        public DurableEventMonitoredItemQueue(bool createDurable, uint monitoredItemId) : base(false, monitoredItemId)
-        {
-            IsDurable = createDurable;
-        }
-
-        #region Public Methods
-        /// <inheritdoc/>
-        public override bool IsDurable { get; }
-
-        public override void Dispose()
-        {
-            Disposed?.Invoke(this, new EventArgs());
-        }
-        #endregion
-    }
-
-    public class DurableDataChangeMonitoredItemQueue : DataChangeMonitoredItemQueue
-    {
-        /// <summary>
-        /// Invoked when the queue is disposed
-        /// </summary>
-        public event EventHandler Disposed;
-
-        /// <summary>
-        /// Creates an empty queue.
-        /// </summary>
-        public DurableDataChangeMonitoredItemQueue(bool createDurable, uint monitoredItemId) : base(false, monitoredItemId)
-        {
-            IsDurable = createDurable;
-        }
-
-        #region Public Methods
-        /// <inheritdoc/>
-        public override bool IsDurable { get; }
-
-        public override void Dispose()
-        {
-            Disposed?.Invoke(this, new EventArgs());
-        }
-        #endregion
-    }
-
 }

@@ -337,10 +337,22 @@ namespace Opc.Ua.Server
 
         #region Private Fields
         private readonly uint m_monitoredItemId;
-        private DataValue[] m_values;
-        private ServiceResult[] m_errors;
-        private int m_start;
-        private int m_end;
+        /// <summary>
+        /// the stored data values
+        /// </summary>
+        protected DataValue[] m_values;
+        /// <summary>
+        /// the stored errors
+        /// </summary>
+        protected ServiceResult[] m_errors;
+        /// <summary>
+        /// the start of the buffer
+        /// </summary>
+        protected int m_start;
+        /// <summary>
+        /// the end of the buffer
+        /// </summary>
+        protected int m_end;
         #endregion
     }
 }

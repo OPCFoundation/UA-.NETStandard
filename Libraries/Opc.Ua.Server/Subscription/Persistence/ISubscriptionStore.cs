@@ -34,20 +34,42 @@ using Newtonsoft.Json;
 
 namespace Opc.Ua.Server
 {
-#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
+    /// <summary>
+    /// Interface for storing subscriptions on server shutdown and restoring on startup
+    /// </summary>
     public interface ISubscriptionStore
     {
+        /// <summary>
+        /// Restore subscriptions from storage, called on server startup
+        /// </summary>
+        /// <returns>the templates to restore the susbscriptions from</returns>
         IEnumerable<IStoredSubscription> RestoreSubscriptions();
-        void StoreSubscriptions(IEnumerable<IStoredSubscription> subscriptions);
+        /// <summary>
+        /// Store subscriptions in storage, called on server shutdown
+        /// </summary>
+        /// <param name="subscriptions">the subscription templates to sture</param>
+        /// <returns>true if storing was successful</returns>
+        bool StoreSubscriptions(IEnumerable<IStoredSubscription> subscriptions);
+
+        /// <summary>
+        /// Restore a Monitored Item Queue from storage
+        /// </summary>
+        /// <param name="monitoredItemId">Id of monitored item owning the the queue</param>
+        /// <returns>the queue</returns>
         IDataChangeMonitoredItemQueue RestoreDataChangeMonitoredItemQueue(uint monitoredItemId);
+
+        /// <summary>
+        /// Restore an event Monitored Item Queue from storage
+        /// </summary>
+        /// <param name="monitoredItemId">Id of the Monitored Item owning the queue</param>
+        /// <returns>the queue</returns>
         IEventMonitoredItemQueue RestoreEventMonitoredItemQueue(uint monitoredItemId);
 
         /// <summary>
         /// Provide created Subscriptiosn incl MonitoredItems to SubscriptionStore, to signal cleanup can take place
         /// The store shall clean all stored subscriptions, monitoredItems, and only keep the persitent queues for the monitoredItemIds provided
-        /// <paramref name="createdSubscriptions"/> key = subscription id, value = monitoredItems
+        /// <param name="createdSubscriptions"> key = subscription id, value = monitoredItems </param>
         /// </summary>
         void OnSubscriptionRestoreComplete(Dictionary<uint, uint[]> createdSubscriptions);
     }
-#pragma warning restore CS1591 // Missing XML comment for publicly visible type or member
 }

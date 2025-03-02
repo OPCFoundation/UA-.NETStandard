@@ -161,7 +161,17 @@ namespace Opc.Ua.Sample
             if (storedMonitoredItem.QueueSize > 1)
             {
                 IDataChangeMonitoredItemQueue queue = subscriptionStore.RestoreDataChangeMonitoredItemQueue(storedMonitoredItem.Id);
-                m_queue = new DataChangeQueueHandler(queue, storedMonitoredItem.DiscardOldest, storedMonitoredItem.SamplingInterval);
+
+                if (queue != null)
+                {
+                    m_queue = new DataChangeQueueHandler(queue, storedMonitoredItem.DiscardOldest, storedMonitoredItem.SamplingInterval);
+                }
+                else
+                {
+                    m_queue = new DataChangeQueueHandler(storedMonitoredItem.Id, false, m_monitoredItemQueueFactory);
+                    m_queue.SetQueueSize(storedMonitoredItem.QueueSize, storedMonitoredItem.DiscardOldest, storedMonitoredItem.DiagnosticsMasks);
+                    m_queue.SetSamplingInterval(storedMonitoredItem.SamplingInterval);
+                }
             }
         }
         #endregion
