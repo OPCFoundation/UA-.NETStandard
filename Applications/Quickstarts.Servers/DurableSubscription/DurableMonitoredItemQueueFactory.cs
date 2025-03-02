@@ -149,8 +149,12 @@ namespace Quickstarts.Servers
                 return null;
             }
             string result = File.ReadAllText(targetFile);
-            StorableEventQueue queue = JsonConvert.DeserializeObject<StorableEventQueue>(result);
-            return new DurableEventMonitoredItemQueue(queue);
+            StorableEventQueue template = JsonConvert.DeserializeObject<StorableEventQueue>(result);
+
+            var queue = new DurableEventMonitoredItemQueue(template);
+            m_eventQueues.AddOrUpdate(id, queue, (_, _) => queue);
+
+            return queue;
         }
 
         /// <summary>
@@ -164,8 +168,12 @@ namespace Quickstarts.Servers
                 return null;
             }
             string result = File.ReadAllText(targetFile);
-            StorableDataChangeQueue queue = JsonConvert.DeserializeObject<StorableDataChangeQueue>(result);
-            return new DurableDataChangeMonitoredItemQueue(queue);
+            StorableDataChangeQueue template = JsonConvert.DeserializeObject<StorableDataChangeQueue>(result);
+
+            var queue = new DurableDataChangeMonitoredItemQueue(template);
+            m_dataChangeQueues.AddOrUpdate(id, queue, (_, _) => queue);
+
+            return queue;
         }
 
         /// <inheritdoc/>
