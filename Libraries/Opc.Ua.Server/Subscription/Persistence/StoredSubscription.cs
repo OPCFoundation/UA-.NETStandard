@@ -27,49 +27,103 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
 using System.Collections.Generic;
-using System.IO;
-using Newtonsoft.Json;
 
 namespace Opc.Ua.Server
 {
-#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
+    /// <summary>
+    /// A subscription in a format to be persited by an <see cref="ISubscriptionStore"/>
+    /// </summary>
     public interface IStoredSubscription
     {
+        /// <summary>
+        /// The Id of the subscription
+        /// </summary>
         uint Id { get; set; }
+        /// <summary>
+        /// If the subscription is a durable susbscrition
+        /// </summary>
         bool IsDurable { get; set; }
-        int LastSentMessage { get; set; }
+        /// <summary>
+        /// The lifetime counter 
+        /// </summary>
         uint LifetimeCounter { get; set; }
-        uint MaxKeepaliveCount { get; set; }
+        /// <summary>
+        /// The max lifetime count
+        /// </summary>
         uint MaxLifetimeCount { get; set; }
+        /// <summary>
+        /// the max keepalive count
+        /// </summary>
+        uint MaxKeepaliveCount { get; set; }
+        /// <summary>
+        /// The max message count
+        /// </summary>
         uint MaxMessageCount { get; set; }
+        /// <summary>
+        /// The max notifications being sent to a client in a single publish message
+        /// </summary>
         uint MaxNotificationsPerPublish { get; set; }
+        /// <summary>
+        /// The monitored items being owned by the subscription
+        /// </summary>
         IEnumerable<IStoredMonitoredItem> MonitoredItems { get; set; }
+        /// <summary>
+        /// The priority of the subscription
+        /// </summary>
         byte Priority { get; set; }
+        /// <summary>
+        /// The publishing interval
+        /// </summary>
         double PublishingInterval { get; set; }
+        /// <summary>
+        /// The last messages sent to the client / queued for sending
+        /// </summary>
         List<NotificationMessage> SentMessages { get; set; }
+        /// <summary>
+        /// The last message sent by the subscription
+        /// </summary>
+        int LastSentMessage { get; set; }
+        /// <summary>
+        /// The sequence number
+        /// </summary>
         long SequenceNumber { get; set; }
+        /// <summary>
+        /// The user identity of the subscription
+        /// </summary>
         UserIdentityToken UserIdentityToken { get; set; }
     }
 
+    /// <inheritdoc/>
     public class StoredSubscription : IStoredSubscription
     {
+        /// <inheritdoc/>
         public uint Id { get; set; }
+        /// <inheritdoc/>
         public uint LifetimeCounter { get; set; }
+        /// <inheritdoc/>
         public uint MaxLifetimeCount { get; set; }
+        /// <inheritdoc/>
         public uint MaxKeepaliveCount { get; set; }
+        /// <inheritdoc/>
         public uint MaxMessageCount { get; set; }
+        /// <inheritdoc/>
         public uint MaxNotificationsPerPublish { get; set; }
+        /// <inheritdoc/>
         public double PublishingInterval { get; set; }
+        /// <inheritdoc/>
         public byte Priority { get; set; }
+        /// <inheritdoc/>
         public UserIdentityToken UserIdentityToken { get; set; }
+        /// <inheritdoc/>
         public int LastSentMessage { get; set; }
+        /// <inheritdoc/>
         public bool IsDurable { get; set; }
+        /// <inheritdoc/>
         public long SequenceNumber { get; set; }
+        /// <inheritdoc/>
         public List<NotificationMessage> SentMessages { get; set; }
+        /// <inheritdoc/>
         public IEnumerable<IStoredMonitoredItem> MonitoredItems { get; set; }
     }
-
-#pragma warning restore CS1591 // Missing XML comment for publicly visible type or member
 }

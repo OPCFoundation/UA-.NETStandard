@@ -45,7 +45,7 @@ More samples based on the official [Nuget](https://www.nuget.org/packages/OPCFou
 - **Thread Safety and Locking**: Improved thread safety and reduced locking in secure channel operations.
 - **Audit and Redaction**: New interfaces for auditing and redacting sensitive information.
 
-#### **New in 1.05.377.**
+#### **New in 1.05.376.**
 * Support for [Durable Subscriptions](Docs/DurableSubscription.md)
 
 #### **New in 1.05.375**

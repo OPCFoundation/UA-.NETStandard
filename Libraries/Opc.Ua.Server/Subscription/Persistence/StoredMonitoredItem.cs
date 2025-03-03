@@ -27,72 +27,162 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
-using System.Collections.Generic;
-using System.IO;
-using Newtonsoft.Json;
-
 namespace Opc.Ua.Server
 {
-#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
+    /// <summary>
+    /// A monitored item in a format to be persited by an <see cref="ISubscriptionStore"/>
+    /// </summary>
     public interface IStoredMonitoredItem
     {
         /// <summary>
         /// If the item was restored by a node manager
         /// </summary>
         bool IsRestored { get; set; }
+        /// <summary>
+        /// Alwasys report Updates
+        /// </summary>
         bool AlwaysReportUpdates { get; set; }
+        /// <summary>
+        /// The attribute to monitor
+        /// </summary>
         uint AttributeId { get; set; }
+        /// <summary>
+        /// Identifier of the client
+        /// </summary>
         uint ClientHandle { get; set; }
+        /// <summary>
+        /// The diagnostics masks
+        /// </summary>
         DiagnosticsMasks DiagnosticsMasks { get; set; }
+        /// <summary>
+        /// If the oldes or newest entry shall be discarded on queue overflw
+        /// </summary>
         bool DiscardOldest { get; set; }
+        /// <summary>
+        /// The encoding to use
+        /// </summary>
         QualifiedName Encoding { get; set; }
-        MonitoringFilter FilterToUse { get; set; }
-        uint Id { get; set; }
-        string IndexRange { get; set; }
-        bool IsDurable { get; set; }
-        ServiceResult LastError { get; set; }
-        DataValue LastValue { get; set; }
-        MonitoringMode MonitoringMode { get; set; }
-        NodeId NodeId { get; set; }
-        MonitoringFilter OriginalFilter { get; set; }
-        uint QueueSize { get; set; }
-        double Range { get; set; }
-        double SamplingInterval { get; set; }
-        int SourceSamplingInterval { get; set; }
-        uint SubscriptionId { get; set; }
-        TimestampsToReturn TimestampsToReturn { get; set; }
-        int TypeMask { get; set; }
-        NumericRange ParsedIndexRange { get; set; }
-    }
 
+        /// <summary>
+        /// The Id of the monitored Item
+        /// </summary>
+        uint Id { get; set; }
+        /// <summary>
+        /// The Index Range
+        /// </summary>
+        string IndexRange { get; set; }
+        /// <summary>
+        /// The parsed index range
+        /// </summary>
+        NumericRange ParsedIndexRange { get; set; }
+        /// <summary>
+        /// If the monitored item is child of a durable subscription
+        /// </summary>
+        bool IsDurable { get; set; }
+        /// <summary>
+        /// The last error to notify
+        /// </summary>
+        ServiceResult LastError { get; set; }
+        /// <summary>
+        /// THe last value to notify
+        /// </summary>
+        DataValue LastValue { get; set; }
+        /// <summary>
+        /// The Monitoring Mode
+        /// </summary>
+        MonitoringMode MonitoringMode { get; set; }
+        /// <summary>
+        /// The NodeId being monitored
+        /// </summary>
+        NodeId NodeId { get; set; }
+        /// <summary>
+        /// The monitoring filter to use
+        /// </summary>
+        MonitoringFilter FilterToUse { get; set; }
+        /// <summary>
+        /// The original monitoring filter
+        /// </summary>
+        MonitoringFilter OriginalFilter { get; set; }
+        /// <summary>
+        /// The queue size
+        /// </summary>
+        uint QueueSize { get; set; }
+        /// <summary>
+        /// The Range
+        /// </summary>
+        double Range { get; set; }
+        /// <summary>
+        /// The sampling invterval to use
+        /// </summary>
+        double SamplingInterval { get; set; }
+        /// <summary>
+        /// The source sampling interval
+        /// </summary>
+        int SourceSamplingInterval { get; set; }
+        /// <summary>
+        /// The id of the subscription owning the monitored item
+        /// </summary>
+        uint SubscriptionId { get; set; }
+        /// <summary>
+        /// The timestamps to return
+        /// </summary>
+        TimestampsToReturn TimestampsToReturn { get; set; }
+        /// <summary>
+        /// The type mask
+        /// </summary>
+        int TypeMask { get; set; }
+    }
+    /// <inheritdoc/>
     public class StoredMonitoredItem : IStoredMonitoredItem
     {
+        /// <inheritdoc/>
         public bool IsRestored { get; set; } = false;
+        /// <inheritdoc/>
         public uint SubscriptionId { get; set; }
+        /// <inheritdoc/>
         public uint Id { get; set; }
+        /// <inheritdoc/>
         public int TypeMask { get; set; }
+        /// <inheritdoc/>
         public NodeId NodeId { get; set; }
+        /// <inheritdoc/>
         public uint AttributeId { get; set; }
+        /// <inheritdoc/>
         public string IndexRange { get; set; }
+        /// <inheritdoc/>
         public QualifiedName Encoding { get; set; }
+        /// <inheritdoc/>
         public DiagnosticsMasks DiagnosticsMasks { get; set; }
+        /// <inheritdoc/>
         public TimestampsToReturn TimestampsToReturn { get; set; }
+        /// <inheritdoc/>
         public uint ClientHandle { get; set; }
+        /// <inheritdoc/>
         public MonitoringMode MonitoringMode { get; set; }
+        /// <inheritdoc/>
         public MonitoringFilter OriginalFilter { get; set; }
+        /// <inheritdoc/>
         public MonitoringFilter FilterToUse { get; set; }
+        /// <inheritdoc/>
         public double Range { get; set; }
+        /// <inheritdoc/>
         public double SamplingInterval { get; set; }
+        /// <inheritdoc/>
         public uint QueueSize { get; set; }
+        /// <inheritdoc/>
         public bool DiscardOldest { get; set; }
+        /// <inheritdoc/>
         public int SourceSamplingInterval { get; set; }
+        /// <inheritdoc/>
         public bool AlwaysReportUpdates { get; set; }
+        /// <inheritdoc/>
         public bool IsDurable { get; set; }
+        /// <inheritdoc/>
         public DataValue LastValue { get; set; }
+        /// <inheritdoc/>
         public ServiceResult LastError { get; set; }
+        /// <inheritdoc/>
         public NumericRange ParsedIndexRange { get; set; }
     }
 
-#pragma warning restore CS1591 // Missing XML comment for publicly visible type or member
 }
