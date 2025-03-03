@@ -29,10 +29,6 @@
 
 
 using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.IO;
-using Newtonsoft.Json;
 using Opc.Ua;
 using Opc.Ua.Server;
 

@@ -290,7 +290,7 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Restores a monitored item after a restard and calls StartMonitoring().
+        /// Restores a monitored item after a server restart and calls StartMonitoring().
         /// </summary>
         public virtual MonitoredItem RestoreMonitoredItem(
             object managerHandle,

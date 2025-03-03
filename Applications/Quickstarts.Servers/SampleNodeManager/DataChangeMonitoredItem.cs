@@ -157,6 +157,8 @@ namespace Opc.Ua.Sample
             m_filter = storedMonitoredItem.FilterToUse as DataChangeFilter;
             m_range = storedMonitoredItem.Range;
             m_alwaysReportUpdates = storedMonitoredItem.AlwaysReportUpdates;
+            m_lastValue = storedMonitoredItem.LastValue;
+            m_lastError = storedMonitoredItem.LastError;
 
             if (storedMonitoredItem.QueueSize > 1)
             {

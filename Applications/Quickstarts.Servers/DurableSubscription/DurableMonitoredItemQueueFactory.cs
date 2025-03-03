@@ -42,6 +42,7 @@ namespace Quickstarts.Servers
     /// </summary>
     public class DurableMonitoredItemQueueFactory : IMonitoredItemQueueFactory
     {
+        private static readonly JsonSerializerSettings s_settings = new JsonSerializerSettings { TypeNameHandling = TypeNameHandling.All };
         private static readonly string s_queueDirectory = "Queues";
         private static readonly string s_base_filename = "_queue.txt";
         private ConcurrentDictionary<uint, DurableDataChangeMonitoredItemQueue> m_dataChangeQueues = new ConcurrentDictionary<uint, DurableDataChangeMonitoredItemQueue>();
@@ -117,7 +118,7 @@ namespace Quickstarts.Servers
                     if (m_dataChangeQueues.TryGetValue(id, out DurableDataChangeMonitoredItemQueue queue))
                     {
                         //store
-                        string result = JsonConvert.SerializeObject(queue.ToStorableQueue());
+                        string result = JsonConvert.SerializeObject(queue.ToStorableQueue(), s_settings);
                         File.WriteAllText(Path.Combine(targetPath, id + s_base_filename), result);
                         continue;
                     }
@@ -125,7 +126,7 @@ namespace Quickstarts.Servers
                     if (m_eventQueues.TryGetValue(id, out DurableEventMonitoredItemQueue eventQueue))
                     {
                         //store
-                        string result = JsonConvert.SerializeObject(eventQueue.ToStorableQueue());
+                        string result = JsonConvert.SerializeObject(eventQueue.ToStorableQueue(), s_settings);
                         File.WriteAllText(Path.Combine(targetPath, id + s_base_filename), result);
                         continue;
                     }
@@ -149,7 +150,7 @@ namespace Quickstarts.Servers
                 return null;
             }
             string result = File.ReadAllText(targetFile);
-            StorableEventQueue template = JsonConvert.DeserializeObject<StorableEventQueue>(result);
+            StorableEventQueue template = JsonConvert.DeserializeObject<StorableEventQueue>(result, s_settings);
 
             var queue = new DurableEventMonitoredItemQueue(template);
             m_eventQueues.AddOrUpdate(id, queue, (_, _) => queue);
@@ -168,7 +169,7 @@ namespace Quickstarts.Servers
                 return null;
             }
             string result = File.ReadAllText(targetFile);
-            StorableDataChangeQueue template = JsonConvert.DeserializeObject<StorableDataChangeQueue>(result);
+            StorableDataChangeQueue template = JsonConvert.DeserializeObject<StorableDataChangeQueue>(result, s_settings);
 
             var queue = new DurableDataChangeMonitoredItemQueue(template);
             m_dataChangeQueues.AddOrUpdate(id, queue, (_, _) => queue);
