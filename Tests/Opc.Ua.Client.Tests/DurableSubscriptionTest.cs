@@ -325,9 +325,10 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test, Order(200)]
-        [TestCase(false, TestName = "Validate Session Close")]
-        [TestCase(true, TestName = "Validate Transfer")]
-        public async Task TestSessionTransfer(bool setSubscriptionDurable)
+        [TestCase(false, false, TestName = "Validate Session Close")]
+        [TestCase(true, false, TestName = "Validate Transfer")]
+        [TestCase(true, true, TestName = "Restart of Server")]
+        public async Task TestSessionTransfer(bool setSubscriptionDurable, bool restartServer)
         {
             if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
             {
@@ -415,11 +416,20 @@ namespace Opc.Ua.Client.Tests
             SubscriptionCollection subscriptions = new SubscriptionCollection(Session.Subscriptions);
             DateTime closeTime = DateTime.UtcNow;
             TestContext.Out.WriteLine("Session Id {0} Closed at {1}", Session.SessionId, closeTime);
-            
+
             Session.Close(closeChannel: false);
 
-            // Subscription should time out with initial lifetime count
-            await Task.Delay(3000).ConfigureAwait(false);
+            if (restartServer)
+            {
+                // if durable subscription the server will restore the subscription
+                ReferenceServer.Stop();
+                ReferenceServer.Start(ServerFixture.Config);
+            }
+            else
+            {
+                // Subscription should time out with initial lifetime count
+                await Task.Delay(3000).ConfigureAwait(false);
+            }
 
             DateTime restartTime = DateTime.UtcNow;
             ISession transferSession = await ClientFixture.ConnectAsync(ServerUrl,
@@ -430,9 +440,9 @@ namespace Opc.Ua.Client.Tests
 
             Assert.AreEqual(setSubscriptionDurable, result,
                 "SetSubscriptionDurable = " + setSubscriptionDurable.ToString() +
-                " Transfer Result " + result.ToString() + " Expected " + setSubscriptionDurable );
+                " Transfer Result " + result.ToString() + " Expected " + setSubscriptionDurable);
 
-            if (setSubscriptionDurable)
+            if (setSubscriptionDurable && !restartServer)
             {
                 // New Session and Transfer
                 await Task.Delay(4000).ConfigureAwait(false);
@@ -475,6 +485,10 @@ namespace Opc.Ua.Client.Tests
                     }
                 }
 
+
+            }
+            else if (setSubscriptionDurable)
+            {
                 Assert.True(await transferSession.RemoveSubscriptionAsync(subscription));
             }
         }
@@ -600,7 +614,7 @@ namespace Opc.Ua.Client.Tests
                                 referenceDescription.NodeId.Identifier,
                                 referenceDescription.NodeId.NamespaceIndex);
 
-                            if ( recreated.IsNullNodeId )
+                            if (recreated.IsNullNodeId)
                             {
                                 TestContext.Out.WriteLine("Subscription Reference {0} Recreated Node is Null",
                                     referenceDescription.BrowseName.Name);
@@ -714,7 +728,7 @@ namespace Opc.Ua.Client.Tests
             return mi;
         }
 
-        private string DateTimeMs( DateTime dateTime )
+        private string DateTimeMs(DateTime dateTime)
         {
             string readable = dateTime.ToLongTimeString() + "." +
                 dateTime.Millisecond.ToString("D3");
