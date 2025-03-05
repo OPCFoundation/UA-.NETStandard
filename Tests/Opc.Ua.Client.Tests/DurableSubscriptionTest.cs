@@ -266,7 +266,7 @@ namespace Opc.Ua.Client.Tests
             Assert.True(await Session.RemoveSubscriptionAsync(subscription));
         }
 
-        [Test]
+        [Test, Order(160)]
         public void SetSubscriptionDurableFailsWhenMIExists()
         {
             var subscription = new TestableSubscription(Session.DefaultSubscription) {
@@ -303,7 +303,7 @@ namespace Opc.Ua.Client.Tests
             Assert.True(Session.RemoveSubscription(subscription));
         }
 
-        [Test]
+        [Test, Order(180)]
         public void SetSubscriptionDurableFailsWhenSubscriptionDoesNotExist()
         {
             var subscription = new TestableSubscription(Session.DefaultSubscription) {
@@ -404,6 +404,9 @@ namespace Opc.Ua.Client.Tests
                     monitoredItemsList.Add(monitoredItem);
                 }
             }
+
+            //Add Event Monitored Item
+            monitoredItemsList.Add(CreateEventMonitoredItem(100));
 
             DateTime startTime = DateTime.UtcNow;
 
@@ -657,8 +660,8 @@ namespace Opc.Ua.Client.Tests
                             publishingIntervalNodeId = recreated;
                         }
                     }
+                    break;
                 }
-                break;
             }
 
             Assert.IsNotNull(monitoredItemCountNodeId, "Unable to find MonitoredItemCount");
