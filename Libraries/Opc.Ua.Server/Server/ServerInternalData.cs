@@ -31,7 +31,6 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Security.Cryptography.X509Certificates;
-using CommunityToolkit.Diagnostics;
 using Opc.Ua.Configuration;
 using Opc.Ua.Security.Certificates;
 
@@ -866,8 +865,8 @@ namespace Opc.Ua.Server
         /// <param name="messageContext">Server message context.</param>
         public void Initialize(ServerProperties serverDescription, IServiceMessageContext messageContext)
         {
-            Guard.IsNotNull(serverDescription);
-            Guard.IsNotNull(messageContext);
+            if (serverDescription == null) throw new ArgumentNullException(nameof(serverDescription));
+            if (messageContext == null) throw new ArgumentNullException(nameof(messageContext));
 
             lock (m_dataLock)
             {
@@ -973,7 +972,7 @@ namespace Opc.Ua.Server
         /// <param name="action">Action to perform on the server status object.</param>
         public void UpdateServerStatus(Action<ServerStatusValue> action)
         {
-            Guard.IsNotNull(action);
+            if (action == null) throw new ArgumentNullException(nameof(action));
 
             lock (m_dataLock)
             {

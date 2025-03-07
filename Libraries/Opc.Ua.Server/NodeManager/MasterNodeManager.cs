@@ -31,7 +31,6 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading;
-using CommunityToolkit.Diagnostics;
 using Opc.Ua.Server.NodeManager;
 
 namespace Opc.Ua.Server
@@ -53,9 +52,9 @@ namespace Opc.Ua.Server
             string dynamicNamespaceUri,
             params INodeManager[] additionalManagers)
         {
-            Guard.IsNotNull(server);
-            Guard.IsNotNull(configuration);
-            Guard.IsNotNull(mainNodeManagerFactory);
+            if (server == null) throw new ArgumentNullException(nameof(server));
+            if (configuration == null) throw new ArgumentNullException(nameof(configuration));
+            if (mainNodeManagerFactory == null) throw new ArgumentNullException(nameof(mainNodeManagerFactory));
 
             m_server = server;
             m_configuration = configuration;
