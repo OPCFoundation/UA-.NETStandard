@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -36,12 +36,29 @@ using System.Threading.Tasks;
 using Opc.Ua;
 using Opc.Ua.Configuration;
 using Opc.Ua.Server;
+using static System.Net.Mime.MediaTypeNames;
 
 namespace Quickstarts
 {
-    public class UAServer<T> where T : StandardServer, new()
+    public class UAServer<T> where T : IStandardServer
     {
-        public ApplicationInstance Application => m_application;
+        /// <summary>
+        /// Constructor of the server.
+        /// </summary>
+        /// <param name="applicationInstance">Application instance.</param>
+        /// <param name="server">Server of the specified generic type.</param>
+        /// <param name="writer">The text output.</param>
+        public UAServer(
+            IApplicationInstance applicationInstance,
+            T server,
+            TextWriter writer)
+        {
+            m_application = applicationInstance;
+            m_server = server;
+            m_output = writer;
+        }
+
+        public IApplicationInstance Application => m_application;
         public ApplicationConfiguration Configuration => m_application.ApplicationConfiguration;
 
         public bool AutoAccept { get; set; }
@@ -49,15 +66,6 @@ namespace Quickstarts
 
         public ExitCode ExitCode { get; private set; }
         public T Server => m_server;
-
-        /// <summary>
-        /// Ctor of the server.
-        /// </summary>
-        /// <param name="writer">The text output.</param>
-        public UAServer(TextWriter writer)
-        {
-            m_output = writer;
-        }
 
         /// <summary>
         /// Load the application configuration.
@@ -69,13 +77,12 @@ namespace Quickstarts
                 ExitCode = ExitCode.ErrorNotStarted;
 
                 ApplicationInstance.MessageDlg = new ApplicationMessageDlg(m_output);
-                CertificatePasswordProvider PasswordProvider = new CertificatePasswordProvider(Password);
-                m_application = new ApplicationInstance {
-                    ApplicationName = applicationName,
-                    ApplicationType = ApplicationType.Server,
-                    ConfigSectionName = configSectionName,
-                    CertificatePasswordProvider = PasswordProvider
-                };
+                var passwordProvider = new CertificatePasswordProvider(Password);
+
+                m_application.ApplicationName = applicationName;
+                m_application.ApplicationType = ApplicationType.Server;
+                m_application.ConfigSectionName = configSectionName;
+                m_application.CertificatePasswordProvider = passwordProvider;
 
                 // load the application configuration.
                 await m_application.LoadApplicationConfiguration(false).ConfigureAwait(false);
@@ -125,8 +132,6 @@ namespace Quickstarts
         {
             try
             {
-                // create the server.
-                m_server = new T();
                 if (nodeManagerFactories != null)
                 {
                     foreach (var factory in nodeManagerFactories)
@@ -148,9 +153,6 @@ namespace Quickstarts
         {
             try
             {
-                // create the server.
-                m_server = m_server ?? new T();
-
                 // start the server
                 await m_application.Start(m_server).ConfigureAwait(false);
 
@@ -190,7 +192,6 @@ namespace Quickstarts
                     using (T server = m_server)
                     {
                         // Stop status thread
-                        m_server = null;
                         await m_status.ConfigureAwait(false);
 
                         // Stop server and dispose
@@ -281,8 +282,8 @@ namespace Quickstarts
 
         #region Private Members
         private readonly TextWriter m_output;
-        private ApplicationInstance m_application;
-        private T m_server;
+        private readonly T m_server;
+        private readonly IApplicationInstance m_application;
         private Task m_status;
         private DateTime m_lastEventTime;
         #endregion
