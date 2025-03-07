@@ -183,6 +183,32 @@ namespace Opc.Ua.Server
                 return monitoredItem;
             }
         }
+        /// <summary>
+        /// Restore a MonitoredItem after a restart
+        /// </summary>
+        public MonitoredItem RestoreMonitoredItem(
+            INodeManager nodeManager,
+            object handle,
+            IStoredMonitoredItem storedMonitoredItem)
+        {
+            lock (m_lock)
+            {
+                // limit the queue size.
+                uint revisedQueueSize = CalculateRevisedQueueSize(storedMonitoredItem.IsDurable, storedMonitoredItem.QueueSize);
+
+                // create the monitored item.
+                MonitoredItem monitoredItem = new MonitoredItem(
+                    m_server,
+                    nodeManager,
+                    handle,
+                    storedMonitoredItem);
+
+                // save the monitored item.
+                m_monitoredItems.Add(monitoredItem.Id, monitoredItem);
+
+                return monitoredItem;
+            }
+        }
 
         //calculates a revised queue size based on the application confiugration limits
         private uint CalculateRevisedQueueSize(bool isDurable, uint queueSize)

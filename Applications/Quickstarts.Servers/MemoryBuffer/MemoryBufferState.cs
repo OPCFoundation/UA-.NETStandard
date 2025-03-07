@@ -533,6 +533,59 @@ namespace MemoryBuffer
         }
 
         /// <summary>
+        /// Restores data change monitored item after a server restart.
+        /// </summary>
+        public MemoryBufferMonitoredItem RestoreDataChangeItem(
+            ServerSystemContext context,
+            MemoryTagState tag,
+           IStoredMonitoredItem storedMonitoredItem)
+        {
+            lock (m_dataLock)
+            {
+                MemoryBufferMonitoredItem monitoredItem = new MemoryBufferMonitoredItem(
+                    m_server,
+                    m_nodeManager,
+                    this,
+                    tag.Offset,
+                    storedMonitoredItem);
+
+                if (storedMonitoredItem.AttributeId != Attributes.Value)
+                {
+                    m_nonValueMonitoredItems.Add(monitoredItem.Id, monitoredItem);
+                    return monitoredItem;
+                }
+
+                int elementCount = (int)(SizeInBytes.Value / ElementSize);
+
+                if (m_monitoringTable == null)
+                {
+                    m_monitoringTable = new MemoryBufferMonitoredItem[elementCount][];
+                    m_scanTimer = new Timer(DoScan, null, 100, 100);
+                }
+
+                int elementOffet = (int)(tag.Offset / ElementSize);
+
+                MemoryBufferMonitoredItem[] monitoredItems = m_monitoringTable[elementOffet];
+
+                if (monitoredItems == null)
+                {
+                    monitoredItems = new MemoryBufferMonitoredItem[1];
+                }
+                else
+                {
+                    monitoredItems = new MemoryBufferMonitoredItem[monitoredItems.Length + 1];
+                    m_monitoringTable[elementOffet].CopyTo(monitoredItems, 0);
+                }
+
+                monitoredItems[monitoredItems.Length - 1] = monitoredItem;
+                m_monitoringTable[elementOffet] = monitoredItems;
+                m_itemCount++;
+
+                return monitoredItem;
+            }
+        }
+
+        /// <summary>
         /// Scans the buffer and updates every other element.
         /// </summary>
         void DoScan(object state)
