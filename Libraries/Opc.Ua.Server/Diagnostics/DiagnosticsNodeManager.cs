@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -39,7 +39,7 @@ namespace Opc.Ua.Server
     /// <summary>
     /// A node manager the diagnostic information exposed by the server.
     /// </summary>
-    public class DiagnosticsNodeManager : CustomNodeManager2
+    public class DiagnosticsNodeManager : CustomNodeManager2, IDiagnosticsNodeManager
     {
         #region Constructors
         /// <summary>
@@ -113,7 +113,7 @@ namespace Opc.Ua.Server
         /// <remarks>
         /// The externalReferences is an out parameter that allows the node manager to link to nodes
         /// in other node managers. For example, the 'Objects' node is managed by the CoreNodeManager and
-        /// should have a reference to the root folder node(s) exposed by this node manager.  
+        /// should have a reference to the root folder node(s) exposed by this node manager.
         /// </remarks>
         public override void CreateAddressSpace(IDictionary<NodeId, IList<IReference>> externalReferences)
         {
@@ -1837,7 +1837,7 @@ namespace Opc.Ua.Server
         /// Returns an index for the NamespaceURI (Adds it to the server namespace table if it does not already exist).
         /// </summary>
         /// <remarks>
-        /// Returns the server's default index (1) if the namespaceUri is empty or null. 
+        /// Returns the server's default index (1) if the namespaceUri is empty or null.
         /// </remarks>
         public ushort GetNamespaceIndex(string namespaceUri)
         {
@@ -1860,7 +1860,7 @@ namespace Opc.Ua.Server
         {
             return null;
         }
-    
+
         public ILocalNode GetLocalNode(NodeId nodeId)
         {
             return null;
@@ -1896,7 +1896,7 @@ namespace Opc.Ua.Server
 
         public void DeleteNode(NodeId nodeId, bool deleteChildren, bool silent)
         {
-        }       
+        }
 
         public ILocalNode ReferenceSharedNode(
             ILocalNode source,
@@ -1915,7 +1915,7 @@ namespace Opc.Ua.Server
         {
             return null;
         }
-        
+
         public NodeId CreateUniqueNodeId()
         {
             return null;
@@ -1940,7 +1940,7 @@ namespace Opc.Ua.Server
         {
             return null;
         }
-                
+
         public NodeId CreateVariable(
             NodeId parentId,
             NodeId referenceTypeId,
@@ -2059,7 +2059,7 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Polls each monitored item which requires sample. 
+        /// Polls each monitored item which requires sample.
         /// </summary>
         private void DoSample(object state)
         {

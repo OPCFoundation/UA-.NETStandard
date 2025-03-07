@@ -35,8 +35,12 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using BenchmarkDotNet.Attributes;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NUnit.Framework;
+using Opc.Ua.Configuration;
+using Opc.Ua.Configuration.Extensions.DependencyInjection;
+using Opc.Ua.Server.Extensions.DependencyInjection;
 using Opc.Ua.Server.Tests;
 using Quickstarts.ReferenceServer;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
@@ -63,9 +67,9 @@ namespace Opc.Ua.Client.Tests
         public bool SingleSession { get; set; } = true;
         public int MaxChannelCount { get; set; } = 100;
         public bool SupportsExternalServerUrl { get; set; } = false;
-        public ServerFixture<ReferenceServer> ServerFixture { get; set; }
+        public ServerFixture<IReferenceServer> ServerFixture { get; set; }
         public ClientFixture ClientFixture { get; set; }
-        public ReferenceServer ReferenceServer { get; set; }
+        public IReferenceServer ReferenceServer { get; set; }
         public EndpointDescriptionCollection Endpoints { get; set; }
         public ReferenceDescriptionCollection ReferenceDescriptions { get; set; }
         public ISession Session { get; protected set; }
@@ -167,7 +171,7 @@ namespace Opc.Ua.Client.Tests
                 }
 
                 ServerUrl = new Uri(url);
-                
+
             }
 
             if (SingleSession)
@@ -192,8 +196,20 @@ namespace Opc.Ua.Client.Tests
             TextWriter writer)
         {
             {
+                IServiceCollection services = new ServiceCollection()
+                    .AddConfigurationServices()
+                    .AddServerServices()
+                    .AddScoped<IReferenceServer, ReferenceServer>();
+
+                IServiceProvider serviceProvider = services.BuildServiceProvider();
+
                 // start Ref server
-                ServerFixture = new ServerFixture<ReferenceServer>(enableTracing, disableActivityLogging) {
+                ServerFixture = new ServerFixture<IReferenceServer>(
+                    serviceProvider.GetRequiredService<IReferenceServer>(),
+                    serviceProvider.GetRequiredService<IApplicationInstance>(),
+                    enableTracing,
+                    disableActivityLogging)
+                {
                     UriScheme = UriScheme,
                     SecurityNone = securityNone,
                     AutoAccept = true,

@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -34,8 +34,13 @@ using System.IO;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.DependencyInjection;
 using Opc.Ua.Configuration;
+using Opc.Ua.Configuration.Extensions.DependencyInjection;
 using Opc.Ua.Gds.Client;
+using Opc.Ua.Server;
+using Opc.Ua.Server.Extensions.DependencyInjection;
+using Opc.Ua.Server.NodeManager;
 using Opc.Ua.Server.Tests;
 using Opc.Ua.Test;
 
@@ -364,7 +369,17 @@ namespace Opc.Ua.Gds.Tests
             {
                 try
                 {
-                    server = new GlobalDiscoveryTestServer(true);
+                    IServiceCollection services = new ServiceCollection()
+                        .AddConfigurationServices()
+                        .AddServerServices();
+
+                    IServiceProvider serviceProvider = services.BuildServiceProvider();
+
+                    server = new GlobalDiscoveryTestServer(
+                        serviceProvider.GetRequiredService<IApplicationInstance>(),
+                        serviceProvider.GetRequiredService<IServerInternal>(),
+                        serviceProvider.GetRequiredService<IMainNodeManagerFactory>(),
+                        true);
                     await server.StartServer(clean, testPort, storeType).ConfigureAwait(false);
                 }
                 catch (ServiceResultException sre)

@@ -32,8 +32,12 @@ using System.Globalization;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
+using Opc.Ua.Configuration;
+using Opc.Ua.Configuration.Extensions.DependencyInjection;
+using Opc.Ua.Server.Extensions.DependencyInjection;
 
 namespace Quickstarts.ReferenceServer
 {
@@ -81,6 +85,13 @@ namespace Quickstarts.ReferenceServer
                 { "ctt", "CTT mode, use to preset alarms for CTT testing.", c => cttMode = c != null },
             };
 
+            IServiceCollection services = new ServiceCollection()
+                .AddConfigurationServices()
+                .AddServerServices()
+                .AddScoped<IReferenceServer, ReferenceServer>();
+
+            IServiceProvider serviceProvider = services.BuildServiceProvider();
+
             try
             {
                 // parse command line and set options
@@ -92,7 +103,10 @@ namespace Quickstarts.ReferenceServer
                 }
 
                 // create the UA server
-                var server = new UAServer<ReferenceServer>(output) {
+                var server = new UAServer<IReferenceServer>(
+                    serviceProvider.GetRequiredService<IApplicationInstance>(),
+                    serviceProvider.GetRequiredService<IReferenceServer>(),
+                    output) {
                     AutoAccept = autoAccept,
                     Password = password
                 };
