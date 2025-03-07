@@ -230,7 +230,8 @@ namespace Opc.Ua.Server
             IList<MonitoredItemCreateRequest> itemsToCreate,
             IList<ServiceResult> errors,
             IList<MonitoringFilterResult> filterResults,
-            IList<IMonitoredItem> monitoredItems);
+            IList<IMonitoredItem> monitoredItems,
+            bool createDurable);
 
         /// <summary>
         /// Modifies a set of monitored items.
