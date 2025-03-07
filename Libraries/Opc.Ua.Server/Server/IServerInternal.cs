@@ -134,11 +134,6 @@ namespace Opc.Ua.Server
         ISubscriptionManager SubscriptionManager { get; }
 
         /// <summary>
-        /// The factory for (durable) monitored item queues
-        /// </summary>
-        IMonitoredItemQueueFactory MonitoredItemQueueFactory { get; }
-
-        /// <summary>
         /// Whether the server is currently running.
         /// </summary>
         /// <value>
@@ -203,6 +198,11 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <value>The aggregate manager.</value>
         AggregateManager AggregateManager { get; set; }
+
+        /// <summary>
+        /// The factory for durable monitored item queues
+        /// </summary>
+        IMonitoredItemQueueFactory MonitoredItemQueueFactory { get; }
 
         /// <summary>
         /// Initializes the server internal data object to be ready for usage.
@@ -296,5 +296,12 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="action">Action to perform on the server status object.</param>
         void UpdateServerStatus(Action<ServerStatusValue> action);
+
+        /// <summary>
+        /// Stores the MonitoredItemQueueFactory in the datastore.
+        /// </summary>
+        /// <param name="monitoredItemQueueFactory">The MonitoredItemQueueFactory.</param>
+        void SetMonitoredItemQueueFactory(
+            IMonitoredItemQueueFactory monitoredItemQueueFactory);
     }
 }
