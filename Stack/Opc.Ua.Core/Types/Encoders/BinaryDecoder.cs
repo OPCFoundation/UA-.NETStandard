@@ -12,6 +12,7 @@
 
 using System;
 using System.Buffers;
+using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Runtime.CompilerServices;
@@ -1555,6 +1556,16 @@ namespace Opc.Ua
             }
             return null;
         }
+
+        /// <inheritdoc/>
+        public uint ReadSwitchField(IList<string> switches, out string fieldName)
+        {
+            fieldName = null;
+            return ReadUInt32("SwitchField");
+        }
+
+        /// <inheritdoc/>
+        public uint ReadEncodingMask(IList<string> masks) => ReadUInt32("EncodingMask");
         #endregion
 
         #region Private Methods

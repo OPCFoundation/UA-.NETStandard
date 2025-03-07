@@ -121,7 +121,7 @@ namespace Opc.Ua.Gds.Server.Database
                 }
             }
 
-            NodeId nodeId = new NodeId();
+            NodeId nodeId = NodeId.Null;
             if (!NodeId.IsNull(application.ApplicationId))
             {
                 // verify node integrity

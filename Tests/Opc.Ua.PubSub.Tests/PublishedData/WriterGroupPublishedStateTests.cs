@@ -31,7 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using NUnit.Framework;
-using Opc.Ua.PubSub.Encoding;
+using PubSubEncoding = Opc.Ua.PubSub.Encoding;
 using Opc.Ua.PubSub.Tests.Encoding;
 using Opc.Ua.PubSub.PublishedData;
 using System.Reflection;
@@ -135,13 +135,13 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
             List<UaNetworkMessage> uaNetworkMessages = null;
             if (pubSubMessageType == PubSubMessageType.Uadp)
             {
-                uaNetworkMessagesList = MessagesHelper.GetUaDataNetworkMessages(networkMessages.Cast<UadpNetworkMessage>().ToList());
+                uaNetworkMessagesList = MessagesHelper.GetUaDataNetworkMessages(networkMessages.Cast<PubSubEncoding.UadpNetworkMessage>().ToList());
                 Assert.IsNotNull(uaNetworkMessagesList, "uaNetworkMessagesList should not be null");
                 uaNetworkMessages = ((IEnumerable<UaNetworkMessage>)uaNetworkMessagesList).Cast<UaNetworkMessage>().ToList();
             }
             if (pubSubMessageType == PubSubMessageType.Json)
             {
-                uaNetworkMessagesList = MessagesHelper.GetUaDataNetworkMessages(networkMessages.Cast<JsonNetworkMessage>().ToList());
+                uaNetworkMessagesList = MessagesHelper.GetUaDataNetworkMessages(networkMessages.Cast<PubSubEncoding.JsonNetworkMessage>().ToList());
                 uaNetworkMessages = ((IEnumerable<UaNetworkMessage>)uaNetworkMessagesList).Cast<UaNetworkMessage>().ToList();
             }
             Assert.IsNotNull(uaNetworkMessages, "uaNetworkMessages should not be null. Data entry is missing from configuration!?");
@@ -177,13 +177,13 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
 
                 if (pubSubMessageType == PubSubMessageType.Uadp)
                 {
-                    uaNetworkMessagesList = MessagesHelper.GetUaDataNetworkMessages(networkMessages.Cast<UadpNetworkMessage>().ToList());
+                    uaNetworkMessagesList = MessagesHelper.GetUaDataNetworkMessages(networkMessages.Cast<PubSubEncoding.UadpNetworkMessage>().ToList());
                     Assert.IsNotNull(uaNetworkMessagesList, "uaNetworkMessagesList shall not be null");
                     uaNetworkMessages = ((IEnumerable<UaNetworkMessage>)uaNetworkMessagesList).Cast<UaNetworkMessage>().ToList();
                 }
                 if (pubSubMessageType == PubSubMessageType.Json)
                 {
-                    uaNetworkMessagesList = MessagesHelper.GetUaDataNetworkMessages(networkMessages.Cast<JsonNetworkMessage>().ToList());
+                    uaNetworkMessagesList = MessagesHelper.GetUaDataNetworkMessages(networkMessages.Cast<PubSubEncoding.JsonNetworkMessage>().ToList());
                     uaNetworkMessages = ((IEnumerable<UaNetworkMessage>)uaNetworkMessagesList).Cast<UaNetworkMessage>().ToList();
                 }
                 Assert.IsNotNull(uaNetworkMessages, "uaNetworkMessages should not be null. Data entry is missing from configuration!?");

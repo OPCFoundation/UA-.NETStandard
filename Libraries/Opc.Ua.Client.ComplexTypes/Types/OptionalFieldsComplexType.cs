@@ -93,10 +93,7 @@ namespace Opc.Ua.Client.ComplexTypes
         {
             encoder.PushNamespace(XmlNamespace);
 
-            if (encoder.UseReversibleEncoding)
-            {
-                encoder.WriteUInt32("EncodingMask", m_encodingMask);
-            }
+            encoder.WriteEncodingMask(m_encodingMask);
 
             foreach (var property in GetPropertyEnumerator())
             {
@@ -118,7 +115,22 @@ namespace Opc.Ua.Client.ComplexTypes
         {
             decoder.PushNamespace(XmlNamespace);
 
-            m_encodingMask = decoder.ReadUInt32("EncodingMask");
+            m_encodingMask = decoder.ReadEncodingMask(null);
+
+            // try again if the mask is implicitly defined by the JSON keys
+            if (m_encodingMask == 0 && decoder is IJsonDecoder)
+            {
+                var masks = new StringCollection();
+                foreach (var property in GetPropertyEnumerator())
+                {
+                    if (property.IsOptional)
+                    {
+                        masks.Add(property.Name);
+                    }
+                }
+
+                m_encodingMask = decoder.ReadEncodingMask(masks);
+            }
 
             foreach (var property in GetPropertyEnumerator())
             {
@@ -132,6 +144,7 @@ namespace Opc.Ua.Client.ComplexTypes
 
                 DecodeProperty(decoder, property);
             }
+
             decoder.PopNamespace();
         }
 

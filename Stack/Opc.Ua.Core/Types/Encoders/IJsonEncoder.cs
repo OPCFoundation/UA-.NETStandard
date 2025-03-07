@@ -31,6 +31,11 @@ namespace Opc.Ua
         bool ForceNamespaceUri { get; set; }
 
         /// <summary>
+        /// Force the Json encoder to suppress UA specific artifacts needed for decoding.
+        /// </summary>
+        bool SuppressArtifacts { get; set; }
+
+        /// <summary>
         /// Push the begin of an array on the encoder stack.
         /// </summary>
         /// <param name="fieldName">The name of the array field.</param>

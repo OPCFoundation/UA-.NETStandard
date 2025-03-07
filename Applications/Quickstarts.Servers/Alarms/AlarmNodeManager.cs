@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Threading;
 using Opc.Ua;
 using Opc.Ua.Server;
@@ -143,7 +144,7 @@ namespace Alarms
 
                     Type alarmControllerType = Type.GetType("Alarms.AlarmController");
                     int interval = 1000;
-                    string intervalString = interval.ToString();
+                    string intervalString = interval.ToString(CultureInfo.InvariantCulture);
 
                     int conditionTypeIndex = 0;
                     #endregion

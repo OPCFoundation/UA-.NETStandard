@@ -1375,6 +1375,12 @@ namespace Opc.Ua.Export {
         
         private string parentNodeIdField;
         
+        private bool designToolOnlyField;
+        
+        public UAInstance() {
+            this.designToolOnlyField = false;
+        }
+        
         /// <remarks/>
         [System.Xml.Serialization.XmlAttributeAttribute()]
         public string ParentNodeId {
@@ -1383,6 +1389,18 @@ namespace Opc.Ua.Export {
             }
             set {
                 this.parentNodeIdField = value;
+            }
+        }
+        
+        /// <remarks/>
+        [System.Xml.Serialization.XmlAttributeAttribute()]
+        [System.ComponentModel.DefaultValueAttribute(false)]
+        public bool DesignToolOnly {
+            get {
+                return this.designToolOnlyField;
+            }
+            set {
+                this.designToolOnlyField = value;
             }
         }
     }

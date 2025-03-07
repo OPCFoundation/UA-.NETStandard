@@ -173,7 +173,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             {   BuiltInType.Guid, Uuid.Empty,  Quotes("00000000-0000-0000-0000-000000000000"), null, null, Quotes("00000000-0000-0000-0000-000000000000"), true },
             {   BuiltInType.Guid, new Uuid(s_nodeIdGuid),  Quotes($"{s_nodeIdGuid}"), null },
 
-            {   BuiltInType.NodeId, NodeId.Null, null, null },
+            {   BuiltInType.NodeId, NodeId.Null, null, null, null, Quotes("") },
             {   BuiltInType.NodeId, new NodeId(kNodeIdInt), $"{{\"Id\":{kNodeIdInt}}}", null, $"\"i={kNodeIdInt}\"", null },
             {   BuiltInType.NodeId, new NodeId(kNodeIdInt,1),
                     $"{{\"Id\":{kNodeIdInt},\"Namespace\":1}}", $"{{\"Id\":{kNodeIdInt},\"Namespace\":\"{kApplicationUri}\"}}",
@@ -212,7 +212,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                     $"\"nsu={kDemoServer};b={s_byteString64}\"", null},
             {   BuiltInType.NodeId, new NodeId(s_byteString,88), $"{{\"IdType\":3,\"Id\":\"{s_byteString64}\",\"Namespace\":88}}", null,$"\"ns=88;b={s_byteString64}\"", null },
             // TODO: add cases for serverIndex
-            {   BuiltInType.ExpandedNodeId, ExpandedNodeId.Null, null, null },
+            {   BuiltInType.ExpandedNodeId, ExpandedNodeId.Null, null, null, null, Quotes("") },
             {   BuiltInType.ExpandedNodeId, new ExpandedNodeId(kNodeIdInt),
                     $"{{\"Id\":{kNodeIdInt}}}", null,
                     $"\"i={kNodeIdInt}\"", null},
@@ -288,17 +288,26 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             {   BuiltInType.StatusCode, new StatusCode(StatusCodes.Good), null, null, null, "{}"},
             {   BuiltInType.StatusCode, new StatusCode(StatusCodes.Good), $"{StatusCodes.Good}", "{}", null, "{}", true},
-            {   BuiltInType.StatusCode, new StatusCode(StatusCodes.BadBoundNotFound), $"{StatusCodes.BadBoundNotFound}",
-                    $"{{\"Code\":{StatusCodes.BadBoundNotFound}, \"Symbol\":\"{nameof(StatusCodes.BadBoundNotFound)}\"}}"},
-            {   BuiltInType.StatusCode, new StatusCode(StatusCodes.BadCertificateInvalid),
-                    $"{StatusCodes.BadCertificateInvalid}", $"{{\"Code\":{StatusCodes.BadCertificateInvalid}, \"Symbol\":\"{nameof(StatusCodes.BadCertificateInvalid)}\"}}"},
-            {   BuiltInType.StatusCode, new StatusCode(1234567), "1234567", $"{{\"Code\":1234567}}"},
+            {   BuiltInType.StatusCode, new StatusCode(StatusCodes.BadBoundNotFound),
+                $"{StatusCodes.BadBoundNotFound}",
+                    $"{{\"Code\":{StatusCodes.BadBoundNotFound}, \"Symbol\":\"{nameof(StatusCodes.BadBoundNotFound)}\"}}",
+                $"{{\"Code\":{StatusCodes.BadBoundNotFound}}}",
+                $"{{\"Code\":{StatusCodes.BadBoundNotFound}, \"Symbol\":\"{nameof(StatusCodes.BadBoundNotFound)}\"}}"},
+            {   BuiltInType.StatusCode,
+                new StatusCode(StatusCodes.BadCertificateInvalid),
+                    $"{StatusCodes.BadCertificateInvalid}",
+                $"{{\"Code\":{StatusCodes.BadCertificateInvalid}, \"Symbol\":\"{nameof(StatusCodes.BadCertificateInvalid)}\"}}",
+                $"{{\"Code\":{StatusCodes.BadCertificateInvalid}}}",
+                $"{{\"Code\":{StatusCodes.BadCertificateInvalid}, \"Symbol\":\"{nameof(StatusCodes.BadCertificateInvalid)}\"}}"
+            },
+            {   BuiltInType.StatusCode,
+                new StatusCode(1234567), "1234567", $"{{\"Code\":1234567}}", $"{{\"Code\":1234567}}", null},
 
-            {   BuiltInType.DiagnosticInfo, new DiagnosticInfo(), null, null},
-            {   BuiltInType.DiagnosticInfo, new DiagnosticInfo(-1,-1,-1,-1,null), null, null},
+            {   BuiltInType.DiagnosticInfo, new DiagnosticInfo(), null, null, null, "{}"},
+            {   BuiltInType.DiagnosticInfo, new DiagnosticInfo(-1,-1,-1,-1,null), null, null, null, "{}"},
             {   BuiltInType.DiagnosticInfo, new DiagnosticInfo(1,2,3,4,"AdditionalInfo"), "{\"SymbolicId\":1,\"NamespaceUri\":2,\"Locale\":3,\"LocalizedText\":4,\"AdditionalInfo\":\"AdditionalInfo\"}", null},
 
-            {   BuiltInType.QualifiedName, QualifiedName.Null, null, null},
+            {   BuiltInType.QualifiedName, QualifiedName.Null, null, null, null, Quotes("")},
             {   BuiltInType.QualifiedName, new QualifiedName(kQualifiedName),
                     $"{{\"Name\":\"{kQualifiedName}\"}}", null,
                     $"\"{kQualifiedName}\"", null},
@@ -311,7 +320,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                     $"{{\"Name\":\"{kQualifiedName}\",\"Uri\":\"{kDemoServer}\"}}",
                     $"\"nsu={kDemoServer};{kQualifiedName}\"", null},
 
-            {   BuiltInType.LocalizedText, LocalizedText.Null, null, null},
+            {   BuiltInType.LocalizedText, LocalizedText.Null, null, null, null, "{}"},
             {   BuiltInType.LocalizedText, new LocalizedText(kLocalizedText),
                     $"{{\"Text\":\"{kLocalizedText}\"}}", $"\"{kLocalizedText}\"",
                     $"{{\"Text\":\"{kLocalizedText}\"}}", null,
@@ -320,42 +329,51 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                     $"{{\"Text\":\"{kLocalizedText}\",\"Locale\":\"{kLocale}\"}}", $"\"{kLocalizedText}\"",
                     $"{{\"Text\":\"{kLocalizedText}\",\"Locale\":\"{kLocale}\"}}", null},
 
-            {   BuiltInType.ExtensionObject, ExtensionObject.Null, null, null},
-            {   BuiltInType.ExtensionObject, new ExtensionObject(kNodeIdInt), null, null},
-            {   BuiltInType.ExtensionObject, new ExtensionObject((IEncodeable) null), null, null},
+            {   BuiltInType.ExtensionObject, ExtensionObject.Null, null, null, null, "{}"},
+            {   BuiltInType.ExtensionObject, new ExtensionObject(kNodeIdInt), null, null, null, "{}"},
+            {   BuiltInType.ExtensionObject, new ExtensionObject((IEncodeable) null), null, null, null, "{}"},
 
-            {   BuiltInType.Variant, Variant.Null, "", null},
-            {   BuiltInType.Variant, new Variant((SByte)123),
-                    $"{{\"Type\":{BuiltInType.SByte.ToString("d")}, \"Body\":123}}", "123",
-                    $"{{\"Type\":{BuiltInType.SByte.ToString("d")}, \"Body\":123}}", null},
+            {   BuiltInType.Variant, Variant.Null, "", null, "", "{}"},
+            {
+                BuiltInType.Variant,
+                new Variant((SByte)123),
+                $"{{\"Type\":{BuiltInType.SByte.ToString("d")}, \"Body\":123}}",
+                "123",
+                $"{{\"UaType\":{BuiltInType.SByte.ToString("d")}, \"Value\":123}}",
+                null
+            },
             {   BuiltInType.Variant, new Variant((Int16)12345),
                     $"{{\"Type\":{BuiltInType.Int16.ToString("d")}, \"Body\":12345}}", "12345",
-                    $"{{\"Type\":{BuiltInType.Int16.ToString("d")}, \"Body\":12345}}", null},
+                    $"{{\"UaType\":{BuiltInType.Int16.ToString("d")}, \"Value\":12345}}", null},
             {   BuiltInType.Variant, new Variant(1234567),
                     $"{{\"Type\":{BuiltInType.Int32.ToString("d")}, \"Body\":1234567}}", "1234567",
-                    $"{{\"Type\":{BuiltInType.Int32.ToString("d")}, \"Body\":1234567}}", null},
+                    $"{{\"UaType\":{BuiltInType.Int32.ToString("d")}, \"Value\":1234567}}", null},
             {   BuiltInType.Variant, new Variant((Int64)123456789),
                     $"{{\"Type\":{BuiltInType.Int64.ToString("d")}, \"Body\":\"123456789\"}}", "\"123456789\"",
-                    $"{{\"Type\":{BuiltInType.Int64.ToString("d")}, \"Body\":\"123456789\"}}", null},
+                    $"{{\"UaType\":{BuiltInType.Int64.ToString("d")}, \"Value\":\"123456789\"}}", null},
             {   BuiltInType.Variant, new Variant((Byte)123),
                     $"{{\"Type\":{BuiltInType.Byte.ToString("d")}, \"Body\":123}}", "123",
-                    $"{{\"Type\":{BuiltInType.Byte.ToString("d")}, \"Body\":123}}", null},
+                    $"{{\"UaType\":{BuiltInType.Byte.ToString("d")}, \"Value\":123}}", null},
             {   BuiltInType.Variant, new Variant((UInt16)12345),
                     $"{{\"Type\":{BuiltInType.UInt16.ToString("d")}, \"Body\":12345}}", "12345",
-                    $"{{\"Type\":{BuiltInType.UInt16.ToString("d")}, \"Body\":12345}}", null},
+                    $"{{\"UaType\":{BuiltInType.UInt16.ToString("d")}, \"Value\":12345}}", null},
             {   BuiltInType.Variant, new Variant((UInt32)1234567),
                     $"{{\"Type\":{BuiltInType.UInt32.ToString("d")}, \"Body\":1234567}}", "1234567",
-                    $"{{\"Type\":{BuiltInType.UInt32.ToString("d")}, \"Body\":1234567}}", null},
+                    $"{{\"UaType\":{BuiltInType.UInt32.ToString("d")}, \"Value\":1234567}}", null},
             {   BuiltInType.Variant, new Variant((UInt64)123456789),
                     $"{{\"Type\":{BuiltInType.UInt64.ToString("d")}, \"Body\":\"123456789\"}}", "\"123456789\"",
-                    $"{{\"Type\":{BuiltInType.UInt64.ToString("d")}, \"Body\":\"123456789\"}}", null},
+                    $"{{\"UaType\":{BuiltInType.UInt64.ToString("d")}, \"Value\":\"123456789\"}}", null},
 
             {   BuiltInType.DataValue, new DataValue(), "{}", null},
             {   BuiltInType.DataValue, new DataValue(StatusCodes.Good), "{}", null},
-            {   BuiltInType.DataValue, new DataValue(StatusCodes.BadNotWritable),
-                    $"{{\"StatusCode\":{StatusCodes.BadNotWritable}}}",
-                    $"{{\"StatusCode\":{{\"Code\":{StatusCodes.BadNotWritable}, \"Symbol\":\"{nameof(StatusCodes.BadNotWritable)}\"}}}}"},
-
+            {
+                BuiltInType.DataValue,
+                new DataValue(StatusCodes.BadNotWritable),
+                $"{{\"StatusCode\":{StatusCodes.BadNotWritable}}}",
+                $"{{\"StatusCode\":{{\"Code\":{StatusCodes.BadNotWritable}, \"Symbol\":\"{nameof(StatusCodes.BadNotWritable)}\"}}}}",
+                $"{{\"StatusCode\":{{\"Code\":{StatusCodes.BadNotWritable}}}}}",
+                $"{{\"StatusCode\":{{\"Code\":{StatusCodes.BadNotWritable}, \"Symbol\":\"{nameof(StatusCodes.BadNotWritable)}\"}}}}"
+            },
             {   BuiltInType.Enumeration, (TestEnumType) 0, "0", "\"0\""},
             {   BuiltInType.Enumeration, TestEnumType.Three, TestEnumType.Three.ToString("d"), $"\"{TestEnumType.Three}_{TestEnumType.Three.ToString("d")}\""},
             {   BuiltInType.Enumeration, TestEnumType.Ten, $"{TestEnumType.Ten.ToString("d")}", $"\"{TestEnumType.Ten.ToString()}_{TestEnumType.Ten.ToString("d")}\""},
@@ -371,9 +389,14 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             {   BuiltInType.Enumeration, s_testInt32Array, "[2,3,10]", "[\"2\",\"3\",\"10\"]"},
 
             // IEncodeable
-            {   BuiltInType.ExtensionObject, s_testEncodeable,
-                "{\"Body\":{\"Foo\":\"bar_999\"}}", "{\"Foo\":\"bar_999\"}",
-                "{\"Body\":{\"Foo\":\"bar_999\"}}", null}
+            {
+                BuiltInType.ExtensionObject,
+                s_testEncodeable,
+                "{\"Body\":{\"Foo\":\"bar_999\"}}",
+                "{\"Foo\":\"bar_999\"}",
+                "{\"Foo\":\"bar_999\"}",
+                null
+            }
         }.ToArray();
 
         [DatapointSource]

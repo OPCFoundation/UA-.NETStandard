@@ -147,7 +147,13 @@ namespace Opc.Ua
             new AliasToUse(BrowseNames.HasCondition, ReferenceTypeIds.HasCondition),
             new AliasToUse(BrowseNames.HasGuard, ReferenceTypeIds.HasGuard),
             new AliasToUse(BrowseNames.HasAddIn, ReferenceTypeIds.HasAddIn),
-            new AliasToUse(BrowseNames.HasInterface, ReferenceTypeIds.HasInterface)
+            new AliasToUse(BrowseNames.HasInterface, ReferenceTypeIds.HasInterface),
+            new AliasToUse(BrowseNames.GeneratesEvent, ReferenceTypeIds.GeneratesEvent),
+            new AliasToUse(BrowseNames.AlwaysGeneratesEvent, ReferenceTypeIds.AlwaysGeneratesEvent),
+            new AliasToUse(BrowseNames.HasOrderedComponent, ReferenceTypeIds.HasOrderedComponent),
+            new AliasToUse(BrowseNames.HasAlarmSuppressionGroup, ReferenceTypeIds.HasAlarmSuppressionGroup),
+            new AliasToUse(BrowseNames.AlarmGroupMember, ReferenceTypeIds.AlarmGroupMember),
+            new AliasToUse(BrowseNames.AlarmSuppressionGroupMember, ReferenceTypeIds.AlarmSuppressionGroupMember)
         };
         #endregion
 
