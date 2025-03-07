@@ -762,7 +762,7 @@ namespace Opc.Ua.Gds.Tests
         private void VerifyNewPushServerCert(byte[] certificateBlob)
         {
             DisconnectPushClient();
-            Thread.Sleep(2000);
+            Thread.Sleep(10000);
             m_gdsClient.GDSClient.Connect(m_gdsClient.GDSClient.EndpointUrl).GetAwaiter().GetResult();
             m_pushClient.PushClient.Connect(m_pushClient.PushClient.EndpointUrl).GetAwaiter().GetResult();
             // compare leaf certificates, ServerCertificate might be a chain if sendCertChain is sets

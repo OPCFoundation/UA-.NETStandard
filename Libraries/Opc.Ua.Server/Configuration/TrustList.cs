@@ -144,20 +144,23 @@ namespace Opc.Ua.Server
                 ICertificateStore store = m_trustedStore.OpenStore();
                 try
                 {
-                    if ((masks & TrustListMasks.TrustedCertificates) != 0)
+                    if (store != null)
                     {
-                        X509Certificate2Collection certificates = store.Enumerate().GetAwaiter().GetResult();
-                        foreach (var certificate in certificates)
+                        if ((masks & TrustListMasks.TrustedCertificates) != 0)
                         {
-                            trustList.TrustedCertificates.Add(certificate.RawData);
+                            X509Certificate2Collection certificates = store.Enumerate().GetAwaiter().GetResult();
+                            foreach (var certificate in certificates)
+                            {
+                                trustList.TrustedCertificates.Add(certificate.RawData);
+                            }
                         }
-                    }
 
-                    if ((masks & TrustListMasks.TrustedCrls) != 0)
-                    {
-                        foreach (var crl in store.EnumerateCRLs().GetAwaiter().GetResult())
+                        if ((masks & TrustListMasks.TrustedCrls) != 0)
                         {
-                            trustList.TrustedCrls.Add(crl.RawData);
+                            foreach (var crl in store.EnumerateCRLs().GetAwaiter().GetResult())
+                            {
+                                trustList.TrustedCrls.Add(crl.RawData);
+                            }
                         }
                     }
                 }
@@ -169,20 +172,23 @@ namespace Opc.Ua.Server
                 store = m_issuerStore.OpenStore();
                 try
                 {
-                    if ((masks & TrustListMasks.IssuerCertificates) != 0)
+                    if (store != null)
                     {
-                        X509Certificate2Collection certificates = store.Enumerate().GetAwaiter().GetResult();
-                        foreach (var certificate in certificates)
+                        if ((masks & TrustListMasks.IssuerCertificates) != 0)
                         {
-                            trustList.IssuerCertificates.Add(certificate.RawData);
+                            X509Certificate2Collection certificates = store.Enumerate().GetAwaiter().GetResult();
+                            foreach (var certificate in certificates)
+                            {
+                                trustList.IssuerCertificates.Add(certificate.RawData);
+                            }
                         }
-                    }
 
-                    if ((masks & TrustListMasks.IssuerCrls) != 0)
-                    {
-                        foreach (var crl in store.EnumerateCRLs().GetAwaiter().GetResult())
+                        if ((masks & TrustListMasks.IssuerCrls) != 0)
                         {
-                            trustList.IssuerCrls.Add(crl.RawData);
+                            foreach (var crl in store.EnumerateCRLs().GetAwaiter().GetResult())
+                            {
+                                trustList.IssuerCrls.Add(crl.RawData);
+                            }
                         }
                     }
                 }
@@ -524,41 +530,44 @@ namespace Opc.Ua.Server
                     var storeIdentifier = isTrustedCertificate ? m_trustedStore : m_issuerStore;
                     using (ICertificateStore store = storeIdentifier.OpenStore())
                     {
-                        var certCollection = store.FindByThumbprint(thumbprint).GetAwaiter().GetResult();
-
-                        if (certCollection.Count == 0)
+                        if (store != null)
                         {
-                            result = StatusCodes.BadInvalidArgument;
-                        }
-                        else
-                        {
-                            // delete all CRLs signed by cert
-                            var crlsToDelete = new X509CRLCollection();
-                            foreach (var crl in store.EnumerateCRLs().GetAwaiter().GetResult())
-                            {
-                                foreach (var cert in certCollection)
-                                {
-                                    if (X509Utils.CompareDistinguishedName(cert.SubjectName, crl.IssuerName) &&
-                                   crl.VerifySignature(cert, false))
-                                    {
-                                        crlsToDelete.Add(crl);
-                                        break;
-                                    }
-                                }
-                            }
+                            var certCollection = store.FindByThumbprint(thumbprint).GetAwaiter().GetResult();
 
-                            if (!store.Delete(thumbprint).GetAwaiter().GetResult())
+                            if (certCollection.Count == 0)
                             {
                                 result = StatusCodes.BadInvalidArgument;
                             }
                             else
                             {
-                                foreach (var crl in crlsToDelete)
+                                // delete all CRLs signed by cert
+                                var crlsToDelete = new X509CRLCollection();
+                                foreach (var crl in store.EnumerateCRLs().GetAwaiter().GetResult())
                                 {
-                                    if (!store.DeleteCRL(crl).GetAwaiter().GetResult())
+                                    foreach (var cert in certCollection)
                                     {
-                                        // intentionally ignore errors, try best effort
-                                        Utils.LogError("RemoveCertificate: Failed to delete CRL {0}.", crl.ToString());
+                                        if (X509Utils.CompareDistinguishedName(cert.SubjectName, crl.IssuerName) &&
+                                       crl.VerifySignature(cert, false))
+                                        {
+                                            crlsToDelete.Add(crl);
+                                            break;
+                                        }
+                                    }
+                                }
+
+                                if (!store.Delete(thumbprint).GetAwaiter().GetResult())
+                                {
+                                    result = StatusCodes.BadInvalidArgument;
+                                }
+                                else
+                                {
+                                    foreach (var crl in crlsToDelete)
+                                    {
+                                        if (!store.DeleteCRL(crl).GetAwaiter().GetResult())
+                                        {
+                                            // intentionally ignore errors, try best effort
+                                            Utils.LogError("RemoveCertificate: Failed to delete CRL {0}.", crl.ToString());
+                                        }
                                     }
                                 }
                             }
