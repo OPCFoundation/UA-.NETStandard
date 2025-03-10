@@ -573,16 +573,19 @@ namespace Opc.Ua.Server
                         ICertificateStore issuerStore = certificateGroup.IssuerStore.OpenStore();
                         try
                         {
-                            foreach (var issuer in updateCertificate.IssuerCollection)
+                            if (issuerStore != null)
                             {
-                                try
+                                foreach (var issuer in updateCertificate.IssuerCollection)
                                 {
-                                    Utils.LogCertificate(Utils.TraceMasks.Security, "Add new issuer certificate: ", issuer);
-                                    issuerStore?.Add(issuer).Wait();
-                                }
-                                catch (ArgumentException)
-                                {
-                                    // ignore error if issuer cert already exists
+                                    try
+                                    {
+                                        Utils.LogCertificate(Utils.TraceMasks.Security, "Add new issuer certificate: ", issuer);
+                                        issuerStore.Add(issuer).Wait();
+                                    }
+                                    catch (ArgumentException)
+                                    {
+                                        // ignore error if issuer cert already exists
+                                    }
                                 }
                             }
                         }
