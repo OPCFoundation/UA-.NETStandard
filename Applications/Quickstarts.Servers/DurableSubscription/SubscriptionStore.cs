@@ -32,13 +32,19 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+using Newtonsoft.Json.Serialization;
+using Opc.Ua;
 using Opc.Ua.Server;
 
 namespace Quickstarts.Servers
 {
     public class SubscriptionStore : ISubscriptionStore
     {
-        private static readonly JsonSerializerSettings s_settings = new JsonSerializerSettings { TypeNameHandling = TypeNameHandling.All };
+        private static readonly JsonSerializerSettings s_settings = new JsonSerializerSettings {
+            TypeNameHandling = TypeNameHandling.All,
+            Converters = { new ExtensionObjectConverter() },
+        };
         private static readonly string s_storage_path = Path.Combine(Environment.CurrentDirectory, "Durable Subscriptions");
         private static readonly string s_filename = "subscriptionsStore.txt";
         private readonly DurableMonitoredItemQueueFactory m_durableMonitoredItemQueueFactory;
@@ -80,6 +86,32 @@ namespace Quickstarts.Servers
                 return result;
             }
             return null;
+        }
+
+        public class ExtensionObjectConverter : JsonConverter
+        {
+            public override bool CanConvert(Type objectType)
+            {
+                return objectType == typeof(ExtensionObject);
+            }
+
+            public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer)
+            {
+                var jo = JObject.Load(reader);
+                object body = jo["Body"].ToObject<object>(serializer);
+                ExpandedNodeId typeId = jo["TypeId"].ToObject<ExpandedNodeId>(serializer);
+                return new ExtensionObject { Body = body, TypeId = typeId };
+            }
+
+            public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer)
+            {
+                var extensionObject = (ExtensionObject)value;
+                var jo = new JObject {
+                    ["Body"] = JToken.FromObject(extensionObject.Body, serializer),
+                    ["TypeId"] = JToken.FromObject(extensionObject.TypeId, serializer)
+                };
+                jo.WriteTo(writer);
+            }
         }
 
         public IDataChangeMonitoredItemQueue RestoreDataChangeMonitoredItemQueue(uint monitoredItemId)
