@@ -43,7 +43,7 @@ namespace Quickstarts.Servers
     {
         private static readonly JsonSerializerSettings s_settings = new JsonSerializerSettings {
             TypeNameHandling = TypeNameHandling.All,
-            Converters = { new ExtensionObjectConverter() },
+            Converters = { new ExtensionObjectConverter(), new NumericRangeConverter() },
         };
         private static readonly string s_storage_path = Path.Combine(Environment.CurrentDirectory, "Durable Subscriptions");
         private static readonly string s_filename = "subscriptionsStore.txt";
@@ -109,6 +109,32 @@ namespace Quickstarts.Servers
                 var jo = new JObject {
                     ["Body"] = JToken.FromObject(extensionObject.Body, serializer),
                     ["TypeId"] = JToken.FromObject(extensionObject.TypeId, serializer)
+                };
+                jo.WriteTo(writer);
+            }
+        }
+
+        public class NumericRangeConverter : JsonConverter
+        {
+            public override bool CanConvert(Type objectType)
+            {
+                return objectType == typeof(NumericRange);
+            }
+
+            public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer)
+            {
+                var jo = JObject.Load(reader);
+                int begin = jo["Begin"].ToObject<int>(serializer);
+                int end = jo["End"].ToObject<int>(serializer);
+                return new NumericRange(begin, end);
+            }
+
+            public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer)
+            {
+                var extensionObject = (NumericRange)value;
+                var jo = new JObject {
+                    ["Begin"] = JToken.FromObject(extensionObject.Begin, serializer),
+                    ["End"] = JToken.FromObject(extensionObject.End, serializer)
                 };
                 jo.WriteTo(writer);
             }
