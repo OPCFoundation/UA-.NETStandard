@@ -36,11 +36,10 @@ using System.Threading.Tasks;
 using Opc.Ua;
 using Opc.Ua.Configuration;
 using Opc.Ua.Server;
-using static System.Net.Mime.MediaTypeNames;
 
 namespace Quickstarts
 {
-    public class UAServer<T> where T : IStandardServer
+    public class UAServer<T> : IUAServer<T> where T : IStandardServer
     {
         /// <summary>
         /// Constructor of the server.
@@ -51,7 +50,7 @@ namespace Quickstarts
         public UAServer(
             IApplicationInstance applicationInstance,
             T server,
-            TextWriter writer)
+            LogWriter writer)
         {
             m_application = applicationInstance;
             m_server = server;
