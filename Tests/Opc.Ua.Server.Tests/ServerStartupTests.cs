@@ -77,6 +77,55 @@ namespace Opc.Ua.Server.Tests
             await Task.Delay(1000).ConfigureAwait(false);
             await fixture.StopAsync().ConfigureAwait(false);
         }
+
+        /// <summary>
+        /// Start a server fixture, stop it and restart it.
+        /// </summary>
+        [Test]
+        public async Task StartAndRestartServerAsync()
+        {
+            IServiceCollection services = new ServiceCollection()
+                .AddConfigurationServices()
+                .AddServerServices()
+                .AddSingleton<IStandardServer, StandardServer>();
+
+            IServiceProvider serviceProvider = services.BuildServiceProvider();
+
+            var fixture = new ServerFixture<IStandardServer>(
+                serviceProvider.GetRequiredService<IStandardServer>(),
+                serviceProvider.GetRequiredService<IApplicationInstance>());
+            Assert.NotNull(fixture);
+            fixture.UriScheme = Utils.UriSchemeOpcTcp;
+
+            IStandardServer server = await fixture.StartAsync(TestContext.Out).ConfigureAwait(false);
+            fixture.SetTraceOutput(TestContext.Out);
+            Assert.NotNull(server);
+
+            Assert.AreEqual(server.CurrentInstance.Initialized, true);
+            Assert.AreEqual(server.CurrentState, ServerState.Running);
+
+            await Task.Delay(1000).ConfigureAwait(false);
+            await fixture.StopAsync().ConfigureAwait(false);
+
+            uint? exceptionStatusCode1 = NUnit.Framework.Assert.Throws<ServiceResultException>(delegate { bool result = server.CurrentInstance.Initialized; })?.StatusCode;
+            Assert.AreEqual(exceptionStatusCode1, StatusCodes.BadServerHalted);
+
+            await Task.Delay(1000).ConfigureAwait(false);
+
+            IStandardServer server2 = await fixture.StartAsync(TestContext.Out).ConfigureAwait(false);
+            Assert.NotNull(server2);
+
+            Assert.AreEqual(server.CurrentInstance.Initialized, true);
+            Assert.AreEqual(server.CurrentState, ServerState.Running);
+
+            await Task.Delay(1000).ConfigureAwait(false);
+            await fixture.StopAsync().ConfigureAwait(false);
+
+            await Task.Delay(1000).ConfigureAwait(false);
+
+            uint? exceptionStatusCode2 = NUnit.Framework.Assert.Throws<ServiceResultException>(delegate { bool result = server.CurrentInstance.Initialized; })?.StatusCode;
+            Assert.AreEqual(exceptionStatusCode2, StatusCodes.BadServerHalted);
+        }
         #endregion
     }
 }
