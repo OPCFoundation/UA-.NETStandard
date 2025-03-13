@@ -56,9 +56,9 @@ namespace Opc.Ua.Server
             IServerInternal serverInternal,
             IMainNodeManagerFactory mainNodeManagerFactory)
         {
-            m_applicationInstance = applicationInstance;
-            m_serverInternal = serverInternal;
-            m_mainNodeManagerFactory = mainNodeManagerFactory;
+            m_applicationInstance = applicationInstance ?? throw new ArgumentNullException(nameof(applicationInstance));
+            m_serverInternal = serverInternal ?? throw new ArgumentNullException(nameof(serverInternal));
+            m_mainNodeManagerFactory = mainNodeManagerFactory ?? throw new ArgumentNullException(nameof(mainNodeManagerFactory)); ;
         }
         #endregion
 
@@ -88,12 +88,7 @@ namespace Opc.Ua.Server
                     m_configurationWatcher = null;
                 }
 
-                // close the server.
-                //if (m_serverInternal != null)
-                //{
-                //    Utils.SilentDispose(m_serverInternal);
-                //    m_serverInternal = null;
-                //}
+                Utils.SilentDispose(m_serverInternal);
             }
 
             base.Dispose(disposing);
@@ -3203,12 +3198,7 @@ namespace Opc.Ua.Server
             }
             finally
             {
-                // ensure that everything is cleaned up.
-                //if (m_serverInternal != null)
-                //{
-                //    Utils.SilentDispose(m_serverInternal);
-                //    m_serverInternal = null;
-                //}
+                Utils.SilentDispose(m_serverInternal);
             }
         }
 

@@ -30,9 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
-using System.Security.Cryptography.X509Certificates;
 using Opc.Ua.Configuration;
-using Opc.Ua.Security.Certificates;
 
 #pragma warning disable 0618
 
@@ -88,6 +86,8 @@ namespace Opc.Ua.Server
         {
             if (disposing)
             {
+                Initialized = false;
+
                 Utils.SilentDispose(m_resourceManager);
                 Utils.SilentDispose(m_requestManager);
                 Utils.SilentDispose(m_aggregateManager);
@@ -95,6 +95,13 @@ namespace Opc.Ua.Server
                 Utils.SilentDispose(m_sessionManager);
                 Utils.SilentDispose(m_subscriptionManager);
                 Utils.SilentDispose(m_monitoredItemQueueFactory);
+
+                m_endpointAddresses?.Clear();
+                m_endpointAddresses = null;
+                m_typeTree?.Clear();
+                m_typeTree = null;
+                m_serverUris = null;
+                m_defaultSystemContext = null;
             }
         }
         #endregion
