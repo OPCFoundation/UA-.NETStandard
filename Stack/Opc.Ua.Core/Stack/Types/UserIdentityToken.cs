@@ -106,6 +106,11 @@ namespace Opc.Ua
             }
             set
             {
+                if (value == null)
+                {
+                    m_decryptedPassword = null;
+                    return;
+                }
                 m_decryptedPassword = new UTF8Encoding().GetBytes(value);
             }
         }
@@ -162,7 +167,7 @@ namespace Opc.Ua
             if (!EccUtils.IsEccPolicy(securityPolicyUri))
             {
                 byte[] dataToEncrypt = Utils.Append(m_decryptedPassword, receiverNonce);
-                
+
 
                 EncryptedData encryptedData = SecurityPolicies.Encrypt(
                     receiverCertificate,
