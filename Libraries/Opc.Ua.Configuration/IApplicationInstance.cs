@@ -169,6 +169,7 @@ namespace Opc.Ua.Configuration
         /// </summary>
         /// <param name="silent">if set to <c>true</c> no dialogs will be displayed.</param>
         /// <param name="minimumKeySize">Minimum size of the key.</param>
+        [Obsolete("This method is obsolete since an application now supports different minKey sizes depending on certificate type")]
         Task<bool> CheckApplicationInstanceCertificate(
             bool silent,
             ushort minimumKeySize);
@@ -177,21 +178,22 @@ namespace Opc.Ua.Configuration
         /// Checks for a valid application instance certificate.
         /// </summary>
         /// <param name="silent">if set to <c>true</c> no dialogs will be displayed.</param>
-        /// <param name="minimumKeySize">Minimum size of the key.</param>
-        /// <param name="lifeTimeInMonths">The lifetime in months.</param>
-        /// <param name="ct"></param>
-        Task<bool> CheckApplicationInstanceCertificate(
-            bool silent,
-            ushort minimumKeySize,
-            ushort lifeTimeInMonths,
-            CancellationToken ct = default);
+        Task<bool> CheckApplicationInstanceCertificates(
+            bool silent);
 
         /// <summary>
         /// Checks for a valid application instance certificate.
         /// </summary>
         /// <param name="silent">if set to <c>true</c> no dialogs will be displayed.</param>
-        Task<bool> CheckApplicationInstanceCertificates(
-            bool silent);
+        /// <param name="minimumKeySize">Minimum size of the key.</param>
+        /// <param name="lifeTimeInMonths">The lifetime in months.</param>
+        /// <param name="ct"></param>
+        [Obsolete("This method is obsolete since an application now supports different minKey sizes depending on certificate type")]
+        Task<bool> CheckApplicationInstanceCertificate(
+            bool silent,
+            ushort minimumKeySize,
+            ushort lifeTimeInMonths,
+            CancellationToken ct = default);
 
         /// <summary>
         /// Checks for a valid application instance certificate.

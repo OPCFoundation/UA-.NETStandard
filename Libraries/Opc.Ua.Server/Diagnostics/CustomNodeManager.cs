@@ -1902,7 +1902,7 @@ namespace Opc.Ua.Server
 
                     if (Server?.Auditing == true)
                     {
-                        //current server supports auditing 
+                        //current server supports auditing
                         oldValue = new DataValue();
                         // read the old value for the purpose of auditing
                         handle.Node.ReadAttribute(systemContext, nodeToWrite.AttributeId, nodeToWrite.ParsedIndexRange, null, oldValue);
@@ -1915,7 +1915,7 @@ namespace Opc.Ua.Server
                         nodeToWrite.ParsedIndexRange,
                         nodeToWrite.Value);
 
-                    // report the write value audit event 
+                    // report the write value audit event
                     Server.ReportAuditWriteUpdateEvent(systemContext, nodeToWrite, oldValue?.Value, errors[ii]?.StatusCode ?? StatusCodes.Good);
 
                     if (!ServiceResult.IsGood(errors[ii]))

@@ -266,9 +266,8 @@ namespace Opc.Ua.Server
         #endregion
 
         #region Public Interface
-        /// <summary>
-        /// Returns the core node manager.
-        /// </summary>
+
+        /// <inheritdoc/>
         public ICoreNodeManager CoreNodeManager
         {
             get
@@ -277,9 +276,7 @@ namespace Opc.Ua.Server
             }
         }
 
-        /// <summary>
-        /// Returns the diagnostics node manager.
-        /// </summary>
+        /// <inheritdoc/>
         public IDiagnosticsNodeManager DiagnosticsNodeManager
         {
             get
@@ -288,9 +285,7 @@ namespace Opc.Ua.Server
             }
         }
 
-        /// <summary>
-        /// Returns the configuration node manager.
-        /// </summary>
+        /// <inheritdoc/>
         public IConfigurationNodeManager ConfigurationNodeManager
         {
             get
@@ -299,9 +294,13 @@ namespace Opc.Ua.Server
             }
         }
 
-        /// <summary>
-        /// Creates the node managers and start them
-        /// </summary>
+        /// <inheritdoc/>
+        public IList<INodeManager> NodeManagers
+        {
+            get { return m_nodeManagers; }
+        }
+
+        /// <inheritdoc/>
         public virtual void Startup()
         {
             lock (m_lock)
@@ -347,9 +346,7 @@ namespace Opc.Ua.Server
             }
         }
 
-        /// <summary>
-        /// Signals that a session is closing.
-        /// </summary>
+        /// <inheritdoc/>
         public virtual void SessionClosing(OperationContext context, NodeId sessionId, bool deleteSubscriptions)
         {
             lock (m_lock)
@@ -373,9 +370,7 @@ namespace Opc.Ua.Server
             }
         }
 
-        /// <summary>
-        /// Shuts down the node managers.
-        /// </summary>
+        /// <inheritdoc/>
         public virtual void Shutdown()
         {
             lock (m_lock)
@@ -392,22 +387,7 @@ namespace Opc.Ua.Server
             }
         }
 
-        /// <summary>
-        /// Registers the node manager as the node manager for Nodes in the specified namespace.
-        /// </summary>
-        /// <param name="namespaceUri">The URI of the namespace.</param>
-        /// <param name="nodeManager">The NodeManager which owns node in the namespace.</param>
-        /// <remarks>
-        /// Multiple NodeManagers may register interest in a Namespace.
-        /// The order in which this method is called determines the precedence if multiple NodeManagers exist.
-        /// This method adds the namespaceUri to the Server's Namespace table if it does not already exist.
-        ///
-        /// This method is thread safe and can be called at anytime.
-        ///
-        /// This method does not have to be called for any namespaces that were in the NodeManager's
-        /// NamespaceUri property when the MasterNodeManager was created.
-        /// </remarks>
-        /// <exception cref="ArgumentNullException">Throw if the namespaceUri or the nodeManager are null.</exception>
+        /// <inheritdoc/>
         public void RegisterNamespaceManager(string namespaceUri, INodeManager nodeManager)
         {
             if (String.IsNullOrEmpty(namespaceUri)) throw new ArgumentNullException(nameof(namespaceUri));
@@ -463,13 +443,7 @@ namespace Opc.Ua.Server
             }
         }
 
-        /// <summary>
-        /// Unregisters the node manager as the node manager for Nodes in the specified namespace.
-        /// </summary>
-        /// <param name="namespaceUri">The URI of the namespace.</param>
-        /// <param name="nodeManager">The NodeManager which no longer owns nodes in the namespace.</param>
-        /// <returns>A value indicating whether the node manager was successfully unregistered.</returns>
-        /// <exception cref="ArgumentNullException">Throw if the namespaceUri or the nodeManager are null.</exception>
+        /// <inheritdoc/>
         public bool UnregisterNamespaceManager(string namespaceUri, INodeManager nodeManager)
         {
             if (String.IsNullOrEmpty(namespaceUri)) throw new ArgumentNullException(nameof(namespaceUri));
@@ -543,9 +517,7 @@ namespace Opc.Ua.Server
             }
         }
 
-        /// <summary>
-        /// Returns node handle and its node manager.
-        /// </summary>
+        /// <inheritdoc/>
         public virtual object GetManagerHandle(NodeId nodeId, out INodeManager nodeManager)
         {
             nodeManager = null;
@@ -600,9 +572,7 @@ namespace Opc.Ua.Server
             return null;
         }
 
-        /// <summary>
-        /// Adds the references to the target.
-        /// </summary>
+        /// <inheritdoc/>
         public virtual void AddReferences(NodeId sourceId, IList<IReference> references)
         {
             foreach (IReference reference in references)
@@ -624,9 +594,7 @@ namespace Opc.Ua.Server
             }
         }
 
-        /// <summary>
-        /// Deletes the references to the target.
-        /// </summary>
+        /// <inheritdoc/>
         public virtual void DeleteReferences(NodeId targetId, IList<IReference> references)
         {
             foreach (ReferenceNode reference in references)
@@ -647,9 +615,7 @@ namespace Opc.Ua.Server
             }
         }
 
-        /// <summary>
-        /// Deletes the specified references.
-        /// </summary>
+        /// <inheritdoc/>
         public void RemoveReferences(List<LocalReference> referencesToRemove)
         {
             for (int ii = 0; ii < referencesToRemove.Count; ii++)
@@ -670,9 +636,8 @@ namespace Opc.Ua.Server
         }
 
         #region Register/Unregister Nodes
-        /// <summary>
-        /// Registers a set of node ids.
-        /// </summary>
+
+        /// <inheritdoc/>
         public virtual void RegisterNodes(
             OperationContext context,
             NodeIdCollection nodesToRegister,
@@ -708,9 +673,7 @@ namespace Opc.Ua.Server
             */
         }
 
-        /// <summary>
-        /// Unregisters a set of node ids.
-        /// </summary>
+        /// <inheritdoc/>
         public virtual void UnregisterNodes(
             OperationContext context,
             NodeIdCollection nodesToUnregister)
@@ -738,9 +701,8 @@ namespace Opc.Ua.Server
         #endregion
 
         #region TranslateBrowsePathsToNodeIds
-        /// <summary>
-        /// Translates a start node id plus a relative paths into a node id.
-        /// </summary>
+
+        /// <inheritdoc/>
         public virtual void TranslateBrowsePathsToNodeIds(
             OperationContext context,
             BrowsePathCollection browsePaths,
@@ -1072,9 +1034,8 @@ namespace Opc.Ua.Server
         #endregion
 
         #region Browse
-        /// <summary>
-        /// Returns the set of references that meet the filter criteria.
-        /// </summary>
+
+        /// <inheritdoc/>
         public virtual void Browse(
             OperationContext context,
             ViewDescription view,
@@ -1229,9 +1190,7 @@ namespace Opc.Ua.Server
             }
         }
 
-        /// <summary>
-        /// Continues a browse operation that was previously halted.
-        /// </summary>
+        /// <inheritdoc/>
         public virtual void BrowseNext(
             OperationContext context,
             bool releaseContinuationPoints,
@@ -1578,9 +1537,7 @@ namespace Opc.Ua.Server
             return true;
         }
 
-        /// <summary>
-        /// Reads a set of nodes.
-        /// </summary>
+        /// <inheritdoc/>
         public virtual void Read(
             OperationContext context,
             double maxAge,
@@ -1712,9 +1669,7 @@ namespace Opc.Ua.Server
             UpdateDiagnostics(context, diagnosticsExist, ref diagnosticInfos);
         }
 
-        /// <summary>
-        /// Reads the history of a set of items.
-        /// </summary>
+        /// <inheritdoc/>
         public virtual void HistoryRead(
             OperationContext context,
             ExtensionObject historyReadDetails,
@@ -1837,9 +1792,7 @@ namespace Opc.Ua.Server
             UpdateDiagnostics(context, diagnosticsExist, ref diagnosticInfos);
         }
 
-        /// <summary>
-        /// Writes a set of values.
-        /// </summary>
+        /// <inheritdoc/>
         public virtual void Write(
             OperationContext context,
             WriteValueCollection nodesToWrite,
@@ -1932,9 +1885,7 @@ namespace Opc.Ua.Server
             UpdateDiagnostics(context, diagnosticsExist, ref diagnosticInfos);
         }
 
-        /// <summary>
-        /// Updates the history for a set of nodes.
-        /// </summary>
+        /// <inheritdoc/>
         public virtual void HistoryUpdate(
             OperationContext context,
             ExtensionObjectCollection historyUpdateDetails,
@@ -2066,9 +2017,7 @@ namespace Opc.Ua.Server
             UpdateDiagnostics(context, diagnosticsExist, ref diagnosticInfos);
         }
 
-        /// <summary>
-        /// Calls a method defined on an object.
-        /// </summary>
+        /// <inheritdoc/>
         public virtual void Call(
             OperationContext context,
             CallMethodRequestCollection methodsToCall,
@@ -2163,9 +2112,7 @@ namespace Opc.Ua.Server
             UpdateDiagnostics(context, diagnosticsExist, ref diagnosticInfos);
         }
 
-        /// <summary>
-        /// Handles condition refresh request.
-        /// </summary>
+        /// <inheritdoc/>
         public virtual void ConditionRefresh(OperationContext context, IList<IEventMonitoredItem> monitoredItems)
         {
             foreach (INodeManager nodeManager in m_nodeManagers)
@@ -2181,9 +2128,7 @@ namespace Opc.Ua.Server
             }
         }
 
-        /// <summary>
-        /// Creates a set of monitored items.
-        /// </summary>
+        /// <inheritdoc/>
         public virtual void CreateMonitoredItems(
             OperationContext context,
             uint subscriptionId,
@@ -2406,9 +2351,7 @@ namespace Opc.Ua.Server
             }
         }
 
-        /// <summary>
-        /// Modifies a set of monitored items.
-        /// </summary>
+        /// <inheritdoc/>
         public virtual void ModifyMonitoredItems(
             OperationContext context,
             TimestampsToReturn timestampsToReturn,
@@ -2574,9 +2517,7 @@ namespace Opc.Ua.Server
             }
         }
 
-        /// <summary>
-        /// Transfers a set of monitored items.
-        /// </summary>
+        /// <inheritdoc/>
         public virtual void TransferMonitoredItems(
             OperationContext context,
             bool sendInitialValues,
@@ -2608,9 +2549,7 @@ namespace Opc.Ua.Server
             }
         }
 
-        /// <summary>
-        /// Deletes a set of monitored items.
-        /// </summary>
+        /// <inheritdoc/>
         public virtual void DeleteMonitoredItems(
             OperationContext context,
             uint subscriptionId,
@@ -2701,9 +2640,7 @@ namespace Opc.Ua.Server
             }
         }
 
-        /// <summary>
-        /// Changes the monitoring mode for a set of items.
-        /// </summary>
+        /// <inheritdoc/>
         public virtual void SetMonitoringMode(
             OperationContext context,
             MonitoringMode monitoringMode,
@@ -2788,14 +2725,6 @@ namespace Opc.Ua.Server
         protected IServerInternal Server
         {
             get { return m_server; }
-        }
-
-        /// <summary>
-        /// The node managers being managed.
-        /// </summary>
-        public IList<INodeManager> NodeManagers
-        {
-            get { return m_nodeManagers; }
         }
 
         /// <summary>

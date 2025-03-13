@@ -127,17 +127,13 @@ namespace Opc.Ua.Server
         }
         #endregion
 
-        /// <summary>
-        /// Imports the nodes from a dictionary of NodeState objects.
-        /// </summary>
+        /// <inheritdoc/>
         public void ImportNodes(ISystemContext context, IEnumerable<NodeState> predefinedNodes)
         {
             ImportNodes(context, predefinedNodes, false);
         }
 
-        /// <summary>
-        /// Imports the nodes from a dictionary of NodeState objects.
-        /// </summary>
+        /// <inheritdoc/>
         public void ImportNodes(ISystemContext context, IEnumerable<NodeState> predefinedNodes, bool isInternal)
         {
             NodeTable nodesToExport = new NodeTable(Server.NamespaceUris, Server.ServerUris, Server.TypeTree);
@@ -1116,7 +1112,7 @@ namespace Opc.Ua.Server
             return ServiceResult.Good;
         }
 
-       
+
 
         /// <summary>
         /// Creates a set of monitored items.

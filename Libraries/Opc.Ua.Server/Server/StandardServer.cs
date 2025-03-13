@@ -1694,10 +1694,7 @@ namespace Opc.Ua.Server
             }
         }
 
-        /// <summary>
-        /// Begins an asynchronous publish operation.
-        /// </summary>
-        /// <param name="request">The request.</param>
+        /// <inheritdoc/>
         public virtual void BeginPublish(IEndpointIncomingRequest request)
         {
             PublishRequest input = (PublishRequest)request.Request;
@@ -1759,10 +1756,7 @@ namespace Opc.Ua.Server
             }
         }
 
-        /// <summary>
-        /// Completes an asynchronous publish operation.
-        /// </summary>
-        /// <param name="request">The request.</param>
+        /// <inheritdoc/>
         public virtual void CompletePublish(IEndpointIncomingRequest request)
         {
             AsyncPublishOperation operation = (AsyncPublishOperation)request.Calldata;
@@ -2309,14 +2303,11 @@ namespace Opc.Ua.Server
                 OnRequestComplete(context);
             }
         }
-#endregion
+        #endregion
 
-#region Public Methods used by the Host Process
-        /// <summary>
-        /// The state object associated with the server.
-        /// It provides the shared components for the Server.
-        /// </summary>
-        /// <value>The current instance.</value>
+        #region Public Methods used by the Host Process
+
+        /// <inheritdoc/>
         public IServerInternal CurrentInstance
         {
             get
@@ -2351,15 +2342,10 @@ namespace Opc.Ua.Server
             }
         }
 
-        /// <summary>
-        /// Gets the current server state.
-        /// </summary>
+        /// <inheritdoc/>
         public ServerState CurrentState => m_serverInternal.CurrentState;
 
-        /// <summary>
-        /// Registers the server with the discovery server.
-        /// </summary>
-        /// <returns>Boolean value.</returns>
+        /// <inheritdoc/>
         public bool RegisterWithDiscoveryServer()
         {
             ApplicationConfiguration configuration = new ApplicationConfiguration(base.Configuration);
@@ -3439,27 +3425,16 @@ namespace Opc.Ua.Server
             // may be overridden by the subclass.
         }
 
-        /// <summary>
-        /// The node manager factories that are used on startup of the server.
-        /// </summary>
+        /// <inheritdoc/>
         public IEnumerable<INodeManagerFactory> NodeManagerFactories => m_nodeManagerFactories;
 
-        /// <summary>
-        /// Add a node manager factory which is used on server start
-        /// to instantiate the node manager in the server.
-        /// </summary>
-        /// <param name="nodeManagerFactory">The node manager factory used to create the NodeManager.</param>
+        /// <inheritdoc/>
         public virtual void AddNodeManager(INodeManagerFactory nodeManagerFactory)
         {
             m_nodeManagerFactories.Add(nodeManagerFactory);
         }
 
-        /// <summary>
-        /// Remove a node manager factory from the list of node managers.
-        /// Does not remove a NodeManager from a running server,
-        /// only removes the factory before the server starts.
-        /// </summary>
-        /// <param name="nodeManagerFactory">The node manager factory to remove.</param>
+        /// <inheritdoc/>
         public virtual void RemoveNodeManager(INodeManagerFactory nodeManagerFactory)
         {
             m_nodeManagerFactories.Remove(nodeManagerFactory);

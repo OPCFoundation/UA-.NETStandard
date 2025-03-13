@@ -93,12 +93,8 @@ namespace Opc.Ua.Server
         #endregion
 
         #region INodeIdFactory Members
-        /// <summary>
-        /// Creates the NodeId for the specified node.
-        /// </summary>
-        /// <param name="context">The context.</param>
-        /// <param name="node">The node.</param>
-        /// <returns>The new NodeId.</returns>
+
+        /// <inheritdoc/>
         public override NodeId New(ISystemContext context, NodeState node)
         {
             uint id = Utils.IncrementIdentifier(ref m_lastUsedId);
@@ -219,10 +215,7 @@ namespace Opc.Ua.Server
             }
         }
 
-        /// <summary>
-        /// Called when a client sets a subscription as durable.
-        /// </summary>
-
+        /// <inheritdoc/>
         public ServiceResult OnSetSubscriptionDurable(
             ISystemContext context,
             MethodState method,
@@ -234,9 +227,7 @@ namespace Opc.Ua.Server
             return Server.SubscriptionManager.SetSubscriptionDurable(context, subscriptionId, lifetimeInHours, out revisedLifetimeInHours);
         }
 
-        /// <summary>
-        /// Called when a client gets the monitored items of a subscription.
-        /// </summary>
+        /// <inheritdoc/>
         public ServiceResult OnGetMonitoredItems(
             ISystemContext context,
             MethodState method,
@@ -280,9 +271,7 @@ namespace Opc.Ua.Server
             return StatusCodes.BadSubscriptionIdInvalid;
         }
 
-        /// <summary>
-        /// Called when a client initiates resending of all data monitored items in a Subscription.
-        /// </summary>
+        /// <inheritdoc/>
         public ServiceResult OnResendData(
             ISystemContext context,
             MethodState method,
@@ -320,9 +309,7 @@ namespace Opc.Ua.Server
             return StatusCodes.BadSubscriptionIdInvalid;
         }
 
-        /// <summary>
-        /// Called when a client locks the server.
-        /// </summary>
+        /// <inheritdoc/>
         public ServiceResult OnLockServer(
             ISystemContext context,
             MethodState method,
@@ -344,9 +331,7 @@ namespace Opc.Ua.Server
             return ServiceResult.Good;
         }
 
-        /// <summary>
-        /// Called when a client locks the server.
-        /// </summary>
+        /// <inheritdoc/>
         public ServiceResult OnUnlockServer(
             ISystemContext context,
             MethodState method,
@@ -612,22 +597,16 @@ namespace Opc.Ua.Server
             return false;
         }
 
-        /// <summary>
-        /// Force out of band diagnostics update after a change of diagnostics variables.
-        /// </summary>
+        /// <inheritdoc/>
         public void ForceDiagnosticsScan()
         {
             m_lastDiagnosticsScanTime = DateTime.MinValue;
         }
 
-        /// <summary>
-        /// True if diagnostics are currently enabled.
-        /// </summary>
+        /// <inheritdoc/>
         public bool DiagnosticsEnabled => m_diagnosticsEnabled;
 
-        /// <summary>
-        /// Sets the flag controlling whether diagnostics is enabled for the server.
-        /// </summary>
+        /// <inheritdoc/>
         public void SetDiagnosticsEnabled(ServerSystemContext context, bool enabled)
         {
             List<NodeState> nodesToDelete = new List<NodeState>();
@@ -727,9 +706,7 @@ namespace Opc.Ua.Server
             }
         }
 
-        /// <summary>
-        /// Creates the diagnostics node for the server.
-        /// </summary>
+        /// <inheritdoc/>
         public void CreateServerDiagnostics(
             ServerSystemContext systemContext,
             ServerDiagnosticsSummaryDataType diagnostics,
@@ -800,9 +777,7 @@ namespace Opc.Ua.Server
             }
         }
 
-        /// <summary>
-        /// Creates the diagnostics node for a subscription.
-        /// </summary>
+        /// <inheritdoc/>
         public NodeId CreateSessionDiagnostics(
             ServerSystemContext systemContext,
             SessionDiagnosticsDataType diagnostics,
@@ -903,9 +878,7 @@ namespace Opc.Ua.Server
             return nodeId;
         }
 
-        /// <summary>
-        /// Delete the diagnostics node for a session.
-        /// </summary>
+        /// <inheritdoc/>
         public void DeleteSessionDiagnostics(
             ServerSystemContext systemContext,
             NodeId nodeId)
@@ -933,9 +906,7 @@ namespace Opc.Ua.Server
             DeleteNode(systemContext, nodeId);
         }
 
-        /// <summary>
-        /// Creates the diagnostics node for a subscription.
-        /// </summary>
+        /// <inheritdoc/>
         public NodeId CreateSubscriptionDiagnostics(
             ServerSystemContext systemContext,
             SubscriptionDiagnosticsDataType diagnostics,
@@ -1019,9 +990,7 @@ namespace Opc.Ua.Server
             return nodeId;
         }
 
-        /// <summary>
-        /// Delete the diagnostics node for a subscription.
-        /// </summary>
+        /// <inheritdoc/>
         public void DeleteSubscriptionDiagnostics(
             ServerSystemContext systemContext,
             NodeId nodeId)
@@ -1043,9 +1012,7 @@ namespace Opc.Ua.Server
             DeleteNode(systemContext, nodeId);
         }
 
-        /// <summary>
-        /// Gets the default history capabilities object.
-        /// </summary>
+        /// <inheritdoc/>
         public HistoryServerCapabilitiesState GetDefaultHistoryCapabilities()
         {
             lock (Lock)
@@ -1103,9 +1070,7 @@ namespace Opc.Ua.Server
             }
         }
 
-        /// <summary>
-        /// Adds an aggregate function to the server capabilities object.
-        /// </summary>
+        /// <inheritdoc/>
         public void AddAggregateFunction(NodeId aggregateId, string aggregateName, bool isHistorical)
         {
             lock (Lock)

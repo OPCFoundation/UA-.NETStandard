@@ -31,8 +31,15 @@ using Opc.Ua.Configuration;
 
 namespace Opc.Ua.Server
 {
-    internal class MainNodeManagerFactory : IMainNodeManagerFactory
+    /// <summary>
+    /// The factory that creates the main node managers of the server. The main
+    /// node managers are the one always present when creating a server.
+    /// </summary>
+    public class MainNodeManagerFactory : IMainNodeManagerFactory
     {
+        /// <summary>
+        /// Initializes the object with default values.
+        /// </summary>
         public MainNodeManagerFactory(
             IApplicationInstance applicationInstance,
             IServerInternal server)
@@ -41,16 +48,19 @@ namespace Opc.Ua.Server
             m_server = server;
         }
 
-
+        /// <inheritdoc/>
         public IMasterNodeManager CreateMasterNodeManager(string dynamicNamespaceUri, params INodeManager[] additionalManagers)
         {
             return new MasterNodeManager(m_server, m_applicationInstance.ApplicationConfiguration, this, dynamicNamespaceUri, additionalManagers);
         }
 
+        /// <inheritdoc/>
         public IConfigurationNodeManager CreateConfigurationNodeManager()
         {
             return new ConfigurationNodeManager(m_server, m_applicationInstance.ApplicationConfiguration);
         }
+
+        /// <inheritdoc/>
 
         public ICoreNodeManager CreateCoreNodeManager(ushort dynamicNamespaceIndex)
         {

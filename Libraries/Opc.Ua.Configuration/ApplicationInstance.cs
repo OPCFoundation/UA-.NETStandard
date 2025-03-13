@@ -67,56 +67,39 @@ namespace Opc.Ua.Configuration
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// Gets or sets the name of the application.
-        /// </summary>
-        /// <value>The name of the application.</value>
+
+        /// <inheritdoc/>
         public string ApplicationName
         {
             get { return m_applicationName; }
             set { m_applicationName = value; }
         }
 
-        /// <summary>
-        /// Gets or sets the type of the application.
-        /// </summary>
-        /// <value>The type of the application.</value>
+        /// <inheritdoc/>
         public ApplicationType ApplicationType
         {
             get { return m_applicationType; }
             set { m_applicationType = value; }
         }
 
-        /// <summary>
-        /// Gets or sets the name of the config section containing the path to the application configuration file.
-        /// </summary>
-        /// <value>The name of the config section.</value>
+        /// <inheritdoc/>
         public string ConfigSectionName
         {
             get { return m_configSectionName; }
             set { m_configSectionName = value; }
         }
 
-        /// <summary>
-        /// Gets or sets the type of configuration file.
-        /// </summary>
-        /// <value>The type of configuration file.</value>
+        /// <inheritdoc/>
         public Type ConfigurationType
         {
             get { return m_configurationType; }
             set { m_configurationType = value; }
         }
 
-        /// <summary>
-        /// Gets the server.
-        /// </summary>
-        /// <value>The server.</value>
+        /// <inheritdoc/>
         public IServerBase Server => m_server;
 
-        /// <summary>
-        /// Gets the application configuration used when the Start() method was called.
-        /// </summary>
-        /// <value>The application configuration.</value>
+        /// <inheritdoc/>
         public ApplicationConfiguration ApplicationConfiguration
         {
             get { return m_applicationConfiguration; }
@@ -128,51 +111,29 @@ namespace Opc.Ua.Configuration
         /// </summary>
         public static IApplicationMessageDlg MessageDlg { get; set; }
 
-        /// <summary>
-        /// Get or set the certificate password provider.
-        /// </summary>
+        /// <inheritdoc/>
         public ICertificatePasswordProvider CertificatePasswordProvider { get; set; }
 
-        /// <summary>
-        /// Get or set bool which indicates if the auto creation
-        /// of a new application certificate during startup is disabled.
-        /// Default is enabled./>
-        /// </summary>
-        /// <remarks>
-        /// Prevents auto self signed cert creation in use cases
-        /// where an expired certificate should not be automatically
-        /// renewed or where it is required to only use certificates
-        /// provided by the user.
-        /// </remarks>
+        /// <inheritdoc/>
         public bool DisableCertificateAutoCreation { get; set; }
         #endregion
 
         #region Public Methods
-        /// <summary>
-        /// Processes the command line.
-        /// </summary>
-        /// <returns>
-        /// True if the arguments were processed; False otherwise.
-        /// </returns>
+
+        /// <inheritdoc/>
         public bool ProcessCommandLine()
         {
             // ignore processing of command line
             return false;
         }
 
-        /// <summary>
-        /// Starts the UA server as a Windows Service.
-        /// </summary>
-        /// <param name="server">The server.</param>
+        /// <inheritdoc/>
         public void StartAsService(IServerBase server)
         {
             throw new NotImplementedException(".NetStandard Opc.Ua libraries do not support to start as a windows service");
         }
 
-        /// <summary>
-        /// Starts the UA server.
-        /// </summary>
-        /// <param name="server">The server.</param>
+        /// <inheritdoc/>
         public async Task Start(IServerBase server)
         {
             m_server = server;
@@ -185,17 +146,13 @@ namespace Opc.Ua.Configuration
             server.Start(m_applicationConfiguration);
         }
 
-        /// <summary>
-        /// Stops the UA server.
-        /// </summary>
+        /// <inheritdoc/>
         public void Stop()
         {
             m_server.Stop();
         }
 
-        /// <summary>
-        /// Loads the configuration.
-        /// </summary>
+        /// <inheritdoc/>
         public async Task<ApplicationConfiguration> LoadAppConfig(
             bool silent,
             string filePath,
@@ -244,9 +201,7 @@ namespace Opc.Ua.Configuration
             }
         }
 
-        /// <summary>
-        /// Loads the configuration.
-        /// </summary>
+        /// <inheritdoc/>
         public async Task<ApplicationConfiguration> LoadAppConfig(
             bool silent,
             Stream stream,
@@ -295,9 +250,7 @@ namespace Opc.Ua.Configuration
             }
         }
 
-        /// <summary>
-        /// Loads the application configuration.
-        /// </summary>
+        /// <inheritdoc/>
         public async Task<ApplicationConfiguration> LoadApplicationConfiguration(Stream stream, bool silent)
         {
             ApplicationConfiguration configuration = null;
@@ -322,9 +275,7 @@ namespace Opc.Ua.Configuration
             return configuration;
         }
 
-        /// <summary>
-        /// Loads the application configuration.
-        /// </summary>
+        /// <inheritdoc/>
         public async Task<ApplicationConfiguration> LoadApplicationConfiguration(string filePath, bool silent)
         {
             ApplicationConfiguration configuration = null;
@@ -349,9 +300,7 @@ namespace Opc.Ua.Configuration
             return configuration;
         }
 
-        /// <summary>
-        /// Loads the application configuration.
-        /// </summary>
+        /// <inheritdoc/>
         public async Task<ApplicationConfiguration> LoadApplicationConfiguration(bool silent)
         {
             string filePath = ApplicationConfiguration.GetFilePathFromAppConfig(ConfigSectionName);
@@ -380,9 +329,7 @@ namespace Opc.Ua.Configuration
             return configuration;
         }
 
-        /// <summary>
-        /// Create a builder for a UA application configuration.
-        /// </summary>
+        /// <inheritdoc/>
         public IApplicationConfigurationBuilderTypes Build(
             string applicationUri,
             string productUri
@@ -406,11 +353,7 @@ namespace Opc.Ua.Configuration
             return new ApplicationConfigurationBuilder(this);
         }
 
-        /// <summary>
-        /// Checks for a valid application instance certificate.
-        /// </summary>
-        /// <param name="silent">if set to <c>true</c> no dialogs will be displayed.</param>
-        /// <param name="minimumKeySize">Minimum size of the key.</param>
+        /// <inheritdoc/>
         [Obsolete("This method is obsolete since an application now supports different minKey sizes depending on certificate type")]
         public Task<bool> CheckApplicationInstanceCertificate(
             bool silent,
@@ -419,36 +362,14 @@ namespace Opc.Ua.Configuration
             return CheckApplicationInstanceCertificate(silent, minimumKeySize, CertificateFactory.DefaultLifeTime);
         }
 
-        /// <summary>
-        /// Checks for a valid application instance certificate.
-        /// </summary>
-        /// <param name="silent">if set to <c>true</c> no dialogs will be displayed.</param>
+        /// <inheritdoc/>
         public async Task<bool> CheckApplicationInstanceCertificates(
             bool silent)
         {
             return await CheckApplicationInstanceCertificates(silent, CertificateFactory.DefaultLifeTime).ConfigureAwait(false);
         }
 
-        /// <summary>
-        /// Deletes all application certificates.
-        /// </summary>
-        public async Task DeleteApplicationInstanceCertificate(string[] profileIds = null, CancellationToken ct = default)
-        {
-            // TODO: delete only selected profiles
-            if (m_applicationConfiguration == null) throw new ArgumentException("Missing configuration.");
-            foreach (var id in m_applicationConfiguration.SecurityConfiguration.ApplicationCertificates)
-            {
-                await DeleteApplicationInstanceCertificateAsync(m_applicationConfiguration, id, ct).ConfigureAwait(false);
-            }
-        }
-
-        /// <summary>
-        /// Checks for a valid application instance certificate.
-        /// </summary>
-        /// <param name="silent">if set to <c>true</c> no dialogs will be displayed.</param>
-        /// <param name="minimumKeySize">Minimum size of the key.</param>
-        /// <param name="lifeTimeInMonths">The lifetime in months.</param>
-        /// <param name="ct"></param>
+        /// <inheritdoc/>
         [Obsolete("This method is obsolete since an application now supports different minKey sizes depending on certificate type")]
         public async Task<bool> CheckApplicationInstanceCertificate(
             bool silent,
@@ -459,12 +380,7 @@ namespace Opc.Ua.Configuration
             return await CheckApplicationInstanceCertificates(silent, lifeTimeInMonths, ct).ConfigureAwait(false);
         }
 
-        /// <summary>
-        /// Checks for a valid application instance certificate.
-        /// </summary>
-        /// <param name="silent">if set to <c>true</c> no dialogs will be displayed.</param>
-        /// <param name="lifeTimeInMonths">The lifetime in months.</param>
-        /// <param name="ct"></param>
+        /// <inheritdoc/>
         public async Task<bool> CheckApplicationInstanceCertificates(
             bool silent,
             ushort lifeTimeInMonths,
@@ -495,6 +411,24 @@ namespace Opc.Ua.Configuration
 
             return result;
         }
+
+        /// <inheritdoc/>
+        public async Task DeleteApplicationInstanceCertificate(string[] profileIds = null, CancellationToken ct = default)
+        {
+            // TODO: delete only selected profiles
+            if (m_applicationConfiguration == null) throw new ArgumentException("Missing configuration.");
+            foreach (var id in m_applicationConfiguration.SecurityConfiguration.ApplicationCertificates)
+            {
+                await DeleteApplicationInstanceCertificateAsync(m_applicationConfiguration, id, ct).ConfigureAwait(false);
+            }
+        }
+
+        /// <inheritdoc/>
+        public async Task AddOwnCertificateToTrustedStoreAsync(X509Certificate2 certificate, CancellationToken ct)
+        {
+            await AddToTrustedStoreAsync(m_applicationConfiguration, certificate, ct).ConfigureAwait(false);
+        }
+
         #endregion
 
         #region Private Methods
@@ -629,17 +563,6 @@ namespace Opc.Ua.Configuration
             }
 
             return true;
-        }
-
-        /// <summary>
-        /// Adds a Certificate to the Trusted Store of the Application, needed e.g. for the GDS to trust it´s own CA
-        /// </summary>
-        /// <param name="certificate">The certificate to add to the store</param>
-        /// <param name="ct">The cancellation token</param>
-        /// <returns></returns>
-        public async Task AddOwnCertificateToTrustedStoreAsync(X509Certificate2 certificate, CancellationToken ct)
-        {
-            await AddToTrustedStoreAsync(m_applicationConfiguration, certificate, ct).ConfigureAwait(false);
         }
 
         /// <summary>
