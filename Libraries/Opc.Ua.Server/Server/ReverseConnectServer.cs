@@ -33,7 +33,6 @@ using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading;
 using Opc.Ua.Configuration;
-using Opc.Ua.Server.NodeManager;
 
 namespace Opc.Ua.Server
 {

@@ -34,10 +34,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Configuration;
-using Opc.Ua.Configuration.Extensions.DependencyInjection;
-using Opc.Ua.Server.Extensions.DependencyInjection;
-using Opc.Ua.Server.NodeManager;
-using Quickstarts.ReferenceServer;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Server.Tests

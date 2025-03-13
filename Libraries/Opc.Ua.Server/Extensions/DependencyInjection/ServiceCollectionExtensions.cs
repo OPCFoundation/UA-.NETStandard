@@ -28,10 +28,8 @@
  * ======================================================================*/
 
 using Microsoft.Extensions.DependencyInjection;
-using Opc.Ua.Configuration.Extensions.DependencyInjection;
-using Opc.Ua.Server.NodeManager;
 
-namespace Opc.Ua.Server.Extensions.DependencyInjection
+namespace Opc.Ua.Server
 {
     /// <summary>
     /// Class that provides service collection extensions to setup dependency injection

@@ -36,8 +36,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.Configuration;
-using Opc.Ua.Configuration.Extensions.DependencyInjection;
-using Opc.Ua.Server.Extensions.DependencyInjection;
+using Opc.Ua.Server;
 
 namespace Quickstarts.ReferenceServer
 {

@@ -28,23 +28,16 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Reflection;
 using System.Runtime.InteropServices;
-using System.Text;
-using System.Threading;
 using System.Threading.Tasks;
-using BenchmarkDotNet.Configs;
-using CommandLine;
 using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
 using Opc.Ua.Configuration;
-using Opc.Ua.Configuration.Extensions.DependencyInjection;
-using Opc.Ua.Server.Extensions.DependencyInjection;
+using Opc.Ua.Server;
 using Opc.Ua.Server.Tests;
 using Quickstarts.ReferenceServer;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;

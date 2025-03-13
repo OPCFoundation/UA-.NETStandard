@@ -27,7 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-namespace Opc.Ua.Server.NodeManager
+namespace Opc.Ua.Server
 {
     /// <summary>
     /// Interface of the core node manager factory which helps creating main

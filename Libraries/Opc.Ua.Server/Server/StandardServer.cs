@@ -37,7 +37,6 @@ using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using Opc.Ua.Bindings;
 using Opc.Ua.Configuration;
-using Opc.Ua.Server.NodeManager;
 using static Opc.Ua.Utils;
 
 namespace Opc.Ua.Server

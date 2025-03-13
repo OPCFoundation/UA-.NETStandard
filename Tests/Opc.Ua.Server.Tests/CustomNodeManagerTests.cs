@@ -5,9 +5,6 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
 using Opc.Ua.Configuration;
-using Opc.Ua.Configuration.Extensions.DependencyInjection;
-using Opc.Ua.Server.Extensions.DependencyInjection;
-using Quickstarts.ReferenceServer;
 
 namespace Opc.Ua.Server.Tests
 {

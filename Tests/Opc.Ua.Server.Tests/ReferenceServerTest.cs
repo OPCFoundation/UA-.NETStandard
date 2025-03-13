@@ -35,8 +35,6 @@ using BenchmarkDotNet.Attributes;
 using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
 using Opc.Ua.Configuration;
-using Opc.Ua.Configuration.Extensions.DependencyInjection;
-using Opc.Ua.Server.Extensions.DependencyInjection;
 using Opc.Ua.Test;
 using Quickstarts.ReferenceServer;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;

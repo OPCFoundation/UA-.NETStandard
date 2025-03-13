@@ -32,7 +32,6 @@ using System.Linq;
 using System.Security.Cryptography.X509Certificates;
 using Opc.Ua.Configuration;
 using Opc.Ua.Server;
-using Opc.Ua.Server.NodeManager;
 using Quickstarts.ReferenceServer;
 
 namespace Opc.Ua.Client.Tests

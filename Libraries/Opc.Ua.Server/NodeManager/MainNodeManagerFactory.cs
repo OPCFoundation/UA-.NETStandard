@@ -29,7 +29,7 @@
 
 using Opc.Ua.Configuration;
 
-namespace Opc.Ua.Server.NodeManager
+namespace Opc.Ua.Server
 {
     internal class MainNodeManagerFactory : IMainNodeManagerFactory
     {

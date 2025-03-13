@@ -32,15 +32,11 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Text.RegularExpressions;
-using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Opc.Ua.Configuration;
-using Opc.Ua.Configuration.Extensions.DependencyInjection;
 using Opc.Ua.Gds.Client;
 using Opc.Ua.Server;
-using Opc.Ua.Server.Extensions.DependencyInjection;
-using Opc.Ua.Server.NodeManager;
 using Opc.Ua.Server.Tests;
 using Opc.Ua.Test;
 

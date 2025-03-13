@@ -31,7 +31,6 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading;
-using Opc.Ua.Server.NodeManager;
 
 namespace Opc.Ua.Server
 {

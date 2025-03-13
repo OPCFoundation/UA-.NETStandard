@@ -35,7 +35,6 @@ using Opc.Ua.Configuration;
 using Opc.Ua.Gds.Server.Database;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.Server;
-using Opc.Ua.Server.NodeManager;
 using Opc.Ua.Server.UserDatabase;
 
 namespace Opc.Ua.Gds.Server

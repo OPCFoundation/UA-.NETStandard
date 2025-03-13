@@ -34,7 +34,6 @@ using System.Security.Cryptography.X509Certificates;
 using Opc.Ua;
 using Opc.Ua.Configuration;
 using Opc.Ua.Server;
-using Opc.Ua.Server.NodeManager;
 
 namespace Quickstarts.ReferenceServer
 {

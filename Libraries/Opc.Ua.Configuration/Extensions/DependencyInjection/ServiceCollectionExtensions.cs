@@ -29,7 +29,7 @@
 
 using Microsoft.Extensions.DependencyInjection;
 
-namespace Opc.Ua.Configuration.Extensions.DependencyInjection
+namespace Opc.Ua.Configuration
 {
     /// <summary>
     /// Class that provides service collection extensions to setup dependency injection
