@@ -28,19 +28,16 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Reflection;
 using System.Runtime.InteropServices;
-using System.Text;
-using System.Threading;
 using System.Threading.Tasks;
-using BenchmarkDotNet.Configs;
-using CommandLine;
+using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
+using Opc.Ua.Configuration;
+using Opc.Ua.Server;
 using Opc.Ua.Server.Tests;
 using Quickstarts.ReferenceServer;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
@@ -80,8 +77,20 @@ namespace Opc.Ua.Client.Tests
             TextWriter writer)
         {
             {
+
+                IServiceCollection services = new ServiceCollection()
+                    .AddConfigurationServices()
+                    .AddServerServices()
+                    .AddScoped<IReferenceServer, ReferenceServer>();
+
+                IServiceProvider serviceProvider = services.BuildServiceProvider();
+
                 // start Ref server
-                ServerFixture = new ServerFixture<ReferenceServer>(enableTracing, disableActivityLogging) {
+                ServerFixture = new ServerFixture<IReferenceServer>(
+                    serviceProvider.GetRequiredService<IReferenceServer>(),
+                    serviceProvider.GetRequiredService<IApplicationInstance>(),
+                    enableTracing,
+                    disableActivityLogging) {
                     UriScheme = UriScheme,
                     SecurityNone = securityNone,
                     AutoAccept = true,

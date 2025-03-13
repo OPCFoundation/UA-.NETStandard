@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Security.Cryptography.X509Certificates;
 using Opc.Ua;
+using Opc.Ua.Configuration;
 using Opc.Ua.Server;
 
 namespace Quickstarts.ReferenceServer
@@ -43,12 +44,23 @@ namespace Quickstarts.ReferenceServer
     /// Each server instance must have one instance of a StandardServer object which is
     /// responsible for reading the configuration file, creating the endpoints and dispatching
     /// incoming requests to the appropriate handler.
-    /// 
+    ///
     /// This sub-class specifies non-configurable metadata such as Product Name and initializes
     /// the EmptyNodeManager which provides access to the data exposed by the Server.
     /// </remarks>
-    public partial class ReferenceServer : ReverseConnectServer
+    public partial class ReferenceServer : ReverseConnectServer, IReferenceServer
     {
+        public ReferenceServer(
+            IApplicationInstance applicationInstance,
+            IServerInternal serverInternal,
+            IMainNodeManagerFactory mainNodeManagerFactory)
+            : base(applicationInstance, serverInternal, mainNodeManagerFactory)
+        {
+            m_applicationInstance = applicationInstance;
+            m_serverInternal = serverInternal;
+            m_mainNodeManagerFactory = mainNodeManagerFactory;
+        }
+
         #region Properties
         public ITokenValidator TokenValidator { get; set; }
 
@@ -63,7 +75,9 @@ namespace Quickstarts.ReferenceServer
         /// always creates a CoreNodeManager which handles the built-in nodes defined by the specification.
         /// Any additional NodeManagers are expected to handle application specific nodes.
         /// </remarks>
-        protected override MasterNodeManager CreateMasterNodeManager(IServerInternal server, ApplicationConfiguration configuration)
+        protected override IMasterNodeManager CreateMasterNodeManager(
+            IServerInternal server,
+            ApplicationConfiguration configuration)
         {
             Utils.LogInfo(Utils.TraceMasks.StartStop, "Creating the Reference Server Node Manager.");
 
@@ -78,7 +92,7 @@ namespace Quickstarts.ReferenceServer
             }
 
             // create master node manager.
-            return new MasterNodeManager(server, configuration, null, nodeManagers.ToArray());
+            return m_mainNodeManagerFactory.CreateMasterNodeManager(null, nodeManagers.ToArray());
         }
 
         protected override IMonitoredItemQueueFactory CreateMonitoredItemQueueFactory(IServerInternal server, ApplicationConfiguration configuration)
@@ -136,7 +150,7 @@ namespace Quickstarts.ReferenceServer
         /// Initializes the server before it starts up.
         /// </summary>
         /// <remarks>
-        /// This method is called before any startup processing occurs. The sub-class may update the 
+        /// This method is called before any startup processing occurs. The sub-class may update the
         /// configuration object or do any other application specific startup tasks.
         /// </remarks>
         protected override void OnServerStarting(ApplicationConfiguration configuration)
@@ -162,11 +176,10 @@ namespace Quickstarts.ReferenceServer
 
             try
             {
-                lock (ServerInternal.Status.Lock)
-                {
-                    // allow a faster sampling interval for CurrentTime node.
-                    ServerInternal.Status.Variable.CurrentTime.MinimumSamplingInterval = 250;
-                }
+                ServerInternal.UpdateServerStatus(
+                    (serverStatus) => {
+                        serverStatus.Variable.CurrentTime.MinimumSamplingInterval = 250;
+                    });
             }
             catch
             { }
@@ -416,7 +429,7 @@ namespace Quickstarts.ReferenceServer
                     info = new TranslationInfo("IssuedTokenInvalid", "en-US", "token is an invalid issued token.");
                     result = StatusCodes.BadIdentityTokenInvalid;
                 }
-                else // Rejected                
+                else // Rejected
                 {
                     // construct translation object with default text.
                     info = new TranslationInfo("IssuedTokenRejected", "en-US", "token is rejected.");
@@ -434,6 +447,10 @@ namespace Quickstarts.ReferenceServer
 
         #region Private Fields
         private ICertificateValidator m_userCertificateValidator;
+        private readonly IMainNodeManagerFactory m_mainNodeManagerFactory;
+        private readonly IServerInternal m_serverInternal;
+        private readonly IApplicationInstance m_applicationInstance;
+
         #endregion
     }
 }

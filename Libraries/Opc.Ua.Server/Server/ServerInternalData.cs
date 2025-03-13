@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2022 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -30,8 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
-using System.Security.Cryptography.X509Certificates;
-using Opc.Ua.Security.Certificates;
+using Opc.Ua.Configuration;
 
 #pragma warning disable 0618
 
@@ -44,63 +43,28 @@ namespace Opc.Ua.Server
     /// This is a readonly class that is initialized when the server starts up. It provides
     /// access to global objects and data that different parts of the server may require.
     /// It also defines some global methods.
-    /// 
+    ///
     /// This object is constructed is three steps:
     /// - the configuration is provided.
     /// - the node managers et. al. are provided.
     /// - the session/subscription managers are provided.
-    /// 
+    ///
     /// The server is not running until all three steps are complete.
-    /// 
-    /// The references returned from this object do not change after all three states are complete. 
+    ///
+    /// The references returned from this object do not change after all three states are complete.
     /// This ensures the object is thread safe even though it does not use a lock.
     /// Objects returned from this object can be assumed to be threadsafe unless otherwise stated.
     /// </remarks>
-    public class ServerInternalData : IServerInternal, IDisposable
+    public class ServerInternalData : IServerInternal
     {
         #region Constructors
         /// <summary>
         /// Initializes the datastore with the server configuration.
         /// </summary>
-        /// <param name="serverDescription">The server description.</param>
-        /// <param name="configuration">The configuration.</param>
-        /// <param name="messageContext">The message context.</param>
-        /// <param name="certificateValidator">The certificate validator.</param>
-        /// <param name="instanceCertificateProvider">The certificate type provider.</param>
-        public ServerInternalData(
-            ServerProperties serverDescription,
-            ApplicationConfiguration configuration,
-            IServiceMessageContext messageContext,
-            CertificateValidator certificateValidator,
-            CertificateTypesProvider instanceCertificateProvider)
+        /// <param name="applicationInstance">The application instance.</param>
+        public ServerInternalData(IApplicationInstance applicationInstance)
         {
-            m_serverDescription = serverDescription;
-            m_configuration = configuration;
-            m_messageContext = messageContext;
-
-            m_endpointAddresses = new List<Uri>();
-
-            foreach (string baseAddresses in m_configuration.ServerConfiguration.BaseAddresses)
-            {
-                Uri url = Utils.ParseUri(baseAddresses);
-
-                if (url != null)
-                {
-                    m_endpointAddresses.Add(url);
-                }
-            }
-
-            m_namespaceUris = m_messageContext.NamespaceUris;
-            m_factory = m_messageContext.Factory;
-
-            m_serverUris = new StringTable();
-            m_typeTree = new TypeTable(m_namespaceUris);
-
-            // add the server uri to the server table.
-            m_serverUris.Append(m_configuration.ApplicationUri);
-
-            // create the default system context.
-            m_defaultSystemContext = new ServerSystemContext(this);
+            m_applicationInstance = applicationInstance;
         }
         #endregion
 
@@ -122,6 +86,8 @@ namespace Opc.Ua.Server
         {
             if (disposing)
             {
+                Initialized = false;
+
                 Utils.SilentDispose(m_resourceManager);
                 Utils.SilentDispose(m_requestManager);
                 Utils.SilentDispose(m_aggregateManager);
@@ -129,6 +95,13 @@ namespace Opc.Ua.Server
                 Utils.SilentDispose(m_sessionManager);
                 Utils.SilentDispose(m_subscriptionManager);
                 Utils.SilentDispose(m_monitoredItemQueueFactory);
+
+                m_endpointAddresses?.Clear();
+                m_endpointAddresses = null;
+                m_typeTree?.Clear();
+                m_typeTree = null;
+                m_serverUris = null;
+                m_defaultSystemContext = null;
             }
         }
         #endregion
@@ -138,7 +111,7 @@ namespace Opc.Ua.Server
         /// The session manager to use with the server.
         /// </summary>
         /// <value>The session manager.</value>
-        public SessionManager SessionManager
+        public ISessionManager SessionManager
         {
             get { return m_sessionManager; }
         }
@@ -147,7 +120,7 @@ namespace Opc.Ua.Server
         /// The subscription manager to use with the server.
         /// </summary>
         /// <value>The subscription manager.</value>
-        public SubscriptionManager SubscriptionManager
+        public ISubscriptionManager SubscriptionManager
         {
             get { return m_subscriptionManager; }
         }
@@ -156,7 +129,7 @@ namespace Opc.Ua.Server
         /// Stores the MasterNodeManager and the CoreNodeManager
         /// </summary>
         /// <param name="nodeManager">The node manager.</param>
-        public void SetNodeManager(MasterNodeManager nodeManager)
+        public void SetNodeManager(IMasterNodeManager nodeManager)
         {
             m_nodeManager = nodeManager;
             m_diagnosticsNodeManager = nodeManager.DiagnosticsNodeManager;
@@ -281,7 +254,7 @@ namespace Opc.Ua.Server
         /// The master node manager for the server.
         /// </summary>
         /// <value>The node manager.</value>
-        public MasterNodeManager NodeManager
+        public IMasterNodeManager NodeManager
         {
             get { return m_nodeManager; }
         }
@@ -290,7 +263,7 @@ namespace Opc.Ua.Server
         /// The internal node manager for the servers.
         /// </summary>
         /// <value>The core node manager.</value>
-        public CoreNodeManager CoreNodeManager
+        public ICoreNodeManager CoreNodeManager
         {
             get { return m_coreNodeManager; }
         }
@@ -299,7 +272,7 @@ namespace Opc.Ua.Server
         /// Returns the node manager that managers the server diagnostics.
         /// </summary>
         /// <value>The diagnostics node manager.</value>
-        public DiagnosticsNodeManager DiagnosticsNodeManager
+        public IDiagnosticsNodeManager DiagnosticsNodeManager
         {
             get { return m_diagnosticsNodeManager; }
         }
@@ -372,6 +345,7 @@ namespace Opc.Ua.Server
         /// Returns the status object for the server.
         /// </summary>
         /// <value>The status.</value>
+        [Obsolete("No longer thread safe. Must not use.")]
         public ServerStatusValue Status
         {
             get { return m_serverStatus; }
@@ -571,6 +545,11 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public ISystemContext DefaultAuditContext => DefaultSystemContext.Copy();
 
+        /// <summary>
+        /// Indicates that the server internal data object to be ready for usage (true) or not (false).
+        /// </summary>
+        public bool Initialized { get; private set; }
+
         /// <inheritdoc/>
         public void ReportAuditEvent(ISystemContext context, AuditEventState e)
         {
@@ -597,21 +576,23 @@ namespace Opc.Ua.Server
                     ObjectIds.Server,
                     typeof(ServerObjectState));
 
+                ApplicationConfiguration configuration = m_applicationInstance.ApplicationConfiguration;
+
                 // update server capabilities.
                 serverObject.ServiceLevel.Value = 255;
                 serverObject.ServerCapabilities.LocaleIdArray.Value = m_resourceManager.GetAvailableLocales();
-                serverObject.ServerCapabilities.ServerProfileArray.Value = m_configuration.ServerConfiguration.ServerProfileArray.ToArray();
+                serverObject.ServerCapabilities.ServerProfileArray.Value = configuration.ServerConfiguration.ServerProfileArray.ToArray();
                 serverObject.ServerCapabilities.MinSupportedSampleRate.Value = 0;
-                serverObject.ServerCapabilities.MaxBrowseContinuationPoints.Value = (ushort)m_configuration.ServerConfiguration.MaxBrowseContinuationPoints;
-                serverObject.ServerCapabilities.MaxQueryContinuationPoints.Value = (ushort)m_configuration.ServerConfiguration.MaxQueryContinuationPoints;
-                serverObject.ServerCapabilities.MaxHistoryContinuationPoints.Value = (ushort)m_configuration.ServerConfiguration.MaxHistoryContinuationPoints;
-                serverObject.ServerCapabilities.MaxArrayLength.Value = (uint)m_configuration.TransportQuotas.MaxArrayLength;
-                serverObject.ServerCapabilities.MaxStringLength.Value = (uint)m_configuration.TransportQuotas.MaxStringLength;
-                serverObject.ServerCapabilities.MaxByteStringLength.Value = (uint)m_configuration.TransportQuotas.MaxByteStringLength;
+                serverObject.ServerCapabilities.MaxBrowseContinuationPoints.Value = (ushort)configuration.ServerConfiguration.MaxBrowseContinuationPoints;
+                serverObject.ServerCapabilities.MaxQueryContinuationPoints.Value = (ushort)configuration.ServerConfiguration.MaxQueryContinuationPoints;
+                serverObject.ServerCapabilities.MaxHistoryContinuationPoints.Value = (ushort)configuration.ServerConfiguration.MaxHistoryContinuationPoints;
+                serverObject.ServerCapabilities.MaxArrayLength.Value = (uint)configuration.TransportQuotas.MaxArrayLength;
+                serverObject.ServerCapabilities.MaxStringLength.Value = (uint)configuration.TransportQuotas.MaxStringLength;
+                serverObject.ServerCapabilities.MaxByteStringLength.Value = (uint)configuration.TransportQuotas.MaxByteStringLength;
 
                 // Any operational limits Property that is provided shall have a non zero value.
                 var operationLimits = serverObject.ServerCapabilities.OperationLimits;
-                var configOperationLimits = m_configuration.ServerConfiguration.OperationLimits;
+                var configOperationLimits = configuration.ServerConfiguration.OperationLimits;
                 if (configOperationLimits != null)
                 {
                     operationLimits.MaxNodesPerRead = SetPropertyValue(operationLimits.MaxNodesPerRead, configOperationLimits.MaxNodesPerRead);
@@ -725,14 +706,14 @@ namespace Opc.Ua.Server
                 // set the diagnostics enabled state.
                 m_diagnosticsNodeManager.SetDiagnosticsEnabled(
                     m_defaultSystemContext,
-                    m_configuration.ServerConfiguration.DiagnosticsEnabled);
+                    configuration.ServerConfiguration.DiagnosticsEnabled);
 
                 ConfigurationNodeManager configurationNodeManager = m_diagnosticsNodeManager as ConfigurationNodeManager;
                 configurationNodeManager?.CreateServerConfiguration(
                     m_defaultSystemContext,
-                    m_configuration);
+                    configuration);
 
-                m_auditing = m_configuration.ServerConfiguration.AuditingEnabled;
+                m_auditing = configuration.ServerConfiguration.AuditingEnabled;
                 PropertyState<bool> auditing = serverObject.Auditing;
                 auditing.OnSimpleWriteValue += OnWriteAuditing;
                 auditing.OnSimpleReadValue += OnReadAuditing;
@@ -883,11 +864,134 @@ namespace Opc.Ua.Server
             }
             return property;
         }
+
+        /// <summary>
+        /// Initializes the server internal data object to be ready for usage.
+        /// </summary>
+        /// <param name="serverDescription">Server description.</param>
+        /// <param name="messageContext">Server message context.</param>
+        public void Initialize(ServerProperties serverDescription, IServiceMessageContext messageContext)
+        {
+            if (serverDescription == null) throw new ArgumentNullException(nameof(serverDescription));
+            if (messageContext == null) throw new ArgumentNullException(nameof(messageContext));
+
+            lock (m_dataLock)
+            {
+                if (Initialized)
+                {
+                    throw new InvalidOperationException("Server internal data already initialized.");
+                }
+
+                m_serverDescription = serverDescription;
+                m_messageContext = messageContext;
+
+                m_endpointAddresses = new List<Uri>();
+
+                ApplicationConfiguration configuration = m_applicationInstance.ApplicationConfiguration;
+
+                foreach (string baseAddresses in configuration.ServerConfiguration.BaseAddresses)
+                {
+                    Uri url = Utils.ParseUri(baseAddresses);
+
+                    if (url != null)
+                    {
+                        m_endpointAddresses.Add(url);
+                    }
+                }
+
+                m_namespaceUris = m_messageContext.NamespaceUris;
+                m_factory = m_messageContext.Factory;
+
+                m_typeTree = new TypeTable(m_namespaceUris);
+
+                // add the server uri to the server table.
+                m_serverUris = new StringTable();
+                m_serverUris.Append(configuration.ApplicationUri);
+
+                // create the default system context.
+                m_defaultSystemContext = new ServerSystemContext(this);
+
+                Initialized = true;
+            }
+        }
+
+        /// <summary>
+        /// Resets the server internal data, cannot be used until it is initialized again.
+        /// </summary>
+        public void Reset()
+        {
+            lock (m_dataLock)
+            {
+                if (!Initialized)
+                {
+                    return;
+                }
+
+                Initialized = false;
+            }
+
+            Dispose(true);
+
+            m_serverUris = null;
+            m_endpointAddresses = null;
+
+            m_serverDescription = null;
+            m_messageContext = null;
+            m_namespaceUris = null;
+            m_factory = null;
+            m_typeTree = null;
+            m_defaultSystemContext = null;
+        }
+
+        /// <summary>
+        /// Sets the server current state to shutdown with the given reason.
+        /// </summary>
+        /// <param name="shutdownReason">Reason of the shutdown.</param>
+        public void SetServerCurrentShutdown(LocalizedText shutdownReason)
+        {
+            lock (m_dataLock)
+            {
+                m_serverStatus.Value.ShutdownReason = shutdownReason;
+                m_serverStatus.Variable.ShutdownReason.Value = shutdownReason;
+                m_serverStatus.Value.State = ServerState.Shutdown;
+                m_serverStatus.Variable.State.Value = ServerState.Shutdown;
+                m_serverStatus.Variable.ClearChangeMasks(DefaultSystemContext, true);
+            }
+        }
+
+        /// <summary>
+        /// Sets the duration in seconds until shutdown.
+        /// </summary>
+        /// <param name="timeTillShutdown">Time until shutdown in seconds.</param>
+        public void SetServerSecondsTillShutdown(uint timeTillShutdown)
+        {
+            lock (m_dataLock)
+            {
+                m_serverStatus.Value.SecondsTillShutdown = timeTillShutdown;
+                m_serverStatus.Variable.SecondsTillShutdown.Value = timeTillShutdown;
+                m_serverStatus.Variable.ClearChangeMasks(DefaultSystemContext, true);
+            }
+        }
+
+        /// <summary>
+        /// Updates the server status safely.
+        /// </summary>
+        /// <param name="action">Action to perform on the server status object.</param>
+        public void UpdateServerStatus(Action<ServerStatusValue> action)
+        {
+            if (action == null) throw new ArgumentNullException(nameof(action));
+
+            lock (m_dataLock)
+            {
+                action.Invoke(m_serverStatus);
+            }
+        }
+
         #endregion
 
         #region Private Fields
+        private readonly IApplicationInstance m_applicationInstance;
         private ServerProperties m_serverDescription;
-        private ApplicationConfiguration m_configuration;
         private List<Uri> m_endpointAddresses;
         private IServiceMessageContext m_messageContext;
         private ServerSystemContext m_defaultSystemContext;
@@ -898,9 +1002,9 @@ namespace Opc.Ua.Server
         private ResourceManager m_resourceManager;
         private RequestManager m_requestManager;
         private AggregateManager m_aggregateManager;
-        private MasterNodeManager m_nodeManager;
-        private CoreNodeManager m_coreNodeManager;
-        private DiagnosticsNodeManager m_diagnosticsNodeManager;
+        private IMasterNodeManager m_nodeManager;
+        private ICoreNodeManager m_coreNodeManager;
+        private IDiagnosticsNodeManager m_diagnosticsNodeManager;
         private EventManager m_eventManager;
         private SessionManager m_sessionManager;
         private SubscriptionManager m_subscriptionManager;

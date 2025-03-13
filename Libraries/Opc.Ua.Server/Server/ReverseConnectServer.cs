@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading;
+using Opc.Ua.Configuration;
 
 namespace Opc.Ua.Server
 {
@@ -137,7 +138,7 @@ namespace Opc.Ua.Server
     /// <summary>
     /// The standard implementation of a UA server with reverse connect.
     /// </summary>
-    public class ReverseConnectServer : StandardServer
+    public class ReverseConnectServer : StandardServer, IReverseConnectServer
     {
         /// <summary>
         /// The default reverse connect interval.
@@ -157,7 +158,11 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Creates a reverse connect server based on a StandardServer.
         /// </summary>
-        public ReverseConnectServer()
+        public ReverseConnectServer(
+            IApplicationInstance applicationInstance,
+            IServerInternal serverInternal,
+            IMainNodeManagerFactory mainNodeManagerFactory)
+        : base (applicationInstance, serverInternal, mainNodeManagerFactory)
         {
             m_connectInterval = DefaultReverseConnectInterval;
             m_connectTimeout = DefaultReverseConnectTimeout;

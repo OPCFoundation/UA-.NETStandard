@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -39,7 +39,7 @@ namespace Opc.Ua.Server
     /// <summary>
     /// A node manager the diagnostic information exposed by the server.
     /// </summary>
-    public class DiagnosticsNodeManager : CustomNodeManager2
+    public class DiagnosticsNodeManager : CustomNodeManager2, IDiagnosticsNodeManager
     {
         #region Constructors
         /// <summary>
@@ -93,12 +93,8 @@ namespace Opc.Ua.Server
         #endregion
 
         #region INodeIdFactory Members
-        /// <summary>
-        /// Creates the NodeId for the specified node.
-        /// </summary>
-        /// <param name="context">The context.</param>
-        /// <param name="node">The node.</param>
-        /// <returns>The new NodeId.</returns>
+
+        /// <inheritdoc/>
         public override NodeId New(ISystemContext context, NodeState node)
         {
             uint id = Utils.IncrementIdentifier(ref m_lastUsedId);
@@ -113,7 +109,7 @@ namespace Opc.Ua.Server
         /// <remarks>
         /// The externalReferences is an out parameter that allows the node manager to link to nodes
         /// in other node managers. For example, the 'Objects' node is managed by the CoreNodeManager and
-        /// should have a reference to the root folder node(s) exposed by this node manager.  
+        /// should have a reference to the root folder node(s) exposed by this node manager.
         /// </remarks>
         public override void CreateAddressSpace(IDictionary<NodeId, IList<IReference>> externalReferences)
         {
@@ -219,10 +215,7 @@ namespace Opc.Ua.Server
             }
         }
 
-        /// <summary>
-        /// Called when a client sets a subscription as durable.
-        /// </summary>
-
+        /// <inheritdoc/>
         public ServiceResult OnSetSubscriptionDurable(
             ISystemContext context,
             MethodState method,
@@ -234,9 +227,7 @@ namespace Opc.Ua.Server
             return Server.SubscriptionManager.SetSubscriptionDurable(context, subscriptionId, lifetimeInHours, out revisedLifetimeInHours);
         }
 
-        /// <summary>
-        /// Called when a client gets the monitored items of a subscription.
-        /// </summary>
+        /// <inheritdoc/>
         public ServiceResult OnGetMonitoredItems(
             ISystemContext context,
             MethodState method,
@@ -280,9 +271,7 @@ namespace Opc.Ua.Server
             return StatusCodes.BadSubscriptionIdInvalid;
         }
 
-        /// <summary>
-        /// Called when a client initiates resending of all data monitored items in a Subscription.
-        /// </summary>
+        /// <inheritdoc/>
         public ServiceResult OnResendData(
             ISystemContext context,
             MethodState method,
@@ -320,9 +309,7 @@ namespace Opc.Ua.Server
             return StatusCodes.BadSubscriptionIdInvalid;
         }
 
-        /// <summary>
-        /// Called when a client locks the server.
-        /// </summary>
+        /// <inheritdoc/>
         public ServiceResult OnLockServer(
             ISystemContext context,
             MethodState method,
@@ -344,9 +331,7 @@ namespace Opc.Ua.Server
             return ServiceResult.Good;
         }
 
-        /// <summary>
-        /// Called when a client locks the server.
-        /// </summary>
+        /// <inheritdoc/>
         public ServiceResult OnUnlockServer(
             ISystemContext context,
             MethodState method,
@@ -612,22 +597,16 @@ namespace Opc.Ua.Server
             return false;
         }
 
-        /// <summary>
-        /// Force out of band diagnostics update after a change of diagnostics variables.
-        /// </summary>
+        /// <inheritdoc/>
         public void ForceDiagnosticsScan()
         {
             m_lastDiagnosticsScanTime = DateTime.MinValue;
         }
 
-        /// <summary>
-        /// True if diagnostics are currently enabled.
-        /// </summary>
+        /// <inheritdoc/>
         public bool DiagnosticsEnabled => m_diagnosticsEnabled;
 
-        /// <summary>
-        /// Sets the flag controlling whether diagnostics is enabled for the server.
-        /// </summary>
+        /// <inheritdoc/>
         public void SetDiagnosticsEnabled(ServerSystemContext context, bool enabled)
         {
             List<NodeState> nodesToDelete = new List<NodeState>();
@@ -727,9 +706,7 @@ namespace Opc.Ua.Server
             }
         }
 
-        /// <summary>
-        /// Creates the diagnostics node for the server.
-        /// </summary>
+        /// <inheritdoc/>
         public void CreateServerDiagnostics(
             ServerSystemContext systemContext,
             ServerDiagnosticsSummaryDataType diagnostics,
@@ -800,9 +777,7 @@ namespace Opc.Ua.Server
             }
         }
 
-        /// <summary>
-        /// Creates the diagnostics node for a subscription.
-        /// </summary>
+        /// <inheritdoc/>
         public NodeId CreateSessionDiagnostics(
             ServerSystemContext systemContext,
             SessionDiagnosticsDataType diagnostics,
@@ -903,9 +878,7 @@ namespace Opc.Ua.Server
             return nodeId;
         }
 
-        /// <summary>
-        /// Delete the diagnostics node for a session.
-        /// </summary>
+        /// <inheritdoc/>
         public void DeleteSessionDiagnostics(
             ServerSystemContext systemContext,
             NodeId nodeId)
@@ -933,9 +906,7 @@ namespace Opc.Ua.Server
             DeleteNode(systemContext, nodeId);
         }
 
-        /// <summary>
-        /// Creates the diagnostics node for a subscription.
-        /// </summary>
+        /// <inheritdoc/>
         public NodeId CreateSubscriptionDiagnostics(
             ServerSystemContext systemContext,
             SubscriptionDiagnosticsDataType diagnostics,
@@ -1019,9 +990,7 @@ namespace Opc.Ua.Server
             return nodeId;
         }
 
-        /// <summary>
-        /// Delete the diagnostics node for a subscription.
-        /// </summary>
+        /// <inheritdoc/>
         public void DeleteSubscriptionDiagnostics(
             ServerSystemContext systemContext,
             NodeId nodeId)
@@ -1043,9 +1012,7 @@ namespace Opc.Ua.Server
             DeleteNode(systemContext, nodeId);
         }
 
-        /// <summary>
-        /// Gets the default history capabilities object.
-        /// </summary>
+        /// <inheritdoc/>
         public HistoryServerCapabilitiesState GetDefaultHistoryCapabilities()
         {
             lock (Lock)
@@ -1103,9 +1070,7 @@ namespace Opc.Ua.Server
             }
         }
 
-        /// <summary>
-        /// Adds an aggregate function to the server capabilities object.
-        /// </summary>
+        /// <inheritdoc/>
         public void AddAggregateFunction(NodeId aggregateId, string aggregateName, bool isHistorical)
         {
             lock (Lock)
@@ -1837,7 +1802,7 @@ namespace Opc.Ua.Server
         /// Returns an index for the NamespaceURI (Adds it to the server namespace table if it does not already exist).
         /// </summary>
         /// <remarks>
-        /// Returns the server's default index (1) if the namespaceUri is empty or null. 
+        /// Returns the server's default index (1) if the namespaceUri is empty or null.
         /// </remarks>
         public ushort GetNamespaceIndex(string namespaceUri)
         {
@@ -1860,7 +1825,7 @@ namespace Opc.Ua.Server
         {
             return null;
         }
-    
+
         public ILocalNode GetLocalNode(NodeId nodeId)
         {
             return null;
@@ -1896,7 +1861,7 @@ namespace Opc.Ua.Server
 
         public void DeleteNode(NodeId nodeId, bool deleteChildren, bool silent)
         {
-        }       
+        }
 
         public ILocalNode ReferenceSharedNode(
             ILocalNode source,
@@ -1915,7 +1880,7 @@ namespace Opc.Ua.Server
         {
             return null;
         }
-        
+
         public NodeId CreateUniqueNodeId()
         {
             return null;
@@ -1940,7 +1905,7 @@ namespace Opc.Ua.Server
         {
             return null;
         }
-                
+
         public NodeId CreateVariable(
             NodeId parentId,
             NodeId referenceTypeId,
@@ -2059,7 +2024,7 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Polls each monitored item which requires sample. 
+        /// Polls each monitored item which requires sample.
         /// </summary>
         private void DoSample(object state)
         {

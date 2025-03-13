@@ -38,7 +38,7 @@ namespace Opc.Ua.Server
     /// <summary>
     /// A generic session manager object for a server.
     /// </summary>
-    public class SubscriptionManager : IDisposable, ISubscriptionManager
+    public class SubscriptionManager : ISubscriptionManager
     {
         #region Constructors
         /// <summary>
@@ -2175,7 +2175,7 @@ namespace Opc.Ua.Server
     /// <remarks>
     /// Sinks that receive these events must not block the thread.
     /// </remarks>
-    public interface ISubscriptionManager
+    public interface ISubscriptionManager : IDisposable
     {
         /// <summary>
         /// Raised after a new subscription is created.
@@ -2201,6 +2201,161 @@ namespace Opc.Ua.Server
             uint subscriptionId,
             uint lifetimeInHours,
             out uint revisedLifetimeInHours);
+
+        /// <summary>
+        /// Creates a new subscription.
+        /// </summary>
+        void CreateSubscription(
+            OperationContext context,
+            double requestedPublishingInterval,
+            uint requestedLifetimeCount,
+            uint requestedMaxKeepAliveCount,
+            uint maxNotificationsPerPublish,
+            bool publishingEnabled,
+            byte priority,
+            out uint subscriptionId,
+            out double revisedPublishingInterval,
+            out uint revisedLifetimeCount,
+            out uint revisedMaxKeepAliveCount);
+
+        /// <summary>
+        /// Closes all subscriptions and rejects any new requests.
+        /// </summary>
+        void Shutdown();
+
+        /// <summary>
+        /// Deletes group of subscriptions.
+        /// </summary>
+        void DeleteSubscriptions(
+            OperationContext context,
+            UInt32Collection subscriptionIds,
+            out StatusCodeCollection results,
+            out DiagnosticInfoCollection diagnosticInfos);
+
+        /// <summary>
+        /// Publishes a subscription.
+        /// </summary>
+        NotificationMessage Publish(
+            OperationContext context,
+            SubscriptionAcknowledgementCollection subscriptionAcknowledgements,
+            AsyncPublishOperation operation,
+            out uint subscriptionId,
+            out UInt32Collection availableSequenceNumbers,
+            out bool moreNotifications,
+            out StatusCodeCollection acknowledgeResults,
+            out DiagnosticInfoCollection acknowledgeDiagnosticInfos);
+
+        /// <summary>
+        /// Completes the publish.
+        /// </summary>
+        /// <param name="context">The context.</param>
+        /// <param name="operation">The asynchronous operation.</param>
+        /// <returns>
+        /// True if successful. False if the request has been requeued.
+        /// </returns>
+        bool CompletePublish(
+            OperationContext context,
+            AsyncPublishOperation operation);
+
+        /// <summary>
+        /// Modifies an existing subscription.
+        /// </summary>
+        void ModifySubscription(
+            OperationContext context,
+            uint subscriptionId,
+            double requestedPublishingInterval,
+            uint requestedLifetimeCount,
+            uint requestedMaxKeepAliveCount,
+            uint maxNotificationsPerPublish,
+            byte priority,
+            out double revisedPublishingInterval,
+            out uint revisedLifetimeCount,
+            out uint revisedMaxKeepAliveCount);
+
+        /// <summary>
+        /// Sets the publishing mode for a set of subscriptions.
+        /// </summary>
+        void SetPublishingMode(
+            OperationContext context,
+            bool publishingEnabled,
+            UInt32Collection subscriptionIds,
+            out StatusCodeCollection results,
+            out DiagnosticInfoCollection diagnosticInfos);
+
+        /// <summary>
+        /// Attaches a groups of subscriptions to a different session.
+        /// </summary>
+        void TransferSubscriptions(
+            OperationContext context,
+            UInt32Collection subscriptionIds,
+            bool sendInitialValues,
+            out TransferResultCollection results,
+            out DiagnosticInfoCollection diagnosticInfos);
+
+        /// <summary>
+        /// Republishes a previously published notification message.
+        /// </summary>
+        NotificationMessage Republish(
+            OperationContext context,
+            uint subscriptionId,
+            uint retransmitSequenceNumber);
+
+        /// <summary>
+        /// Updates the triggers for the monitored item.
+        /// </summary>
+        void SetTriggering(
+            OperationContext context,
+            uint subscriptionId,
+            uint triggeringItemId,
+            UInt32Collection linksToAdd,
+            UInt32Collection linksToRemove,
+            out StatusCodeCollection addResults,
+            out DiagnosticInfoCollection addDiagnosticInfos,
+            out StatusCodeCollection removeResults,
+            out DiagnosticInfoCollection removeDiagnosticInfos);
+
+        /// <summary>
+        /// Adds monitored items to a subscription.
+        /// </summary>
+        void CreateMonitoredItems(
+            OperationContext context,
+            uint subscriptionId,
+            TimestampsToReturn timestampsToReturn,
+            MonitoredItemCreateRequestCollection itemsToCreate,
+            out MonitoredItemCreateResultCollection results,
+            out DiagnosticInfoCollection diagnosticInfos);
+
+        /// <summary>
+        /// Modifies monitored items in a subscription.
+        /// </summary>
+        void ModifyMonitoredItems(
+            OperationContext context,
+            uint subscriptionId,
+            TimestampsToReturn timestampsToReturn,
+            MonitoredItemModifyRequestCollection itemsToModify,
+            out MonitoredItemModifyResultCollection results,
+            out DiagnosticInfoCollection diagnosticInfos);
+
+        /// <summary>
+        /// Deletes the monitored items in a subscription.
+        /// </summary>
+        void DeleteMonitoredItems(
+            OperationContext context,
+            uint subscriptionId,
+            UInt32Collection monitoredItemIds,
+            out StatusCodeCollection results,
+            out DiagnosticInfoCollection diagnosticInfos);
+
+        /// <summary>
+        /// Changes the monitoring mode for a set of items.
+        /// </summary>
+        void SetMonitoringMode(
+            OperationContext context,
+            uint subscriptionId,
+            MonitoringMode monitoringMode,
+            UInt32Collection monitoredItemIds,
+            out StatusCodeCollection results,
+            out DiagnosticInfoCollection diagnosticInfos);
     }
     /// <summary>
     /// The delegate for functions used to receive subscription related events.

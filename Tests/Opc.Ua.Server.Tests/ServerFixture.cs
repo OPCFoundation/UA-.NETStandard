@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -30,7 +30,6 @@
 using System;
 using System.Diagnostics;
 using System.IO;
-using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Configuration;
@@ -41,12 +40,12 @@ namespace Opc.Ua.Server.Tests
     /// Server fixture for testing.
     /// </summary>
     /// <typeparam name="T">A server class T used for testing.</typeparam>
-    public class ServerFixture<T> where T : ServerBase, new()
+    public class ServerFixture<T> where T : IServerBase
     {
         private NUnitTestLogger<T> m_traceLogger;
-        public ApplicationInstance Application { get; private set; }
+        public IApplicationInstance Application { get; private set; }
         public ApplicationConfiguration Config { get; private set; }
-        public T Server { get; private set; }
+        public T Server => m_server;
         public bool LogConsole { get; set; }
         public bool AutoAccept { get; set; }
         public bool OperationLimits { get; set; }
@@ -61,8 +60,14 @@ namespace Opc.Ua.Server.Tests
         public bool DurableSubscriptionsEnabled { get; set; } = false;
         public ActivityListener ActivityListener { get; private set; }
 
-        public ServerFixture(bool useTracing, bool disableActivityLogging)
+        public ServerFixture(
+            T server,
+            IApplicationInstance applicationInstance,
+            bool useTracing,
+            bool disableActivityLogging)
+        : this(server, applicationInstance)
         {
+            Application = applicationInstance;
             UseTracing = useTracing;
             if (UseTracing)
             {
@@ -70,17 +75,16 @@ namespace Opc.Ua.Server.Tests
             }
         }
 
-        public ServerFixture()
+        public ServerFixture(T server, IApplicationInstance applicationInstance)
         {
-
+            Application = applicationInstance;
+            m_server = server;
         }
 
         public async Task LoadConfiguration(string pkiRoot = null)
         {
-            Application = new ApplicationInstance {
-                ApplicationName = typeof(T).Name,
-                ApplicationType = ApplicationType.Server
-            };
+            Application.ApplicationName = typeof(T).Name;
+            Application.ApplicationType = ApplicationType.Server;
 
             // create the application configuration. Use temp path for cert stores.
             pkiRoot = pkiRoot ?? Path.GetTempPath() + Path.GetRandomFileName();
@@ -92,7 +96,7 @@ namespace Opc.Ua.Server.Tests
                 .SetMaxArrayLength(1024 * 1024)
                 .SetChannelLifetime(30000)
                 .AsServer(
-                    new string[] {
+                    new[] {
                     endpointUrl
                 });
 
@@ -148,7 +152,7 @@ namespace Opc.Ua.Server.Tests
                     RejectTimeout = ReverseConnectTimeout / 4
                 });
             }
-            
+
             CertificateIdentifierCollection applicationCerts = ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
                 "CN=" + typeof(T).Name + ", C=US, S=Arizona, O=OPC Foundation, DC=localhost",
                 CertificateStoreType.Directory,
@@ -187,7 +191,7 @@ namespace Opc.Ua.Server.Tests
             int testPort = port;
             int serverStartRetries = 1;
 
-            if (Application == null)
+            if (Application.ApplicationConfiguration == null)
             {
                 await LoadConfiguration(pkiRoot).ConfigureAwait(false);
             }
@@ -244,13 +248,11 @@ namespace Opc.Ua.Server.Tests
             }
 
             // start the server.
-            T server = new T();
-            if (AllNodeManagers && server is StandardServer standardServer)
+            if (AllNodeManagers && m_server is StandardServer standardServer)
             {
                 Quickstarts.Servers.Utils.AddDefaultNodeManagers(standardServer);
             }
-            await Application.Start(server).ConfigureAwait(false);
-            Server = server;
+            await Application.Start(m_server).ConfigureAwait(false);
             Port = port;
         }
 
@@ -283,7 +285,7 @@ namespace Opc.Ua.Server.Tests
                 // Create an instance of ActivityListener without logging
                 ActivityListener = new ActivityListener() {
                     ShouldListenTo = (source) => (source.Name == EndpointBase.ActivitySourceName),
-                    Sample = (ref ActivityCreationOptions<ActivityContext> options) => ActivitySamplingResult.AllDataAndRecorded,
+                    Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllDataAndRecorded,
                     ActivityStarted = _ => { },
                     ActivityStopped = _ => { }
                 };
@@ -293,7 +295,7 @@ namespace Opc.Ua.Server.Tests
                 // Create an instance of ActivityListener and configure its properties with logging
                 ActivityListener = new ActivityListener() {
                     ShouldListenTo = (source) => (source.Name == EndpointBase.ActivitySourceName),
-                    Sample = (ref ActivityCreationOptions<ActivityContext> options) => ActivitySamplingResult.AllDataAndRecorded,
+                    Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllDataAndRecorded,
                     ActivityStarted = activity => Utils.LogInfo("Server Started: {0,-15} - TraceId: {1,-32} SpanId: {2,-16} ParentId: {3,-32}",
                         activity.OperationName, activity.TraceId, activity.SpanId, activity.ParentId),
                     ActivityStopped = activity => Utils.LogInfo("Server Stopped: {0,-15} - TraceId: {1,-32} SpanId: {2,-16} ParentId: {3,-32} Duration: {4}",
@@ -309,12 +311,13 @@ namespace Opc.Ua.Server.Tests
         /// </summary>
         public Task StopAsync()
         {
-            Server?.Stop();
-            Server?.Dispose();
-            Server = null;
+            Server.Stop();
+            Server.Dispose();
             ActivityListener?.Dispose();
             ActivityListener = null;
             return Task.Delay(100);
         }
+
+        private readonly T m_server;
     }
 }

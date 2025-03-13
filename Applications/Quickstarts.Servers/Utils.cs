@@ -47,7 +47,7 @@ namespace Quickstarts.Servers
         /// Applies custom settings to quickstart servers for CTT run.
         /// </summary>
         /// <param name="server"></param>
-        public static void ApplyCTTMode(TextWriter output, StandardServer server)
+        public static void ApplyCTTMode(TextWriter output, IStandardServer server)
         {
             var methodsToCall = new CallMethodRequestCollection();
             var index = server.CurrentInstance.NamespaceUris.GetIndex(Alarms.Namespaces.Alarms);

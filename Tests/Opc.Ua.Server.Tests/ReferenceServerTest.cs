@@ -32,7 +32,9 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using BenchmarkDotNet.Attributes;
+using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
+using Opc.Ua.Configuration;
 using Opc.Ua.Test;
 using Quickstarts.ReferenceServer;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
@@ -53,8 +55,8 @@ namespace Opc.Ua.Server.Tests
         const uint kTimeoutHint = 10000;
         const uint kQueueSize = 5;
 
-        ServerFixture<ReferenceServer> m_fixture;
-        ReferenceServer m_server;
+        ServerFixture<IReferenceServer> m_fixture;
+        IReferenceServer m_server;
         RequestHeader m_requestHeader;
         OperationLimits m_operationLimits;
         ReferenceDescriptionCollection m_referenceDescriptions;
@@ -70,8 +72,17 @@ namespace Opc.Ua.Server.Tests
         [OneTimeSetUp]
         public async Task OneTimeSetUp()
         {
+            IServiceCollection services = new ServiceCollection()
+                .AddConfigurationServices()
+                .AddServerServices()
+                .AddScoped<IReferenceServer, ReferenceServer>();
+
+            IServiceProvider serviceProvider = services.BuildServiceProvider();
+
             // start Ref server
-            m_fixture = new ServerFixture<ReferenceServer>() {
+            m_fixture = new ServerFixture<IReferenceServer>(
+                serviceProvider.GetRequiredService<IReferenceServer>(),
+                serviceProvider.GetRequiredService<IApplicationInstance>()) {
                 AllNodeManagers = true,
                 OperationLimits = true,
                 DurableSubscriptionsEnabled = false,
@@ -125,8 +136,20 @@ namespace Opc.Ua.Server.Tests
         [GlobalSetup]
         public void GlobalSetup()
         {
+            IServiceCollection services = new ServiceCollection()
+                .AddConfigurationServices()
+                .AddServerServices()
+                .AddScoped<IReferenceServer, ReferenceServer>();
+
+            IServiceProvider serviceProvider = services.BuildServiceProvider();
+
             // start Ref server
-            m_fixture = new ServerFixture<ReferenceServer>() { AllNodeManagers = true };
+            m_fixture = new ServerFixture<IReferenceServer>(
+                serviceProvider.GetRequiredService<IReferenceServer>(),
+                serviceProvider.GetRequiredService<IApplicationInstance>())
+            {
+                AllNodeManagers = true
+            };
             m_server = m_fixture.StartAsync(null).GetAwaiter().GetResult();
             m_requestHeader = m_server.CreateAndActivateSession("Bench");
         }
@@ -367,11 +390,10 @@ namespace Opc.Ua.Server.Tests
             try
             {
                 RequestHeader transferRequestHeader = m_server.CreateAndActivateSession("ClosedSession", useSecurity);
-                var transferSecurityContext = SecureChannelContext.Current;
                 var namespaceUris = m_server.CurrentInstance.NamespaceUris;
                 NodeId[] testSet = CommonTestWorkers.NodeIdTestSetStatic.Select(n => ExpandedNodeId.ToNodeId(n, namespaceUris)).ToArray();
                 transferRequestHeader.Timestamp = DateTime.UtcNow;
-                var subscriptionIds = CommonTestWorkers.CreateSubscriptionForTransfer(serverTestServices, transferRequestHeader, testSet, kQueueSize, -1);
+                var subscriptionIds = CommonTestWorkers.CreateSubscriptionForTransfer(serverTestServices, transferRequestHeader, testSet, kQueueSize);
 
                 transferRequestHeader.Timestamp = DateTime.UtcNow;
                 m_server.CloseSession(transferRequestHeader, false);
@@ -383,7 +405,7 @@ namespace Opc.Ua.Server.Tests
                 if (useSecurity)
                 {
                     // subscription was deleted, expect 'BadNoSubscription'
-                    var sre = Assert.Throws<ServiceResultException>(() => {
+                    var sre = NUnit.Framework.Assert.Throws<ServiceResultException>(() => {
                         m_requestHeader.Timestamp = DateTime.UtcNow;
                         CommonTestWorkers.VerifySubscriptionTransferred(serverTestServices, m_requestHeader, subscriptionIds, true);
                     });
@@ -412,7 +434,7 @@ namespace Opc.Ua.Server.Tests
             {
                 var namespaceUris = m_server.CurrentInstance.NamespaceUris;
                 NodeId[] testSet = CommonTestWorkers.NodeIdTestSetStatic.Select(n => ExpandedNodeId.ToNodeId(n, namespaceUris)).ToArray();
-                var subscriptionIds = CommonTestWorkers.CreateSubscriptionForTransfer(serverTestServices, m_requestHeader, testSet, kQueueSize, -1);
+                var subscriptionIds = CommonTestWorkers.CreateSubscriptionForTransfer(serverTestServices, m_requestHeader, testSet, kQueueSize);
 
                 RequestHeader transferRequestHeader = m_server.CreateAndActivateSession("TransferSession", useSecurity);
                 var transferSecurityContext = SecureChannelContext.Current;
@@ -472,15 +494,15 @@ namespace Opc.Ua.Server.Tests
 
                 Thread.Sleep(1000);
 
-                // Make sure publish queue becomes empty by consuming it 
+                // Make sure publish queue becomes empty by consuming it
                 Assert.AreEqual(1, subscriptionIds.Count);
 
                 // Issue a Publish request
                 m_requestHeader.Timestamp = DateTime.UtcNow;
                 var acknowledgements = new SubscriptionAcknowledgementCollection();
                 var response = serverTestServices.Publish(m_requestHeader, acknowledgements,
-                    out uint publishedId, out UInt32Collection availableSequenceNumbers,
-                    out bool moreNotifications, out NotificationMessage notificationMessage,
+                    out uint publishedId, out UInt32Collection _,
+                    out bool _, out NotificationMessage notificationMessage,
                     out StatusCodeCollection _, out DiagnosticInfoCollection diagnosticInfos);
 
                 Assert.AreEqual((StatusCode)StatusCodes.Good, response.ServiceResult);
@@ -495,8 +517,8 @@ namespace Opc.Ua.Server.Tests
                 {
                     m_requestHeader.Timestamp = DateTime.UtcNow;
                     response = serverTestServices.Publish(m_requestHeader, acknowledgements,
-                        out publishedId, out availableSequenceNumbers,
-                        out moreNotifications, out notificationMessage,
+                        out publishedId, out UInt32Collection _,
+                        out bool _, out notificationMessage,
                         out StatusCodeCollection _, out diagnosticInfos);
 
                     Assert.AreEqual((StatusCode)StatusCodes.Good, response.ServiceResult);
@@ -525,8 +547,8 @@ namespace Opc.Ua.Server.Tests
                 // Still nothing to publish since previous ResendData call did not execute
                 m_requestHeader.Timestamp = DateTime.UtcNow;
                 response = serverTestServices.Publish(m_requestHeader, acknowledgements,
-                    out publishedId, out availableSequenceNumbers,
-                    out moreNotifications, out notificationMessage,
+                    out publishedId, out UInt32Collection _,
+                    out bool _, out notificationMessage,
                     out StatusCodeCollection _, out diagnosticInfos);
 
                 Assert.AreEqual((StatusCode)StatusCodes.Good, response.ServiceResult);
@@ -552,8 +574,8 @@ namespace Opc.Ua.Server.Tests
                 // Data should be available for publishing now
                 m_requestHeader.Timestamp = DateTime.UtcNow;
                 response = serverTestServices.Publish(m_requestHeader, acknowledgements,
-                    out publishedId, out availableSequenceNumbers,
-                    out moreNotifications, out notificationMessage,
+                    out publishedId, out UInt32Collection _,
+                    out bool _, out notificationMessage,
                     out StatusCodeCollection _, out diagnosticInfos);
 
                 Assert.AreEqual((StatusCode)StatusCodes.Good, response.ServiceResult);
@@ -562,8 +584,8 @@ namespace Opc.Ua.Server.Tests
                 Assert.AreEqual(subscriptionIds[0], publishedId);
                 Assert.AreEqual(1, notificationMessage.NotificationData.Count);
                 var items = notificationMessage.NotificationData.FirstOrDefault();
-                Assert.IsTrue(items.Body is Opc.Ua.DataChangeNotification);
-                var monitoredItemsCollection = ((Opc.Ua.DataChangeNotification)items.Body).MonitoredItems;
+                Assert.IsTrue(items.Body is DataChangeNotification);
+                var monitoredItemsCollection = ((DataChangeNotification)items.Body).MonitoredItems;
                 Assert.AreEqual(testSet.Length, monitoredItemsCollection.Count);
 
                 Thread.Sleep(1000);
@@ -573,8 +595,8 @@ namespace Opc.Ua.Server.Tests
                     // remaining queue Data should be sent in this publish
                     m_requestHeader.Timestamp = DateTime.UtcNow;
                     response = serverTestServices.Publish(m_requestHeader, acknowledgements,
-                        out publishedId, out availableSequenceNumbers,
-                        out moreNotifications, out notificationMessage,
+                        out publishedId, out UInt32Collection _,
+                        out bool _, out notificationMessage,
                         out StatusCodeCollection _, out diagnosticInfos);
 
                     Assert.AreEqual((StatusCode)StatusCodes.Good, response.ServiceResult);
@@ -583,8 +605,8 @@ namespace Opc.Ua.Server.Tests
                     Assert.AreEqual(subscriptionIds[0], publishedId);
                     Assert.AreEqual(1, notificationMessage.NotificationData.Count);
                     items = notificationMessage.NotificationData.FirstOrDefault();
-                    Assert.IsTrue(items.Body is Opc.Ua.DataChangeNotification);
-                    monitoredItemsCollection = ((Opc.Ua.DataChangeNotification)items.Body).MonitoredItems;
+                    Assert.IsTrue(items.Body is DataChangeNotification);
+                    monitoredItemsCollection = ((DataChangeNotification)items.Body).MonitoredItems;
                     Assert.AreEqual(testSet.Length * (queueSize - 1), monitoredItemsCollection.Count, testSet.Length);
                 }
 
@@ -594,8 +616,8 @@ namespace Opc.Ua.Server.Tests
                 // Nothing to publish since previous ResendData call did not execute
                 m_requestHeader.Timestamp = DateTime.UtcNow;
                 response = serverTestServices.Publish(m_requestHeader, acknowledgements,
-                    out publishedId, out availableSequenceNumbers,
-                    out moreNotifications, out notificationMessage,
+                    out publishedId, out UInt32Collection _,
+                    out bool _, out notificationMessage,
                     out StatusCodeCollection _, out diagnosticInfos);
 
                 Assert.AreEqual((StatusCode)StatusCodes.Good, response.ServiceResult);

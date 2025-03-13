@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -38,7 +38,7 @@ namespace Opc.Ua.Server
     /// The master node manager for the server.
     /// </summary>
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Maintainability", "CA1506:AvoidExcessiveClassCoupling")]
-    public class MasterNodeManager : IDisposable
+    public class MasterNodeManager : IMasterNodeManager
     {
         #region Constructors
         /// <summary>
@@ -47,20 +47,22 @@ namespace Opc.Ua.Server
         public MasterNodeManager(
             IServerInternal server,
             ApplicationConfiguration configuration,
+            IMainNodeManagerFactory mainNodeManagerFactory,
             string dynamicNamespaceUri,
             params INodeManager[] additionalManagers)
         {
             if (server == null) throw new ArgumentNullException(nameof(server));
             if (configuration == null) throw new ArgumentNullException(nameof(configuration));
+            if (mainNodeManagerFactory == null) throw new ArgumentNullException(nameof(mainNodeManagerFactory));
 
             m_server = server;
-            m_nodeManagers = new List<INodeManager>();
-            m_maxContinuationPointsPerBrowse = (uint)configuration.ServerConfiguration.MaxBrowseContinuationPoints;
+            m_configuration = configuration;
+            m_mainNodeManagerFactory = mainNodeManagerFactory;
 
             // ensure the dynamic namespace uris.
             int dynamicNamespaceIndex = 1;
 
-            if (!String.IsNullOrEmpty(dynamicNamespaceUri))
+            if (!string.IsNullOrEmpty(dynamicNamespaceUri))
             {
                 dynamicNamespaceIndex = server.NamespaceUris.GetIndex(dynamicNamespaceUri);
 
@@ -71,19 +73,20 @@ namespace Opc.Ua.Server
             }
 
             // need to build a table of NamespaceIndexes and their NodeManagers.
-            List<INodeManager> registeredManagers = null;
-            Dictionary<int, List<INodeManager>> namespaceManagers = new Dictionary<int, List<INodeManager>>();
-
-            namespaceManagers[0] = registeredManagers = new List<INodeManager>();
-            namespaceManagers[1] = registeredManagers = new List<INodeManager>();
+            var registeredManagers = new List<INodeManager>();
+            var namespaceManagers = new Dictionary<int, List<INodeManager>>
+            {
+                [0] = registeredManagers,
+                [1] = registeredManagers
+            };
 
             // always add the diagnostics and configuration node manager to the start of the list.
-            ConfigurationNodeManager configurationAndDiagnosticsManager = new ConfigurationNodeManager(server, configuration);
+            IConfigurationNodeManager configurationAndDiagnosticsManager = m_mainNodeManagerFactory.CreateConfigurationNodeManager();
             RegisterNodeManager(configurationAndDiagnosticsManager, registeredManagers, namespaceManagers);
 
             // add the core node manager second because the diagnostics node manager takes priority.
             // always add the core node manager to the second of the list.
-            m_nodeManagers.Add(new CoreNodeManager(m_server, configuration, (ushort)dynamicNamespaceIndex));
+            m_nodeManagers.Add(m_mainNodeManagerFactory.CreateCoreNodeManager((ushort)dynamicNamespaceIndex));
 
             // register core node manager for default UA namespace.
             namespaceManagers[0].Add(m_nodeManagers[1]);
@@ -244,7 +247,7 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        ///  Determine the History PermissionType depending on PerformUpdateType 
+        ///  Determine the History PermissionType depending on PerformUpdateType
         /// </summary>
         /// <param name="updateType"></param>
         /// <returns>The corresponding PermissionType</returns>
@@ -263,42 +266,41 @@ namespace Opc.Ua.Server
         #endregion
 
         #region Public Interface
-        /// <summary>
-        /// Returns the core node manager.
-        /// </summary>
-        public CoreNodeManager CoreNodeManager
+
+        /// <inheritdoc/>
+        public ICoreNodeManager CoreNodeManager
         {
             get
             {
-                return m_nodeManagers[1] as CoreNodeManager;
+                return m_nodeManagers[1] as ICoreNodeManager;
             }
         }
 
-        /// <summary>
-        /// Returns the diagnostics node manager.
-        /// </summary>
-        public DiagnosticsNodeManager DiagnosticsNodeManager
+        /// <inheritdoc/>
+        public IDiagnosticsNodeManager DiagnosticsNodeManager
         {
             get
             {
-                return m_nodeManagers[0] as DiagnosticsNodeManager;
+                return m_nodeManagers[0] as IDiagnosticsNodeManager;
             }
         }
 
-        /// <summary>
-        /// Returns the configuration node manager.
-        /// </summary>
-        public ConfigurationNodeManager ConfigurationNodeManager
+        /// <inheritdoc/>
+        public IConfigurationNodeManager ConfigurationNodeManager
         {
             get
             {
-                return m_nodeManagers[0] as ConfigurationNodeManager;
+                return m_nodeManagers[0] as IConfigurationNodeManager;
             }
         }
 
-        /// <summary>
-        /// Creates the node managers and start them
-        /// </summary>
+        /// <inheritdoc/>
+        public IList<INodeManager> NodeManagers
+        {
+            get { return m_nodeManagers; }
+        }
+
+        /// <inheritdoc/>
         public virtual void Startup()
         {
             lock (m_lock)
@@ -344,9 +346,7 @@ namespace Opc.Ua.Server
             }
         }
 
-        /// <summary>
-        /// Signals that a session is closing.
-        /// </summary>
+        /// <inheritdoc/>
         public virtual void SessionClosing(OperationContext context, NodeId sessionId, bool deleteSubscriptions)
         {
             lock (m_lock)
@@ -370,9 +370,7 @@ namespace Opc.Ua.Server
             }
         }
 
-        /// <summary>
-        /// Shuts down the node managers.
-        /// </summary>
+        /// <inheritdoc/>
         public virtual void Shutdown()
         {
             lock (m_lock)
@@ -389,22 +387,7 @@ namespace Opc.Ua.Server
             }
         }
 
-        /// <summary>
-        /// Registers the node manager as the node manager for Nodes in the specified namespace.
-        /// </summary>
-        /// <param name="namespaceUri">The URI of the namespace.</param>
-        /// <param name="nodeManager">The NodeManager which owns node in the namespace.</param>
-        /// <remarks>
-        /// Multiple NodeManagers may register interest in a Namespace. 
-        /// The order in which this method is called determines the precedence if multiple NodeManagers exist.
-        /// This method adds the namespaceUri to the Server's Namespace table if it does not already exist.
-        /// 
-        /// This method is thread safe and can be called at anytime.
-        /// 
-        /// This method does not have to be called for any namespaces that were in the NodeManager's 
-        /// NamespaceUri property when the MasterNodeManager was created.
-        /// </remarks>
-        /// <exception cref="ArgumentNullException">Throw if the namespaceUri or the nodeManager are null.</exception>
+        /// <inheritdoc/>
         public void RegisterNamespaceManager(string namespaceUri, INodeManager nodeManager)
         {
             if (String.IsNullOrEmpty(namespaceUri)) throw new ArgumentNullException(nameof(namespaceUri));
@@ -460,13 +443,7 @@ namespace Opc.Ua.Server
             }
         }
 
-        /// <summary>
-        /// Unregisters the node manager as the node manager for Nodes in the specified namespace.
-        /// </summary>
-        /// <param name="namespaceUri">The URI of the namespace.</param>
-        /// <param name="nodeManager">The NodeManager which no longer owns nodes in the namespace.</param>
-        /// <returns>A value indicating whether the node manager was successfully unregistered.</returns>
-        /// <exception cref="ArgumentNullException">Throw if the namespaceUri or the nodeManager are null.</exception>
+        /// <inheritdoc/>
         public bool UnregisterNamespaceManager(string namespaceUri, INodeManager nodeManager)
         {
             if (String.IsNullOrEmpty(namespaceUri)) throw new ArgumentNullException(nameof(namespaceUri));
@@ -504,7 +481,7 @@ namespace Opc.Ua.Server
                 // allocate a new smaller array to support element removal for the index being updated.
                 INodeManager[] registeredManagers = new INodeManager[namespaceManagers[namespaceIndex].Length - 1];
 
-                // begin by populating the new array with existing elements up to the target index. 
+                // begin by populating the new array with existing elements up to the target index.
                 if (nodeManagerIndex > 0)
                 {
                     Array.Copy(
@@ -540,9 +517,7 @@ namespace Opc.Ua.Server
             }
         }
 
-        /// <summary>
-        /// Returns node handle and its node manager.
-        /// </summary>
+        /// <inheritdoc/>
         public virtual object GetManagerHandle(NodeId nodeId, out INodeManager nodeManager)
         {
             nodeManager = null;
@@ -597,9 +572,7 @@ namespace Opc.Ua.Server
             return null;
         }
 
-        /// <summary>
-        /// Adds the references to the target.
-        /// </summary>
+        /// <inheritdoc/>
         public virtual void AddReferences(NodeId sourceId, IList<IReference> references)
         {
             foreach (IReference reference in references)
@@ -621,9 +594,7 @@ namespace Opc.Ua.Server
             }
         }
 
-        /// <summary>
-        /// Deletes the references to the target.
-        /// </summary>
+        /// <inheritdoc/>
         public virtual void DeleteReferences(NodeId targetId, IList<IReference> references)
         {
             foreach (ReferenceNode reference in references)
@@ -644,9 +615,7 @@ namespace Opc.Ua.Server
             }
         }
 
-        /// <summary>
-        /// Deletes the specified references.
-        /// </summary>
+        /// <inheritdoc/>
         public void RemoveReferences(List<LocalReference> referencesToRemove)
         {
             for (int ii = 0; ii < referencesToRemove.Count; ii++)
@@ -667,9 +636,8 @@ namespace Opc.Ua.Server
         }
 
         #region Register/Unregister Nodes
-        /// <summary>
-        /// Registers a set of node ids.
-        /// </summary>
+
+        /// <inheritdoc/>
         public virtual void RegisterNodes(
             OperationContext context,
             NodeIdCollection nodesToRegister,
@@ -705,9 +673,7 @@ namespace Opc.Ua.Server
             */
         }
 
-        /// <summary>
-        /// Unregisters a set of node ids.
-        /// </summary>
+        /// <inheritdoc/>
         public virtual void UnregisterNodes(
             OperationContext context,
             NodeIdCollection nodesToUnregister)
@@ -735,9 +701,8 @@ namespace Opc.Ua.Server
         #endregion
 
         #region TranslateBrowsePathsToNodeIds
-        /// <summary>
-        /// Translates a start node id plus a relative paths into a node id.
-        /// </summary>
+
+        /// <inheritdoc/>
         public virtual void TranslateBrowsePathsToNodeIds(
             OperationContext context,
             BrowsePathCollection browsePaths,
@@ -1048,7 +1013,7 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
-                // check for valid start node.   
+                // check for valid start node.
                 sourceHandle = GetManagerHandle((NodeId)targetId, out nodeManager);
 
                 if (sourceHandle == null)
@@ -1069,9 +1034,8 @@ namespace Opc.Ua.Server
         #endregion
 
         #region Browse
-        /// <summary>
-        /// Returns the set of references that meet the filter criteria.
-        /// </summary>
+
+        /// <inheritdoc/>
         public virtual void Browse(
             OperationContext context,
             ViewDescription view,
@@ -1149,7 +1113,7 @@ namespace Opc.Ua.Server
                         context,
                         view,
                         maxReferencesPerNode,
-                        continuationPointsAssigned < m_maxContinuationPointsPerBrowse,
+                        continuationPointsAssigned < (uint)m_configuration.ServerConfiguration.MaxBrowseContinuationPoints,
                         nodeToBrowse,
                         result);
                 }
@@ -1164,7 +1128,7 @@ namespace Opc.Ua.Server
                     continuationPointsAssigned++;
                 }
 
-                // check for error.   
+                // check for error.
                 result.StatusCode = error.StatusCode;
 
                 if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
@@ -1226,9 +1190,7 @@ namespace Opc.Ua.Server
             }
         }
 
-        /// <summary>
-        /// Continues a browse operation that was previously halted.
-        /// </summary>
+        /// <inheritdoc/>
         public virtual void BrowseNext(
             OperationContext context,
             bool releaseContinuationPoints,
@@ -1284,7 +1246,7 @@ namespace Opc.Ua.Server
                     }
                 }
 
-                // initialize result.    
+                // initialize result.
                 BrowseResult result = new BrowseResult();
                 result.StatusCode = StatusCodes.Good;
                 results.Add(result);
@@ -1318,7 +1280,7 @@ namespace Opc.Ua.Server
 
                         error = FetchReferences(
                             context,
-                            continuationPointsAssigned < m_maxContinuationPointsPerBrowse,
+                            continuationPointsAssigned < (uint)m_configuration.ServerConfiguration.MaxBrowseContinuationPoints,
                             ref cp,
                             ref references);
 
@@ -1575,9 +1537,7 @@ namespace Opc.Ua.Server
             return true;
         }
 
-        /// <summary>
-        /// Reads a set of nodes.
-        /// </summary>
+        /// <inheritdoc/>
         public virtual void Read(
             OperationContext context,
             double maxAge,
@@ -1709,9 +1669,7 @@ namespace Opc.Ua.Server
             UpdateDiagnostics(context, diagnosticsExist, ref diagnosticInfos);
         }
 
-        /// <summary>
-        /// Reads the history of a set of items.
-        /// </summary>
+        /// <inheritdoc/>
         public virtual void HistoryRead(
             OperationContext context,
             ExtensionObject historyReadDetails,
@@ -1750,7 +1708,7 @@ namespace Opc.Ua.Server
 
             for (int ii = 0; ii < nodesToRead.Count; ii++)
             {
-                // Limit permission restrictions to Client initiated service call                
+                // Limit permission restrictions to Client initiated service call
                 HistoryReadResult result = null;
                 DiagnosticInfo diagnosticInfo = null;
 
@@ -1834,9 +1792,7 @@ namespace Opc.Ua.Server
             UpdateDiagnostics(context, diagnosticsExist, ref diagnosticInfos);
         }
 
-        /// <summary>
-        /// Writes a set of values.
-        /// </summary>
+        /// <inheritdoc/>
         public virtual void Write(
             OperationContext context,
             WriteValueCollection nodesToWrite,
@@ -1922,16 +1878,14 @@ namespace Opc.Ua.Server
                     }
 
                     ServerUtils.ReportWriteValue(nodesToWrite[ii].NodeId, nodesToWrite[ii].Value, results[ii]);
-                }                
+                }
             }
 
             // clear the diagnostics array if no diagnostics requested or no errors occurred.
             UpdateDiagnostics(context, diagnosticsExist, ref diagnosticInfos);
         }
 
-        /// <summary>
-        /// Updates the history for a set of nodes.
-        /// </summary>
+        /// <inheritdoc/>
         public virtual void HistoryUpdate(
             OperationContext context,
             ExtensionObjectCollection historyUpdateDetails,
@@ -2063,9 +2017,7 @@ namespace Opc.Ua.Server
             UpdateDiagnostics(context, diagnosticsExist, ref diagnosticInfos);
         }
 
-        /// <summary>
-        /// Calls a method defined on an object.
-        /// </summary>
+        /// <inheritdoc/>
         public virtual void Call(
             OperationContext context,
             CallMethodRequestCollection methodsToCall,
@@ -2160,9 +2112,7 @@ namespace Opc.Ua.Server
             UpdateDiagnostics(context, diagnosticsExist, ref diagnosticInfos);
         }
 
-        /// <summary>
-        /// Handles condition refresh request.
-        /// </summary>
+        /// <inheritdoc/>
         public virtual void ConditionRefresh(OperationContext context, IList<IEventMonitoredItem> monitoredItems)
         {
             foreach (INodeManager nodeManager in m_nodeManagers)
@@ -2178,9 +2128,7 @@ namespace Opc.Ua.Server
             }
         }
 
-        /// <summary>
-        /// Creates a set of monitored items.
-        /// </summary>
+        /// <inheritdoc/>
         public virtual void CreateMonitoredItems(
             OperationContext context,
             uint subscriptionId,
@@ -2403,9 +2351,7 @@ namespace Opc.Ua.Server
             }
         }
 
-        /// <summary>
-        /// Modifies a set of monitored items.
-        /// </summary>
+        /// <inheritdoc/>
         public virtual void ModifyMonitoredItems(
             OperationContext context,
             TimestampsToReturn timestampsToReturn,
@@ -2571,9 +2517,7 @@ namespace Opc.Ua.Server
             }
         }
 
-        /// <summary>
-        /// Transfers a set of monitored items.
-        /// </summary>
+        /// <inheritdoc/>
         public virtual void TransferMonitoredItems(
             OperationContext context,
             bool sendInitialValues,
@@ -2605,9 +2549,7 @@ namespace Opc.Ua.Server
             }
         }
 
-        /// <summary>
-        /// Deletes a set of monitored items.
-        /// </summary>
+        /// <inheritdoc/>
         public virtual void DeleteMonitoredItems(
             OperationContext context,
             uint subscriptionId,
@@ -2698,9 +2640,7 @@ namespace Opc.Ua.Server
             }
         }
 
-        /// <summary>
-        /// Changes the monitoring mode for a set of items.
-        /// </summary>
+        /// <inheritdoc/>
         public virtual void SetMonitoringMode(
             OperationContext context,
             MonitoringMode monitoringMode,
@@ -2785,14 +2725,6 @@ namespace Opc.Ua.Server
         protected IServerInternal Server
         {
             get { return m_server; }
-        }
-
-        /// <summary>
-        /// The node managers being managed.
-        /// </summary>
-        public IList<INodeManager> NodeManagers
-        {
-            get { return m_nodeManagers; }
         }
 
         /// <summary>
@@ -2932,7 +2864,7 @@ namespace Opc.Ua.Server
                 return error;
             }
 
-            // validate monitoring filter.         
+            // validate monitoring filter.
             error = ValidateMonitoringFilter(attributes.Filter);
 
             if (ServiceResult.IsBad(error))
@@ -3091,7 +3023,7 @@ namespace Opc.Ua.Server
         #region Validate Permissions Methods
 
         /// <summary>
-        /// Check if the Base NodeClass attributes and NameSpace meta-data attributes 
+        /// Check if the Base NodeClass attributes and NameSpace meta-data attributes
         /// are valid for the given operation context of the specified node.
         /// </summary>
         /// <param name="context">The Operation Context</param>
@@ -3099,7 +3031,7 @@ namespace Opc.Ua.Server
         /// <param name="requestedPermision">The requested permission</param>
         /// <param name="uniqueNodesServiceAttributes">The cache holding the values of the attributes neeeded to be used in subsequent calls</param>
         /// <param name="permissionsOnly">Only the AccessRestrictions and RolePermission attributes are read. Should be false if uniqueNodesServiceAttributes is not null</param>
-        /// <returns>StatusCode Good if permission is granted, BadUserAccessDenied if not granted 
+        /// <returns>StatusCode Good if permission is granted, BadUserAccessDenied if not granted
         /// or a bad status code describing the validation process failure </returns>
         protected ServiceResult ValidatePermissions(
             OperationContext context,
@@ -3120,7 +3052,7 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Check if the Base NodeClass attributes and NameSpace meta-data attributes 
+        /// Check if the Base NodeClass attributes and NameSpace meta-data attributes
         /// are valid for the given operation context of the specified node.
         /// </summary>
         /// <param name="context">The Operation Context</param>
@@ -3129,7 +3061,7 @@ namespace Opc.Ua.Server
         /// <param name="requestedPermision">The requested permission</param>
         /// <param name="uniqueNodesServiceAttributes">The cache holding the values of the attributes neeeded to be used in subsequent calls</param>
         /// <param name="permissionsOnly">Only the AccessRestrictions and RolePermission attributes are read. Should be false if uniqueNodesServiceAttributes is not null</param>
-        /// <returns>StatusCode Good if permission is granted, BadUserAccessDenied if not granted 
+        /// <returns>StatusCode Good if permission is granted, BadUserAccessDenied if not granted
         /// or a bad status code describing the validation process failure </returns>
         protected ServiceResult ValidatePermissions(
             OperationContext context,
@@ -3163,7 +3095,7 @@ namespace Opc.Ua.Server
 
                 if (nodeMetadata != null)
                 {
-                    // check RolePermissions 
+                    // check RolePermissions
                     serviceResult = ValidateRolePermissions(context, nodeMetadata, requestedPermision);
 
                     if (ServiceResult.IsGood(serviceResult))
@@ -3227,7 +3159,7 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Validates the role permissions 
+        /// Validates the role permissions
         /// </summary>
         /// <param name="context"></param>
         /// <param name="nodeMetadata"></param>
@@ -3267,7 +3199,7 @@ namespace Opc.Ua.Server
                 return StatusCodes.Good;
             }
 
-            // group all permissions defined in rolePermissions by RoleId 
+            // group all permissions defined in rolePermissions by RoleId
             Dictionary<NodeId, PermissionType> roleIdPermissions = new Dictionary<NodeId, PermissionType>();
             if (rolePermissions != null && rolePermissions.Count > 0)
             {
@@ -3284,7 +3216,7 @@ namespace Opc.Ua.Server
                 }
             }
 
-            // group all permissions defined in userRolePermissions by RoleId 
+            // group all permissions defined in userRolePermissions by RoleId
             Dictionary<NodeId, PermissionType> roleIdPermissionsDefinedForUser = new Dictionary<NodeId, PermissionType>();
             if (userRolePermissions != null && userRolePermissions.Count > 0)
             {
@@ -3348,12 +3280,14 @@ namespace Opc.Ua.Server
 
         #region Private Fields
         private readonly object m_lock = new object();
-        private IServerInternal m_server;
-        private List<INodeManager> m_nodeManagers;
+        private readonly ApplicationConfiguration m_configuration;
+        private readonly IServerInternal m_server;
+        private readonly List<INodeManager> m_nodeManagers = new List<INodeManager>();
         private long m_lastMonitoredItemId;
         private INodeManager[][] m_namespaceManagers;
-        private uint m_maxContinuationPointsPerBrowse;
         private ReaderWriterLockSlim m_readWriterLockSlim = new ReaderWriterLockSlim();
+        private readonly IMainNodeManagerFactory m_mainNodeManagerFactory;
+
         #endregion
     }
 
