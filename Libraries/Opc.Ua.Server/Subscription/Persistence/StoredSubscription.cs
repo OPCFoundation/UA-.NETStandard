@@ -31,68 +31,6 @@ using System.Collections.Generic;
 
 namespace Opc.Ua.Server
 {
-    /// <summary>
-    /// A subscription in a format to be persited by an <see cref="ISubscriptionStore"/>
-    /// </summary>
-    public interface IStoredSubscription
-    {
-        /// <summary>
-        /// The Id of the subscription
-        /// </summary>
-        uint Id { get; set; }
-        /// <summary>
-        /// If the subscription is a durable susbscrition
-        /// </summary>
-        bool IsDurable { get; set; }
-        /// <summary>
-        /// The lifetime counter 
-        /// </summary>
-        uint LifetimeCounter { get; set; }
-        /// <summary>
-        /// The max lifetime count
-        /// </summary>
-        uint MaxLifetimeCount { get; set; }
-        /// <summary>
-        /// the max keepalive count
-        /// </summary>
-        uint MaxKeepaliveCount { get; set; }
-        /// <summary>
-        /// The max message count
-        /// </summary>
-        uint MaxMessageCount { get; set; }
-        /// <summary>
-        /// The max notifications being sent to a client in a single publish message
-        /// </summary>
-        uint MaxNotificationsPerPublish { get; set; }
-        /// <summary>
-        /// The monitored items being owned by the subscription
-        /// </summary>
-        IEnumerable<IStoredMonitoredItem> MonitoredItems { get; set; }
-        /// <summary>
-        /// The priority of the subscription
-        /// </summary>
-        byte Priority { get; set; }
-        /// <summary>
-        /// The publishing interval
-        /// </summary>
-        double PublishingInterval { get; set; }
-        /// <summary>
-        /// The last messages sent to the client / queued for sending
-        /// </summary>
-        List<NotificationMessage> SentMessages { get; set; }
-        /// <summary>
-        /// The last message sent by the subscription
-        /// </summary>
-        int LastSentMessage { get; set; }
-        /// <summary>
-        /// The sequence number
-        /// </summary>
-        long SequenceNumber { get; set; }
-        /// <summary>
-        /// The user identity of the subscription
-        /// </summary>
-        UserIdentityToken UserIdentityToken { get; set; }
-    }
 
     /// <inheritdoc/>
     public class StoredSubscription : IStoredSubscription

@@ -496,37 +496,7 @@ namespace MemoryBuffer
                     samplingInterval);
                 */
 
-                if (itemToMonitor.AttributeId != Attributes.Value)
-                {
-                    m_nonValueMonitoredItems.Add(monitoredItem.Id, monitoredItem);
-                    return monitoredItem;
-                }
-
-                int elementCount = (int)(SizeInBytes.Value / ElementSize);
-
-                if (m_monitoringTable == null)
-                {
-                    m_monitoringTable = new MemoryBufferMonitoredItem[elementCount][];
-                    m_scanTimer = new Timer(DoScan, null, 100, 100);
-                }
-
-                int elementOffet = (int)(tag.Offset / ElementSize);
-
-                MemoryBufferMonitoredItem[] monitoredItems = m_monitoringTable[elementOffet];
-
-                if (monitoredItems == null)
-                {
-                    monitoredItems = new MemoryBufferMonitoredItem[1];
-                }
-                else
-                {
-                    monitoredItems = new MemoryBufferMonitoredItem[monitoredItems.Length + 1];
-                    m_monitoringTable[elementOffet].CopyTo(monitoredItems, 0);
-                }
-
-                monitoredItems[monitoredItems.Length - 1] = monitoredItem;
-                m_monitoringTable[elementOffet] = monitoredItems;
-                m_itemCount++;
+                AddMonitoredItemInternal(monitoredItem, tag);
 
                 return monitoredItem;
             }
@@ -549,40 +519,45 @@ namespace MemoryBuffer
                     tag.Offset,
                     storedMonitoredItem);
 
-                if (storedMonitoredItem.AttributeId != Attributes.Value)
-                {
-                    m_nonValueMonitoredItems.Add(monitoredItem.Id, monitoredItem);
-                    return monitoredItem;
-                }
-
-                int elementCount = (int)(SizeInBytes.Value / ElementSize);
-
-                if (m_monitoringTable == null)
-                {
-                    m_monitoringTable = new MemoryBufferMonitoredItem[elementCount][];
-                    m_scanTimer = new Timer(DoScan, null, 100, 100);
-                }
-
-                int elementOffet = (int)(tag.Offset / ElementSize);
-
-                MemoryBufferMonitoredItem[] monitoredItems = m_monitoringTable[elementOffet];
-
-                if (monitoredItems == null)
-                {
-                    monitoredItems = new MemoryBufferMonitoredItem[1];
-                }
-                else
-                {
-                    monitoredItems = new MemoryBufferMonitoredItem[monitoredItems.Length + 1];
-                    m_monitoringTable[elementOffet].CopyTo(monitoredItems, 0);
-                }
-
-                monitoredItems[monitoredItems.Length - 1] = monitoredItem;
-                m_monitoringTable[elementOffet] = monitoredItems;
-                m_itemCount++;
+                AddMonitoredItemInternal(monitoredItem, tag);
 
                 return monitoredItem;
             }
+        }
+
+        private void AddMonitoredItemInternal(MemoryBufferMonitoredItem monitoredItem, MemoryTagState tag)
+        {
+            if (monitoredItem.AttributeId != Attributes.Value)
+            {
+                m_nonValueMonitoredItems.Add(monitoredItem.Id, monitoredItem);
+                return;
+            }
+
+            int elementCount = (int)(SizeInBytes.Value / ElementSize);
+
+            if (m_monitoringTable == null)
+            {
+                m_monitoringTable = new MemoryBufferMonitoredItem[elementCount][];
+                m_scanTimer = new Timer(DoScan, null, 100, 100);
+            }
+
+            int elementOffet = (int)(tag.Offset / ElementSize);
+
+            MemoryBufferMonitoredItem[] monitoredItems = m_monitoringTable[elementOffet];
+
+            if (monitoredItems == null)
+            {
+                monitoredItems = new MemoryBufferMonitoredItem[1];
+            }
+            else
+            {
+                monitoredItems = new MemoryBufferMonitoredItem[monitoredItems.Length + 1];
+                m_monitoringTable[elementOffet].CopyTo(monitoredItems, 0);
+            }
+
+            monitoredItems[monitoredItems.Length - 1] = monitoredItem;
+            m_monitoringTable[elementOffet] = monitoredItems;
+            m_itemCount++;
         }
 
         /// <summary>

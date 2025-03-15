@@ -194,7 +194,7 @@ namespace Opc.Ua.Server
             lock (m_lock)
             {
                 // limit the queue size.
-                uint revisedQueueSize = CalculateRevisedQueueSize(storedMonitoredItem.IsDurable, storedMonitoredItem.QueueSize);
+                storedMonitoredItem.QueueSize = CalculateRevisedQueueSize(storedMonitoredItem.IsDurable, storedMonitoredItem.QueueSize);
 
                 // create the monitored item.
                 MonitoredItem monitoredItem = new MonitoredItem(

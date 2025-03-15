@@ -47,7 +47,7 @@ namespace Opc.Ua.Server
         public MonitoredItem(
             IServerInternal server,
             INodeManager nodeManager,
-            object mangerHandle,
+            object managerHandle,
             uint subscriptionId,
             uint id,
             Session session,
@@ -63,7 +63,7 @@ namespace Opc.Ua.Server
             uint queueSize,
             bool discardOldest,
             double sourceSamplingInterval)
-         : this(server, nodeManager, mangerHandle, subscriptionId,
+         : this(server, nodeManager, managerHandle, subscriptionId,
             id, itemToMonitor, diagnosticsMasks, timestampsToReturn, monitoringMode,
             clientHandle, originalFilter, filterToUse, range, samplingInterval,
             queueSize, discardOldest, sourceSamplingInterval)
@@ -76,7 +76,7 @@ namespace Opc.Ua.Server
         public MonitoredItem(
             IServerInternal server,
             INodeManager nodeManager,
-            object mangerHandle,
+            object managerHandle,
             uint subscriptionId,
             uint id,
             ReadValueId itemToMonitor,
@@ -99,7 +99,7 @@ namespace Opc.Ua.Server
 
             m_server = server;
             m_nodeManager = nodeManager;
-            m_managerHandle = mangerHandle;
+            m_managerHandle = managerHandle;
             m_subscriptionId = subscriptionId;
             m_id = id;
             m_nodeId = itemToMonitor.NodeId;
@@ -181,15 +181,16 @@ namespace Opc.Ua.Server
         public MonitoredItem(
             IServerInternal server,
             INodeManager nodeManager,
-            object mangerHandle,
+            object managerHandle,
             IStoredMonitoredItem storedMonitoredItem)
         {
+            if (storedMonitoredItem == null) throw new ArgumentNullException(nameof(storedMonitoredItem));
 
             Initialize();
 
             m_server = server;
             m_nodeManager = nodeManager;
-            m_managerHandle = mangerHandle;
+            m_managerHandle = managerHandle;
             m_subscriptionId = storedMonitoredItem.SubscriptionId;
             m_id = storedMonitoredItem.Id;
             m_nodeId = storedMonitoredItem.NodeId;

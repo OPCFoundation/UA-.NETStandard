@@ -56,7 +56,7 @@ namespace Quickstarts.Servers
             if (createDurable)
             {
                 var queue = new DurableDataChangeMonitoredItemQueue(createDurable, monitoredItemId);
-                queue.Disposed += DataChangeQeueDisposed;
+                queue.Disposed += DataChangeQueueDisposed;
                 m_dataChangeQueues.AddOrUpdate(monitoredItemId, queue, (_, _) => queue);
                 return queue;
             }
@@ -84,7 +84,7 @@ namespace Quickstarts.Servers
             }
         }
 
-        private void DataChangeQeueDisposed(object sender, EventArgs eventArgs)
+        private void DataChangeQueueDisposed(object sender, EventArgs eventArgs)
         {
             if (sender is DataChangeMonitoredItemQueue queue)
             {

@@ -3433,7 +3433,7 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="server">The server.</param>
         /// <param name="configuration">The configuration.</param>
-        /// <returns>Returns a subscriptionStoe for a server, the return type is <seealso cref="ISubscriptionStore"/>.</returns>
+        /// <returns>Returns a subscriptionStore for a server, the return type is <seealso cref="ISubscriptionStore"/>.</returns>
         protected virtual ISubscriptionStore CreateSubscriptionStore(IServerInternal server, ApplicationConfiguration configuration)
         {
             return null;
