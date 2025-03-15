@@ -272,7 +272,8 @@ namespace Opc.Ua
                     }
                 }
 
-                // convert to UTF-8.
+                //copy result to m_decrypted password field
+                m_decryptedPassword = new byte[startOfNonce];
                 Array.Copy(decryptedPassword, 0, m_decryptedPassword, 0, startOfNonce);
             }
             // handle ECC encryption.
