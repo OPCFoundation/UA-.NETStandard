@@ -204,6 +204,16 @@ namespace Opc.Ua.Server
         {
             m_monitoredItemQueueFactory = monitoredItemQueueFactory;
         }
+
+        /// <summary>
+        /// Stores the Subscriptionstore in the datastore.
+        /// </summary>
+        /// <param name="subscriptionStore">The subscriptionstore.</param>
+        public void SetSubscriptionStore(
+            ISubscriptionStore subscriptionStore)
+        {
+            m_subscriptionStore = subscriptionStore;
+        }
         #endregion
 
         #region IServerInternal Members
@@ -367,6 +377,13 @@ namespace Opc.Ua.Server
             get { return m_monitoredItemQueueFactory; }
         }
 
+        /// <summary>
+        /// The store to persist and retrieve subscriptions
+        /// </summary>
+        public ISubscriptionStore SubscriptionStore
+        {
+            get { return m_subscriptionStore; }
+        }
 
         /// <summary>
         /// Returns the status object for the server.
@@ -905,6 +922,7 @@ namespace Opc.Ua.Server
         private SessionManager m_sessionManager;
         private SubscriptionManager m_subscriptionManager;
         private IMonitoredItemQueueFactory m_monitoredItemQueueFactory;
+        private ISubscriptionStore m_subscriptionStore;
 
         private readonly object m_dataLock = new object();
         private ServerObjectState m_serverObject;

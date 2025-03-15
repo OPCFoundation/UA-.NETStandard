@@ -28,57 +28,20 @@
  * ======================================================================*/
 
 
+using System;
+using System.Collections.Generic;
+using Opc.Ua;
 using Opc.Ua.Server;
 
 namespace Quickstarts.Servers
 {
-    /// <summary>
-    /// A factory for <see cref="IDataChangeMonitoredItemQueue"> and </see> <see cref="IEventMonitoredItemQueue"/>
-    /// </summary>
-    public class DurableMonitoredItemQueueFactory : IMonitoredItemQueueFactory
-    {
-        /// <inheritdoc/>
-        public bool SupportsDurableQueues => true;
-        /// <inheritdoc/>
-        public IDataChangeMonitoredItemQueue CreateDataChangeQueue(bool createDurable, uint monitoredItemId)
-        {
-            //use durable queue only if MI is durable
-            if (createDurable)
-            {
-
-                return new DurableDataChangeMonitoredItemQueue(createDurable, monitoredItemId);
-            }
-            else
-            {
-                return new DataChangeMonitoredItemQueue(createDurable, monitoredItemId);
-            }
-            
-        }
-
-        /// <inheritdoc/>
-        public IEventMonitoredItemQueue CreateEventQueue(bool createDurable, uint monitoredItemId)
-        {
-            //use durable queue only if MI is durable
-            if (createDurable)
-            {
-
-                return new DurableEventMonitoredItemQueue(createDurable, monitoredItemId);
-            }
-            else
-            {
-                return new EventMonitoredItemQueue(createDurable, monitoredItemId);
-            }
-        }
-
-        /// <inheritdoc/>
-        public void Dispose()
-        {
-            //only needed for managed resources
-        }
-    }
-
     public class DurableEventMonitoredItemQueue : EventMonitoredItemQueue
     {
+        /// <summary>
+        /// Invoked when the queue is disposed
+        /// </summary>
+        public event EventHandler Disposed;
+
         /// <summary>
         /// Creates an empty queue.
         /// </summary>
@@ -87,26 +50,45 @@ namespace Quickstarts.Servers
             IsDurable = createDurable;
         }
 
-        #region Public Methods
-        /// <inheritdoc/>
-        public override bool IsDurable { get; }
-        #endregion
-    }
-
-    public class DurableDataChangeMonitoredItemQueue : DataChangeMonitoredItemQueue
-    {
         /// <summary>
-        /// Creates an empty queue.
+        /// Creates a queue from a template
         /// </summary>
-        public DurableDataChangeMonitoredItemQueue(bool createDurable, uint monitoredItemId) : base(false, monitoredItemId)
+        public DurableEventMonitoredItemQueue(StorableEventQueue queue) : base(false, queue.MonitoredItemId)
         {
-            IsDurable = createDurable;
+            IsDurable = queue.IsDurable;
+            m_events = queue.Events;
+            QueueSize = queue.QueueSize;
         }
 
         #region Public Methods
+        /// <summary>
+        /// Brings the queue with contents into a storable format
+        /// </summary>
+        /// <returns></returns>
+        public StorableEventQueue ToStorableQueue()
+        {
+
+            return new StorableEventQueue {
+                IsDurable = IsDurable,
+                MonitoredItemId = MonitoredItemId,
+                Events = m_events,
+                QueueSize = QueueSize,
+            };
+        }
         /// <inheritdoc/>
         public override bool IsDurable { get; }
+
+        public override void Dispose()
+        {
+            Disposed?.Invoke(this, new EventArgs());
+        }
         #endregion
     }
-
+    public class StorableEventQueue
+    {
+        public bool IsDurable { get; set; }
+        public uint MonitoredItemId { get; set; }
+        public List<EventFieldList> Events { get; set; }
+        public uint QueueSize { get; set; }
+    }
 }

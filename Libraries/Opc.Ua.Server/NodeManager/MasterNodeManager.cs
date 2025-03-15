@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using System.Threading;
 
 namespace Opc.Ua.Server
@@ -1922,7 +1923,7 @@ namespace Opc.Ua.Server
                     }
 
                     ServerUtils.ReportWriteValue(nodesToWrite[ii].NodeId, nodesToWrite[ii].Value, results[ii]);
-                }                
+                }
             }
 
             // clear the diagnostics array if no diagnostics requested or no errors occurred.
@@ -2399,6 +2400,111 @@ namespace Opc.Ua.Server
 
                     monitoredItems[ii] = monitoredItem;
                     errors[ii] = StatusCodes.Good;
+                }
+            }
+        }
+
+
+        /// <summary>
+        /// Restore a set of monitored items after a Server Restart.
+        /// </summary>
+        public virtual void RestoreMonitoredItems(
+            IList<IStoredMonitoredItem> itemsToRestore,
+            IList<IMonitoredItem> monitoredItems,
+            IUserIdentity savedOwnerIdentity)
+        {
+            if (itemsToRestore == null) throw new ArgumentNullException(nameof(itemsToRestore));
+            if (monitoredItems == null) throw new ArgumentNullException(nameof(monitoredItems));
+
+            if (m_server.IsRunning)
+            {
+                throw new InvalidOperationException("Subscription restore can only occur on startup");
+            }
+
+            // create items for event filters.
+            RestoreMonitoredItemsForEvents(
+               itemsToRestore,
+               monitoredItems);
+
+            // create items for data access.
+            foreach (INodeManager nodeManager in m_nodeManagers)
+            {
+                nodeManager.RestoreMonitoredItems(
+                    itemsToRestore,
+                    monitoredItems,
+                    savedOwnerIdentity);
+            }
+
+            m_lastMonitoredItemId = itemsToRestore.Max(i => i.Id);
+        }
+
+        /// <summary>
+        /// Restore monitored items for event subscriptions.
+        /// </summary>
+        private void RestoreMonitoredItemsForEvents(
+            IList<IStoredMonitoredItem> itemsToRestore,
+            IList<IMonitoredItem> monitoredItems)
+        {
+            for (int ii = 0; ii < itemsToRestore.Count; ii++)
+            {
+                IStoredMonitoredItem item = itemsToRestore[ii];
+
+                if (!item.IsRestored)
+                {
+                    // all event subscriptions required an event filter.
+                    EventFilter filter = item.OriginalFilter as EventFilter;
+
+                    if (filter == null)
+                    {
+                        continue;
+                    }
+
+                    item.IsRestored = true;
+
+                    // check if a valid node.
+                    INodeManager nodeManager = null;
+
+                    object handle = GetManagerHandle(item.NodeId, out nodeManager);
+
+                    if (handle == null)
+                    {
+                        continue;
+                    }
+
+                    MonitoredItem monitoredItem = m_server.EventManager.RestoreMonitoredItem(
+                        nodeManager,
+                        handle,
+                        item);
+
+                    // subscribe to all node managers.
+                    if (item.NodeId == Objects.Server)
+                    {
+                        foreach (INodeManager manager in m_nodeManagers)
+                        {
+                            try
+                            {
+                                manager.SubscribeToAllEvents(new OperationContext(monitoredItem), monitoredItem.SubscriptionId, monitoredItem, false);
+                            }
+                            catch (Exception e)
+                            {
+                                Utils.LogError(e, "NodeManager threw an exception subscribing to all events. NodeManager={0}", manager);
+                            }
+                        }
+                    }
+
+                    // only subscribe to the node manager that owns the node.
+                    else
+                    {
+                        ServiceResult error = nodeManager.SubscribeToEvents(new OperationContext(monitoredItem), handle, monitoredItem.SubscriptionId, monitoredItem, false);
+
+                        if (ServiceResult.IsBad(error))
+                        {
+                            m_server.EventManager.DeleteMonitoredItem(monitoredItem.Id);
+                            continue;
+                        }
+                    }
+
+                    monitoredItems[ii] = monitoredItem;
                 }
             }
         }

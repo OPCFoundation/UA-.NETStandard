@@ -2333,6 +2333,110 @@ namespace Opc.Ua.Sample
         }
 
         /// <summary>
+        /// Restore a set of monitored items after a restart.
+        /// </summary>
+        public virtual void RestoreMonitoredItems(
+            IList<IStoredMonitoredItem> itemsToRestore,
+            IList<IMonitoredItem> monitoredItems,
+            IUserIdentity savedOwnerIdentity)
+        {
+            if (itemsToRestore == null) throw new ArgumentNullException(nameof(itemsToRestore));
+            if (monitoredItems == null) throw new ArgumentNullException(nameof(monitoredItems));
+
+            if (m_server.IsRunning)
+            {
+                throw new InvalidOperationException("Subscription restore can only occur on startup");
+            }
+
+            ServerSystemContext systemContext = m_systemContext.Copy();
+            IDictionary<NodeId, NodeState> operationCache = new NodeIdDictionary<NodeState>();
+            List<ReadWriteOperationState> nodesToValidate = new List<ReadWriteOperationState>();
+
+            lock (Lock)
+            {
+                for (int ii = 0; ii < itemsToRestore.Count; ii++)
+                {
+                    IStoredMonitoredItem itemToCreate = itemsToRestore[ii];
+
+                    // skip items that have already been processed.
+                    if (itemToCreate.IsRestored)
+                    {
+                        continue;
+                    }
+
+                    // check for valid handle.
+                    NodeState source = GetManagerHandle(systemContext, itemToCreate.NodeId, operationCache) as NodeState;
+
+                    if (source == null)
+                    {
+                        continue;
+                    }
+
+                    // owned by this node manager.
+                    itemToCreate.IsRestored = true;
+
+                    // check if the node is ready for reading.
+                    if (source.ValidationRequired)
+                    {
+                        // must validate node in a separate operation.
+                        ReadWriteOperationState operation = new ReadWriteOperationState();
+
+                        operation.Source = source;
+                        operation.Index = ii;
+
+                        nodesToValidate.Add(operation);
+
+                        continue;
+                    }
+
+                    IMonitoredItem monitoredItem = null;
+
+                    bool success = RestoreMonitoredItem(systemContext, source, itemToCreate, out monitoredItem);
+
+                    if (!success)
+                    {
+                        continue;
+                    }
+
+                    // save the monitored item.
+                    monitoredItems[ii] = monitoredItem;
+                }
+
+                // check for nothing to do.
+                if (nodesToValidate.Count == 0)
+                {
+                    return;
+                }
+
+                // validates the nodes (reads values from the underlying data source if required).
+                for (int ii = 0; ii < nodesToValidate.Count; ii++)
+                {
+                    ReadWriteOperationState operation = nodesToValidate[ii];
+
+                    // validate the object.
+                    if (!ValidateNode(systemContext, operation.Source))
+                    {
+                        continue;
+                    }
+
+                    IStoredMonitoredItem itemToCreate = itemsToRestore[operation.Index];
+
+                    IMonitoredItem monitoredItem = null;
+
+                    bool success = RestoreMonitoredItem(systemContext, operation.Source, itemToCreate, out monitoredItem);
+
+                    if (!success)
+                    {
+                        continue;
+                    }
+
+                    // save the monitored item.
+                    monitoredItems[operation.Index] = monitoredItem;
+                }
+            }
+        }
+
+        /// <summary>
         /// Reads the initial value for a monitored item.
         /// </summary>
         /// <param name="context">The context.</param>
@@ -2445,6 +2549,53 @@ namespace Opc.Ua.Sample
 
             // all good.
             return ServiceResult.Good;
+        }
+
+        /// <summary>
+        /// Restore a single monitored Item after a restart
+        /// </summary>
+        /// <returns>true if sucesfully restored</returns>
+        protected virtual bool RestoreMonitoredItem(
+            ServerSystemContext context,
+            NodeState source,
+            IStoredMonitoredItem storedMonitoredItem,
+            out IMonitoredItem monitoredItem)
+        {
+
+            // create monitored node.
+            MonitoredNode monitoredNode = source.Handle as MonitoredNode;
+
+            if (monitoredNode == null)
+            {
+                source.Handle = monitoredNode = new MonitoredNode(m_server, this, source);
+            }
+
+            // check if the variable needs to be sampled.
+            bool samplingRequired = false;
+
+            if (storedMonitoredItem.AttributeId == Attributes.Value)
+            {
+                BaseVariableState variable = source as BaseVariableState;
+
+                if (variable.MinimumSamplingInterval > 0)
+                {
+                    storedMonitoredItem.SamplingInterval = CalculateSamplingInterval(variable, storedMonitoredItem.SamplingInterval);
+                    samplingRequired = true;
+                }
+            }
+
+            // create the item.
+            DataChangeMonitoredItem datachangeItem = monitoredNode.RestoreDataChangeItem(storedMonitoredItem);
+
+            if (samplingRequired)
+            {
+                CreateSampledItem(storedMonitoredItem.SamplingInterval, datachangeItem);
+            }
+
+            // update monitored item list.
+            monitoredItem = datachangeItem;
+
+            return true;
         }
 
         /// <summary>

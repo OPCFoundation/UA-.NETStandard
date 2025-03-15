@@ -117,7 +117,7 @@ namespace Opc.Ua.Server
         public virtual bool IsDurable => false;
 
         /// <inheritdoc/>
-        public uint QueueSize { get; private set; }
+        public uint QueueSize { get; protected set; }
 
         /// <inheritdoc/>
         public int ItemsInQueue => m_events.Count;
@@ -136,7 +136,7 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public void Dispose()
+        public virtual void Dispose()
         {
             //Only needed for unmanaged resources
         }
@@ -196,7 +196,10 @@ namespace Opc.Ua.Server
         #endregion
 
         #region Private Fields
-        private readonly List<EventFieldList> m_events;
+        /// <summary>
+        /// the contained in the queue
+        /// </summary>
+        protected List<EventFieldList> m_events;
         private readonly uint m_monitoredItemId;
         #endregion
     }
