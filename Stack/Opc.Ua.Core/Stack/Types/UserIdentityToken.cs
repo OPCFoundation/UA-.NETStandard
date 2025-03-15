@@ -96,9 +96,25 @@ namespace Opc.Ua
         /// </summary>
         public string DecryptedPassword
         {
-            get { return m_decryptedPassword; }
-            set { m_decryptedPassword = value; }
+            get
+            {
+                if (m_decryptedPassword != null)
+                {
+                    return new UTF8Encoding().GetString(m_decryptedPassword);
+                }
+                return null;
+            }
+            set
+            {
+                if (value == null)
+                {
+                    m_decryptedPassword = null;
+                    return;
+                }
+                m_decryptedPassword = new UTF8Encoding().GetBytes(value);
+            }
         }
+
         #endregion
 
         #region Public Methods
@@ -141,7 +157,8 @@ namespace Opc.Ua
             // handle no encryption.
             if (String.IsNullOrEmpty(securityPolicyUri) || securityPolicyUri == SecurityPolicies.None)
             {
-                m_password = new UTF8Encoding().GetBytes(m_decryptedPassword);
+
+                m_password = m_decryptedPassword;
                 m_encryptionAlgorithm = null;
                 return;
             }
@@ -149,7 +166,8 @@ namespace Opc.Ua
             // handle RSA encryption.
             if (!EccUtils.IsEccPolicy(securityPolicyUri))
             {
-                byte[] dataToEncrypt = Utils.Append(new UTF8Encoding().GetBytes(m_decryptedPassword), receiverNonce);
+                byte[] dataToEncrypt = Utils.Append(m_decryptedPassword, receiverNonce);
+
 
                 EncryptedData encryptedData = SecurityPolicies.Encrypt(
                     receiverCertificate,
@@ -191,8 +209,7 @@ namespace Opc.Ua
                 secret.SenderIssuerCertificates = senderIssuerCertificates;
                 secret.SenderNonce = Nonce.CreateNonce(securityPolicyUri);
 
-                var utf8 = new UTF8Encoding(false).GetBytes(m_decryptedPassword);
-                m_password = secret.Encrypt(utf8, receiverNonce);
+                m_password = secret.Encrypt(m_decryptedPassword, receiverNonce);
                 m_encryptionAlgorithm = null;
 #else
                 throw new NotSupportedException("Platform does not support ECC curves");
@@ -215,7 +232,7 @@ namespace Opc.Ua
             // handle no encryption.
             if (String.IsNullOrEmpty(securityPolicyUri) || securityPolicyUri == SecurityPolicies.None)
             {
-                m_decryptedPassword = new UTF8Encoding().GetString(m_password, 0, m_password.Length);
+                m_decryptedPassword = m_password;
                 return;
             }
 
@@ -255,8 +272,9 @@ namespace Opc.Ua
                     }
                 }
 
-                // convert to UTF-8.
-                m_decryptedPassword = new UTF8Encoding().GetString(decryptedPassword, 0, startOfNonce);
+                //copy result to m_decrypted password field
+                m_decryptedPassword = new byte[startOfNonce];
+                Array.Copy(decryptedPassword, 0, m_decryptedPassword, 0, startOfNonce);
             }
             // handle ECC encryption.
             else
@@ -271,8 +289,7 @@ namespace Opc.Ua
                 secret.ReceiverNonce = ephemeralKey;
                 secret.SecurityPolicyUri = securityPolicyUri;
 
-                var plainText = secret.Decrypt(DateTime.UtcNow.AddHours(-1), receiverNonce.Data, m_password, 0, m_password.Length);
-                m_decryptedPassword = new UTF8Encoding().GetString(plainText);
+                m_decryptedPassword = secret.Decrypt(DateTime.UtcNow.AddHours(-1), receiverNonce.Data, m_password, 0, m_password.Length);
 #else
                 throw new NotSupportedException("Platform does not support ECC curves");
 #endif
@@ -282,7 +299,7 @@ namespace Opc.Ua
         #endregion
 
         #region Private Fields
-        private string m_decryptedPassword;
+        private byte[] m_decryptedPassword;
         #endregion
     }
 
