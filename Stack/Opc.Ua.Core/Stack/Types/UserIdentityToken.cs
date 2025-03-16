@@ -100,7 +100,7 @@ namespace Opc.Ua
             {
                 if (m_decryptedPassword != null)
                 {
-                    return new UTF8Encoding().GetString(m_decryptedPassword);
+                    return Encoding.UTF8.GetString(m_decryptedPassword);
                 }
                 return null;
             }
@@ -111,7 +111,7 @@ namespace Opc.Ua
                     m_decryptedPassword = null;
                     return;
                 }
-                m_decryptedPassword = new UTF8Encoding().GetBytes(value);
+                m_decryptedPassword = Encoding.UTF8.GetBytes(value);
             }
         }
 
