@@ -39,34 +39,60 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Restore subscriptions from storage, called on server startup
         /// </summary>
-        /// <returns>the templates to restore the susbscriptions from</returns>
-        IEnumerable<IStoredSubscription> RestoreSubscriptions();
+        /// <returns>the result of the restore operation</returns>
+        RestoreSubscriptionResult RestoreSubscriptions();
+
         /// <summary>
         /// Store subscriptions in storage, called on server shutdown
         /// </summary>
-        /// <param name="subscriptions">the subscription templates to sture</param>
+        /// <param name="subscriptions">the subscription templates to store</param>
         /// <returns>true if storing was successful</returns>
         bool StoreSubscriptions(IEnumerable<IStoredSubscription> subscriptions);
 
         /// <summary>
-        /// Restore a Monitored Item Queue from storage
+        /// Restore a DataChangeMonitoredItemQueue from storage
         /// </summary>
-        /// <param name="monitoredItemId">Id of monitored item owning the the queue</param>
+        /// <param name="monitoredItemId">Id of the MonitoredItem owning the the queue</param>
         /// <returns>the queue</returns>
         IDataChangeMonitoredItemQueue RestoreDataChangeMonitoredItemQueue(uint monitoredItemId);
 
         /// <summary>
-        /// Restore an event Monitored Item Queue from storage
+        /// Restore an EventMonitoredItemQueue from storage
         /// </summary>
-        /// <param name="monitoredItemId">Id of the Monitored Item owning the queue</param>
+        /// <param name="monitoredItemId">Id of the MonitoredItem owning the queue</param>
         /// <returns>the queue</returns>
         IEventMonitoredItemQueue RestoreEventMonitoredItemQueue(uint monitoredItemId);
 
         /// <summary>
-        /// Provide created Subscriptiosn incl MonitoredItems to SubscriptionStore, to signal cleanup can take place
-        /// The store shall clean all stored subscriptions, monitoredItems, and only keep the persitent queues for the monitoredItemIds provided
-        /// <param name="createdSubscriptions"> key = subscription id, value = monitoredItems </param>
+        /// Signals created Subscription ids incl. MonitoredItem ids to the SubscriptionStore instance, to signal cleanup can take place
+        /// The store shall clean all stored subscriptions, monitoredItems, and only keep the persitent queues for the monitoredItem ids provided
+        /// <param name="createdSubscriptions"> key = subscription id, value = monitoredItem ids </param>
         /// </summary>
         void OnSubscriptionRestoreComplete(Dictionary<uint, uint[]> createdSubscriptions);
     }
+
+    /// <summary>
+    /// Result of a restore operation
+    /// </summary>
+    public class RestoreSubscriptionResult
+    {
+        /// <summary>
+        /// Creates a new instance of the result
+        /// </summary>
+        public RestoreSubscriptionResult(bool succcess, IEnumerable<IStoredSubscription> subscriptions)
+        {
+            Success = succcess;
+            Subscriptions = subscriptions;
+        }
+
+        /// <summary>
+        /// If the restore operation was successful
+        /// </summary>
+        public bool Success { get; set; }
+
+        /// <summary>
+        /// The restored subscriptions
+        /// </summary>
+        public IEnumerable<IStoredSubscription> Subscriptions { get; set; }
+    };
 }

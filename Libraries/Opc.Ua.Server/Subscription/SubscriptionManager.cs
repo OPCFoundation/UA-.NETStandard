@@ -337,11 +337,12 @@ namespace Opc.Ua.Server
                 return;
             }
 
-            IEnumerable<IStoredSubscription> subscriptionsToRestore;
+            RestoreSubscriptionResult restoreResult;
 
             try
             {
-                subscriptionsToRestore = m_subscriptionStore.RestoreSubscriptions();
+
+                restoreResult = m_subscriptionStore.RestoreSubscriptions();
             }
             catch (Exception ex)
             {
@@ -350,14 +351,14 @@ namespace Opc.Ua.Server
             }
             
 
-            if (subscriptionsToRestore == null || !subscriptionsToRestore.Any())
+            if (!restoreResult.Success || restoreResult.Subscriptions == null || !restoreResult.Subscriptions.Any())
             {
                 return;
             }
 
             var createdSubscriptions = new Dictionary<uint, uint[]>();
 
-            foreach (IStoredSubscription storedSubscription in subscriptionsToRestore)
+            foreach (IStoredSubscription storedSubscription in restoreResult.Subscriptions)
             {
                 Subscription subscription;
 
@@ -375,7 +376,7 @@ namespace Opc.Ua.Server
                 createdSubscriptions.Add(subscription.Id, monitoredItemsIds);
             }
 
-            m_lastSubscriptionId = subscriptionsToRestore.Max(s => s.Id);
+            m_lastSubscriptionId = restoreResult.Subscriptions.Max(s => s.Id);
 
             m_subscriptionStore.OnSubscriptionRestoreComplete(createdSubscriptions);
         }

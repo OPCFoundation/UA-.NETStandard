@@ -33,7 +33,6 @@ using System.IO;
 using System.Linq;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
-using Newtonsoft.Json.Serialization;
 using Opc.Ua;
 using Opc.Ua.Server;
 
@@ -56,36 +55,52 @@ namespace Quickstarts.Servers
 
         public bool StoreSubscriptions(IEnumerable<IStoredSubscription> subscriptions)
         {
-            string result = JsonConvert.SerializeObject(subscriptions, s_settings);
-
-            if (!Directory.Exists(s_storage_path))
+            try
             {
-                Directory.CreateDirectory(s_storage_path);
+                string result = JsonConvert.SerializeObject(subscriptions, s_settings);
+
+                if (!Directory.Exists(s_storage_path))
+                {
+                    Directory.CreateDirectory(s_storage_path);
+                }
+
+                File.WriteAllText(Path.Combine(s_storage_path, s_filename), result);
+
+                if (m_durableMonitoredItemQueueFactory != null)
+                {
+                    IEnumerable<uint> ids = subscriptions.SelectMany(s => s.MonitoredItems.Select(m => m.Id));
+                    m_durableMonitoredItemQueueFactory.PersistQueues(ids, s_storage_path);
+                }
+                return true;
             }
-
-            File.WriteAllText(Path.Combine(s_storage_path, s_filename), result);
-
-            if (m_durableMonitoredItemQueueFactory != null)
+            catch (Exception ex)
             {
-                IEnumerable<uint> ids = subscriptions.SelectMany(s => s.MonitoredItems.Select(m => m.Id));
-                m_durableMonitoredItemQueueFactory.PersistQueues(ids, s_storage_path);
+                Opc.Ua.Utils.LogWarning(ex, "Failed to store subscriptions");
             }
-            return true;
+            return false;
         }
 
-        public IEnumerable<IStoredSubscription> RestoreSubscriptions()
+        public RestoreSubscriptionResult RestoreSubscriptions()
         {
             string filePath = Path.Combine(s_storage_path, s_filename);
-            if (File.Exists(filePath))
+            try
             {
-                string json = File.ReadAllText(filePath);
-                List<IStoredSubscription> result = JsonConvert.DeserializeObject<List<IStoredSubscription>>(json, s_settings);
+                if (File.Exists(filePath))
+                {
+                    string json = File.ReadAllText(filePath);
+                    List<IStoredSubscription> result = JsonConvert.DeserializeObject<List<IStoredSubscription>>(json, s_settings);
 
-                File.Delete(filePath);
+                    File.Delete(filePath);
 
-                return result;
+                    return new RestoreSubscriptionResult(true, result);
+                }
             }
-            return null;
+            catch (Exception ex)
+            {
+                Opc.Ua.Utils.LogWarning(ex, "Failed to restore subscriptions");
+            }
+            
+            return new RestoreSubscriptionResult(false, null);
         }
 
         public class ExtensionObjectConverter : JsonConverter
