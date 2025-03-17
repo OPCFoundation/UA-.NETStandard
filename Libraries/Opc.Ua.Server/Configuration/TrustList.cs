@@ -144,25 +144,28 @@ namespace Opc.Ua.Server
                 ICertificateStore store = m_trustedStore.OpenStore();
                 try
                 {
-                    if (store != null)
+                    if (store == null)
                     {
-                        if ((masks & TrustListMasks.TrustedCertificates) != 0)
-                        {
-                            X509Certificate2Collection certificates = store.Enumerate().GetAwaiter().GetResult();
-                            foreach (var certificate in certificates)
-                            {
-                                trustList.TrustedCertificates.Add(certificate.RawData);
-                            }
-                        }
+                        throw new ServiceResultException(StatusCodes.BadConfigurationError, "Failed to open trusted certificate store.");
+                    }
 
-                        if ((masks & TrustListMasks.TrustedCrls) != 0)
+                    if ((masks & TrustListMasks.TrustedCertificates) != 0)
+                    {
+                        X509Certificate2Collection certificates = store.Enumerate().GetAwaiter().GetResult();
+                        foreach (var certificate in certificates)
                         {
-                            foreach (var crl in store.EnumerateCRLs().GetAwaiter().GetResult())
-                            {
-                                trustList.TrustedCrls.Add(crl.RawData);
-                            }
+                            trustList.TrustedCertificates.Add(certificate.RawData);
                         }
                     }
+
+                    if ((masks & TrustListMasks.TrustedCrls) != 0)
+                    {
+                        foreach (var crl in store.EnumerateCRLs().GetAwaiter().GetResult())
+                        {
+                            trustList.TrustedCrls.Add(crl.RawData);
+                        }
+                    }
+
                 }
                 finally
                 {
@@ -172,25 +175,29 @@ namespace Opc.Ua.Server
                 store = m_issuerStore.OpenStore();
                 try
                 {
-                    if (store != null)
-                    {
-                        if ((masks & TrustListMasks.IssuerCertificates) != 0)
-                        {
-                            X509Certificate2Collection certificates = store.Enumerate().GetAwaiter().GetResult();
-                            foreach (var certificate in certificates)
-                            {
-                                trustList.IssuerCertificates.Add(certificate.RawData);
-                            }
-                        }
 
-                        if ((masks & TrustListMasks.IssuerCrls) != 0)
+                    if (store == null)
+                    {
+                        throw new ServiceResultException(StatusCodes.BadConfigurationError, "Failed to open issuer certificate store.");
+                    }
+
+                    if ((masks & TrustListMasks.IssuerCertificates) != 0)
+                    {
+                        X509Certificate2Collection certificates = store.Enumerate().GetAwaiter().GetResult();
+                        foreach (var certificate in certificates)
                         {
-                            foreach (var crl in store.EnumerateCRLs().GetAwaiter().GetResult())
-                            {
-                                trustList.IssuerCrls.Add(crl.RawData);
-                            }
+                            trustList.IssuerCertificates.Add(certificate.RawData);
                         }
                     }
+
+                    if ((masks & TrustListMasks.IssuerCrls) != 0)
+                    {
+                        foreach (var crl in store.EnumerateCRLs().GetAwaiter().GetResult())
+                        {
+                            trustList.IssuerCrls.Add(crl.RawData);
+                        }
+                    }
+
                 }
                 finally
                 {
@@ -530,48 +537,51 @@ namespace Opc.Ua.Server
                     var storeIdentifier = isTrustedCertificate ? m_trustedStore : m_issuerStore;
                     using (ICertificateStore store = storeIdentifier.OpenStore())
                     {
-                        if (store != null)
+                        if (store == null)
                         {
-                            var certCollection = store.FindByThumbprint(thumbprint).GetAwaiter().GetResult();
+                            throw new ServiceResultException(StatusCodes.BadConfigurationError, "Failed to open certificate store.");
+                        }
 
-                            if (certCollection.Count == 0)
+                        var certCollection = store.FindByThumbprint(thumbprint).GetAwaiter().GetResult();
+
+                        if (certCollection.Count == 0)
+                        {
+                            result = StatusCodes.BadInvalidArgument;
+                        }
+                        else
+                        {
+                            // delete all CRLs signed by cert
+                            var crlsToDelete = new X509CRLCollection();
+                            foreach (var crl in store.EnumerateCRLs().GetAwaiter().GetResult())
+                            {
+                                foreach (var cert in certCollection)
+                                {
+                                    if (X509Utils.CompareDistinguishedName(cert.SubjectName, crl.IssuerName) &&
+                                   crl.VerifySignature(cert, false))
+                                    {
+                                        crlsToDelete.Add(crl);
+                                        break;
+                                    }
+                                }
+                            }
+
+                            if (!store.Delete(thumbprint).GetAwaiter().GetResult())
                             {
                                 result = StatusCodes.BadInvalidArgument;
                             }
                             else
                             {
-                                // delete all CRLs signed by cert
-                                var crlsToDelete = new X509CRLCollection();
-                                foreach (var crl in store.EnumerateCRLs().GetAwaiter().GetResult())
+                                foreach (var crl in crlsToDelete)
                                 {
-                                    foreach (var cert in certCollection)
+                                    if (!store.DeleteCRL(crl).GetAwaiter().GetResult())
                                     {
-                                        if (X509Utils.CompareDistinguishedName(cert.SubjectName, crl.IssuerName) &&
-                                       crl.VerifySignature(cert, false))
-                                        {
-                                            crlsToDelete.Add(crl);
-                                            break;
-                                        }
-                                    }
-                                }
-
-                                if (!store.Delete(thumbprint).GetAwaiter().GetResult())
-                                {
-                                    result = StatusCodes.BadInvalidArgument;
-                                }
-                                else
-                                {
-                                    foreach (var crl in crlsToDelete)
-                                    {
-                                        if (!store.DeleteCRL(crl).GetAwaiter().GetResult())
-                                        {
-                                            // intentionally ignore errors, try best effort
-                                            Utils.LogError("RemoveCertificate: Failed to delete CRL {0}.", crl.ToString());
-                                        }
+                                        // intentionally ignore errors, try best effort
+                                        Utils.LogError("RemoveCertificate: Failed to delete CRL {0}.", crl.ToString());
                                     }
                                 }
                             }
                         }
+
                     }
 
                     m_node.LastUpdateTime.Value = DateTime.UtcNow;
@@ -631,6 +641,11 @@ namespace Opc.Ua.Server
                 ICertificateStore store = storeIdentifier.OpenStore();
                 try
                 {
+                    if (store == null)
+                    {
+                        throw new ServiceResultException(StatusCodes.BadConfigurationError, "Failed to open certificate store.");
+                    }
+
                     var storeCrls = await store.EnumerateCRLs().ConfigureAwait(false);
                     foreach (var crl in storeCrls)
                     {
@@ -673,6 +688,11 @@ namespace Opc.Ua.Server
                 ICertificateStore store = storeIdentifier.OpenStore();
                 try
                 {
+                    if (store == null)
+                    {
+                        throw new ServiceResultException(StatusCodes.BadConfigurationError, "Failed to open certificate store.");
+                    }
+
                     var storeCerts = await store.Enumerate().ConfigureAwait(false);
                     foreach (var cert in storeCerts)
                     {

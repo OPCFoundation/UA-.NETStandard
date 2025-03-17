@@ -60,8 +60,27 @@ namespace Opc.Ua
                 throw ServiceResultException.Create(StatusCodes.BadConfigurationError, "ApplicationCertificate must be specified.");
             }
 
-            TrustedIssuerCertificates = CreateDefaultTrustList(TrustedIssuerCertificates);
-            TrustedPeerCertificates = CreateDefaultTrustList(TrustedPeerCertificates);
+            if (TrustedIssuerCertificates?.StorePath == null)
+            {
+                throw ServiceResultException.Create(StatusCodes.BadConfigurationError, "TrustedIssuerCertificates store must be specified.");
+            }
+
+            if (TrustedPeerCertificates?.StorePath == null)
+            {
+                throw ServiceResultException.Create(StatusCodes.BadConfigurationError, "TrustedPeerCertificates store must be specified.");
+            }
+
+            if ((TrustedHttpsCertificates != null && HttpsIssuerCertificates == null)
+                || (HttpsIssuerCertificates != null && TrustedHttpsCertificates == null))
+            {
+                throw ServiceResultException.Create(StatusCodes.BadConfigurationError, "Either none or both of HttpsIssuerCertificates & TrustedHttpsCertificates stores must be specified.");
+            }
+
+            if ((TrustedUserCertificates != null && UserIssuerCertificates == null)
+                || (UserIssuerCertificates != null && TrustedUserCertificates == null))
+            {
+                throw ServiceResultException.Create(StatusCodes.BadConfigurationError, "Either none or both of UserIssuerCertificates & TrustedUserCertificates stores must be specified.");
+            }
 
 
             // replace subjectName DC=localhost with DC=hostname

@@ -2975,28 +2975,6 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// The name of the certificate store that contains the trusted certificates. 
-        /// </summary>
-        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 2)]
-        [Obsolete("Use StoreType/StorePath instead")]
-        public string StoreName
-        {
-            get { return m_storeName; }
-            set { m_storeName = value; }
-        }
-
-        /// <summary>
-        /// The location of the certificate store that contains the trusted certificates. 
-        /// </summary>
-        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 3)]
-        [Obsolete("Use StoreType/StorePath instead")]
-        public string StoreLocation
-        {
-            get { return m_storeLocation; }
-            set { m_storeLocation = value; }
-        }
-
-        /// <summary>
         /// Options that can be used to suppress certificate validation errors.
         /// </summary>
         [DataMember(Name = "ValidationOptions", IsRequired = false, EmitDefaultValue = false, Order = 4)]

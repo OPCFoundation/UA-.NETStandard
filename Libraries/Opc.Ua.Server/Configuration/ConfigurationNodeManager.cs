@@ -88,24 +88,35 @@ namespace Opc.Ua.Server
                 IssuerStore = new CertificateStoreIdentifier(configuration.SecurityConfiguration.TrustedIssuerCertificates.StorePath),
                 TrustedStore = new CertificateStoreIdentifier(configuration.SecurityConfiguration.TrustedPeerCertificates.StorePath)
             };
+            m_certificateGroups.Add(defaultApplicationGroup);
 
-            ServerCertificateGroup defaultUserGroup = new ServerCertificateGroup {
-                NodeId = Opc.Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultUserTokenGroup,
-                BrowseName = Opc.Ua.BrowseNames.DefaultUserTokenGroup,
-                CertificateTypes = new NodeId[] { },
-                ApplicationCertificates = new CertificateIdentifierCollection(),
-                IssuerStore = new CertificateStoreIdentifier(configuration.SecurityConfiguration.UserIssuerCertificates?.StorePath),
-                TrustedStore = new CertificateStoreIdentifier(configuration.SecurityConfiguration.TrustedUserCertificates?.StorePath)
-            };
+            if (configuration.SecurityConfiguration.UserIssuerCertificates != null && configuration.SecurityConfiguration.TrustedUserCertificates != null)
+            {
+                ServerCertificateGroup defaultUserGroup = new ServerCertificateGroup {
+                    NodeId = Opc.Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultUserTokenGroup,
+                    BrowseName = Opc.Ua.BrowseNames.DefaultUserTokenGroup,
+                    CertificateTypes = new NodeId[] { },
+                    ApplicationCertificates = new CertificateIdentifierCollection(),
+                    IssuerStore = new CertificateStoreIdentifier(configuration.SecurityConfiguration.UserIssuerCertificates.StorePath),
+                    TrustedStore = new CertificateStoreIdentifier(configuration.SecurityConfiguration.TrustedUserCertificates.StorePath)
+                };
 
-            ServerCertificateGroup defaultHttpsGroup = new ServerCertificateGroup {
-                NodeId = Opc.Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultHttpsGroup,
-                BrowseName = Opc.Ua.BrowseNames.DefaultHttpsGroup,
-                CertificateTypes = new NodeId[] { },
-                ApplicationCertificates = new CertificateIdentifierCollection(),
-                IssuerStore = new CertificateStoreIdentifier(configuration.SecurityConfiguration.HttpsIssuerCertificates?.StorePath),
-                TrustedStore = new CertificateStoreIdentifier(configuration.SecurityConfiguration.TrustedHttpsCertificates?.StorePath)
-            };
+                m_certificateGroups.Add(defaultUserGroup);
+            }
+            ServerCertificateGroup defaultHttpsGroup = null;
+            if (configuration.SecurityConfiguration.HttpsIssuerCertificates != null && configuration.SecurityConfiguration.TrustedHttpsCertificates != null)
+            {
+                defaultHttpsGroup = new ServerCertificateGroup {
+                    NodeId = Opc.Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultHttpsGroup,
+                    BrowseName = Opc.Ua.BrowseNames.DefaultHttpsGroup,
+                    CertificateTypes = new NodeId[] { },
+                    ApplicationCertificates = new CertificateIdentifierCollection(),
+                    IssuerStore = new CertificateStoreIdentifier(configuration.SecurityConfiguration.HttpsIssuerCertificates.StorePath),
+                    TrustedStore = new CertificateStoreIdentifier(configuration.SecurityConfiguration.TrustedHttpsCertificates.StorePath)
+                };
+
+                m_certificateGroups.Add(defaultHttpsGroup);
+            }
 
             // For each certificate in ApplicationCertificates, add the certificate type to ServerConfiguration_CertificateGroups_DefaultApplicationGroup
             // under the CertificateTypes field.
@@ -114,16 +125,13 @@ namespace Opc.Ua.Server
                 defaultApplicationGroup.CertificateTypes = defaultApplicationGroup.CertificateTypes.Concat(new NodeId[] { cert.CertificateType }).ToArray();
                 defaultApplicationGroup.ApplicationCertificates.Add(cert);
 
-                if (cert.CertificateType == ObjectTypeIds.HttpsCertificateType)
+                if (cert.CertificateType == ObjectTypeIds.HttpsCertificateType && defaultHttpsGroup != null)
                 {
                     defaultHttpsGroup.CertificateTypes = defaultHttpsGroup.CertificateTypes.Concat(new NodeId[] { cert.CertificateType }).ToArray();
                     defaultHttpsGroup.ApplicationCertificates.Add(cert);
                 }
             }
 
-            m_certificateGroups.Add(defaultApplicationGroup);
-            m_certificateGroups.Add(defaultHttpsGroup);
-            m_certificateGroups.Add(defaultUserGroup);
         }
         #endregion
 
@@ -557,6 +565,11 @@ namespace Opc.Ua.Server
                     {
                         using (ICertificateStore appStore = existingCertIdentifier.OpenStore())
                         {
+                            if (appStore == null)
+                            {
+                                throw new ServiceResultException(StatusCodes.BadConfigurationError, "Failed to open application certificate store.");
+                            }
+
                             Utils.LogCertificate(Utils.TraceMasks.Security, "Delete application certificate: ", existingCertIdentifier.Certificate);
                             appStore.Delete(existingCertIdentifier.Thumbprint).Wait();
                             Utils.LogCertificate(Utils.TraceMasks.Security, "Add new application certificate: ", updateCertificate.CertificateWithPrivateKey);
@@ -573,19 +586,21 @@ namespace Opc.Ua.Server
                         ICertificateStore issuerStore = certificateGroup.IssuerStore.OpenStore();
                         try
                         {
-                            if (issuerStore != null)
+                            if (issuerStore == null)
                             {
-                                foreach (var issuer in updateCertificate.IssuerCollection)
+                                throw new ServiceResultException(StatusCodes.BadConfigurationError, "Failed to open issuer certificate store.");
+                            }
+
+                            foreach (var issuer in updateCertificate.IssuerCollection)
+                            {
+                                try
                                 {
-                                    try
-                                    {
-                                        Utils.LogCertificate(Utils.TraceMasks.Security, "Add new issuer certificate: ", issuer);
-                                        issuerStore.Add(issuer).Wait();
-                                    }
-                                    catch (ArgumentException)
-                                    {
-                                        // ignore error if issuer cert already exists
-                                    }
+                                    Utils.LogCertificate(Utils.TraceMasks.Security, "Add new issuer certificate: ", issuer);
+                                    issuerStore.Add(issuer).Wait();
+                                }
+                                catch (ArgumentException)
+                                {
+                                    // ignore error if issuer cert already exists
                                 }
                             }
                         }

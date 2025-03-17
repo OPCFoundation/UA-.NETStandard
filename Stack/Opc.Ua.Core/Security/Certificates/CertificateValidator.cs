@@ -1051,6 +1051,7 @@ namespace Opc.Ua
                 {
                     if (store == null)
                     {
+                        Utils.LogWarning("Failed to open issuer store: {0}", certificateStore);
                         // not a trusted issuer.
                         return (null, null);
                     }
