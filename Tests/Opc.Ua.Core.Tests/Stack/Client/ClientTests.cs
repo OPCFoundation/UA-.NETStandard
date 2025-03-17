@@ -100,9 +100,12 @@ namespace Opc.Ua.Core.Tests.Stack.Client
         {
             var appConfig = new ApplicationConfiguration() {
                 ApplicationName = "Test",
-                ClientConfiguration = new ClientConfiguration() {},
+                ClientConfiguration = new ClientConfiguration() { },
                 SecurityConfiguration = new SecurityConfiguration() {
-                    ApplicationCertificate = new CertificateIdentifier()
+                    ApplicationCertificate = new CertificateIdentifier(),
+                    TrustedPeerCertificates = new CertificateTrustList { StorePath = "" },
+                    TrustedIssuerCertificates = new CertificateTrustList { StorePath = "" },
+
                 }
             };
             Assert.DoesNotThrow(() => appConfig.Validate(ApplicationType.Client).GetAwaiter().GetResult());
