@@ -2920,11 +2920,6 @@ namespace Opc.Ua
         {
             get
             {
-                if (!String.IsNullOrEmpty(m_storeName))
-                {
-                    return CertificateStoreType.X509Store;
-                }
-
                 return m_storeType;
             }
 
@@ -2947,16 +2942,6 @@ namespace Opc.Ua
         {
             get
             {
-                if (!String.IsNullOrEmpty(m_storeName))
-                {
-                    if (String.IsNullOrEmpty(m_storeLocation))
-                    {
-                        return CurrentUser + m_storeName;
-                    }
-
-                    return Utils.Format("{0}\\{1}", m_storeLocation, m_storeName);
-                }
-
                 return m_storePath;
             }
 
@@ -2988,8 +2973,6 @@ namespace Opc.Ua
         #region Private Fields
         private string m_storeType;
         private string m_storePath;
-        private string m_storeLocation;
-        private string m_storeName;
         private CertificateValidationOptions m_validationOptions;
         #endregion
     }
