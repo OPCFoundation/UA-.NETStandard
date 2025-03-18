@@ -469,7 +469,19 @@ namespace Opc.Ua.Server
                         errors.Add(null);
                     }
 
-                    OperationContext context = new OperationContext(m_session, m_diagnosticsMask);
+                    OperationContext context;
+
+                    if (m_session != null)
+                    {
+                        context = new OperationContext(m_session, m_diagnosticsMask);
+                    }
+                    else
+                    {
+                        // if session of the Sampling group is not set yet, use the first monitored item to create the context.
+                        IMonitoredItem firstItem = items[0];
+                        context = new OperationContext(firstItem);
+                        m_session = firstItem.Session;
+                    }
 
                     // read values.
                     m_nodeManager.Read(
