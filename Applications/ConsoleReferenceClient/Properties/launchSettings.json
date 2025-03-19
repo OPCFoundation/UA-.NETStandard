@@ -1,8 +1,0 @@
-{
-  "profiles": {
-    "ConsoleReferenceClient": {
-      "commandName": "Project",
-      "commandLineArgs": "-ds -un sysadmin -up demo"
-    }
-  }
-}
