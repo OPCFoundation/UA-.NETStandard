@@ -59,25 +59,37 @@ namespace Opc.Ua
             {
                 throw ServiceResultException.Create(StatusCodes.BadConfigurationError, "ApplicationCertificate must be specified.");
             }
+            // ensure mandatory stores are valid
+            ValidateStore(TrustedIssuerCertificates, nameof(TrustedIssuerCertificates));
+            ValidateStore(TrustedPeerCertificates, nameof(TrustedPeerCertificates));
 
-            if (TrustedIssuerCertificates?.StorePath == null)
+            ///ensure optional stores are valid if specified
+            if (TrustedHttpsCertificates.StorePath != null)
             {
-                throw ServiceResultException.Create(StatusCodes.BadConfigurationError, "TrustedIssuerCertificates store must be specified.");
+                ValidateStore(TrustedHttpsCertificates, nameof(TrustedHttpsCertificates));
+            }
+            if (HttpsIssuerCertificates.StorePath != null)
+            {
+                ValidateStore(HttpsIssuerCertificates, nameof(HttpsIssuerCertificates));
+            }
+            if (TrustedUserCertificates.StorePath != null)
+            {
+                ValidateStore(TrustedUserCertificates, nameof(TrustedUserCertificates));
+            }
+            if (UserIssuerCertificates.StorePath != null)
+            {
+                ValidateStore(UserIssuerCertificates, nameof(UserIssuerCertificates));
             }
 
-            if (TrustedPeerCertificates?.StorePath == null)
-            {
-                throw ServiceResultException.Create(StatusCodes.BadConfigurationError, "TrustedPeerCertificates store must be specified.");
-            }
 
-            if ((TrustedHttpsCertificates != null && HttpsIssuerCertificates == null)
-                || (HttpsIssuerCertificates != null && TrustedHttpsCertificates == null))
+            if ((TrustedHttpsCertificates.StorePath != null && HttpsIssuerCertificates.StorePath == null)
+                || (HttpsIssuerCertificates.StorePath != null && TrustedHttpsCertificates.StorePath == null))
             {
                 throw ServiceResultException.Create(StatusCodes.BadConfigurationError, "Either none or both of HttpsIssuerCertificates & TrustedHttpsCertificates stores must be specified.");
             }
 
-            if ((TrustedUserCertificates != null && UserIssuerCertificates == null)
-                || (UserIssuerCertificates != null && TrustedUserCertificates == null))
+            if ((TrustedUserCertificates.StorePath != null && UserIssuerCertificates.StorePath == null)
+                || (UserIssuerCertificates.StorePath != null && TrustedUserCertificates.StorePath == null))
             {
                 throw ServiceResultException.Create(StatusCodes.BadConfigurationError, "Either none or both of UserIssuerCertificates & TrustedUserCertificates stores must be specified.");
             }
@@ -87,6 +99,31 @@ namespace Opc.Ua
             foreach (var applicationCertificate in m_applicationCertificates)
             {
                 applicationCertificate.SubjectName = Utils.ReplaceDCLocalhost(applicationCertificate.SubjectName);
+            }
+        }
+        /// <summary>
+        /// Validate if the specified store can be opened
+        /// throws ServiceResultException
+        /// </summary>
+        private void ValidateStore(CertificateStoreIdentifier storeIdentifier, string storeName)
+        {
+            if (storeIdentifier?.StorePath == null)
+            {
+                throw ServiceResultException.Create(StatusCodes.BadConfigurationError, storeName + " store must be specified.");
+            }
+            try
+            {
+                ICertificateStore store = storeIdentifier.OpenStore();
+                if (store == null)
+                {
+                    throw new Exception($"Failed top open {storeName} store");
+                }
+                store?.Close();
+            }
+            catch (Exception ex)
+            {
+                Utils.LogError(ex, "Failed top open {storeName} store", storeName);
+                throw ServiceResultException.Create(StatusCodes.BadConfigurationError, storeName + " store is invalid.");
             }
         }
 
