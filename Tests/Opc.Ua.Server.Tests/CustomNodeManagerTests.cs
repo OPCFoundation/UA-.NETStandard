@@ -2,7 +2,9 @@ using System;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
+using Opc.Ua.Configuration;
 
 namespace Opc.Ua.Server.Tests
 {
@@ -21,7 +23,16 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task TestComponentCacheAsync()
         {
-            var fixture = new ServerFixture<StandardServer>();
+            IServiceCollection services = new ServiceCollection()
+                .AddConfigurationServices()
+                .AddServerServices()
+                .AddSingleton<IStandardServer, StandardServer>();
+
+            IServiceProvider serviceProvider = services.BuildServiceProvider();
+
+            var fixture = new ServerFixture<IStandardServer>(
+                serviceProvider.GetRequiredService<IStandardServer>(),
+                serviceProvider.GetRequiredService<IApplicationInstance>());
 
             try
             {
@@ -56,7 +67,16 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task TestPredefinedNodes()
         {
-            var fixture = new ServerFixture<StandardServer>();
+            IServiceCollection services = new ServiceCollection()
+                .AddConfigurationServices()
+                .AddServerServices()
+                .AddSingleton<IStandardServer, StandardServer>();
+
+            IServiceProvider serviceProvider = services.BuildServiceProvider();
+
+            var fixture = new ServerFixture<IStandardServer>(
+                serviceProvider.GetRequiredService<IStandardServer>(),
+                serviceProvider.GetRequiredService<IApplicationInstance>());
 
             try
             {
@@ -121,15 +141,15 @@ namespace Opc.Ua.Server.Tests
         {
             nodeManager.AddPredefinedNode(nodeManager.SystemContext, baseObject);
 
-            NodeState nodeState = nodeManager.Find(nodeId);
+            nodeManager.Find(nodeId);
 
-            NodeHandle handle = nodeManager.GetManagerHandle(nodeId) as NodeHandle;
+            _ = nodeManager.GetManagerHandle(nodeId) as NodeHandle;
 
             nodeManager.DeleteNode(nodeManager.SystemContext, nodeId);
 
-            nodeState = nodeManager.Find(nodeId);
+            nodeManager.Find(nodeId);
 
-            handle = nodeManager.GetManagerHandle(nodeId) as NodeHandle;
+            _ = nodeManager.GetManagerHandle(nodeId) as NodeHandle;
 
             nodeManager.AddPredefinedNode(nodeManager.SystemContext, baseObject);
             await Task.CompletedTask.ConfigureAwait(false);
@@ -168,23 +188,23 @@ namespace Opc.Ua.Server.Tests
             var cancellationTokenSource = new CancellationTokenSource();
             Exception error = null;
             int tasksCompletedCount = 0;
-            var result = Parallel.For(0, iterations, new ParallelOptions(),
-                          async index => {
-                              try
-                              {
-                                  await task().ConfigureAwait(false);
-                              }
-                              catch (Exception ex)
-                              {
-                                  error = ex;
-                                  cancellationTokenSource.Cancel();
-                              }
-                              finally
-                              {
-                                  tasksCompletedCount++;
-                              }
+            Parallel.For(0, iterations, new ParallelOptions(),
+                async index => {
+                    try
+                    {
+                        await task().ConfigureAwait(false);
+                    }
+                    catch (Exception ex)
+                    {
+                        error = ex;
+                        cancellationTokenSource.Cancel();
+                    }
+                    finally
+                    {
+                        tasksCompletedCount++;
+                    }
 
-                          });
+                });
 
             int spinWaitCount = 0;
             int maxSpinWaitCount = 100;

@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -29,12 +29,13 @@
 
 using System;
 using System.Collections.Generic;
-using System.Security.Cryptography.X509Certificates;
-using Opc.Ua.Server;
-using Opc.Ua.Gds.Server.Database;
-using Opc.Ua.Server.UserDatabase;
 using System.Linq;
+using System.Security.Cryptography.X509Certificates;
+using Opc.Ua.Configuration;
+using Opc.Ua.Gds.Server.Database;
 using Opc.Ua.Security.Certificates;
+using Opc.Ua.Server;
+using Opc.Ua.Server.UserDatabase;
 
 namespace Opc.Ua.Gds.Server
 {
@@ -45,14 +46,17 @@ namespace Opc.Ua.Gds.Server
     /// Each server instance must have one instance of a StandardServer object which is
     /// responsible for reading the configuration file, creating the endpoints and dispatching
     /// incoming requests to the appropriate handler.
-    /// 
+    ///
     /// This sub-class specifies non-configurable metadata such as Product Name and initializes
     /// the ApplicationNodeManager which provides access to the data exposed by the Global Discovery Server.
-    /// 
+    ///
     /// </remarks>
-    public class GlobalDiscoverySampleServer : StandardServer
+    public class GlobalDiscoverySampleServer : StandardServer, IGlobalDiscoverySampleServer
     {
         public GlobalDiscoverySampleServer(
+            IApplicationInstance applicationInstance,
+            IServerInternal serverInternal,
+            IMainNodeManagerFactory mainNodeManagerFactory,
             IApplicationsDatabase database,
             ICertificateRequest request,
             ICertificateGroup certificateGroup,
@@ -60,7 +64,9 @@ namespace Opc.Ua.Gds.Server
             bool autoApprove = true,
             bool createStandardUsers = true
             )
+        : base (applicationInstance, serverInternal, mainNodeManagerFactory)
         {
+            m_mainNodeManagerFactory = mainNodeManagerFactory;
             m_database = database;
             m_request = request;
             m_certificateGroup = certificateGroup;
@@ -95,7 +101,9 @@ namespace Opc.Ua.Gds.Server
         /// always creates a CoreNodeManager which handles the built-in nodes defined by the specification.
         /// Any additional NodeManagers are expected to handle application specific nodes.
         /// </remarks>
-        protected override MasterNodeManager CreateMasterNodeManager(IServerInternal server, ApplicationConfiguration configuration)
+        protected override IMasterNodeManager CreateMasterNodeManager(
+            IServerInternal server,
+            ApplicationConfiguration configuration)
         {
             Utils.LogInfo("Creating the Node Managers.");
 
@@ -106,7 +114,8 @@ namespace Opc.Ua.Gds.Server
             };
 
             // create master node manager.
-            return new MasterNodeManager(server, configuration, null, nodeManagers.ToArray());
+
+            return m_mainNodeManagerFactory.CreateMasterNodeManager(null, nodeManagers.ToArray());
         }
 
         /// <summary>
@@ -213,7 +222,7 @@ namespace Opc.Ua.Gds.Server
             {
                 VerifyUserTokenCertificate(x509Token.Certificate);
 
-                // todo: is cert listed in admin list? then 
+                // todo: is cert listed in admin list? then
                 // role = GdsRole.ApplicationAdmin;
 
                 Utils.LogInfo("X509 Token Accepted: {0} as {1}", args.Identity.DisplayName, Role.AuthenticatedUser);
@@ -375,6 +384,8 @@ namespace Opc.Ua.Gds.Server
         private IUserDatabase m_userDatabase = null;
         private bool m_autoApprove;
         private bool m_createStandardUsers;
-        #endregion 
+        private readonly IMainNodeManagerFactory m_mainNodeManagerFactory;
+
+        #endregion
     }
 }

@@ -30,6 +30,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Security.Cryptography.X509Certificates;
+using Opc.Ua.Configuration;
 using Opc.Ua.Server;
 using Quickstarts.ReferenceServer;
 
@@ -50,6 +51,15 @@ namespace Opc.Ua.Client.Tests
     /// </summary>
     public class ReferenceServerWithLimits : ReferenceServer
     {
+        public ReferenceServerWithLimits(
+            IApplicationInstance applicationInstance,
+            IServerInternal serverInternal,
+            IMainNodeManagerFactory mainNodeManagerFactory)
+            : base(applicationInstance, serverInternal, mainNodeManagerFactory)
+        {
+            m_mainNodeManagerFactory = mainNodeManagerFactory;
+        }
+
         public uint Test_MaxBrowseReferencesPerNode { get; set; } = 10u;
         private MasterNodeManager MasterNodeManagerReference { get; set; }
         private SessionManagerWithLimits SessionManagerForTest { get; set; }
@@ -89,7 +99,7 @@ namespace Opc.Ua.Client.Tests
 
         }
 
-        protected override MasterNodeManager CreateMasterNodeManager(IServerInternal server, ApplicationConfiguration configuration)
+        protected override IMasterNodeManager CreateMasterNodeManager(IServerInternal server, ApplicationConfiguration configuration)
         {
             Utils.LogInfo(Utils.TraceMasks.StartStop, "Creating the Reference Server Node Manager.");
 
@@ -103,7 +113,12 @@ namespace Opc.Ua.Client.Tests
                 nodeManagers.Add(nodeManagerFactory.Create(server, configuration));
             }
             //this.MasterNodeManagerReference = new MasterNodeManager(server, configuration, null, nodeManagers.ToArray());
-            this.MasterNodeManagerReference = new MasterNodeManagerWithLimits(server, configuration, null, nodeManagers.ToArray());
+            this.MasterNodeManagerReference = new MasterNodeManagerWithLimits(
+                server,
+                configuration,
+                m_mainNodeManagerFactory,
+                null,
+                nodeManagers.ToArray());
             // create master node manager.
             return this.MasterNodeManagerReference;
         }
@@ -113,6 +128,8 @@ namespace Opc.Ua.Client.Tests
             this.SessionManagerForTest = new SessionManagerWithLimits(server, configuration);
             return this.SessionManagerForTest;
         }
+
+        private readonly IMainNodeManagerFactory m_mainNodeManagerFactory;
     }
 
     /// <summary>
@@ -228,7 +245,13 @@ namespace Opc.Ua.Client.Tests
     /// </summary>
     public class MasterNodeManagerWithLimits : MasterNodeManager
     {
-        public MasterNodeManagerWithLimits(IServerInternal server, ApplicationConfiguration configuration, string dynamicNamespaceUri, params INodeManager[] additionalManagers) : base(server, configuration, dynamicNamespaceUri, additionalManagers)
+        public MasterNodeManagerWithLimits(
+            IServerInternal server,
+            ApplicationConfiguration configuration,
+            IMainNodeManagerFactory mainNodeManagerFactory,
+            string dynamicNamespaceUri,
+            params INodeManager[] additionalManagers)
+            : base(server, configuration, mainNodeManagerFactory, dynamicNamespaceUri, additionalManagers)
         {
         }
 
@@ -331,7 +354,7 @@ namespace Opc.Ua.Client.Tests
                     continuationPointsAssigned++;
                 }
 
-                // check for error.   
+                // check for error.
                 result.StatusCode = error.StatusCode;
 
                 if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
@@ -351,8 +374,5 @@ namespace Opc.Ua.Client.Tests
             // clear the diagnostics array if no diagnostics requested or no errors occurred.
             UpdateDiagnostics(context, diagnosticsExist, ref diagnosticInfos);
         }
-
-
     }
-
 }

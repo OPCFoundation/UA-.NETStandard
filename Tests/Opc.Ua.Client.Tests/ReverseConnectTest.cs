@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -33,7 +33,10 @@ using System.IO;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
+using Opc.Ua.Configuration;
+using Opc.Ua.Server;
 using Opc.Ua.Server.Tests;
 using Quickstarts.ReferenceServer;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
@@ -69,11 +72,21 @@ namespace Opc.Ua.Client.Tests
                 Assert.Ignore("Reverse connect fails on mac OS.");
             }
 
-            // pki directory root for test runs. 
+            // pki directory root for test runs.
             PkiRoot = Path.GetTempPath() + Path.GetRandomFileName();
 
+            IServiceCollection services = new ServiceCollection()
+                .AddConfigurationServices()
+                .AddServerServices()
+                .AddScoped<IReferenceServer, ReferenceServer>();
+
+            IServiceProvider serviceProvider = services.BuildServiceProvider();
+
             // start ref server with reverse connect
-            ServerFixture = new ServerFixture<ReferenceServer> {
+            ServerFixture = new ServerFixture<IReferenceServer>(
+                serviceProvider.GetRequiredService<IReferenceServer>(),
+                serviceProvider.GetRequiredService<IApplicationInstance>())
+            {
                 AutoAccept = true,
                 SecurityNone = true,
                 ReverseConnectTimeout = MaxTimeout,

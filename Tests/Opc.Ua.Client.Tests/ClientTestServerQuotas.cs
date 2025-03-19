@@ -29,19 +29,14 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Runtime.CompilerServices;
-using System.Security.Cryptography.X509Certificates;
-using System.Text;
-using System.Threading;
 using System.Threading.Tasks;
 using BenchmarkDotNet.Attributes;
-using Moq;
+using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
-using Opc.Ua.Bindings;
 using Opc.Ua.Configuration;
+using Opc.Ua.Server;
 using Opc.Ua.Server.Tests;
 using Quickstarts.ReferenceServer;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
@@ -92,8 +87,20 @@ namespace Opc.Ua.Client.Tests
         public override async Task CreateReferenceServerFixture(bool enableTracing, bool disableActivityLogging, bool securityNone, TextWriter writer)
         {
             {
+                IServiceCollection services = new ServiceCollection()
+                    .AddConfigurationServices()
+                    .AddServerServices()
+                    .AddScoped<IReferenceServer, ReferenceServer>();
+
+                IServiceProvider serviceProvider = services.BuildServiceProvider();
+
                 // start Ref server
-                ServerFixture = new ServerFixture<ReferenceServer>(enableTracing, disableActivityLogging) {
+                ServerFixture = new ServerFixture<IReferenceServer>(
+                    serviceProvider.GetRequiredService<IReferenceServer>(),
+                    serviceProvider.GetRequiredService<IApplicationInstance>(),
+                    enableTracing,
+                    disableActivityLogging)
+                {
                     UriScheme = UriScheme,
                     SecurityNone = securityNone,
                     AutoAccept = true,

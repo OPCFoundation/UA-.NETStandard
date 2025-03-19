@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -27,8 +27,11 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Threading.Tasks;
+using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
+using Opc.Ua.Configuration;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Server.Tests
@@ -56,7 +59,16 @@ namespace Opc.Ua.Server.Tests
             string uriScheme
             )
         {
-            var fixture = new ServerFixture<StandardServer>();
+            IServiceCollection services = new ServiceCollection()
+                .AddConfigurationServices()
+                .AddServerServices()
+                .AddSingleton<IStandardServer, StandardServer>();
+
+            IServiceProvider serviceProvider = services.BuildServiceProvider();
+
+            var fixture = new ServerFixture<IStandardServer>(
+                serviceProvider.GetRequiredService<IStandardServer>(),
+                serviceProvider.GetRequiredService<IApplicationInstance>());
             Assert.NotNull(fixture);
             fixture.UriScheme = uriScheme;
             var server = await fixture.StartAsync(TestContext.Out).ConfigureAwait(false);
@@ -64,6 +76,55 @@ namespace Opc.Ua.Server.Tests
             Assert.NotNull(server);
             await Task.Delay(1000).ConfigureAwait(false);
             await fixture.StopAsync().ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Start a server fixture, stop it and restart it.
+        /// </summary>
+        [Test]
+        public async Task StartAndRestartServerAsync()
+        {
+            IServiceCollection services = new ServiceCollection()
+                .AddConfigurationServices()
+                .AddServerServices()
+                .AddSingleton<IStandardServer, StandardServer>();
+
+            IServiceProvider serviceProvider = services.BuildServiceProvider();
+
+            var fixture = new ServerFixture<IStandardServer>(
+                serviceProvider.GetRequiredService<IStandardServer>(),
+                serviceProvider.GetRequiredService<IApplicationInstance>());
+            Assert.NotNull(fixture);
+            fixture.UriScheme = Utils.UriSchemeOpcTcp;
+
+            IStandardServer server = await fixture.StartAsync(TestContext.Out).ConfigureAwait(false);
+            fixture.SetTraceOutput(TestContext.Out);
+            Assert.NotNull(server);
+
+            Assert.AreEqual(server.CurrentInstance.Initialized, true);
+            Assert.AreEqual(server.CurrentState, ServerState.Running);
+
+            await Task.Delay(1000).ConfigureAwait(false);
+            await fixture.StopAsync().ConfigureAwait(false);
+
+            uint? exceptionStatusCode1 = NUnit.Framework.Assert.Throws<ServiceResultException>(delegate { bool result = server.CurrentInstance.Initialized; })?.StatusCode;
+            Assert.AreEqual(exceptionStatusCode1, StatusCodes.BadServerHalted);
+
+            await Task.Delay(1000).ConfigureAwait(false);
+
+            IStandardServer server2 = await fixture.StartAsync(TestContext.Out).ConfigureAwait(false);
+            Assert.NotNull(server2);
+
+            Assert.AreEqual(server.CurrentInstance.Initialized, true);
+            Assert.AreEqual(server.CurrentState, ServerState.Running);
+
+            await Task.Delay(1000).ConfigureAwait(false);
+            await fixture.StopAsync().ConfigureAwait(false);
+
+            await Task.Delay(1000).ConfigureAwait(false);
+
+            uint? exceptionStatusCode2 = NUnit.Framework.Assert.Throws<ServiceResultException>(delegate { bool result = server.CurrentInstance.Initialized; })?.StatusCode;
+            Assert.AreEqual(exceptionStatusCode2, StatusCodes.BadServerHalted);
         }
         #endregion
     }
