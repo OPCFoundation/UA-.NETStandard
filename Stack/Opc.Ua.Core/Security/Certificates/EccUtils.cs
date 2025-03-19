@@ -840,7 +840,7 @@ namespace Opc.Ua
         }
 
 
-        private static readonly byte[] s_Label = new UTF8Encoding().GetBytes("opcua-secret");
+        private static readonly byte[] s_Label = Encoding.UTF8.GetBytes("opcua-secret");
 
 
         /// <summary>
