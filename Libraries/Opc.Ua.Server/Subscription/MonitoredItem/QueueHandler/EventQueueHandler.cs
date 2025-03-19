@@ -99,6 +99,19 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Create an EventQueueHandler from an existing queue
+        /// Used for restore after a server restart
+        /// </summary>
+        public EventQueueHandler(
+            IEventMonitoredItemQueue eventQueue,
+            bool discardOldest)
+        {
+            m_eventQueue = eventQueue;
+            m_discardOldest = discardOldest;
+            m_overflow = false;
+        }
+
+        /// <summary>
         /// Sets the queue size.
         /// </summary>
         /// <param name="queueSize">The new queue size.</param>

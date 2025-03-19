@@ -27,7 +27,7 @@ More samples based on the official [Nuget](https://www.nuget.org/packages/OPCFou
 * UA-TCP & HTTPS transports (client and server).
 * [Reverse Connect](Docs/ReverseConnect.md) for the UA-TCP transport (client and server).
 * Folder & OS-level (X509Store) [Certificate Stores](Docs/Certificates.md) with *Global Discovery Server* and *Server Push* support.
-* Sessions and Subscriptions.
+* Sessions and (durable) Subscriptions.
 * A [PubSub](Docs/PubSub.md) library with samples.
 
 ### Key Features and Updates in OPC UA 1.05
@@ -38,6 +38,7 @@ More samples based on the official [Nuget](https://www.nuget.org/packages/OPCFou
 - **Role-Based Management**: Support for WellKnownRoles and RoleBasedUserManagement [WellKnownRoles & RoleBasedUserManagement](Docs/RoleBasedUserManagement.md).
 - **Improved Logging**: Enhanced logging with `ILogger` and `EventSource`.
 - **ECC Profiles**: Support for NIST & Brainpool [Security Profiles](Docs/EccProfiles.md).
+- **Durable Subscriptions**: Support for Durable Subscriptions [Durable Subscriptions](Docs/DurableSubscription.md).
 
 #### Breaking Changes and Heads-Up when upgrading from 1.04 to 1.05
 
@@ -45,7 +46,7 @@ More samples based on the official [Nuget](https://www.nuget.org/packages/OPCFou
 - **Thread Safety and Locking**: Improved thread safety and reduced locking in secure channel operations.
 - **Audit and Redaction**: New interfaces for auditing and redacting sensitive information.
 
-#### **New in 1.05.377.**
+#### **New in 1.05.376.**
 * Support for [Durable Subscriptions](Docs/DurableSubscription.md)
 
 #### **New in 1.05.375**

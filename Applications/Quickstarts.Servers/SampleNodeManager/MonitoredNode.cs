@@ -213,6 +213,30 @@ namespace Opc.Ua.Sample
         }
 
         /// <summary>
+        /// Restore a data change item after a server restart
+        /// </summary>
+        /// <returns>The new monitored item.</returns>
+        public DataChangeMonitoredItem RestoreDataChangeItem(
+            IStoredMonitoredItem storedMonitoredItem)
+        {
+            DataChangeMonitoredItem monitoredItem = new DataChangeMonitoredItem(
+                Server.SubscriptionStore,
+                Server.MonitoredItemQueueFactory,
+                this,
+                storedMonitoredItem);
+
+            if (m_monitoredItems == null)
+            {
+                m_monitoredItems = new List<DataChangeMonitoredItem>();
+                m_node.OnStateChanged = OnNodeChange;
+            }
+
+            m_monitoredItems.Add(monitoredItem);
+
+            return monitoredItem;
+        }
+
+        /// <summary>
         /// Deletes the monitored item.
         /// </summary>
         public void DeleteItem(IMonitoredItem monitoredItem)

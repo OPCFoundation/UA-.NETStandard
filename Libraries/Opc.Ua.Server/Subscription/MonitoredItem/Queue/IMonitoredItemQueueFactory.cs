@@ -32,28 +32,24 @@ using System;
 namespace Opc.Ua.Server
 {
     /// <summary>
-    /// A factory for <see cref="IDataChangeMonitoredItemQueue"> and </see> <see cref="IEventMonitoredItemQueue"/>
+    /// Used to create <see cref="IDataChangeMonitoredItemQueue"/> / <see cref="IEventMonitoredItemQueue"/> and dispose unmanaged resources on server shutdown
+    /// Optionally supports durable queues and can be used to perform shared background operations on the queues
     /// </summary>
-    public class MonitoredItemQueueFactory : IMonitoredItemQueueFactory
+    public interface IMonitoredItemQueueFactory : IDisposable
     {
-        /// <inheritdoc/>
-        public bool SupportsDurableQueues => false;
-        /// <inheritdoc/>
-        public IDataChangeMonitoredItemQueue CreateDataChangeQueue(bool createDurable, uint monitoredItemId)
-        {
-            return new DataChangeMonitoredItemQueue(createDurable, monitoredItemId);
-        }
+        /// <summary>
+        /// Creates an empty queue for data values.
+        /// </summary>
+        IDataChangeMonitoredItemQueue CreateDataChangeQueue(bool isDurable, uint monitoredItemId);
 
-        /// <inheritdoc/>
-        public IEventMonitoredItemQueue CreateEventQueue(bool createDurable, uint monitoredItemId)
-        {
-            return new EventMonitoredItemQueue(createDurable, monitoredItemId);
-        }
+        /// <summary>
+        /// Creates an empty queue for events.
+        /// </summary>
+        IEventMonitoredItemQueue CreateEventQueue(bool isDurable, uint monitoredItemId);
 
-        /// <inheritdoc/>
-        public void Dispose()
-        {
-            //only needed for managed resources
-        }
+        /// <summary>
+        /// If true durable queues can be created by the factory, if false only regular queues with small queue sizes are returned
+        /// </summary>
+        bool SupportsDurableQueues { get; }
     }
 }

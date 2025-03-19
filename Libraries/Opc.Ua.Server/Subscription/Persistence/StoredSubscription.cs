@@ -1,8 +1,8 @@
 /* ========================================================================
- * Copyright (c) 2005-2024 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -27,33 +27,41 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
+using System.Collections.Generic;
 
 namespace Opc.Ua.Server
 {
-    /// <summary>
-    /// A factory for <see cref="IDataChangeMonitoredItemQueue"> and </see> <see cref="IEventMonitoredItemQueue"/>
-    /// </summary>
-    public class MonitoredItemQueueFactory : IMonitoredItemQueueFactory
+
+    /// <inheritdoc/>
+    public class StoredSubscription : IStoredSubscription
     {
         /// <inheritdoc/>
-        public bool SupportsDurableQueues => false;
+        public uint Id { get; set; }
         /// <inheritdoc/>
-        public IDataChangeMonitoredItemQueue CreateDataChangeQueue(bool createDurable, uint monitoredItemId)
-        {
-            return new DataChangeMonitoredItemQueue(createDurable, monitoredItemId);
-        }
-
+        public uint LifetimeCounter { get; set; }
         /// <inheritdoc/>
-        public IEventMonitoredItemQueue CreateEventQueue(bool createDurable, uint monitoredItemId)
-        {
-            return new EventMonitoredItemQueue(createDurable, monitoredItemId);
-        }
-
+        public uint MaxLifetimeCount { get; set; }
         /// <inheritdoc/>
-        public void Dispose()
-        {
-            //only needed for managed resources
-        }
+        public uint MaxKeepaliveCount { get; set; }
+        /// <inheritdoc/>
+        public uint MaxMessageCount { get; set; }
+        /// <inheritdoc/>
+        public uint MaxNotificationsPerPublish { get; set; }
+        /// <inheritdoc/>
+        public double PublishingInterval { get; set; }
+        /// <inheritdoc/>
+        public byte Priority { get; set; }
+        /// <inheritdoc/>
+        public UserIdentityToken UserIdentityToken { get; set; }
+        /// <inheritdoc/>
+        public int LastSentMessage { get; set; }
+        /// <inheritdoc/>
+        public bool IsDurable { get; set; }
+        /// <inheritdoc/>
+        public long SequenceNumber { get; set; }
+        /// <inheritdoc/>
+        public List<NotificationMessage> SentMessages { get; set; }
+        /// <inheritdoc/>
+        public IEnumerable<IStoredMonitoredItem> MonitoredItems { get; set; }
     }
 }
