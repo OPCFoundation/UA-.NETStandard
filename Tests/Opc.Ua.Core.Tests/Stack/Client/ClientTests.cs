@@ -103,8 +103,8 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                 ClientConfiguration = new ClientConfiguration() { },
                 SecurityConfiguration = new SecurityConfiguration() {
                     ApplicationCertificate = new CertificateIdentifier(),
-                    TrustedPeerCertificates = new CertificateTrustList { StorePath = "" },
-                    TrustedIssuerCertificates = new CertificateTrustList { StorePath = "" },
+                    TrustedPeerCertificates = new CertificateTrustList { StorePath = "Test" },
+                    TrustedIssuerCertificates = new CertificateTrustList { StorePath = "Test" },
 
                 }
             };

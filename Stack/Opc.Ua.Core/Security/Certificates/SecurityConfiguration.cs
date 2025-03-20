@@ -107,9 +107,9 @@ namespace Opc.Ua
         /// </summary>
         private void ValidateStore(CertificateStoreIdentifier storeIdentifier, string storeName)
         {
-            if (storeIdentifier?.StorePath == null)
+            if (string.IsNullOrEmpty(storeIdentifier?.StorePath))
             {
-                throw ServiceResultException.Create(StatusCodes.BadConfigurationError, storeName + " store must be specified.");
+                throw ServiceResultException.Create(StatusCodes.BadConfigurationError, storeName + " StorePath must be specified.");
             }
             try
             {
