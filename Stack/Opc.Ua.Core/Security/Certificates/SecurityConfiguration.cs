@@ -64,32 +64,32 @@ namespace Opc.Ua
             ValidateStore(TrustedPeerCertificates, nameof(TrustedPeerCertificates));
 
             //ensure optional stores are valid if specified
-            if (TrustedHttpsCertificates.StorePath != null)
+            if (TrustedHttpsCertificates != null)
             {
                 ValidateStore(TrustedHttpsCertificates, nameof(TrustedHttpsCertificates));
             }
-            if (HttpsIssuerCertificates.StorePath != null)
+            if (HttpsIssuerCertificates != null)
             {
                 ValidateStore(HttpsIssuerCertificates, nameof(HttpsIssuerCertificates));
             }
-            if (TrustedUserCertificates.StorePath != null)
+            if (TrustedUserCertificates != null)
             {
                 ValidateStore(TrustedUserCertificates, nameof(TrustedUserCertificates));
             }
-            if (UserIssuerCertificates.StorePath != null)
+            if (UserIssuerCertificates != null)
             {
                 ValidateStore(UserIssuerCertificates, nameof(UserIssuerCertificates));
             }
 
 
-            if ((TrustedHttpsCertificates.StorePath != null && HttpsIssuerCertificates.StorePath == null)
-                || (HttpsIssuerCertificates.StorePath != null && TrustedHttpsCertificates.StorePath == null))
+            if ((TrustedHttpsCertificates != null && HttpsIssuerCertificates == null)
+                || (HttpsIssuerCertificates != null && TrustedHttpsCertificates == null))
             {
                 throw ServiceResultException.Create(StatusCodes.BadConfigurationError, "Either none or both of HttpsIssuerCertificates & TrustedHttpsCertificates stores must be specified.");
             }
 
-            if ((TrustedUserCertificates.StorePath != null && UserIssuerCertificates.StorePath == null)
-                || (UserIssuerCertificates.StorePath != null && TrustedUserCertificates.StorePath == null))
+            if ((TrustedUserCertificates != null && UserIssuerCertificates == null)
+                || (UserIssuerCertificates != null && TrustedUserCertificates == null))
             {
                 throw ServiceResultException.Create(StatusCodes.BadConfigurationError, "Either none or both of UserIssuerCertificates & TrustedUserCertificates stores must be specified.");
             }
