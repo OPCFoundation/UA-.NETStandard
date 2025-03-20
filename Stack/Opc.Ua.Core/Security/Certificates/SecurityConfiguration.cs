@@ -63,7 +63,7 @@ namespace Opc.Ua
             ValidateStore(TrustedIssuerCertificates, nameof(TrustedIssuerCertificates));
             ValidateStore(TrustedPeerCertificates, nameof(TrustedPeerCertificates));
 
-            ///ensure optional stores are valid if specified
+            //ensure optional stores are valid if specified
             if (TrustedHttpsCertificates.StorePath != null)
             {
                 ValidateStore(TrustedHttpsCertificates, nameof(TrustedHttpsCertificates));
