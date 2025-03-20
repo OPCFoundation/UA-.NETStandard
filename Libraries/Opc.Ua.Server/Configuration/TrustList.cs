@@ -144,6 +144,11 @@ namespace Opc.Ua.Server
                 ICertificateStore store = m_trustedStore.OpenStore();
                 try
                 {
+                    if (store == null)
+                    {
+                        throw new ServiceResultException(StatusCodes.BadConfigurationError, "Failed to open trusted certificate store.");
+                    }
+
                     if ((masks & TrustListMasks.TrustedCertificates) != 0)
                     {
                         X509Certificate2Collection certificates = store.Enumerate().GetAwaiter().GetResult();
@@ -160,6 +165,7 @@ namespace Opc.Ua.Server
                             trustList.TrustedCrls.Add(crl.RawData);
                         }
                     }
+
                 }
                 finally
                 {
@@ -169,6 +175,12 @@ namespace Opc.Ua.Server
                 store = m_issuerStore.OpenStore();
                 try
                 {
+
+                    if (store == null)
+                    {
+                        throw new ServiceResultException(StatusCodes.BadConfigurationError, "Failed to open issuer certificate store.");
+                    }
+
                     if ((masks & TrustListMasks.IssuerCertificates) != 0)
                     {
                         X509Certificate2Collection certificates = store.Enumerate().GetAwaiter().GetResult();
@@ -185,6 +197,7 @@ namespace Opc.Ua.Server
                             trustList.IssuerCrls.Add(crl.RawData);
                         }
                     }
+
                 }
                 finally
                 {
@@ -524,6 +537,11 @@ namespace Opc.Ua.Server
                     var storeIdentifier = isTrustedCertificate ? m_trustedStore : m_issuerStore;
                     using (ICertificateStore store = storeIdentifier.OpenStore())
                     {
+                        if (store == null)
+                        {
+                            throw new ServiceResultException(StatusCodes.BadConfigurationError, "Failed to open certificate store.");
+                        }
+
                         var certCollection = store.FindByThumbprint(thumbprint).GetAwaiter().GetResult();
 
                         if (certCollection.Count == 0)
@@ -563,6 +581,7 @@ namespace Opc.Ua.Server
                                 }
                             }
                         }
+
                     }
 
                     m_node.LastUpdateTime.Value = DateTime.UtcNow;
@@ -622,6 +641,11 @@ namespace Opc.Ua.Server
                 ICertificateStore store = storeIdentifier.OpenStore();
                 try
                 {
+                    if (store == null)
+                    {
+                        throw new ServiceResultException(StatusCodes.BadConfigurationError, "Failed to open certificate store.");
+                    }
+
                     var storeCrls = await store.EnumerateCRLs().ConfigureAwait(false);
                     foreach (var crl in storeCrls)
                     {
@@ -664,6 +688,11 @@ namespace Opc.Ua.Server
                 ICertificateStore store = storeIdentifier.OpenStore();
                 try
                 {
+                    if (store == null)
+                    {
+                        throw new ServiceResultException(StatusCodes.BadConfigurationError, "Failed to open certificate store.");
+                    }
+
                     var storeCerts = await store.Enumerate().ConfigureAwait(false);
                     foreach (var cert in storeCerts)
                     {
