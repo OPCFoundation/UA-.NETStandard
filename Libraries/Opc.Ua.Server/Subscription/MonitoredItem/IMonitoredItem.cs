@@ -134,6 +134,11 @@ namespace Opc.Ua.Server
         /// The sampling interval for the item.
         /// </summary>
         double SamplingInterval { get; }
+
+        /// <summary>
+        /// Return a <see cref="IStoredMonitoredItem"/> for restore a after a server restart
+        /// </summary>
+        IStoredMonitoredItem ToStorableMonitoredItem();
     }
 
     /// <summary>

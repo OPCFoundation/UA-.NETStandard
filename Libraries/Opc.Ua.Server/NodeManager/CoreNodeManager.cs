@@ -1288,6 +1288,64 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Restore a set of monitored items after a restart.
+        /// </summary>
+        public void RestoreMonitoredItems(
+            IList<IStoredMonitoredItem> itemsToRestore,
+            IList<IMonitoredItem> monitoredItems,
+            IUserIdentity savedOwnerIdentity)
+        {
+            if (itemsToRestore == null) throw new ArgumentNullException(nameof(itemsToRestore));
+            if (monitoredItems == null) throw new ArgumentNullException(nameof(monitoredItems));
+
+            if (m_server.IsRunning)
+            {
+                throw new InvalidOperationException("Subscription restore can only occur on startup");
+            }
+
+            lock (m_lock)
+            {
+                for (int ii = 0; ii < itemsToRestore.Count; ii++)
+                {
+                    IStoredMonitoredItem item = itemsToRestore[ii];
+
+                    // skip items that have already been processed.
+                    if (item.IsRestored)
+                    {
+                        continue;
+                    }
+
+                    // look up the node.
+                    ILocalNode node = this.GetLocalNode(item.NodeId) as ILocalNode;
+
+                    if (node == null)
+                    {
+                        continue;
+                    }
+
+                    // owned by this node manager.
+                    item.IsRestored = true;
+
+                    // create monitored item.
+                    MonitoredItem monitoredItem = m_samplingGroupManager.RestoreMonitoredItem(
+                        node,
+                        item,
+                        savedOwnerIdentity
+                        );
+
+                    // save monitored item.
+                    m_monitoredItems.Add(monitoredItem.Id, monitoredItem);
+
+                    // update monitored item list.
+                    monitoredItems[ii] = monitoredItem;
+                }
+            }
+
+            // update all groups with any new items.
+            m_samplingGroupManager.ApplyChanges();
+        }
+
+        /// <summary>
         /// Reads the initial value for a monitored item.
         /// </summary>
         /// <param name="context">The context.</param>

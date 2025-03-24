@@ -47,7 +47,6 @@ namespace Opc.Ua
 
             Begin = begin;
         }
-
         /// <summary>
         /// Initializes the object with a begin and end indexes.
         /// </summary>

@@ -123,37 +123,37 @@ namespace Opc.Ua.Server
             m_sequenceNumber = 1;
 
             // initialize diagnostics.
-            m_diagnostics = new SubscriptionDiagnosticsDataType();
-
-            m_diagnostics.SessionId = m_session.Id;
-            m_diagnostics.SubscriptionId = m_id;
-            m_diagnostics.Priority = priority;
-            m_diagnostics.PublishingInterval = publishingInterval;
-            m_diagnostics.MaxKeepAliveCount = maxKeepAliveCount;
-            m_diagnostics.MaxLifetimeCount = maxLifetimeCount;
-            m_diagnostics.MaxNotificationsPerPublish = maxNotificationsPerPublish;
-            m_diagnostics.PublishingEnabled = publishingEnabled;
-            m_diagnostics.ModifyCount = 0;
-            m_diagnostics.EnableCount = 0;
-            m_diagnostics.DisableCount = 0;
-            m_diagnostics.RepublishMessageRequestCount = 0;
-            m_diagnostics.RepublishMessageCount = 0;
-            m_diagnostics.TransferRequestCount = 0;
-            m_diagnostics.TransferredToSameClientCount = 0;
-            m_diagnostics.TransferredToAltClientCount = 0;
-            m_diagnostics.PublishRequestCount = 0;
-            m_diagnostics.DataChangeNotificationsCount = 0;
-            m_diagnostics.EventNotificationsCount = 0;
-            m_diagnostics.NotificationsCount = 0;
-            m_diagnostics.LatePublishRequestCount = 0;
-            m_diagnostics.CurrentKeepAliveCount = 0;
-            m_diagnostics.CurrentLifetimeCount = 0;
-            m_diagnostics.UnacknowledgedMessageCount = 0;
-            m_diagnostics.DiscardedMessageCount = 0;
-            m_diagnostics.MonitoredItemCount = 0;
-            m_diagnostics.DisabledMonitoredItemCount = 0;
-            m_diagnostics.MonitoringQueueOverflowCount = 0;
-            m_diagnostics.NextSequenceNumber = (uint)m_sequenceNumber;
+            m_diagnostics = new SubscriptionDiagnosticsDataType {
+                SessionId = m_session.Id,
+                SubscriptionId = m_id,
+                Priority = priority,
+                PublishingInterval = publishingInterval,
+                MaxKeepAliveCount = maxKeepAliveCount,
+                MaxLifetimeCount = maxLifetimeCount,
+                MaxNotificationsPerPublish = maxNotificationsPerPublish,
+                PublishingEnabled = publishingEnabled,
+                ModifyCount = 0,
+                EnableCount = 0,
+                DisableCount = 0,
+                RepublishMessageRequestCount = 0,
+                RepublishMessageCount = 0,
+                TransferRequestCount = 0,
+                TransferredToSameClientCount = 0,
+                TransferredToAltClientCount = 0,
+                PublishRequestCount = 0,
+                DataChangeNotificationsCount = 0,
+                EventNotificationsCount = 0,
+                NotificationsCount = 0,
+                LatePublishRequestCount = 0,
+                CurrentKeepAliveCount = 0,
+                CurrentLifetimeCount = 0,
+                UnacknowledgedMessageCount = 0,
+                DiscardedMessageCount = 0,
+                MonitoredItemCount = 0,
+                DisabledMonitoredItemCount = 0,
+                MonitoringQueueOverflowCount = 0,
+                NextSequenceNumber = (uint)m_sequenceNumber
+            };
 
             ServerSystemContext systemContext = m_server.DefaultSystemContext.Copy(session);
 
@@ -163,6 +163,87 @@ namespace Opc.Ua.Server
                 OnUpdateDiagnostics);
 
             TraceState(LogLevel.Information, TraceStateId.Config, "CREATED");
+        }
+
+        /// <summary>
+        /// Initialize subscription after a restart from a template
+        /// </summary>
+        public Subscription(IServerInternal server,
+            IStoredSubscription storedSubscription)
+        {
+            if (server.IsRunning)
+            {
+                throw new InvalidOperationException("Subscription restore can only occur on startup");
+            }
+
+            m_server = server;
+            m_session = null;
+            m_id = storedSubscription.Id;
+            m_publishingInterval = storedSubscription.PublishingInterval;
+            m_maxLifetimeCount = storedSubscription.MaxLifetimeCount;
+            m_lifetimeCounter = storedSubscription.LifetimeCounter;
+            m_maxKeepAliveCount = storedSubscription.MaxKeepaliveCount;
+            m_maxNotificationsPerPublish = storedSubscription.MaxNotificationsPerPublish;
+            m_publishingEnabled = false;
+            m_priority = storedSubscription.Priority;
+            m_publishTimerExpiry = HiResClock.TickCount64 + (long)storedSubscription.PublishingInterval;
+            m_keepAliveCounter = storedSubscription.MaxKeepaliveCount;
+            m_waitingForPublish = false;
+            m_maxMessageCount = storedSubscription.MaxMessageCount;
+            m_sentMessages = storedSubscription.SentMessages;
+            m_supportsDurable = m_server.MonitoredItemQueueFactory.SupportsDurableQueues;
+            m_isDurable = storedSubscription.IsDurable;
+            m_savedOwnerIdentity = new UserIdentity(storedSubscription.UserIdentityToken);
+            m_sequenceNumber = storedSubscription.SequenceNumber;
+            m_lastSentMessage = storedSubscription.LastSentMessage;
+
+            m_monitoredItems = new Dictionary<uint, LinkedListNode<IMonitoredItem>>();
+            m_itemsToCheck = new LinkedList<IMonitoredItem>();
+            m_itemsToPublish = new LinkedList<IMonitoredItem>();
+            m_itemsToTrigger = new Dictionary<uint, List<ITriggeredMonitoredItem>>();
+
+            // initialize diagnostics.
+            m_diagnostics = new SubscriptionDiagnosticsDataType {
+                SubscriptionId = m_id,
+                Priority = m_priority,
+                PublishingInterval = m_publishingInterval,
+                MaxKeepAliveCount = m_maxKeepAliveCount,
+                MaxLifetimeCount = m_maxLifetimeCount,
+                MaxNotificationsPerPublish = m_maxNotificationsPerPublish,
+                PublishingEnabled = m_publishingEnabled,
+                ModifyCount = 0,
+                EnableCount = 0,
+                DisableCount = 0,
+                RepublishMessageRequestCount = 0,
+                RepublishMessageCount = 0,
+                TransferRequestCount = 0,
+                TransferredToSameClientCount = 0,
+                TransferredToAltClientCount = 0,
+                PublishRequestCount = 0,
+                DataChangeNotificationsCount = 0,
+                EventNotificationsCount = 0,
+                NotificationsCount = 0,
+                LatePublishRequestCount = 0,
+                CurrentKeepAliveCount = 0,
+                CurrentLifetimeCount = 0,
+                UnacknowledgedMessageCount = 0,
+                DiscardedMessageCount = 0,
+                MonitoredItemCount = 0,
+                DisabledMonitoredItemCount = 0,
+                MonitoringQueueOverflowCount = 0,
+                NextSequenceNumber = (uint)m_sequenceNumber
+            };
+
+            ServerSystemContext systemContext = m_server.DefaultSystemContext.Copy();
+
+            m_diagnosticsId = server.DiagnosticsNodeManager.CreateSubscriptionDiagnostics(
+                systemContext,
+                m_diagnostics,
+                OnUpdateDiagnostics);
+
+            TraceState(LogLevel.Information, TraceStateId.Config, "RESTORED");
+
+            RestoreMonitoredItems(storedSubscription.MonitoredItems);
         }
         #endregion
 
@@ -270,7 +351,7 @@ namespace Opc.Ua.Server
                 }
             }
         }
-              
+
         /// <summary>
         /// True if the subscription is set to durable and supports long lifetime and queue size
         /// </summary>
@@ -2314,7 +2395,7 @@ namespace Opc.Ua.Server
                     Utils.LogError("SetSubscriptionDurable requested for subscription with id {0}, but no IMonitoredItemQueueFactory that supports durable queues was registered", m_id);
                     TraceState(LogLevel.Information, TraceStateId.Config, "SetSubscriptionDurable Failed");
                     return StatusCodes.BadNotSupported;
-                }   
+                }
 
                 m_isDurable = true;
 
@@ -2332,7 +2413,7 @@ namespace Opc.Ua.Server
 
                 }
 
-                TraceState(LogLevel.Information, TraceStateId.Config, "MODIFIED");
+                TraceState(LogLevel.Information, TraceStateId.Config, "SET DURABLE");
 
                 return StatusCodes.Good;
             }
@@ -2358,9 +2439,81 @@ namespace Opc.Ua.Server
                 }
             }
         }
+
+        /// <summary>
+        /// Return a StorableSubscription for restore after a server restart
+        /// </summary>
+        public IStoredSubscription ToStorableSubscription()
+        {
+            var monitoredItemsToStore = new List<IStoredMonitoredItem>();
+
+            foreach (KeyValuePair<uint, LinkedListNode<IMonitoredItem>> kvp in m_monitoredItems)
+            {
+                monitoredItemsToStore.Add(kvp.Value.Value.ToStorableMonitoredItem());
+            }
+
+            return new StoredSubscription {
+                SentMessages = m_sentMessages,
+                Id = Id,
+                SequenceNumber = m_sequenceNumber,
+                LastSentMessage = m_lastSentMessage,
+                LifetimeCounter = m_lifetimeCounter,
+                MaxKeepaliveCount = m_maxKeepAliveCount,
+                MaxLifetimeCount = m_maxLifetimeCount,
+                MaxMessageCount = m_maxMessageCount,
+                MaxNotificationsPerPublish = m_maxNotificationsPerPublish,
+                Priority = Priority,
+                PublishingInterval = PublishingInterval,
+                UserIdentityToken = EffectiveIdentity?.GetIdentityToken(),
+                MonitoredItems = monitoredItemsToStore,
+                IsDurable = IsDurable,
+            };
+        }
         #endregion
 
         #region Private Methods
+
+        /// <summary>
+        /// Restore MonitoredItems after a Server restart
+        /// </summary>
+        protected virtual void RestoreMonitoredItems(IEnumerable<IStoredMonitoredItem> storedMonitoredItems)
+        {
+            int count = storedMonitoredItems.Count();
+
+            // create the monitored items.
+            List<IMonitoredItem> monitoredItems = new List<IMonitoredItem>(count);
+
+            for (int ii = 0; ii < count; ii++)
+            {
+                monitoredItems.Add(null);
+            }
+
+            m_server.NodeManager.RestoreMonitoredItems(
+                 storedMonitoredItems.ToList(),
+                 monitoredItems,
+                 m_savedOwnerIdentity);
+
+            lock (m_lock)
+            {
+                foreach (IMonitoredItem monitoredItem in monitoredItems)
+                {
+                    // skip MonitoredItem if recreation failed
+                    if (monitoredItem == null)
+                    {
+                        continue;
+                    }
+                    monitoredItem.SubscriptionCallback = this;
+
+                    LinkedListNode<IMonitoredItem> node = m_itemsToCheck.AddLast(monitoredItem);
+                    m_monitoredItems.Add(monitoredItem.Id, node);
+
+                    // update sampling interval diagnostics.
+                    AddItemToSamplingInterval(monitoredItem.SamplingInterval, monitoredItem.MonitoringMode);
+                }
+
+                TraceState(LogLevel.Information, TraceStateId.Items, "ITEMS RESTORED");
+            }
+        }
         /// <summary>
         /// Returns a copy of the current diagnostics.
         /// </summary>

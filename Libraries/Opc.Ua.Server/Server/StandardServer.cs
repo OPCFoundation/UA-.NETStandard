@@ -3056,6 +3056,18 @@ namespace Opc.Ua.Server
                     // use event to trigger channel that should not be closed.
                     sessionManager.SessionChannelKeepAlive += SessionChannelKeepAliveEvent;
 
+                    //create the MonitoredItemQueueFactory
+                    IMonitoredItemQueueFactory monitoredItemQueueFactory = CreateMonitoredItemQueueFactory(m_serverInternal, configuration);
+
+                    //add the MonitoredItemQueueFactory to the datastore.
+                    m_serverInternal.SetMonitoredItemQueueFactory(monitoredItemQueueFactory);
+
+                    //create the SubscriptionStore
+                    ISubscriptionStore subscriptionStore = CreateSubscriptionStore(m_serverInternal, configuration);
+
+                    //add the SubscriptionStore to the datastore
+                    m_serverInternal.SetSubscriptionStore(subscriptionStore);
+
                     // start the subscription manager.
                     Utils.LogInfo(TraceMasks.StartStop, "Server - CreateSubscriptionManager.");
                     SubscriptionManager subscriptionManager = CreateSubscriptionManager(m_serverInternal, configuration);
@@ -3063,12 +3075,6 @@ namespace Opc.Ua.Server
 
                     // add the session manager to the datastore.
                     m_serverInternal.SetSessionManager(sessionManager, subscriptionManager);
-
-                    //create the MonitoredItemQueueFactory
-                    IMonitoredItemQueueFactory monitoredItemQueueFactory = CreateMonitoredItemQueueFactory(m_serverInternal, configuration);
-
-                    //add the eMonitoredItemQueueFactory to the datastore.
-                    m_serverInternal.SetMonitoredItemQueueFactory(monitoredItemQueueFactory);
 
                     ServerError = null;
 
@@ -3420,6 +3426,17 @@ namespace Opc.Ua.Server
         protected virtual IMonitoredItemQueueFactory CreateMonitoredItemQueueFactory(IServerInternal server, ApplicationConfiguration configuration)
         {
            return new MonitoredItemQueueFactory();
+        }
+
+        /// <summary>
+        /// Creates the subscriptionStore for the server.
+        /// </summary>
+        /// <param name="server">The server.</param>
+        /// <param name="configuration">The configuration.</param>
+        /// <returns>Returns a subscriptionStore for a server, the return type is <seealso cref="ISubscriptionStore"/>.</returns>
+        protected virtual ISubscriptionStore CreateSubscriptionStore(IServerInternal server, ApplicationConfiguration configuration)
+        {
+            return null;
         }
 
         /// <summary>

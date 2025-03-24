@@ -46,7 +46,7 @@ namespace MemoryBuffer
         public MemoryBufferMonitoredItem(
             IServerInternal server,
             INodeManager nodeManager,
-            object mangerHandle,
+            object managerHandle,
             uint offset,
             uint subscriptionId,
             uint id,
@@ -67,7 +67,7 @@ namespace MemoryBuffer
             base(
                 server,
                 nodeManager,
-                mangerHandle,
+                managerHandle,
                 subscriptionId,
                 id,
                 itemToMonitor,
@@ -83,6 +83,25 @@ namespace MemoryBuffer
                 discardOldest,
                 minimumSamplingInterval,
                 createDurable)
+        {
+            m_offset = offset;
+        }
+
+        /// <summary>
+        /// Initializes the object from a template
+        /// </summary>
+        public MemoryBufferMonitoredItem(
+            IServerInternal server,
+            INodeManager nodeManager,
+            object managerHandle,
+            uint offset,
+            IStoredMonitoredItem storedMonitoredItem)
+        :
+            base(
+                server,
+                nodeManager,
+                managerHandle,
+                storedMonitoredItem)
         {
             m_offset = offset;
         }
