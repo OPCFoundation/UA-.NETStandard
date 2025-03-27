@@ -81,7 +81,6 @@ namespace Opc.Ua
                 ValidateStore(UserIssuerCertificates, nameof(UserIssuerCertificates));
             }
 
-
             if ((TrustedHttpsCertificates != null && HttpsIssuerCertificates == null)
                 || (HttpsIssuerCertificates != null && TrustedHttpsCertificates == null))
             {
@@ -116,13 +115,13 @@ namespace Opc.Ua
                 ICertificateStore store = storeIdentifier.OpenStore();
                 if (store == null)
                 {
-                    throw new Exception($"Failed top open {storeName} store");
+                    throw ServiceResultException.Create(StatusCodes.BadConfigurationError, $"Failed to open {storeName} store");
                 }
                 store?.Close();
             }
             catch (Exception ex)
             {
-                Utils.LogError(ex, "Failed top open {storeName} store", storeName);
+                Utils.LogError(ex, "Failed to open {storeName} store", storeName);
                 throw ServiceResultException.Create(StatusCodes.BadConfigurationError, storeName + " store is invalid.");
             }
         }
@@ -233,26 +232,6 @@ namespace Opc.Ua
             }
             return result;
         }
-
-        /// <summary>
-        /// Ensure valid trust lists.
-        /// </summary>
-        private CertificateTrustList CreateDefaultTrustList(CertificateTrustList trustList)
-        {
-            if (trustList != null)
-            {
-                if (trustList.StorePath != null)
-                {
-                    return trustList;
-                }
-            }
-
-            return new CertificateTrustList();
-        }
-
-
-
-
         #endregion
     }
     #endregion

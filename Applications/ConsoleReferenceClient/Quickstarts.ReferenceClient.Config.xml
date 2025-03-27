@@ -80,7 +80,7 @@
     <AddAppCertToTrustedStore>false</AddAppCertToTrustedStore>
     <SendCertificateChain>true</SendCertificateChain>
 
-
+    <!-- Where the User issers list is stored-->
     <UserIssuerCertificates>
       <StoreType>Directory</StoreType>
       <StorePath>%LocalApplicationData%/OPC Foundation/pki/userIssuer</StorePath>

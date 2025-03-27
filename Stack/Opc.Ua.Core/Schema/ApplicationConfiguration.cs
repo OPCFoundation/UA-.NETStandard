@@ -884,7 +884,7 @@ namespace Opc.Ua
         /// <summary>
         /// The store containing any additional issuer certificates.
         /// </summary>
-        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 2)]
+        [DataMember(IsRequired = true, EmitDefaultValue = false, Order = 2)]
         public CertificateTrustList TrustedIssuerCertificates
         {
             get
@@ -901,7 +901,7 @@ namespace Opc.Ua
         /// <summary>
         /// The trusted certificate store.
         /// </summary>
-        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 4)]
+        [DataMember(IsRequired = true, EmitDefaultValue = false, Order = 4)]
         public CertificateTrustList TrustedPeerCertificates
         {
             get
@@ -2052,7 +2052,7 @@ namespace Opc.Ua
         /// Enable / disable support for durable subscriptions
         /// </summary>
         /// <value><c>true</c> if durable subscriptions are enabled; otherwise, <c>false</c>.</value>
-        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 38)]
+        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 39)]
         public bool DurableSubscriptionsEnabled
         {
             get { return m_DurableSubscriptionsEnabled; }
@@ -2063,7 +2063,7 @@ namespace Opc.Ua
         /// The maximum number of notifications saved in the durable queue for each monitored item.
         /// </summary>
         /// <value>The maximum size of the durable notification queue.</value>
-        [DataMember(IsRequired = false, Order = 39)]
+        [DataMember(IsRequired = false, Order = 40)]
         public int MaxDurableNotificationQueueSize
         {
             get { return m_maxDurableNotificationQueueSize; }
@@ -2074,7 +2074,7 @@ namespace Opc.Ua
         /// The max size of the durable event queue.
         /// </summary>
         /// <value>The max size of the durable event queue.</value>
-        [DataMember(IsRequired = false, Order = 40)]
+        [DataMember(IsRequired = false, Order = 41)]
         public int MaxDurableEventQueueSize
         {
             get { return m_maxDurableEventQueueSize; }
@@ -2085,7 +2085,7 @@ namespace Opc.Ua
         /// How long the durable subscriptions will remain open without a publish from the client.
         /// </summary>
         /// <value>The maximum durable subscription lifetime.</value>
-        [DataMember(IsRequired = false, Order = 41)]
+        [DataMember(IsRequired = false, Order = 42)]
         public int MaxDurableSubscriptionLifetimeInHours
         {
             get { return m_maxDurableSubscriptionLifetimeInHours; }
