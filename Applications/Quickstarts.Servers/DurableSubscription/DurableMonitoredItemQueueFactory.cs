@@ -42,6 +42,7 @@ namespace Quickstarts.Servers
     /// </summary>
     public class DurableMonitoredItemQueueFactory : IMonitoredItemQueueFactory
     {
+        private readonly IBatchPersistor m_batchPersistor = new BatchPersistor();
         private static readonly JsonSerializerSettings s_settings = new JsonSerializerSettings { TypeNameHandling = TypeNameHandling.All };
         private static readonly string s_queueDirectory = "Queues";
         private static readonly string s_base_filename = "_queue.txt";
@@ -55,7 +56,7 @@ namespace Quickstarts.Servers
             //use durable queue only if MI is durable
             if (createDurable)
             {
-                var queue = new DurableDataChangeMonitoredItemQueue(createDurable, monitoredItemId);
+                var queue = new DurableDataChangeMonitoredItemQueue(createDurable, monitoredItemId, m_batchPersistor);
                 queue.Disposed += DataChangeQueueDisposed;
                 m_dataChangeQueues.AddOrUpdate(monitoredItemId, queue, (_, _) => queue);
                 return queue;
@@ -73,7 +74,7 @@ namespace Quickstarts.Servers
             //use durable queue only if MI is durable
             if (createDurable)
             {
-                var queue = new DurableEventMonitoredItemQueue(createDurable, monitoredItemId);
+                var queue = new DurableEventMonitoredItemQueue(createDurable, monitoredItemId, m_batchPersistor);
                 queue.Disposed += EventQueueDisposed;
                 m_eventQueues.AddOrUpdate(monitoredItemId, queue, (_, _) => queue);
                 return queue;
@@ -102,6 +103,7 @@ namespace Quickstarts.Servers
 
         /// <summary>
         /// Persist the queues of the monitored items with the provided ids
+        /// Deletes the batches of all queues that are not in the list
         /// </summary>
         /// <param name="ids">the MonitoredItem ids of the queues to store</param>
         public void PersistQueues(IEnumerable<uint> ids, string baseDirectory)
@@ -137,6 +139,8 @@ namespace Quickstarts.Servers
                     Opc.Ua.Utils.LogWarning(ex, "Failed to persist queue for monitored item with id {0}", id);
                 }
             }
+            // Delete batches of all queues that are not in the list
+            m_batchPersistor.DeleteBatches(ids);
         }
 
         /// <summary>
@@ -152,7 +156,7 @@ namespace Quickstarts.Servers
             string result = File.ReadAllText(targetFile);
             StorableEventQueue template = JsonConvert.DeserializeObject<StorableEventQueue>(result, s_settings);
 
-            var queue = new DurableEventMonitoredItemQueue(template);
+            var queue = new DurableEventMonitoredItemQueue(template, m_batchPersistor);
             m_eventQueues.AddOrUpdate(id, queue, (_, _) => queue);
 
             return queue;
@@ -171,7 +175,7 @@ namespace Quickstarts.Servers
             string result = File.ReadAllText(targetFile);
             StorableDataChangeQueue template = JsonConvert.DeserializeObject<StorableDataChangeQueue>(result, s_settings);
 
-            var queue = new DurableDataChangeMonitoredItemQueue(template);
+            var queue = new DurableDataChangeMonitoredItemQueue(template, m_batchPersistor);
             m_dataChangeQueues.AddOrUpdate(id, queue, (_, _) => queue);
 
             return queue;
