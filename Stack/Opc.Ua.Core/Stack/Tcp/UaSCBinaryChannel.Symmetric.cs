@@ -1405,8 +1405,8 @@ namespace Opc.Ua.Bindings
         #endregion
 
         #region Private Static Fields
-        private static readonly byte[] s_HkdfClientLabel = new UTF8Encoding().GetBytes("opcua-client");
-        private static readonly byte[] s_HkdfServerLabel = new UTF8Encoding().GetBytes("opcua-server");
+        private static readonly byte[] s_HkdfClientLabel = Encoding.UTF8.GetBytes("opcua-client");
+        private static readonly byte[] s_HkdfServerLabel = Encoding.UTF8.GetBytes("opcua-server");
         private static readonly byte[] s_HkdfAes128SignOnlyKeyLength = BitConverter.GetBytes((ushort)32);
         private static readonly byte[] s_HkdfAes256SignOnlyKeyLength = BitConverter.GetBytes((ushort)48);
         private static readonly byte[] s_HkdfAes128SignAndEncryptKeyLength = BitConverter.GetBytes((ushort)64);
