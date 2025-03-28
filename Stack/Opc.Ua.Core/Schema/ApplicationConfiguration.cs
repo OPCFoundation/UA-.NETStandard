@@ -884,7 +884,7 @@ namespace Opc.Ua
         /// <summary>
         /// The store containing any additional issuer certificates.
         /// </summary>
-        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 2)]
+        [DataMember(IsRequired = true, EmitDefaultValue = false, Order = 2)]
         public CertificateTrustList TrustedIssuerCertificates
         {
             get
@@ -901,7 +901,7 @@ namespace Opc.Ua
         /// <summary>
         /// The trusted certificate store.
         /// </summary>
-        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 4)]
+        [DataMember(IsRequired = true, EmitDefaultValue = false, Order = 4)]
         public CertificateTrustList TrustedPeerCertificates
         {
             get
@@ -2052,7 +2052,7 @@ namespace Opc.Ua
         /// Enable / disable support for durable subscriptions
         /// </summary>
         /// <value><c>true</c> if durable subscriptions are enabled; otherwise, <c>false</c>.</value>
-        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 38)]
+        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 39)]
         public bool DurableSubscriptionsEnabled
         {
             get { return m_DurableSubscriptionsEnabled; }
@@ -2063,7 +2063,7 @@ namespace Opc.Ua
         /// The maximum number of notifications saved in the durable queue for each monitored item.
         /// </summary>
         /// <value>The maximum size of the durable notification queue.</value>
-        [DataMember(IsRequired = false, Order = 39)]
+        [DataMember(IsRequired = false, Order = 40)]
         public int MaxDurableNotificationQueueSize
         {
             get { return m_maxDurableNotificationQueueSize; }
@@ -2074,7 +2074,7 @@ namespace Opc.Ua
         /// The max size of the durable event queue.
         /// </summary>
         /// <value>The max size of the durable event queue.</value>
-        [DataMember(IsRequired = false, Order = 40)]
+        [DataMember(IsRequired = false, Order = 41)]
         public int MaxDurableEventQueueSize
         {
             get { return m_maxDurableEventQueueSize; }
@@ -2085,7 +2085,7 @@ namespace Opc.Ua
         /// How long the durable subscriptions will remain open without a publish from the client.
         /// </summary>
         /// <value>The maximum durable subscription lifetime.</value>
-        [DataMember(IsRequired = false, Order = 41)]
+        [DataMember(IsRequired = false, Order = 42)]
         public int MaxDurableSubscriptionLifetimeInHours
         {
             get { return m_maxDurableSubscriptionLifetimeInHours; }
@@ -2920,11 +2920,6 @@ namespace Opc.Ua
         {
             get
             {
-                if (!String.IsNullOrEmpty(m_storeName))
-                {
-                    return CertificateStoreType.X509Store;
-                }
-
                 return m_storeType;
             }
 
@@ -2947,16 +2942,6 @@ namespace Opc.Ua
         {
             get
             {
-                if (!String.IsNullOrEmpty(m_storeName))
-                {
-                    if (String.IsNullOrEmpty(m_storeLocation))
-                    {
-                        return CurrentUser + m_storeName;
-                    }
-
-                    return Utils.Format("{0}\\{1}", m_storeLocation, m_storeName);
-                }
-
                 return m_storePath;
             }
 
@@ -2975,28 +2960,6 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// The name of the certificate store that contains the trusted certificates. 
-        /// </summary>
-        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 2)]
-        [Obsolete("Use StoreType/StorePath instead")]
-        public string StoreName
-        {
-            get { return m_storeName; }
-            set { m_storeName = value; }
-        }
-
-        /// <summary>
-        /// The location of the certificate store that contains the trusted certificates. 
-        /// </summary>
-        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 3)]
-        [Obsolete("Use StoreType/StorePath instead")]
-        public string StoreLocation
-        {
-            get { return m_storeLocation; }
-            set { m_storeLocation = value; }
-        }
-
-        /// <summary>
         /// Options that can be used to suppress certificate validation errors.
         /// </summary>
         [DataMember(Name = "ValidationOptions", IsRequired = false, EmitDefaultValue = false, Order = 4)]
@@ -3010,8 +2973,6 @@ namespace Opc.Ua
         #region Private Fields
         private string m_storeType;
         private string m_storePath;
-        private string m_storeLocation;
-        private string m_storeName;
         private CertificateValidationOptions m_validationOptions;
         #endregion
     }

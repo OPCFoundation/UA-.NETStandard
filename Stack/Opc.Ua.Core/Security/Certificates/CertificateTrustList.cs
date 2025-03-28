@@ -47,13 +47,20 @@ namespace Opc.Ua
         {
             X509Certificate2Collection collection = new X509Certificate2Collection();
 
-            if (!String.IsNullOrEmpty(this.StorePath))
+            if (!string.IsNullOrEmpty(this.StorePath))
             {
                 ICertificateStore store = null;
                 try
                 {
                     store = OpenStore();
+
+                    if (store == null)
+                    {
+                        throw new ServiceResultException(StatusCodes.BadConfigurationError, "Failed to open certificate store.");
+                    }
+
                     collection = await store.Enumerate().ConfigureAwait(false);
+
                 }
                 catch (Exception)
                 {

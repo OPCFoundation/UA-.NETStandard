@@ -59,15 +59,70 @@ namespace Opc.Ua
             {
                 throw ServiceResultException.Create(StatusCodes.BadConfigurationError, "ApplicationCertificate must be specified.");
             }
+            // ensure mandatory stores are valid
+            ValidateStore(TrustedIssuerCertificates, nameof(TrustedIssuerCertificates));
+            ValidateStore(TrustedPeerCertificates, nameof(TrustedPeerCertificates));
 
-            TrustedIssuerCertificates = CreateDefaultTrustList(TrustedIssuerCertificates);
-            TrustedPeerCertificates = CreateDefaultTrustList(TrustedPeerCertificates);
+            //ensure optional stores are valid if specified
+            if (TrustedHttpsCertificates != null)
+            {
+                ValidateStore(TrustedHttpsCertificates, nameof(TrustedHttpsCertificates));
+            }
+            if (HttpsIssuerCertificates != null)
+            {
+                ValidateStore(HttpsIssuerCertificates, nameof(HttpsIssuerCertificates));
+            }
+            if (TrustedUserCertificates != null)
+            {
+                ValidateStore(TrustedUserCertificates, nameof(TrustedUserCertificates));
+            }
+            if (UserIssuerCertificates != null)
+            {
+                ValidateStore(UserIssuerCertificates, nameof(UserIssuerCertificates));
+            }
+
+            if ((TrustedHttpsCertificates != null && HttpsIssuerCertificates == null)
+                || (HttpsIssuerCertificates != null && TrustedHttpsCertificates == null))
+            {
+                throw ServiceResultException.Create(StatusCodes.BadConfigurationError, "Either none or both of HttpsIssuerCertificates & TrustedHttpsCertificates stores must be specified.");
+            }
+
+            if ((TrustedUserCertificates != null && UserIssuerCertificates == null)
+                || (UserIssuerCertificates != null && TrustedUserCertificates == null))
+            {
+                throw ServiceResultException.Create(StatusCodes.BadConfigurationError, "Either none or both of UserIssuerCertificates & TrustedUserCertificates stores must be specified.");
+            }
 
 
             // replace subjectName DC=localhost with DC=hostname
             foreach (var applicationCertificate in m_applicationCertificates)
             {
                 applicationCertificate.SubjectName = Utils.ReplaceDCLocalhost(applicationCertificate.SubjectName);
+            }
+        }
+        /// <summary>
+        /// Validate if the specified store can be opened
+        /// throws ServiceResultException
+        /// </summary>
+        private void ValidateStore(CertificateStoreIdentifier storeIdentifier, string storeName)
+        {
+            if (string.IsNullOrEmpty(storeIdentifier?.StorePath))
+            {
+                throw ServiceResultException.Create(StatusCodes.BadConfigurationError, storeName + " StorePath must be specified.");
+            }
+            try
+            {
+                ICertificateStore store = storeIdentifier.OpenStore();
+                if (store == null)
+                {
+                    throw ServiceResultException.Create(StatusCodes.BadConfigurationError, $"Failed to open {storeName} store");
+                }
+                store?.Close();
+            }
+            catch (Exception ex)
+            {
+                Utils.LogError(ex, "Failed to open {storeName} store", storeName);
+                throw ServiceResultException.Create(StatusCodes.BadConfigurationError, storeName + " store is invalid.");
             }
         }
 
@@ -177,26 +232,6 @@ namespace Opc.Ua
             }
             return result;
         }
-
-        /// <summary>
-        /// Ensure valid trust lists.
-        /// </summary>
-        private CertificateTrustList CreateDefaultTrustList(CertificateTrustList trustList)
-        {
-            if (trustList != null)
-            {
-                if (trustList.StorePath != null)
-                {
-                    return trustList;
-                }
-            }
-
-            return new CertificateTrustList();
-        }
-
-
-
-
         #endregion
     }
     #endregion
