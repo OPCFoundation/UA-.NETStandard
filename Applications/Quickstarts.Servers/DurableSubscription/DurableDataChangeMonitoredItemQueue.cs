@@ -145,7 +145,7 @@ namespace Quickstarts.Servers
         /// <summary>
         /// persists batches if needed
         /// </summary>
-        public void HandleEnqueueBatching()
+        private void HandleEnqueueBatching()
         {
             // Store the batch if it is full
             if (m_enqueueBatch.Values.Count >= kBatchSize)
@@ -180,8 +180,19 @@ namespace Quickstarts.Servers
             {
                 throw new InvalidOperationException("Cannot overwrite Value. Queue is empty.");
             }
-
-            m_enqueueBatch.Values[m_enqueueBatch.Values.Count - 1] = (value, error);
+            if (m_enqueueBatch.Values.Count > 0)
+            {
+                m_enqueueBatch.Values[m_enqueueBatch.Values.Count - 1] = (value, error);
+            }
+            else if (m_dataChangeBatches.Count > 0)
+            {
+                var batch = m_dataChangeBatches.Last();
+                batch.Values[batch.Values.Count - 1] = (value, error);
+            }
+            else
+            {
+                m_dequeueBatch.Values[m_dequeueBatch.Values.Count - 1] = (value, error);
+            }
         }
 
         /// <inheritdoc/>
@@ -193,7 +204,7 @@ namespace Quickstarts.Servers
             m_queueErrors = queueErrors;
             m_queueSize = queueSize;
 
-            foreach(var batch in m_dataChangeBatches)
+            foreach (var batch in m_dataChangeBatches)
             {
                 m_batchPersistor.DeleteBatch(batch);
             }
@@ -209,7 +220,19 @@ namespace Quickstarts.Servers
                 return null;
             }
 
-            return m_enqueueBatch.Values[m_enqueueBatch.Values.Count - 1].Item1;
+            if (m_enqueueBatch.Values.Count > 0)
+            {
+                return m_enqueueBatch.Values[m_enqueueBatch.Values.Count - 1].Item1;
+            }
+            else if (m_dataChangeBatches.Count > 0)
+            {
+                var batch = m_dataChangeBatches.Last();
+                return batch.Values[batch.Values.Count - 1].Item1;
+            }
+            else
+            {
+                return m_dequeueBatch.Values[m_dequeueBatch.Values.Count - 1].Item1;
+            }
         }
 
         /// <inheritdoc/>

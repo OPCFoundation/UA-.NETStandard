@@ -88,7 +88,7 @@ namespace Quickstarts.Servers
         /// <inheritdoc/>
         public void RequestBatchPersist(BatchBase batch)
         {
-            if (batch.IsPersisted || batch.PersistingInProgress)
+            if (batch.IsPersisted || batch.PersistingInProgress || batch.RestoreInProgress)
             {
                 return;
             }
@@ -103,7 +103,7 @@ namespace Quickstarts.Servers
         /// <inheritdoc/>
         public void RequestBatchRestore(BatchBase batch)
         {
-            if (batch.RestoreInProgress || !batch.IsPersisted)
+            if (!batch.IsPersisted || batch.RestoreInProgress || batch.PersistingInProgress)
             {
                 return;
             }
@@ -133,7 +133,7 @@ namespace Quickstarts.Servers
             }
             catch (Exception ex)
             {
-                Opc.Ua.Utils.LogWarning(ex, "Failed to restore batch");
+                Opc.Ua.Utils.LogError(ex, "Failed to restore batch");
 
                 batch.RestoreInProgress = false;
                 m_batchesToRestore.TryRemove(batch.Id, out _);
@@ -165,6 +165,10 @@ namespace Quickstarts.Servers
                 {
                     Directory.CreateDirectory(s_storage_path);
                 }
+
+                string filePath = Path.Combine(s_storage_path, $"{batch.MonitoredItemId}_{batch.Id}{s_baseFilename}");
+
+                File.WriteAllText(filePath, result);
             }
             catch (Exception ex)
             {

@@ -369,7 +369,7 @@ namespace Quickstarts
                 // Define Subscription parameters
                 Subscription subscription = new Subscription(session.DefaultSubscription) {
                     DisplayName = "Console ReferenceClient Subscription",
-                    PublishingEnabled = true,
+                    PublishingEnabled = false,
                     PublishingInterval = subscriptionPublishingInterval,
                     LifetimeCount = 0,
                     MinLifetimeInterval = lifetime,

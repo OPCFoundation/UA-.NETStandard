@@ -148,18 +148,27 @@ namespace Quickstarts.Servers
         /// </summary>
         public IEventMonitoredItemQueue RestoreEventQueue(uint id, string baseDirectory)
         {
-            string targetFile = Path.Combine(baseDirectory, s_queueDirectory, id + s_base_filename);
-            if (!File.Exists(targetFile))
+            try
             {
-                return null;
+                string targetFile = Path.Combine(baseDirectory, s_queueDirectory, id + s_base_filename);
+                if (!File.Exists(targetFile))
+                {
+                    return null;
+                }
+                string result = File.ReadAllText(targetFile);
+                File.Delete(targetFile);
+                StorableEventQueue template = JsonConvert.DeserializeObject<StorableEventQueue>(result, s_settings);
+
+                var queue = new DurableEventMonitoredItemQueue(template, m_batchPersistor);
+                m_eventQueues.AddOrUpdate(id, queue, (_, _) => queue);
+
+                return queue;
             }
-            string result = File.ReadAllText(targetFile);
-            StorableEventQueue template = JsonConvert.DeserializeObject<StorableEventQueue>(result, s_settings);
-
-            var queue = new DurableEventMonitoredItemQueue(template, m_batchPersistor);
-            m_eventQueues.AddOrUpdate(id, queue, (_, _) => queue);
-
-            return queue;
+            catch (Exception ex)
+            {
+                Opc.Ua.Utils.LogWarning(ex, "Failed to restore event change queue");
+            }
+            return null;
         }
 
         /// <summary>
@@ -167,18 +176,27 @@ namespace Quickstarts.Servers
         /// </summary>
         public IDataChangeMonitoredItemQueue RestoreDataChangeQueue(uint id, string baseDirectory)
         {
-            string targetFile = Path.Combine(baseDirectory, s_queueDirectory, id + s_base_filename);
-            if (!File.Exists(targetFile))
+            try
             {
-                return null;
+                string targetFile = Path.Combine(baseDirectory, s_queueDirectory, id + s_base_filename);
+                if (!File.Exists(targetFile))
+                {
+                    return null;
+                }
+                string result = File.ReadAllText(targetFile);
+                File.Delete(targetFile);
+                StorableDataChangeQueue template = JsonConvert.DeserializeObject<StorableDataChangeQueue>(result, s_settings);
+
+                var queue = new DurableDataChangeMonitoredItemQueue(template, m_batchPersistor);
+                m_dataChangeQueues.AddOrUpdate(id, queue, (_, _) => queue);
+
+                return queue;
             }
-            string result = File.ReadAllText(targetFile);
-            StorableDataChangeQueue template = JsonConvert.DeserializeObject<StorableDataChangeQueue>(result, s_settings);
-
-            var queue = new DurableDataChangeMonitoredItemQueue(template, m_batchPersistor);
-            m_dataChangeQueues.AddOrUpdate(id, queue, (_, _) => queue);
-
-            return queue;
+            catch (Exception ex)
+            {
+                Opc.Ua.Utils.LogWarning(ex, "Failed to restore data change queue");
+            }
+            return null;
         }
 
         /// <inheritdoc/>

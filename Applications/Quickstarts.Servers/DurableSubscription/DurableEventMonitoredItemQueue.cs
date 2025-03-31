@@ -141,7 +141,7 @@ namespace Quickstarts.Servers
         /// <summary>
         /// persists batches if needed
         /// </summary>
-        public void HandleEnqueueBatching()
+        private void HandleEnqueueBatching()
         {
             // Store the batch if it is full
             if (m_enqueueBatch.Events.Count >= kBatchSize)
@@ -159,6 +159,7 @@ namespace Quickstarts.Servers
 
                     var batchToStore = new EventBatch(m_enqueueBatch.Events, kBatchSize, m_monitoredItemId);
                     m_eventBatches.Add(batchToStore);
+                    //only persist second batch in list, as the first could be needed, for duplicate event check
                     if (m_eventBatches.Count > 1)
                     {
                         m_batchPersistor.RequestBatchPersist(m_eventBatches[m_eventBatches.Count - 2]);
@@ -172,7 +173,7 @@ namespace Quickstarts.Servers
         /// <summary>
         /// Restores batches if needed
         /// </summary>
-        public void HandleDequeBatching()
+        private void HandleDequeBatching()
         {
             // request a restore if the dequeue batch is half empty
             if (m_dequeueBatch.Events.Count <= kBatchSize / 2 && m_eventBatches.Count > 0)
@@ -221,7 +222,7 @@ namespace Quickstarts.Servers
                 else if (i >= m_enqueueBatch.Events.Count && m_eventBatches.Count > 0)
                 {
                     int indexInStoredBatch = i - m_enqueueBatch.Events.Count;
-                    if (indexInStoredBatch < m_eventBatches[0].Events.Count && m_eventBatches[0].Events[indexInStoredBatch] is EventFieldList storedEvent)
+                    if (indexInStoredBatch < m_eventBatches.Last().Events.Count && m_eventBatches.Last().Events[indexInStoredBatch] is EventFieldList storedEvent)
                     {
                         if (ReferenceEquals(instance, storedEvent.Handle))
                         {

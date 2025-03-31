@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "ConsoleReferenceServer": {
+      "commandName": "Project",
+      "commandLineArgs": "-l -c"
+    }
+  }
+}

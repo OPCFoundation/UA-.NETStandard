@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "ConsoleReferenceClient": {
+      "commandName": "Project",
+      "commandLineArgs": "-ds -l -c"
+    }
+  }
+}

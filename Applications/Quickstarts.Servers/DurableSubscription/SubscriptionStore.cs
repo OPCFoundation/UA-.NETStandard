@@ -166,11 +166,13 @@ namespace Quickstarts.Servers
 
         public void OnSubscriptionRestoreComplete(Dictionary<uint, uint[]> createdSubscriptions)
         {
-            if (Directory.Exists(s_storage_path))
+            string filePath = Path.Combine(s_storage_path, s_filename);
+
+            if (File.Exists(filePath))
             {
                 try
                 {
-                    Directory.Delete(s_storage_path, true);
+                    File.Delete(filePath);
                 }
                 catch (Exception ex)
                 {
