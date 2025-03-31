@@ -175,7 +175,7 @@ namespace Quickstarts.Servers
         public void HandleDequeBatching()
         {
             // request a restore if the dequeue batch is half empty
-            if (m_dequeueBatch.Events.Count <= kBatchSize / 2)
+            if (m_dequeueBatch.Events.Count <= kBatchSize / 2 && m_eventBatches.Count > 0)
             {
                 m_batchPersistor.RequestBatchRestore(m_eventBatches.First());
             }
@@ -260,6 +260,7 @@ namespace Quickstarts.Servers
                     while (itemsToRemove > 0 && m_eventBatches.Count > 0)
                     {
                         var batch = m_eventBatches.First();
+                        m_batchPersistor.RestoreSynchronously(batch);
                         int batchCount = batch.Events.Count;
 
                         if (itemsToRemove >= batchCount)
@@ -274,6 +275,16 @@ namespace Quickstarts.Servers
                             m_itemsInQueue -= itemsToRemove;
                             itemsToRemove = 0;
                         }
+                    }
+
+                    // Remove from output batch
+                    while (itemsToRemove > 0 && m_enqueueBatch.Events.Count > 0)
+                    {
+                        // Remove from output batch
+                        int removeCount = Math.Min(itemsToRemove, m_enqueueBatch.Events.Count);
+                        m_enqueueBatch.Events.RemoveRange(0, removeCount);
+                        m_itemsInQueue -= removeCount;
+                        itemsToRemove -= removeCount;
                     }
                 }
                 else
@@ -292,6 +303,7 @@ namespace Quickstarts.Servers
                     while (itemsToRemove > 0 && m_eventBatches.Count > 0)
                     {
                         var batch = m_eventBatches.Last();
+                        m_batchPersistor.RestoreSynchronously(batch);
                         int batchCount = batch.Events.Count;
 
                         if (itemsToRemove >= batchCount)
@@ -307,9 +319,19 @@ namespace Quickstarts.Servers
                             itemsToRemove = 0;
                         }
                     }
+
+                    // Remove from output batch
+                    while (itemsToRemove > 0 && m_dequeueBatch.Events.Count > 0)
+                    {
+                        int removeCount = Math.Min(itemsToRemove, m_dequeueBatch.Events.Count);
+                        m_dequeueBatch.Events.RemoveRange(m_dequeueBatch.Events.Count - removeCount, removeCount);
+                        m_itemsInQueue -= removeCount;
+                        itemsToRemove -= removeCount;
+                    }
                 }
             }
         }
+
         /// <summary>
         /// Brings the queue with contents into a storable format
         /// </summary>

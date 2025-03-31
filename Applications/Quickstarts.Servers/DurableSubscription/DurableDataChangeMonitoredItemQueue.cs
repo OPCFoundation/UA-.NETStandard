@@ -139,6 +139,39 @@ namespace Quickstarts.Servers
 
             m_enqueueBatch.Values.Add((value, m_queueErrors ? error : null));
             m_itemsInQueue++;
+            HandleEnqueueBatching();
+        }
+
+        /// <summary>
+        /// persists batches if needed
+        /// </summary>
+        public void HandleEnqueueBatching()
+        {
+            // Store the batch if it is full
+            if (m_enqueueBatch.Values.Count >= kBatchSize)
+            {
+                // Special case: if the enqueue and dequeue batch are the same only one batch exists, so no storing is needed
+                if (m_dequeueBatch == m_enqueueBatch)
+                {
+                    m_dequeueBatch = new DataChangeBatch(m_enqueueBatch.Values, kBatchSize, m_monitoredItemId);
+                    m_enqueueBatch = new DataChangeBatch(new List<(DataValue, ServiceResult)>(), kBatchSize, m_monitoredItemId);
+                }
+                // persist the batch
+                else
+                {
+                    Opc.Ua.Utils.LogDebug("Storing batch for monitored item {0}", m_monitoredItemId);
+
+                    var batchToStore = new DataChangeBatch(m_enqueueBatch.Values, kBatchSize, m_monitoredItemId);
+                    m_dataChangeBatches.Add(batchToStore);
+                    if (m_dataChangeBatches.Count > 1)
+                    {
+                        m_batchPersistor.RequestBatchPersist(m_dataChangeBatches[m_dataChangeBatches.Count - 2]);
+                    }
+
+                    m_enqueueBatch = new DataChangeBatch(new List<(DataValue, ServiceResult)>(), kBatchSize, m_monitoredItemId);
+                }
+            }
+
         }
         /// <inheritdoc/>
         public void OverwriteLastValue(DataValue value, ServiceResult error)
@@ -159,6 +192,13 @@ namespace Quickstarts.Servers
             m_itemsInQueue = 0;
             m_queueErrors = queueErrors;
             m_queueSize = queueSize;
+
+            foreach(var batch in m_dataChangeBatches)
+            {
+                m_batchPersistor.DeleteBatch(batch);
+            }
+
+            m_dataChangeBatches.Clear();
         }
 
         /// <inheritdoc/>
@@ -186,8 +226,41 @@ namespace Quickstarts.Servers
             (value, error) = m_dequeueBatch.Values[0];
             m_dequeueBatch.Values.RemoveAt(0);
             m_itemsInQueue--;
-
+            HandleDequeBatching();
             return true;
+        }
+
+        /// <summary>
+        /// Restores batches if needed
+        /// </summary>
+        private void HandleDequeBatching()
+        {
+            // request a restore if the dequeue batch is half empty
+            if (m_dequeueBatch.Values.Count <= kBatchSize / 2 && m_dataChangeBatches.Count > 0)
+            {
+                m_batchPersistor.RequestBatchRestore(m_dataChangeBatches.First());
+            }
+
+            // if the dequeue batch is empty and there are stored batches, set the dequeue batch to the first stored batch
+            if (m_dequeueBatch.Values.Count == 0)
+            {
+                if (m_dataChangeBatches.Count > 0)
+                {
+                    m_dequeueBatch = m_dataChangeBatches.First();
+                    m_dataChangeBatches.RemoveAt(0);
+
+                    // Request a restore for the next batch if there is one
+                    if (m_dataChangeBatches.Count > 0)
+                    {
+                        m_batchPersistor.RequestBatchRestore(m_dataChangeBatches.First());
+                    }
+                }
+                else
+                {
+                    //only one batch exists
+                    m_dequeueBatch = m_enqueueBatch;
+                }
+            }
         }
 
         /// <inheritdoc/>

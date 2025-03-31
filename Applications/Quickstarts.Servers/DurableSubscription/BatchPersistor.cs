@@ -51,15 +51,32 @@ namespace Quickstarts.Servers
         /// <param name="batch"></param>
         void RequestBatchPersist(BatchBase batch);
         /// <summary>
+        /// Persist a batch in the main thread
+        /// </summary>
+        /// <param name="batch"></param>
+        public void PersistSynchronously(BatchBase batch);
+        /// <summary>
         /// Request that a batch shall be restored in a background thread
         /// </summary>
         /// <param name="batch"></param>
         void RequestBatchRestore(BatchBase batch);
+
+        /// <summary>
+        /// Restore a batch in the main thread
+        /// </summary>
+        /// <param name="batch"></param>
+        public void RestoreSynchronously(BatchBase batch);
         /// <summary>
         /// Delete all batches from disk for a monitored item
         /// </summary>
         /// <param name="batchesToKeep">MonitoredItemIds of the batches to keep on disk</param>
         void DeleteBatches(IEnumerable<uint> batchesToKeep);
+
+        /// <summary>
+        /// Delete a single batch from disk
+        /// </summary>
+        /// <param name="batchToRemove">The Batch to remove</param>
+        void DeleteBatch(BatchBase batchToRemove);
     }
     public class BatchPersistor : IBatchPersistor
     {
@@ -79,7 +96,7 @@ namespace Quickstarts.Servers
 
             if (m_batchesToPersist.TryAdd(batch.Id, batch))
             {
-                _ = Task.Run(() => Persist(batch));
+                _ = Task.Run(() => PersistSynchronously(batch));
             }
         }
 
@@ -95,12 +112,12 @@ namespace Quickstarts.Servers
 
             if (m_batchesToRestore.TryAdd(batch.Id, batch))
             {
-                _ = Task.Run(() => Restore(batch));
+                _ = Task.Run(() => RestoreSynchronously(batch));
             }
         }
 
         /// <inheritdoc/>
-        private void Restore(BatchBase batch)
+        public void RestoreSynchronously(BatchBase batch)
         {
             string filePath = Path.Combine(s_storage_path, $"{batch.MonitoredItemId}_{batch.Id}{s_baseFilename}");
             object result = null;
@@ -138,7 +155,7 @@ namespace Quickstarts.Servers
         }
 
         /// <inheritdoc/>
-        private void Persist(BatchBase batch)
+        public void PersistSynchronously(BatchBase batch)
         {
             try
             {
@@ -180,6 +197,24 @@ namespace Quickstarts.Servers
                     if (!regex.IsMatch(file.Name))
                     {
                         file.Delete();
+                    }
+                }
+            }
+        }
+
+        public void DeleteBatch(BatchBase batchToRemove)
+        {
+            if (Directory.Exists(s_storage_path))
+            {
+                var directory = new DirectoryInfo(s_storage_path);
+                var regex = new Regex($@"{batchToRemove.MonitoredItemId}_.{batchToRemove.Id}._{s_baseFilename}$", RegexOptions.Compiled);
+
+                foreach (var file in directory.GetFiles())
+                {
+                    if (!regex.IsMatch(file.Name))
+                    {
+                        file.Delete();
+                        return;
                     }
                 }
             }
