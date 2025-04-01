@@ -106,11 +106,18 @@ namespace Opc.Ua
             }
             set
             {
+                //zero out existing password
+                if (m_decryptedPassword != null)
+                {
+                    Array.Clear(m_decryptedPassword, 0, m_decryptedPassword.Length);
+                }
+
                 if (value == null)
                 {
                     m_decryptedPassword = null;
                     return;
                 }
+
                 m_decryptedPassword = Encoding.UTF8.GetBytes(value);
             }
         }
@@ -157,7 +164,6 @@ namespace Opc.Ua
             // handle no encryption.
             if (String.IsNullOrEmpty(securityPolicyUri) || securityPolicyUri == SecurityPolicies.None)
             {
-
                 m_password = m_decryptedPassword;
                 m_encryptionAlgorithm = null;
                 return;
@@ -229,6 +235,12 @@ namespace Opc.Ua
             X509Certificate2Collection senderIssuerCertificates = null,
             CertificateValidator validator = null)
         {
+            //zero out existing password
+            if (m_decryptedPassword != null)
+            {
+                Array.Clear(m_decryptedPassword, 0, m_decryptedPassword.Length);
+            }
+
             // handle no encryption.
             if (String.IsNullOrEmpty(securityPolicyUri) || securityPolicyUri == SecurityPolicies.None)
             {
