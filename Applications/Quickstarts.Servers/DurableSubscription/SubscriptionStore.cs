@@ -168,6 +168,7 @@ namespace Quickstarts.Servers
         {
             string filePath = Path.Combine(s_storage_path, s_filename);
 
+            //remove old file
             if (File.Exists(filePath))
             {
                 try
@@ -178,6 +179,12 @@ namespace Quickstarts.Servers
                 {
                     Opc.Ua.Utils.LogWarning(ex, "Failed to cleanup files for stored subscsription");
                 }
+            }
+            //remove old batches & queues
+            if (m_durableMonitoredItemQueueFactory != null)
+            {
+                IEnumerable<uint> ids = createdSubscriptions.SelectMany(s => s.Value);
+                m_durableMonitoredItemQueueFactory.CleanStoredQueues(s_storage_path, ids);
             }
         }
     }

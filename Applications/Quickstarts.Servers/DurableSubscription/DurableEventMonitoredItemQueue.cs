@@ -184,7 +184,7 @@ namespace Quickstarts.Servers
             // if the dequeue batch is empty and there are stored batches, set the dequeue batch to the first stored batch
             if (m_dequeueBatch.Events.Count == 0)
             {
-                if (m_eventBatches.Count > 0)
+                if (m_eventBatches.Count > 0 && m_dequeueBatch != m_enqueueBatch)
                 {
                     m_dequeueBatch = m_eventBatches.First();
                     m_eventBatches.RemoveAt(0);

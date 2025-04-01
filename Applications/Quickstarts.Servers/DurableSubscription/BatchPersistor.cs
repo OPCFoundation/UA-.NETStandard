@@ -188,40 +188,56 @@ namespace Quickstarts.Servers
         /// <inheritdoc/>
         public void DeleteBatches(IEnumerable<uint> batchesToKeep)
         {
-            if (Directory.Exists(s_storage_path))
+            try
             {
-                var directory = new DirectoryInfo(s_storage_path);
-
-                // Create a single regex pattern that matches any of the batches to keep
-                var pattern = string.Join("|", batchesToKeep.Select(batch => $@"{batch}_.*{s_baseFilename}$"));
-                var regex = new Regex(pattern, RegexOptions.Compiled);
-
-                foreach (var file in directory.GetFiles())
+                if (Directory.Exists(s_storage_path))
                 {
-                    if (!regex.IsMatch(file.Name))
+                    var directory = new DirectoryInfo(s_storage_path);
+
+                    // Create a single regex pattern that matches any of the batches to keep
+                    var pattern = string.Join("|", batchesToKeep.Select(batch => $@"{batch}_.*{s_baseFilename}$"));
+                    var regex = new Regex(pattern, RegexOptions.Compiled);
+
+                    foreach (var file in directory.GetFiles())
                     {
-                        file.Delete();
+                        if (!regex.IsMatch(file.Name))
+                        {
+                            file.Delete();
+                        }
                     }
                 }
             }
+            catch (Exception ex)
+            {
+                Opc.Ua.Utils.LogWarning(ex, "Failed to clean up batches");
+            }
+            
         }
 
         public void DeleteBatch(BatchBase batchToRemove)
         {
-            if (Directory.Exists(s_storage_path))
+            try
             {
-                var directory = new DirectoryInfo(s_storage_path);
-                var regex = new Regex($@"{batchToRemove.MonitoredItemId}_.{batchToRemove.Id}._{s_baseFilename}$", RegexOptions.Compiled);
-
-                foreach (var file in directory.GetFiles())
+                if (Directory.Exists(s_storage_path))
                 {
-                    if (!regex.IsMatch(file.Name))
+                    var directory = new DirectoryInfo(s_storage_path);
+                    var regex = new Regex($@"{batchToRemove.MonitoredItemId}_.{batchToRemove.Id}._{s_baseFilename}$", RegexOptions.Compiled);
+
+                    foreach (var file in directory.GetFiles())
                     {
-                        file.Delete();
-                        return;
+                        if (!regex.IsMatch(file.Name))
+                        {
+                            file.Delete();
+                            return;
+                        }
                     }
                 }
             }
+            catch (Exception ex)
+            {
+                Opc.Ua.Utils.LogWarning(ex, "Failed to clean up single batch");
+            }
+            
         }
 
         private readonly ConcurrentDictionary<Guid, BatchBase> m_batchesToRestore = new ConcurrentDictionary<Guid, BatchBase>();

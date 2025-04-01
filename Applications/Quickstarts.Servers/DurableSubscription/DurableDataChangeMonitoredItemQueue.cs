@@ -265,7 +265,7 @@ namespace Quickstarts.Servers
             }
 
             // if the dequeue batch is empty and there are stored batches, set the dequeue batch to the first stored batch
-            if (m_dequeueBatch.Values.Count == 0)
+            if (m_dequeueBatch.Values.Count == 0 && m_dequeueBatch != m_enqueueBatch)
             {
                 if (m_dataChangeBatches.Count > 0)
                 {

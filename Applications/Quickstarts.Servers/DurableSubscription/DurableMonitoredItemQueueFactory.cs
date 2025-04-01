@@ -50,6 +50,7 @@ namespace Quickstarts.Servers
         private ConcurrentDictionary<uint, DurableEventMonitoredItemQueue> m_eventQueues = new ConcurrentDictionary<uint, DurableEventMonitoredItemQueue>();
         /// <inheritdoc/>
         public bool SupportsDurableQueues => true;
+
         /// <inheritdoc/>
         public IDataChangeMonitoredItemQueue CreateDataChangeQueue(bool createDurable, uint monitoredItemId)
         {
@@ -197,6 +198,28 @@ namespace Quickstarts.Servers
                 Opc.Ua.Utils.LogWarning(ex, "Failed to restore data change queue");
             }
             return null;
+        }
+        /// <summary>
+        /// Remove all stored queues and batches that are not in the list
+        /// </summary>
+        /// <param name="baseDirectory"></param>
+        /// <param name="batchesToKeep"></param>
+        public void CleanStoredQueues(string baseDirectory, IEnumerable<uint> batchesToKeep)
+        {
+            try
+            {
+                string targetPath = Path.Combine(baseDirectory, s_queueDirectory);
+                if (Directory.Exists(targetPath))
+                {
+                    Directory.Delete(targetPath, true);
+                }
+            }
+            catch (Exception ex)
+            {
+                Opc.Ua.Utils.LogWarning(ex, "Failed to clean stored queues");
+            }
+
+            m_batchPersistor.DeleteBatches(batchesToKeep);
         }
 
         /// <inheritdoc/>
