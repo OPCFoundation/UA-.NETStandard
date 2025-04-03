@@ -166,16 +166,25 @@ namespace Quickstarts.Servers
 
         public void OnSubscriptionRestoreComplete(Dictionary<uint, uint[]> createdSubscriptions)
         {
-            if (Directory.Exists(s_storage_path))
+            string filePath = Path.Combine(s_storage_path, s_filename);
+
+            //remove old file
+            if (File.Exists(filePath))
             {
                 try
                 {
-                    Directory.Delete(s_storage_path, true);
+                    File.Delete(filePath);
                 }
                 catch (Exception ex)
                 {
                     Opc.Ua.Utils.LogWarning(ex, "Failed to cleanup files for stored subscsription");
                 }
+            }
+            //remove old batches & queues
+            if (m_durableMonitoredItemQueueFactory != null)
+            {
+                IEnumerable<uint> ids = createdSubscriptions.SelectMany(s => s.Value);
+                m_durableMonitoredItemQueueFactory.CleanStoredQueues(s_storage_path, ids);
             }
         }
     }
