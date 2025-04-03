@@ -34,6 +34,9 @@ namespace Opc.Ua.Server
     /// <summary>
     /// Provides an optionally durable queue for data changes used by <see cref="DataChangeQueueHandler"/> and created by <see cref="IMonitoredItemQueueFactory"/>.
     /// If long running operations are performed by the queue the operation should be performed in a separate thread to avoid blocking the main thread.
+    /// Min Enqueue performance: no long running operations, fast enqueue until max queue size is reached
+    /// Min Dequeue performance: MaxNotificationsPerPublish * 3 with no delay, in a cycle of 3 * MinPublishingInterval in the least favorable condition (single MI, continous publishing (MinPublishingInterval --, MaxNotificationsPerPublish ++), very large queue)
+    /// Queue reset is allowed to be slow
     /// </summary>
     public interface IDataChangeMonitoredItemQueue : IDisposable
     {

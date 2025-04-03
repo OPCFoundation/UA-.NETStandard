@@ -106,7 +106,6 @@ namespace Quickstarts.Servers
                         // Dequeue failed as queue could not be restored in time
                         return false;
                     }
-
                 }
 
                 value = m_dequeueBatch.Events.First();

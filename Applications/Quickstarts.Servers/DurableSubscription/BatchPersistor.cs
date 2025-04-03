@@ -37,6 +37,7 @@ using Newtonsoft.Json;
 using System.Text.RegularExpressions;
 using Opc.Ua;
 using System.Linq;
+using System.Threading;
 
 namespace Quickstarts.Servers
 {
@@ -54,7 +55,8 @@ namespace Quickstarts.Servers
         /// Persist a batch in the main thread
         /// </summary>
         /// <param name="batch"></param>
-        public void PersistSynchronously(BatchBase batch);
+        /// <param name="cancellationToken">Cancel the persist operation and leave the batch in memory</param>
+        public void PersistSynchronously(BatchBase batch, CancellationToken cancellationToken);
         /// <summary>
         /// Request that a batch shall be restored in a background thread
         /// </summary>
@@ -96,7 +98,9 @@ namespace Quickstarts.Servers
 
             if (m_batchesToPersist.TryAdd(batch.Id, batch))
             {
-                _ = Task.Run(() => PersistSynchronously(batch));
+                var token = new CancellationTokenSource();
+                _ = Task.Run(() => PersistSynchronously(batch, token.Token));
+                batch.CancelBatchPersist = token;
             }
         }
 
@@ -105,7 +109,12 @@ namespace Quickstarts.Servers
         {
             if (!batch.IsPersisted || batch.RestoreInProgress || batch.PersistingInProgress)
             {
+                if (batch.PersistingInProgress)
+                {
+                    batch.CancelBatchPersist?.Cancel();
+                }
                 return;
+                
             }
 
             batch.RestoreInProgress = true;
@@ -155,7 +164,7 @@ namespace Quickstarts.Servers
         }
 
         /// <inheritdoc/>
-        public void PersistSynchronously(BatchBase batch)
+        public void PersistSynchronously(BatchBase batch, CancellationToken cancellationToken)
         {
             try
             {
@@ -169,6 +178,17 @@ namespace Quickstarts.Servers
                 string filePath = Path.Combine(s_storage_path, $"{batch.MonitoredItemId}_{batch.Id}{s_baseFilename}");
 
                 File.WriteAllText(filePath, result);
+
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    batch.PersistingInProgress = false;
+                    File.Delete(filePath);
+                }
+                else
+                {
+                    batch.SetPersisted();
+                }
+                m_batchesToPersist.TryRemove(batch.Id, out _);
             }
             catch (Exception ex)
             {
@@ -179,9 +199,6 @@ namespace Quickstarts.Servers
 
                 return;
             }
-
-            batch.SetPersisted();
-            m_batchesToPersist.TryRemove(batch.Id, out _);
         }
         #endregion
 

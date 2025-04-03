@@ -31,6 +31,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using Opc.Ua;
 using Opc.Ua.Server;
 
@@ -246,6 +247,20 @@ namespace Quickstarts.Servers
             {
                 return false;
             }
+
+            if (m_dequeueBatch.IsPersisted)
+            {
+                Opc.Ua.Utils.LogDebug("Dequeue was requeusted but queue was not restored for monitoreditem {0} try to restore for 10 ms.", MonitoredItemId);
+                m_batchPersistor.RequestBatchRestore(m_dequeueBatch);
+
+                if (!SpinWait.SpinUntil(() => !m_dequeueBatch.RestoreInProgress, 10))
+                {
+                    Opc.Ua.Utils.LogDebug("Dequeue failed for monitoreditem {0} as queue could not be restored in time.", MonitoredItemId);
+                    // Dequeue failed as queue could not be restored in time
+                    return false;
+                }
+            }
+
             (value, error) = m_dequeueBatch.Values[0];
             m_dequeueBatch.Values.RemoveAt(0);
             m_itemsInQueue--;

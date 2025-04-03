@@ -29,6 +29,7 @@
 
 
 using System;
+using System.Threading;
 
 namespace Quickstarts.Servers
 {
@@ -73,5 +74,9 @@ namespace Quickstarts.Servers
         /// Marks the batch as persisted and removes the data from memory
         /// </summary>
         public abstract void SetPersisted();
+        /// <summary>
+        /// Cancel this token to stop the persisting of the batch
+        /// </summary>
+        public CancellationTokenSource CancelBatchPersist { get; set; }
     }
 }
