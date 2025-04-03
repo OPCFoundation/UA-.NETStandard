@@ -371,7 +371,7 @@ namespace Opc.Ua.Bindings
                             endpointUrl[ii] = decoder.ReadByte(null);
                         }
 
-                        if (!SetEndpointUrl(new UTF8Encoding().GetString(endpointUrl, 0, endpointUrl.Length)))
+                        if (!SetEndpointUrl(Encoding.UTF8.GetString(endpointUrl, 0, endpointUrl.Length)))
                         {
                             ForceChannelFault(StatusCodes.BadTcpEndpointUrlInvalid);
                             return false;
