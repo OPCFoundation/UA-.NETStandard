@@ -35,7 +35,7 @@ namespace Opc.Ua
         public static MessageContextExtension Current
         {
             get => s_current.Value;
-            set => s_current.Value = value;
+            private set => s_current.Value = value;
         }
 
         /// <summary>
