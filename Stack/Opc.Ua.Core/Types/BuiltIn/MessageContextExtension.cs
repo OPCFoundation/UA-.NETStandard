@@ -10,6 +10,9 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
+using System;
+using System.Threading;
+
 namespace Opc.Ua
 {
     #region MessageContextExtension Class
@@ -29,7 +32,11 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the message context associated with the current operation context.
         /// </summary>
-        public static MessageContextExtension Current => null;
+        public static MessageContextExtension Current
+        {
+            get => s_current.Value;
+            private set => s_current.Value = value;
+        }
 
         /// <summary>
         /// Returns the message context associated with the current operation context.
@@ -53,6 +60,40 @@ namespace Opc.Ua
         /// The message context to use.
         /// </summary>
         public IServiceMessageContext MessageContext { get; private set; }
+
+        /// <summary>
+        /// Set the context for a specific using scope
+        /// </summary>
+        /// <param name="messageContext"></param>
+        /// <returns></returns>
+        public static IDisposable SetScopedContext(IServiceMessageContext messageContext)
+        {
+            var previousContext = Current;
+            Current = new MessageContextExtension(messageContext);
+
+            return new DisposableAction (() => Current = previousContext);
+        }
+
+        /// <summary>
+        /// Disposable wrapper for reseting the Current context to
+        /// the previous value on exiting the using scope
+        /// </summary>
+        private class DisposableAction : IDisposable
+        {
+            private readonly Action action;
+
+            public DisposableAction(Action action)
+            {
+                this.action = action;
+            }
+
+            public void Dispose()
+            {
+                action?.Invoke();
+            }
+        }
+
+        private static readonly AsyncLocal<MessageContextExtension> s_current = new AsyncLocal<MessageContextExtension>();
     }
     #endregion
 }

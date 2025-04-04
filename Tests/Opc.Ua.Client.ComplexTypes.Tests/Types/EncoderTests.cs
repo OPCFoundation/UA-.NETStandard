@@ -168,6 +168,57 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             baseType[structureFieldParameter.Name] = null;
             EncodeDecodeComplexType(EncoderContext, memoryStreamType, encoderType, jsonEncodingType, StructureType.Union, nodeId, emittedType);
         }
+
+        /// <summary>
+        /// Verify serialize/encode of a structured type initiated from outside of an IEncoder instance.
+        /// </summary>
+        [Theory]
+        [Category("ComplexTypes")]
+        public void ReEncodeComplexTypeScopedContext(
+            MemoryStreamType memoryStreamType,
+            StructureType structureType
+            )
+        {
+            ExpandedNodeId nodeId;
+            Type complexType;
+            (nodeId, complexType) = TypeDictionary[structureType];
+            object emittedType = Activator.CreateInstance(complexType);
+            var baseType = emittedType as BaseComplexType;
+            FillStructWithValues(baseType, true);
+
+            ExtensionObject extensionObject = new ExtensionObject(emittedType);
+
+            Opc.Ua.KeyValuePair keyValuePair = new Opc.Ua.KeyValuePair();
+            keyValuePair.Key = "AKEY";
+            keyValuePair.Value = extensionObject;
+
+            ServiceMessageContext localCtxt = (ServiceMessageContext)EncoderContext;
+
+            // Serialize/Encode a Variant fails without a context available
+            Assert.Throws(
+               typeof(Newtonsoft.Json.JsonSerializationException),
+               () => Newtonsoft.Json.JsonConvert.SerializeObject(keyValuePair));
+
+            // Serialize/Encode an ExtensionObject fails without a context available
+            var extObjToEncode = new ExtensionObject(keyValuePair);
+            Assert.Throws(
+                typeof(Newtonsoft.Json.JsonSerializationException),
+                () => Newtonsoft.Json.JsonConvert.SerializeObject(extObjToEncode));
+
+            // Serialize/Encode a Variant succeeds with a context available
+            using (MessageContextExtension.SetScopedContext(localCtxt))
+            {
+                _ = Newtonsoft.Json.JsonConvert.SerializeObject(keyValuePair);
+            }
+
+            // Serialize/Encode an ExtensionObject succeeds with a context available
+            using (MessageContextExtension.SetScopedContext(localCtxt))
+            {
+                _ = Newtonsoft.Json.JsonConvert.SerializeObject(extensionObject);
+            }
+
+
+        }
         #endregion Test Methods
     }
 }
