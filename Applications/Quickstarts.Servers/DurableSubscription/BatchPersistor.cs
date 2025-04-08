@@ -41,45 +41,7 @@ using System.Threading;
 
 namespace Quickstarts.Servers
 {
-    /// <summary>
-    /// Persists batches of queue values to disk
-    /// </summary>
-    public interface IBatchPersistor
-    {
-        /// <summary>
-        /// Request that a batch shall be persisted in a background thread
-        /// </summary>
-        /// <param name="batch"></param>
-        void RequestBatchPersist(BatchBase batch);
-        /// <summary>
-        /// Persist a batch in the main thread
-        /// </summary>
-        /// <param name="batch"></param>
-        /// <param name="cancellationToken">Cancel the persist operation and leave the batch in memory</param>
-        public void PersistSynchronously(BatchBase batch, CancellationToken cancellationToken);
-        /// <summary>
-        /// Request that a batch shall be restored in a background thread
-        /// </summary>
-        /// <param name="batch"></param>
-        void RequestBatchRestore(BatchBase batch);
-
-        /// <summary>
-        /// Restore a batch in the main thread
-        /// </summary>
-        /// <param name="batch"></param>
-        public void RestoreSynchronously(BatchBase batch);
-        /// <summary>
-        /// Delete all batches from disk for a monitored item
-        /// </summary>
-        /// <param name="batchesToKeep">MonitoredItemIds of the batches to keep on disk</param>
-        void DeleteBatches(IEnumerable<uint> batchesToKeep);
-
-        /// <summary>
-        /// Delete a single batch from disk
-        /// </summary>
-        /// <param name="batchToRemove">The Batch to remove</param>
-        void DeleteBatch(BatchBase batchToRemove);
-    }
+    /// <inheritdoc/>
     public class BatchPersistor : IBatchPersistor
     {
         private static readonly JsonSerializerSettings s_settings = new JsonSerializerSettings { TypeNameHandling = TypeNameHandling.All };
@@ -99,8 +61,8 @@ namespace Quickstarts.Servers
             if (m_batchesToPersist.TryAdd(batch.Id, batch))
             {
                 var token = new CancellationTokenSource();
-                _ = Task.Run(() => PersistSynchronously(batch, token.Token));
                 batch.CancelBatchPersist = token;
+                _ = Task.Run(() => PersistSynchronously(batch, token.Token));
             }
         }
 
@@ -196,6 +158,8 @@ namespace Quickstarts.Servers
 
                 batch.PersistingInProgress = false;
                 m_batchesToPersist.TryRemove(batch.Id, out _);
+                batch.CancelBatchPersist.Dispose();
+                batch.CancelBatchPersist = null;
 
                 return;
             }

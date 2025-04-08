@@ -28,59 +28,48 @@
  * ======================================================================*/
 
 
-using System;
+using System.Collections.Generic;
 using System.Threading;
 
 namespace Quickstarts.Servers
 {
     /// <summary>
-    /// Base class for a batch of data
+    /// Persists batches of queue values to disk
     /// </summary>
-    public abstract class BatchBase
+    public interface IBatchPersistor
     {
-        public BatchBase(uint batchSize, uint monitoredItemId)
-        {
-            BatchSize = batchSize;
-            Id = Guid.NewGuid();
-            IsPersisted = false;
-            MonitoredItemId = monitoredItemId;
-        }
         /// <summary>
-        /// The unique Id of the batch
+        /// Request that a batch shall be persisted in a background thread
         /// </summary>
-        public Guid Id { get; }
+        /// <param name="batch"></param>
+        void RequestBatchPersist(BatchBase batch);
         /// <summary>
-        /// The number of values in the batch
+        /// Persist a batch in the main thread
         /// </summary>
-        public uint BatchSize { get; }
+        /// <param name="batch"></param>
+        /// <param name="cancellationToken">Cancel the persist operation and leave the batch in memory</param>
+        public void PersistSynchronously(BatchBase batch, CancellationToken cancellationToken);
         /// <summary>
-        /// The Id of the Monitored Item owning the batch
+        /// Request that a batch shall be restored in a background thread
         /// </summary>
-        public uint MonitoredItemId { get; }
-        /// <summary>
-        /// The batch has been persisted to disk
-        /// </summary>
-        public bool IsPersisted { get; protected set; }
-        /// <summary>
-        /// Restore is currently in progress in a background thread
-        /// </summary>
-        public bool RestoreInProgress { get; set; }
-        /// <summary>
-        /// Peristing is currently in progress in a background thread
-        /// </summary>
-        public bool PersistingInProgress { get; set; }
+        /// <param name="batch"></param>
+        void RequestBatchRestore(BatchBase batch);
 
         /// <summary>
-        /// Marks the batch as persisted and removes the data from memory
+        /// Restore a batch in the main thread
         /// </summary>
-        public virtual void SetPersisted()
-        {
-            CancelBatchPersist?.Dispose();
-            CancelBatchPersist = null;
-        }
+        /// <param name="batch"></param>
+        public void RestoreSynchronously(BatchBase batch);
         /// <summary>
-        /// Cancel this token to stop the persisting of the batch
+        /// Delete all batches from disk for a monitored item
         /// </summary>
-        public CancellationTokenSource CancelBatchPersist { get; set; }
+        /// <param name="batchesToKeep">MonitoredItemIds of the batches to keep on disk</param>
+        void DeleteBatches(IEnumerable<uint> batchesToKeep);
+
+        /// <summary>
+        /// Delete a single batch from disk
+        /// </summary>
+        /// <param name="batchToRemove">The Batch to remove</param>
+        void DeleteBatch(BatchBase batchToRemove);
     }
 }

@@ -384,6 +384,7 @@ namespace Quickstarts.Servers
             Events = null;
             IsPersisted = true;
             PersistingInProgress = false;
+            base.SetPersisted();
         }
 
         public void Restore(List<EventFieldList> events)

@@ -346,6 +346,7 @@ namespace Quickstarts.Servers
             Values = null;
             IsPersisted = true;
             PersistingInProgress = false;
+            base.SetPersisted();
         }
 
         public void Restore(List<(DataValue, ServiceResult)> values)
