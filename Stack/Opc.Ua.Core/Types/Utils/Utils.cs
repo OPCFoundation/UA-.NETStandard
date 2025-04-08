@@ -2068,7 +2068,7 @@ namespace Opc.Ua
         /// <summary>
         /// Checks if two values are equal.
         /// </summary>
-        public static bool IsEqual(object value1, object value2)
+        public static bool IsEqual(object value1, object value2, StringComparison stringComparison = StringComparison.CurrentCulture)
         {
             // check for reference equality.
             if (Object.ReferenceEquals(value1, value2))
@@ -2120,6 +2120,17 @@ namespace Opc.Ua
                 }
 
                 return encodeable1.IsEqual(encodeable2);
+            }
+
+            //check for strings
+            if (value1 is string string1)
+            {
+
+                if (value2 is not string string2)
+                {
+                    return false;
+                }
+                return string1.Equals(string2, stringComparison);
             }
 
             // check for XmlElement objects.
@@ -2631,7 +2642,7 @@ namespace Opc.Ua
                 extensions.Add(document.DocumentElement);
             }
         }
-#endregion
+        #endregion
 
         #region Reflection Helper Functions
         /// <summary>
@@ -2985,7 +2996,7 @@ namespace Opc.Ua
             [Obsolete("Use equivalent method from the Opc.Ua.Nonce class")]
             public static bool ValidateNonce(byte[] nonce, MessageSecurityMode securityMode, uint minNonceLength)
             {
-                return NewNonceImplementation.ValidateNonce(nonce,securityMode, minNonceLength);
+                return NewNonceImplementation.ValidateNonce(nonce, securityMode, minNonceLength);
             }
         }
 
@@ -3248,6 +3259,6 @@ namespace Opc.Ua
         {
             return s_isRunningOnMonoValue.Value;
         }
-#endregion
+        #endregion
     }
 }
