@@ -158,7 +158,7 @@ namespace Quickstarts.Servers
 
                 batch.PersistingInProgress = false;
                 m_batchesToPersist.TryRemove(batch.Id, out _);
-                batch.CancelBatchPersist.Dispose();
+                batch.CancelBatchPersist?.Dispose();
                 batch.CancelBatchPersist = null;
 
                 return;

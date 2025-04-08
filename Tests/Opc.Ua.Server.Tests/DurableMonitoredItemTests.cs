@@ -1333,7 +1333,7 @@ namespace Opc.Ua.Server.Tests
 
             for (uint i = 0; i < 3000; i++)
             {
-                Assert.That(queue.Dequeue(out var value));
+                Assert.That(queue.Dequeue(out var value), string.Format("Dequeue operation failed for the {0}st item", i));
                 Assert.That(i, Is.EqualTo(value.ClientHandle));
 
                 //simulate publishing operation
@@ -1366,7 +1366,7 @@ namespace Opc.Ua.Server.Tests
 
             for (uint i = 0; i < 3000; i++)
             {
-                Assert.That(queue.Dequeue(out var value, out var _));
+                Assert.That(queue.Dequeue(out var value, out var _), string.Format("Dequeue operation failed for the {0}st item", i));
                 Assert.That(i, Is.EqualTo((uint)value.Value));
 
                 //simulate publishing operation
