@@ -2105,6 +2105,17 @@ namespace Opc.Ua
                 return Utils.IsEqual(time1, (DateTime)value2);
             }
 
+            //check for strings
+            if (value1 is string string1)
+            {
+
+                if (value2 is not string string2)
+                {
+                    return false;
+                }
+                return string1.Equals(string2, stringComparison);
+            }
+
             // check for compareable objects.
             if (value1 is IComparable comparable1)
             {
@@ -2120,17 +2131,6 @@ namespace Opc.Ua
                 }
 
                 return encodeable1.IsEqual(encodeable2);
-            }
-
-            //check for strings
-            if (value1 is string string1)
-            {
-
-                if (value2 is not string string2)
-                {
-                    return false;
-                }
-                return string1.Equals(string2, stringComparison);
             }
 
             // check for XmlElement objects.
