@@ -73,11 +73,7 @@ namespace Quickstarts.Servers
         /// <summary>
         /// Marks the batch as persisted and removes the data from memory
         /// </summary>
-        public virtual void SetPersisted()
-        {
-            CancelBatchPersist?.Dispose();
-            CancelBatchPersist = null;
-        }
+        public abstract void SetPersisted();
         /// <summary>
         /// Cancel this token to stop the persisting of the batch
         /// </summary>

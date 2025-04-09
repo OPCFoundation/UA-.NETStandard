@@ -60,9 +60,7 @@ namespace Quickstarts.Servers
 
             if (m_batchesToPersist.TryAdd(batch.Id, batch))
             {
-                var token = new CancellationTokenSource();
-                batch.CancelBatchPersist = token;
-                _ = Task.Run(() => PersistSynchronously(batch, token.Token));
+                _ = Task.Run(() => PersistSynchronously(batch));
             }
         }
 
@@ -126,8 +124,10 @@ namespace Quickstarts.Servers
         }
 
         /// <inheritdoc/>
-        public void PersistSynchronously(BatchBase batch, CancellationToken cancellationToken)
+        public void PersistSynchronously(BatchBase batch)
         {
+            using var cancellationTokenSource = new CancellationTokenSource();
+            batch.CancelBatchPersist = cancellationTokenSource;
             try
             {
                 string result = JsonConvert.SerializeObject(batch, s_settings);
@@ -141,7 +141,7 @@ namespace Quickstarts.Servers
 
                 File.WriteAllText(filePath, result);
 
-                if (cancellationToken.IsCancellationRequested)
+                if (cancellationTokenSource.IsCancellationRequested)
                 {
                     batch.PersistingInProgress = false;
                     File.Delete(filePath);
@@ -151,6 +151,7 @@ namespace Quickstarts.Servers
                     batch.SetPersisted();
                 }
                 m_batchesToPersist.TryRemove(batch.Id, out _);
+                batch.CancelBatchPersist = null;
             }
             catch (Exception ex)
             {
@@ -158,7 +159,6 @@ namespace Quickstarts.Servers
 
                 batch.PersistingInProgress = false;
                 m_batchesToPersist.TryRemove(batch.Id, out _);
-                batch.CancelBatchPersist?.Dispose();
                 batch.CancelBatchPersist = null;
 
                 return;

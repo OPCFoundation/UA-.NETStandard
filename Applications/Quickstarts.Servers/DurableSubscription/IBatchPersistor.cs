@@ -47,8 +47,7 @@ namespace Quickstarts.Servers
         /// Persist a batch in the main thread
         /// </summary>
         /// <param name="batch"></param>
-        /// <param name="cancellationToken">Cancel the persist operation and leave the batch in memory</param>
-        public void PersistSynchronously(BatchBase batch, CancellationToken cancellationToken);
+        public void PersistSynchronously(BatchBase batch);
         /// <summary>
         /// Request that a batch shall be restored in a background thread
         /// </summary>
