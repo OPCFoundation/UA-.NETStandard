@@ -52,36 +52,42 @@ namespace Quickstarts.Servers
         /// <inheritdoc/>
         public void RequestBatchPersist(BatchBase batch)
         {
-            if (batch.IsPersisted || batch.PersistingInProgress || batch.RestoreInProgress)
+            lock (batch)
             {
-                return;
-            }
-            batch.PersistingInProgress = true;
+                if (batch.IsPersisted || batch.PersistingInProgress || batch.RestoreInProgress)
+                {
+                    return;
+                }
+                batch.PersistingInProgress = true;
 
-            if (m_batchesToPersist.TryAdd(batch.Id, batch))
-            {
-                _ = Task.Run(() => PersistSynchronously(batch));
+                if (m_batchesToPersist.TryAdd(batch.Id, batch))
+                {
+                    _ = Task.Run(() => PersistSynchronously(batch));
+                }
             }
         }
 
         /// <inheritdoc/>
         public void RequestBatchRestore(BatchBase batch)
         {
-            if (!batch.IsPersisted || batch.RestoreInProgress || batch.PersistingInProgress)
+            lock (batch)
             {
-                if (batch.PersistingInProgress)
+                if (!batch.IsPersisted || batch.RestoreInProgress || batch.PersistingInProgress)
                 {
-                    batch.CancelBatchPersist?.Cancel();
+                    if (batch.PersistingInProgress)
+                    {
+                        batch.CancelBatchPersist?.Cancel();
+                    }
+                    return;
+
                 }
-                return;
-                
-            }
 
-            batch.RestoreInProgress = true;
+                batch.RestoreInProgress = true;
 
-            if (m_batchesToRestore.TryAdd(batch.Id, batch))
-            {
-                _ = Task.Run(() => RestoreSynchronously(batch));
+                if (m_batchesToRestore.TryAdd(batch.Id, batch))
+                {
+                    _ = Task.Run(() => RestoreSynchronously(batch));
+                }
             }
         }
 
@@ -109,18 +115,20 @@ namespace Quickstarts.Servers
 
                 return;
             }
-
-            if (batch is DataChangeBatch dataChangeBatch)
+            lock (batch)
             {
-                var newBatch = result as DataChangeBatch;
-                dataChangeBatch.Restore(newBatch.Values);
+                if (batch is DataChangeBatch dataChangeBatch)
+                {
+                    var newBatch = result as DataChangeBatch;
+                    dataChangeBatch.Restore(newBatch.Values);
+                }
+                else if (batch is EventBatch eventBatch)
+                {
+                    var newBatch = result as EventBatch;
+                    eventBatch.Restore(newBatch.Events);
+                }
+                m_batchesToRestore.TryRemove(batch.Id, out _);
             }
-            else if (batch is EventBatch eventBatch)
-            {
-                var newBatch = result as EventBatch;
-                eventBatch.Restore(newBatch.Events);
-            }
-            m_batchesToRestore.TryRemove(batch.Id, out _);
         }
 
         /// <inheritdoc/>
@@ -143,25 +151,31 @@ namespace Quickstarts.Servers
 
                 if (cancellationTokenSource.IsCancellationRequested)
                 {
-                    batch.PersistingInProgress = false;
                     File.Delete(filePath);
+                    lock (batch)
+                    {
+                        batch.PersistingInProgress = false;
+                        batch.CancelBatchPersist = null;
+                    }
                 }
                 else
                 {
-                    batch.SetPersisted();
+                    lock (batch)
+                    {
+                        batch.SetPersisted();
+                    }
                 }
                 m_batchesToPersist.TryRemove(batch.Id, out _);
-                batch.CancelBatchPersist = null;
             }
             catch (Exception ex)
             {
                 Opc.Ua.Utils.LogWarning(ex, "Failed to store batch");
-
-                batch.PersistingInProgress = false;
-                m_batchesToPersist.TryRemove(batch.Id, out _);
-                batch.CancelBatchPersist = null;
-
-                return;
+                lock (batch)
+                {
+                    batch.PersistingInProgress = false;
+                    m_batchesToPersist.TryRemove(batch.Id, out _);
+                    batch.CancelBatchPersist = null;
+                }
             }
         }
         #endregion
@@ -192,7 +206,7 @@ namespace Quickstarts.Servers
             {
                 Opc.Ua.Utils.LogWarning(ex, "Failed to clean up batches");
             }
-            
+
         }
 
         public void DeleteBatch(BatchBase batchToRemove)
@@ -218,7 +232,7 @@ namespace Quickstarts.Servers
             {
                 Opc.Ua.Utils.LogWarning(ex, "Failed to clean up single batch");
             }
-            
+
         }
 
         private readonly ConcurrentDictionary<Guid, BatchBase> m_batchesToRestore = new ConcurrentDictionary<Guid, BatchBase>();
