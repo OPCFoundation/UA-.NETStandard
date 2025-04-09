@@ -1337,7 +1337,7 @@ namespace Opc.Ua.Server.Tests
                 Assert.That(i, Is.EqualTo(value.ClientHandle));
 
                 //simulate publishing operation
-                if (i % 300 == 0)
+                if (i % 501 == 0)
                 {
                     Task.Delay(300).Wait();
                 }
@@ -1370,7 +1370,7 @@ namespace Opc.Ua.Server.Tests
                 Assert.That(i, Is.EqualTo((uint)value.Value));
 
                 //simulate publishing operation
-                if (i % 300 == 0)
+                if (i % 501 == 0)
                 {
                     Task.Delay(300).Wait();
                 }
