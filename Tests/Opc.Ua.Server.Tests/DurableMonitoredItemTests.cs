@@ -1339,7 +1339,7 @@ namespace Opc.Ua.Server.Tests
                 //simulate publishing operation
                 if (i % 501 == 0)
                 {
-                    Task.Delay(300).Wait();
+                    Task.Delay(600).Wait();
                 }
             }
         }
@@ -1372,7 +1372,7 @@ namespace Opc.Ua.Server.Tests
                 //simulate publishing operation
                 if (i % 501 == 0)
                 {
-                    Task.Delay(300).Wait();
+                    Task.Delay(600).Wait();
                 }
             }
         }
