@@ -33,11 +33,17 @@ namespace Opc.Ua
         /// <param name="parent">The parent node.</param>
         public BaseVariableState(NodeState parent) : base(NodeClass.Variable, parent)
         {
+            m_value = null;
+            m_statusCode = StatusCodes.BadWaitingForInitialData;
             m_timestamp = DateTime.MinValue;
+            m_dataType = DataTypeIds.BaseDataType;
+            m_valueRank = ValueRanks.Any;
+            m_arrayDimensions = null;
             m_accessLevel = m_userAccessLevel = AccessLevels.CurrentRead;
+            m_minimumSamplingInterval = MinimumSamplingIntervals.Continuous;
+            m_historizing = false;
             m_copyPolicy = VariableCopyPolicy.CopyOnRead;
             m_valueTouched = false;
-            m_statusCode = StatusCodes.BadWaitingForInitialData;
         }
         #endregion
 
