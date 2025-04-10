@@ -1,9 +1,13 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using BenchmarkDotNet.Attributes;
+using BenchmarkDotNet.Loggers;
+using CommandLine.Text;
 using Microsoft.AspNetCore.Hosting.Server;
+using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
 using Quickstarts.Servers;
@@ -1305,6 +1309,72 @@ namespace Opc.Ua.Server.Tests
             EventFieldList publishResult = result.LastOrDefault();
             Assert.That(publishResult, Is.Not.Null);
             Assert.That(publishResult.Handle, Is.AssignableTo(typeof(EventQueueOverflowEventState)));
+        }
+
+        [Test]
+        public void DurableEventQueueVerifyReferenceBatching()
+        {
+            if (!m_factory.SupportsDurableQueues)
+            {
+                Assert.Ignore("Test only works with durable queues");
+            }
+
+            var queue = m_factory.CreateEventQueue(true, 0);
+
+            queue.SetQueueSize(3000, false);
+
+            for (uint i = 0; i < 3000; i++)
+            {
+                queue.Enqueue(new EventFieldList() { ClientHandle = i });
+            }
+
+            // wait for persisting to take place
+            Task.Delay(1000).Wait();
+
+            for (uint i = 0; i < 3000; i++)
+            {
+                Assert.That(queue.Dequeue(out var value), string.Format("Dequeue operation failed for the {0}st item", i));
+                Assert.That(i, Is.EqualTo(value.ClientHandle));
+
+                //simulate publishing operation
+                if (i % 501 == 0)
+                {
+                    Task.Delay(600).Wait();
+                }
+            }
+        }
+
+        [Test]
+        public void DurableDataValueQueueVerifyReferenceBatching()
+        {
+            if (!m_factory.SupportsDurableQueues)
+            {
+                Assert.Ignore("Test only works with durable queues");
+            }
+
+            var queue = m_factory.CreateDataChangeQueue(true, 0);
+
+            queue.ResetQueue(3000, false);
+
+            for (uint i = 0; i < 3000; i++)
+            {
+                queue.Enqueue(new DataValue(new Variant(i)), null);
+            }
+
+            // wait for persisting to take place
+            Task.Delay(1000).Wait();
+
+            for (uint i = 0; i < 3000; i++)
+            {
+                Assert.That(queue.Dequeue(out var value, out var _), string.Format("Dequeue operation failed for the {0}st item", i));
+                Assert.That(i, Is.EqualTo((uint)value.Value));
+
+                //simulate publishing operation
+                if (i % 501 == 0)
+                {
+                    Task.Delay(600).Wait();
+                }
+            }
         }
         #endregion
 
