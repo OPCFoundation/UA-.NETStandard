@@ -27,6 +27,7 @@ namespace Opc.Ua
         /// </summary>
         protected BaseVariableTypeState() : base(NodeClass.VariableType)
         {
+            m_valueRank = ValueRanks.Any;
         }
         #endregion
 
