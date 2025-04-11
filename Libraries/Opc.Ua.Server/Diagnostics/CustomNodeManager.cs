@@ -3849,7 +3849,7 @@ namespace Opc.Ua.Server
         /// <param name="nodeId"></param>
         /// <param name="requestedPermission"></param>
         /// <returns></returns>
-        public ServiceResult ValidateRolePermissions(OperationContext operationContext, NodeId nodeId, PermissionType requestedPermission)
+        public virtual ServiceResult ValidateRolePermissions(OperationContext operationContext, NodeId nodeId, PermissionType requestedPermission)
         {
             if (requestedPermission == PermissionType.None)
             {
