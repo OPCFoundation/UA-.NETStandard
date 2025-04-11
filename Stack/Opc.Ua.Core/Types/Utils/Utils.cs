@@ -2068,7 +2068,7 @@ namespace Opc.Ua
         /// <summary>
         /// Checks if two values are equal.
         /// </summary>
-        public static bool IsEqual(object value1, object value2, StringComparison stringComparison = StringComparison.CurrentCulture)
+        public static bool IsEqual(object value1, object value2)
         {
             // check for reference equality.
             if (Object.ReferenceEquals(value1, value2))
@@ -2103,17 +2103,6 @@ namespace Opc.Ua
             if (value1 is DateTime time1)
             {
                 return Utils.IsEqual(time1, (DateTime)value2);
-            }
-
-            //check for strings
-            if (value1 is string string1)
-            {
-
-                if (value2 is not string string2)
-                {
-                    return false;
-                }
-                return string1.Equals(string2, stringComparison);
             }
 
             // check for compareable objects.

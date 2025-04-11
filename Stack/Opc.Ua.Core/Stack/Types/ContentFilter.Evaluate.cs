@@ -28,7 +28,7 @@ namespace Opc.Ua
         /// <summary>
         /// Set the default StringComparison to use when evaluating the Equals operator.
         /// </summary>
-        public static StringComparison EqualsOperatorDefaultStringComparison { get; set; } = StringComparison.CurrentCulture;
+        public static StringComparison EqualsOperatorDefaultStringComparison { get; set; } = StringComparison.Ordinal;
         #endregion
         #region Public functions
         /// <summary>
@@ -423,7 +423,18 @@ namespace Opc.Ua
                 return false;
             }
 
-            return Utils.IsEqual(value1, value2, EqualsOperatorDefaultStringComparison);
+            //check for strings
+            if (value1 is string string1)
+            {
+
+                if (value2 is not string string2)
+                {
+                    return false;
+                }
+                return string1.Equals(string2, EqualsOperatorDefaultStringComparison);
+            }
+
+            return Utils.IsEqual(value1, value2);
         }
 
         /// <summary>
