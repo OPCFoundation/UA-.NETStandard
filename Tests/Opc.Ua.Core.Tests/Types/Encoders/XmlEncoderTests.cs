@@ -161,7 +161,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             }
 
             // Check encode result against expected XML value
-            Assert.AreEqual(expected.Replace("/r", "").Replace("/n", ""), actualXmlValue.Replace("/r", "").Replace("/n", ""));
+            Assert.AreEqual(expected.Replace("\r", "").Replace("\n", ""), actualXmlValue.Replace("\r", "").Replace("\n", ""));
 
             // Decode
             Variant actualVariant;
