@@ -133,6 +133,49 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             else
                 Assert.AreEqual(actualBinaryValue, binaryValue);
         }
+
+        /// <summary>
+        /// Validate the encoding and decoding of the a variant that consists of a matrix.
+        /// </summary>
+        [Test]
+        public void EncodeDecodeVariantMatrix()
+        {
+            var value = new Matrix(
+                new int[] { 1, 2, 3, 4 },
+                BuiltInType.Int32,
+                new int[] { 2, 2 }
+            );
+            var variant = new Variant(value);
+
+            string expected = "<?xml version=\"1.0\" encoding=\"utf-16\"?>\r\n<uax:VariantTest xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\r\n  <uax:Test>\r\n    <uax:Value>\r\n      <uax:Matrix>\r\n        <uax:Dimensions>\r\n          <uax:Int32>2</uax:Int32>\r\n          <uax:Int32>2</uax:Int32>\r\n        </uax:Dimensions>\r\n        <uax:Elements>\r\n          <uax:Int32>1</uax:Int32>\r\n          <uax:Int32>2</uax:Int32>\r\n          <uax:Int32>3</uax:Int32>\r\n          <uax:Int32>4</uax:Int32>\r\n        </uax:Elements>\r\n      </uax:Matrix>\r\n    </uax:Value>\r\n  </uax:Test>\r\n</uax:VariantTest>";
+
+            // Encode
+            var context = new ServiceMessageContext();
+            string actualXmlValue;
+            using (IEncoder xmlEncoder = new XmlEncoder(new XmlQualifiedName("VariantTest", Namespaces.OpcUaXsd), null, context))
+            {
+                xmlEncoder.PushNamespace(Namespaces.OpcUaXsd);
+                xmlEncoder.WriteVariant("Test", variant);
+                xmlEncoder.PopNamespace();
+                actualXmlValue = xmlEncoder.CloseAndReturnText();
+            }
+
+            // Check encode result against expected XML value
+            Assert.AreEqual(expected.Replace("\r", "").Replace("\n", ""), actualXmlValue.Replace("\r", "").Replace("\n", ""));
+
+            // Decode
+            Variant actualVariant;
+            using (XmlReader reader = XmlReader.Create(new StringReader(actualXmlValue)))
+            {
+                using (IDecoder xmlDecoder = new XmlDecoder(null, reader, context))
+                {
+                    actualVariant = xmlDecoder.ReadVariant("Test");
+                }
+            }
+
+            // Check decode result against input value
+            Assert.AreEqual(actualVariant, variant);
+        }
         #endregion
     }
 }

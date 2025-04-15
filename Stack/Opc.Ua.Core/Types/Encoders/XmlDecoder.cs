@@ -2740,14 +2740,14 @@ namespace Opc.Ua
                 {
                     PushNamespace(Namespaces.OpcUaXsd);
 
+                    dimensions = ReadInt32Array("Dimensions");
+
                     if (BeginField("Elements", true))
                     {
-                        object contents = ReadVariantContents(out typeInfo);
-                        elements = contents as Array;
+                        typeInfo = MapElementTypeToTypeInfo(m_reader.LocalName);
+                        elements = ReadArray(null, typeInfo.ValueRank, typeInfo.BuiltInType, null);
                         EndField("Elements");
                     }
-
-                    dimensions = ReadInt32Array("Dimensions");
 
                     PopNamespace();
 
@@ -2780,6 +2780,43 @@ namespace Opc.Ua
             {
                 m_nestingLevel--;
             }
+        }
+
+        /// <summary>
+        /// Maps an element type name to its corresponding TypeInfo.Arrays value.
+        /// </summary>
+        /// <param name="elementTypeName">The name of the element type.</param>
+        /// <returns>The corresponding TypeInfo.Arrays value.</returns>
+        private TypeInfo MapElementTypeToTypeInfo(string elementTypeName)
+        {
+            return elementTypeName switch {
+                "Boolean" => TypeInfo.Arrays.Boolean,
+                "SByte" => TypeInfo.Arrays.SByte,
+                "Byte" => TypeInfo.Arrays.Byte,
+                "Int16" => TypeInfo.Arrays.Int16,
+                "UInt16" => TypeInfo.Arrays.UInt16,
+                "Int32" => TypeInfo.Arrays.Int32,
+                "UInt32" => TypeInfo.Arrays.UInt32,
+                "Int64" => TypeInfo.Arrays.Int64,
+                "UInt64" => TypeInfo.Arrays.UInt64,
+                "Float" => TypeInfo.Arrays.Float,
+                "Double" => TypeInfo.Arrays.Double,
+                "String" => TypeInfo.Arrays.String,
+                "DateTime" => TypeInfo.Arrays.DateTime,
+                "Guid" => TypeInfo.Arrays.Guid,
+                "ByteString" => TypeInfo.Arrays.ByteString,
+                "XmlElement" => TypeInfo.Arrays.XmlElement,
+                "NodeId" => TypeInfo.Arrays.NodeId,
+                "ExpandedNodeId" => TypeInfo.Arrays.ExpandedNodeId,
+                "StatusCode" => TypeInfo.Arrays.StatusCode,
+                "QualifiedName" => TypeInfo.Arrays.QualifiedName,
+                "LocalizedText" => TypeInfo.Arrays.LocalizedText,
+                "ExtensionObject" => TypeInfo.Arrays.ExtensionObject,
+                "Variant" => TypeInfo.Arrays.Variant,
+                "DataValue" => TypeInfo.Arrays.DataValue,
+                "DiagnosticInfo" => TypeInfo.Arrays.DiagnosticInfo,                
+                _ => throw new ServiceResultException(StatusCodes.BadDecodingError, $"Unsupported element type: {elementTypeName}")
+            };
         }
 
         /// <summary>
