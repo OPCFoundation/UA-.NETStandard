@@ -3431,7 +3431,7 @@ namespace Opc.Ua.Server
                 }
             }
 
-            var currentRoleIds = context.UserIdentity.GrantedRoleIds;
+            var currentRoleIds = context?.UserIdentity?.GrantedRoleIds;
             if (currentRoleIds == null || currentRoleIds.Count == 0)
             {
                 return ServiceResult.Create(StatusCodes.BadUserAccessDenied, "Current user has no granted role.");

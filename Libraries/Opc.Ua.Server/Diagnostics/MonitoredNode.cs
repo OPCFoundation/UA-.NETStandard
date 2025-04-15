@@ -271,7 +271,7 @@ namespace Opc.Ua.Server
 
                 }
             }
-        }        
+        }
 
         /// <summary>
         /// Called when the state of a Node changes.
@@ -331,8 +331,15 @@ namespace Opc.Ua.Server
             value.SourceTimestamp = DateTime.MinValue;
             value.StatusCode = StatusCodes.Good;
 
+            ISystemContext contextToUse = context;
+
+            if (context is SystemContext systemContext)
+            {
+                contextToUse = systemContext.Copy(new OperationContext(monitoredItem));
+            }
+
             ServiceResult error = node.ReadAttribute(
-                context,
+                contextToUse,
                 monitoredItem.AttributeId,
                 monitoredItem.IndexRange,
                 monitoredItem.DataEncoding,
