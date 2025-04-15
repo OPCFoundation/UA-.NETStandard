@@ -2813,6 +2813,8 @@ namespace Opc.Ua
                 "LocalizedText" => TypeInfo.Arrays.LocalizedText,
                 "ExtensionObject" => TypeInfo.Arrays.ExtensionObject,
                 "Variant" => TypeInfo.Arrays.Variant,
+                "DataValue" => TypeInfo.Arrays.DataValue,
+                "DiagnosticInfo" => TypeInfo.Arrays.DiagnosticInfo,                
                 _ => throw new ServiceResultException(StatusCodes.BadDecodingError, $"Unsupported element type: {elementTypeName}")
             };
         }
