@@ -153,6 +153,7 @@ namespace Opc.Ua.Client
                 m_SubscriptionsChanged = template.m_SubscriptionsChanged;
                 m_SessionClosing = template.m_SessionClosing;
                 m_SessionConfigurationChanged = template.m_SessionConfigurationChanged;
+                m_RenewUserIdentity = template.m_RenewUserIdentity;
             }
 
             foreach (Subscription subscription in template.Subscriptions)
@@ -1355,7 +1356,8 @@ namespace Opc.Ua.Client
                     (uint)template.m_sessionTimeout,
                     template.m_identity,
                     template.m_preferredLocales,
-                    template.m_checkDomain);
+                    template.m_checkDomain,
+                    false);
 
                 // create the subscriptions.
                 foreach (Subscription subscription in session.Subscriptions)
@@ -2286,7 +2288,17 @@ namespace Opc.Ua.Client
             IUserIdentity identity,
             IList<string> preferredLocales)
         {
-            Open(sessionName, sessionTimeout, identity, preferredLocales, true);
+            Open(sessionName, sessionTimeout, identity, preferredLocales, true, true);
+        }
+        /// <inheritdoc/>
+        public void Open(
+            string sessionName,
+            uint sessionTimeout,
+            IUserIdentity identity,
+            IList<string> preferredLocales,
+            bool checkDomain)
+        {
+            Open(sessionName, sessionTimeout, identity, preferredLocales, true, true);
         }
 
         /// <inheritdoc/>
@@ -2296,7 +2308,8 @@ namespace Opc.Ua.Client
             uint sessionTimeout,
             IUserIdentity identity,
             IList<string> preferredLocales,
-            bool checkDomain)
+            bool checkDomain,
+            bool closeChannel)
         {
             OpenValidateIdentity(ref identity, out var identityToken, out var identityPolicy, out string securityPolicyUri, out bool requireEncryption);
 
@@ -2555,7 +2568,7 @@ namespace Opc.Ua.Client
             {
                 try
                 {
-                    Close(true);
+                    Close(closeChannel);
                 }
                 catch (Exception e)
                 {
