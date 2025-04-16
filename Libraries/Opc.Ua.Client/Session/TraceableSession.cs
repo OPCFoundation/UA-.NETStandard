@@ -627,6 +627,15 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
+        public void Open(string sessionName, uint sessionTimeout, IUserIdentity identity, IList<string> preferredLocales, bool checkDomain, bool closeChannel)
+        {
+            using (Activity activity = ActivitySource.StartActivity())
+            {
+                m_session.Open(sessionName, sessionTimeout, identity, preferredLocales, checkDomain, closeChannel);
+            }
+        }
+
+        /// <inheritdoc/>
         public void ChangePreferredLocales(StringCollection preferredLocales)
         {
             using (Activity activity = ActivitySource.StartActivity())
@@ -704,6 +713,15 @@ namespace Opc.Ua.Client
             using (Activity activity = ActivitySource.StartActivity())
             {
                 await m_session.OpenAsync(sessionName, sessionTimeout, identity, preferredLocales, checkDomain, ct).ConfigureAwait(false);
+            }
+        }
+
+        /// <inheritdoc/>
+        public async Task OpenAsync(string sessionName, uint sessionTimeout, IUserIdentity identity, IList<string> preferredLocales, bool checkDomain, bool closeChannel, CancellationToken ct)
+        {
+            using (Activity activity = ActivitySource.StartActivity())
+            {
+                await m_session.OpenAsync(sessionName, sessionTimeout, identity, preferredLocales, checkDomain, closeChannel, ct).ConfigureAwait(false);
             }
         }
 
