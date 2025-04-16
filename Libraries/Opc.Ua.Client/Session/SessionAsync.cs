@@ -1627,6 +1627,7 @@ namespace Opc.Ua.Client
                     sessionTemplate.m_identity,
                     sessionTemplate.m_preferredLocales,
                     sessionTemplate.m_checkDomain,
+                    false,
                     ct).ConfigureAwait(false);
 
                 // create the subscriptions.
