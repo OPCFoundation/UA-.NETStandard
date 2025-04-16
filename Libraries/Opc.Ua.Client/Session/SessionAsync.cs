@@ -68,12 +68,25 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
+        public Task OpenAsync(
+            string sessionName,
+            uint sessionTimeout,
+            IUserIdentity identity,
+            IList<string> preferredLocales,
+            bool checkDomain,
+            CancellationToken ct)
+        {
+            return OpenAsync(sessionName, sessionTimeout, identity, preferredLocales, checkDomain, true, ct);
+        }
+
+        /// <inheritdoc/>
         public async Task OpenAsync(
             string sessionName,
             uint sessionTimeout,
             IUserIdentity identity,
             IList<string> preferredLocales,
             bool checkDomain,
+            bool closeChannel,
             CancellationToken ct)
         {
             OpenValidateIdentity(ref identity, out var identityToken, out var identityPolicy, out string securityPolicyUri, out bool requireEncryption);
@@ -322,7 +335,10 @@ namespace Opc.Ua.Client
                 try
                 {
                     await base.CloseSessionAsync(null, false, CancellationToken.None).ConfigureAwait(false);
-                    await CloseChannelAsync(CancellationToken.None).ConfigureAwait(false);
+                    if (closeChannel)
+                    {
+                        await CloseChannelAsync(CancellationToken.None).ConfigureAwait(false);
+                    }
                 }
                 catch (Exception e)
                 {
