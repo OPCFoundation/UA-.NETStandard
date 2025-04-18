@@ -528,14 +528,9 @@ namespace Opc.Ua
                     if (UInt16.TryParse(text.Substring(0, index), out ushort nsIndex))
                     {
                         namespaceIndex = nsIndex;
-                    }
-                    else
-                    {
-                        throw new ServiceResultException(StatusCodes.BadNodeIdInvalid, $"Invalid QualifiedName ({originalText}).");
+                        text = text.Substring(index + 1);
                     }
                 }
-
-                text = text.Substring(index + 1);
             }
 
             return new QualifiedName(text, (ushort)namespaceIndex);
