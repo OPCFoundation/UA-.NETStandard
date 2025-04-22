@@ -1800,8 +1800,6 @@ namespace Opc.Ua
             // check for null.
             if (value == null)
             {
-                m_writer.WriteStartElement("Null", Namespaces.OpcUaXsd);
-                m_writer.WriteEndElement();
                 return;
             }
 
