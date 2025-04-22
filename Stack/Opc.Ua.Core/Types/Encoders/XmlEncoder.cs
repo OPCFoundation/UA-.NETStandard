@@ -2173,11 +2173,9 @@ namespace Opc.Ua
 
                 if (value != null)
                 {
-                    m_writer.WriteStartElement("Elements", Namespaces.OpcUaXsd);
-                    WriteVariantContents(value.Elements, new TypeInfo(value.TypeInfo.BuiltInType, ValueRanks.OneDimension));
-                    m_writer.WriteEndElement();
-
                     WriteInt32Array("Dimensions", value.Dimensions);
+
+                    WriteArray("Elements", value.Elements, ValueRanks.OneDimension, value.TypeInfo.BuiltInType);
                 }
 
                 PopNamespace();
