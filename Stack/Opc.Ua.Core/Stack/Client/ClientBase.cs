@@ -395,6 +395,11 @@ namespace Opc.Ua
                     request.RequestHeader.AuthenticationToken = m_authenticationToken;
                 }
 
+                if (request.RequestHeader.TimeoutHint == 0)
+                {
+                    request.RequestHeader.TimeoutHint = (uint)(OperationTimeout > 0 ? OperationTimeout : 0);
+                }
+
                 request.RequestHeader.Timestamp = DateTime.UtcNow;
                 request.RequestHeader.AuditEntryId = CreateAuditLogEntry(request);
             }
