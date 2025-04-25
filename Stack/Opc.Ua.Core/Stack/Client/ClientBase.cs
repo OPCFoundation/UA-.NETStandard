@@ -397,7 +397,7 @@ namespace Opc.Ua
 
                 if (request.RequestHeader.TimeoutHint == 0)
                 {
-                    request.RequestHeader.TimeoutHint = (uint)(OperationTimeout > 0 ? OperationTimeout : 0);
+                    request.RequestHeader.TimeoutHint = (uint)OperationTimeout;
                 }
 
                 request.RequestHeader.Timestamp = DateTime.UtcNow;
