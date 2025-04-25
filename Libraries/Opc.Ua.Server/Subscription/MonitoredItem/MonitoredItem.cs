@@ -1088,12 +1088,23 @@ namespace Opc.Ua.Server
 
                 // fetch the event fields.
                 EventFieldList fields = GetEventFields(context, filter, instance);
+                QueueEvent(fields);
+            }
+        }
 
+        /// <summary>
+        /// Adds an event to the queue.
+        /// </summary>
+        public virtual void QueueEvent(EventFieldList fields)
+        {
+            lock (m_lock)
+            {
                 m_eventQueueHandler.QueueEvent(fields);
                 m_readyToPublish = true;
                 m_readyToTrigger = true;
             }
         }
+
         /// <summary>
         /// Determines whether an event can be sent with SupportsFilteredRetain in consideration.
         /// </summary>
