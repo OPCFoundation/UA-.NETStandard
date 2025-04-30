@@ -34,11 +34,21 @@
   <ItemGroup Condition="'$(TargetFramework)' == 'net462'">
     <PackageReference Include="System.Runtime.InteropServices.RuntimeInformation" Version="4.3.0" />
   </ItemGroup>
-  
-  <ItemGroup>
-    <PackageReference Include="MQTTnet" Version="4.3.7.1207" />
-    <PackageReference Include="System.Net.NetworkInformation" Version="4.3.0" />
-  </ItemGroup>
+
+  <Choose>
+    <When Condition="'$(TargetFramework)' == 'net8.0' OR '$(TargetFramework)' == 'net9.0'">
+      <ItemGroup>
+        <PackageReference Include="MQTTnet" Version="5.0.1.1416" />
+        <PackageReference Include="System.Net.NetworkInformation" Version="4.3.0" />
+      </ItemGroup>
+    </When>
+    <Otherwise>
+      <ItemGroup>
+       <PackageReference Include="MQTTnet" Version="4.3.7.1207" /> 
+        <PackageReference Include="System.Net.NetworkInformation" Version="4.3.0" />
+      </ItemGroup>
+    </Otherwise>
+  </Choose>
 
   <Target Name="GetPackagingOutputs" />
 
