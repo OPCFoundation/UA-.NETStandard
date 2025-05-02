@@ -781,9 +781,9 @@ namespace Opc.Ua
                 {
                     PushNamespace(Namespaces.OpcUaXsd);
 
-                    m_writer.WriteStartElement("Value", Namespaces.OpcUaXsd);
-                    WriteVariantContents(value.Value, value.TypeInfo);
-                    m_writer.WriteEndElement();
+                        m_writer.WriteStartElement("Value", Namespaces.OpcUaXsd);
+                        WriteVariantContents(value.Value, value.TypeInfo);
+                        m_writer.WriteEndElement();
 
                     PopNamespace();
 
@@ -1800,6 +1800,7 @@ namespace Opc.Ua
             // check for null.
             if (value == null)
             {
+                m_writer.WriteAttributeString("nil", Namespaces.XmlSchemaInstance, "true");
                 return;
             }
 
