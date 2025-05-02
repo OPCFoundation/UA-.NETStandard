@@ -100,6 +100,8 @@ namespace Opc.Ua.Server
                 {
                     m_shutdownEvent.Set();
                     m_samplingRates.Clear();
+                    Utils.SilentDispose(m_shutdownEvent);
+                    Utils.SilentDispose(m_samplingTask);
                 }
             }
         }
@@ -132,7 +134,6 @@ namespace Opc.Ua.Server
                 m_items.Clear();
                 Utils.SilentDispose(m_samplingTask);
                 m_samplingTask = null;
-                Utils.SilentDispose(m_shutdownEvent);
             }
         }
 
