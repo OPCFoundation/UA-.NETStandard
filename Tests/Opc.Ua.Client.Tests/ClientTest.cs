@@ -49,7 +49,6 @@ using Opc.Ua.Security.Certificates.Tests;
 using System.Security.Cryptography;
 using System.Runtime.InteropServices;
 using Opc.Ua.Security.Certificates;
-using Opc.Ua.Server;
 
 namespace Opc.Ua.Client.Tests
 {
@@ -614,8 +613,7 @@ namespace Opc.Ua.Client.Tests
             var session2 = ClientFixture.CreateSession(channel, endpoint);
             session2.Open("Session2", null);
 
-
-           
+            _ = session1.ReadValue(VariableIds.Server_ServerStatus, typeof(ServerStatusDataType));
 
             session1.Close(closeChannel: false);
             session1.DetachChannel();
