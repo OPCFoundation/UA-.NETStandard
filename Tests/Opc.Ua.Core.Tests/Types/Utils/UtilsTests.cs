@@ -299,6 +299,52 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         }
 
         /// <summary>
+        /// Parse deep path string containing two Namespaces, translate indexes
+        /// </summary>
+        [Test]
+        public void RelativePathParseTranslateNamespaceIndex()
+        {
+            var currentTable = new NamespaceTable(new List<string>() { Namespaces.OpcUa, "1", Namespaces.OpcUaGds });
+            var targetTable = new NamespaceTable(new List<string>() { Namespaces.OpcUa, "1", "2", Namespaces.OpcUaGds });
+
+            TypeTable typeTable = new TypeTable(new NamespaceTable());
+            string str = "/1:abc/2:def";
+            string result = "/1:abc/3:def";
+            Assert.AreEqual(result, RelativePath.Parse(str, typeTable, currentTable, targetTable).Format(typeTable));
+        }
+
+        /// <summary>
+        /// Parse deep path string containing two Namespaces, with targetTable missing the right namespace
+        /// </summary>
+        [Test]
+        public void RelativePathParseInvalidNamespaceIndex()
+        {
+            var currentTable = new NamespaceTable(new List<string>() { Namespaces.OpcUa, "2", Namespaces.OpcUaGds });
+            var targetTable = new NamespaceTable(new List<string>() { Namespaces.OpcUa, "2", "3" });
+
+            TypeTable typeTable = new TypeTable(new NamespaceTable());
+            string str = "/1:abc/2:def";
+            var sre = Assert.Throws<ServiceResultException>(() => RelativePath.Parse(str, typeTable, currentTable, targetTable).Format(typeTable));
+            Assert.AreEqual((StatusCode)StatusCodes.BadIndexRangeInvalid, (StatusCode)sre.StatusCode);
+        }
+
+        /// <summary>
+        /// Parse deep path string containing two Namespaces, with currentTable missing the right namespace
+        /// </summary>
+        [Test]
+        public void RelativePathParseInvalidNamespaceIndexCurrentTable()
+        {
+            var currentTable = new NamespaceTable(new List<string>() { Namespaces.OpcUa, "2", Namespaces.OpcUaGds });
+            var targetTable = new NamespaceTable(new List<string>() { Namespaces.OpcUa, "2", "3", "4", "5" });
+
+            TypeTable typeTable = new TypeTable(new NamespaceTable());
+            string str = "/1:abc/4:def";
+            var sre = Assert.Throws<ServiceResultException>(() => RelativePath.Parse(str, typeTable, currentTable, targetTable).Format(typeTable));
+            Assert.AreEqual((StatusCode)StatusCodes.BadIndexRangeInvalid, (StatusCode)sre.StatusCode);
+        }
+
+
+        /// <summary>
         /// Validate that XmlDocument DtdProcessing is protected against
         /// exponential entity expansion in this version of .NET.
         /// </summary>
