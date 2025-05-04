@@ -299,47 +299,45 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         }
 
         /// <summary>
-        /// Parse deep path string containing two Namespaces, translate indexes
+        /// Parse path string containing two Namespaces, translate indexes
         /// </summary>
-        [Test]
-        public void RelativePathParseTranslateNamespaceIndex()
+        [Theory]
+        [TestCase("<#2:HasChild>", "<#3:HasChild>")]
+        [TestCase("<!2:HasChild>", "<!3:HasChild>")]
+        [TestCase(".2:NodeVersion", ".3:NodeVersion")]
+        [TestCase("/1:abc/2:def", "/1:abc/3:def")]
+        public void RelativePathParseTranslateNamespaceIndexReferenceType(string input, string output)
         {
             var currentTable = new NamespaceTable(new List<string>() { Namespaces.OpcUa, "1", Namespaces.OpcUaGds });
             var targetTable = new NamespaceTable(new List<string>() { Namespaces.OpcUa, "1", "2", Namespaces.OpcUaGds });
 
             TypeTable typeTable = new TypeTable(new NamespaceTable());
-            string str = "/1:abc/2:def";
-            string result = "/1:abc/3:def";
-            Assert.AreEqual(result, RelativePath.Parse(str, typeTable, currentTable, targetTable).Format(typeTable));
+            typeTable.AddReferenceSubtype(Opc.Ua.ReferenceTypeIds.HasChild, NodeId.Null, new QualifiedName("HasChild", 3));
+            Assert.AreEqual(output, RelativePath.Parse(input, typeTable, currentTable, targetTable).Format(typeTable));
         }
 
-        /// <summary>
-        /// Parse deep path string containing two Namespaces, with targetTable missing the right namespace
-        /// </summary>
-        [Test]
-        public void RelativePathParseInvalidNamespaceIndex()
-        {
-            var currentTable = new NamespaceTable(new List<string>() { Namespaces.OpcUa, "2", Namespaces.OpcUaGds });
-            var targetTable = new NamespaceTable(new List<string>() { Namespaces.OpcUa, "2", "3" });
-
-            TypeTable typeTable = new TypeTable(new NamespaceTable());
-            string str = "/1:abc/2:def";
-            var sre = Assert.Throws<ServiceResultException>(() => RelativePath.Parse(str, typeTable, currentTable, targetTable).Format(typeTable));
-            Assert.AreEqual((StatusCode)StatusCodes.BadIndexRangeInvalid, (StatusCode)sre.StatusCode);
-        }
 
         /// <summary>
-        /// Parse deep path string containing two Namespaces, with currentTable missing the right namespace
+        /// Parse path string containing two Namespaces with missing namespace indexes in either currentTable or targetTable.
         /// </summary>
-        [Test]
-        public void RelativePathParseInvalidNamespaceIndexCurrentTable()
+        [Theory]
+        [TestCase(
+            new string[] { Namespaces.OpcUa, "2", Namespaces.OpcUaGds },
+            new string[] { Namespaces.OpcUa, "2", "3" },
+            "/1:abc/2:def"
+        )]
+        [TestCase(
+            new string[] { Namespaces.OpcUa, "2", Namespaces.OpcUaGds },
+            new string[] { Namespaces.OpcUa, "2", "3", "4", "5" },
+            "/1:abc/4:def"
+        )]
+        public void RelativePathParseInvalidNamespaceIndex(string[] currentNamespaces, string[] targetNamespaces, string path)
         {
-            var currentTable = new NamespaceTable(new List<string>() { Namespaces.OpcUa, "2", Namespaces.OpcUaGds });
-            var targetTable = new NamespaceTable(new List<string>() { Namespaces.OpcUa, "2", "3", "4", "5" });
+            var currentTable = new NamespaceTable(new List<string>(currentNamespaces));
+            var targetTable = new NamespaceTable(new List<string>(targetNamespaces));
 
             TypeTable typeTable = new TypeTable(new NamespaceTable());
-            string str = "/1:abc/4:def";
-            var sre = Assert.Throws<ServiceResultException>(() => RelativePath.Parse(str, typeTable, currentTable, targetTable).Format(typeTable));
+            var sre = Assert.Throws<ServiceResultException>(() => RelativePath.Parse(path, typeTable, currentTable, targetTable).Format(typeTable));
             Assert.AreEqual((StatusCode)StatusCodes.BadIndexRangeInvalid, (StatusCode)sre.StatusCode);
         }
 
