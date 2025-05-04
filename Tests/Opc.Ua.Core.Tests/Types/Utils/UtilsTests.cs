@@ -328,6 +328,11 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         )]
         [TestCase(
             new string[] { Namespaces.OpcUa, "2", Namespaces.OpcUaGds },
+            new string[] { Namespaces.OpcUa, "2", "3" },
+            "<#2:HasChild>"
+        )]
+        [TestCase(
+            new string[] { Namespaces.OpcUa, "2", Namespaces.OpcUaGds },
             new string[] { Namespaces.OpcUa, "2", "3", "4", "5" },
             "/1:abc/4:def"
         )]
