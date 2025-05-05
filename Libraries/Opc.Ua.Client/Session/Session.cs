@@ -1274,7 +1274,7 @@ namespace Opc.Ua.Client
                 session.Open(
                     template.SessionName,
                     (uint)template.SessionTimeout,
-                    template.Identity,
+                    session.Identity,
                     template.PreferredLocales,
                     template.m_checkDomain);
 
@@ -1321,7 +1321,7 @@ namespace Opc.Ua.Client
                 session.Open(
                     template.m_sessionName,
                     (uint)template.m_sessionTimeout,
-                    template.m_identity,
+                    session.Identity,
                     template.m_preferredLocales,
                     template.m_checkDomain);
 
@@ -1357,7 +1357,7 @@ namespace Opc.Ua.Client
                 session.Open(
                     template.m_sessionName,
                     (uint)template.m_sessionTimeout,
-                    template.m_identity,
+                    session.Identity,
                     template.m_preferredLocales,
                     template.m_checkDomain,
                     false);

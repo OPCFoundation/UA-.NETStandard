@@ -857,6 +857,70 @@ namespace Opc.Ua.Client.Tests
             Utils.SilentDispose(session2);
         }
 
+        /// <summary>
+        /// Open a session on a channel, then recreate using the session as a template, verify the renewUserIdentityHandler is brought to the new session and called before Session.Open
+        /// /// </summary>
+        [Test, Order(270)]
+        public async Task RecreateSessionWithRenewUserIdentity()
+        {
+            IUserIdentity userIdentityAnonymous = new UserIdentity() ;
+            IUserIdentity userIdentityPW = new UserIdentity("user1", "password");
+
+            // the first channel determines the endpoint
+            ConfiguredEndpoint endpoint = await ClientFixture.GetEndpointAsync(ServerUrl, SecurityPolicies.Basic256Sha256, Endpoints).ConfigureAwait(false);
+            Assert.NotNull(endpoint);
+
+            UserTokenPolicy identityPolicy = endpoint.Description.FindUserTokenPolicy(userIdentityAnonymous.TokenType,
+                userIdentityAnonymous.IssuedTokenType,
+                endpoint.Description.SecurityPolicyUri);
+            if (identityPolicy == null)
+            {
+                Assert.Ignore($"No UserTokenPolicy found for {userIdentityAnonymous.TokenType} / {userIdentityAnonymous.IssuedTokenType}");
+            }
+
+            // the active channel
+            ISession session1 = await ClientFixture.ConnectAsync(endpoint, userIdentityAnonymous).ConfigureAwait(false);
+            Assert.NotNull(session1);
+
+            ServerStatusDataType value1 = (ServerStatusDataType)session1.ReadValue(VariableIds.Server_ServerStatus, typeof(ServerStatusDataType));
+            Assert.NotNull(value1);
+
+            // hook callback to renew the user identity
+            session1.RenewUserIdentity += (session, identity) => {
+                return userIdentityPW;
+            };
+
+            var session2 = Client.Session.Recreate((Session)((TraceableSession)session1).Session);
+
+            // create new channel
+            ITransportChannel channel2 = await ClientFixture.CreateChannelAsync(session1.ConfiguredEndpoint, false).ConfigureAwait(false);
+
+            Assert.NotNull(channel2);
+            var session3 = await Client.Session.RecreateAsync((Session)((TraceableSession)session1).Session, channel2);
+
+            //validate new Session Ids are used and also UserName PW identity token is injected as renewed token
+            Assert.AreNotEqual(session1.SessionId, session2.SessionId);
+            Assert.AreEqual(userIdentityPW.TokenType, session2.Identity.TokenType);
+            Assert.AreNotEqual(session1.SessionId, session3.SessionId);
+            Assert.AreEqual(userIdentityPW.TokenType, session3.Identity.TokenType);
+
+            ServerStatusDataType value2 = (ServerStatusDataType)session2.ReadValue(VariableIds.Server_ServerStatus, typeof(ServerStatusDataType));
+            Assert.NotNull(value2);
+
+
+            session1.DeleteSubscriptionsOnClose = true;
+            session1.Close(1000);
+            Utils.SilentDispose(session1);
+
+            session2.DeleteSubscriptionsOnClose = true;
+            session2.Close(1000);
+            Utils.SilentDispose(session2);
+
+            session3.DeleteSubscriptionsOnClose = true;
+            session3.Close(1000);
+            Utils.SilentDispose(session2);
+        }
+
         [Test, Order(300)]
         public new void GetOperationLimits()
         {

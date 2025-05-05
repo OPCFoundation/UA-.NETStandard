@@ -1535,7 +1535,7 @@ namespace Opc.Ua.Client
                 await session.OpenAsync(
                     sessionTemplate.SessionName,
                     (uint)sessionTemplate.SessionTimeout,
-                    sessionTemplate.Identity,
+                    session.Identity,
                     sessionTemplate.PreferredLocales,
                     sessionTemplate.m_checkDomain,
                     ct).ConfigureAwait(false);
@@ -1584,7 +1584,7 @@ namespace Opc.Ua.Client
                 await session.OpenAsync(
                     sessionTemplate.m_sessionName,
                     (uint)sessionTemplate.m_sessionTimeout,
-                    sessionTemplate.m_identity,
+                    session.Identity,
                     sessionTemplate.m_preferredLocales,
                     sessionTemplate.m_checkDomain,
                     ct).ConfigureAwait(false);
@@ -1627,7 +1627,7 @@ namespace Opc.Ua.Client
                 await session.OpenAsync(
                     sessionTemplate.m_sessionName,
                     (uint)sessionTemplate.m_sessionTimeout,
-                    sessionTemplate.m_identity,
+                    session.Identity,
                     sessionTemplate.m_preferredLocales,
                     sessionTemplate.m_checkDomain,
                     false,
