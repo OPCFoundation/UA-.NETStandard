@@ -1269,6 +1269,7 @@ namespace Opc.Ua.Client
 
             try
             {
+                session.RecreateRenewUserIdentity();
                 // open the session.
                 session.Open(
                     template.SessionName,
@@ -1315,6 +1316,7 @@ namespace Opc.Ua.Client
 
             try
             {
+                session.RecreateRenewUserIdentity();
                 // open the session.
                 session.Open(
                     template.m_sessionName,
@@ -1350,6 +1352,7 @@ namespace Opc.Ua.Client
 
             try
             {
+                session.RecreateRenewUserIdentity();
                 // open the session.
                 session.Open(
                     template.m_sessionName,
@@ -5358,6 +5361,17 @@ namespace Opc.Ua.Client
             }
 
             return false;
+        }
+
+        /// <summary>
+        /// Helper to refresh the identity (reprompt for password, refresh token) in case of a Recreate of the Session.
+        /// </summary>
+        public virtual void RecreateRenewUserIdentity()
+        {
+            if (m_RenewUserIdentity != null)
+            {
+                m_identity = m_RenewUserIdentity(this, m_identity);
+            }
         }
         #endregion
 

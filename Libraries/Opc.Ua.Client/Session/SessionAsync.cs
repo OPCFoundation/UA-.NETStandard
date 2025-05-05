@@ -1530,6 +1530,7 @@ namespace Opc.Ua.Client
 
             try
             {
+                session.RecreateRenewUserIdentity();
                 // open the session.
                 await session.OpenAsync(
                     sessionTemplate.SessionName,
@@ -1578,6 +1579,7 @@ namespace Opc.Ua.Client
 
             try
             {
+                session.RecreateRenewUserIdentity();
                 // open the session.
                 await session.OpenAsync(
                     sessionTemplate.m_sessionName,
@@ -1620,6 +1622,7 @@ namespace Opc.Ua.Client
 
             try
             {
+                session.RecreateRenewUserIdentity();
                 // open the session.
                 await session.OpenAsync(
                     sessionTemplate.m_sessionName,
