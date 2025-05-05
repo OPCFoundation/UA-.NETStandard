@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <AssemblyName>$(AssemblyPrefix).PubSub</AssemblyName>
@@ -39,16 +39,18 @@
     <When Condition="'$(TargetFramework)' == 'net8.0' OR '$(TargetFramework)' == 'net9.0'">
       <ItemGroup>
         <PackageReference Include="MQTTnet" Version="5.0.1.1416" />
-        <PackageReference Include="System.Net.NetworkInformation" Version="4.3.0" />
       </ItemGroup>
     </When>
     <Otherwise>
       <ItemGroup>
-       <PackageReference Include="MQTTnet" Version="4.3.7.1207" /> 
-        <PackageReference Include="System.Net.NetworkInformation" Version="4.3.0" />
+        <PackageReference Include="MQTTnet" Version="4.3.7.1207" />
       </ItemGroup>
     </Otherwise>
   </Choose>
+
+  <ItemGroup>
+     <PackageReference Include="System.Net.NetworkInformation" Version="4.3.0" />
+  </ItemGroup>
 
   <Target Name="GetPackagingOutputs" />
 
