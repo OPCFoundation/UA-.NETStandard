@@ -861,7 +861,9 @@ namespace Opc.Ua.Client.Tests
         /// Open a session on a channel, then recreate using the session as a template, verify the renewUserIdentityHandler is brought to the new session and called before Session.Open
         /// /// </summary>
         [Test, Order(270)]
-        public async Task RecreateSessionWithRenewUserIdentity()
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task RecreateSessionWithRenewUserIdentity(bool async)
         {
             IUserIdentity userIdentityAnonymous = new UserIdentity() ;
             IUserIdentity userIdentityPW = new UserIdentity("user1", "password");
@@ -890,13 +892,30 @@ namespace Opc.Ua.Client.Tests
                 return userIdentityPW;
             };
 
-            var session2 = Client.Session.Recreate((Session)((TraceableSession)session1).Session);
+            Client.Session session2;
+            if (async)
+            {
+                session2 = await Client.Session.RecreateAsync((Session)((TraceableSession)session1).Session).ConfigureAwait(false);
+            }
+            else
+            {
+                session2 = Client.Session.Recreate((Session)((TraceableSession)session1).Session);
+            }
 
             // create new channel
             ITransportChannel channel2 = await ClientFixture.CreateChannelAsync(session1.ConfiguredEndpoint, false).ConfigureAwait(false);
-
             Assert.NotNull(channel2);
-            var session3 = await Client.Session.RecreateAsync((Session)((TraceableSession)session1).Session, channel2);
+
+            Client.Session session3;
+            if (async)
+            {
+                session3 = await Client.Session.RecreateAsync((Session)((TraceableSession)session1).Session, channel2).ConfigureAwait(false);
+
+            }
+            else
+            {
+                session3 = Client.Session.Recreate((Session)((TraceableSession)session1).Session, channel2);
+            }
 
             //validate new Session Ids are used and also UserName PW identity token is injected as renewed token
             Assert.AreNotEqual(session1.SessionId, session2.SessionId);
@@ -918,7 +937,7 @@ namespace Opc.Ua.Client.Tests
 
             session3.DeleteSubscriptionsOnClose = true;
             session3.Close(1000);
-            Utils.SilentDispose(session2);
+            Utils.SilentDispose(session3);
         }
 
         [Test, Order(300)]
