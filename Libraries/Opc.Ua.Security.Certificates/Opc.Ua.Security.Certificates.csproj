@@ -16,14 +16,9 @@
 
   <!-- Choose which platforms support ECC -->
   <Choose>
-    <When Condition="'$(TargetFramework)' == 'net462'">
+    <When Condition="'$(TargetFramework)' == 'net462' Or '$(TargetFramework)' == 'netstandard2.0'">
       <ItemGroup>
-        <PackageReference Include="BouncyCastle.Cryptography" Version="2.5.0" />
-      </ItemGroup>
-    </When>
-    <When Condition="'$(TargetFramework)' == 'netstandard2.0'">
-      <ItemGroup>
-        <PackageReference Include="BouncyCastle.Cryptography" Version="2.5.0" />
+        <PackageReference Include="BouncyCastle.Cryptography" Version="2.5.1" />
       </ItemGroup>
     </When>
     <Otherwise>
@@ -45,13 +40,13 @@
   <Choose>
     <When Condition="'$(TargetFramework)' == 'net472' OR '$(TargetFramework)' == 'net48'">
       <ItemGroup>
-        <PackageReference Include="BouncyCastle.Cryptography" Version="2.5.0" />
+        <PackageReference Include="BouncyCastle.Cryptography" Version="2.5.1" />
         <PackageReference Include="System.Formats.Asn1" Version="8.0.1" />
       </ItemGroup>
     </When>
     <When Condition="'$(TargetFramework)' == 'net9.0'">
       <ItemGroup>
-        <PackageReference Include="System.Formats.Asn1" Version="9.0.1" />
+        <PackageReference Include="System.Formats.Asn1" Version="9.0.4" />
       </ItemGroup>
     </When>
     <Otherwise>
