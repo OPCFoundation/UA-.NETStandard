@@ -778,6 +778,12 @@ namespace Opc.Ua
         {
             get
             {
+                // check for null.
+                if (m_value == null)
+                {
+                    return null;
+                }
+
                 // create encoder.
                 using (XmlEncoder encoder = new XmlEncoder(MessageContextExtension.CurrentContext))
                 {
