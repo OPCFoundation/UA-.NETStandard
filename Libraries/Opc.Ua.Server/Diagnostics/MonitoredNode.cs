@@ -369,26 +369,26 @@ namespace Opc.Ua.Server
         private ServerSystemContext GetOrCreateContext(ServerSystemContext context, MonitoredItem monitoredItem)
         {
             uint monitoredItemId = monitoredItem.Id;
+            long currentTicks = DateTime.UtcNow.Ticks;
 
             // Check if the context already exists in the cache
-            if (m_contextCache.TryGetValue(monitoredItemId, out var cachedContext))
+            if (m_contextCache.TryGetValue(monitoredItemId, out var cachedEntry))
             {
-                // Check if the session or user identity has changed or Operation context timed out
-                if (cachedContext.OperationContext.Session != monitoredItem.Session
-                    || cachedContext.OperationContext.UserIdentity != monitoredItem.EffectiveIdentity
-                    || context.OperationDeadline < DateTime.UtcNow)
+                // Check if the session or user identity has changed or the entry has expired
+                if (cachedEntry.Context.OperationContext.Session != monitoredItem.Session
+                    || cachedEntry.Context.OperationContext.UserIdentity != monitoredItem.EffectiveIdentity
+                    || (currentTicks - cachedEntry.CreatedAtTicks) > m_cacheLifetimeTicks)
                 {
-                    // Update the cached context with the new session
-                    cachedContext = context.Copy(new OperationContext(monitoredItem));
-                    m_contextCache[monitoredItemId] = cachedContext;
-                }
+                    var updatedContext = context.Copy(new OperationContext(monitoredItem));
+                    m_contextCache[monitoredItemId] = (updatedContext, currentTicks);
 
-                return cachedContext;
+                    return updatedContext;
+                }
             }
 
             // Create a new context and add it to the cache
             var newContext = context.Copy(new OperationContext(monitoredItem));
-            m_contextCache.TryAdd(monitoredItemId, newContext);
+            m_contextCache.TryAdd(monitoredItemId, (newContext, currentTicks));
 
             return newContext;
         }
@@ -399,7 +399,8 @@ namespace Opc.Ua.Server
         private NodeState m_node;
         private List<MonitoredItem> m_dataChangeMonitoredItems;
         private List<IEventMonitoredItem> m_eventMonitoredItems;
-        private readonly ConcurrentDictionary<uint, ServerSystemContext> m_contextCache = new();
+        private readonly ConcurrentDictionary<uint, (ServerSystemContext Context, long CreatedAtTicks)> m_contextCache = new();
+        private readonly long m_cacheLifetimeTicks = TimeSpan.FromMinutes(5).Ticks;
         #endregion
     }
 }
