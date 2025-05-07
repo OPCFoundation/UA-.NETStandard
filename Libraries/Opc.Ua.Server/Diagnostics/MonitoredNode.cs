@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using Opc.Ua;
 using Opc.Ua.Server;
@@ -142,6 +143,10 @@ namespace Opc.Ua.Server
                 if (Object.ReferenceEquals(DataChangeMonitoredItems[ii], datachangeItem))
                 {
                     DataChangeMonitoredItems.RemoveAt(ii);
+
+                    // Remove the cached context for the monitored item
+                    m_contextCache.TryRemove(datachangeItem.Id, out _);
+
                     break;
                 }
             }
@@ -333,9 +338,9 @@ namespace Opc.Ua.Server
 
             ISystemContext contextToUse = context;
 
-            if (context is SystemContext systemContext)
+            if (context is ServerSystemContext systemContext)
             {
-                contextToUse = systemContext.Copy(new OperationContext(monitoredItem));
+                contextToUse = GetOrCreateContext(systemContext, monitoredItem);
             }
 
             ServiceResult error = node.ReadAttribute(
@@ -354,11 +359,47 @@ namespace Opc.Ua.Server
         }
         #endregion
 
+        #region Private Methods
+        /// <summary>
+        /// Gets or creates a cached context for the monitored item.
+        /// </summary>
+        /// <param name="monitoredItem">The monitored item.</param>
+        /// <param name="context">The system context.</param>
+        /// <returns>The cached or newly created context.</returns>
+        private ServerSystemContext GetOrCreateContext(ServerSystemContext context, MonitoredItem monitoredItem)
+        {
+            uint monitoredItemId = monitoredItem.Id;
+
+            // Check if the context already exists in the cache
+            if (m_contextCache.TryGetValue(monitoredItemId, out var cachedContext))
+            {
+                // Check if the session or user identity has changed or Operation context timed out
+                if (cachedContext.OperationContext.Session != monitoredItem.Session
+                    || cachedContext.OperationContext.UserIdentity != monitoredItem.EffectiveIdentity
+                    || context.OperationDeadline < DateTime.UtcNow)
+                {
+                    // Update the cached context with the new session
+                    cachedContext = context.Copy(new OperationContext(monitoredItem));
+                    m_contextCache[monitoredItemId] = cachedContext;
+                }
+
+                return cachedContext;
+            }
+
+            // Create a new context and add it to the cache
+            var newContext = context.Copy(new OperationContext(monitoredItem));
+            m_contextCache.TryAdd(monitoredItemId, newContext);
+
+            return newContext;
+        }
+        #endregion
+
         #region Private Fields
         private CustomNodeManager2 m_nodeManager;
         private NodeState m_node;
         private List<MonitoredItem> m_dataChangeMonitoredItems;
         private List<IEventMonitoredItem> m_eventMonitoredItems;
+        private readonly ConcurrentDictionary<uint, ServerSystemContext> m_contextCache = new();
         #endregion
     }
 }
