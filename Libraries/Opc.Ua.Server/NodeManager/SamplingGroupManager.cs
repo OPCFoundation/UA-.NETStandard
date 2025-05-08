@@ -506,7 +506,6 @@ namespace Opc.Ua.Server
                 // remove unused groups.
                 foreach (SamplingGroup samplingGroup in unusedGroups)
                 {
-                    samplingGroup.Shutdown();
                     m_samplingGroups.Remove(samplingGroup);
                 }
             }
