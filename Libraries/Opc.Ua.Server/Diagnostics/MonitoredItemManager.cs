@@ -64,7 +64,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Set the monitoring mode for a monitored item
         /// </summary>
-        ServiceResult SetMonitoringMode(
+        (ServiceResult, MonitoringMode?) SetMonitoringMode(
             ServerSystemContext context,
             IMonitoredItem monitoredItem,
             MonitoringMode monitoringMode,
@@ -74,9 +74,13 @@ namespace Opc.Ua.Server
         /// Restore a monitored item
         /// </summary>
         bool RestoreMonitoredItem(
+            IServerInternal server,
+            INodeManager nodeManager,
             ServerSystemContext context,
             NodeHandle handle,
             IStoredMonitoredItem storedMonitoredItem,
+            IUserIdentity savedOwnerIdentity,
+            Func<ISystemContext, NodeHandle, NodeState, NodeState> AddNodeToComponentCache,
             out IMonitoredItem monitoredItem);
 
 
@@ -202,6 +206,62 @@ namespace Opc.Ua.Server
             return StatusCodes.Good;
         }
 
+        /// <inheritdoc/>
+        public (ServiceResult, MonitoringMode) SetMonitoringMode(ServerSystemContext context, IMonitoredItem monitoredItem, MonitoringMode monitoringMode, NodeHandle handle)
+        {
+            // check for valid monitored item.
+            MonitoredItem datachangeItem = monitoredItem as MonitoredItem;
+
+            // update monitoring mode.
+            MonitoringMode previousMode = datachangeItem.SetMonitoringMode(monitoringMode);
+
+            // must send the latest value after enabling a disabled item.
+            if (monitoringMode == MonitoringMode.Reporting && previousMode == MonitoringMode.Disabled)
+            {
+                handle.MonitoredNode.QueueValue(context, handle.Node, datachangeItem);
+            }
+
+            return (StatusCodes.Good, previousMode);
+        }
+
+        /// <inheritdoc/>
+        public bool RestoreMonitoredItem(IServerInternal server,
+                                         INodeManager nodeManager,
+                                         ServerSystemContext context,
+                                         NodeHandle handle,
+                                         IStoredMonitoredItem storedMonitoredItem,
+                                         IUserIdentity savedOwnerIdentity,
+                                         Func<ISystemContext, NodeHandle, NodeState, NodeState> AddNodeToComponentCache,
+                                         out IMonitoredItem monitoredItem)
+        {
+            // check if the node is already being monitored.
+            MonitoredNode2 monitoredNode = null;
+
+            if (!m_monitoredNodes.TryGetValue(handle.Node.NodeId, out monitoredNode))
+            {
+                NodeState cachedNode = AddNodeToComponentCache(context, handle, handle.Node);
+                m_monitoredNodes[handle.Node.NodeId] = monitoredNode = new MonitoredNode2(m_nodeManager, cachedNode);
+            }
+
+            handle.Node = monitoredNode.Node;
+            handle.MonitoredNode = monitoredNode;
+
+            // create the item.
+            var datachangeItem = new MonitoredItem(
+                server,
+                nodeManager,
+                handle,
+                storedMonitoredItem);
+
+            // update monitored item list.
+            monitoredItem = datachangeItem;
+
+            // save the monitored item.
+            monitoredNode.Add(datachangeItem);
+
+            return true;
+        }
+
         private readonly CustomNodeManager2 m_nodeManager;
         private readonly NodeIdDictionary<MonitoredNode2> m_monitoredNodes;
         private readonly ConcurrentDictionary<uint, IMonitoredItem> m_monitoredItems;
@@ -278,7 +338,7 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public void Dispose()
         {
-            m_samplingGroupManager.Dispose();
+            Utils.SilentDispose(m_samplingGroupManager);
         }
 
         /// <inheritdoc/>
@@ -305,6 +365,82 @@ namespace Opc.Ua.Server
 
             // delete successful.
             return StatusCodes.Good;
+        }
+
+        public ServiceResult ModifyMonitoredItem(OperationContext context, TimestampsToReturn timestampsToReturn, ISampledDataChangeMonitoredItem monitoredItem, MonitoredItemModifyRequest itemToModify, Range range)
+        {
+            throw new NotImplementedException();
+        }
+
+        /// <inheritdoc/>
+        public (ServiceResult, MonitoringMode?) SetMonitoringMode(ServerSystemContext context, IMonitoredItem monitoredItem, MonitoringMode monitoringMode, NodeHandle handle)
+        {
+            // check for valid monitored item.
+            MonitoredItem datachangeItem = monitoredItem as MonitoredItem;
+            IMonitoredItem existingMonitoredItem;
+
+            if (!m_monitoredItems.TryGetValue(monitoredItem.Id, out existingMonitoredItem))
+            {
+                return (StatusCodes.BadMonitoredItemIdInvalid, null);
+            }
+
+            if (!Object.ReferenceEquals(datachangeItem, existingMonitoredItem))
+            {
+                return (StatusCodes.BadMonitoredItemIdInvalid, null);
+            }
+
+            // update monitoring mode.
+            MonitoringMode previousMode = datachangeItem.SetMonitoringMode(monitoringMode);
+
+            // need to provide an immediate update after enabling.
+            if (previousMode == MonitoringMode.Disabled && monitoringMode != MonitoringMode.Disabled)
+            {
+                DataValue initialValue = new DataValue();
+
+                initialValue.ServerTimestamp = DateTime.UtcNow;
+                initialValue.StatusCode = StatusCodes.BadWaitingForInitialData;
+
+                // read the initial value.
+                Node node = monitoredItem.ManagerHandle as Node;
+
+                if (node != null)
+                {
+                    ServiceResult error = node.Read(context, datachangeItem.AttributeId, initialValue);
+
+                    if (ServiceResult.IsBad(error))
+                    {
+                        initialValue.Value = null;
+                        initialValue.StatusCode = error.StatusCode;
+                    }
+                }
+
+                datachangeItem.QueueValue(initialValue, null);
+            }
+
+            return (StatusCodes.Good, previousMode);
+        }
+
+        /// <inheritdoc/>
+        public bool RestoreMonitoredItem(IServerInternal server,
+                                         INodeManager nodeManager,
+                                         ServerSystemContext context,
+                                         NodeHandle handle,
+                                         IStoredMonitoredItem storedMonitoredItem,
+                                         IUserIdentity savedOwnerIdentity,
+                                         Func<ISystemContext, NodeHandle, NodeState, NodeState> AddNodeToComponentCache,
+                                         out IMonitoredItem monitoredItem)
+        {
+            // create monitored item.
+            monitoredItem = m_samplingGroupManager.RestoreMonitoredItem(
+                handle,
+                storedMonitoredItem,
+                savedOwnerIdentity
+                );
+
+            // save monitored item.
+            m_monitoredItems.TryAdd(monitoredItem.Id, monitoredItem);
+
+            return true;
         }
 
         private readonly ConcurrentDictionary<uint, IMonitoredItem> m_monitoredItems;
