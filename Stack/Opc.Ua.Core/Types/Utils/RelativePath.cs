@@ -354,6 +354,12 @@ namespace Opc.Ua
                     {
                         element.ReferenceTypeName = new QualifiedName(qname.Name, (ushort)mappings[qname.NamespaceIndex]);
                     }
+                    else
+                    {
+                        throw new ServiceResultException(
+                            StatusCodes.BadIndexRangeInvalid,
+                            Utils.Format("Cannot translate namespace index '{0}' to target namespace table.", qname.NamespaceIndex));
+                    }
                 }
 
                 qname = element.TargetName;
@@ -363,6 +369,12 @@ namespace Opc.Ua
                     if (qname.NamespaceIndex < mappings.Length && mappings[qname.NamespaceIndex] > 0)
                     {
                         element.TargetName = new QualifiedName(qname.Name, (ushort)mappings[qname.NamespaceIndex]);
+                    }
+                    else
+                    {
+                        throw new ServiceResultException(
+                            StatusCodes.BadIndexRangeInvalid,
+                            Utils.Format("Cannot translate namespace index '{0}' to target namespace table.", qname.NamespaceIndex));
                     }
                 }
             }
