@@ -413,11 +413,6 @@ namespace Opc.Ua
                 return value1 == null && value2 == null;
             }
 
-            if (value1 is DBNull || value2 is DBNull)
-            {
-                return value1 is DBNull && value2 is DBNull;
-            }
-
             if (value1.GetType() != value2.GetType())
             {
                 return false;
@@ -426,7 +421,6 @@ namespace Opc.Ua
             //check for strings
             if (value1 is string string1)
             {
-
                 if (value2 is not string string2)
                 {
                     return false;
