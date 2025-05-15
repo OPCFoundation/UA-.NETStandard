@@ -369,7 +369,7 @@ namespace Opc.Ua.Server
         private ServerSystemContext GetOrCreateContext(ServerSystemContext context, MonitoredItem monitoredItem)
         {
             uint monitoredItemId = monitoredItem.Id;
-            long currentTicks = DateTime.UtcNow.Ticks;
+            int currentTicks = HiResClock.TickCount;
 
             // Check if the context already exists in the cache
             if (m_contextCache.TryGetValue(monitoredItemId, out var cachedEntry))
@@ -404,8 +404,8 @@ namespace Opc.Ua.Server
         private NodeState m_node;
         private List<MonitoredItem> m_dataChangeMonitoredItems;
         private List<IEventMonitoredItem> m_eventMonitoredItems;
-        private readonly ConcurrentDictionary<uint, (ServerSystemContext Context, long CreatedAtTicks)> m_contextCache = new();
-        private readonly long m_cacheLifetimeTicks = TimeSpan.FromMinutes(5).Ticks;
+        private readonly ConcurrentDictionary<uint, (ServerSystemContext Context, int CreatedAtTicks)> m_contextCache = new();
+        private readonly int m_cacheLifetimeTicks = (int)TimeSpan.FromMinutes(5).TotalMilliseconds;
         #endregion
     }
 }
