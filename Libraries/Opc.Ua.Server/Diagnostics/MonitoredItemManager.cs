@@ -46,12 +46,15 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Modify a monitored item
         /// </summary>
-        ServiceResult ModifyMonitoredItem(
-           OperationContext context,
-           TimestampsToReturn timestampsToReturn,
-           ISampledDataChangeMonitoredItem monitoredItem,
-           MonitoredItemModifyRequest itemToModify,
-           Range range);
+        ServiceResult ModifyMonitoredItem(ServerSystemContext context,
+                                                 DiagnosticsMasks diagnosticsMasks,
+                                                 TimestampsToReturn timestampsToReturn,
+                                                 MonitoringFilter filterToUse,
+                                                 Range euRange,
+                                                 double samplingInterval,
+                                                 uint revisedQueueSize,
+                                                 ISampledDataChangeMonitoredItem monitoredItem,
+                                                 MonitoredItemModifyRequest itemToModify);
 
         /// <summary>
         /// Delete a MonitoredItem and remove it from the store
@@ -207,7 +210,7 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public (ServiceResult, MonitoringMode) SetMonitoringMode(ServerSystemContext context, IMonitoredItem monitoredItem, MonitoringMode monitoringMode, NodeHandle handle)
+        public (ServiceResult, MonitoringMode?) SetMonitoringMode(ServerSystemContext context, IMonitoredItem monitoredItem, MonitoringMode monitoringMode, NodeHandle handle)
         {
             // check for valid monitored item.
             MonitoredItem datachangeItem = monitoredItem as MonitoredItem;
@@ -261,7 +264,29 @@ namespace Opc.Ua.Server
 
             return true;
         }
-
+        /// <inheritdoc/>
+        public ServiceResult ModifyMonitoredItem(ServerSystemContext context,
+                                                 DiagnosticsMasks diagnosticsMasks,
+                                                 TimestampsToReturn timestampsToReturn,
+                                                 MonitoringFilter filterToUse,
+                                                 Range euRange,
+                                                 double samplingInterval,
+                                                 uint revisedQueueSize,
+                                                 ISampledDataChangeMonitoredItem monitoredItem,
+                                                 MonitoredItemModifyRequest itemToModify)
+        {
+            // modify the monitored item parameters.
+            return monitoredItem.ModifyAttributes(
+                diagnosticsMasks,
+                timestampsToReturn,
+                itemToModify.RequestedParameters.ClientHandle,
+                filterToUse,
+                filterToUse,
+                euRange,
+                samplingInterval,
+                revisedQueueSize,
+                itemToModify.RequestedParameters.DiscardOldest);
+        }
         private readonly CustomNodeManager2 m_nodeManager;
         private readonly NodeIdDictionary<MonitoredNode2> m_monitoredNodes;
         private readonly ConcurrentDictionary<uint, IMonitoredItem> m_monitoredItems;
@@ -366,10 +391,36 @@ namespace Opc.Ua.Server
             // delete successful.
             return StatusCodes.Good;
         }
-
-        public ServiceResult ModifyMonitoredItem(OperationContext context, TimestampsToReturn timestampsToReturn, ISampledDataChangeMonitoredItem monitoredItem, MonitoredItemModifyRequest itemToModify, Range range)
+        /// <inheritdoc/>
+        public ServiceResult ModifyMonitoredItem(ServerSystemContext context,
+                                                 DiagnosticsMasks diagnosticsMasks,
+                                                 TimestampsToReturn timestampsToReturn,
+                                                 MonitoringFilter filterToUse,
+                                                 Range euRange,
+                                                 double samplingInterval,
+                                                 uint revisedQueueSize,
+                                                 ISampledDataChangeMonitoredItem monitoredItem,
+                                                 MonitoredItemModifyRequest itemToModify)
         {
-            throw new NotImplementedException();
+            // validate monitored item.
+            IMonitoredItem existingMonitoredItem = null;
+
+            if (!m_monitoredItems.TryGetValue(monitoredItem.Id, out existingMonitoredItem))
+            {
+                return StatusCodes.BadMonitoredItemIdInvalid;
+            }
+
+            if (!Object.ReferenceEquals(monitoredItem, existingMonitoredItem))
+            {
+                return StatusCodes.BadMonitoredItemIdInvalid;
+            }
+
+            return m_samplingGroupManager.ModifyMonitoredItem(
+                        context.OperationContext,
+                        timestampsToReturn,
+                        monitoredItem,
+                        itemToModify,
+                        euRange);
         }
 
         /// <inheritdoc/>

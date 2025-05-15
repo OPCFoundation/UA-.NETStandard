@@ -4155,6 +4155,7 @@ namespace Opc.Ua.Server
                     }
                 }
             }
+            m_monitoredItemManager.ApplyChanges();
 
             // do any post processing.
             OnModifyMonitoredItemsComplete(systemContext, modifiedItems);
@@ -4240,16 +4241,15 @@ namespace Opc.Ua.Server
             }
 
             // modify the monitored item parameters.
-            error = datachangeItem.ModifyAttributes(
-                diagnosticsMasks,
-                timestampsToReturn,
-                itemToModify.RequestedParameters.ClientHandle,
-                filterToUse,
-                filterToUse,
-                euRange,
-                samplingInterval,
-                revisedQueueSize,
-                itemToModify.RequestedParameters.DiscardOldest);
+            error = m_monitoredItemManager.ModifyMonitoredItem(context,
+                                                               diagnosticsMasks,
+                                                               timestampsToReturn,
+                                                               filterToUse,
+                                                               euRange,
+                                                               samplingInterval,
+                                                               revisedQueueSize,
+                                                               datachangeItem,
+                                                               itemToModify);
 
             // report change.
             if (ServiceResult.IsGood(error))
