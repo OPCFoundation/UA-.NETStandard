@@ -608,6 +608,17 @@ namespace Opc.Ua.Client
         void Open(string sessionName, uint sessionTimeout, IUserIdentity identity, IList<string> preferredLocales, bool checkDomain);
 
         /// <summary>
+        /// Establishes a session with the server.
+        /// </summary>
+        /// <param name="sessionName">The name to assign to the session.</param>
+        /// <param name="sessionTimeout">The session timeout.</param>
+        /// <param name="identity">The user identity.</param>
+        /// <param name="preferredLocales">The list of preferred locales.</param>
+        /// <param name="checkDomain">If set to <c>true</c> then the domain in the certificate must match the endpoint used.</param>
+        /// <param name="closeChannel">If set to <c>true</c> then the channel is closed when the Open fails.</param>
+        void Open(string sessionName, uint sessionTimeout, IUserIdentity identity, IList<string> preferredLocales, bool checkDomain, bool closeChannel);
+
+        /// <summary>
         /// Updates the preferred locales used for the session.
         /// </summary>
         /// <param name="preferredLocales">The preferred locales.</param>
@@ -668,6 +679,18 @@ namespace Opc.Ua.Client
         /// <param name="checkDomain">If set to <c>true</c> then the domain in the certificate must match the endpoint used.</param>
         /// <param name="ct">The cancellation token.</param>
         Task OpenAsync(string sessionName, uint sessionTimeout, IUserIdentity identity, IList<string> preferredLocales, bool checkDomain, CancellationToken ct);
+
+        /// <summary>
+        /// Establishes a session with the server.
+        /// </summary>
+        /// <param name="sessionName">The name to assign to the session.</param>
+        /// <param name="sessionTimeout">The session timeout.</param>
+        /// <param name="identity">The user identity.</param>
+        /// <param name="preferredLocales">The list of preferred locales.</param>
+        /// <param name="checkDomain">If set to <c>true</c> then the domain in the certificate must match the endpoint used.</param>
+        /// <param name="closeChannel">If set to <c>true</c> then the channel is closed when the Open fails.</param>
+        /// <param name="ct">The cancellation token.</param>
+        Task OpenAsync(string sessionName, uint sessionTimeout, IUserIdentity identity, IList<string> preferredLocales, bool checkDomain, bool closeChannel, CancellationToken ct);
 
         /// <summary>
         /// Reads the values for the node attributes and returns a node object collection.

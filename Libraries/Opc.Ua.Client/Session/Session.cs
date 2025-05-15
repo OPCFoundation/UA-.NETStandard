@@ -153,6 +153,7 @@ namespace Opc.Ua.Client
                 m_SubscriptionsChanged = template.m_SubscriptionsChanged;
                 m_SessionClosing = template.m_SessionClosing;
                 m_SessionConfigurationChanged = template.m_SessionConfigurationChanged;
+                m_RenewUserIdentity = template.m_RenewUserIdentity;
             }
 
             foreach (Subscription subscription in template.Subscriptions)
@@ -1268,11 +1269,12 @@ namespace Opc.Ua.Client
 
             try
             {
+                session.RecreateRenewUserIdentity();
                 // open the session.
                 session.Open(
                     template.SessionName,
                     (uint)template.SessionTimeout,
-                    template.Identity,
+                    session.Identity,
                     template.PreferredLocales,
                     template.m_checkDomain);
 
@@ -1314,11 +1316,12 @@ namespace Opc.Ua.Client
 
             try
             {
+                session.RecreateRenewUserIdentity();
                 // open the session.
                 session.Open(
                     template.m_sessionName,
                     (uint)template.m_sessionTimeout,
-                    template.m_identity,
+                    session.Identity,
                     template.m_preferredLocales,
                     template.m_checkDomain);
 
@@ -1349,13 +1352,15 @@ namespace Opc.Ua.Client
 
             try
             {
+                session.RecreateRenewUserIdentity();
                 // open the session.
                 session.Open(
                     template.m_sessionName,
                     (uint)template.m_sessionTimeout,
-                    template.m_identity,
+                    session.Identity,
                     template.m_preferredLocales,
-                    template.m_checkDomain);
+                    template.m_checkDomain,
+                    false);
 
                 // create the subscriptions.
                 foreach (Subscription subscription in session.Subscriptions)
@@ -2288,6 +2293,16 @@ namespace Opc.Ua.Client
         {
             Open(sessionName, sessionTimeout, identity, preferredLocales, true);
         }
+        /// <inheritdoc/>
+        public void Open(
+            string sessionName,
+            uint sessionTimeout,
+            IUserIdentity identity,
+            IList<string> preferredLocales,
+            bool checkDomain)
+        {
+            Open(sessionName, sessionTimeout, identity, preferredLocales, checkDomain, true);
+        }
 
         /// <inheritdoc/>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Maintainability", "CA1506:AvoidExcessiveClassCoupling")]
@@ -2296,7 +2311,8 @@ namespace Opc.Ua.Client
             uint sessionTimeout,
             IUserIdentity identity,
             IList<string> preferredLocales,
-            bool checkDomain)
+            bool checkDomain,
+            bool closeChannel)
         {
             OpenValidateIdentity(ref identity, out var identityToken, out var identityPolicy, out string securityPolicyUri, out bool requireEncryption);
 
@@ -2555,7 +2571,7 @@ namespace Opc.Ua.Client
             {
                 try
                 {
-                    Close(true);
+                    Close(closeChannel);
                 }
                 catch (Exception e)
                 {
@@ -5345,6 +5361,17 @@ namespace Opc.Ua.Client
             }
 
             return false;
+        }
+
+        /// <summary>
+        /// Helper to refresh the identity (reprompt for password, refresh token) in case of a Recreate of the Session.
+        /// </summary>
+        public virtual void RecreateRenewUserIdentity()
+        {
+            if (m_RenewUserIdentity != null)
+            {
+                m_identity = m_RenewUserIdentity(this, m_identity);
+            }
         }
         #endregion
 
