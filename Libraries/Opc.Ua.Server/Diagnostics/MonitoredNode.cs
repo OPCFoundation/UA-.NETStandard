@@ -384,6 +384,11 @@ namespace Opc.Ua.Server
 
                     return updatedContext;
                 }
+                // return cached entry
+                else
+                {
+                    return cachedEntry.Context;
+                }
             }
 
             // Create a new context and add it to the cache
