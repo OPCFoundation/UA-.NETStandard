@@ -2291,7 +2291,7 @@ namespace Opc.Ua.Client
             IUserIdentity identity,
             IList<string> preferredLocales)
         {
-            Open(sessionName, sessionTimeout, identity, preferredLocales, true, true);
+            Open(sessionName, sessionTimeout, identity, preferredLocales, true);
         }
         /// <inheritdoc/>
         public void Open(
@@ -2301,7 +2301,7 @@ namespace Opc.Ua.Client
             IList<string> preferredLocales,
             bool checkDomain)
         {
-            Open(sessionName, sessionTimeout, identity, preferredLocales, true, true);
+            Open(sessionName, sessionTimeout, identity, preferredLocales, checkDomain, true);
         }
 
         /// <inheritdoc/>

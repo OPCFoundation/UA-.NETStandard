@@ -627,7 +627,7 @@ namespace Opc.Ua.Client.Tests
 
 
             //Recreate session using same channel
-            var session3 = await ClientFixture.SessionFactory.RecreateAsync(session1, channel);
+            var session3 = await ClientFixture.SessionFactory.RecreateAsync(session1, channel).ConfigureAwait(false);
 
             _ = session3.ReadValue(VariableIds.Server_ServerStatus, typeof(ServerStatusDataType));
 
