@@ -4,25 +4,27 @@ using System.Collections.Concurrent;
 namespace Opc.Ua.Server
 {
     /// <summary>
-    /// Manages the montioredItems for a NodeManager
+    /// Manages the MonitoredItems for a NodeManager
     /// </summary>
     public interface IMonitoredItemManager : IDisposable
     {
         /// <summary>
-        /// The table of monitored items.
+        /// The table of MonitoredItems.
         /// </summary>
         ConcurrentDictionary<uint, IMonitoredItem> MonitoredItems { get; }
         /// <summary>
         /// Gets the table of nodes being monitored.
-        /// If sampling groups are used only contains the MonitoredNodes being monitored for events
+        /// If sampling groups are used only contains the Nodes being monitored for events
         /// </summary>
         NodeIdDictionary<MonitoredNode2> MonitoredNodes { get; }
         /// <summary>
         /// Apply pending changes to the monitored items.
+        /// Currently only relant if sampling groups are used.
         /// </summary>
         void ApplyChanges();
+
         /// <summary>
-        /// Create a MonitoredItem and save it in the store
+        /// Create a MonitoredItem and save it in table of monitored items.
         /// </summary>
         IMonitoredItem CreateMonitoredItem(IServerInternal server,
                                           INodeManager nodeManager,
@@ -40,6 +42,7 @@ namespace Opc.Ua.Server
                                           bool createDurable,
                                           uint monitoredItemId,
                                           Func<ISystemContext, NodeHandle, NodeState, NodeState> AddNodeToComponentCache);
+
         /// <summary>
         /// Modify a monitored item
         /// </summary>
@@ -54,7 +57,7 @@ namespace Opc.Ua.Server
                                                  MonitoredItemModifyRequest itemToModify);
 
         /// <summary>
-        /// Delete a MonitoredItem and remove it from the store
+        /// Delete a MonitoredItem and remove it from the table of monitored items.
         /// </summary>
         StatusCode DeleteMonitoredItem(
             ServerSystemContext context,
@@ -84,7 +87,7 @@ namespace Opc.Ua.Server
             out IMonitoredItem monitoredItem);
 
         /// <summary>
-        /// Subscribes to events.
+        /// Subscribe to events of the specified node.
         /// </summary>
         (MonitoredNode2, ServiceResult) SubscribeToEvents(
             ServerSystemContext context,
