@@ -119,6 +119,7 @@ namespace Opc.Ua.Server
             m_namespaceUris = namespaceUris;
             m_namespaceIndexes = namespaceIndexes;
 
+            // create a monitored item manager that owns sampling groups / monitoredNodes
             if (useSamplingGroups)
             {
                 m_monitoredItemManager = new SamplingGroupMonitoredItemManager(this, server, configuration);
@@ -127,10 +128,6 @@ namespace Opc.Ua.Server
             {
                 m_monitoredItemManager = new MonitoredNodeMonitoredItemManager(this);
             }
-
-            // create the table of monitored nodes.
-            // these are created by the node manager whenever a client subscribe to an attribute of the node.
-            m_monitoredNodes = new NodeIdDictionary<MonitoredNode2>();
 
             m_predefinedNodes = new NodeIdDictionary<NodeState>();
         }
@@ -3271,60 +3268,7 @@ namespace Opc.Ua.Server
             IEventMonitoredItem monitoredItem,
             bool unsubscribe)
         {
-            MonitoredNode2 monitoredNode = null;
-
-            // handle unsubscribe.
-            if (unsubscribe)
-            {
-                // check for existing monitored node.
-                if (!MonitoredNodes.TryGetValue(source.NodeId, out monitoredNode))
-                {
-                    return StatusCodes.BadNodeIdUnknown;
-                }
-
-                monitoredNode.Remove(monitoredItem);
-
-                // check if node is no longer being monitored.
-                if (!monitoredNode.HasMonitoredItems)
-                {
-                    MonitoredNodes.Remove(source.NodeId);
-                }
-
-                // update flag.
-                source.SetAreEventsMonitored(context, !unsubscribe, true);
-
-                // call subclass.
-                OnSubscribeToEvents(context, monitoredNode, unsubscribe);
-
-                // all done.
-                return ServiceResult.Good;
-            }
-
-            // only objects or views can be subscribed to.
-            if (!(source is BaseObjectState instance) || (instance.EventNotifier & EventNotifiers.SubscribeToEvents) == 0)
-            {
-                if (!(source is ViewState view) || (view.EventNotifier & EventNotifiers.SubscribeToEvents) == 0)
-                {
-                    return StatusCodes.BadNotSupported;
-                }
-            }
-
-            // check for existing monitored node.
-            if (!MonitoredNodes.TryGetValue(source.NodeId, out monitoredNode))
-            {
-                MonitoredNodes[source.NodeId] = monitoredNode = new MonitoredNode2(this, source);
-            }
-
-            if (monitoredNode.EventMonitoredItems != null)
-            {
-                // remove existing monitored items with the same Id prior to insertion in order to avoid duplicates
-                // this is necessary since the SubscribeToEvents method is called also from ModifyMonitoredItemsForEvents
-                monitoredNode.EventMonitoredItems.RemoveAll(e => e.Id == monitoredItem.Id);
-            }
-
-            // this links the node to specified monitored item and ensures all events
-            // reported by the node are added to the monitored item's queue.
-            monitoredNode.Add(monitoredItem);
+            (MonitoredNode2 monitoredNode, ServiceResult serviceResult) = m_monitoredItemManager.SubscribeToEvents(context, source, monitoredItem, unsubscribe);
 
             // This call recursively updates a reference count all nodes in the notifier
             // hierarchy below the area. Sources with a reference count of 0 do not have
@@ -3335,7 +3279,7 @@ namespace Opc.Ua.Server
             OnSubscribeToEvents(context, monitoredNode, unsubscribe);
 
             // all done.
-            return ServiceResult.Good;
+            return serviceResult;
         }
 
         /// <summary>
@@ -3391,16 +3335,16 @@ namespace Opc.Ua.Server
                     }
                     else
                     {
-                        // check for existing monitored node.
-                        MonitoredNode2 monitoredNode = null;
-
-                        if (!MonitoredNodes.TryGetValue(monitoredItem.NodeId, out monitoredNode))
+                        // check if monitored Item is managed by this node manager
+                        // check both dictionaries for downward compatibility
+                        if (!MonitoredNodes.ContainsKey(monitoredItem.NodeId)
+                            && !MonitoredItems.ContainsKey(monitoredItem.Id))
                         {
                             continue;
                         }
-
+                        
                         // get the refresh events.
-                        nodesToRefresh.Add(monitoredNode.Node);
+                        nodesToRefresh.Add(((NodeHandle)monitoredItem.ManagerHandle).Node);
                     }
                 }
 
@@ -4891,7 +4835,6 @@ namespace Opc.Ua.Server
         private ServerSystemContext m_systemContext;
         private IReadOnlyList<string> m_namespaceUris;
         private IReadOnlyList<ushort> m_namespaceIndexes;
-        private NodeIdDictionary<MonitoredNode2> m_monitoredNodes;
         private NodeIdDictionary<CacheEntry> m_componentCache;
         private NodeIdDictionary<NodeState> m_predefinedNodes;
         private List<NodeState> m_rootNotifiers;

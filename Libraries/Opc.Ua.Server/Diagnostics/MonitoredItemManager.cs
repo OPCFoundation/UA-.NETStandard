@@ -18,6 +18,7 @@ namespace Opc.Ua.Server
         ConcurrentDictionary<uint, IMonitoredItem> MonitoredItems { get; }
         /// <summary>
         /// Gets the table of nodes being monitored.
+        /// If sampling groups are used only contains the MonitoredNodes being monitored for events
         /// </summary>
         NodeIdDictionary<MonitoredNode2> MonitoredNodes { get; }
         /// <summary>
@@ -86,12 +87,15 @@ namespace Opc.Ua.Server
             Func<ISystemContext, NodeHandle, NodeState, NodeState> AddNodeToComponentCache,
             out IMonitoredItem monitoredItem);
 
-
-        // TODO: Condition refresh???
-
-        // TODO: Subscribe to Events
+        /// <summary>
+        /// Subscribes to events.
+        /// </summary>
+        (MonitoredNode2, ServiceResult) SubscribeToEvents(
+            ServerSystemContext context,
+            NodeState source,
+            IEventMonitoredItem monitoredItem,
+            bool unsubscribe);
     }
-
     /// <summary>
     /// Manages the montioredItems for a NodeManager
     /// </summary>
@@ -103,6 +107,7 @@ namespace Opc.Ua.Server
         {
             m_nodeManager = nodeManager;
             m_monitoredNodes = new NodeIdDictionary<MonitoredNode2>();
+            m_monitoredItems = new ConcurrentDictionary<uint, IMonitoredItem>();
         }
         /// <inheritdoc/>
         public NodeIdDictionary<MonitoredNode2> MonitoredNodes => m_monitoredNodes;
@@ -287,6 +292,59 @@ namespace Opc.Ua.Server
                 revisedQueueSize,
                 itemToModify.RequestedParameters.DiscardOldest);
         }
+        /// <inheritdoc/>
+        public (MonitoredNode2, ServiceResult) SubscribeToEvents(ServerSystemContext context, NodeState source, IEventMonitoredItem monitoredItem, bool unsubscribe)
+        {
+            MonitoredNode2 monitoredNode = null;
+            // handle unsubscribe.
+            if (unsubscribe)
+            {
+                // check for existing monitored node.
+                if (!m_monitoredNodes.TryGetValue(source.NodeId, out monitoredNode))
+                {
+                    return (null, StatusCodes.BadNodeIdUnknown);
+                }
+
+                monitoredNode.Remove(monitoredItem);
+
+                // check if node is no longer being monitored.
+                if (!monitoredNode.HasMonitoredItems)
+                {
+                    m_monitoredNodes.Remove(source.NodeId);
+                }
+
+                return (monitoredNode, ServiceResult.Good);
+            }
+
+            // only objects or views can be subscribed to.
+            if (!(source is BaseObjectState instance) || (instance.EventNotifier & EventNotifiers.SubscribeToEvents) == 0)
+            {
+                if (!(source is ViewState view) || (view.EventNotifier & EventNotifiers.SubscribeToEvents) == 0)
+                {
+                    return (null, StatusCodes.BadNotSupported);
+                }
+            }
+
+            // check for existing monitored node.
+            if (!m_monitoredNodes.TryGetValue(source.NodeId, out monitoredNode))
+            {
+                m_monitoredNodes[source.NodeId] = monitoredNode = new MonitoredNode2(m_nodeManager, source);
+            }
+
+            if (monitoredNode.EventMonitoredItems != null)
+            {
+                // remove existing monitored items with the same Id prior to insertion in order to avoid duplicates
+                // this is necessary since the SubscribeToEvents method is called also from ModifyMonitoredItemsForEvents
+                monitoredNode.EventMonitoredItems.RemoveAll(e => e.Id == monitoredItem.Id);
+            }
+
+            // this links the node to specified monitored item and ensures all events
+            // reported by the node are added to the monitored item's queue.
+            monitoredNode.Add(monitoredItem);
+
+            return (monitoredNode, ServiceResult.Good);
+        }
+
         private readonly CustomNodeManager2 m_nodeManager;
         private readonly NodeIdDictionary<MonitoredNode2> m_monitoredNodes;
         private readonly ConcurrentDictionary<uint, IMonitoredItem> m_monitoredItems;
@@ -310,9 +368,13 @@ namespace Opc.Ua.Server
                 (uint)configuration.ServerConfiguration.MaxNotificationQueueSize,
                 (uint)configuration.ServerConfiguration.MaxDurableNotificationQueueSize,
                 configuration.ServerConfiguration.AvailableSamplingRates);
+
+            m_nodeManager = nodeManager;
+            m_monitoredNodes = new NodeIdDictionary<MonitoredNode2>();
+            m_monitoredItems = new ConcurrentDictionary<uint, IMonitoredItem>();
         }
         /// <inheritdoc/>
-        public NodeIdDictionary<MonitoredNode2> MonitoredNodes => throw new InvalidOperationException("Monitored items are managed using sampling groups");
+        public NodeIdDictionary<MonitoredNode2> MonitoredNodes => m_monitoredNodes;
         /// <inheritdoc/>
         public ConcurrentDictionary<uint, IMonitoredItem> MonitoredItems => m_monitoredItems;
 
@@ -494,6 +556,61 @@ namespace Opc.Ua.Server
             return true;
         }
 
+        /// <inheritdoc/>
+        public (MonitoredNode2, ServiceResult) SubscribeToEvents(ServerSystemContext context, NodeState source, IEventMonitoredItem monitoredItem, bool unsubscribe)
+        {
+            MonitoredNode2 monitoredNode = null;
+            // handle unsubscribe.
+            if (unsubscribe)
+            {
+                // check for existing monitored node.
+                if (!m_monitoredNodes.TryGetValue(source.NodeId, out monitoredNode))
+                {
+                    return (null, StatusCodes.BadNodeIdUnknown);
+                }
+
+                monitoredNode.Remove(monitoredItem);
+
+                // check if node is no longer being monitored.
+                if (!monitoredNode.HasMonitoredItems)
+                {
+                    m_monitoredNodes.Remove(source.NodeId);
+                }
+
+                return (monitoredNode, ServiceResult.Good);
+            }
+
+            // only objects or views can be subscribed to.
+            if (!(source is BaseObjectState instance) || (instance.EventNotifier & EventNotifiers.SubscribeToEvents) == 0)
+            {
+                if (!(source is ViewState view) || (view.EventNotifier & EventNotifiers.SubscribeToEvents) == 0)
+                {
+                    return (null, StatusCodes.BadNotSupported);
+                }
+            }
+
+            // check for existing monitored node.
+            if (!m_monitoredNodes.TryGetValue(source.NodeId, out monitoredNode))
+            {
+                m_monitoredNodes[source.NodeId] = monitoredNode = new MonitoredNode2(m_nodeManager, source);
+            }
+
+            if (monitoredNode.EventMonitoredItems != null)
+            {
+                // remove existing monitored items with the same Id prior to insertion in order to avoid duplicates
+                // this is necessary since the SubscribeToEvents method is called also from ModifyMonitoredItemsForEvents
+                monitoredNode.EventMonitoredItems.RemoveAll(e => e.Id == monitoredItem.Id);
+            }
+
+            // this links the node to specified monitored item and ensures all events
+            // reported by the node are added to the monitored item's queue.
+            monitoredNode.Add(monitoredItem);
+
+            return (monitoredNode, ServiceResult.Good);
+        }
+
+        private readonly CustomNodeManager2 m_nodeManager;
+        private readonly NodeIdDictionary<MonitoredNode2> m_monitoredNodes;
         private readonly ConcurrentDictionary<uint, IMonitoredItem> m_monitoredItems;
         private SamplingGroupManager m_samplingGroupManager;
     }
