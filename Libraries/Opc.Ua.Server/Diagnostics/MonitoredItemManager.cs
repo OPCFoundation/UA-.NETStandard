@@ -306,6 +306,7 @@ namespace Opc.Ua.Server
                 }
 
                 monitoredNode.Remove(monitoredItem);
+                m_monitoredItems.TryRemove(monitoredItem.Id, out _);
 
                 // check if node is no longer being monitored.
                 if (!monitoredNode.HasMonitoredItems)
@@ -341,6 +342,7 @@ namespace Opc.Ua.Server
             // this links the node to specified monitored item and ensures all events
             // reported by the node are added to the monitored item's queue.
             monitoredNode.Add(monitoredItem);
+            m_monitoredItems.TryAdd(monitoredItem.Id, monitoredItem);
 
             return (monitoredNode, ServiceResult.Good);
         }
@@ -570,6 +572,7 @@ namespace Opc.Ua.Server
                 }
 
                 monitoredNode.Remove(monitoredItem);
+                m_monitoredItems.TryRemove(monitoredItem.Id, out _);
 
                 // check if node is no longer being monitored.
                 if (!monitoredNode.HasMonitoredItems)
@@ -605,6 +608,7 @@ namespace Opc.Ua.Server
             // this links the node to specified monitored item and ensures all events
             // reported by the node are added to the monitored item's queue.
             monitoredNode.Add(monitoredItem);
+            m_monitoredItems.TryAdd(monitoredItem.Id, monitoredItem);
 
             return (monitoredNode, ServiceResult.Good);
         }
