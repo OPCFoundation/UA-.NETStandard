@@ -33,7 +33,9 @@ using System.Data;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 using MQTTnet;
+#if !NET8_0_OR_GREATER
 using MQTTnet.Client;
+#endif
 using MQTTnet.Formatter;
 using MQTTnet.Protocol;
 using Opc.Ua.PubSub.Encoding;
@@ -41,6 +43,7 @@ using Opc.Ua.PubSub.PublishedData;
 using DataSet = Opc.Ua.PubSub.PublishedData.DataSet;
 using JsonNetworkMessage = Opc.Ua.PubSub.Encoding.JsonNetworkMessage;
 using JsonDataSetMessage = Opc.Ua.PubSub.Encoding.JsonDataSetMessage;
+using System.Buffers;
 
 namespace Opc.Ua.PubSub.Transport
 {
@@ -619,7 +622,11 @@ namespace Opc.Ua.PubSub.Transport
             {
                 // raise RawData received event
                 var rawDataReceivedEventArgs = new RawDataReceivedEventArgs() {
+#if !NET8_0_OR_GREATER
                     Message = eventArgs.ApplicationMessage.PayloadSegment.Array,
+#else
+                    Message = eventArgs.ApplicationMessage.Payload.ToArray(),
+#endif
                     Source = topic,
                     TransportProtocol = TransportProtocol,
                     MessageMapping = m_messageMapping,
@@ -642,7 +649,11 @@ namespace Opc.Ua.PubSub.Transport
                 // trigger message decoding
                 if (networkMessage != null)
                 {
+#if !NET8_0_OR_GREATER
                     networkMessage.Decode(MessageContext, eventArgs.ApplicationMessage.PayloadSegment.Array, dataSetReaders);
+#else
+                    networkMessage.Decode(MessageContext, eventArgs.ApplicationMessage.Payload.ToArray(), dataSetReaders);
+#endif
 
                     // Handle the decoded message and raise the necessary event on UaPubSubApplication 
                     ProcessDecodedNetworkMessage(networkMessage, topic);
@@ -917,7 +928,7 @@ namespace Opc.Ua.PubSub.Transport
             }
         }
 
-        #endregion Private methods
+#endregion Private methods
 
         #region MessageCreator innner classes
         /// <summary>
