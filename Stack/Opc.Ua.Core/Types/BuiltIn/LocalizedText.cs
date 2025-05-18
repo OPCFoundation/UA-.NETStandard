@@ -12,6 +12,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Globalization;
 using System.Runtime.Serialization;
 using Newtonsoft.Json;
@@ -197,7 +198,7 @@ namespace Opc.Ua
         /// Results in a localized text using the "mul" locale.
         /// </summary>
         /// <param name="translations">key = locale, value = text</param>
-        public LocalizedText(IDictionary<string, string> translations)
+        public LocalizedText(IReadOnlyDictionary<string, string> translations)
         {
             Translations = translations;
         }
@@ -234,13 +235,13 @@ namespace Opc.Ua
         /// If the translations property is set a mul locale will be created.
         /// Key = locale, value = text.
         /// </summary>
-        public IDictionary<string, string> Translations
+        public IReadOnlyDictionary<string, string> Translations
         {
             get
             {
                 if (m_translations == null && m_locale != null)
                 {
-                    return new Dictionary<string, string> { { m_locale, m_text } };
+                    return new ReadOnlyDictionary<string, string>(new Dictionary<string, string> { { m_locale, m_text } });
                 }
                 return m_translations;
             }
@@ -512,11 +513,12 @@ namespace Opc.Ua
             return String.IsNullOrEmpty(value.m_text);
         }
         #endregion
+
         #region private Methods
         /// <summary>
         /// Ecodes the translations to a JSON string according to the format specified in https://reference.opcfoundation.org/Core/Part3/v105/docs/8.5
         /// </summary>
-        private string EncodeMulLocale(IDictionary<string, string> translations)
+        private string EncodeMulLocale(IReadOnlyDictionary<string, string> translations)
         {
             if (translations == null) throw new ArgumentNullException(nameof(translations));
             if (translations.Count == 0) throw new ArgumentException("The translations dictionary must not be empty.", nameof(translations));
@@ -534,7 +536,7 @@ namespace Opc.Ua
         /// If this is a "mul" locale, returns a dictionary of locale/text pairs from the JSON Text.
         /// Otherwise, returns null.
         /// </summary>
-        private IDictionary<string, string> DecodeMulLocale()
+        private IReadOnlyDictionary<string, string> DecodeMulLocale()
         {
             if (!IsMultiLanguage || string.IsNullOrWhiteSpace(m_text))
                 return null;
@@ -564,14 +566,15 @@ namespace Opc.Ua
             {
                 Utils.Trace("Failed to parse mul locale JSON text: {0}", m_text);
             }
-            return result;
+            return new ReadOnlyDictionary<string, string>(result);
         }
         #endregion
+
         #region Private Fields
         private string m_locale;
         private string m_text;
         private TranslationInfo m_translationInfo;
-        private IDictionary<string, string> m_translations;
+        private IReadOnlyDictionary<string, string> m_translations;
         #endregion
     }
 
