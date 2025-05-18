@@ -14,6 +14,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Runtime.Serialization;
+using Newtonsoft.Json;
 
 namespace Opc.Ua
 {
@@ -61,6 +62,8 @@ namespace Opc.Ua
     [DataContract(Namespace = Namespaces.OpcUaXsd)]
     public partial class LocalizedText : ICloneable, IFormattable
     {
+        private const string MulLocale = "mul";
+        private const string MulLocaleDictionaryKey = "t";
         #region Constructors
         /// <summary>
         /// Initializes the object with the default values.
@@ -122,6 +125,7 @@ namespace Opc.Ua
             {
                 m_text = m_translationInfo.Text;
             }
+            m_translations = DecodeMulLocale();
         }
 
         /// <summary>
@@ -138,6 +142,7 @@ namespace Opc.Ua
 
             m_locale = value.m_locale;
             m_text = value.m_text;
+            m_translations = DecodeMulLocale();
         }
 
         /// <summary>
@@ -165,6 +170,7 @@ namespace Opc.Ua
         {
             m_locale = locale;
             m_text = text;
+            m_translations = DecodeMulLocale();
         }
 
         /// <summary>
@@ -182,6 +188,18 @@ namespace Opc.Ua
             {
                 m_translationInfo = new TranslationInfo(key, locale, text);
             }
+            m_translations = DecodeMulLocale();
+        }
+
+        /// <summary>
+        /// Creates a LocalizedText object from a dictionary of translations.
+        /// The dictionary must contain at least one entry.
+        /// Results in a localized text using the "mul" locale.
+        /// </summary>
+        /// <param name="translations">key = locale, value = text</param>
+        public LocalizedText(IDictionary<string, string> translations)
+        {
+            Translations = translations;
         }
         #endregion
 
@@ -209,6 +227,48 @@ namespace Opc.Ua
         /// The localized text.
         /// </remarks>
         public string Text => m_text;
+
+        /// <summary>
+        /// The decoded translations if the Localized Text is a mul locale.
+        /// If the LocalizedText is not a mul locale, this property will return a dictionary with one entry from the Text and Locale properties.
+        /// If the translations property is set a mul locale will be created.
+        /// Key = locale, value = text.
+        /// </summary>
+        public IDictionary<string, string> Translations
+        {
+            get
+            {
+                if (m_translations == null && m_locale != null)
+                {
+                    return new Dictionary<string, string> { { m_locale, m_text } };
+                }
+                return m_translations;
+            }
+
+            set
+            {
+                if (value == null || value.Count == 0)
+                {
+                    m_translations = null;
+                    return;
+                }
+                // if the dictionary contains only one entry, use the first entry as the locale and text.
+                if (value.Count == 1)
+                {
+                    foreach (var kvp in value)
+                    {
+                        m_locale = kvp.Key;
+                        m_text = kvp.Value;
+                        m_translations = null;
+                        return;
+                    }
+                }
+                //Encode the dictionary to a mul locale.
+                m_translations = value;
+                m_locale = MulLocale;
+                m_text = EncodeMulLocale(m_translations);
+            }
+        }
 
         /// <summary cref="LocalizedText.Text" />
         [DataMember(Name = "Text", Order = 2)]
@@ -256,6 +316,11 @@ namespace Opc.Ua
             get { return m_translationInfo; }
             set { m_translationInfo = value; }
         }
+
+        /// <summary>
+        /// Returns true if this LocalizedText uses the "mul" special locale.
+        /// </summary>
+        public bool IsMultiLanguage => string.Equals(m_locale, MulLocale, StringComparison.OrdinalIgnoreCase);
         #endregion
 
         #region Overridden Methods
@@ -447,11 +512,66 @@ namespace Opc.Ua
             return String.IsNullOrEmpty(value.m_text);
         }
         #endregion
+        #region private Methods
+        /// <summary>
+        /// Ecodes the translations to a JSON string according to the format specified in https://reference.opcfoundation.org/Core/Part3/v105/docs/8.5
+        /// </summary>
+        private string EncodeMulLocale(IDictionary<string, string> translations)
+        {
+            if (translations == null) throw new ArgumentNullException(nameof(translations));
+            if (translations.Count == 0) throw new ArgumentException("The translations dictionary must not be empty.", nameof(translations));
 
+            var t = new List<object[]>();
+            foreach (var kvp in translations)
+            {
+                t.Add(new object[] { kvp.Key, kvp.Value });
+            }
+
+            return JsonConvert.SerializeObject(new Dictionary<string, object> { { MulLocaleDictionaryKey, t } });
+        }
+
+        /// <summary>
+        /// If this is a "mul" locale, returns a dictionary of locale/text pairs from the JSON Text.
+        /// Otherwise, returns null.
+        /// </summary>
+        private IDictionary<string, string> DecodeMulLocale()
+        {
+            if (!IsMultiLanguage || string.IsNullOrWhiteSpace(m_text))
+                return null;
+
+            var result = new Dictionary<string, string>();
+            try
+            {
+                // The expected JSON structure is defined in https://reference.opcfoundation.org/Core/Part3/v105/docs/8.5
+                var json = JsonConvert.DeserializeObject<Dictionary<string, object>>(m_text);
+                if (json != null && json.TryGetValue(MulLocaleDictionaryKey, out var tValue) && tValue is Newtonsoft.Json.Linq.JArray tArray)
+                {
+                    foreach (var pairToken in tArray)
+                    {
+                        if (pairToken is Newtonsoft.Json.Linq.JArray pair && pair.Count == 2)
+                        {
+                            var locale = pair[0]?.ToString();
+                            var text = pair[1]?.ToString();
+                            if (!string.IsNullOrEmpty(locale) && text != null)
+                            {
+                                result[locale] = text;
+                            }
+                        }
+                    }
+                }
+            }
+            catch
+            {
+                Utils.Trace("Failed to parse mul locale JSON text: {0}", m_text);
+            }
+            return result;
+        }
+        #endregion
         #region Private Fields
         private string m_locale;
         private string m_text;
         private TranslationInfo m_translationInfo;
+        private IDictionary<string, string> m_translations;
         #endregion
     }
 
