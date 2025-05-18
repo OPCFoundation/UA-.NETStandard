@@ -101,6 +101,18 @@ namespace Opc.Ua.Server
                     m_shutdownEvent.Set();
                     m_samplingRates.Clear();
                 }
+
+                if (m_samplingTask != null)
+                {
+                    try
+                    {
+                        m_samplingTask.Wait();
+                    }
+                    catch (AggregateException) { /* Ignore exceptions on shutdown */ }
+                }
+
+                Utils.SilentDispose(m_samplingTask);
+                Utils.SilentDispose(m_shutdownEvent);
             }
         }
         #endregion
