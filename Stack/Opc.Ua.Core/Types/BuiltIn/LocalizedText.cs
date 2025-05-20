@@ -14,6 +14,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Globalization;
+using System.Linq;
 using System.Runtime.Serialization;
 using Newtonsoft.Json;
 
@@ -514,7 +515,76 @@ namespace Opc.Ua
         }
         #endregion
 
-        #region private Methods
+        #region Public Methods
+        /// <summary>
+        /// Returns a LocalizedText filtered by the preferred locales according to OPC UA Part 4 rules for 'mul' and 'qst'. (https://reference.opcfoundation.org/Core/Part4/v105/docs/5.4)
+        /// </summary>
+        /// <param name="preferredLocales">The list of preferred locales, possibly including 'mul' or 'qst' as the first entry.</param>
+        /// <returns>A LocalizedText containing translations as specified by the rules.</returns>
+        public LocalizedText FilterByPreferredLocales(IList<string> preferredLocales)
+        {
+            if (preferredLocales == null || preferredLocales.Count == 0 || m_locale == null)
+            {
+                return this;
+            }
+
+            bool isMultilanguageRequested = preferredLocales[0].ToLowerInvariant() is "mul" or "qst";
+
+            // If not a multi-language request, return the best match or fallback
+            if (!isMultilanguageRequested)
+            {
+                if (!IsMultiLanguage)
+                {
+                    // nothing to do for single locale text
+                    return this;
+                }
+
+                // Try to find the first matching locale
+                foreach (var locale in preferredLocales)
+                {
+                    if (Translations.TryGetValue(locale, out var text))
+                    {
+                        return new LocalizedText(locale, text);
+                    }
+                }
+                // return the first available locale
+                KeyValuePair<string, string> defaultKVP = Translations.First();
+                return new LocalizedText(defaultKVP.Key, defaultKVP.Value);
+            }
+
+            // Multi-language request: 'mul' or 'qst' 
+            if (preferredLocales.Count == 1)
+            {
+                return this;
+            }
+            // 'mul' or 'qst' + specific locales: return only those translations
+            else
+            {
+                if (!IsMultiLanguage)
+                {
+                    // nothing to do for single locale text
+                    return this;
+                }
+
+                var translations = new ReadOnlyDictionary<string, string>(Translations
+                    .Where(t => preferredLocales.Contains(t.Key))
+                    .ToDictionary(s => s.Key, s => s.Value));
+
+                // If matching locales are found return those
+                if (translations.Count > 0)
+                {
+                    return new LocalizedText(translations);
+                }
+                // else return the first available locale
+                else
+                {
+                    KeyValuePair<string, string> defaultKVP = Translations.First();
+                    return new LocalizedText(defaultKVP.Key, defaultKVP.Value);
+                }
+            }
+        }
+        #endregion
+        #region Private Methods
         /// <summary>
         /// Ecodes the translations to a JSON string according to the format specified in https://reference.opcfoundation.org/Core/Part3/v105/docs/8.5
         /// </summary>
