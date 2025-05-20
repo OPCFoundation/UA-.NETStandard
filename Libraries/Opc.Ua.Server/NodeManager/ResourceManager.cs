@@ -320,9 +320,9 @@ namespace Opc.Ua.Server
         /// </summary>
         protected virtual LocalizedText Translate(IList<string> preferredLocales, LocalizedText defaultText, TranslationInfo info)
         {
-            defaultText = defaultText.FilterByPreferredLocales(preferredLocales);
+            defaultText = defaultText?.FilterByPreferredLocales(preferredLocales);
 
-            bool isMultilanguageRequested = preferredLocales[0].ToLowerInvariant() is "mul" or "qst";
+            bool isMultilanguageRequested = preferredLocales?.Count > 0 ? preferredLocales[0].ToLowerInvariant() is "mul" or "qst" : false;
 
             // check for trivial case.
             if (info == null || String.IsNullOrEmpty(info.Text))
@@ -333,7 +333,7 @@ namespace Opc.Ua.Server
             // check for exact match.
             if (preferredLocales != null && preferredLocales.Count > 0)
             {
-                if (defaultText != null && !isMultilanguageRequested && preferredLocales[0] == defaultText.Locale)
+                if (defaultText != null && !isMultilanguageRequested && preferredLocales[0] == defaultText?.Locale)
                 {
                     return defaultText;
                 }
