@@ -325,7 +325,7 @@ namespace Opc.Ua.Server
             bool isMultilanguageRequested = preferredLocales?.Count > 0 ? preferredLocales[0].ToLowerInvariant() is "mul" or "qst" : false;
 
             // check for trivial case.
-            if (info == null || String.IsNullOrEmpty(info.Text))
+            if (info == null || (string.IsNullOrEmpty(info.Text) && string.IsNullOrEmpty(info.Key)))
             {
                 return defaultText;
             }
@@ -353,7 +353,7 @@ namespace Opc.Ua.Server
             // get translation for multiLanguage request
             if (isMultilanguageRequested)
             {
-                var translations = new Dictionary<string, string>(defaultText.Translations.ToDictionary(s => s.Key, s => s.Value));
+                var translations = defaultText?.Translations != null ? new Dictionary<string, string>(defaultText.Translations.ToDictionary(s => s.Key, s => s.Value)) : new Dictionary<string, string>();
                 // If only mul/qst is requested, return all available translations for the key.
                 if (preferredLocales.Count == 1)
                 {
