@@ -52,13 +52,13 @@ namespace Opc.Ua.Security.Certificates
         /// <exception cref="ArgumentException"></exception>
         public static byte[] ExportPrivateKeyAsPEM(
             X509Certificate2 certificate,
-            string password = null)
+            ReadOnlySpan<char> password = default)
         {
             bool isECDsaSignature = X509PfxUtils.IsECDsaSignature(certificate);
             // check if certificate is valid for use as app/sw or user cert
             if (!isECDsaSignature)
             {
-                if (!string.IsNullOrEmpty(password))
+                if (!password.IsEmpty && !password.IsWhiteSpace())
                 {
                     throw new ArgumentException(
                         "Export with password not supported on this platform.",
@@ -76,7 +76,7 @@ namespace Opc.Ua.Security.Certificates
 #if ECC_SUPPORT
             else
             {
-                if (!string.IsNullOrEmpty(password))
+                if (!password.IsEmpty && !password.IsWhiteSpace())
                 {
                     throw new ArgumentException(
                         "Export with password not supported on this platform.",

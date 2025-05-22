@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 #if !NETSTANDARD2_1 && !NET5_0_OR_GREATER
+using System;
 using System.IO;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
@@ -129,7 +130,7 @@ namespace Opc.Ua.Security.Certificates
         /// Import an RSA private key from PEM.
         /// </summary>
         /// <exception cref="CryptographicException"></exception>
-        public static RSA ImportRsaPrivateKeyFromPEM(byte[] pemDataBlob, string password = null)
+        public static RSA ImportRsaPrivateKeyFromPEM(byte[] pemDataBlob, ReadOnlySpan<char> password)
         {
             AsymmetricAlgorithm key = ImportPrivateKey(pemDataBlob, password);
             if (key is RSA rsaKey)
@@ -144,7 +145,7 @@ namespace Opc.Ua.Security.Certificates
         /// Import an ECDSa private key from PEM.
         /// </summary>
         /// <exception cref="CryptographicException"></exception>
-        public static ECDsa ImportECDsaPrivateKeyFromPEM(byte[] pemDataBlob, string password = null)
+        public static ECDsa ImportECDsaPrivateKeyFromPEM(byte[] pemDataBlob, ReadOnlySpan<char> password)
         {
             AsymmetricAlgorithm key = ImportPrivateKey(pemDataBlob, password);
             if (key is ECDsa ecKey)
@@ -161,20 +162,20 @@ namespace Opc.Ua.Security.Certificates
         /// <exception cref="CryptographicException"></exception>
         private static AsymmetricAlgorithm ImportPrivateKey(
             byte[] pemDataBlob,
-            string password = null)
+            ReadOnlySpan<char> password)
         {
             PemReader pemReader;
             using var pemStreamReader = new StreamReader(
                 new MemoryStream(pemDataBlob),
                 Encoding.UTF8,
                 true);
-            if (string.IsNullOrEmpty(password))
+            if (password.IsEmpty)
             {
                 pemReader = new PemReader(pemStreamReader);
             }
             else
             {
-                var pwFinder = new Password(password.ToCharArray());
+                var pwFinder = new Password(password.ToArray());
                 pemReader = new PemReader(pemStreamReader, pwFinder);
             }
 

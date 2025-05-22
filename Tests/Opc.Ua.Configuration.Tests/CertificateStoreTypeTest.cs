@@ -199,15 +199,9 @@ namespace Opc.Ua.Configuration.Tests
         public bool NoPrivateKeys => m_innerStore.NoPrivateKeys;
 
         /// <inheritdoc/>
-        public Task Add(X509Certificate2 certificate, string password = null)
-        {
-            return m_innerStore.AddAsync(certificate, password);
-        }
-
-        /// <inheritdoc/>
         public Task AddAsync(
             X509Certificate2 certificate,
-            string password = null,
+            char[] password = null,
             CancellationToken ct = default)
         {
             return m_innerStore.AddAsync(certificate, password, ct);
@@ -217,12 +211,6 @@ namespace Opc.Ua.Configuration.Tests
         public Task<bool> DeleteAsync(string thumbprint, CancellationToken ct = default)
         {
             return m_innerStore.DeleteAsync(thumbprint, ct);
-        }
-
-        /// <inheritdoc/>
-        public Task<X509Certificate2Collection> Enumerate()
-        {
-            return m_innerStore.EnumerateAsync();
         }
 
         /// <inheritdoc/>
@@ -293,7 +281,7 @@ namespace Opc.Ua.Configuration.Tests
             string subjectName,
             string applicationUri,
             NodeId certificateType,
-            string password,
+            char[] password,
             CancellationToken ct = default)
         {
             return m_innerStore.LoadPrivateKeyAsync(

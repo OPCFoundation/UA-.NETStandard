@@ -48,7 +48,7 @@ namespace Opc.Ua.Core.Tests.Types.Constants
         public void GetBrowseName_StandardStatusCodes_ReturnsValidNames()
         {
             // Test a few standard status code IDs
-            uint[] statusCodeIds = {
+            uint[] statusCodeIds = [
                 StatusCodes.Good,
                 StatusCodes.Bad,
                 StatusCodes.Uncertain,
@@ -58,7 +58,7 @@ namespace Opc.Ua.Core.Tests.Types.Constants
                 StatusCodes.BadTypeMismatch,
                 StatusCodes.GoodResultsMayBeIncomplete,
                 StatusCodes.UncertainReferenceOutOfServer
-            };
+            ];
 
             foreach (uint id in statusCodeIds)
             {
@@ -118,7 +118,7 @@ namespace Opc.Ua.Core.Tests.Types.Constants
                 { "UncertainReferenceOutOfServer", StatusCodes.UncertainReferenceOutOfServer }
             };
 
-            foreach (var testCase in testCases)
+            foreach (KeyValuePair<string, uint> testCase in testCases)
             {
                 uint id = StatusCodes.GetIdentifier(testCase.Key);
                 Assert.AreEqual(testCase.Value, id);
@@ -151,10 +151,10 @@ namespace Opc.Ua.Core.Tests.Types.Constants
         [Test]
         public void GetBrowseName_GetIdentifier_AreInverseOperations()
         {
-            uint[] statusCodeIds = {
+            uint[] statusCodeIds = [
                 StatusCodes.Good, StatusCodes.Bad, StatusCodes.Uncertain,
                 StatusCodes.BadNodeIdUnknown, StatusCodes.BadTypeMismatch
-            };
+            ];
 
             foreach (uint id in statusCodeIds)
             {
@@ -170,12 +170,12 @@ namespace Opc.Ua.Core.Tests.Types.Constants
         [Test]
         public void GetUtf8BrowseName_StandardStatusCodes_ReturnsValidUtf8Names()
         {
-            uint[] statusCodeIds = {
+            uint[] statusCodeIds = [
                 StatusCodes.Good,
                 StatusCodes.Bad,
                 StatusCodes.Uncertain,
                 StatusCodes.BadNodeIdUnknown
-            };
+            ];
 
             foreach (uint id in statusCodeIds)
             {
@@ -191,18 +191,18 @@ namespace Opc.Ua.Core.Tests.Types.Constants
         [Test]
         public void GetUtf8BrowseName_MatchesUtf8EncodedGetBrowseName()
         {
-            uint[] statusCodeIds = {
+            uint[] statusCodeIds = [
                 StatusCodes.Good,
                 StatusCodes.Bad,
                 StatusCodes.BadNodeIdUnknown
-            };
+            ];
 
             foreach (uint id in statusCodeIds)
             {
                 string browseName = StatusCodes.GetBrowseName(id);
                 byte[] utf8BrowseName = StatusCodes.GetUtf8BrowseName(id);
                 byte[] expectedUtf8 = System.Text.Encoding.UTF8.GetBytes(browseName);
-                
+
                 Assert.AreEqual(expectedUtf8, utf8BrowseName);
             }
         }

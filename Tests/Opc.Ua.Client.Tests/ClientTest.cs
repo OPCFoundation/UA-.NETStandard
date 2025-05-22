@@ -612,13 +612,13 @@ namespace Opc.Ua.Client.Tests
         [Order(220)]
         public async Task ConnectJWTAsync(string securityPolicy)
         {
-            const string identityToken = "fakeTokenString";
+            byte[] identityToken = "fakeTokenString"u8.ToArray();
 
             var issuedToken = new IssuedIdentityToken
             {
                 IssuedTokenType = IssuedTokenType.JWT,
                 PolicyId = Profiles.JwtUserToken,
-                DecryptedTokenData = Encoding.UTF8.GetBytes(identityToken)
+                DecryptedTokenData = identityToken
             };
 
             var userIdentity = new UserIdentity(issuedToken);
@@ -629,8 +629,7 @@ namespace Opc.Ua.Client.Tests
             Assert.NotNull(session);
             Assert.NotNull(TokenValidator.LastIssuedToken);
 
-            string receivedToken = Encoding.UTF8
-                .GetString(TokenValidator.LastIssuedToken.DecryptedTokenData);
+            byte[] receivedToken = TokenValidator.LastIssuedToken.DecryptedTokenData;
             Assert.AreEqual(identityToken, receivedToken);
 
             StatusCode result = await session.CloseAsync().ConfigureAwait(false);
@@ -643,19 +642,19 @@ namespace Opc.Ua.Client.Tests
         [Order(230)]
         public async Task ReconnectJWTAsync(string securityPolicy)
         {
-            static UserIdentity CreateUserIdentity(string tokenData)
+            static UserIdentity CreateUserIdentity(byte[] tokenData)
             {
                 var issuedToken = new IssuedIdentityToken
                 {
                     IssuedTokenType = IssuedTokenType.JWT,
                     PolicyId = Profiles.JwtUserToken,
-                    DecryptedTokenData = Encoding.UTF8.GetBytes(tokenData)
+                    DecryptedTokenData = tokenData
                 };
 
                 return new UserIdentity(issuedToken);
             }
 
-            const string identityToken = "fakeTokenString";
+            byte[] identityToken = "fakeTokenString"u8.ToArray();
             UserIdentity userIdentity = CreateUserIdentity(identityToken);
 
             ISession session = await ClientFixture
@@ -664,17 +663,17 @@ namespace Opc.Ua.Client.Tests
             Assert.NotNull(session);
             Assert.NotNull(TokenValidator.LastIssuedToken);
 
-            string receivedToken = Encoding.UTF8
-                .GetString(TokenValidator.LastIssuedToken.DecryptedTokenData);
+            byte[] receivedToken = TokenValidator.LastIssuedToken.DecryptedTokenData;
             Assert.AreEqual(identityToken, receivedToken);
+            Array.Clear(receivedToken, 0, receivedToken.Length);
 
-            const string newIdentityToken = "fakeTokenStringNew";
+            byte[] newIdentityToken = "fakeTokenStringNew"u8.ToArray();
             session.RenewUserIdentity += (_, _) => CreateUserIdentity(newIdentityToken);
 
             await session.ReconnectAsync().ConfigureAwait(false);
-            receivedToken = Encoding.UTF8
-                .GetString(TokenValidator.LastIssuedToken.DecryptedTokenData);
+            receivedToken = TokenValidator.LastIssuedToken.DecryptedTokenData;
             Assert.AreEqual(newIdentityToken, receivedToken);
+            Array.Clear(receivedToken, 0, receivedToken.Length);
 
             StatusCode result = await session.CloseAsync().ConfigureAwait(false);
             Assert.NotNull(result);
@@ -870,7 +869,7 @@ namespace Opc.Ua.Client.Tests
 
             UserIdentity userIdentity = anonymous
                 ? new UserIdentity()
-                : new UserIdentity("user1", "password");
+                : new UserIdentity("user1", "password"u8);
 
             // the first channel determines the endpoint
             ConfiguredEndpoint endpoint = await ClientFixture
@@ -979,7 +978,7 @@ namespace Opc.Ua.Client.Tests
         public async Task RecreateSessionWithRenewUserIdentityAsync()
         {
             var userIdentityAnonymous = new UserIdentity();
-            var userIdentityPW = new UserIdentity("user1", "password");
+            var userIdentityPW = new UserIdentity("user1", "password"u8);
 
             // the first channel determines the endpoint
             ConfiguredEndpoint endpoint = await ClientFixture
@@ -1859,7 +1858,7 @@ namespace Opc.Ua.Client.Tests
                 (securityPolicy != SecurityPolicies.ECC_brainpoolP256r1) ||
                 (securityPolicy != SecurityPolicies.ECC_brainpoolP384r1))
             {
-                var userIdentity = new UserIdentity("user1", "password");
+                var userIdentity = new UserIdentity("user1", "password"u8);
 
                 // the first channel determines the endpoint
                 ConfiguredEndpoint endpoint = await ClientFixture
