@@ -29,13 +29,9 @@
 
 using System;
 using System.Collections.Generic;
-using System.Text;
-using System.Resources;
 using System.Globalization;
-using System.Xml;
-using System.Reflection;
 using System.Linq;
-using System.Collections.ObjectModel;
+using System.Xml;
 
 namespace Opc.Ua.Server
 {
@@ -363,6 +359,17 @@ namespace Opc.Ua.Server
                         {
                             if (table.Translations.TryGetValue(info.Key ?? info.Text, out var t))
                             {
+                                // format translated text.
+                                if (info.Args?.Length > 0)
+                                {
+                                    try
+                                    {
+                                        t = string.Format(table.Locale, t, info.Args);
+                                    }
+                                    catch
+                                    { }
+                                }
+
                                 translations[table.Locale.Name] = t;
                             }
                         }
@@ -382,19 +389,6 @@ namespace Opc.Ua.Server
                                 // format translated text.
                                 if (info.Args?.Length > 0)
                                 {
-                                    // get a culture to use for formatting
-                                    if (culture == null)
-                                    {
-                                        try
-                                        {
-                                            culture = new CultureInfo(info.Locale);
-                                        }
-                                        catch
-                                        {
-                                            culture = CultureInfo.InvariantCulture;
-                                        }
-                                    }
-
                                     try
                                     {
                                         translation = string.Format(culture, translation, info.Args);

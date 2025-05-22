@@ -203,6 +203,23 @@ namespace Opc.Ua
         {
             Translations = translations;
         }
+
+        /// <summary>
+        /// Creates a LocalizedText object from a dictionary of translations.
+        /// The dictionary must contain at least one entry.
+        /// Results in a localized text using the "mul" locale.
+        /// </summary>
+        /// <param name="translations">key = locale, value = text</param>
+        /// <param name="key">A key used to look up the text for different locales</param>
+        public LocalizedText(string key, IReadOnlyDictionary<string, string> translations)
+        {
+            Translations = translations;
+
+            if (!string.IsNullOrEmpty(key))
+            {
+                m_translationInfo = new TranslationInfo(key, m_locale, m_text);
+            }
+        }
         #endregion
 
         #region Public Properties

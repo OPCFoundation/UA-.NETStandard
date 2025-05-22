@@ -31,6 +31,34 @@ namespace Opc.Ua.Server.Tests
             // Assert
             Assert.AreEqual(defaultText, resultText);
         }
+        [Test]
+        public void TranslateSingleLanguageWithInfoExactMatch()
+        {
+            // Arrange
+            var resourceManager = new ResourceManager(new Mock<IServerInternal>().Object, new Mock<ApplicationConfiguration>().Object);
+            var defaultText = new LocalizedText("greeting", "en-US", "Hello");
+
+            //Act
+            var resultText = resourceManager.Translate(new List<string> { "en-US", "de-DE" }, defaultText);
+
+            // Assert
+            Assert.AreEqual(defaultText, resultText);
+        }
+
+        [Test]
+        public void TranslateSingleLanguageWithArguments()
+        {
+            // Arrange
+            var resourceManager = new ResourceManager(new Mock<IServerInternal>().Object, new Mock<ApplicationConfiguration>().Object);
+            resourceManager.Add("greeting", "en-US", "Hello {0}");
+
+            //Act
+            var resultText = resourceManager.Translate(new List<string> { "en-US", "de-DE" }, "greeting", "Hello {0}", "User");
+
+            // Assert
+            Assert.AreEqual("Hello User", resultText.Text);
+            Assert.AreEqual("en-US", resultText.Locale);
+        }
 
         [Test]
         public void TranslateMultiLanguageExactMatchMulRequested()
@@ -42,7 +70,7 @@ namespace Opc.Ua.Server.Tests
                 { "en-US", "Hello" },
                 { "de-DE", "Hallo" }
             };
-            var defaultText = new LocalizedText(translations);
+            var defaultText = new LocalizedText("greeting", translations);
 
             //Act
             var resultText = resourceManager.Translate(new List<string> { "mul", "de-DE", "en-US" }, defaultText);
@@ -62,7 +90,7 @@ namespace Opc.Ua.Server.Tests
                 { "de-DE", "Hallo" },
                 { "fr-FR", "Bonjour" }
             };
-            var defaultText = new LocalizedText(translations);
+            var defaultText = new LocalizedText("greeting", translations);
 
             //Act
             var resultText = resourceManager.Translate(new List<string> { "mul", "de-DE", "en-US" }, defaultText);
@@ -81,6 +109,20 @@ namespace Opc.Ua.Server.Tests
 
             //Act
             var resultText = resourceManager.Translate(new List<string> { "mul", "de-DE", "en-US" }, defaultText);
+
+            // Assert
+            Assert.AreEqual(defaultText, resultText);
+        }
+
+        [Test]
+        public void TranslateNoLocalesRequestedDefaultTextReturned()
+        {
+            // Arrange
+            var resourceManager = new ResourceManager(new Mock<IServerInternal>().Object, new Mock<ApplicationConfiguration>().Object);
+            var defaultText = new LocalizedText("greeting", "en-US", "Hello");
+
+            //Act
+            var resultText = resourceManager.Translate(null, defaultText);
 
             // Assert
             Assert.AreEqual(defaultText, resultText);
@@ -132,6 +174,22 @@ namespace Opc.Ua.Server.Tests
 
             // Assert
             Assert.AreEqual("{\"t\":[[\"de-DE\",\"Hallo\"],[\"en-US\",\"Hello\"]]}", resultText.Text);
+            Assert.AreEqual("mul", resultText.Locale);
+        }
+
+        [Test]
+        public void TranslateKeyMulRequestedTranslationWithParameters()
+        {
+            // Arrange
+            var resourceManager = new ResourceManager(new Mock<IServerInternal>().Object, new Mock<ApplicationConfiguration>().Object);
+            resourceManager.Add("greeting", "de-DE", "Hallo {0}");
+            resourceManager.Add("greeting", "en-US", "Hello {0}");
+
+            //Act
+            var resultText = resourceManager.Translate(new List<string> { "mul" }, "greeting", null, "User");
+
+            // Assert
+            Assert.AreEqual("{\"t\":[[\"de-DE\",\"Hallo User\"],[\"en-US\",\"Hello User\"]]}", resultText.Text);
             Assert.AreEqual("mul", resultText.Locale);
         }
     }
