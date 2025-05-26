@@ -443,11 +443,19 @@ namespace Opc.Ua.Server.Tests
                 ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, acknowledgements, response.StringTable);
                 Assert.AreEqual(id, subscriptionId);
 
-                var dataChangeNotification = notificationMessage.NotificationData[0].Body as DataChangeNotification;
-                TestContext.Out.WriteLine("Notification: {0} {1} {2}",
-                                notificationMessage.SequenceNumber,
-                                dataChangeNotification?.MonitoredItems[0].Value.ToString(),
-                                notificationMessage.PublishTime);
+                if (notificationMessage.NotificationData.Count == 0)
+                {
+                    TestContext.Out.WriteLine("No notifications received in publish");
+                }
+                else
+                {
+                    var dataChangeNotification = notificationMessage.NotificationData[0].Body as DataChangeNotification;
+                    var eventNotification = notificationMessage.NotificationData[0].Body as EventNotificationList;
+                    TestContext.Out.WriteLine("Notification: {0} {1} {2}",
+                                    notificationMessage.SequenceNumber,
+                                    dataChangeNotification?.MonitoredItems[0].Value.ToString() ?? eventNotification?.Events[0].Message.ToString(),
+                                    notificationMessage.PublishTime);
+                }
 
                 acknowledgements.Clear();
                 acknowledgements.Add(new SubscriptionAcknowledgement() {
