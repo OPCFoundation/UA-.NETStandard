@@ -27,9 +27,11 @@ namespace Opc.Ua
         #region  Public Static Properties
         /// <summary>
         /// Set the default StringComparison to use when evaluating the Equals operator.
+        /// This property is meant to be set as a config setting and not set / reset on a per context basis, to ensure consistency
         /// </summary>
         public static StringComparison EqualsOperatorDefaultStringComparison { get; set; } = StringComparison.Ordinal;
         #endregion
+
         #region Public functions
         /// <summary>
         /// Evaluates the first element in the ContentFilter. If the first or any 
