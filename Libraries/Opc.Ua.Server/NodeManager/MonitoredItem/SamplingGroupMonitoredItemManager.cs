@@ -50,6 +50,12 @@ namespace Opc.Ua.Server
             uint monitoredItemId,
             Func<ISystemContext, NodeHandle, NodeState, NodeState> AddNodeToComponentCache)
         {
+            // set min sampling interval if 0
+            if(samplingInterval.CompareTo(0.0) == 0)
+            {
+                samplingInterval = 1;
+            }
+
             // create monitored item.
             MonitoredItem monitoredItem = m_samplingGroupManager.CreateMonitoredItem(
                 context.OperationContext,

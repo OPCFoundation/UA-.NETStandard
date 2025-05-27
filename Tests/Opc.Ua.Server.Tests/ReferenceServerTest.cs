@@ -462,7 +462,7 @@ namespace Opc.Ua.Server.Tests
                 NodeId[] testSet = testSetCollection.ToArray();
 
                 //Re-use method CreateSubscriptionForTransfer to create a subscription
-                var subscriptionIds = CommonTestWorkers.CreateSubscriptionForTransfer(serverTestServices, m_requestHeader, testSet, queueSize, -1);
+                var subscriptionIds = CommonTestWorkers.CreateSubscriptionForTransfer(serverTestServices, m_requestHeader, testSet, queueSize, 0);
 
                 RequestHeader resendDataRequestHeader = m_server.CreateAndActivateSession("ResendData");
                 var resendDataSecurityContext = SecureChannelContext.Current;
@@ -546,7 +546,7 @@ namespace Opc.Ua.Server.Tests
                         //If sampling groups are used, samplingInterval needs to be waited before values are queued
                         if (m_fixture.UseSamplingGroupsInReferenceNodeManager)
                         {
-                            Thread.Sleep((int)(1000.0 * 1.1));
+                            Thread.Sleep((int)(100.0 * 1.1));
                         }
                         UpdateValues(testSet);
                     }
