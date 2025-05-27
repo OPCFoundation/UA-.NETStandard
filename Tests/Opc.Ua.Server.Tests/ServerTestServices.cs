@@ -113,6 +113,14 @@ namespace Opc.Ua.Server.Tests
             out StatusCodeCollection results,
             out DiagnosticInfoCollection diagnosticInfos);
 
+        ResponseHeader SetMonitoringMode(
+           RequestHeader requestHeader,
+           uint subscriptionId,
+           MonitoringMode monitoringMode,
+           UInt32Collection monitoredItemIds,
+           out StatusCodeCollection results,
+           out DiagnosticInfoCollection diagnosticInfos);
+
         ResponseHeader Republish(
             RequestHeader requestHeader,
             uint subscriptionId,
@@ -250,6 +258,17 @@ namespace Opc.Ua.Server.Tests
             out DiagnosticInfoCollection diagnosticInfos)
         {
             return m_server.SetPublishingMode(requestHeader, publishingEnabled, subscriptionIds, out results, out diagnosticInfos);
+        }
+
+        public ResponseHeader SetMonitoringMode(
+            RequestHeader requestHeader,
+            uint subscriptionId,
+            MonitoringMode monitoringMode,
+            UInt32Collection monitoredItemIds,
+            out StatusCodeCollection results,
+            out DiagnosticInfoCollection diagnosticInfos)
+        {
+            return m_server.SetMonitoringMode(requestHeader, subscriptionId, monitoringMode, monitoredItemIds, out results, out diagnosticInfos);
         }
 
         public ResponseHeader Republish(
