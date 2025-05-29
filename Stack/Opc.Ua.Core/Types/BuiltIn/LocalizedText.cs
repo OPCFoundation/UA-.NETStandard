@@ -64,8 +64,9 @@ namespace Opc.Ua
     [DataContract(Namespace = Namespaces.OpcUaXsd)]
     public partial class LocalizedText : ICloneable, IFormattable
     {
-        private const string MulLocale = "mul";
-        private const string MulLocaleDictionaryKey = "t";
+        private const string kMulLocale = "mul";
+        private const string kMulLocaleDictionaryKey = "t";
+
         #region Constructors
         /// <summary>
         /// Initializes the object with the default values.
@@ -284,7 +285,7 @@ namespace Opc.Ua
                 }
                 //Encode the dictionary to a mul locale.
                 m_translations = value;
-                m_locale = MulLocale;
+                m_locale = kMulLocale;
                 m_text = EncodeMulLocale(m_translations);
             }
         }
@@ -339,7 +340,7 @@ namespace Opc.Ua
         /// <summary>
         /// Returns true if this LocalizedText uses the "mul" special locale.
         /// </summary>
-        public bool IsMultiLanguage => string.Equals(m_locale, MulLocale, StringComparison.OrdinalIgnoreCase);
+        public bool IsMultiLanguage => string.Equals(m_locale, kMulLocale, StringComparison.OrdinalIgnoreCase);
         #endregion
 
         #region Overridden Methods
@@ -601,6 +602,7 @@ namespace Opc.Ua
             }
         }
         #endregion
+
         #region Private Methods
         /// <summary>
         /// Ecodes the translations to a JSON string according to the format specified in https://reference.opcfoundation.org/Core/Part3/v105/docs/8.5
@@ -616,7 +618,7 @@ namespace Opc.Ua
                 t.Add(new object[] { kvp.Key, kvp.Value });
             }
 
-            return JsonConvert.SerializeObject(new Dictionary<string, object> { { MulLocaleDictionaryKey, t } });
+            return JsonConvert.SerializeObject(new Dictionary<string, object> { { kMulLocaleDictionaryKey, t } });
         }
 
         /// <summary>
@@ -633,7 +635,7 @@ namespace Opc.Ua
             {
                 // The expected JSON structure is defined in https://reference.opcfoundation.org/Core/Part3/v105/docs/8.5
                 var json = JsonConvert.DeserializeObject<Dictionary<string, object>>(m_text);
-                if (json != null && json.TryGetValue(MulLocaleDictionaryKey, out var tValue) && tValue is Newtonsoft.Json.Linq.JArray tArray)
+                if (json != null && json.TryGetValue(kMulLocaleDictionaryKey, out var tValue) && tValue is Newtonsoft.Json.Linq.JArray tArray)
                 {
                     foreach (var pairToken in tArray)
                     {
@@ -652,6 +654,7 @@ namespace Opc.Ua
             catch
             {
                 Utils.Trace("Failed to parse mul locale JSON text: {0}", m_text);
+                return null; // Return null if parsing fails
             }
             return new ReadOnlyDictionary<string, string>(result);
         }
