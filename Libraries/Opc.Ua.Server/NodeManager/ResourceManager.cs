@@ -349,8 +349,7 @@ namespace Opc.Ua.Server
             // get translation for multiLanguage request
             if (isMultilanguageRequested)
             {
-
-                var translations = (IDictionary<string, string>)(defaultText.Translations ?? new Dictionary<string, string>());
+                var translations = defaultText?.Translations != null ? new Dictionary<string, string>(defaultText.Translations.ToDictionary(s => s.Key, s => s.Value)) : new Dictionary<string, string>();
                 // If only mul/qst is requested, return all available translations for the key.
                 if (preferredLocales.Count == 1)
                 {
