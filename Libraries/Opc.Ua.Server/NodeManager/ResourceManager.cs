@@ -349,7 +349,8 @@ namespace Opc.Ua.Server
             // get translation for multiLanguage request
             if (isMultilanguageRequested)
             {
-                var translations = defaultText?.Translations != null ? new Dictionary<string, string>(defaultText.Translations.ToDictionary(s => s.Key, s => s.Value)) : new Dictionary<string, string>();
+
+                var translations = (IDictionary<string, string>)(defaultText.Translations ?? new Dictionary<string, string>());
                 // If only mul/qst is requested, return all available translations for the key.
                 if (preferredLocales.Count == 1)
                 {
@@ -357,20 +358,20 @@ namespace Opc.Ua.Server
                     {
                         foreach (var table in m_translationTables)
                         {
-                            if (table.Translations.TryGetValue(info.Key ?? info.Text, out var t))
+                            if (table.Translations.TryGetValue(info.Key ?? info.Text, out string translation))
                             {
                                 // format translated text.
                                 if (info.Args?.Length > 0)
                                 {
                                     try
                                     {
-                                        t = string.Format(table.Locale, t, info.Args);
+                                        translation = string.Format(table.Locale, translation, info.Args);
                                     }
                                     catch
                                     { }
                                 }
 
-                                translations[table.Locale.Name] = t;
+                                translations[table.Locale.Name] = translation;
                             }
                         }
                     }
@@ -402,7 +403,7 @@ namespace Opc.Ua.Server
                         }
                     }
                 }
-                return new LocalizedText(translations);
+                return new LocalizedText((IReadOnlyDictionary<string, string>)translations);
             }
             // single locale requested.
             else
