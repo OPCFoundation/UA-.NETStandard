@@ -34,6 +34,7 @@ using System.Globalization;
 using System.Linq;
 using System.Reflection;
 using System.Threading;
+using System.Threading.Tasks;
 
 
 namespace Opc.Ua.Server
@@ -2884,6 +2885,31 @@ namespace Opc.Ua.Server
             IList<CallMethodResult> results,
             IList<ServiceResult> errors)
         {
+            _ = CallInternalAsync(context, methodsToCall, results, errors, sync: true);
+        }
+
+        /// <summary>
+        /// Asycnhronously calls a method defined on an object.
+        /// </summary>
+        public virtual ValueTask CallAsync(
+            OperationContext context,
+            IList<CallMethodRequest> methodsToCall,
+            IList<CallMethodResult> results,
+            IList<ServiceResult> errors)
+        {
+            return CallInternalAsync(context, methodsToCall, results, errors, sync: false);
+        }
+
+        /// <summary>
+        /// Calls a method on the specified nodes.
+        /// </summary>
+        public virtual async ValueTask CallInternalAsync(
+            OperationContext context,
+            IList<CallMethodRequest> methodsToCall,
+            IList<CallMethodResult> results,
+            IList<ServiceResult> errors,
+            bool sync)
+        {
             ServerSystemContext systemContext = SystemContext.Copy(context);
             IDictionary<NodeId, NodeState> operationCache = new NodeIdDictionary<NodeState>();
 
@@ -2954,12 +2980,35 @@ namespace Opc.Ua.Server
                 // call the method.
                 CallMethodResult result = results[ii] = new CallMethodResult();
 
-                errors[ii] = Call(
+                if (sync)
+                {
+                    errors[ii] = Call(
                     systemContext,
                     methodToCall,
                     method,
                     result);
+                }
+                else
+                {
+                    errors[ii] = await CallAsync(
+                    systemContext,
+                    methodToCall,
+                    method,
+                    result);
+                }
             }
+        }
+
+        /// <summary>
+        /// Asynchronously calls a method on an object.
+        /// </summary>
+        protected virtual async ValueTask<ServiceResult> CallAsync(
+            ISystemContext context,
+            CallMethodRequest methodToCall,
+            MethodState method,
+            CallMethodResult result)
+        {
+            return await CallInternalAsync(context, methodToCall, method, result, sync: false).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -2971,16 +3020,43 @@ namespace Opc.Ua.Server
             MethodState method,
             CallMethodResult result)
         {
+            return CallInternalAsync(context, methodToCall, method, result, sync: true).Result;
+        }
+
+        /// <summary>
+        /// Calls a method on an object.
+        /// </summary>
+        protected virtual async ValueTask<ServiceResult> CallInternalAsync(
+            ISystemContext context,
+            CallMethodRequest methodToCall,
+            MethodState method,
+            CallMethodResult result,
+            bool sync)
+        {
             ServerSystemContext systemContext = context as ServerSystemContext;
             List<ServiceResult> argumentErrors = new List<ServiceResult>();
             VariantCollection outputArguments = new VariantCollection();
 
-            ServiceResult callResult = method.Call(
-                context,
-                methodToCall.ObjectId,
-                methodToCall.InputArguments,
-                argumentErrors,
-                outputArguments);
+            ServiceResult callResult;
+
+            if (sync)
+            {
+                callResult = method.Call(
+                   context,
+                   methodToCall.ObjectId,
+                   methodToCall.InputArguments,
+                   argumentErrors,
+                   outputArguments);
+            }
+            else
+            {
+                callResult = await method.CallAsync(
+                   context,
+                   methodToCall.ObjectId,
+                   methodToCall.InputArguments,
+                   argumentErrors,
+                   outputArguments);
+            }
 
             if (ServiceResult.IsBad(callResult))
             {
