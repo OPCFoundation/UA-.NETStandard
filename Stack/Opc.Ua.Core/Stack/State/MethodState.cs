@@ -612,15 +612,17 @@ namespace Opc.Ua
         /// <param name="inputArguments">The input arguments.</param>
         /// <param name="argumentErrors">Any errors for the input arguments.</param>
         /// <param name="outputArguments">The output arguments.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
         /// <returns>The result of the method call.</returns>
         public virtual async ValueTask<ServiceResult> CallAsync(
             ISystemContext context,
             NodeId objectId,
             IList<Variant> inputArguments,
             IList<ServiceResult> argumentErrors,
-            IList<Variant> outputArguments)
+            IList<Variant> outputArguments,
+            CancellationToken cancellationToken = default)
         {
-            return await CallAsyncInternal(context, objectId, inputArguments, argumentErrors, outputArguments, sync: false).ConfigureAwait(false);
+            return await CallAsyncInternal(context, objectId, inputArguments, argumentErrors, outputArguments, sync: false, cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -652,6 +654,7 @@ namespace Opc.Ua
         /// <param name="argumentErrors">Any errors for the input arguments.</param>
         /// <param name="outputArguments">The output arguments.</param>
         /// <param name="sync">If the method shall execute synchronously.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
         /// <returns>The result of the method call.</returns>
         protected virtual async ValueTask<ServiceResult> CallAsyncInternal(
             ISystemContext context,
@@ -659,7 +662,8 @@ namespace Opc.Ua
             IList<Variant> inputArguments,
             IList<ServiceResult> argumentErrors,
             IList<Variant> outputArguments,
-            bool sync)
+            bool sync,
+            CancellationToken cancellationToken = default)
         {
             // check if executable.
             object executable = null;
@@ -753,7 +757,7 @@ namespace Opc.Ua
                 }
                 else
                 {
-                    result = await CallAsync(context, objectId, inputs, outputs).ConfigureAwait(false);
+                    result = await CallAsync(context, objectId, inputs, outputs, cancellationToken).ConfigureAwait(false);
                 }
             }
             catch (Exception e)
@@ -790,9 +794,10 @@ namespace Opc.Ua
         protected virtual ValueTask<ServiceResult> CallAsync(
             ISystemContext context,
             IList<object> inputArguments,
-            IList<object> outputArguments)
+            IList<object> outputArguments,
+            CancellationToken cancellationToken = default)
         {
-            return CallAsync(context, null, inputArguments, outputArguments);
+            return CallAsync(context, null, inputArguments, outputArguments, cancellationToken);
         }
 
         /// <summary>
@@ -838,18 +843,20 @@ namespace Opc.Ua
         /// <param name="objectId">The id of the object.</param>
         /// <param name="inputArguments">The input arguments which have been already validated.</param>
         /// <param name="outputArguments">The output arguments which have initialized with thier default values.</param>
+        /// <param name="cancellationToken">The cancellation token</param>
         /// <returns></returns>
         protected virtual async ValueTask<ServiceResult> CallAsync(
             ISystemContext context,
             NodeId objectId,
             IList<object> inputArguments,
-            IList<object> outputArguments)
+            IList<object> outputArguments,
+            CancellationToken cancellationToken = default)
         {
             GenericAsyncMethodCalledEventHandler2 onAsyncCallMethod2 = OnAsyncCallMethod2;
 
             if (OnAsyncCallMethod2 != null)
             {
-                return await onAsyncCallMethod2(context, this, objectId, inputArguments, outputArguments).ConfigureAwait(false);
+                return await onAsyncCallMethod2(context, this, objectId, inputArguments, outputArguments, cancellationToken).ConfigureAwait(false);
             }
 
             return Call(context, null, inputArguments, outputArguments);
@@ -947,5 +954,6 @@ namespace Opc.Ua
         MethodState method,
         NodeId objectId,
         IList<object> inputArguments,
-        IList<object> outputArguments);
+        IList<object> outputArguments,
+        CancellationToken cancellationToken = default);
 }

@@ -2895,9 +2895,10 @@ namespace Opc.Ua.Server
             OperationContext context,
             IList<CallMethodRequest> methodsToCall,
             IList<CallMethodResult> results,
-            IList<ServiceResult> errors)
+            IList<ServiceResult> errors,
+            CancellationToken cancellationToken = default)
         {
-            return CallInternalAsync(context, methodsToCall, results, errors, sync: false);
+            return CallInternalAsync(context, methodsToCall, results, errors, sync: false, cancellationToken);
         }
 
         /// <summary>
@@ -2908,7 +2909,8 @@ namespace Opc.Ua.Server
             IList<CallMethodRequest> methodsToCall,
             IList<CallMethodResult> results,
             IList<ServiceResult> errors,
-            bool sync)
+            bool sync,
+            CancellationToken cancellationToken = default)
         {
             ServerSystemContext systemContext = SystemContext.Copy(context);
             IDictionary<NodeId, NodeState> operationCache = new NodeIdDictionary<NodeState>();
@@ -2994,7 +2996,8 @@ namespace Opc.Ua.Server
                     systemContext,
                     methodToCall,
                     method,
-                    result);
+                    result,
+                    cancellationToken);
                 }
             }
         }
@@ -3006,9 +3009,10 @@ namespace Opc.Ua.Server
             ISystemContext context,
             CallMethodRequest methodToCall,
             MethodState method,
-            CallMethodResult result)
+            CallMethodResult result,
+            CancellationToken cancellationToken = default)
         {
-            return await CallInternalAsync(context, methodToCall, method, result, sync: false).ConfigureAwait(false);
+            return await CallInternalAsync(context, methodToCall, method, result, sync: false, cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -3031,7 +3035,8 @@ namespace Opc.Ua.Server
             CallMethodRequest methodToCall,
             MethodState method,
             CallMethodResult result,
-            bool sync)
+            bool sync,
+            CancellationToken cancellationToken = default)
         {
             ServerSystemContext systemContext = context as ServerSystemContext;
             List<ServiceResult> argumentErrors = new List<ServiceResult>();
@@ -3055,7 +3060,8 @@ namespace Opc.Ua.Server
                    methodToCall.ObjectId,
                    methodToCall.InputArguments,
                    argumentErrors,
-                   outputArguments);
+                   outputArguments,
+                   cancellationToken);
             }
 
             if (ServiceResult.IsBad(callResult))

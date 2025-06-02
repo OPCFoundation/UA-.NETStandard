@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Opc.Ua.Server
@@ -381,7 +382,8 @@ namespace Opc.Ua.Server
             OperationContext context,
             IList<CallMethodRequest> methodsToCall,
             IList<CallMethodResult> results,
-            IList<ServiceResult> errors);
+            IList<ServiceResult> errors,
+            CancellationToken cancellationToken = default);
     }
 
     /// <summary>

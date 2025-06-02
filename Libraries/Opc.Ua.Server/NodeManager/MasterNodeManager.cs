@@ -2070,9 +2070,10 @@ namespace Opc.Ua.Server
         /// </summary>
         public virtual ValueTask<(CallMethodResultCollection results, DiagnosticInfoCollection diagnosticInfos)> CallAsync(
             OperationContext context,
-            CallMethodRequestCollection methodsToCall)
+            CallMethodRequestCollection methodsToCall,
+            CancellationToken cancellationToken = default)
         {
-            return CallInternalAsync(context, methodsToCall, sync: false);
+            return CallInternalAsync(context, methodsToCall, sync: false, cancellationToken);
         }
 
         /// <summary>
@@ -2093,7 +2094,8 @@ namespace Opc.Ua.Server
         public virtual async ValueTask<(CallMethodResultCollection results, DiagnosticInfoCollection diagnosticInfos)> CallInternalAsync(
             OperationContext context,
             CallMethodRequestCollection methodsToCall,
-            bool sync)
+            bool sync,
+            CancellationToken cancellationToken = default)
         {
             if (context == null) throw new ArgumentNullException(nameof(context));
             if (methodsToCall == null) throw new ArgumentNullException(nameof(methodsToCall));
@@ -2150,7 +2152,8 @@ namespace Opc.Ua.Server
                             context,
                             methodsToCall,
                             results,
-                            errors);
+                            errors,
+                            cancellationToken);
                     }
                     else
                     {
