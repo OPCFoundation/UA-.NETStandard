@@ -14,6 +14,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Security.Cryptography.X509Certificates;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Opc.Ua
@@ -239,6 +240,35 @@ namespace Opc.Ua
 
                 // invoke service.
                 return service.Invoke(incoming);
+            }
+            catch (Exception e)
+            {
+                // create fault.
+                return CreateFault(incoming, e);
+            }
+        }
+
+        /// <summary>
+        /// Asynchronously dispatches an incoming binary encoded request.
+        /// </summary>
+        /// <param name="incoming">Incoming request.</param>
+        /// <param name="cancellationToken">Cancellation token.</param>
+        public virtual async Task<IServiceResponse> ProcessRequestAsync(IServiceRequest incoming, CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                SetRequestContext(RequestEncoding.Binary);
+
+                ServiceDefinition service = null;
+
+                // find service.
+                if (!SupportedServices.TryGetValue(incoming.TypeId, out service))
+                {
+                    throw new ServiceResultException(StatusCodes.BadServiceUnsupported, Utils.Format("'{0}' is an unrecognized service identifier.", incoming.TypeId));
+                }
+
+                // invoke service.
+                return await service.InvokeAsync(incoming).ConfigureAwait(false);
             }
             catch (Exception e)
             {
@@ -623,6 +653,35 @@ namespace Opc.Ua
             }
 
             /// <summary>
+            /// Initializes the object with its request type and implementation.
+            /// </summary>
+            /// <param name="requestType">Type of the request.</param>
+            /// <param name="asyncInvokeMethod">The async invoke method.</param>
+            public ServiceDefinition(
+                Type requestType,
+                InvokeServiceAsyncEventHandler asyncInvokeMethod)
+            {
+                m_requestType = requestType;
+                m_InvokeServiceAsync = asyncInvokeMethod;
+            }
+
+            /// <summary>
+            /// Initializes the object with its request type and implementation.
+            /// </summary>
+            /// <param name="requestType">Type of the request.</param>
+            /// <param name="invokeMethod">The invoke method.</param>
+            /// <param name="asyncInvokeMethod">The async invoke method.</param>
+            public ServiceDefinition(
+                Type requestType,
+                InvokeServiceEventHandler invokeMethod,
+                InvokeServiceAsyncEventHandler asyncInvokeMethod)
+            {
+                m_requestType = requestType;
+                m_InvokeService = invokeMethod;
+                m_InvokeServiceAsync = asyncInvokeMethod;
+            }
+
+            /// <summary>
             /// The system type of the request object.
             /// </summary>
             /// <value>The type of the request.</value>
@@ -647,12 +706,46 @@ namespace Opc.Ua
             /// <returns></returns>
             public IServiceResponse Invoke(IServiceRequest request)
             {
-                return m_InvokeService?.Invoke(request);
+                var handler = m_InvokeService;
+
+                if (handler == null && m_InvokeServiceAsync != null)
+                {
+                    return InvokeAsync(request).GetAwaiter().GetResult();
+                }
+
+                return handler?.Invoke(request);
+            }
+
+            /// <summary>
+            /// Processes the request asynchronously.
+            /// </summary>
+            /// <param name="request">The request.</param>
+            /// <param name="cancellationToken">The cancellation token.</param>
+            /// <returns></returns>
+            public async Task<IServiceResponse> InvokeAsync(IServiceRequest request, CancellationToken cancellationToken = default)
+            {
+                var asyncHandler = m_InvokeServiceAsync;
+
+                if (asyncHandler != null)
+                {
+                    return await asyncHandler(request, cancellationToken);
+                }
+
+                var syncHandler = m_InvokeService;
+
+                if (syncHandler != null)
+                {
+                    return await Task<IServiceResponse>.Factory.FromAsync(
+                        syncHandler.BeginInvoke, syncHandler.EndInvoke, request, state: null).ConfigureAwait(false);
+                }
+
+                return null;
             }
 
             #region Private Fields
             private Type m_requestType;
             private InvokeServiceEventHandler m_InvokeService;
+            private InvokeServiceAsyncEventHandler m_InvokeServiceAsync;
             #endregion
         }
 
@@ -660,6 +753,11 @@ namespace Opc.Ua
         /// A delegate used to dispatch incoming service requests.
         /// </summary>
         protected delegate IServiceResponse InvokeServiceEventHandler(IServiceRequest request);
+
+        /// <summary>
+        /// A delegate used to asynchronously dispatch incoming service requests.
+        /// </summary>
+        protected delegate Task<IServiceResponse> InvokeServiceAsyncEventHandler(IServiceRequest request, CancellationToken cancellationToken = default);
         #endregion
 
         #region ProcessRequestAsyncResult Class
@@ -728,6 +826,19 @@ namespace Opc.Ua
             public void CallSynchronously()
             {
                 OnProcessRequest(null);
+            }
+
+            /// <summary>
+            /// Used to call the default asynchronous handler.
+            /// </summary>
+            /// <remarks>
+            /// This method may block the current thread so the caller must not call in the
+            /// thread that calls IServerBase.ScheduleIncomingRequest().
+            /// This method always traps any exceptions and reports them to the client as a fault.
+            /// </remarks>
+            public async Task CallAsync(CancellationToken cancellationToken = default)
+            {
+                await OnProcessRequestAsync(null, cancellationToken).ConfigureAwait(false);
             }
 
             /// <summary>
@@ -927,6 +1038,51 @@ namespace Opc.Ua
                     {
                         // no listener, directly call the service.
                         m_response = m_service.Invoke(m_request);
+                    }
+                }
+                catch (Exception e)
+                {
+                    // save any error.
+                    m_error = e;
+                    m_response = SaveExceptionAsResponse(e);
+                }
+
+                // report completion.
+                OperationCompleted();
+            }
+
+            /// <summary>
+            /// Processes the request asynchronously.
+            /// </summary>
+            private async Task OnProcessRequestAsync(object state, CancellationToken cancellationToken = default)
+            {
+                try
+                {
+                    // set the context.
+                    SecureChannelContext.Current = m_context;
+
+                    if (ActivitySource.HasListeners())
+                    {
+                        // extract trace information from the request header if available
+                        if (m_request.RequestHeader?.AdditionalHeader?.Body is AdditionalParametersType parameters &&
+                            TryExtractActivityContextFromParameters(parameters, out var activityContext))
+                        {
+                            using (var activity = ActivitySource.StartActivity(m_request.GetType().Name, ActivityKind.Server, activityContext))
+                            {
+                                // call the service.
+                                m_response = await m_service.InvokeAsync(m_request).ConfigureAwait(false);
+                            }
+                        }
+                        else
+                        {
+                            // call the service even when there is no trace information
+                            m_response = await m_service.InvokeAsync(m_request).ConfigureAwait(false);
+                        }
+                    }
+                    else
+                    {
+                        // no listener, directly call the service.
+                        m_response = await m_service.InvokeAsync(m_request).ConfigureAwait(false);
                     }
                 }
                 catch (Exception e)
