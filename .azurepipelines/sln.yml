@@ -2,7 +2,7 @@
 # Build all solutions on windows
 #
 parameters:
-  poolImage: 'windows-2022'
+  poolImage: 'windows-2025'
   jobnamesuffix: ''
 
 jobs:
