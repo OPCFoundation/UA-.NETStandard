@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <AssemblyName>$(AssemblyPrefix).PubSub</AssemblyName>
@@ -34,10 +34,26 @@
   <ItemGroup Condition="'$(TargetFramework)' == 'net462'">
     <PackageReference Include="System.Runtime.InteropServices.RuntimeInformation" Version="4.3.0" />
   </ItemGroup>
-  
+
+  <Choose>
+    <When Condition="'$(TargetFramework)' == 'net8.0' OR '$(TargetFramework)' == 'net9.0'">
+      <PropertyGroup>
+        <!-- Disable strongname warning as that's not been enforced since .net 5.-->
+        <NoWarn>$(NoWarn);CS8002</NoWarn>
+      </PropertyGroup>
+      <ItemGroup>
+        <PackageReference Include="MQTTnet" Version="5.0.1.1416" />
+      </ItemGroup>
+    </When>
+    <Otherwise>
+      <ItemGroup>
+        <PackageReference Include="MQTTnet" Version="4.3.7.1207" />
+      </ItemGroup>
+    </Otherwise>
+  </Choose>
+
   <ItemGroup>
-    <PackageReference Include="MQTTnet" Version="4.3.7.1207" />
-    <PackageReference Include="System.Net.NetworkInformation" Version="4.3.0" />
+     <PackageReference Include="System.Net.NetworkInformation" Version="4.3.0" />
   </ItemGroup>
 
   <Target Name="GetPackagingOutputs" />
