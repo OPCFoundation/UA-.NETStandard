@@ -35,6 +35,7 @@ using System.IO;
 using System.Linq;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
+using System.Threading.Tasks;
 using Opc.Ua.Bindings;
 using static Opc.Ua.Utils;
 
@@ -2303,9 +2304,60 @@ namespace Opc.Ua.Server
                 OnRequestComplete(context);
             }
         }
-#endregion
 
-#region Public Methods used by the Host Process
+        /// <summary>
+        /// Invokes the Call service using async Task based request.
+        /// </summary>
+        /// <param name="requestHeader">The request header.</param>
+        /// <param name="methodsToCall">The methods to call.</param>
+        /// <param name="ct">The cancellation token</param>
+        /// <returns>
+        /// Returns a <see cref="ResponseHeader"/> object
+        /// </returns>
+        public override async Task<CallResponse> CallAsync(
+            RequestHeader requestHeader,
+            CallMethodRequestCollection methodsToCall,
+            CancellationToken ct)
+        {
+            OperationContext context = ValidateRequest(requestHeader, RequestType.Call);
+
+            try
+            {
+                ValidateOperationLimits(methodsToCall, OperationLimits.MaxNodesPerMethodCall);
+
+                (CallMethodResultCollection results, DiagnosticInfoCollection diagnosticInfos) =
+                    await m_serverInternal.NodeManager.CallAsync(
+                        context,
+                        methodsToCall);
+
+                return new CallResponse {
+                    Results = results,
+                    DiagnosticInfos = diagnosticInfos,
+                    ResponseHeader = CreateResponse(requestHeader, context.StringTable)
+                };
+            }
+            catch (ServiceResultException e)
+            {
+                lock (ServerInternal.DiagnosticsWriteLock)
+                {
+                    ServerInternal.ServerDiagnostics.RejectedRequestsCount++;
+
+                    if (IsSecurityError(e.StatusCode))
+                    {
+                        ServerInternal.ServerDiagnostics.SecurityRejectedRequestsCount++;
+                    }
+                }
+
+                throw TranslateException(context, e);
+            }
+            finally
+            {
+                OnRequestComplete(context);
+            }
+        }
+        #endregion
+
+        #region Public Methods used by the Host Process
         /// <summary>
         /// The state object associated with the server.
         /// It provides the shared components for the Server.
