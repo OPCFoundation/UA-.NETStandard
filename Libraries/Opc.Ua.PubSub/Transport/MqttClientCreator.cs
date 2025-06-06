@@ -31,15 +31,21 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using MQTTnet;
+#if !NET8_0_OR_GREATER
 using MQTTnet.Client;
+#endif
 
 namespace Opc.Ua.PubSub.Transport
 {
     internal static class MqttClientCreator
     {
         #region Private
+#if !NET8_0_OR_GREATER
         private static readonly Lazy<MqttFactory> s_mqttClientFactory = new Lazy<MqttFactory>(() => new MqttFactory());
-        #endregion
+#else
+        private static readonly Lazy<MqttClientFactory> s_mqttClientFactory = new Lazy<MqttClientFactory>(() => new MqttClientFactory());
+#endif
+#endregion
 
         /// <summary>
         /// The method which returns an MQTT client

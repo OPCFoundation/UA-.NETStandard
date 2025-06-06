@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using Opc.Ua;
 using Opc.Ua.Server;
@@ -142,6 +143,10 @@ namespace Opc.Ua.Server
                 if (Object.ReferenceEquals(DataChangeMonitoredItems[ii], datachangeItem))
                 {
                     DataChangeMonitoredItems.RemoveAt(ii);
+
+                    // Remove the cached context for the monitored item
+                    m_contextCache.TryRemove(datachangeItem.Id, out _);
+
                     break;
                 }
             }
@@ -271,7 +276,7 @@ namespace Opc.Ua.Server
 
                 }
             }
-        }        
+        }
 
         /// <summary>
         /// Called when the state of a Node changes.
@@ -331,8 +336,15 @@ namespace Opc.Ua.Server
             value.SourceTimestamp = DateTime.MinValue;
             value.StatusCode = StatusCodes.Good;
 
+            ISystemContext contextToUse = context;
+
+            if (context is ServerSystemContext systemContext)
+            {
+                contextToUse = GetOrCreateContext(systemContext, monitoredItem);
+            }
+
             ServiceResult error = node.ReadAttribute(
-                context,
+                contextToUse,
                 monitoredItem.AttributeId,
                 monitoredItem.IndexRange,
                 monitoredItem.DataEncoding,
@@ -347,11 +359,53 @@ namespace Opc.Ua.Server
         }
         #endregion
 
+        #region Private Methods
+        /// <summary>
+        /// Gets or creates a cached context for the monitored item.
+        /// </summary>
+        /// <param name="monitoredItem">The monitored item.</param>
+        /// <param name="context">The system context.</param>
+        /// <returns>The cached or newly created context.</returns>
+        private ServerSystemContext GetOrCreateContext(ServerSystemContext context, MonitoredItem monitoredItem)
+        {
+            uint monitoredItemId = monitoredItem.Id;
+            int currentTicks = HiResClock.TickCount;
+
+            // Check if the context already exists in the cache
+            if (m_contextCache.TryGetValue(monitoredItemId, out var cachedEntry))
+            {
+                // Check if the session or user identity has changed or the entry has expired
+                if (cachedEntry.Context.OperationContext.Session != monitoredItem.Session
+                    || cachedEntry.Context.OperationContext.UserIdentity != monitoredItem.EffectiveIdentity
+                    || (currentTicks - cachedEntry.CreatedAtTicks) > m_cacheLifetimeTicks)
+                {
+                    var updatedContext = context.Copy(new OperationContext(monitoredItem));
+                    m_contextCache[monitoredItemId] = (updatedContext, currentTicks);
+
+                    return updatedContext;
+                }
+                // return cached entry
+                else
+                {
+                    return cachedEntry.Context;
+                }
+            }
+
+            // Create a new context and add it to the cache
+            var newContext = context.Copy(new OperationContext(monitoredItem));
+            m_contextCache.TryAdd(monitoredItemId, (newContext, currentTicks));
+
+            return newContext;
+        }
+        #endregion
+
         #region Private Fields
         private CustomNodeManager2 m_nodeManager;
         private NodeState m_node;
         private List<MonitoredItem> m_dataChangeMonitoredItems;
         private List<IEventMonitoredItem> m_eventMonitoredItems;
+        private readonly ConcurrentDictionary<uint, (ServerSystemContext Context, int CreatedAtTicks)> m_contextCache = new();
+        private readonly int m_cacheLifetimeTicks = (int)TimeSpan.FromMinutes(5).TotalMilliseconds;
         #endregion
     }
 }

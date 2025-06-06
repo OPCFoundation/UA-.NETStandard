@@ -29,11 +29,9 @@
 
 using System;
 using System.Collections.Generic;
-using System.Text;
-using System.Resources;
 using System.Globalization;
+using System.Linq;
 using System.Xml;
-using System.Reflection;
 
 namespace Opc.Ua.Server
 {
@@ -99,7 +97,6 @@ namespace Opc.Ua.Server
             {
                 return null;
             }
-
             // translate localized text.
             LocalizedText translatedText = result.LocalizedText;
 
@@ -319,8 +316,12 @@ namespace Opc.Ua.Server
         /// </summary>
         protected virtual LocalizedText Translate(IList<string> preferredLocales, LocalizedText defaultText, TranslationInfo info)
         {
+            defaultText = defaultText?.FilterByPreferredLocales(preferredLocales);
+
+            bool isMultilanguageRequested = preferredLocales?.Count > 0 ? preferredLocales[0].ToLowerInvariant() is "mul" or "qst" : false;
+
             // check for trivial case.
-            if (info == null || String.IsNullOrEmpty(info.Text))
+            if (info == null || (string.IsNullOrEmpty(info.Text) && string.IsNullOrEmpty(info.Key)))
             {
                 return defaultText;
             }
@@ -328,7 +329,13 @@ namespace Opc.Ua.Server
             // check for exact match.
             if (preferredLocales != null && preferredLocales.Count > 0)
             {
-                if (defaultText != null && preferredLocales[0] == defaultText.Locale)
+                if (defaultText != null && !isMultilanguageRequested && preferredLocales[0] == defaultText?.Locale)
+                {
+                    return defaultText;
+                }
+
+                // MultiLanguageText requested, specified numer of locales was found in the default text.
+                if (isMultilanguageRequested && preferredLocales.Count > 1 && defaultText?.Translations?.Count == preferredLocales.Count - 1)
                 {
                     return defaultText;
                 }
@@ -339,64 +346,122 @@ namespace Opc.Ua.Server
                 }
             }
 
-            // use the text as the key.
-            string key = info.Key;
-
-            if (key == null)
+            // get translation for multiLanguage request
+            if (isMultilanguageRequested)
             {
-                key = info.Text;
-            }
-
-            // find the best translation.
-            string translatedText = info.Text;
-            CultureInfo culture = CultureInfo.InvariantCulture;
-
-            lock (m_lock)
-            {
-                translatedText = FindBestTranslation(preferredLocales, key, out culture);
-
-                // use the default if no translation available.
-                if (translatedText == null)
+#if NETSTANDARD2_1_OR_GREATER || NET6_0_OR_GREATER
+                var translations = defaultText?.Translations != null ? new Dictionary<string, string>(defaultText.Translations) : new Dictionary<string, string>();
+#else
+                var translations = defaultText?.Translations != null ? new Dictionary<string, string>(defaultText.Translations.ToDictionary(s => s.Key, s => s.Value)) : new Dictionary<string, string>();
+#endif
+                // If only mul/qst is requested, return all available translations for the key.
+                if (preferredLocales.Count == 1)
                 {
-                    return defaultText;
-                }
-
-                // get a culture to use for formatting
-                if (culture == null)
-                {
-                    if (info.Args != null && info.Args.Length > 0 && !String.IsNullOrEmpty(info.Locale))
+                    lock (m_lock)
                     {
-                        try
+                        foreach (var table in m_translationTables)
                         {
-                            culture = new CultureInfo(info.Locale);
-                        }
-                        catch
-                        {
-                            culture = CultureInfo.InvariantCulture;
+                            if (table.Translations.TryGetValue(info.Key ?? info.Text, out string translation))
+                            {
+                                // format translated text.
+                                if (info.Args?.Length > 0)
+                                {
+                                    try
+                                    {
+                                        translation = string.Format(table.Locale, translation, info.Args);
+                                    }
+                                    catch
+                                    { }
+                                }
+
+                                translations[table.Locale.Name] = translation;
+                            }
                         }
                     }
                 }
+                else
+                {
+                    // mul/qst + specific locales: return only those translations
+                    lock (m_lock)
+                    {
+                        for (int i = 1; i < preferredLocales.Count; i++)
+                        {
+                            string translation = FindBestTranslation(new List<string>() { preferredLocales[i] }, info.Key ?? info.Text, out CultureInfo culture);
+
+                            if (translation != null)
+                            {
+                                // format translated text.
+                                if (info.Args?.Length > 0)
+                                {
+                                    try
+                                    {
+                                        translation = string.Format(culture, translation, info.Args);
+                                    }
+                                    catch
+                                    { }
+                                }
+
+                                translations[preferredLocales[i]] = translation;
+                            }
+                        }
+                    }
+                }
+                return new LocalizedText((IReadOnlyDictionary<string, string>)translations);
             }
-
-            // format translated text.
-            string formattedText = translatedText;
-
-            if (info.Args != null && info.Args.Length > 0)
+            // single locale requested.
+            else
             {
-                try
-                {
-                    formattedText = string.Format(culture, translatedText, info.Args);
-                }
-                catch
-                {
-                    formattedText = translatedText;
-                }
-            }
+                // find the best translation.
+                string translatedText = info.Text;
+                CultureInfo culture = CultureInfo.InvariantCulture;
 
-            // construct translated localized text.
-            Opc.Ua.LocalizedText finalText = new LocalizedText(culture.Name, formattedText);
-            finalText.TranslationInfo = info;
-            return finalText;
+                lock (m_lock)
+                {
+                    translatedText = FindBestTranslation(preferredLocales, info.Key ?? info.Text, out culture);
+
+                    // use the default if no translation available.
+                    if (translatedText == null)
+                    {
+                        return defaultText;
+                    }
+
+                    // get a culture to use for formatting
+                    if (culture == null)
+                    {
+                        if (info.Args?.Length > 0 && !string.IsNullOrEmpty(info.Locale))
+                        {
+                            try
+                            {
+                                culture = new CultureInfo(info.Locale);
+                            }
+                            catch
+                            {
+                                culture = CultureInfo.InvariantCulture;
+                            }
+                        }
+                    }
+                }
+
+                // format translated text.
+                string formattedText = translatedText;
+
+                if (info.Args?.Length > 0)
+                {
+                    try
+                    {
+                        formattedText = string.Format(culture, translatedText, info.Args);
+                    }
+                    catch
+                    {
+                        formattedText = translatedText;
+                    }
+                }
+
+                // construct translated localized text.
+                Opc.Ua.LocalizedText finalText = new LocalizedText(culture.Name, formattedText);
+                finalText.TranslationInfo = info;
+                return finalText;
+            }
         }
         #endregion
 

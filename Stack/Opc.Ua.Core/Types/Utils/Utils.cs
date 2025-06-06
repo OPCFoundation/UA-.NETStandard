@@ -2631,7 +2631,7 @@ namespace Opc.Ua
                 extensions.Add(document.DocumentElement);
             }
         }
-#endregion
+        #endregion
 
         #region Reflection Helper Functions
         /// <summary>
@@ -2985,7 +2985,7 @@ namespace Opc.Ua
             [Obsolete("Use equivalent method from the Opc.Ua.Nonce class")]
             public static bool ValidateNonce(byte[] nonce, MessageSecurityMode securityMode, uint minNonceLength)
             {
-                return NewNonceImplementation.ValidateNonce(nonce,securityMode, minNonceLength);
+                return NewNonceImplementation.ValidateNonce(nonce, securityMode, minNonceLength);
             }
         }
 
@@ -3248,6 +3248,6 @@ namespace Opc.Ua
         {
             return s_isRunningOnMonoValue.Value;
         }
-#endregion
+        #endregion
     }
 }
