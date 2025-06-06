@@ -733,13 +733,7 @@ namespace Opc.Ua
 
                 var syncHandler = m_InvokeService;
 
-                if (syncHandler != null)
-                {
-                    return await Task<IServiceResponse>.Factory.FromAsync(
-                        syncHandler.BeginInvoke, syncHandler.EndInvoke, request, state: null).ConfigureAwait(false);
-                }
-
-                return null;
+                return syncHandler?.Invoke(request);
             }
 
             #region Private Fields

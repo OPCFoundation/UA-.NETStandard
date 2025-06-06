@@ -1497,7 +1497,7 @@ namespace Opc.Ua
         /// <param name="request">The request.</param>
         /// <param name="calldata">The calldata passed with the request.</param>
         /// <param name="cancellationToken">The cancellation token.</param>
-        protected virtual async Task ProcessRequestAsync(IEndpointIncomingRequest request, object calldata, CancellationToken cancellationToken)
+        protected virtual async Task ProcessRequestAsync(IEndpointIncomingRequest request, object calldata, CancellationToken cancellationToken = default)
         {
             await request.CallAsync(cancellationToken).ConfigureAwait(false);
         }

@@ -104,7 +104,7 @@ namespace Opc.Ua
         private string m_secureChannelId;
         private EndpointDescription m_endpointDescription;
         private RequestEncoding m_messageEncoding;
-        private static ThreadLocal<SecureChannelContext> s_Dataslot = new ThreadLocal<SecureChannelContext>();
+        private static AsyncLocal<SecureChannelContext> s_Dataslot = new AsyncLocal<SecureChannelContext>();
         #endregion
     }
 
