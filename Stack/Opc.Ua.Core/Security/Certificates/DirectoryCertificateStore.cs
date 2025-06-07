@@ -37,6 +37,7 @@ namespace Opc.Ua
         private const string kPemExtension = ".pem";
         private const string kPfxExtension = ".pfx";
         private const string kCertSearchString = "*.der";
+        private const string kPemCertSearchString = "*.pem";
 
         #region Constructors
         /// <summary>
@@ -887,6 +888,35 @@ namespace Opc.Ua
                         {
                             incompleteSearch = true;
                             break;
+                        }
+                    }
+                    catch (Exception e)
+                    {
+                        Utils.LogError(e, "Could not load certificate from file: {0}", file.FullName);
+                    }
+                }
+
+
+                foreach (FileInfo file in m_certificateSubdir.GetFiles(kPemCertSearchString))
+                {
+                    try
+                    {
+                        if (file.Extension == kPemExtension)
+                        {
+#if NET6_0_OR_GREATER
+                            foreach(var cert in PEMReader.ImportX509CertificatesFromPEM(File.ReadAllBytes(file.FullName).AsSpan<byte>()))
+                            {
+                                var entry = new Entry {
+                                    Certificate = cert,
+                                    CertificateFile = file,
+                                    PrivateKeyFile = null,
+                                    CertificateWithPrivateKey = null,
+                                    LastWriteTimeUtc = file.LastWriteTimeUtc
+                                };
+
+                                m_certificates[entry.Certificate.Thumbprint] = entry;
+                            }
+#endif
                         }
                     }
                     catch (Exception e)
