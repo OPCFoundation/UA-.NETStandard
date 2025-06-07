@@ -24,6 +24,14 @@ namespace Opc.Ua
     /// </summary>
     public partial class ContentFilter
     {
+        #region  Public Static Properties
+        /// <summary>
+        /// Set the default StringComparison to use when evaluating the Equals operator.
+        /// This property is meant to be set as a config setting and not set / reset on a per context basis, to ensure consistency
+        /// </summary>
+        public static StringComparison EqualsOperatorDefaultStringComparison { get; set; } = StringComparison.Ordinal;
+        #endregion
+
         #region Public functions
         /// <summary>
         /// Evaluates the first element in the ContentFilter. If the first or any 
@@ -407,14 +415,19 @@ namespace Opc.Ua
                 return value1 == null && value2 == null;
             }
 
-            if (value1 is DBNull || value2 is DBNull)
-            {
-                return value1 is DBNull && value2 is DBNull;
-            }
-
             if (value1.GetType() != value2.GetType())
             {
                 return false;
+            }
+
+            //check for strings
+            if (value1 is string string1)
+            {
+                if (value2 is not string string2)
+                {
+                    return false;
+                }
+                return string1.Equals(string2, EqualsOperatorDefaultStringComparison);
             }
 
             return Utils.IsEqual(value1, value2);
