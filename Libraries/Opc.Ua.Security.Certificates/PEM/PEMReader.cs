@@ -33,7 +33,6 @@ using System;
 using System.Security.Cryptography;
 using System.IO;
 using System.Text;
-using System.Security.Cryptography.X509Certificates;
 
 namespace Opc.Ua.Security.Certificates
 {

@@ -37,7 +37,6 @@ namespace Opc.Ua
         private const string kPemExtension = ".pem";
         private const string kPfxExtension = ".pfx";
         private const string kCertSearchString = "*.der";
-        private const string kPemCertSearchString = "*.pem";
 
         #region Constructors
         /// <summary>
