@@ -20,13 +20,38 @@ using System.Text;
 using System.Threading.Tasks;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.Redaction;
-
-namespace Opc.Ua
+using Opc.Ua;
+namespace Quickstarts
 {
+    public class DirectoryPEMSupportCertificateStoreType : ICertificateStoreType
+    {
+
+        /// <summary>
+        /// A directory certificate store.
+        /// </summary>
+        public const string StoreName = "DirectoryPEMSupport";
+
+        /// <inheritdoc/>
+        public bool SupportsStorePath(string storePath)
+        {
+            if (string.IsNullOrEmpty(storePath))
+            {
+                return false;
+            }
+            // check for directory path.
+            return Directory.Exists(storePath) || Directory.Exists(Utils.ReplaceSpecialFolderNames(storePath));
+        }
+        /// <inheritdoc/>
+        public ICertificateStore CreateStore()
+        {
+            return new DirectoryPEMSupportCertificateStore();
+        }
+    }
+
     /// <summary>
     /// Provides access to a simple file based certificate store.
     /// </summary>
-    public class DirectoryCertificateStore : ICertificateStore
+    public class DirectoryPEMSupportCertificateStore : ICertificateStore
     {
         // the sub directories and extensions used in a directory store
         private const string kCertsPath = "certs";
@@ -43,14 +68,14 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes a store for a directory path.
         /// </summary>
-        public DirectoryCertificateStore() : this(false)
+        public DirectoryPEMSupportCertificateStore() : this(false)
         {
         }
 
         /// <summary>
         /// Initializes a store with a directory path.
         /// </summary>
-        public DirectoryCertificateStore(bool noSubDirs)
+        public DirectoryPEMSupportCertificateStore(bool noSubDirs)
         {
             m_noSubDirs = noSubDirs;
             m_certificates = new Dictionary<string, Entry>();
@@ -894,7 +919,36 @@ namespace Opc.Ua
                     {
                         Utils.LogError(e, "Could not load certificate from file: {0}", file.FullName);
                     }
-                }                
+                }
+
+
+                foreach (FileInfo file in m_certificateSubdir.GetFiles(kPemCertSearchString))
+                {
+                    try
+                    {
+                        if (file.Extension == kPemExtension)
+                        {
+#if  NETSTANDARD2_1 || NET6_0_OR_GREATER
+                            foreach (var cert in PEMReaderCustom.ImportX509CertificatesFromPEM(File.ReadAllBytes(file.FullName).AsSpan()))
+                            {
+                                var entry = new Entry {
+                                    Certificate = cert,
+                                    CertificateFile = file,
+                                    PrivateKeyFile = null,
+                                    CertificateWithPrivateKey = null,
+                                    LastWriteTimeUtc = file.LastWriteTimeUtc
+                                };
+
+                                m_certificates[entry.Certificate.Thumbprint] = entry;
+                            }
+#endif
+                        }
+                    }
+                    catch (Exception e)
+                    {
+                        Utils.LogError(e, "Could not load certificate from file: {0}", file.FullName);
+                    }
+                }
 
                 if (incompleteSearch)
                 {

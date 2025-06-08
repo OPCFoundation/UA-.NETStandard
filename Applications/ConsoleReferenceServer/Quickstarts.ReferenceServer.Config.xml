@@ -53,13 +53,13 @@
 
     <!-- Where the issuer certificate are stored (certificate authorities) -->
     <TrustedIssuerCertificates>
-      <StoreType>Directory</StoreType>
+      <StoreType>DirectoryPEMSupport</StoreType>
       <StorePath>%LocalApplicationData%/OPC Foundation/pki/issuer</StorePath>
     </TrustedIssuerCertificates>
 
     <!-- Where the trust list is stored -->
     <TrustedPeerCertificates>
-      <StoreType>Directory</StoreType>
+      <StoreType>DirectoryPEMSupport</StoreType>
       <StorePath>%LocalApplicationData%/OPC Foundation/pki/trusted</StorePath>
     </TrustedPeerCertificates>
 
