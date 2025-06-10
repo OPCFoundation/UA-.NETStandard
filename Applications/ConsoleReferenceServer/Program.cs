@@ -91,8 +91,6 @@ namespace Quickstarts.ReferenceServer
                     output = new LogWriter();
                 }
 
-                CertificateStoreType.RegisterCertificateStoreType(DirectoryPEMSupportCertificateStoreType.StoreName, new DirectoryPEMSupportCertificateStoreType());
-
                 // create the UA server
                 var server = new UAServer<ReferenceServer>(output) {
                     AutoAccept = autoAccept,

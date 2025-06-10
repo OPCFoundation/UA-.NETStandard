@@ -208,6 +208,83 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         }
 
         /// <summary>
+        /// Verify PEM Certs are stored in Directory Store
+        /// </summary>
+        [Test, Order(25)]
+        public async Task VerifyPEMSupportDirectoryStore()
+        {
+            // pki directory root for app cert
+            var pkiRoot = Path.GetTempPath() + Path.GetRandomFileName() + Path.DirectorySeparatorChar;
+            var storePath = pkiRoot + "trusted";
+            var certPath = storePath + Path.DirectorySeparatorChar + "certs";
+            var privatePath = storePath + Path.DirectorySeparatorChar + "private";
+
+            Directory.CreateDirectory(certPath);
+            Directory.CreateDirectory(privatePath);
+
+            var store = new DirectoryCertificateStore(false);
+
+            try
+            {
+                store.Open(storePath, false);
+                //Add Test PEM Chain
+                File.Copy(TestUtils.EnumerateTestAssets("Test_chain.pem").First(), certPath + Path.DirectorySeparatorChar + "Test_chain.pem");
+
+
+                var certificates = await store.Enumerate();
+
+                Assert.AreEqual(3, certificates.Count);
+
+                //Add private key for leaf cert to private folder
+                File.Copy(TestUtils.EnumerateTestAssets("Test_keyPair.pem").First(), privatePath + Path.DirectorySeparatorChar + "Test_chain.pem");
+
+                //refresh store to obtain private key
+                await store.Enumerate();
+
+                //Load private key
+                var cert = await store.LoadPrivateKey("14A630438BF775E19169D3279069BBF20419EF84", null, null, null, null);
+
+                Assert.NotNull(cert);
+                Assert.True(cert.HasPrivateKey);
+
+                // remove leaf cert
+                await store.Delete("14A630438BF775E19169D3279069BBF20419EF84");
+
+                //remove private key
+                File.Delete(privatePath + Path.DirectorySeparatorChar + "Test_chain.pem");
+
+                certificates = await store.Enumerate();
+
+                Assert.AreEqual(2, certificates.Count);
+                Assert.IsEmpty(certificates.Find(X509FindType.FindByThumbprint,"14A630438BF775E19169D3279069BBF20419EF84", false));
+
+                // Add leaf cert with private key
+                File.Copy(TestUtils.EnumerateTestAssets("Test_keyPair.pem").First(), certPath + Path.DirectorySeparatorChar + "Test_keyPair.pem");
+
+                certificates = await store.Enumerate();
+
+                Assert.AreEqual(3, certificates.Count);
+
+                Assert.NotNull(certificates.Find(X509FindType.FindByThumbprint, "14A630438BF775E19169D3279069BBF20419EF84", false));
+                //Load private key
+                cert = await store.LoadPrivateKey("14A630438BF775E19169D3279069BBF20419EF84", null, null, null, null);
+
+                Assert.NotNull(cert);
+                Assert.True(cert.HasPrivateKey);
+
+                // remove leaf cert
+                await store.Delete("14A630438BF775E19169D3279069BBF20419EF84");
+
+                //ensure private key is removed
+                Assert.False(File.Exists(certPath + Path.DirectorySeparatorChar + "Test_keyPair.pem"));
+            }
+            finally
+            {
+                Directory.Delete(storePath, true);
+            }
+        }
+
+        /// <summary>
         /// Verify that old invalid cert stores throw.
         /// </summary>
         [Test, Order(30)]

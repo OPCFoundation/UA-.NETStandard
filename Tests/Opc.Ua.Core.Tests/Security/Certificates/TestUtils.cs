@@ -27,6 +27,9 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
+using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace Opc.Ua.Core.Tests
@@ -36,6 +39,16 @@ namespace Opc.Ua.Core.Tests
     /// </summary>
     public static class TestUtils
     {
+        public static string[] EnumerateTestAssets(string searchPattern)
+        {
+            var assetsPath = Utils.GetAbsoluteDirectoryPath("Assets", true, false, false);
+            if (assetsPath != null)
+            {
+                return Directory.EnumerateFiles(assetsPath, searchPattern).ToArray();
+            }
+            return Array.Empty<string>();
+        }
+
         /// <summary>
         /// A common method to clean up the test trust list.
         /// </summary>
