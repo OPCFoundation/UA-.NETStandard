@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading.Tasks;
@@ -17,9 +18,15 @@ namespace Opc.Ua.Security.Certificates.Tests
         [Test]
         public void ImportCertificateChainFromPem()
         {
+#if !NET8_0_OR_GREATER
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+            {
+                Assert.Ignore("Skipped due to https://github.com/dotnet/runtime/issues/82682");
+            }
+#endif
             // Arrange
             var file = File.ReadAllBytes(TestUtils.EnumerateTestAssets("Test_chain.pem").First());
-            
+
 
             // Act
             var certs = PEMReader.ImportPublicKeysFromPEM(file);
@@ -55,9 +62,14 @@ namespace Opc.Ua.Security.Certificates.Tests
         [Test]
         public void ImportPublicPrivateKeyPairFromPEM()
         {
+#if !NET8_0_OR_GREATER
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+            {
+                Assert.Ignore("Skipped due to https://github.com/dotnet/runtime/issues/82682");
+            }
+#endif
             // Arrange
             var file = File.ReadAllBytes(TestUtils.EnumerateTestAssets("Test_keyPair.pem").First());
-
 
             // Act
             var certs = PEMReader.ImportPublicKeysFromPEM(file);
@@ -86,7 +98,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             {
                 newCert?.Dispose(); // Dispose the certificate to release resources
             }
-            
+
 
         }
     }

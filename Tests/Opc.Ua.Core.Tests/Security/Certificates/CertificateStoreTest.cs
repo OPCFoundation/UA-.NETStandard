@@ -213,6 +213,12 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         [Test, Order(25)]
         public async Task VerifyPEMSupportDirectoryStore()
         {
+#if !NET8_0_OR_GREATER
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+            {
+                Assert.Ignore("Skipped due to https://github.com/dotnet/runtime/issues/82682");
+            }
+#endif
             // pki directory root for app cert
             var pkiRoot = Path.GetTempPath() + Path.GetRandomFileName() + Path.DirectorySeparatorChar;
             var storePath = pkiRoot + "trusted";
@@ -229,7 +235,6 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 store.Open(storePath, false);
                 //Add Test PEM Chain
                 File.Copy(TestUtils.EnumerateTestAssets("Test_chain.pem").First(), certPath + Path.DirectorySeparatorChar + "Test_chain.pem");
-
 
                 var certificates = await store.Enumerate();
 
@@ -256,7 +261,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 certificates = await store.Enumerate();
 
                 Assert.AreEqual(2, certificates.Count);
-                Assert.IsEmpty(certificates.Find(X509FindType.FindByThumbprint,"14A630438BF775E19169D3279069BBF20419EF84", false));
+                Assert.IsEmpty(certificates.Find(X509FindType.FindByThumbprint, "14A630438BF775E19169D3279069BBF20419EF84", false));
 
                 // Add leaf cert with private key
                 File.Copy(TestUtils.EnumerateTestAssets("Test_keyPair.pem").First(), certPath + Path.DirectorySeparatorChar + "Test_keyPair.pem");
