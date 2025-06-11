@@ -46,7 +46,7 @@ namespace Opc.Ua
             m_hosts = new List<ServiceHost>();
             m_listeners = new List<ITransportListener>();
             m_endpoints = null;
-            m_requestQueue = new RequestQueue(this, 10, 100, 1000);
+            m_requestQueue = new AsyncRequestQueue(this, 10, 100, 1000);
             m_userTokenPolicyId = 0;
         }
         #endregion
@@ -514,7 +514,7 @@ namespace Opc.Ua
                 m_requestQueue.Dispose();
             }
 
-            m_requestQueue = new RequestQueue(this, minRequestThreadCount, maxRequestThreadCount, maxQueuedRequestCount);
+            m_requestQueue = new AsyncRequestQueue(this, minRequestThreadCount, maxRequestThreadCount, maxQueuedRequestCount);
         }
 
         /// <summary>
