@@ -271,8 +271,12 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     await Task.Delay(1000); // wait for file system to catch up
                     iterations++;
                 }
-                while (!File.Exists(certPath + Path.DirectorySeparatorChar + "Test_keyPair.pem") && iterations < 5);
+                while (!File.Exists(certPath + Path.DirectorySeparatorChar + "Test_keyPair.pem") && iterations <= 5);
 
+                if(!File.Exists(certPath + Path.DirectorySeparatorChar + "Test_keyPair.pem"))
+                {
+                    Assert.Fail("Test_keyPair.pem not found in certs folder after 5 seconds.");
+                }
 
 
                 certificates = await store.Enumerate();
