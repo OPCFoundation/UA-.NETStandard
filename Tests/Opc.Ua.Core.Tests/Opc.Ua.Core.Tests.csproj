@@ -55,9 +55,6 @@
     <Content Include="Security\Certificates\Assets\Test_chain.pem">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
-    <Content Include="Security\Certificates\Assets\Test_keyPair.pem">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </Content>
   </ItemGroup>
 
   <ItemGroup>
