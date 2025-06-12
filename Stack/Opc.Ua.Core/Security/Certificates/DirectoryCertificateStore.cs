@@ -11,6 +11,7 @@
 */
 
 using System;
+using System.CodeDom;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -903,7 +904,8 @@ namespace Opc.Ua
                     (NoPrivateKeys || m_privateKeySubdir == null || !m_privateKeySubdir.Exists ||
                     m_privateKeySubdir.LastWriteTimeUtc < m_lastDirectoryCheck))
                 {
-                    return m_certificates;
+                    throw new Exception("Load called but no directroy write");
+                    //return m_certificates;
                 }
 
                 ClearCertificates();
@@ -977,7 +979,6 @@ namespace Opc.Ua
                     catch (Exception e)
                     {
                         Utils.LogError(e, "Could not load certificate from file: {0}", file.FullName);
-                        throw;
                     }
                 }
 
