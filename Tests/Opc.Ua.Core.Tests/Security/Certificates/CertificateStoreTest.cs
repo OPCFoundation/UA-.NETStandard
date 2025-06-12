@@ -241,7 +241,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 Assert.AreEqual(3, certificates.Count);
 
                 //Add private key for leaf cert to private folder
-                File.Copy(TestUtils.EnumerateTestAssets("Test_keyPair.pem").First(), privatePath + Path.DirectorySeparatorChar + "Test_chain.pem");
+                File.WriteAllBytes(privatePath + Path.DirectorySeparatorChar + "Test_chain.pem", Convert.FromBase64String(s_keyPairPemBase64));
 
                 //refresh store to obtain private key
                 await store.Enumerate();
