@@ -904,7 +904,10 @@ namespace Opc.Ua
                     (NoPrivateKeys || m_privateKeySubdir == null || !m_privateKeySubdir.Exists ||
                     m_privateKeySubdir.LastWriteTimeUtc < m_lastDirectoryCheck))
                 {
-                    throw new Exception("Load called but no directroy write");
+                    if (string.IsNullOrEmpty(thumbprint))
+                    {
+                        throw new Exception("Load called but no directroy write");
+                    }
                     //return m_certificates;
                 }
 
