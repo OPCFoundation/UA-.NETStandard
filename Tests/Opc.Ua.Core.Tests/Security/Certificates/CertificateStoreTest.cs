@@ -243,6 +243,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 //Add private key for leaf cert to private folder
                 File.WriteAllBytes(privatePath + Path.DirectorySeparatorChar + "Test_chain.pem", Convert.FromBase64String(s_keyPairPemBase64));
 
+                Directory.SetLastWriteTimeUtc(privatePath, DateTime.UtcNow.AddHours(-1));
+
                 //refresh store to obtain private key
                 await store.Enumerate();
 
@@ -265,19 +267,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
                 // Add leaf cert with private key
                 File.WriteAllBytes(certPath + Path.DirectorySeparatorChar + "Test_keyPair.pem", Convert.FromBase64String(s_keyPairPemBase64));
-                var iterations = 0;
-                do
-                {
-                    await Task.Delay(1000); // wait for file system to catch up
-                    iterations++;
-                }
-                while (!File.Exists(certPath + Path.DirectorySeparatorChar + "Test_keyPair.pem") && iterations <= 5);
 
-                if(!File.Exists(certPath + Path.DirectorySeparatorChar + "Test_keyPair.pem"))
-                {
-                    Assert.Fail("Test_keyPair.pem not found in certs folder after 5 seconds.");
-                }
-
+                Directory.SetLastWriteTimeUtc(certPath, DateTime.UtcNow.AddHours(-1));
 
                 certificates = await store.Enumerate();
 
