@@ -977,6 +977,7 @@ namespace Opc.Ua
                     catch (Exception e)
                     {
                         Utils.LogError(e, "Could not load certificate from file: {0}", file.FullName);
+                        throw;
                     }
                 }
 
