@@ -2145,15 +2145,28 @@ namespace Opc.Ua.Server
             {
                 foreach (INodeManager nodeManager in m_nodeManagers)
                 {
-                    if (!sync && nodeManager is IAsyncNodeManager asyncNodeManager)
+                    if (nodeManager is IAsyncNodeManager asyncNodeManager)
                     {
                         // call async node manager
-                        await asyncNodeManager.CallAsync(
-                            context,
-                            methodsToCall,
-                            results,
-                            errors,
-                            cancellationToken);
+                        if (sync)
+                        {
+                            Utils.LogWarning("Async Method called sychronously. Prefer using CallAsync for best performance. NodeManager={0}", nodeManager);
+                            asyncNodeManager.CallAsync(
+                                context,
+                                methodsToCall,
+                                results,
+                                errors,
+                                cancellationToken).AsTask().GetAwaiter().GetResult();
+                        }
+                        else
+                        {
+                            await asyncNodeManager.CallAsync(
+                                context,
+                                methodsToCall,
+                                results,
+                                errors,
+                                cancellationToken);
+                        }
                     }
                     else
                     {

@@ -253,9 +253,9 @@ namespace Opc.Ua.Server
             m_serverConfigurationNode.MaxTrustListSize.Value = (uint)configuration.ServerConfiguration.MaxTrustListSize;
             m_serverConfigurationNode.MulticastDnsEnabled.Value = configuration.ServerConfiguration.MultiCastDnsEnabled;
 
-            m_serverConfigurationNode.UpdateCertificate.OnCallAsync = new UpdateCertificateMethodStateMethodAsyncCallHandler(UpdateCertificate);
+            m_serverConfigurationNode.UpdateCertificate.OnCallAsync = new UpdateCertificateMethodStateMethodAsyncCallHandler(UpdateCertificateAsync);
             m_serverConfigurationNode.CreateSigningRequest.OnCall = new CreateSigningRequestMethodStateMethodCallHandler(CreateSigningRequest);
-            m_serverConfigurationNode.ApplyChanges.OnAsyncCallMethod2 = new GenericAsyncMethodCalledEventHandler2(ApplyChanges);
+            m_serverConfigurationNode.ApplyChanges.OnCallMethod2 = new GenericMethodCalledEventHandler2(ApplyChanges);
             m_serverConfigurationNode.GetRejectedList.OnCall = new GetRejectedListMethodStateMethodCallHandler(GetRejectedList);
             m_serverConfigurationNode.GetCertificates.OnCall = new GetCertificatesMethodStateMethodCallHandler(GetCertificates);
             m_serverConfigurationNode.ClearChangeMasks(systemContext, true);
@@ -390,7 +390,7 @@ namespace Opc.Ua.Server
         #endregion
 
         #region Private Methods
-        private async ValueTask<UpdateCertificateMethodStateResult> UpdateCertificate(
+        private async ValueTask<UpdateCertificateMethodStateResult> UpdateCertificateAsync(
            ISystemContext context,
            MethodState method,
            NodeId objectId,
@@ -720,13 +720,12 @@ namespace Opc.Ua.Server
 
             return certificate;
         }
-        private async ValueTask<ServiceResult> ApplyChanges(
+        private ServiceResult ApplyChanges(
             ISystemContext context,
             MethodState method,
             NodeId objectId,
             IList<object> inputArguments,
-            IList<object> outputArguments,
-            CancellationToken cancellationToken = default)
+            IList<object> outputArguments)
         {
             HasApplicationSecureAdminAccess(context);
 
@@ -769,7 +768,6 @@ namespace Opc.Ua.Server
                 }
                 );
             }
-            await Task.CompletedTask;
 
             return StatusCodes.Good;
         }
