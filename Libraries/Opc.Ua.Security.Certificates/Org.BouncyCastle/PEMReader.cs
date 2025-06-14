@@ -29,13 +29,14 @@
 
 #if !NETSTANDARD2_1 && !NET5_0_OR_GREATER
 using System;
-using System.Security.Cryptography;
 using System.IO;
+using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
 using System.Text;
+using Opc.Ua.Security.Certificates.BouncyCastle;
+using Org.BouncyCastle.Crypto.Parameters;
 using Org.BouncyCastle.OpenSsl;
 using Org.BouncyCastle.Security;
-using Org.BouncyCastle.Crypto.Parameters;
-using Opc.Ua.Security.Certificates.BouncyCastle;
 
 namespace Opc.Ua.Security.Certificates
 {
@@ -45,6 +46,88 @@ namespace Opc.Ua.Security.Certificates
     public static class PEMReader
     {
         #region Public Methods
+        /// <summary>
+        /// Checks if the PEM data contains a private key.
+        /// </summary>
+        /// <param name="pemDataBlob">The PEM data as a byte span.</param>
+        /// <returns>True if a private key is found.</returns>
+        public static bool ContainsPrivateKey(byte[] pemDataBlob)
+        {
+            using (var ms = new MemoryStream(pemDataBlob))
+            using (var reader = new StreamReader(ms, Encoding.UTF8, true))
+            {
+                var pemReader = new Org.BouncyCastle.OpenSsl.PemReader(reader);
+                try
+                {
+                    object pemObject = pemReader.ReadObject();
+                    while (pemObject != null)
+                    {
+                        // Check for AsymmetricCipherKeyPair (private key)
+                        if (pemObject is Org.BouncyCastle.Crypto.AsymmetricCipherKeyPair)
+                        {
+                            return true;
+                        }
+                        // Check for direct private key parameters
+                        if (pemObject is Org.BouncyCastle.Crypto.Parameters.RsaPrivateCrtKeyParameters)
+                        {
+                            return true;
+                        }
+#if NET472_OR_GREATER
+                        if (pemObject is Org.BouncyCastle.Crypto.Parameters.ECPrivateKeyParameters)
+                        {
+                            return true;
+                        }
+#endif
+                        pemObject = pemReader.ReadObject();
+                    }
+                }
+                finally
+                {
+                    pemReader.Reader.Dispose();
+                }
+            }
+            return false;
+        }
+
+
+        /// <summary>
+        /// Import multiple X509 certificates from PEM data.
+        /// Supports a maximum of 99 certificates in the PEM data.
+        /// </summary>
+        /// <param name="pemDataBlob">The PEM datablob as byte array.</param>
+        /// <returns>The certificates.</returns>
+        public static X509Certificate2Collection ImportPublicKeysFromPEM(
+            byte[] pemDataBlob)
+        {
+            var certificates = new X509Certificate2Collection();
+            using (var ms = new MemoryStream(pemDataBlob))
+            using (var reader = new StreamReader(ms, Encoding.UTF8, true))
+            {
+                var pemReader = new Org.BouncyCastle.OpenSsl.PemReader(reader);
+                int certCount = 0;
+                try
+                {
+                    object pemObject = pemReader.ReadObject();
+                    while (pemObject != null && certCount < 99)
+                    {
+                        if (pemObject is Org.BouncyCastle.X509.X509Certificate bcCert)
+                        {
+                            var rawData = bcCert.GetEncoded();
+                            var cert = new X509Certificate2(rawData);
+                            certificates.Add(cert);
+                            certCount++;
+                        }
+                        pemObject = pemReader.ReadObject();
+                    }
+                }
+                finally
+                {
+                    pemReader.Reader.Dispose();
+                }
+            }
+            return certificates;
+        }
+
         /// <summary>
         /// Import an RSA private key from PEM.
         /// </summary>
@@ -92,7 +175,7 @@ namespace Opc.Ua.Security.Certificates
             byte[] pemDataBlob,
             string password = null)
         {
-            
+
             Org.BouncyCastle.OpenSsl.PemReader pemReader;
             using (var pemStreamReader = new StreamReader(new MemoryStream(pemDataBlob), Encoding.UTF8, true))
             {
@@ -191,7 +274,7 @@ namespace Opc.Ua.Security.Certificates
         }
 #endif
 
-#endregion
+        #endregion
 
         #region Internal class
         /// <summary>

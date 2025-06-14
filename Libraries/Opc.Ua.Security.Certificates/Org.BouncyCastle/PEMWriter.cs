@@ -30,11 +30,13 @@
 #if !NETSTANDARD2_1 && !NET5_0_OR_GREATER
 
 using System;
+using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
+using System.Text;
 using Opc.Ua.Security.Certificates.BouncyCastle;
+using Org.BouncyCastle.Asn1.Pkcs;
 using Org.BouncyCastle.Crypto.Parameters;
 using Org.BouncyCastle.Pkcs;
-using Org.BouncyCastle.Asn1.Pkcs;
 
 namespace Opc.Ua.Security.Certificates
 {
@@ -77,7 +79,61 @@ namespace Opc.Ua.Security.Certificates
             throw new ArgumentException("ExportPrivateKeyAsPEM not supported on this platform."); // Only on NETSTANDARD2_0
 #endif            
         }
-#endregion
+
+        /// <summary>
+        /// Returns a byte array containing the private key in PEM format.
+        /// </summary>
+        public static bool TryRemovePublicKeyFromPEM(
+            string thumbprint,
+            byte[] pemDataBlob,
+            out byte[] modifiedPemDataBlob
+            )
+        {
+            modifiedPemDataBlob = null;
+            string label = "CERTIFICATE";
+            string beginlabel = $"-----BEGIN {label}-----";
+            string endlabel = $"-----END {label}-----";
+            try
+            {
+                string pemText = Encoding.UTF8.GetString(pemDataBlob);
+                int searchPosition = 0;
+                int count = 0;
+                int endIndex = 0;
+                while (endIndex > -1 && count < 99)
+                {
+                    count++;
+                    int beginIndex = pemText.IndexOf(beginlabel, searchPosition, StringComparison.Ordinal);
+                    if (beginIndex < 0)
+                    {
+                        return false;
+                    }
+                    endIndex = pemText.IndexOf(endlabel, searchPosition, StringComparison.Ordinal);
+                    beginIndex += beginlabel.Length;
+                    if (endIndex < 0 || endIndex <= beginIndex)
+                    {
+                        return false;
+                    }
+                    var pemCertificateContent = pemText.Substring(beginIndex, endIndex - beginIndex);
+                    var pemCertificateDecoded = Convert.FromBase64CharArray(pemCertificateContent.ToCharArray(), 0, pemCertificateContent.Length);
+
+                    var certificate = X509CertificateLoader.LoadCertificate(pemCertificateDecoded);
+                    if (thumbprint.Equals(certificate.Thumbprint, StringComparison.OrdinalIgnoreCase))
+                    {
+                        modifiedPemDataBlob = Encoding.ASCII.GetBytes(pemText.Replace(pemText.Substring(beginIndex -= beginlabel.Length, endIndex + endlabel.Length), string.Empty));
+                        return true;
+                    }
+
+
+                    searchPosition = endIndex + endlabel.Length;
+                }
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+            return false;
+        }
+        #endregion
     }
 }
 #endif
