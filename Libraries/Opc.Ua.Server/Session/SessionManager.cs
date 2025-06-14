@@ -185,7 +185,7 @@ namespace Opc.Ua.Server
 
                 // can assign a simple identifier if secured.
                 authenticationToken = null;
-                if (!String.IsNullOrEmpty(context.ChannelContext.SecureChannelId))
+                if (!String.IsNullOrEmpty(context.ChannelContext?.SecureChannelId))
                 {
                     if (context.ChannelContext.EndpointDescription.SecurityMode != MessageSecurityMode.None)
                     {
