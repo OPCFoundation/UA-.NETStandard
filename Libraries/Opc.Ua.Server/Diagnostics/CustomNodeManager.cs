@@ -48,7 +48,7 @@ namespace Opc.Ua.Server
     /// is not part of the SDK because most real implementations of a INodeManager will need to
     /// modify the behavior of the base class.
     /// </remarks>
-    public class CustomNodeManager2 : INodeManager2, INodeIdFactory, IDisposable
+    public partial class CustomNodeManager2 : INodeManager2, INodeIdFactory, IDisposable
     {
         #region Constructors
         /// <summary>
@@ -2889,22 +2889,9 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Asycnhronously calls a method defined on an object.
-        /// </summary>
-        public virtual ValueTask CallAsync(
-            OperationContext context,
-            IList<CallMethodRequest> methodsToCall,
-            IList<CallMethodResult> results,
-            IList<ServiceResult> errors,
-            CancellationToken cancellationToken = default)
-        {
-            return CallInternalAsync(context, methodsToCall, results, errors, sync: false, cancellationToken);
-        }
-
-        /// <summary>
         /// Calls a method on the specified nodes.
         /// </summary>
-        public virtual async ValueTask CallInternalAsync(
+        protected virtual async ValueTask CallInternalAsync(
             OperationContext context,
             IList<CallMethodRequest> methodsToCall,
             IList<CallMethodResult> results,
@@ -3000,31 +2987,6 @@ namespace Opc.Ua.Server
                     cancellationToken);
                 }
             }
-        }
-
-        /// <summary>
-        /// Asynchronously calls a method on an object.
-        /// </summary>
-        protected virtual async ValueTask<ServiceResult> CallAsync(
-            ISystemContext context,
-            CallMethodRequest methodToCall,
-            MethodState method,
-            CallMethodResult result,
-            CancellationToken cancellationToken = default)
-        {
-            return await CallInternalAsync(context, methodToCall, method, result, sync: false, cancellationToken).ConfigureAwait(false);
-        }
-
-        /// <summary>
-        /// Calls a method on an object.
-        /// </summary>
-        protected virtual ServiceResult Call(
-            ISystemContext context,
-            CallMethodRequest methodToCall,
-            MethodState method,
-            CallMethodResult result)
-        {
-            return CallInternalAsync(context, methodToCall, method, result, sync: true).Result;
         }
 
         /// <summary>
@@ -3125,6 +3087,30 @@ namespace Opc.Ua.Server
             return callResult;
         }
 
+        /// <summary>
+        /// Asynchronously calls a method on an object.
+        /// </summary>
+        protected virtual async ValueTask<ServiceResult> CallAsync(
+            ISystemContext context,
+            CallMethodRequest methodToCall,
+            MethodState method,
+            CallMethodResult result,
+            CancellationToken cancellationToken = default)
+        {
+            return await CallInternalAsync(context, methodToCall, method, result, sync: false, cancellationToken).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Calls a method on an object.
+        /// </summary>
+        protected virtual ServiceResult Call(
+            ISystemContext context,
+            CallMethodRequest methodToCall,
+            MethodState method,
+            CallMethodResult result)
+        {
+            return CallInternalAsync(context, methodToCall, method, result, sync: true).Result;
+        }
 
         /// <summary>
         /// Subscribes or unsubscribes to events produced by the specified source.

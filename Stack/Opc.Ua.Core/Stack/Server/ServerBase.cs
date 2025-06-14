@@ -1671,10 +1671,10 @@ namespace Opc.Ua
                     return;
                 }
 
-                Task.Run(() => {
+                Task.Run(async () => {
                     try
                     {
-                        m_server.ProcessRequest(request, null);
+                        await m_server.ProcessRequestAsync(request, null, CancellationToken.None).ConfigureAwait(false);
                     }
                     finally
                     {
