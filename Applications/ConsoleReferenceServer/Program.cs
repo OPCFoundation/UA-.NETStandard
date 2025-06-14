@@ -63,6 +63,7 @@ namespace Quickstarts.ReferenceServer
             bool appLog = false;
             bool renewCertificate = false;
             bool shadowConfig = false;
+            bool samplingGroups = false;
             bool cttMode = false;
             string password = null;
             int timeout = -1;
@@ -78,6 +79,7 @@ namespace Quickstarts.ReferenceServer
                 { "r|renew", "renew application certificate", r => renewCertificate = r != null },
                 { "t|timeout=", "timeout in seconds to exit application", (int t) => timeout = t * 1000 },
                 { "s|shadowconfig", "create configuration in pki root", s => shadowConfig = s != null },
+                { "sg|samplinggroups", "use the sampling group mechanism in the Reference Node Manager", sg => samplingGroups = sg != null },
                 { "ctt", "CTT mode, use to preset alarms for CTT testing.", c => cttMode = c != null },
             };
 
@@ -126,6 +128,12 @@ namespace Quickstarts.ReferenceServer
 
                 // Create and add the node managers
                 server.Create(Servers.Utils.NodeManagerFactories);
+
+                // enable the sampling groups if requested
+                if (samplingGroups)
+                {
+                    Quickstarts.Servers.Utils.UseSamplingGroupsInReferenceNodeManager(server.Server);
+                }
 
                 // start the server
                 output.WriteLine("Start the server.");
