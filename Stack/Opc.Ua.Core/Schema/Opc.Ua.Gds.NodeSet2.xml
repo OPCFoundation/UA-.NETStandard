@@ -1733,7 +1733,7 @@
   <UADataType NodeId="ns=1;i=1" BrowseName="1:ApplicationRecordDataType">
     <DisplayName>ApplicationRecordDataType</DisplayName>
     <Category>GDS Application Directory</Category>
-    <Documentation>https://reference.opcfoundation.org/GDS/docs/6.6.5</Documentation>
+    <Documentation>https://reference.opcfoundation.org/GDS/docs/6.5.5</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
@@ -1749,8 +1749,7 @@
   </UADataType>
   <UAObjectType NodeId="ns=1;i=13" BrowseName="1:DirectoryType">
     <DisplayName>DirectoryType</DisplayName>
-    <Category>GDS Application Directory</Category>
-    <Documentation>https://reference.opcfoundation.org/GDS/docs/6.6.3</Documentation>
+    <Documentation>https://reference.opcfoundation.org/GDS/docs/6.5.11</Documentation>
     <References>
       <Reference ReferenceType="HasComponent">ns=1;i=14</Reference>
       <Reference ReferenceType="HasComponent">ns=1;i=15</Reference>
@@ -1773,7 +1772,7 @@
   </UAObject>
   <UAMethod NodeId="ns=1;i=15" BrowseName="1:FindApplications" ParentNodeId="ns=1;i=13">
     <DisplayName>FindApplications</DisplayName>
-    <Documentation>https://reference.opcfoundation.org/GDS/docs/6.6.4</Documentation>
+    <Documentation>https://reference.opcfoundation.org/GDS/docs/6.5.4</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=16</Reference>
       <Reference ReferenceType="HasProperty">ns=1;i=17</Reference>
@@ -1839,7 +1838,7 @@
   </UAVariable>
   <UAMethod NodeId="ns=1;i=18" BrowseName="1:RegisterApplication" ParentNodeId="ns=1;i=13">
     <DisplayName>RegisterApplication</DisplayName>
-    <Documentation>https://reference.opcfoundation.org/GDS/docs/6.6.6</Documentation>
+    <Documentation>https://reference.opcfoundation.org/GDS/docs/6.5.6</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=19</Reference>
       <Reference ReferenceType="HasProperty">ns=1;i=20</Reference>
@@ -1903,7 +1902,7 @@
   </UAVariable>
   <UAMethod NodeId="ns=1;i=188" BrowseName="1:UpdateApplication" ParentNodeId="ns=1;i=13">
     <DisplayName>UpdateApplication</DisplayName>
-    <Documentation>https://reference.opcfoundation.org/GDS/docs/6.6.7</Documentation>
+    <Documentation>https://reference.opcfoundation.org/GDS/docs/6.5.7</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=189</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
@@ -1939,7 +1938,7 @@
   </UAVariable>
   <UAMethod NodeId="ns=1;i=21" BrowseName="1:UnregisterApplication" ParentNodeId="ns=1;i=13">
     <DisplayName>UnregisterApplication</DisplayName>
-    <Documentation>https://reference.opcfoundation.org/GDS/docs/6.6.8</Documentation>
+    <Documentation>https://reference.opcfoundation.org/GDS/docs/6.5.8</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=22</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
@@ -1975,7 +1974,7 @@
   </UAVariable>
   <UAMethod NodeId="ns=1;i=210" BrowseName="1:GetApplication" ParentNodeId="ns=1;i=13">
     <DisplayName>GetApplication</DisplayName>
-    <Documentation>https://reference.opcfoundation.org/GDS/docs/6.6.9</Documentation>
+    <Documentation>https://reference.opcfoundation.org/GDS/docs/6.5.9</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=211</Reference>
       <Reference ReferenceType="HasProperty">ns=1;i=212</Reference>
@@ -2039,7 +2038,7 @@
   </UAVariable>
   <UAMethod NodeId="ns=1;i=868" BrowseName="1:QueryApplications" ParentNodeId="ns=1;i=13">
     <DisplayName>QueryApplications</DisplayName>
-    <Documentation>https://reference.opcfoundation.org/GDS/docs/6.6.10</Documentation>
+    <Documentation>https://reference.opcfoundation.org/GDS/docs/6.5.10</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=869</Reference>
       <Reference ReferenceType="HasProperty">ns=1;i=870</Reference>
@@ -2227,7 +2226,7 @@
   </UAVariable>
   <UAMethod NodeId="ns=1;i=23" BrowseName="1:QueryServers" ParentNodeId="ns=1;i=13">
     <DisplayName>QueryServers</DisplayName>
-    <Documentation>https://reference.opcfoundation.org/GDS/docs/6.6.11</Documentation>
+    <Documentation>https://reference.opcfoundation.org/GDS/docs/6.5.11</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=24</Reference>
       <Reference ReferenceType="HasProperty">ns=1;i=25</Reference>
@@ -2386,15 +2385,15 @@
   <UAObjectType NodeId="ns=1;i=26" BrowseName="1:ApplicationRegistrationChangedAuditEventType" IsAbstract="true">
     <DisplayName>ApplicationRegistrationChangedAuditEventType</DisplayName>
     <Category>GDS Application Directory</Category>
-    <Documentation>https://reference.opcfoundation.org/GDS/docs/6.6.12</Documentation>
+    <Documentation>https://reference.opcfoundation.org/GDS/docs/6.5.12</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=2127</Reference>
     </References>
   </UAObjectType>
   <UAObjectType NodeId="ns=1;i=63" BrowseName="1:CertificateDirectoryType">
     <DisplayName>CertificateDirectoryType</DisplayName>
-    <Category>GDS Certificate Manager Pull Model</Category>
-    <Documentation>https://reference.opcfoundation.org/GDS/docs/7.9.2</Documentation>
+    <Category>GDS Certificate Manager CheckRevocationStatus</Category>
+    <Documentation>https://reference.opcfoundation.org/GDS/docs/7.9.11</Documentation>
     <References>
       <Reference ReferenceType="Organizes">ns=1;i=511</Reference>
       <Reference ReferenceType="HasComponent">ns=1;i=79</Reference>
@@ -2413,6 +2412,7 @@
     <DisplayName>CertificateGroups</DisplayName>
     <References>
       <Reference ReferenceType="HasComponent">ns=1;i=512</Reference>
+      <Reference ReferenceType="Organizes">i=13916</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=13813</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="Organizes" IsForward="false">ns=1;i=63</Reference>
@@ -3443,6 +3443,7 @@
   </UAVariable>
   <UAMethod NodeId="ns=1;i=15003" BrowseName="1:RevokeCertificate" ParentNodeId="ns=1;i=63">
     <DisplayName>RevokeCertificate</DisplayName>
+    <Category>GDS Certificate Manager RevokeCertificate</Category>
     <Documentation>https://reference.opcfoundation.org/GDS/docs/7.9.6</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=15004</Reference>
@@ -3560,6 +3561,7 @@
   </UAVariable>
   <UAMethod NodeId="ns=1;i=89" BrowseName="1:GetCertificates" ParentNodeId="ns=1;i=63">
     <DisplayName>GetCertificates</DisplayName>
+    <Category>GDS Certificate Manager GetCertificates</Category>
     <Documentation>https://reference.opcfoundation.org/GDS/docs/7.9.8</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=90</Reference>
@@ -3831,6 +3833,7 @@
   </UAVariable>
   <UAMethod NodeId="ns=1;i=126" BrowseName="1:CheckRevocationStatus" ParentNodeId="ns=1;i=63">
     <DisplayName>CheckRevocationStatus</DisplayName>
+    <Category>GDS Certificate Manager CheckRevocationStatus</Category>
     <Documentation>https://reference.opcfoundation.org/GDS/docs/7.9.11</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=160</Reference>
@@ -3962,7 +3965,7 @@
   </UAVariable>
   <UAObjectType NodeId="ns=1;i=55" BrowseName="1:KeyCredentialManagementFolderType">
     <DisplayName>KeyCredentialManagementFolderType</DisplayName>
-    <Category>GDS Key Credential Service Pull Model</Category>
+    <Category>Pull Model for KeyCredential Service</Category>
     <Documentation>https://reference.opcfoundation.org/GDS/docs/8.5.2</Documentation>
     <References>
       <Reference ReferenceType="HasComponent">ns=1;i=61</Reference>
@@ -4250,7 +4253,7 @@
   </UAVariable>
   <UAObject NodeId="ns=1;i=1008" BrowseName="1:KeyCredentialManagement">
     <DisplayName>KeyCredentialManagement</DisplayName>
-    <Category>GDS Key Credential Service Pull Model</Category>
+    <Category>Pull Model for KeyCredential Service</Category>
     <Documentation>https://reference.opcfoundation.org/GDS/docs/8.5.3</Documentation>
     <References>
       <Reference ReferenceType="Organizes" IsForward="false">i=85</Reference>
@@ -4259,8 +4262,7 @@
   </UAObject>
   <UAObjectType NodeId="ns=1;i=1020" BrowseName="1:KeyCredentialServiceType">
     <DisplayName>KeyCredentialServiceType</DisplayName>
-    <Category>GDS Key Credential Service Pull Model</Category>
-    <Documentation>https://reference.opcfoundation.org/GDS/docs/8.5.4</Documentation>
+    <Documentation>https://reference.opcfoundation.org/GDS/docs/8.5.7</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=1021</Reference>
       <Reference ReferenceType="HasProperty">ns=1;i=1022</Reference>
@@ -4585,7 +4587,7 @@
   </UAVariable>
   <UAObjectType NodeId="ns=1;i=1039" BrowseName="1:KeyCredentialRequestedAuditEventType">
     <DisplayName>KeyCredentialRequestedAuditEventType</DisplayName>
-    <Category>GDS Key Credential Service Pull Model</Category>
+    <Category>Pull Model for KeyCredential Service</Category>
     <Documentation>https://reference.opcfoundation.org/GDS/docs/8.5.9</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=18011</Reference>
@@ -4593,7 +4595,7 @@
   </UAObjectType>
   <UAObjectType NodeId="ns=1;i=1057" BrowseName="1:KeyCredentialDeliveredAuditEventType">
     <DisplayName>KeyCredentialDeliveredAuditEventType</DisplayName>
-    <Category>GDS Key Credential Service Pull Model</Category>
+    <Category>Pull Model for KeyCredential Service</Category>
     <Documentation>https://reference.opcfoundation.org/GDS/docs/8.5.10</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=18011</Reference>
@@ -4601,7 +4603,7 @@
   </UAObjectType>
   <UAObjectType NodeId="ns=1;i=1075" BrowseName="1:KeyCredentialRevokedAuditEventType">
     <DisplayName>KeyCredentialRevokedAuditEventType</DisplayName>
-    <Category>GDS Key Credential Service Pull Model</Category>
+    <Category>Pull Model for KeyCredential Service</Category>
     <Documentation>https://reference.opcfoundation.org/GDS/docs/8.5.11</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=18011</Reference>
@@ -4722,8 +4724,7 @@
   </UAObject>
   <UAObjectType NodeId="ns=1;i=966" BrowseName="1:AuthorizationServiceType">
     <DisplayName>AuthorizationServiceType</DisplayName>
-    <Category>GDS Authorization Service Server</Category>
-    <Documentation>https://reference.opcfoundation.org/GDS/docs/9.6.4</Documentation>
+    <Documentation>https://reference.opcfoundation.org/GDS/docs/9.6.6</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=1003</Reference>
       <Reference ReferenceType="HasProperty">ns=1;i=968</Reference>
@@ -4915,7 +4916,7 @@
   <UAObject NodeId="ns=1;i=141" BrowseName="1:Directory">
     <DisplayName>Directory</DisplayName>
     <Category>GDS Application Directory</Category>
-    <Documentation>https://reference.opcfoundation.org/GDS/docs/6.6.2</Documentation>
+    <Documentation>https://reference.opcfoundation.org/GDS/docs/6.5.2</Documentation>
     <References>
       <Reference ReferenceType="HasComponent">ns=1;i=142</Reference>
       <Reference ReferenceType="HasComponent">ns=1;i=143</Reference>
