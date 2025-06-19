@@ -710,6 +710,7 @@ namespace Opc.Ua
 
                 if (handler == null && m_InvokeServiceAsync != null)
                 {
+                    Utils.LogWarning("Async Service invoced sychronously. Prefer using InvokeAsync for best performance.");
                     return InvokeAsync(request).GetAwaiter().GetResult();
                 }
 
