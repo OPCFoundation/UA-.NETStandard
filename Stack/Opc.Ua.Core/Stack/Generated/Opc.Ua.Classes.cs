@@ -31,7 +31,6 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Xml;
-using System.Linq;
 using System.Runtime.Serialization;
 
 namespace Opc.Ua
