@@ -1135,6 +1135,11 @@ namespace Opc.Ua
         public const uint BadTransactionPending = 0x80E80000;
 
         /// <summary>
+        /// The operation failed and all changes which were part of the transaction are rolled back.
+        /// </summary>
+        public const uint BadTransactionFailed = 0x80F10000;
+
+        /// <summary>
         /// The device identity needs a ticket before it can be accepted.
         /// </summary>
         public const uint BadTicketRequired = 0x811F0000;

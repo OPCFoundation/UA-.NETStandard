@@ -1,18 +1,45 @@
 @echo off
 setlocal
 
-echo Processing NodeSet Schema
-xsd /classes /n:Opc.Ua.Export UANodeSet.xsd
+set XSD=xsd
 
-echo #pragma warning disable 1591 > temp.txt
-type UANodeSet.cs >> temp.txt
-type temp.txt > UANodeSet.cs
+where %XSD% >nul 2>&1
+if not %ERRORLEVEL%==0 (
+    echo %XSD% is NOT in the PATH.
+    exit 1
+)
+
+set SVCUTIL=svcutil
+
+where %SVCUTIL% >nul 2>&1
+if not %ERRORLEVEL%==0 (
+    echo %SVCUTIL% is NOT in the PATH.
+    exit 1
+)
+
+echo Processing NodeSet Schema
+%XSD% /classes /n:Opc.Ua.Export UANodeSet.xsd
+
+powershell -NoProfile -Command ^
+  "$content = Get-Content -Raw -Encoding UTF8 'UANodeSet.cs';" ^
+  "$utf8NoBom = New-Object System.Text.UTF8Encoding $false;" ^
+  "[System.IO.File]::WriteAllText('temp1.txt', $content, $utf8NoBom)"
+
+echo #pragma warning disable 1591 > temp2.txt
+type temp1.txt >> temp2.txt
+type temp2.txt > UANodeSet.cs
 
 echo Processing SecuredApplication Schema
-svcutil /dconly /namespace:*,Opc.Ua.Security /out:SecuredApplication.cs SecuredApplication.xsd 
+%SVCUTIL% /dconly /namespace:*,Opc.Ua.Security /out:SecuredApplication.cs SecuredApplication.xsd 
 
-echo #pragma warning disable 1591 > temp.txt
-type SecuredApplication.cs >> temp.txt
-type temp.txt > SecuredApplication.cs 
+powershell -NoProfile -Command ^
+  "$content = Get-Content -Raw -Encoding UTF8 'SecuredApplication.cs';" ^
+  "$utf8NoBom = New-Object System.Text.UTF8Encoding $false;" ^
+  "[System.IO.File]::WriteAllText('temp1.txt', $content, $utf8NoBom)"
 
-del /Q temp.txt
+echo #pragma warning disable 1591 > temp2.txt
+type temp1.txt >> temp2.txt
+type temp2.txt > SecuredApplication.cs 
+
+del /Q temp1.txt
+del /Q temp2.txt
