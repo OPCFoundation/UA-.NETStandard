@@ -4158,6 +4158,16 @@
         <uax:Identifier>i=78</uax:Identifier>
       </uax:ModellingRuleId>
       <uax:NumericId>511</uax:NumericId>
+      <uax:References>
+        <uax:Reference>
+          <uax:ReferenceTypeId>
+            <uax:Identifier>i=35</uax:Identifier>
+          </uax:ReferenceTypeId>
+          <uax:TargetId>
+            <uax:Identifier>i=13916</uax:Identifier>
+          </uax:TargetId>
+        </uax:Reference>
+      </uax:References>
       <DefaultApplicationGroup xmlns="http://opcfoundation.org/UA/">
         <uax:NodeClass>Object_1</uax:NodeClass>
         <uax:NodeId>
