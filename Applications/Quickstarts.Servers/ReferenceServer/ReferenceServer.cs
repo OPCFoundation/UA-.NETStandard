@@ -177,11 +177,10 @@ namespace Quickstarts.ReferenceServer
 
             try
             {
-                lock (ServerInternal.Status.Lock)
-                {
+                ServerInternal.UpdateServerStatus((status) => {
                     // allow a faster sampling interval for CurrentTime node.
-                    ServerInternal.Status.Variable.CurrentTime.MinimumSamplingInterval = 250;
-                }
+                    status.Variable.CurrentTime.MinimumSamplingInterval = 250;
+                });
             }
             catch
             { }

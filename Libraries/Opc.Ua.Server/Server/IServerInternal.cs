@@ -37,7 +37,7 @@ namespace Opc.Ua.Server
     /// <summary>
     /// The interface that a server exposes to objects that it contains.
     /// </summary>
-    public interface IServerInternal : IAuditEventServer
+    public interface IServerInternal : IAuditEventServer, IDisposable
     {
         /// <summary>
         /// The endpoint addresses used by the server.
@@ -165,7 +165,7 @@ namespace Opc.Ua.Server
         /// Returns the status object for the server.
         /// </summary>
         /// <value>The status.</value>
-        [Obsolete("No longer thread safe. Must not use.")]
+        [Obsolete("No longer thread safe, to read the value use CurrentState instead to write use UpdateServerStatus.")]
         ServerStatusValue Status { get; }
 
         /// <summary>
@@ -245,5 +245,58 @@ namespace Opc.Ua.Server
         /// <param name="subscriptionId">The subscription identifier.</param>
         /// <param name="monitoredItemId">The monitored item identifier.</param>
         void ConditionRefresh2(OperationContext context, uint subscriptionId, uint monitoredItemId);
+
+        /// <summary>
+        /// Sets the EventManager, the ResourceManager, the RequestManager and the AggregateManager.
+        /// </summary>
+        /// <param name="eventManager">The event manager.</param>
+        /// <param name="resourceManager">The resource manager.</param>
+        /// <param name="requestManager">The request manager.</param>
+        public void CreateServerObject(
+            EventManager eventManager,
+            ResourceManager resourceManager,
+            RequestManager requestManager);
+
+        /// <summary>
+        /// Stores the MasterNodeManager and the CoreNodeManager
+        /// </summary>
+        /// <param name="nodeManager">The node manager.</param>
+        void SetNodeManager(MasterNodeManager nodeManager);
+
+        /// <summary>
+        /// Stores the SessionManager, the SubscriptionManager in the datastore.
+        /// </summary>
+        /// <param name="sessionManager">The session manager.</param>
+        /// <param name="subscriptionManager">The subscription manager.</param>
+        void SetSessionManager(
+            ISessionManager sessionManager,
+            ISubscriptionManager subscriptionManager);
+
+        /// <summary>
+        /// Stores the MonitoredItemQueueFactory in the datastore.
+        /// </summary>
+        /// <param name="monitoredItemQueueFactory">The MonitoredItemQueueFactory.</param>
+        void SetMonitoredItemQueueFactory(
+            IMonitoredItemQueueFactory monitoredItemQueueFactory);
+
+        /// <summary>
+        /// Stores the Subscriptionstore in the datastore.
+        /// </summary>
+        /// <param name="subscriptionStore">The subscriptionstore.</param>
+        void SetSubscriptionStore(
+            ISubscriptionStore subscriptionStore);
+
+        /// <summary>
+        /// Stores the AggregateManager in the datastore.
+        /// </summary>
+        /// <param name="aggregateManager">The AggregateManager.</param>
+        void SetAggregateManager(
+            AggregateManager aggregateManager);
+
+        /// <summary>
+        /// Updates the server status safely.
+        /// </summary>
+        /// <param name="action">Action to perform on the server status object.</param>
+        void UpdateServerStatus(Action<ServerStatusValue> action);
     }
 }

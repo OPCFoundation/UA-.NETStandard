@@ -56,7 +56,7 @@ namespace Opc.Ua.Server
     /// This ensures the object is thread safe even though it does not use a lock.
     /// Objects returned from this object can be assumed to be threadsafe unless otherwise stated.
     /// </remarks>
-    public class ServerInternalData : IServerInternal, IDisposable
+    public class ServerInternalData : IServerInternal
     {
         #region Constructors
         /// <summary>
@@ -138,7 +138,7 @@ namespace Opc.Ua.Server
         /// The session manager to use with the server.
         /// </summary>
         /// <value>The session manager.</value>
-        public SessionManager SessionManager
+        public ISessionManager SessionManager
         {
             get { return m_sessionManager; }
         }
@@ -147,7 +147,7 @@ namespace Opc.Ua.Server
         /// The subscription manager to use with the server.
         /// </summary>
         /// <value>The subscription manager.</value>
-        public SubscriptionManager SubscriptionManager
+        public ISubscriptionManager SubscriptionManager
         {
             get { return m_subscriptionManager; }
         }
@@ -188,8 +188,8 @@ namespace Opc.Ua.Server
         /// <param name="sessionManager">The session manager.</param>
         /// <param name="subscriptionManager">The subscription manager.</param>
         public void SetSessionManager(
-            SessionManager sessionManager,
-            SubscriptionManager subscriptionManager)
+            ISessionManager sessionManager,
+            ISubscriptionManager subscriptionManager)
         {
             m_sessionManager = sessionManager;
             m_subscriptionManager = subscriptionManager;
@@ -214,6 +214,17 @@ namespace Opc.Ua.Server
         {
             m_subscriptionStore = subscriptionStore;
         }
+
+        /// <summary>
+        /// Stores the AggregateManager in the datastore.
+        /// </summary>
+        /// <param name="aggregateManager">The AggregateManager.</param>
+        public void SetAggregateManager(
+            AggregateManager aggregateManager)
+        {
+            m_aggregateManager = aggregateManager;
+        }
+
         #endregion
 
         #region IServerInternal Members
@@ -348,7 +359,6 @@ namespace Opc.Ua.Server
         public AggregateManager AggregateManager
         {
             get { return m_aggregateManager; }
-            set { m_aggregateManager = value; }
         }
 
         /// <summary>
@@ -389,6 +399,7 @@ namespace Opc.Ua.Server
         /// Returns the status object for the server.
         /// </summary>
         /// <value>The status.</value>
+        [Obsolete("No longer thread safe, to read the value use CurrentState instead to write use UpdateServerStatus.")]
         public ServerStatusValue Status
         {
             get { return m_serverStatus; }
@@ -579,6 +590,21 @@ namespace Opc.Ua.Server
         {
             m_subscriptionManager.ConditionRefresh2(context, subscriptionId, monitoredItemId);
         }
+
+        /// <summary>
+        /// Updates the server status safely.
+        /// </summary>
+        /// <param name="action">Action to perform on the server status object.</param>
+        public void UpdateServerStatus(Action<ServerStatusValue> action)
+        {
+            if (action == null) throw new ArgumentNullException(nameof(action));
+
+            lock (m_dataLock)
+            {
+                action.Invoke(m_serverStatus);
+            }
+        }
+
         #endregion
 
         #region IAuditReportEvents Members
@@ -919,8 +945,8 @@ namespace Opc.Ua.Server
         private CoreNodeManager m_coreNodeManager;
         private DiagnosticsNodeManager m_diagnosticsNodeManager;
         private EventManager m_eventManager;
-        private SessionManager m_sessionManager;
-        private SubscriptionManager m_subscriptionManager;
+        private ISessionManager m_sessionManager;
+        private ISubscriptionManager m_subscriptionManager;
         private IMonitoredItemQueueFactory m_monitoredItemQueueFactory;
         private ISubscriptionStore m_subscriptionStore;
 
