@@ -252,7 +252,7 @@ namespace Opc.Ua.Server
         /// <param name="eventManager">The event manager.</param>
         /// <param name="resourceManager">The resource manager.</param>
         /// <param name="requestManager">The request manager.</param>
-        public void CreateServerObject(
+        void CreateServerObject(
             EventManager eventManager,
             ResourceManager resourceManager,
             RequestManager requestManager);
