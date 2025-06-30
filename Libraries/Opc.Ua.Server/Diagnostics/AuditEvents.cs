@@ -743,7 +743,7 @@ namespace Opc.Ua.Server
         public static void ReportAuditCreateSessionEvent(
             this IAuditEventServer server,
             string auditEntryId,
-            Session session,
+            ISession session,
             double revisedSessionTimeout,
             Exception exception = null)
         {
@@ -805,7 +805,7 @@ namespace Opc.Ua.Server
         public static void ReportAuditActivateSessionEvent(
             this IAuditEventServer server,
             string auditEntryId,
-            Session session,
+            ISession session,
             IList<SoftwareCertificate> softwareCertificates,
             Exception exception = null)
         {
@@ -874,7 +874,7 @@ namespace Opc.Ua.Server
         public static void ReportAuditUrlMismatchEvent(
             this IAuditEventServer server,
             string auditEntryId,
-            Session session,
+            ISession session,
             double revisedSessionTimeout,
             string endpointUrl)
         {
@@ -928,7 +928,7 @@ namespace Opc.Ua.Server
         public static void ReportAuditCloseSessionEvent(
             this IAuditEventServer server,
             string auditEntryId,
-            Session session,
+            ISession session,
             string sourceName = "Session/Terminated")
         {
             if (server?.Auditing != true)
@@ -971,7 +971,7 @@ namespace Opc.Ua.Server
         public static void ReportAuditTransferSubscriptionEvent(
             this IAuditEventServer server,
             string auditEntryId,
-            Session session,
+            ISession session,
             StatusCode statusCode)
         {
             if (server?.Auditing != true)
@@ -1619,7 +1619,7 @@ namespace Opc.Ua.Server
             AuditEventState e,
             TranslationInfo message,
             bool status,
-            Session session,
+            ISession session,
             string auditEntryId)
         {
             e.Initialize(

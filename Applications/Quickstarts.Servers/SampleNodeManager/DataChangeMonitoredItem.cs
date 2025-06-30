@@ -378,7 +378,7 @@ namespace Opc.Ua.Sample
         /// <summary>
         /// The session for the monitored item.
         /// </summary>
-        public Session Session
+        public ISession Session
         {
             get
             {
