@@ -92,6 +92,16 @@ namespace Opc.Ua.Server
         void Shutdown();
 
         /// <summary>
+        /// Stores durable subscriptions to  be able to restore them after a restart
+        /// </summary>
+        void StoreSubscriptions();
+
+        /// <summary>
+        /// Restore durable subscriptions after a server restart
+        /// </summary>
+        void RestoreSubscriptions();
+
+        /// <summary>
         /// Deletes group of subscriptions.
         /// </summary>
         void DeleteSubscriptions(
