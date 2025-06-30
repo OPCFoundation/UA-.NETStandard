@@ -36,7 +36,7 @@ namespace Opc.Ua.Server
     /// <summary>
     /// A generic session manager object for a server.
     /// </summary>
-    public class Session : IDisposable
+    public class Session : ISession
     {
         #region Constructors
 

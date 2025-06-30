@@ -43,7 +43,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// The session that owns the monitored item.
         /// </summary>
-        Session Session { get; }
+        ISession Session { get; }
 
         /// <summary>
         /// The subscriptions owner identity.
@@ -82,7 +82,7 @@ namespace Opc.Ua.Server
         /// </summary>
         public Subscription(
             IServerInternal server,
-            Session session,
+            ISession session,
             uint subscriptionId,
             double publishingInterval,
             uint maxLifetimeCount,
@@ -284,7 +284,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// The session that owns the monitored item.
         /// </summary>
-        public Session Session
+        public ISession Session
         {
             get { return m_session; }
         }
@@ -2617,7 +2617,7 @@ namespace Opc.Ua.Server
         #region Private Fields
         private readonly object m_lock = new object();
         private IServerInternal m_server;
-        private Session m_session;
+        private ISession m_session;
         private uint m_id;
         private IUserIdentity m_savedOwnerIdentity;
         private double m_publishingInterval;

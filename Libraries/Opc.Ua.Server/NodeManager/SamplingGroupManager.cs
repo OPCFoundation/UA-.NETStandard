@@ -253,7 +253,7 @@ namespace Opc.Ua.Server
             object              managerHandle,
             uint                subscriptionId,
             uint                id,
-            Session             session,
+            ISession             session,
             ReadValueId         itemToMonitor,
             DiagnosticsMasks    diagnosticsMasks,
             TimestampsToReturn  timestampsToReturn,
