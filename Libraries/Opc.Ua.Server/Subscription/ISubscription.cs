@@ -269,5 +269,10 @@ namespace Opc.Ua.Server
             out DiagnosticInfoCollection addDiagnosticInfos,
             out StatusCodeCollection removeResults,
             out DiagnosticInfoCollection removeDiagnosticInfos);
+
+        /// <summary>
+        /// Return a StorableSubscription for restore after a server restart
+        /// </summary>
+        public IStoredSubscription ToStorableSubscription();
     }
 }
