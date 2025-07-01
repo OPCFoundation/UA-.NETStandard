@@ -925,23 +925,23 @@ namespace Opc.Ua
         }
 
         #if (!OPCUA_EXCLUDE_FindServers_ASYNC)
-        /// <summary>
-        /// Invokes the FindServers service using async Task based request.
-        /// </summary>
-        public virtual async Task<FindServersResponse> FindServersAsync(
-            RequestHeader     requestHeader,
-            string            endpointUrl,
-            StringCollection  localeIds,
-            StringCollection  serverUris,
-            CancellationToken ct)
-        {
-            ValidateRequest(requestHeader);
+            /// <summary>
+            /// Invokes the FindServers service using async Task based request.
+            /// </summary>
+            public virtual async Task<FindServersResponse> FindServersAsync(
+                RequestHeader     requestHeader,
+                string            endpointUrl,
+                StringCollection  localeIds,
+                StringCollection  serverUris,
+                CancellationToken ct)
+            {
+                ValidateRequest(requestHeader);
 
-            // Insert implementation.
-            await Task.CompletedTask;
+                // Insert implementation.
+                await Task.CompletedTask;
 
-            throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
-        }
+                throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
+            }
         #endif
         #endif
 
@@ -968,23 +968,23 @@ namespace Opc.Ua
         }
 
         #if (!OPCUA_EXCLUDE_FindServersOnNetwork_ASYNC)
-        /// <summary>
-        /// Invokes the FindServersOnNetwork service using async Task based request.
-        /// </summary>
-        public virtual async Task<FindServersOnNetworkResponse> FindServersOnNetworkAsync(
-            RequestHeader     requestHeader,
-            uint              startingRecordId,
-            uint              maxRecordsToReturn,
-            StringCollection  serverCapabilityFilter,
-            CancellationToken ct)
-        {
-            ValidateRequest(requestHeader);
+            /// <summary>
+            /// Invokes the FindServersOnNetwork service using async Task based request.
+            /// </summary>
+            public virtual async Task<FindServersOnNetworkResponse> FindServersOnNetworkAsync(
+                RequestHeader     requestHeader,
+                uint              startingRecordId,
+                uint              maxRecordsToReturn,
+                StringCollection  serverCapabilityFilter,
+                CancellationToken ct)
+            {
+                ValidateRequest(requestHeader);
 
-            // Insert implementation.
-            await Task.CompletedTask;
+                // Insert implementation.
+                await Task.CompletedTask;
 
-            throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
-        }
+                throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
+            }
         #endif
         #endif
 
@@ -1009,23 +1009,23 @@ namespace Opc.Ua
         }
 
         #if (!OPCUA_EXCLUDE_GetEndpoints_ASYNC)
-        /// <summary>
-        /// Invokes the GetEndpoints service using async Task based request.
-        /// </summary>
-        public virtual async Task<GetEndpointsResponse> GetEndpointsAsync(
-            RequestHeader     requestHeader,
-            string            endpointUrl,
-            StringCollection  localeIds,
-            StringCollection  profileUris,
-            CancellationToken ct)
-        {
-            ValidateRequest(requestHeader);
+            /// <summary>
+            /// Invokes the GetEndpoints service using async Task based request.
+            /// </summary>
+            public virtual async Task<GetEndpointsResponse> GetEndpointsAsync(
+                RequestHeader     requestHeader,
+                string            endpointUrl,
+                StringCollection  localeIds,
+                StringCollection  profileUris,
+                CancellationToken ct)
+            {
+                ValidateRequest(requestHeader);
 
-            // Insert implementation.
-            await Task.CompletedTask;
+                // Insert implementation.
+                await Task.CompletedTask;
 
-            throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
-        }
+                throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
+            }
         #endif
         #endif
 
@@ -1071,28 +1071,28 @@ namespace Opc.Ua
         }
 
         #if (!OPCUA_EXCLUDE_CreateSession_ASYNC)
-        /// <summary>
-        /// Invokes the CreateSession service using async Task based request.
-        /// </summary>
-        public virtual async Task<CreateSessionResponse> CreateSessionAsync(
-            RequestHeader          requestHeader,
-            ApplicationDescription clientDescription,
-            string                 serverUri,
-            string                 endpointUrl,
-            string                 sessionName,
-            byte[]                 clientNonce,
-            byte[]                 clientCertificate,
-            double                 requestedSessionTimeout,
-            uint                   maxResponseMessageSize,
-            CancellationToken      ct)
-        {
-            ValidateRequest(requestHeader);
+            /// <summary>
+            /// Invokes the CreateSession service using async Task based request.
+            /// </summary>
+            public virtual async Task<CreateSessionResponse> CreateSessionAsync(
+                RequestHeader          requestHeader,
+                ApplicationDescription clientDescription,
+                string                 serverUri,
+                string                 endpointUrl,
+                string                 sessionName,
+                byte[]                 clientNonce,
+                byte[]                 clientCertificate,
+                double                 requestedSessionTimeout,
+                uint                   maxResponseMessageSize,
+                CancellationToken      ct)
+            {
+                ValidateRequest(requestHeader);
 
-            // Insert implementation.
-            await Task.CompletedTask;
+                // Insert implementation.
+                await Task.CompletedTask;
 
-            throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
-        }
+                throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
+            }
         #endif
         #endif
 
@@ -1123,25 +1123,25 @@ namespace Opc.Ua
         }
 
         #if (!OPCUA_EXCLUDE_ActivateSession_ASYNC)
-        /// <summary>
-        /// Invokes the ActivateSession service using async Task based request.
-        /// </summary>
-        public virtual async Task<ActivateSessionResponse> ActivateSessionAsync(
-            RequestHeader                       requestHeader,
-            SignatureData                       clientSignature,
-            SignedSoftwareCertificateCollection clientSoftwareCertificates,
-            StringCollection                    localeIds,
-            ExtensionObject                     userIdentityToken,
-            SignatureData                       userTokenSignature,
-            CancellationToken                   ct)
-        {
-            ValidateRequest(requestHeader);
+            /// <summary>
+            /// Invokes the ActivateSession service using async Task based request.
+            /// </summary>
+            public virtual async Task<ActivateSessionResponse> ActivateSessionAsync(
+                RequestHeader                       requestHeader,
+                SignatureData                       clientSignature,
+                SignedSoftwareCertificateCollection clientSoftwareCertificates,
+                StringCollection                    localeIds,
+                ExtensionObject                     userIdentityToken,
+                SignatureData                       userTokenSignature,
+                CancellationToken                   ct)
+            {
+                ValidateRequest(requestHeader);
 
-            // Insert implementation.
-            await Task.CompletedTask;
+                // Insert implementation.
+                await Task.CompletedTask;
 
-            throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
-        }
+                throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
+            }
         #endif
         #endif
 
@@ -1162,21 +1162,21 @@ namespace Opc.Ua
         }
 
         #if (!OPCUA_EXCLUDE_CloseSession_ASYNC)
-        /// <summary>
-        /// Invokes the CloseSession service using async Task based request.
-        /// </summary>
-        public virtual async Task<CloseSessionResponse> CloseSessionAsync(
-            RequestHeader     requestHeader,
-            bool              deleteSubscriptions,
-            CancellationToken ct)
-        {
-            ValidateRequest(requestHeader);
+            /// <summary>
+            /// Invokes the CloseSession service using async Task based request.
+            /// </summary>
+            public virtual async Task<CloseSessionResponse> CloseSessionAsync(
+                RequestHeader     requestHeader,
+                bool              deleteSubscriptions,
+                CancellationToken ct)
+            {
+                ValidateRequest(requestHeader);
 
-            // Insert implementation.
-            await Task.CompletedTask;
+                // Insert implementation.
+                await Task.CompletedTask;
 
-            throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
-        }
+                throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
+            }
         #endif
         #endif
 
@@ -1199,21 +1199,21 @@ namespace Opc.Ua
         }
 
         #if (!OPCUA_EXCLUDE_Cancel_ASYNC)
-        /// <summary>
-        /// Invokes the Cancel service using async Task based request.
-        /// </summary>
-        public virtual async Task<CancelResponse> CancelAsync(
-            RequestHeader     requestHeader,
-            uint              requestHandle,
-            CancellationToken ct)
-        {
-            ValidateRequest(requestHeader);
+            /// <summary>
+            /// Invokes the Cancel service using async Task based request.
+            /// </summary>
+            public virtual async Task<CancelResponse> CancelAsync(
+                RequestHeader     requestHeader,
+                uint              requestHandle,
+                CancellationToken ct)
+            {
+                ValidateRequest(requestHeader);
 
-            // Insert implementation.
-            await Task.CompletedTask;
+                // Insert implementation.
+                await Task.CompletedTask;
 
-            throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
-        }
+                throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
+            }
         #endif
         #endif
 
@@ -1238,21 +1238,21 @@ namespace Opc.Ua
         }
 
         #if (!OPCUA_EXCLUDE_AddNodes_ASYNC)
-        /// <summary>
-        /// Invokes the AddNodes service using async Task based request.
-        /// </summary>
-        public virtual async Task<AddNodesResponse> AddNodesAsync(
-            RequestHeader          requestHeader,
-            AddNodesItemCollection nodesToAdd,
-            CancellationToken      ct)
-        {
-            ValidateRequest(requestHeader);
+            /// <summary>
+            /// Invokes the AddNodes service using async Task based request.
+            /// </summary>
+            public virtual async Task<AddNodesResponse> AddNodesAsync(
+                RequestHeader          requestHeader,
+                AddNodesItemCollection nodesToAdd,
+                CancellationToken      ct)
+            {
+                ValidateRequest(requestHeader);
 
-            // Insert implementation.
-            await Task.CompletedTask;
+                // Insert implementation.
+                await Task.CompletedTask;
 
-            throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
-        }
+                throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
+            }
         #endif
         #endif
 
@@ -1277,21 +1277,21 @@ namespace Opc.Ua
         }
 
         #if (!OPCUA_EXCLUDE_AddReferences_ASYNC)
-        /// <summary>
-        /// Invokes the AddReferences service using async Task based request.
-        /// </summary>
-        public virtual async Task<AddReferencesResponse> AddReferencesAsync(
-            RequestHeader               requestHeader,
-            AddReferencesItemCollection referencesToAdd,
-            CancellationToken           ct)
-        {
-            ValidateRequest(requestHeader);
+            /// <summary>
+            /// Invokes the AddReferences service using async Task based request.
+            /// </summary>
+            public virtual async Task<AddReferencesResponse> AddReferencesAsync(
+                RequestHeader               requestHeader,
+                AddReferencesItemCollection referencesToAdd,
+                CancellationToken           ct)
+            {
+                ValidateRequest(requestHeader);
 
-            // Insert implementation.
-            await Task.CompletedTask;
+                // Insert implementation.
+                await Task.CompletedTask;
 
-            throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
-        }
+                throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
+            }
         #endif
         #endif
 
@@ -1316,21 +1316,21 @@ namespace Opc.Ua
         }
 
         #if (!OPCUA_EXCLUDE_DeleteNodes_ASYNC)
-        /// <summary>
-        /// Invokes the DeleteNodes service using async Task based request.
-        /// </summary>
-        public virtual async Task<DeleteNodesResponse> DeleteNodesAsync(
-            RequestHeader             requestHeader,
-            DeleteNodesItemCollection nodesToDelete,
-            CancellationToken         ct)
-        {
-            ValidateRequest(requestHeader);
+            /// <summary>
+            /// Invokes the DeleteNodes service using async Task based request.
+            /// </summary>
+            public virtual async Task<DeleteNodesResponse> DeleteNodesAsync(
+                RequestHeader             requestHeader,
+                DeleteNodesItemCollection nodesToDelete,
+                CancellationToken         ct)
+            {
+                ValidateRequest(requestHeader);
 
-            // Insert implementation.
-            await Task.CompletedTask;
+                // Insert implementation.
+                await Task.CompletedTask;
 
-            throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
-        }
+                throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
+            }
         #endif
         #endif
 
@@ -1355,21 +1355,21 @@ namespace Opc.Ua
         }
 
         #if (!OPCUA_EXCLUDE_DeleteReferences_ASYNC)
-        /// <summary>
-        /// Invokes the DeleteReferences service using async Task based request.
-        /// </summary>
-        public virtual async Task<DeleteReferencesResponse> DeleteReferencesAsync(
-            RequestHeader                  requestHeader,
-            DeleteReferencesItemCollection referencesToDelete,
-            CancellationToken              ct)
-        {
-            ValidateRequest(requestHeader);
+            /// <summary>
+            /// Invokes the DeleteReferences service using async Task based request.
+            /// </summary>
+            public virtual async Task<DeleteReferencesResponse> DeleteReferencesAsync(
+                RequestHeader                  requestHeader,
+                DeleteReferencesItemCollection referencesToDelete,
+                CancellationToken              ct)
+            {
+                ValidateRequest(requestHeader);
 
-            // Insert implementation.
-            await Task.CompletedTask;
+                // Insert implementation.
+                await Task.CompletedTask;
 
-            throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
-        }
+                throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
+            }
         #endif
         #endif
 
@@ -1396,23 +1396,23 @@ namespace Opc.Ua
         }
 
         #if (!OPCUA_EXCLUDE_Browse_ASYNC)
-        /// <summary>
-        /// Invokes the Browse service using async Task based request.
-        /// </summary>
-        public virtual async Task<BrowseResponse> BrowseAsync(
-            RequestHeader               requestHeader,
-            ViewDescription             view,
-            uint                        requestedMaxReferencesPerNode,
-            BrowseDescriptionCollection nodesToBrowse,
-            CancellationToken           ct)
-        {
-            ValidateRequest(requestHeader);
+            /// <summary>
+            /// Invokes the Browse service using async Task based request.
+            /// </summary>
+            public virtual async Task<BrowseResponse> BrowseAsync(
+                RequestHeader               requestHeader,
+                ViewDescription             view,
+                uint                        requestedMaxReferencesPerNode,
+                BrowseDescriptionCollection nodesToBrowse,
+                CancellationToken           ct)
+            {
+                ValidateRequest(requestHeader);
 
-            // Insert implementation.
-            await Task.CompletedTask;
+                // Insert implementation.
+                await Task.CompletedTask;
 
-            throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
-        }
+                throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
+            }
         #endif
         #endif
 
@@ -1438,22 +1438,22 @@ namespace Opc.Ua
         }
 
         #if (!OPCUA_EXCLUDE_BrowseNext_ASYNC)
-        /// <summary>
-        /// Invokes the BrowseNext service using async Task based request.
-        /// </summary>
-        public virtual async Task<BrowseNextResponse> BrowseNextAsync(
-            RequestHeader        requestHeader,
-            bool                 releaseContinuationPoints,
-            ByteStringCollection continuationPoints,
-            CancellationToken    ct)
-        {
-            ValidateRequest(requestHeader);
+            /// <summary>
+            /// Invokes the BrowseNext service using async Task based request.
+            /// </summary>
+            public virtual async Task<BrowseNextResponse> BrowseNextAsync(
+                RequestHeader        requestHeader,
+                bool                 releaseContinuationPoints,
+                ByteStringCollection continuationPoints,
+                CancellationToken    ct)
+            {
+                ValidateRequest(requestHeader);
 
-            // Insert implementation.
-            await Task.CompletedTask;
+                // Insert implementation.
+                await Task.CompletedTask;
 
-            throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
-        }
+                throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
+            }
         #endif
         #endif
 
@@ -1478,21 +1478,21 @@ namespace Opc.Ua
         }
 
         #if (!OPCUA_EXCLUDE_TranslateBrowsePathsToNodeIds_ASYNC)
-        /// <summary>
-        /// Invokes the TranslateBrowsePathsToNodeIds service using async Task based request.
-        /// </summary>
-        public virtual async Task<TranslateBrowsePathsToNodeIdsResponse> TranslateBrowsePathsToNodeIdsAsync(
-            RequestHeader        requestHeader,
-            BrowsePathCollection browsePaths,
-            CancellationToken    ct)
-        {
-            ValidateRequest(requestHeader);
+            /// <summary>
+            /// Invokes the TranslateBrowsePathsToNodeIds service using async Task based request.
+            /// </summary>
+            public virtual async Task<TranslateBrowsePathsToNodeIdsResponse> TranslateBrowsePathsToNodeIdsAsync(
+                RequestHeader        requestHeader,
+                BrowsePathCollection browsePaths,
+                CancellationToken    ct)
+            {
+                ValidateRequest(requestHeader);
 
-            // Insert implementation.
-            await Task.CompletedTask;
+                // Insert implementation.
+                await Task.CompletedTask;
 
-            throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
-        }
+                throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
+            }
         #endif
         #endif
 
@@ -1515,21 +1515,21 @@ namespace Opc.Ua
         }
 
         #if (!OPCUA_EXCLUDE_RegisterNodes_ASYNC)
-        /// <summary>
-        /// Invokes the RegisterNodes service using async Task based request.
-        /// </summary>
-        public virtual async Task<RegisterNodesResponse> RegisterNodesAsync(
-            RequestHeader     requestHeader,
-            NodeIdCollection  nodesToRegister,
-            CancellationToken ct)
-        {
-            ValidateRequest(requestHeader);
+            /// <summary>
+            /// Invokes the RegisterNodes service using async Task based request.
+            /// </summary>
+            public virtual async Task<RegisterNodesResponse> RegisterNodesAsync(
+                RequestHeader     requestHeader,
+                NodeIdCollection  nodesToRegister,
+                CancellationToken ct)
+            {
+                ValidateRequest(requestHeader);
 
-            // Insert implementation.
-            await Task.CompletedTask;
+                // Insert implementation.
+                await Task.CompletedTask;
 
-            throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
-        }
+                throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
+            }
         #endif
         #endif
 
@@ -1550,21 +1550,21 @@ namespace Opc.Ua
         }
 
         #if (!OPCUA_EXCLUDE_UnregisterNodes_ASYNC)
-        /// <summary>
-        /// Invokes the UnregisterNodes service using async Task based request.
-        /// </summary>
-        public virtual async Task<UnregisterNodesResponse> UnregisterNodesAsync(
-            RequestHeader     requestHeader,
-            NodeIdCollection  nodesToUnregister,
-            CancellationToken ct)
-        {
-            ValidateRequest(requestHeader);
+            /// <summary>
+            /// Invokes the UnregisterNodes service using async Task based request.
+            /// </summary>
+            public virtual async Task<UnregisterNodesResponse> UnregisterNodesAsync(
+                RequestHeader     requestHeader,
+                NodeIdCollection  nodesToUnregister,
+                CancellationToken ct)
+            {
+                ValidateRequest(requestHeader);
 
-            // Insert implementation.
-            await Task.CompletedTask;
+                // Insert implementation.
+                await Task.CompletedTask;
 
-            throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
-        }
+                throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
+            }
         #endif
         #endif
 
@@ -1599,25 +1599,25 @@ namespace Opc.Ua
         }
 
         #if (!OPCUA_EXCLUDE_QueryFirst_ASYNC)
-        /// <summary>
-        /// Invokes the QueryFirst service using async Task based request.
-        /// </summary>
-        public virtual async Task<QueryFirstResponse> QueryFirstAsync(
-            RequestHeader                 requestHeader,
-            ViewDescription               view,
-            NodeTypeDescriptionCollection nodeTypes,
-            ContentFilter                 filter,
-            uint                          maxDataSetsToReturn,
-            uint                          maxReferencesToReturn,
-            CancellationToken             ct)
-        {
-            ValidateRequest(requestHeader);
+            /// <summary>
+            /// Invokes the QueryFirst service using async Task based request.
+            /// </summary>
+            public virtual async Task<QueryFirstResponse> QueryFirstAsync(
+                RequestHeader                 requestHeader,
+                ViewDescription               view,
+                NodeTypeDescriptionCollection nodeTypes,
+                ContentFilter                 filter,
+                uint                          maxDataSetsToReturn,
+                uint                          maxReferencesToReturn,
+                CancellationToken             ct)
+            {
+                ValidateRequest(requestHeader);
 
-            // Insert implementation.
-            await Task.CompletedTask;
+                // Insert implementation.
+                await Task.CompletedTask;
 
-            throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
-        }
+                throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
+            }
         #endif
         #endif
 
@@ -1643,22 +1643,22 @@ namespace Opc.Ua
         }
 
         #if (!OPCUA_EXCLUDE_QueryNext_ASYNC)
-        /// <summary>
-        /// Invokes the QueryNext service using async Task based request.
-        /// </summary>
-        public virtual async Task<QueryNextResponse> QueryNextAsync(
-            RequestHeader     requestHeader,
-            bool              releaseContinuationPoint,
-            byte[]            continuationPoint,
-            CancellationToken ct)
-        {
-            ValidateRequest(requestHeader);
+            /// <summary>
+            /// Invokes the QueryNext service using async Task based request.
+            /// </summary>
+            public virtual async Task<QueryNextResponse> QueryNextAsync(
+                RequestHeader     requestHeader,
+                bool              releaseContinuationPoint,
+                byte[]            continuationPoint,
+                CancellationToken ct)
+            {
+                ValidateRequest(requestHeader);
 
-            // Insert implementation.
-            await Task.CompletedTask;
+                // Insert implementation.
+                await Task.CompletedTask;
 
-            throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
-        }
+                throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
+            }
         #endif
         #endif
 
@@ -1685,23 +1685,23 @@ namespace Opc.Ua
         }
 
         #if (!OPCUA_EXCLUDE_Read_ASYNC)
-        /// <summary>
-        /// Invokes the Read service using async Task based request.
-        /// </summary>
-        public virtual async Task<ReadResponse> ReadAsync(
-            RequestHeader         requestHeader,
-            double                maxAge,
-            TimestampsToReturn    timestampsToReturn,
-            ReadValueIdCollection nodesToRead,
-            CancellationToken     ct)
-        {
-            ValidateRequest(requestHeader);
+            /// <summary>
+            /// Invokes the Read service using async Task based request.
+            /// </summary>
+            public virtual async Task<ReadResponse> ReadAsync(
+                RequestHeader         requestHeader,
+                double                maxAge,
+                TimestampsToReturn    timestampsToReturn,
+                ReadValueIdCollection nodesToRead,
+                CancellationToken     ct)
+            {
+                ValidateRequest(requestHeader);
 
-            // Insert implementation.
-            await Task.CompletedTask;
+                // Insert implementation.
+                await Task.CompletedTask;
 
-            throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
-        }
+                throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
+            }
         #endif
         #endif
 
@@ -1729,24 +1729,24 @@ namespace Opc.Ua
         }
 
         #if (!OPCUA_EXCLUDE_HistoryRead_ASYNC)
-        /// <summary>
-        /// Invokes the HistoryRead service using async Task based request.
-        /// </summary>
-        public virtual async Task<HistoryReadResponse> HistoryReadAsync(
-            RequestHeader                requestHeader,
-            ExtensionObject              historyReadDetails,
-            TimestampsToReturn           timestampsToReturn,
-            bool                         releaseContinuationPoints,
-            HistoryReadValueIdCollection nodesToRead,
-            CancellationToken            ct)
-        {
-            ValidateRequest(requestHeader);
+            /// <summary>
+            /// Invokes the HistoryRead service using async Task based request.
+            /// </summary>
+            public virtual async Task<HistoryReadResponse> HistoryReadAsync(
+                RequestHeader                requestHeader,
+                ExtensionObject              historyReadDetails,
+                TimestampsToReturn           timestampsToReturn,
+                bool                         releaseContinuationPoints,
+                HistoryReadValueIdCollection nodesToRead,
+                CancellationToken            ct)
+            {
+                ValidateRequest(requestHeader);
 
-            // Insert implementation.
-            await Task.CompletedTask;
+                // Insert implementation.
+                await Task.CompletedTask;
 
-            throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
-        }
+                throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
+            }
         #endif
         #endif
 
@@ -1771,21 +1771,21 @@ namespace Opc.Ua
         }
 
         #if (!OPCUA_EXCLUDE_Write_ASYNC)
-        /// <summary>
-        /// Invokes the Write service using async Task based request.
-        /// </summary>
-        public virtual async Task<WriteResponse> WriteAsync(
-            RequestHeader        requestHeader,
-            WriteValueCollection nodesToWrite,
-            CancellationToken    ct)
-        {
-            ValidateRequest(requestHeader);
+            /// <summary>
+            /// Invokes the Write service using async Task based request.
+            /// </summary>
+            public virtual async Task<WriteResponse> WriteAsync(
+                RequestHeader        requestHeader,
+                WriteValueCollection nodesToWrite,
+                CancellationToken    ct)
+            {
+                ValidateRequest(requestHeader);
 
-            // Insert implementation.
-            await Task.CompletedTask;
+                // Insert implementation.
+                await Task.CompletedTask;
 
-            throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
-        }
+                throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
+            }
         #endif
         #endif
 
@@ -1810,21 +1810,21 @@ namespace Opc.Ua
         }
 
         #if (!OPCUA_EXCLUDE_HistoryUpdate_ASYNC)
-        /// <summary>
-        /// Invokes the HistoryUpdate service using async Task based request.
-        /// </summary>
-        public virtual async Task<HistoryUpdateResponse> HistoryUpdateAsync(
-            RequestHeader             requestHeader,
-            ExtensionObjectCollection historyUpdateDetails,
-            CancellationToken         ct)
-        {
-            ValidateRequest(requestHeader);
+            /// <summary>
+            /// Invokes the HistoryUpdate service using async Task based request.
+            /// </summary>
+            public virtual async Task<HistoryUpdateResponse> HistoryUpdateAsync(
+                RequestHeader             requestHeader,
+                ExtensionObjectCollection historyUpdateDetails,
+                CancellationToken         ct)
+            {
+                ValidateRequest(requestHeader);
 
-            // Insert implementation.
-            await Task.CompletedTask;
+                // Insert implementation.
+                await Task.CompletedTask;
 
-            throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
-        }
+                throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
+            }
         #endif
         #endif
 
@@ -1849,21 +1849,21 @@ namespace Opc.Ua
         }
 
         #if (!OPCUA_EXCLUDE_Call_ASYNC)
-        /// <summary>
-        /// Invokes the Call service using async Task based request.
-        /// </summary>
-        public virtual async Task<CallResponse> CallAsync(
-            RequestHeader               requestHeader,
-            CallMethodRequestCollection methodsToCall,
-            CancellationToken           ct)
-        {
-            ValidateRequest(requestHeader);
+            /// <summary>
+            /// Invokes the Call service using async Task based request.
+            /// </summary>
+            public virtual async Task<CallResponse> CallAsync(
+                RequestHeader               requestHeader,
+                CallMethodRequestCollection methodsToCall,
+                CancellationToken           ct)
+            {
+                ValidateRequest(requestHeader);
 
-            // Insert implementation.
-            await Task.CompletedTask;
+                // Insert implementation.
+                await Task.CompletedTask;
 
-            throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
-        }
+                throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
+            }
         #endif
         #endif
 
@@ -1890,23 +1890,23 @@ namespace Opc.Ua
         }
 
         #if (!OPCUA_EXCLUDE_CreateMonitoredItems_ASYNC)
-        /// <summary>
-        /// Invokes the CreateMonitoredItems service using async Task based request.
-        /// </summary>
-        public virtual async Task<CreateMonitoredItemsResponse> CreateMonitoredItemsAsync(
-            RequestHeader                        requestHeader,
-            uint                                 subscriptionId,
-            TimestampsToReturn                   timestampsToReturn,
-            MonitoredItemCreateRequestCollection itemsToCreate,
-            CancellationToken                    ct)
-        {
-            ValidateRequest(requestHeader);
+            /// <summary>
+            /// Invokes the CreateMonitoredItems service using async Task based request.
+            /// </summary>
+            public virtual async Task<CreateMonitoredItemsResponse> CreateMonitoredItemsAsync(
+                RequestHeader                        requestHeader,
+                uint                                 subscriptionId,
+                TimestampsToReturn                   timestampsToReturn,
+                MonitoredItemCreateRequestCollection itemsToCreate,
+                CancellationToken                    ct)
+            {
+                ValidateRequest(requestHeader);
 
-            // Insert implementation.
-            await Task.CompletedTask;
+                // Insert implementation.
+                await Task.CompletedTask;
 
-            throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
-        }
+                throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
+            }
         #endif
         #endif
 
@@ -1933,23 +1933,23 @@ namespace Opc.Ua
         }
 
         #if (!OPCUA_EXCLUDE_ModifyMonitoredItems_ASYNC)
-        /// <summary>
-        /// Invokes the ModifyMonitoredItems service using async Task based request.
-        /// </summary>
-        public virtual async Task<ModifyMonitoredItemsResponse> ModifyMonitoredItemsAsync(
-            RequestHeader                        requestHeader,
-            uint                                 subscriptionId,
-            TimestampsToReturn                   timestampsToReturn,
-            MonitoredItemModifyRequestCollection itemsToModify,
-            CancellationToken                    ct)
-        {
-            ValidateRequest(requestHeader);
+            /// <summary>
+            /// Invokes the ModifyMonitoredItems service using async Task based request.
+            /// </summary>
+            public virtual async Task<ModifyMonitoredItemsResponse> ModifyMonitoredItemsAsync(
+                RequestHeader                        requestHeader,
+                uint                                 subscriptionId,
+                TimestampsToReturn                   timestampsToReturn,
+                MonitoredItemModifyRequestCollection itemsToModify,
+                CancellationToken                    ct)
+            {
+                ValidateRequest(requestHeader);
 
-            // Insert implementation.
-            await Task.CompletedTask;
+                // Insert implementation.
+                await Task.CompletedTask;
 
-            throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
-        }
+                throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
+            }
         #endif
         #endif
 
@@ -1976,23 +1976,23 @@ namespace Opc.Ua
         }
 
         #if (!OPCUA_EXCLUDE_SetMonitoringMode_ASYNC)
-        /// <summary>
-        /// Invokes the SetMonitoringMode service using async Task based request.
-        /// </summary>
-        public virtual async Task<SetMonitoringModeResponse> SetMonitoringModeAsync(
-            RequestHeader     requestHeader,
-            uint              subscriptionId,
-            MonitoringMode    monitoringMode,
-            UInt32Collection  monitoredItemIds,
-            CancellationToken ct)
-        {
-            ValidateRequest(requestHeader);
+            /// <summary>
+            /// Invokes the SetMonitoringMode service using async Task based request.
+            /// </summary>
+            public virtual async Task<SetMonitoringModeResponse> SetMonitoringModeAsync(
+                RequestHeader     requestHeader,
+                uint              subscriptionId,
+                MonitoringMode    monitoringMode,
+                UInt32Collection  monitoredItemIds,
+                CancellationToken ct)
+            {
+                ValidateRequest(requestHeader);
 
-            // Insert implementation.
-            await Task.CompletedTask;
+                // Insert implementation.
+                await Task.CompletedTask;
 
-            throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
-        }
+                throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
+            }
         #endif
         #endif
 
@@ -2024,24 +2024,24 @@ namespace Opc.Ua
         }
 
         #if (!OPCUA_EXCLUDE_SetTriggering_ASYNC)
-        /// <summary>
-        /// Invokes the SetTriggering service using async Task based request.
-        /// </summary>
-        public virtual async Task<SetTriggeringResponse> SetTriggeringAsync(
-            RequestHeader     requestHeader,
-            uint              subscriptionId,
-            uint              triggeringItemId,
-            UInt32Collection  linksToAdd,
-            UInt32Collection  linksToRemove,
-            CancellationToken ct)
-        {
-            ValidateRequest(requestHeader);
+            /// <summary>
+            /// Invokes the SetTriggering service using async Task based request.
+            /// </summary>
+            public virtual async Task<SetTriggeringResponse> SetTriggeringAsync(
+                RequestHeader     requestHeader,
+                uint              subscriptionId,
+                uint              triggeringItemId,
+                UInt32Collection  linksToAdd,
+                UInt32Collection  linksToRemove,
+                CancellationToken ct)
+            {
+                ValidateRequest(requestHeader);
 
-            // Insert implementation.
-            await Task.CompletedTask;
+                // Insert implementation.
+                await Task.CompletedTask;
 
-            throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
-        }
+                throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
+            }
         #endif
         #endif
 
@@ -2067,22 +2067,22 @@ namespace Opc.Ua
         }
 
         #if (!OPCUA_EXCLUDE_DeleteMonitoredItems_ASYNC)
-        /// <summary>
-        /// Invokes the DeleteMonitoredItems service using async Task based request.
-        /// </summary>
-        public virtual async Task<DeleteMonitoredItemsResponse> DeleteMonitoredItemsAsync(
-            RequestHeader     requestHeader,
-            uint              subscriptionId,
-            UInt32Collection  monitoredItemIds,
-            CancellationToken ct)
-        {
-            ValidateRequest(requestHeader);
+            /// <summary>
+            /// Invokes the DeleteMonitoredItems service using async Task based request.
+            /// </summary>
+            public virtual async Task<DeleteMonitoredItemsResponse> DeleteMonitoredItemsAsync(
+                RequestHeader     requestHeader,
+                uint              subscriptionId,
+                UInt32Collection  monitoredItemIds,
+                CancellationToken ct)
+            {
+                ValidateRequest(requestHeader);
 
-            // Insert implementation.
-            await Task.CompletedTask;
+                // Insert implementation.
+                await Task.CompletedTask;
 
-            throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
-        }
+                throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
+            }
         #endif
         #endif
 
@@ -2116,26 +2116,26 @@ namespace Opc.Ua
         }
 
         #if (!OPCUA_EXCLUDE_CreateSubscription_ASYNC)
-        /// <summary>
-        /// Invokes the CreateSubscription service using async Task based request.
-        /// </summary>
-        public virtual async Task<CreateSubscriptionResponse> CreateSubscriptionAsync(
-            RequestHeader     requestHeader,
-            double            requestedPublishingInterval,
-            uint              requestedLifetimeCount,
-            uint              requestedMaxKeepAliveCount,
-            uint              maxNotificationsPerPublish,
-            bool              publishingEnabled,
-            byte              priority,
-            CancellationToken ct)
-        {
-            ValidateRequest(requestHeader);
+            /// <summary>
+            /// Invokes the CreateSubscription service using async Task based request.
+            /// </summary>
+            public virtual async Task<CreateSubscriptionResponse> CreateSubscriptionAsync(
+                RequestHeader     requestHeader,
+                double            requestedPublishingInterval,
+                uint              requestedLifetimeCount,
+                uint              requestedMaxKeepAliveCount,
+                uint              maxNotificationsPerPublish,
+                bool              publishingEnabled,
+                byte              priority,
+                CancellationToken ct)
+            {
+                ValidateRequest(requestHeader);
 
-            // Insert implementation.
-            await Task.CompletedTask;
+                // Insert implementation.
+                await Task.CompletedTask;
 
-            throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
-        }
+                throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
+            }
         #endif
         #endif
 
@@ -2167,26 +2167,26 @@ namespace Opc.Ua
         }
 
         #if (!OPCUA_EXCLUDE_ModifySubscription_ASYNC)
-        /// <summary>
-        /// Invokes the ModifySubscription service using async Task based request.
-        /// </summary>
-        public virtual async Task<ModifySubscriptionResponse> ModifySubscriptionAsync(
-            RequestHeader     requestHeader,
-            uint              subscriptionId,
-            double            requestedPublishingInterval,
-            uint              requestedLifetimeCount,
-            uint              requestedMaxKeepAliveCount,
-            uint              maxNotificationsPerPublish,
-            byte              priority,
-            CancellationToken ct)
-        {
-            ValidateRequest(requestHeader);
+            /// <summary>
+            /// Invokes the ModifySubscription service using async Task based request.
+            /// </summary>
+            public virtual async Task<ModifySubscriptionResponse> ModifySubscriptionAsync(
+                RequestHeader     requestHeader,
+                uint              subscriptionId,
+                double            requestedPublishingInterval,
+                uint              requestedLifetimeCount,
+                uint              requestedMaxKeepAliveCount,
+                uint              maxNotificationsPerPublish,
+                byte              priority,
+                CancellationToken ct)
+            {
+                ValidateRequest(requestHeader);
 
-            // Insert implementation.
-            await Task.CompletedTask;
+                // Insert implementation.
+                await Task.CompletedTask;
 
-            throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
-        }
+                throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
+            }
         #endif
         #endif
 
@@ -2212,22 +2212,22 @@ namespace Opc.Ua
         }
 
         #if (!OPCUA_EXCLUDE_SetPublishingMode_ASYNC)
-        /// <summary>
-        /// Invokes the SetPublishingMode service using async Task based request.
-        /// </summary>
-        public virtual async Task<SetPublishingModeResponse> SetPublishingModeAsync(
-            RequestHeader     requestHeader,
-            bool              publishingEnabled,
-            UInt32Collection  subscriptionIds,
-            CancellationToken ct)
-        {
-            ValidateRequest(requestHeader);
+            /// <summary>
+            /// Invokes the SetPublishingMode service using async Task based request.
+            /// </summary>
+            public virtual async Task<SetPublishingModeResponse> SetPublishingModeAsync(
+                RequestHeader     requestHeader,
+                bool              publishingEnabled,
+                UInt32Collection  subscriptionIds,
+                CancellationToken ct)
+            {
+                ValidateRequest(requestHeader);
 
-            // Insert implementation.
-            await Task.CompletedTask;
+                // Insert implementation.
+                await Task.CompletedTask;
 
-            throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
-        }
+                throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
+            }
         #endif
         #endif
 
@@ -2260,21 +2260,21 @@ namespace Opc.Ua
         }
 
         #if (!OPCUA_EXCLUDE_Publish_ASYNC)
-        /// <summary>
-        /// Invokes the Publish service using async Task based request.
-        /// </summary>
-        public virtual async Task<PublishResponse> PublishAsync(
-            RequestHeader                         requestHeader,
-            SubscriptionAcknowledgementCollection subscriptionAcknowledgements,
-            CancellationToken                     ct)
-        {
-            ValidateRequest(requestHeader);
+            /// <summary>
+            /// Invokes the Publish service using async Task based request.
+            /// </summary>
+            public virtual async Task<PublishResponse> PublishAsync(
+                RequestHeader                         requestHeader,
+                SubscriptionAcknowledgementCollection subscriptionAcknowledgements,
+                CancellationToken                     ct)
+            {
+                ValidateRequest(requestHeader);
 
-            // Insert implementation.
-            await Task.CompletedTask;
+                // Insert implementation.
+                await Task.CompletedTask;
 
-            throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
-        }
+                throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
+            }
         #endif
         #endif
 
@@ -2298,22 +2298,22 @@ namespace Opc.Ua
         }
 
         #if (!OPCUA_EXCLUDE_Republish_ASYNC)
-        /// <summary>
-        /// Invokes the Republish service using async Task based request.
-        /// </summary>
-        public virtual async Task<RepublishResponse> RepublishAsync(
-            RequestHeader     requestHeader,
-            uint              subscriptionId,
-            uint              retransmitSequenceNumber,
-            CancellationToken ct)
-        {
-            ValidateRequest(requestHeader);
+            /// <summary>
+            /// Invokes the Republish service using async Task based request.
+            /// </summary>
+            public virtual async Task<RepublishResponse> RepublishAsync(
+                RequestHeader     requestHeader,
+                uint              subscriptionId,
+                uint              retransmitSequenceNumber,
+                CancellationToken ct)
+            {
+                ValidateRequest(requestHeader);
 
-            // Insert implementation.
-            await Task.CompletedTask;
+                // Insert implementation.
+                await Task.CompletedTask;
 
-            throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
-        }
+                throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
+            }
         #endif
         #endif
 
@@ -2339,22 +2339,22 @@ namespace Opc.Ua
         }
 
         #if (!OPCUA_EXCLUDE_TransferSubscriptions_ASYNC)
-        /// <summary>
-        /// Invokes the TransferSubscriptions service using async Task based request.
-        /// </summary>
-        public virtual async Task<TransferSubscriptionsResponse> TransferSubscriptionsAsync(
-            RequestHeader     requestHeader,
-            UInt32Collection  subscriptionIds,
-            bool              sendInitialValues,
-            CancellationToken ct)
-        {
-            ValidateRequest(requestHeader);
+            /// <summary>
+            /// Invokes the TransferSubscriptions service using async Task based request.
+            /// </summary>
+            public virtual async Task<TransferSubscriptionsResponse> TransferSubscriptionsAsync(
+                RequestHeader     requestHeader,
+                UInt32Collection  subscriptionIds,
+                bool              sendInitialValues,
+                CancellationToken ct)
+            {
+                ValidateRequest(requestHeader);
 
-            // Insert implementation.
-            await Task.CompletedTask;
+                // Insert implementation.
+                await Task.CompletedTask;
 
-            throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
-        }
+                throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
+            }
         #endif
         #endif
 
@@ -2379,21 +2379,21 @@ namespace Opc.Ua
         }
 
         #if (!OPCUA_EXCLUDE_DeleteSubscriptions_ASYNC)
-        /// <summary>
-        /// Invokes the DeleteSubscriptions service using async Task based request.
-        /// </summary>
-        public virtual async Task<DeleteSubscriptionsResponse> DeleteSubscriptionsAsync(
-            RequestHeader     requestHeader,
-            UInt32Collection  subscriptionIds,
-            CancellationToken ct)
-        {
-            ValidateRequest(requestHeader);
+            /// <summary>
+            /// Invokes the DeleteSubscriptions service using async Task based request.
+            /// </summary>
+            public virtual async Task<DeleteSubscriptionsResponse> DeleteSubscriptionsAsync(
+                RequestHeader     requestHeader,
+                UInt32Collection  subscriptionIds,
+                CancellationToken ct)
+            {
+                ValidateRequest(requestHeader);
 
-            // Insert implementation.
-            await Task.CompletedTask;
+                // Insert implementation.
+                await Task.CompletedTask;
 
-            throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
-        }
+                throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
+            }
         #endif
         #endif
     }
@@ -2553,23 +2553,23 @@ namespace Opc.Ua
         }
 
         #if (!OPCUA_EXCLUDE_FindServers_ASYNC)
-        /// <summary>
-        /// Invokes the FindServers service using async Task based request.
-        /// </summary>
-        public virtual async Task<FindServersResponse> FindServersAsync(
-            RequestHeader     requestHeader,
-            string            endpointUrl,
-            StringCollection  localeIds,
-            StringCollection  serverUris,
-            CancellationToken ct)
-        {
-            ValidateRequest(requestHeader);
+            /// <summary>
+            /// Invokes the FindServers service using async Task based request.
+            /// </summary>
+            public virtual async Task<FindServersResponse> FindServersAsync(
+                RequestHeader     requestHeader,
+                string            endpointUrl,
+                StringCollection  localeIds,
+                StringCollection  serverUris,
+                CancellationToken ct)
+            {
+                ValidateRequest(requestHeader);
 
-            // Insert implementation.
-            await Task.CompletedTask;
+                // Insert implementation.
+                await Task.CompletedTask;
 
-            throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
-        }
+                throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
+            }
         #endif
         #endif
 
@@ -2596,23 +2596,23 @@ namespace Opc.Ua
         }
 
         #if (!OPCUA_EXCLUDE_FindServersOnNetwork_ASYNC)
-        /// <summary>
-        /// Invokes the FindServersOnNetwork service using async Task based request.
-        /// </summary>
-        public virtual async Task<FindServersOnNetworkResponse> FindServersOnNetworkAsync(
-            RequestHeader     requestHeader,
-            uint              startingRecordId,
-            uint              maxRecordsToReturn,
-            StringCollection  serverCapabilityFilter,
-            CancellationToken ct)
-        {
-            ValidateRequest(requestHeader);
+            /// <summary>
+            /// Invokes the FindServersOnNetwork service using async Task based request.
+            /// </summary>
+            public virtual async Task<FindServersOnNetworkResponse> FindServersOnNetworkAsync(
+                RequestHeader     requestHeader,
+                uint              startingRecordId,
+                uint              maxRecordsToReturn,
+                StringCollection  serverCapabilityFilter,
+                CancellationToken ct)
+            {
+                ValidateRequest(requestHeader);
 
-            // Insert implementation.
-            await Task.CompletedTask;
+                // Insert implementation.
+                await Task.CompletedTask;
 
-            throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
-        }
+                throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
+            }
         #endif
         #endif
 
@@ -2637,23 +2637,23 @@ namespace Opc.Ua
         }
 
         #if (!OPCUA_EXCLUDE_GetEndpoints_ASYNC)
-        /// <summary>
-        /// Invokes the GetEndpoints service using async Task based request.
-        /// </summary>
-        public virtual async Task<GetEndpointsResponse> GetEndpointsAsync(
-            RequestHeader     requestHeader,
-            string            endpointUrl,
-            StringCollection  localeIds,
-            StringCollection  profileUris,
-            CancellationToken ct)
-        {
-            ValidateRequest(requestHeader);
+            /// <summary>
+            /// Invokes the GetEndpoints service using async Task based request.
+            /// </summary>
+            public virtual async Task<GetEndpointsResponse> GetEndpointsAsync(
+                RequestHeader     requestHeader,
+                string            endpointUrl,
+                StringCollection  localeIds,
+                StringCollection  profileUris,
+                CancellationToken ct)
+            {
+                ValidateRequest(requestHeader);
 
-            // Insert implementation.
-            await Task.CompletedTask;
+                // Insert implementation.
+                await Task.CompletedTask;
 
-            throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
-        }
+                throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
+            }
         #endif
         #endif
 
@@ -2674,21 +2674,21 @@ namespace Opc.Ua
         }
 
         #if (!OPCUA_EXCLUDE_RegisterServer_ASYNC)
-        /// <summary>
-        /// Invokes the RegisterServer service using async Task based request.
-        /// </summary>
-        public virtual async Task<RegisterServerResponse> RegisterServerAsync(
-            RequestHeader     requestHeader,
-            RegisteredServer  server,
-            CancellationToken ct)
-        {
-            ValidateRequest(requestHeader);
+            /// <summary>
+            /// Invokes the RegisterServer service using async Task based request.
+            /// </summary>
+            public virtual async Task<RegisterServerResponse> RegisterServerAsync(
+                RequestHeader     requestHeader,
+                RegisteredServer  server,
+                CancellationToken ct)
+            {
+                ValidateRequest(requestHeader);
 
-            // Insert implementation.
-            await Task.CompletedTask;
+                // Insert implementation.
+                await Task.CompletedTask;
 
-            throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
-        }
+                throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
+            }
         #endif
         #endif
 
@@ -2714,22 +2714,22 @@ namespace Opc.Ua
         }
 
         #if (!OPCUA_EXCLUDE_RegisterServer2_ASYNC)
-        /// <summary>
-        /// Invokes the RegisterServer2 service using async Task based request.
-        /// </summary>
-        public virtual async Task<RegisterServer2Response> RegisterServer2Async(
-            RequestHeader             requestHeader,
-            RegisteredServer          server,
-            ExtensionObjectCollection discoveryConfiguration,
-            CancellationToken         ct)
-        {
-            ValidateRequest(requestHeader);
+            /// <summary>
+            /// Invokes the RegisterServer2 service using async Task based request.
+            /// </summary>
+            public virtual async Task<RegisterServer2Response> RegisterServer2Async(
+                RequestHeader             requestHeader,
+                RegisteredServer          server,
+                ExtensionObjectCollection discoveryConfiguration,
+                CancellationToken         ct)
+            {
+                ValidateRequest(requestHeader);
 
-            // Insert implementation.
-            await Task.CompletedTask;
+                // Insert implementation.
+                await Task.CompletedTask;
 
-            throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
-        }
+                throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
+            }
         #endif
         #endif
     }

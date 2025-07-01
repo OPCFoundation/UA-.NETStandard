@@ -210,8 +210,8 @@ namespace Opc.Ua
                 throw fault;
             }
         }
-
         #endif
+
         #if (!OPCUA_EXCLUDE_FindServers_ASYNC)
         /// <summary>
         /// Invokes the FindServers service.
@@ -242,7 +242,7 @@ namespace Opc.Ua
         }
         #endif
         #endif
-            #endregion
+        #endregion
 
         #region FindServersOnNetwork Service
         #if (!OPCUA_EXCLUDE_FindServersOnNetwork)
@@ -354,8 +354,8 @@ namespace Opc.Ua
                 throw fault;
             }
         }
-
         #endif
+
         #if (!OPCUA_EXCLUDE_FindServersOnNetwork_ASYNC)
         /// <summary>
         /// Invokes the FindServersOnNetwork service.
@@ -386,7 +386,7 @@ namespace Opc.Ua
         }
         #endif
         #endif
-            #endregion
+        #endregion
 
         #region GetEndpoints Service
         #if (!OPCUA_EXCLUDE_GetEndpoints)
@@ -495,8 +495,8 @@ namespace Opc.Ua
                 throw fault;
             }
         }
-
         #endif
+
         #if (!OPCUA_EXCLUDE_GetEndpoints_ASYNC)
         /// <summary>
         /// Invokes the GetEndpoints service.
@@ -527,7 +527,7 @@ namespace Opc.Ua
         }
         #endif
         #endif
-            #endregion
+        #endregion
 
         #region CreateSession Service
         #if (!OPCUA_EXCLUDE_CreateSession)
@@ -665,8 +665,8 @@ namespace Opc.Ua
                 throw fault;
             }
         }
-
         #endif
+
         #if (!OPCUA_EXCLUDE_CreateSession_ASYNC)
         /// <summary>
         /// Invokes the CreateSession service.
@@ -702,7 +702,7 @@ namespace Opc.Ua
         }
         #endif
         #endif
-            #endregion
+        #endregion
 
         #region ActivateSession Service
         #if (!OPCUA_EXCLUDE_ActivateSession)
@@ -819,8 +819,8 @@ namespace Opc.Ua
                 throw fault;
             }
         }
-
         #endif
+
         #if (!OPCUA_EXCLUDE_ActivateSession_ASYNC)
         /// <summary>
         /// Invokes the ActivateSession service.
@@ -853,7 +853,7 @@ namespace Opc.Ua
         }
         #endif
         #endif
-            #endregion
+        #endregion
 
         #region CloseSession Service
         #if (!OPCUA_EXCLUDE_CloseSession)
@@ -957,8 +957,8 @@ namespace Opc.Ua
                 throw fault;
             }
         }
-
         #endif
+
         #if (!OPCUA_EXCLUDE_CloseSession_ASYNC)
         /// <summary>
         /// Invokes the CloseSession service.
@@ -987,7 +987,7 @@ namespace Opc.Ua
         }
         #endif
         #endif
-            #endregion
+        #endregion
 
         #region Cancel Service
         #if (!OPCUA_EXCLUDE_Cancel)
@@ -1094,8 +1094,8 @@ namespace Opc.Ua
                 throw fault;
             }
         }
-
         #endif
+
         #if (!OPCUA_EXCLUDE_Cancel_ASYNC)
         /// <summary>
         /// Invokes the Cancel service.
@@ -1124,7 +1124,7 @@ namespace Opc.Ua
         }
         #endif
         #endif
-            #endregion
+        #endregion
 
         #region AddNodes Service
         #if (!OPCUA_EXCLUDE_AddNodes)
@@ -1234,8 +1234,8 @@ namespace Opc.Ua
                 throw fault;
             }
         }
-
         #endif
+
         #if (!OPCUA_EXCLUDE_AddNodes_ASYNC)
         /// <summary>
         /// Invokes the AddNodes service.
@@ -1264,7 +1264,7 @@ namespace Opc.Ua
         }
         #endif
         #endif
-            #endregion
+        #endregion
 
         #region AddReferences Service
         #if (!OPCUA_EXCLUDE_AddReferences)
@@ -1374,8 +1374,8 @@ namespace Opc.Ua
                 throw fault;
             }
         }
-
         #endif
+
         #if (!OPCUA_EXCLUDE_AddReferences_ASYNC)
         /// <summary>
         /// Invokes the AddReferences service.
@@ -1404,7 +1404,7 @@ namespace Opc.Ua
         }
         #endif
         #endif
-            #endregion
+        #endregion
 
         #region DeleteNodes Service
         #if (!OPCUA_EXCLUDE_DeleteNodes)
@@ -1514,8 +1514,8 @@ namespace Opc.Ua
                 throw fault;
             }
         }
-
         #endif
+
         #if (!OPCUA_EXCLUDE_DeleteNodes_ASYNC)
         /// <summary>
         /// Invokes the DeleteNodes service.
@@ -1544,7 +1544,7 @@ namespace Opc.Ua
         }
         #endif
         #endif
-            #endregion
+        #endregion
 
         #region DeleteReferences Service
         #if (!OPCUA_EXCLUDE_DeleteReferences)
@@ -1654,8 +1654,8 @@ namespace Opc.Ua
                 throw fault;
             }
         }
-
         #endif
+
         #if (!OPCUA_EXCLUDE_DeleteReferences_ASYNC)
         /// <summary>
         /// Invokes the DeleteReferences service.
@@ -1684,7 +1684,7 @@ namespace Opc.Ua
         }
         #endif
         #endif
-            #endregion
+        #endregion
 
         #region Browse Service
         #if (!OPCUA_EXCLUDE_Browse)
@@ -1796,8 +1796,8 @@ namespace Opc.Ua
                 throw fault;
             }
         }
-
         #endif
+
         #if (!OPCUA_EXCLUDE_Browse_ASYNC)
         /// <summary>
         /// Invokes the Browse service.
@@ -1828,7 +1828,7 @@ namespace Opc.Ua
         }
         #endif
         #endif
-            #endregion
+        #endregion
 
         #region BrowseNext Service
         #if (!OPCUA_EXCLUDE_BrowseNext)
@@ -1939,8 +1939,8 @@ namespace Opc.Ua
                 throw fault;
             }
         }
-
         #endif
+
         #if (!OPCUA_EXCLUDE_BrowseNext_ASYNC)
         /// <summary>
         /// Invokes the BrowseNext service.
@@ -1970,7 +1970,7 @@ namespace Opc.Ua
         }
         #endif
         #endif
-            #endregion
+        #endregion
 
         #region TranslateBrowsePathsToNodeIds Service
         #if (!OPCUA_EXCLUDE_TranslateBrowsePathsToNodeIds)
@@ -2080,8 +2080,8 @@ namespace Opc.Ua
                 throw fault;
             }
         }
-
         #endif
+
         #if (!OPCUA_EXCLUDE_TranslateBrowsePathsToNodeIds_ASYNC)
         /// <summary>
         /// Invokes the TranslateBrowsePathsToNodeIds service.
@@ -2110,7 +2110,7 @@ namespace Opc.Ua
         }
         #endif
         #endif
-            #endregion
+        #endregion
 
         #region RegisterNodes Service
         #if (!OPCUA_EXCLUDE_RegisterNodes)
@@ -2217,8 +2217,8 @@ namespace Opc.Ua
                 throw fault;
             }
         }
-
         #endif
+
         #if (!OPCUA_EXCLUDE_RegisterNodes_ASYNC)
         /// <summary>
         /// Invokes the RegisterNodes service.
@@ -2247,7 +2247,7 @@ namespace Opc.Ua
         }
         #endif
         #endif
-            #endregion
+        #endregion
 
         #region UnregisterNodes Service
         #if (!OPCUA_EXCLUDE_UnregisterNodes)
@@ -2351,8 +2351,8 @@ namespace Opc.Ua
                 throw fault;
             }
         }
-
         #endif
+
         #if (!OPCUA_EXCLUDE_UnregisterNodes_ASYNC)
         /// <summary>
         /// Invokes the UnregisterNodes service.
@@ -2381,7 +2381,7 @@ namespace Opc.Ua
         }
         #endif
         #endif
-            #endregion
+        #endregion
 
         #region QueryFirst Service
         #if (!OPCUA_EXCLUDE_QueryFirst)
@@ -2504,8 +2504,8 @@ namespace Opc.Ua
                 throw fault;
             }
         }
-
         #endif
+
         #if (!OPCUA_EXCLUDE_QueryFirst_ASYNC)
         /// <summary>
         /// Invokes the QueryFirst service.
@@ -2538,7 +2538,7 @@ namespace Opc.Ua
         }
         #endif
         #endif
-            #endregion
+        #endregion
 
         #region QueryNext Service
         #if (!OPCUA_EXCLUDE_QueryNext)
@@ -2649,8 +2649,8 @@ namespace Opc.Ua
                 throw fault;
             }
         }
-
         #endif
+
         #if (!OPCUA_EXCLUDE_QueryNext_ASYNC)
         /// <summary>
         /// Invokes the QueryNext service.
@@ -2680,7 +2680,7 @@ namespace Opc.Ua
         }
         #endif
         #endif
-            #endregion
+        #endregion
 
         #region Read Service
         #if (!OPCUA_EXCLUDE_Read)
@@ -2792,8 +2792,8 @@ namespace Opc.Ua
                 throw fault;
             }
         }
-
         #endif
+
         #if (!OPCUA_EXCLUDE_Read_ASYNC)
         /// <summary>
         /// Invokes the Read service.
@@ -2824,7 +2824,7 @@ namespace Opc.Ua
         }
         #endif
         #endif
-            #endregion
+        #endregion
 
         #region HistoryRead Service
         #if (!OPCUA_EXCLUDE_HistoryRead)
@@ -2937,8 +2937,8 @@ namespace Opc.Ua
                 throw fault;
             }
         }
-
         #endif
+
         #if (!OPCUA_EXCLUDE_HistoryRead_ASYNC)
         /// <summary>
         /// Invokes the HistoryRead service.
@@ -2970,7 +2970,7 @@ namespace Opc.Ua
         }
         #endif
         #endif
-            #endregion
+        #endregion
 
         #region Write Service
         #if (!OPCUA_EXCLUDE_Write)
@@ -3080,8 +3080,8 @@ namespace Opc.Ua
                 throw fault;
             }
         }
-
         #endif
+
         #if (!OPCUA_EXCLUDE_Write_ASYNC)
         /// <summary>
         /// Invokes the Write service.
@@ -3110,7 +3110,7 @@ namespace Opc.Ua
         }
         #endif
         #endif
-            #endregion
+        #endregion
 
         #region HistoryUpdate Service
         #if (!OPCUA_EXCLUDE_HistoryUpdate)
@@ -3220,8 +3220,8 @@ namespace Opc.Ua
                 throw fault;
             }
         }
-
         #endif
+
         #if (!OPCUA_EXCLUDE_HistoryUpdate_ASYNC)
         /// <summary>
         /// Invokes the HistoryUpdate service.
@@ -3250,7 +3250,7 @@ namespace Opc.Ua
         }
         #endif
         #endif
-            #endregion
+        #endregion
 
         #region Call Service
         #if (!OPCUA_EXCLUDE_Call)
@@ -3360,8 +3360,8 @@ namespace Opc.Ua
                 throw fault;
             }
         }
-
         #endif
+
         #if (!OPCUA_EXCLUDE_Call_ASYNC)
         /// <summary>
         /// Invokes the Call service.
@@ -3390,7 +3390,7 @@ namespace Opc.Ua
         }
         #endif
         #endif
-            #endregion
+        #endregion
 
         #region CreateMonitoredItems Service
         #if (!OPCUA_EXCLUDE_CreateMonitoredItems)
@@ -3502,8 +3502,8 @@ namespace Opc.Ua
                 throw fault;
             }
         }
-
         #endif
+
         #if (!OPCUA_EXCLUDE_CreateMonitoredItems_ASYNC)
         /// <summary>
         /// Invokes the CreateMonitoredItems service.
@@ -3534,7 +3534,7 @@ namespace Opc.Ua
         }
         #endif
         #endif
-            #endregion
+        #endregion
 
         #region ModifyMonitoredItems Service
         #if (!OPCUA_EXCLUDE_ModifyMonitoredItems)
@@ -3646,8 +3646,8 @@ namespace Opc.Ua
                 throw fault;
             }
         }
-
         #endif
+
         #if (!OPCUA_EXCLUDE_ModifyMonitoredItems_ASYNC)
         /// <summary>
         /// Invokes the ModifyMonitoredItems service.
@@ -3678,7 +3678,7 @@ namespace Opc.Ua
         }
         #endif
         #endif
-            #endregion
+        #endregion
 
         #region SetMonitoringMode Service
         #if (!OPCUA_EXCLUDE_SetMonitoringMode)
@@ -3790,8 +3790,8 @@ namespace Opc.Ua
                 throw fault;
             }
         }
-
         #endif
+
         #if (!OPCUA_EXCLUDE_SetMonitoringMode_ASYNC)
         /// <summary>
         /// Invokes the SetMonitoringMode service.
@@ -3822,7 +3822,7 @@ namespace Opc.Ua
         }
         #endif
         #endif
-            #endregion
+        #endregion
 
         #region SetTriggering Service
         #if (!OPCUA_EXCLUDE_SetTriggering)
@@ -3941,8 +3941,8 @@ namespace Opc.Ua
                 throw fault;
             }
         }
-
         #endif
+
         #if (!OPCUA_EXCLUDE_SetTriggering_ASYNC)
         /// <summary>
         /// Invokes the SetTriggering service.
@@ -3974,7 +3974,7 @@ namespace Opc.Ua
         }
         #endif
         #endif
-            #endregion
+        #endregion
 
         #region DeleteMonitoredItems Service
         #if (!OPCUA_EXCLUDE_DeleteMonitoredItems)
@@ -4085,8 +4085,8 @@ namespace Opc.Ua
                 throw fault;
             }
         }
-
         #endif
+
         #if (!OPCUA_EXCLUDE_DeleteMonitoredItems_ASYNC)
         /// <summary>
         /// Invokes the DeleteMonitoredItems service.
@@ -4116,7 +4116,7 @@ namespace Opc.Ua
         }
         #endif
         #endif
-            #endregion
+        #endregion
 
         #region CreateSubscription Service
         #if (!OPCUA_EXCLUDE_CreateSubscription)
@@ -4237,8 +4237,8 @@ namespace Opc.Ua
                 throw fault;
             }
         }
-
         #endif
+
         #if (!OPCUA_EXCLUDE_CreateSubscription_ASYNC)
         /// <summary>
         /// Invokes the CreateSubscription service.
@@ -4272,7 +4272,7 @@ namespace Opc.Ua
         }
         #endif
         #endif
-            #endregion
+        #endregion
 
         #region ModifySubscription Service
         #if (!OPCUA_EXCLUDE_ModifySubscription)
@@ -4390,8 +4390,8 @@ namespace Opc.Ua
                 throw fault;
             }
         }
-
         #endif
+
         #if (!OPCUA_EXCLUDE_ModifySubscription_ASYNC)
         /// <summary>
         /// Invokes the ModifySubscription service.
@@ -4425,7 +4425,7 @@ namespace Opc.Ua
         }
         #endif
         #endif
-            #endregion
+        #endregion
 
         #region SetPublishingMode Service
         #if (!OPCUA_EXCLUDE_SetPublishingMode)
@@ -4536,8 +4536,8 @@ namespace Opc.Ua
                 throw fault;
             }
         }
-
         #endif
+
         #if (!OPCUA_EXCLUDE_SetPublishingMode_ASYNC)
         /// <summary>
         /// Invokes the SetPublishingMode service.
@@ -4567,7 +4567,7 @@ namespace Opc.Ua
         }
         #endif
         #endif
-            #endregion
+        #endregion
 
         #region Publish Service
         #if (!OPCUA_EXCLUDE_Publish)
@@ -4689,8 +4689,8 @@ namespace Opc.Ua
                 throw fault;
             }
         }
-
         #endif
+
         #if (!OPCUA_EXCLUDE_Publish_ASYNC)
         /// <summary>
         /// Invokes the Publish service.
@@ -4719,7 +4719,7 @@ namespace Opc.Ua
         }
         #endif
         #endif
-            #endregion
+        #endregion
 
         #region Republish Service
         #if (!OPCUA_EXCLUDE_Republish)
@@ -4827,8 +4827,8 @@ namespace Opc.Ua
                 throw fault;
             }
         }
-
         #endif
+
         #if (!OPCUA_EXCLUDE_Republish_ASYNC)
         /// <summary>
         /// Invokes the Republish service.
@@ -4858,7 +4858,7 @@ namespace Opc.Ua
         }
         #endif
         #endif
-            #endregion
+        #endregion
 
         #region TransferSubscriptions Service
         #if (!OPCUA_EXCLUDE_TransferSubscriptions)
@@ -4969,8 +4969,8 @@ namespace Opc.Ua
                 throw fault;
             }
         }
-
         #endif
+
         #if (!OPCUA_EXCLUDE_TransferSubscriptions_ASYNC)
         /// <summary>
         /// Invokes the TransferSubscriptions service.
@@ -5000,7 +5000,7 @@ namespace Opc.Ua
         }
         #endif
         #endif
-            #endregion
+        #endregion
 
         #region DeleteSubscriptions Service
         #if (!OPCUA_EXCLUDE_DeleteSubscriptions)
@@ -5110,8 +5110,8 @@ namespace Opc.Ua
                 throw fault;
             }
         }
-
         #endif
+
         #if (!OPCUA_EXCLUDE_DeleteSubscriptions_ASYNC)
         /// <summary>
         /// Invokes the DeleteSubscriptions service.
@@ -5140,7 +5140,7 @@ namespace Opc.Ua
         }
         #endif
         #endif
-            #endregion
+        #endregion
         #endregion
 
         #region Protected Members
@@ -5494,8 +5494,8 @@ namespace Opc.Ua
                 throw fault;
             }
         }
-
         #endif
+
         #if (!OPCUA_EXCLUDE_FindServers_ASYNC)
         /// <summary>
         /// Invokes the FindServers service.
@@ -5526,7 +5526,7 @@ namespace Opc.Ua
         }
         #endif
         #endif
-            #endregion
+        #endregion
 
         #region FindServersOnNetwork Service
         #if (!OPCUA_EXCLUDE_FindServersOnNetwork)
@@ -5638,8 +5638,8 @@ namespace Opc.Ua
                 throw fault;
             }
         }
-
         #endif
+
         #if (!OPCUA_EXCLUDE_FindServersOnNetwork_ASYNC)
         /// <summary>
         /// Invokes the FindServersOnNetwork service.
@@ -5670,7 +5670,7 @@ namespace Opc.Ua
         }
         #endif
         #endif
-            #endregion
+        #endregion
 
         #region GetEndpoints Service
         #if (!OPCUA_EXCLUDE_GetEndpoints)
@@ -5779,8 +5779,8 @@ namespace Opc.Ua
                 throw fault;
             }
         }
-
         #endif
+
         #if (!OPCUA_EXCLUDE_GetEndpoints_ASYNC)
         /// <summary>
         /// Invokes the GetEndpoints service.
@@ -5811,7 +5811,7 @@ namespace Opc.Ua
         }
         #endif
         #endif
-            #endregion
+        #endregion
 
         #region RegisterServer Service
         #if (!OPCUA_EXCLUDE_RegisterServer)
@@ -5915,8 +5915,8 @@ namespace Opc.Ua
                 throw fault;
             }
         }
-
         #endif
+
         #if (!OPCUA_EXCLUDE_RegisterServer_ASYNC)
         /// <summary>
         /// Invokes the RegisterServer service.
@@ -5945,7 +5945,7 @@ namespace Opc.Ua
         }
         #endif
         #endif
-            #endregion
+        #endregion
 
         #region RegisterServer2 Service
         #if (!OPCUA_EXCLUDE_RegisterServer2)
@@ -6056,8 +6056,8 @@ namespace Opc.Ua
                 throw fault;
             }
         }
-
         #endif
+
         #if (!OPCUA_EXCLUDE_RegisterServer2_ASYNC)
         /// <summary>
         /// Invokes the RegisterServer2 service.
@@ -6087,7 +6087,7 @@ namespace Opc.Ua
         }
         #endif
         #endif
-            #endregion
+        #endregion
         #endregion
 
         #region Protected Members

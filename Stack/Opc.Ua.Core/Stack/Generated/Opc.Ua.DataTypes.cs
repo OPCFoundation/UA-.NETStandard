@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Xml;
+using System.Linq;
 using System.Runtime.Serialization;
 using System.Threading.Tasks;
 using System.Threading;
@@ -4938,948 +4939,6 @@ namespace Opc.Ua
     #endif
     #endregion
 
-    #region BaseConfigurationDataType Class
-    #if (!OPCUA_EXCLUDE_BaseConfigurationDataType)
-    /// <remarks />
-    /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class BaseConfigurationDataType : IEncodeable, IJsonEncodeable
-    {
-        #region Constructors
-        /// <remarks />
-        public BaseConfigurationDataType()
-        {
-            Initialize();
-        }
-            
-        [OnDeserializing]
-        private void Initialize(StreamingContext context)
-        {
-            Initialize();
-        }
-            
-        private void Initialize()
-        {
-            m_configurationVersion = (uint)0;
-            m_configurationProperties = new KeyValuePairCollection();
-        }
-        #endregion
-
-        #region Public Properties
-        /// <remarks />
-        [DataMember(Name = "ConfigurationVersion", IsRequired = false, Order = 1)]
-        public uint ConfigurationVersion
-        {
-            get { return m_configurationVersion;  }
-            set { m_configurationVersion = value; }
-        }
-
-        /// <remarks />
-        [DataMember(Name = "ConfigurationProperties", IsRequired = false, Order = 2)]
-        public KeyValuePairCollection ConfigurationProperties
-        {
-            get
-            {
-                return m_configurationProperties;
-            }
-
-            set
-            {
-                m_configurationProperties = value;
-
-                if (value == null)
-                {
-                    m_configurationProperties = new KeyValuePairCollection();
-                }
-            }
-        }
-        #endregion
-
-        #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId => DataTypeIds.BaseConfigurationDataType; 
-
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.BaseConfigurationDataType_Encoding_DefaultBinary;
-
-        /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.BaseConfigurationDataType_Encoding_DefaultXml;
-                    
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.BaseConfigurationDataType_Encoding_DefaultJson; 
-
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
-        public virtual void Encode(IEncoder encoder)
-        {
-            encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
-
-            encoder.WriteUInt32("ConfigurationVersion", ConfigurationVersion);
-            encoder.WriteEncodeableArray("ConfigurationProperties", ConfigurationProperties.ToArray(), typeof(KeyValuePair));
-
-            encoder.PopNamespace();
-        }
-
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
-        public virtual void Decode(IDecoder decoder)
-        {
-            decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
-
-            ConfigurationVersion = decoder.ReadUInt32("ConfigurationVersion");
-            ConfigurationProperties = (KeyValuePairCollection)decoder.ReadEncodeableArray("ConfigurationProperties", typeof(KeyValuePair));
-
-            decoder.PopNamespace();
-        }
-
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
-        public virtual bool IsEqual(IEncodeable encodeable)
-        {
-            if (Object.ReferenceEquals(this, encodeable))
-            {
-                return true;
-            }
-
-            BaseConfigurationDataType value = encodeable as BaseConfigurationDataType;
-
-            if (value == null)
-            {
-                return false;
-            }
-
-            if (!Utils.IsEqual(m_configurationVersion, value.m_configurationVersion)) return false;
-            if (!Utils.IsEqual(m_configurationProperties, value.m_configurationProperties)) return false;
-
-            return true;
-        }
-
-        /// <summary cref="ICloneable.Clone" />
-        public virtual object Clone()
-        {
-            return (BaseConfigurationDataType)this.MemberwiseClone();
-        }
-
-        /// <summary cref="Object.MemberwiseClone" />
-        public new object MemberwiseClone()
-        {
-            BaseConfigurationDataType clone = (BaseConfigurationDataType)base.MemberwiseClone();
-
-            clone.m_configurationVersion = (uint)Utils.Clone(this.m_configurationVersion);
-            clone.m_configurationProperties = (KeyValuePairCollection)Utils.Clone(this.m_configurationProperties);
-
-            return clone;
-        }
-        #endregion
-
-        #region Private Fields
-        private uint m_configurationVersion;
-        private KeyValuePairCollection m_configurationProperties;
-        #endregion
-    }
-
-    #region BaseConfigurationDataTypeCollection Class
-    /// <remarks />
-    /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfBaseConfigurationDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "BaseConfigurationDataType")]
-    public partial class BaseConfigurationDataTypeCollection : List<BaseConfigurationDataType>, ICloneable
-    {
-        #region Constructors
-        /// <remarks />
-        public BaseConfigurationDataTypeCollection() {}
-
-        /// <remarks />
-        public BaseConfigurationDataTypeCollection(int capacity) : base(capacity) {}
-
-        /// <remarks />
-        public BaseConfigurationDataTypeCollection(IEnumerable<BaseConfigurationDataType> collection) : base(collection) {}
-        #endregion
-
-        #region Static Operators
-        /// <remarks />
-        public static implicit operator BaseConfigurationDataTypeCollection(BaseConfigurationDataType[] values)
-        {
-            if (values != null)
-            {
-                return new BaseConfigurationDataTypeCollection(values);
-            }
-
-            return new BaseConfigurationDataTypeCollection();
-        }
-
-        /// <remarks />
-        public static explicit operator BaseConfigurationDataType[](BaseConfigurationDataTypeCollection values)
-        {
-            if (values != null)
-            {
-                return values.ToArray();
-            }
-
-            return null;
-        }
-        #endregion
-
-        #region ICloneable Methods
-        /// <remarks />
-        public object Clone()
-        {
-            return (BaseConfigurationDataTypeCollection)this.MemberwiseClone();
-        }
-        #endregion
-
-        /// <summary cref="Object.MemberwiseClone" />
-        public new object MemberwiseClone()
-        {
-            BaseConfigurationDataTypeCollection clone = new BaseConfigurationDataTypeCollection(this.Count);
-
-            for (int ii = 0; ii < this.Count; ii++)
-            {
-                clone.Add((BaseConfigurationDataType)Utils.Clone(this[ii]));
-            }
-
-            return clone;
-        }
-    }
-    #endregion
-    #endif
-    #endregion
-
-    #region BaseConfigurationRecordDataType Class
-    #if (!OPCUA_EXCLUDE_BaseConfigurationRecordDataType)
-    /// <remarks />
-    /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class BaseConfigurationRecordDataType : IEncodeable, IJsonEncodeable
-    {
-        #region Constructors
-        /// <remarks />
-        public BaseConfigurationRecordDataType()
-        {
-            Initialize();
-        }
-            
-        [OnDeserializing]
-        private void Initialize(StreamingContext context)
-        {
-            Initialize();
-        }
-            
-        private void Initialize()
-        {
-            m_name = null;
-            m_recordProperties = new KeyValuePairCollection();
-        }
-        #endregion
-
-        #region Public Properties
-        /// <remarks />
-        [DataMember(Name = "Name", IsRequired = false, Order = 1)]
-        public string Name
-        {
-            get { return m_name;  }
-            set { m_name = value; }
-        }
-
-        /// <remarks />
-        [DataMember(Name = "RecordProperties", IsRequired = false, Order = 2)]
-        public KeyValuePairCollection RecordProperties
-        {
-            get
-            {
-                return m_recordProperties;
-            }
-
-            set
-            {
-                m_recordProperties = value;
-
-                if (value == null)
-                {
-                    m_recordProperties = new KeyValuePairCollection();
-                }
-            }
-        }
-        #endregion
-
-        #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId => DataTypeIds.BaseConfigurationRecordDataType; 
-
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.BaseConfigurationRecordDataType_Encoding_DefaultBinary;
-
-        /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.BaseConfigurationRecordDataType_Encoding_DefaultXml;
-                    
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.BaseConfigurationRecordDataType_Encoding_DefaultJson; 
-
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
-        public virtual void Encode(IEncoder encoder)
-        {
-            encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
-
-            encoder.WriteString("Name", Name);
-            encoder.WriteEncodeableArray("RecordProperties", RecordProperties.ToArray(), typeof(KeyValuePair));
-
-            encoder.PopNamespace();
-        }
-
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
-        public virtual void Decode(IDecoder decoder)
-        {
-            decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
-
-            Name = decoder.ReadString("Name");
-            RecordProperties = (KeyValuePairCollection)decoder.ReadEncodeableArray("RecordProperties", typeof(KeyValuePair));
-
-            decoder.PopNamespace();
-        }
-
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
-        public virtual bool IsEqual(IEncodeable encodeable)
-        {
-            if (Object.ReferenceEquals(this, encodeable))
-            {
-                return true;
-            }
-
-            BaseConfigurationRecordDataType value = encodeable as BaseConfigurationRecordDataType;
-
-            if (value == null)
-            {
-                return false;
-            }
-
-            if (!Utils.IsEqual(m_name, value.m_name)) return false;
-            if (!Utils.IsEqual(m_recordProperties, value.m_recordProperties)) return false;
-
-            return true;
-        }
-
-        /// <summary cref="ICloneable.Clone" />
-        public virtual object Clone()
-        {
-            return (BaseConfigurationRecordDataType)this.MemberwiseClone();
-        }
-
-        /// <summary cref="Object.MemberwiseClone" />
-        public new object MemberwiseClone()
-        {
-            BaseConfigurationRecordDataType clone = (BaseConfigurationRecordDataType)base.MemberwiseClone();
-
-            clone.m_name = (string)Utils.Clone(this.m_name);
-            clone.m_recordProperties = (KeyValuePairCollection)Utils.Clone(this.m_recordProperties);
-
-            return clone;
-        }
-        #endregion
-
-        #region Private Fields
-        private string m_name;
-        private KeyValuePairCollection m_recordProperties;
-        #endregion
-    }
-
-    #region BaseConfigurationRecordDataTypeCollection Class
-    /// <remarks />
-    /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfBaseConfigurationRecordDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "BaseConfigurationRecordDataType")]
-    public partial class BaseConfigurationRecordDataTypeCollection : List<BaseConfigurationRecordDataType>, ICloneable
-    {
-        #region Constructors
-        /// <remarks />
-        public BaseConfigurationRecordDataTypeCollection() {}
-
-        /// <remarks />
-        public BaseConfigurationRecordDataTypeCollection(int capacity) : base(capacity) {}
-
-        /// <remarks />
-        public BaseConfigurationRecordDataTypeCollection(IEnumerable<BaseConfigurationRecordDataType> collection) : base(collection) {}
-        #endregion
-
-        #region Static Operators
-        /// <remarks />
-        public static implicit operator BaseConfigurationRecordDataTypeCollection(BaseConfigurationRecordDataType[] values)
-        {
-            if (values != null)
-            {
-                return new BaseConfigurationRecordDataTypeCollection(values);
-            }
-
-            return new BaseConfigurationRecordDataTypeCollection();
-        }
-
-        /// <remarks />
-        public static explicit operator BaseConfigurationRecordDataType[](BaseConfigurationRecordDataTypeCollection values)
-        {
-            if (values != null)
-            {
-                return values.ToArray();
-            }
-
-            return null;
-        }
-        #endregion
-
-        #region ICloneable Methods
-        /// <remarks />
-        public object Clone()
-        {
-            return (BaseConfigurationRecordDataTypeCollection)this.MemberwiseClone();
-        }
-        #endregion
-
-        /// <summary cref="Object.MemberwiseClone" />
-        public new object MemberwiseClone()
-        {
-            BaseConfigurationRecordDataTypeCollection clone = new BaseConfigurationRecordDataTypeCollection(this.Count);
-
-            for (int ii = 0; ii < this.Count; ii++)
-            {
-                clone.Add((BaseConfigurationRecordDataType)Utils.Clone(this[ii]));
-            }
-
-            return clone;
-        }
-    }
-    #endregion
-    #endif
-    #endregion
-
-    #region CertificateGroupDataType Class
-    #if (!OPCUA_EXCLUDE_CertificateGroupDataType)
-    /// <remarks />
-    /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class CertificateGroupDataType : Opc.Ua.BaseConfigurationRecordDataType
-    {
-        #region Constructors
-        /// <remarks />
-        public CertificateGroupDataType()
-        {
-            Initialize();
-        }
-
-        [OnDeserializing]
-        private void Initialize(StreamingContext context)
-        {
-            Initialize();
-        }
-
-        private void Initialize()
-        {
-            m_certificateTypes = new NodeIdCollection();
-            m_certificates = new ByteStringCollection();
-            m_trustList = new TrustListDataType();
-        }
-        #endregion
-
-        #region Public Properties
-        /// <remarks />
-        [DataMember(Name = "CertificateTypes", IsRequired = false, Order = 1)]
-        public NodeIdCollection CertificateTypes
-        {
-            get
-            {
-                return m_certificateTypes;
-            }
-
-            set
-            {
-                m_certificateTypes = value;
-
-                if (value == null)
-                {
-                    m_certificateTypes = new NodeIdCollection();
-                }
-            }
-        }
-
-        /// <remarks />
-        [DataMember(Name = "Certificates", IsRequired = false, Order = 2)]
-        public ByteStringCollection Certificates
-        {
-            get
-            {
-                return m_certificates;
-            }
-
-            set
-            {
-                m_certificates = value;
-
-                if (value == null)
-                {
-                    m_certificates = new ByteStringCollection();
-                }
-            }
-        }
-
-        /// <remarks />
-        [DataMember(Name = "TrustList", IsRequired = false, Order = 3)]
-        public TrustListDataType TrustList
-        {
-            get
-            {
-                return m_trustList;
-            }
-
-            set
-            {
-                m_trustList = value;
-
-                if (value == null)
-                {
-                    m_trustList = new TrustListDataType();
-                }
-            }
-        }
-        #endregion
-
-        #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId TypeId => DataTypeIds.CertificateGroupDataType; 
-
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public override ExpandedNodeId BinaryEncodingId => ObjectIds.CertificateGroupDataType_Encoding_DefaultBinary;
-
-        /// <summary cref="IEncodeable.XmlEncodingId" />
-        public override ExpandedNodeId XmlEncodingId => ObjectIds.CertificateGroupDataType_Encoding_DefaultXml;
-            
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => ObjectIds.CertificateGroupDataType_Encoding_DefaultJson; 
-
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
-        public override void Encode(IEncoder encoder)
-        {
-            base.Encode(encoder);
-
-            encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
-
-            encoder.WriteNodeIdArray("CertificateTypes", CertificateTypes);
-            encoder.WriteByteStringArray("Certificates", Certificates);
-            encoder.WriteEncodeable("TrustList", TrustList, typeof(TrustListDataType));
-
-            encoder.PopNamespace();
-        }
-
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
-        public override void Decode(IDecoder decoder)
-        {
-            base.Decode(decoder);
-
-            decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
-
-            CertificateTypes = decoder.ReadNodeIdArray("CertificateTypes");
-            Certificates = decoder.ReadByteStringArray("Certificates");
-            TrustList = (TrustListDataType)decoder.ReadEncodeable("TrustList", typeof(TrustListDataType));
-
-            decoder.PopNamespace();
-        }
-
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
-        public override bool IsEqual(IEncodeable encodeable)
-        {
-            if (Object.ReferenceEquals(this, encodeable))
-            {
-                return true;
-            }
-
-            CertificateGroupDataType value = encodeable as CertificateGroupDataType;
-
-            if (value == null)
-            {
-                return false;
-            }
-
-            if (!Utils.IsEqual(m_certificateTypes, value.m_certificateTypes)) return false;
-            if (!Utils.IsEqual(m_certificates, value.m_certificates)) return false;
-            if (!Utils.IsEqual(m_trustList, value.m_trustList)) return false;
-
-            return base.IsEqual(encodeable);
-        }    
-
-        /// <summary cref="ICloneable.Clone" />
-        public override object Clone()
-        {
-            return (CertificateGroupDataType)this.MemberwiseClone();
-        }
-
-        /// <summary cref="Object.MemberwiseClone" />
-        public new object MemberwiseClone()
-        {
-            CertificateGroupDataType clone = (CertificateGroupDataType)base.MemberwiseClone();
-
-            clone.m_certificateTypes = (NodeIdCollection)Utils.Clone(this.m_certificateTypes);
-            clone.m_certificates = (ByteStringCollection)Utils.Clone(this.m_certificates);
-            clone.m_trustList = (TrustListDataType)Utils.Clone(this.m_trustList);
-
-            return clone;
-        }
-        #endregion
-
-        #region Private Fields
-        private NodeIdCollection m_certificateTypes;
-        private ByteStringCollection m_certificates;
-        private TrustListDataType m_trustList;
-        #endregion
-    }
-
-    #region CertificateGroupDataTypeCollection Class
-    /// <remarks />
-    /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfCertificateGroupDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "CertificateGroupDataType")]
-    public partial class CertificateGroupDataTypeCollection : List<CertificateGroupDataType>, ICloneable
-    {
-        #region Constructors
-        /// <remarks />
-        public CertificateGroupDataTypeCollection() {}
-
-        /// <remarks />
-        public CertificateGroupDataTypeCollection(int capacity) : base(capacity) {}
-
-        /// <remarks />
-        public CertificateGroupDataTypeCollection(IEnumerable<CertificateGroupDataType> collection) : base(collection) {}
-        #endregion
-
-        #region Static Operators
-        /// <remarks />
-        public static implicit operator CertificateGroupDataTypeCollection(CertificateGroupDataType[] values)
-        {
-            if (values != null)
-            {
-                return new CertificateGroupDataTypeCollection(values);
-            }
-
-            return new CertificateGroupDataTypeCollection();
-        }
-
-        /// <remarks />
-        public static explicit operator CertificateGroupDataType[](CertificateGroupDataTypeCollection values)
-        {
-            if (values != null)
-            {
-                return values.ToArray();
-            }
-
-            return null;
-        }
-        #endregion
-
-        #region ICloneable Methods
-        /// <remarks />
-        public object Clone()
-        {
-            return (CertificateGroupDataTypeCollection)this.MemberwiseClone();
-        }
-        #endregion
-
-        /// <summary cref="Object.MemberwiseClone" />
-        public new object MemberwiseClone()
-        {
-            CertificateGroupDataTypeCollection clone = new CertificateGroupDataTypeCollection(this.Count);
-
-            for (int ii = 0; ii < this.Count; ii++)
-            {
-                clone.Add((CertificateGroupDataType)Utils.Clone(this[ii]));
-            }
-
-            return clone;
-        }
-    }
-    #endregion
-    #endif
-    #endregion
-
-    #region ConfigurationUpdateTargetType Class
-    #if (!OPCUA_EXCLUDE_ConfigurationUpdateTargetType)
-    /// <remarks />
-    /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class ConfigurationUpdateTargetType : IEncodeable, IJsonEncodeable
-    {
-        #region Constructors
-        /// <remarks />
-        public ConfigurationUpdateTargetType()
-        {
-            Initialize();
-        }
-            
-        [OnDeserializing]
-        private void Initialize(StreamingContext context)
-        {
-            Initialize();
-        }
-            
-        private void Initialize()
-        {
-            m_path = null;
-            m_updateType = ConfigurationUpdateType.Insert;
-        }
-        #endregion
-
-        #region Public Properties
-        /// <remarks />
-        [DataMember(Name = "Path", IsRequired = false, Order = 1)]
-        public string Path
-        {
-            get { return m_path;  }
-            set { m_path = value; }
-        }
-
-        /// <remarks />
-        [DataMember(Name = "UpdateType", IsRequired = false, Order = 2)]
-        public ConfigurationUpdateType UpdateType
-        {
-            get { return m_updateType;  }
-            set { m_updateType = value; }
-        }
-        #endregion
-
-        #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId => DataTypeIds.ConfigurationUpdateTargetType; 
-
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.ConfigurationUpdateTargetType_Encoding_DefaultBinary;
-
-        /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ConfigurationUpdateTargetType_Encoding_DefaultXml;
-                    
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.ConfigurationUpdateTargetType_Encoding_DefaultJson; 
-
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
-        public virtual void Encode(IEncoder encoder)
-        {
-            encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
-
-            encoder.WriteString("Path", Path);
-            encoder.WriteEnumerated("UpdateType", UpdateType);
-
-            encoder.PopNamespace();
-        }
-
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
-        public virtual void Decode(IDecoder decoder)
-        {
-            decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
-
-            Path = decoder.ReadString("Path");
-            UpdateType = (ConfigurationUpdateType)decoder.ReadEnumerated("UpdateType", typeof(ConfigurationUpdateType));
-
-            decoder.PopNamespace();
-        }
-
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
-        public virtual bool IsEqual(IEncodeable encodeable)
-        {
-            if (Object.ReferenceEquals(this, encodeable))
-            {
-                return true;
-            }
-
-            ConfigurationUpdateTargetType value = encodeable as ConfigurationUpdateTargetType;
-
-            if (value == null)
-            {
-                return false;
-            }
-
-            if (!Utils.IsEqual(m_path, value.m_path)) return false;
-            if (!Utils.IsEqual(m_updateType, value.m_updateType)) return false;
-
-            return true;
-        }
-
-        /// <summary cref="ICloneable.Clone" />
-        public virtual object Clone()
-        {
-            return (ConfigurationUpdateTargetType)this.MemberwiseClone();
-        }
-
-        /// <summary cref="Object.MemberwiseClone" />
-        public new object MemberwiseClone()
-        {
-            ConfigurationUpdateTargetType clone = (ConfigurationUpdateTargetType)base.MemberwiseClone();
-
-            clone.m_path = (string)Utils.Clone(this.m_path);
-            clone.m_updateType = (ConfigurationUpdateType)Utils.Clone(this.m_updateType);
-
-            return clone;
-        }
-        #endregion
-
-        #region Private Fields
-        private string m_path;
-        private ConfigurationUpdateType m_updateType;
-        #endregion
-    }
-
-    #region ConfigurationUpdateTargetTypeCollection Class
-    /// <remarks />
-    /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfConfigurationUpdateTargetType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ConfigurationUpdateTargetType")]
-    public partial class ConfigurationUpdateTargetTypeCollection : List<ConfigurationUpdateTargetType>, ICloneable
-    {
-        #region Constructors
-        /// <remarks />
-        public ConfigurationUpdateTargetTypeCollection() {}
-
-        /// <remarks />
-        public ConfigurationUpdateTargetTypeCollection(int capacity) : base(capacity) {}
-
-        /// <remarks />
-        public ConfigurationUpdateTargetTypeCollection(IEnumerable<ConfigurationUpdateTargetType> collection) : base(collection) {}
-        #endregion
-
-        #region Static Operators
-        /// <remarks />
-        public static implicit operator ConfigurationUpdateTargetTypeCollection(ConfigurationUpdateTargetType[] values)
-        {
-            if (values != null)
-            {
-                return new ConfigurationUpdateTargetTypeCollection(values);
-            }
-
-            return new ConfigurationUpdateTargetTypeCollection();
-        }
-
-        /// <remarks />
-        public static explicit operator ConfigurationUpdateTargetType[](ConfigurationUpdateTargetTypeCollection values)
-        {
-            if (values != null)
-            {
-                return values.ToArray();
-            }
-
-            return null;
-        }
-        #endregion
-
-        #region ICloneable Methods
-        /// <remarks />
-        public object Clone()
-        {
-            return (ConfigurationUpdateTargetTypeCollection)this.MemberwiseClone();
-        }
-        #endregion
-
-        /// <summary cref="Object.MemberwiseClone" />
-        public new object MemberwiseClone()
-        {
-            ConfigurationUpdateTargetTypeCollection clone = new ConfigurationUpdateTargetTypeCollection(this.Count);
-
-            for (int ii = 0; ii < this.Count; ii++)
-            {
-                clone.Add((ConfigurationUpdateTargetType)Utils.Clone(this[ii]));
-            }
-
-            return clone;
-        }
-    }
-    #endregion
-    #endif
-    #endregion
-
-    #region ConfigurationUpdateType Enumeration
-    #if (!OPCUA_EXCLUDE_ConfigurationUpdateType)
-    /// <remarks />
-    /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public enum ConfigurationUpdateType
-    {
-        /// <remarks />
-        [EnumMember(Value = "Insert_1")]
-        Insert = 1,
-
-        /// <remarks />
-        [EnumMember(Value = "Replace_2")]
-        Replace = 2,
-
-        /// <remarks />
-        [EnumMember(Value = "InsertOrReplace_3")]
-        InsertOrReplace = 3,
-
-        /// <remarks />
-        [EnumMember(Value = "Delete_4")]
-        Delete = 4,
-    }
-
-    #region ConfigurationUpdateTypeCollection Class
-    /// <remarks />
-    /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfConfigurationUpdateType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ConfigurationUpdateType")]
-    public partial class ConfigurationUpdateTypeCollection : List<ConfigurationUpdateType>, ICloneable
-    {
-        #region Constructors
-        /// <remarks />
-        public ConfigurationUpdateTypeCollection() {}
-
-        /// <remarks />
-        public ConfigurationUpdateTypeCollection(int capacity) : base(capacity) {}
-
-        /// <remarks />
-        public ConfigurationUpdateTypeCollection(IEnumerable<ConfigurationUpdateType> collection) : base(collection) {}
-        #endregion
-
-        #region Static Operators
-        /// <remarks />
-        public static implicit operator ConfigurationUpdateTypeCollection(ConfigurationUpdateType[] values)
-        {
-            if (values != null)
-            {
-                return new ConfigurationUpdateTypeCollection(values);
-            }
-
-            return new ConfigurationUpdateTypeCollection();
-        }
-
-        /// <remarks />
-        public static explicit operator ConfigurationUpdateType[](ConfigurationUpdateTypeCollection values)
-        {
-            if (values != null)
-            {
-                return values.ToArray();
-            }
-
-            return null;
-        }
-        #endregion
-
-        #region ICloneable Methods
-        /// <remarks />
-        public object Clone()
-        {
-            return (ConfigurationUpdateTypeCollection)this.MemberwiseClone();
-        }
-        #endregion
-
-        /// <summary cref="Object.MemberwiseClone" />
-        public new object MemberwiseClone()
-        {
-            ConfigurationUpdateTypeCollection clone = new ConfigurationUpdateTypeCollection(this.Count);
-
-            for (int ii = 0; ii < this.Count; ii++)
-            {
-                clone.Add((ConfigurationUpdateType)Utils.Clone(this[ii]));
-            }
-
-            return clone;
-        }
-    }
-    #endregion
-    #endif
-    #endregion
-
     #region TransactionErrorType Class
     #if (!OPCUA_EXCLUDE_TransactionErrorType)
     /// <remarks />
@@ -6078,1526 +5137,6 @@ namespace Opc.Ua
             for (int ii = 0; ii < this.Count; ii++)
             {
                 clone.Add((TransactionErrorType)Utils.Clone(this[ii]));
-            }
-
-            return clone;
-        }
-    }
-    #endregion
-    #endif
-    #endregion
-
-    #region ApplicationConfigurationDataType Class
-    #if (!OPCUA_EXCLUDE_ApplicationConfigurationDataType)
-    /// <remarks />
-    /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class ApplicationConfigurationDataType : Opc.Ua.BaseConfigurationDataType
-    {
-        #region Constructors
-        /// <remarks />
-        public ApplicationConfigurationDataType()
-        {
-            Initialize();
-        }
-
-        [OnDeserializing]
-        private void Initialize(StreamingContext context)
-        {
-            Initialize();
-        }
-
-        private void Initialize()
-        {
-            m_applicationIdentity = new ApplicationIdentityDataType();
-            m_certificateGroups = new CertificateGroupDataTypeCollection();
-            m_serverEndpoints = new ServerEndpointDataTypeCollection();
-            m_clientEndpoints = new EndpointDataTypeCollection();
-            m_securitySettings = new SecuritySettingsDataTypeCollection();
-            m_userTokenSettings = new UserTokenSettingsDataTypeCollection();
-        }
-        #endregion
-
-        #region Public Properties
-        /// <remarks />
-        [DataMember(Name = "ApplicationIdentity", IsRequired = false, Order = 1)]
-        public ApplicationIdentityDataType ApplicationIdentity
-        {
-            get
-            {
-                return m_applicationIdentity;
-            }
-
-            set
-            {
-                m_applicationIdentity = value;
-
-                if (value == null)
-                {
-                    m_applicationIdentity = new ApplicationIdentityDataType();
-                }
-            }
-        }
-
-        /// <remarks />
-        [DataMember(Name = "CertificateGroups", IsRequired = false, Order = 2)]
-        public CertificateGroupDataTypeCollection CertificateGroups
-        {
-            get
-            {
-                return m_certificateGroups;
-            }
-
-            set
-            {
-                m_certificateGroups = value;
-
-                if (value == null)
-                {
-                    m_certificateGroups = new CertificateGroupDataTypeCollection();
-                }
-            }
-        }
-
-        /// <remarks />
-        [DataMember(Name = "ServerEndpoints", IsRequired = false, Order = 3)]
-        public ServerEndpointDataTypeCollection ServerEndpoints
-        {
-            get
-            {
-                return m_serverEndpoints;
-            }
-
-            set
-            {
-                m_serverEndpoints = value;
-
-                if (value == null)
-                {
-                    m_serverEndpoints = new ServerEndpointDataTypeCollection();
-                }
-            }
-        }
-
-        /// <remarks />
-        [DataMember(Name = "ClientEndpoints", IsRequired = false, Order = 4)]
-        public EndpointDataTypeCollection ClientEndpoints
-        {
-            get
-            {
-                return m_clientEndpoints;
-            }
-
-            set
-            {
-                m_clientEndpoints = value;
-
-                if (value == null)
-                {
-                    m_clientEndpoints = new EndpointDataTypeCollection();
-                }
-            }
-        }
-
-        /// <remarks />
-        [DataMember(Name = "SecuritySettings", IsRequired = false, Order = 5)]
-        public SecuritySettingsDataTypeCollection SecuritySettings
-        {
-            get
-            {
-                return m_securitySettings;
-            }
-
-            set
-            {
-                m_securitySettings = value;
-
-                if (value == null)
-                {
-                    m_securitySettings = new SecuritySettingsDataTypeCollection();
-                }
-            }
-        }
-
-        /// <remarks />
-        [DataMember(Name = "UserTokenSettings", IsRequired = false, Order = 6)]
-        public UserTokenSettingsDataTypeCollection UserTokenSettings
-        {
-            get
-            {
-                return m_userTokenSettings;
-            }
-
-            set
-            {
-                m_userTokenSettings = value;
-
-                if (value == null)
-                {
-                    m_userTokenSettings = new UserTokenSettingsDataTypeCollection();
-                }
-            }
-        }
-        #endregion
-
-        #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId TypeId => DataTypeIds.ApplicationConfigurationDataType; 
-
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public override ExpandedNodeId BinaryEncodingId => ObjectIds.ApplicationConfigurationDataType_Encoding_DefaultBinary;
-
-        /// <summary cref="IEncodeable.XmlEncodingId" />
-        public override ExpandedNodeId XmlEncodingId => ObjectIds.ApplicationConfigurationDataType_Encoding_DefaultXml;
-            
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => ObjectIds.ApplicationConfigurationDataType_Encoding_DefaultJson; 
-
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
-        public override void Encode(IEncoder encoder)
-        {
-            base.Encode(encoder);
-
-            encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
-
-            encoder.WriteEncodeable("ApplicationIdentity", ApplicationIdentity, typeof(ApplicationIdentityDataType));
-            encoder.WriteEncodeableArray("CertificateGroups", CertificateGroups.ToArray(), typeof(CertificateGroupDataType));
-            encoder.WriteEncodeableArray("ServerEndpoints", ServerEndpoints.ToArray(), typeof(ServerEndpointDataType));
-            encoder.WriteEncodeableArray("ClientEndpoints", ClientEndpoints.ToArray(), typeof(EndpointDataType));
-            encoder.WriteEncodeableArray("SecuritySettings", SecuritySettings.ToArray(), typeof(SecuritySettingsDataType));
-            encoder.WriteEncodeableArray("UserTokenSettings", UserTokenSettings.ToArray(), typeof(UserTokenSettingsDataType));
-
-            encoder.PopNamespace();
-        }
-
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
-        public override void Decode(IDecoder decoder)
-        {
-            base.Decode(decoder);
-
-            decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
-
-            ApplicationIdentity = (ApplicationIdentityDataType)decoder.ReadEncodeable("ApplicationIdentity", typeof(ApplicationIdentityDataType));
-            CertificateGroups = (CertificateGroupDataTypeCollection)decoder.ReadEncodeableArray("CertificateGroups", typeof(CertificateGroupDataType));
-            ServerEndpoints = (ServerEndpointDataTypeCollection)decoder.ReadEncodeableArray("ServerEndpoints", typeof(ServerEndpointDataType));
-            ClientEndpoints = (EndpointDataTypeCollection)decoder.ReadEncodeableArray("ClientEndpoints", typeof(EndpointDataType));
-            SecuritySettings = (SecuritySettingsDataTypeCollection)decoder.ReadEncodeableArray("SecuritySettings", typeof(SecuritySettingsDataType));
-            UserTokenSettings = (UserTokenSettingsDataTypeCollection)decoder.ReadEncodeableArray("UserTokenSettings", typeof(UserTokenSettingsDataType));
-
-            decoder.PopNamespace();
-        }
-
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
-        public override bool IsEqual(IEncodeable encodeable)
-        {
-            if (Object.ReferenceEquals(this, encodeable))
-            {
-                return true;
-            }
-
-            ApplicationConfigurationDataType value = encodeable as ApplicationConfigurationDataType;
-
-            if (value == null)
-            {
-                return false;
-            }
-
-            if (!Utils.IsEqual(m_applicationIdentity, value.m_applicationIdentity)) return false;
-            if (!Utils.IsEqual(m_certificateGroups, value.m_certificateGroups)) return false;
-            if (!Utils.IsEqual(m_serverEndpoints, value.m_serverEndpoints)) return false;
-            if (!Utils.IsEqual(m_clientEndpoints, value.m_clientEndpoints)) return false;
-            if (!Utils.IsEqual(m_securitySettings, value.m_securitySettings)) return false;
-            if (!Utils.IsEqual(m_userTokenSettings, value.m_userTokenSettings)) return false;
-
-            return base.IsEqual(encodeable);
-        }    
-
-        /// <summary cref="ICloneable.Clone" />
-        public override object Clone()
-        {
-            return (ApplicationConfigurationDataType)this.MemberwiseClone();
-        }
-
-        /// <summary cref="Object.MemberwiseClone" />
-        public new object MemberwiseClone()
-        {
-            ApplicationConfigurationDataType clone = (ApplicationConfigurationDataType)base.MemberwiseClone();
-
-            clone.m_applicationIdentity = (ApplicationIdentityDataType)Utils.Clone(this.m_applicationIdentity);
-            clone.m_certificateGroups = (CertificateGroupDataTypeCollection)Utils.Clone(this.m_certificateGroups);
-            clone.m_serverEndpoints = (ServerEndpointDataTypeCollection)Utils.Clone(this.m_serverEndpoints);
-            clone.m_clientEndpoints = (EndpointDataTypeCollection)Utils.Clone(this.m_clientEndpoints);
-            clone.m_securitySettings = (SecuritySettingsDataTypeCollection)Utils.Clone(this.m_securitySettings);
-            clone.m_userTokenSettings = (UserTokenSettingsDataTypeCollection)Utils.Clone(this.m_userTokenSettings);
-
-            return clone;
-        }
-        #endregion
-
-        #region Private Fields
-        private ApplicationIdentityDataType m_applicationIdentity;
-        private CertificateGroupDataTypeCollection m_certificateGroups;
-        private ServerEndpointDataTypeCollection m_serverEndpoints;
-        private EndpointDataTypeCollection m_clientEndpoints;
-        private SecuritySettingsDataTypeCollection m_securitySettings;
-        private UserTokenSettingsDataTypeCollection m_userTokenSettings;
-        #endregion
-    }
-
-    #region ApplicationConfigurationDataTypeCollection Class
-    /// <remarks />
-    /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfApplicationConfigurationDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ApplicationConfigurationDataType")]
-    public partial class ApplicationConfigurationDataTypeCollection : List<ApplicationConfigurationDataType>, ICloneable
-    {
-        #region Constructors
-        /// <remarks />
-        public ApplicationConfigurationDataTypeCollection() {}
-
-        /// <remarks />
-        public ApplicationConfigurationDataTypeCollection(int capacity) : base(capacity) {}
-
-        /// <remarks />
-        public ApplicationConfigurationDataTypeCollection(IEnumerable<ApplicationConfigurationDataType> collection) : base(collection) {}
-        #endregion
-
-        #region Static Operators
-        /// <remarks />
-        public static implicit operator ApplicationConfigurationDataTypeCollection(ApplicationConfigurationDataType[] values)
-        {
-            if (values != null)
-            {
-                return new ApplicationConfigurationDataTypeCollection(values);
-            }
-
-            return new ApplicationConfigurationDataTypeCollection();
-        }
-
-        /// <remarks />
-        public static explicit operator ApplicationConfigurationDataType[](ApplicationConfigurationDataTypeCollection values)
-        {
-            if (values != null)
-            {
-                return values.ToArray();
-            }
-
-            return null;
-        }
-        #endregion
-
-        #region ICloneable Methods
-        /// <remarks />
-        public object Clone()
-        {
-            return (ApplicationConfigurationDataTypeCollection)this.MemberwiseClone();
-        }
-        #endregion
-
-        /// <summary cref="Object.MemberwiseClone" />
-        public new object MemberwiseClone()
-        {
-            ApplicationConfigurationDataTypeCollection clone = new ApplicationConfigurationDataTypeCollection(this.Count);
-
-            for (int ii = 0; ii < this.Count; ii++)
-            {
-                clone.Add((ApplicationConfigurationDataType)Utils.Clone(this[ii]));
-            }
-
-            return clone;
-        }
-    }
-    #endregion
-    #endif
-    #endregion
-
-    #region ApplicationIdentityDataType Class
-    #if (!OPCUA_EXCLUDE_ApplicationIdentityDataType)
-    /// <remarks />
-    /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class ApplicationIdentityDataType : Opc.Ua.BaseConfigurationRecordDataType
-    {
-        #region Constructors
-        /// <remarks />
-        public ApplicationIdentityDataType()
-        {
-            Initialize();
-        }
-
-        [OnDeserializing]
-        private void Initialize(StreamingContext context)
-        {
-            Initialize();
-        }
-
-        private void Initialize()
-        {
-            m_applicationUri = null;
-            m_applicationNames = new LocalizedTextCollection();
-            m_subjectName = null;
-        }
-        #endregion
-
-        #region Public Properties
-        /// <remarks />
-        [DataMember(Name = "ApplicationUri", IsRequired = false, Order = 1)]
-        public string ApplicationUri
-        {
-            get { return m_applicationUri;  }
-            set { m_applicationUri = value; }
-        }
-
-        /// <remarks />
-        [DataMember(Name = "ApplicationNames", IsRequired = false, Order = 2)]
-        public LocalizedTextCollection ApplicationNames
-        {
-            get
-            {
-                return m_applicationNames;
-            }
-
-            set
-            {
-                m_applicationNames = value;
-
-                if (value == null)
-                {
-                    m_applicationNames = new LocalizedTextCollection();
-                }
-            }
-        }
-
-        /// <remarks />
-        [DataMember(Name = "SubjectName", IsRequired = false, Order = 3)]
-        public string SubjectName
-        {
-            get { return m_subjectName;  }
-            set { m_subjectName = value; }
-        }
-        #endregion
-
-        #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId TypeId => DataTypeIds.ApplicationIdentityDataType; 
-
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public override ExpandedNodeId BinaryEncodingId => ObjectIds.ApplicationIdentityDataType_Encoding_DefaultBinary;
-
-        /// <summary cref="IEncodeable.XmlEncodingId" />
-        public override ExpandedNodeId XmlEncodingId => ObjectIds.ApplicationIdentityDataType_Encoding_DefaultXml;
-            
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => ObjectIds.ApplicationIdentityDataType_Encoding_DefaultJson; 
-
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
-        public override void Encode(IEncoder encoder)
-        {
-            base.Encode(encoder);
-
-            encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
-
-            encoder.WriteString("ApplicationUri", ApplicationUri);
-            encoder.WriteLocalizedTextArray("ApplicationNames", ApplicationNames);
-            encoder.WriteString("SubjectName", SubjectName);
-
-            encoder.PopNamespace();
-        }
-
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
-        public override void Decode(IDecoder decoder)
-        {
-            base.Decode(decoder);
-
-            decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
-
-            ApplicationUri = decoder.ReadString("ApplicationUri");
-            ApplicationNames = decoder.ReadLocalizedTextArray("ApplicationNames");
-            SubjectName = decoder.ReadString("SubjectName");
-
-            decoder.PopNamespace();
-        }
-
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
-        public override bool IsEqual(IEncodeable encodeable)
-        {
-            if (Object.ReferenceEquals(this, encodeable))
-            {
-                return true;
-            }
-
-            ApplicationIdentityDataType value = encodeable as ApplicationIdentityDataType;
-
-            if (value == null)
-            {
-                return false;
-            }
-
-            if (!Utils.IsEqual(m_applicationUri, value.m_applicationUri)) return false;
-            if (!Utils.IsEqual(m_applicationNames, value.m_applicationNames)) return false;
-            if (!Utils.IsEqual(m_subjectName, value.m_subjectName)) return false;
-
-            return base.IsEqual(encodeable);
-        }    
-
-        /// <summary cref="ICloneable.Clone" />
-        public override object Clone()
-        {
-            return (ApplicationIdentityDataType)this.MemberwiseClone();
-        }
-
-        /// <summary cref="Object.MemberwiseClone" />
-        public new object MemberwiseClone()
-        {
-            ApplicationIdentityDataType clone = (ApplicationIdentityDataType)base.MemberwiseClone();
-
-            clone.m_applicationUri = (string)Utils.Clone(this.m_applicationUri);
-            clone.m_applicationNames = (LocalizedTextCollection)Utils.Clone(this.m_applicationNames);
-            clone.m_subjectName = (string)Utils.Clone(this.m_subjectName);
-
-            return clone;
-        }
-        #endregion
-
-        #region Private Fields
-        private string m_applicationUri;
-        private LocalizedTextCollection m_applicationNames;
-        private string m_subjectName;
-        #endregion
-    }
-
-    #region ApplicationIdentityDataTypeCollection Class
-    /// <remarks />
-    /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfApplicationIdentityDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ApplicationIdentityDataType")]
-    public partial class ApplicationIdentityDataTypeCollection : List<ApplicationIdentityDataType>, ICloneable
-    {
-        #region Constructors
-        /// <remarks />
-        public ApplicationIdentityDataTypeCollection() {}
-
-        /// <remarks />
-        public ApplicationIdentityDataTypeCollection(int capacity) : base(capacity) {}
-
-        /// <remarks />
-        public ApplicationIdentityDataTypeCollection(IEnumerable<ApplicationIdentityDataType> collection) : base(collection) {}
-        #endregion
-
-        #region Static Operators
-        /// <remarks />
-        public static implicit operator ApplicationIdentityDataTypeCollection(ApplicationIdentityDataType[] values)
-        {
-            if (values != null)
-            {
-                return new ApplicationIdentityDataTypeCollection(values);
-            }
-
-            return new ApplicationIdentityDataTypeCollection();
-        }
-
-        /// <remarks />
-        public static explicit operator ApplicationIdentityDataType[](ApplicationIdentityDataTypeCollection values)
-        {
-            if (values != null)
-            {
-                return values.ToArray();
-            }
-
-            return null;
-        }
-        #endregion
-
-        #region ICloneable Methods
-        /// <remarks />
-        public object Clone()
-        {
-            return (ApplicationIdentityDataTypeCollection)this.MemberwiseClone();
-        }
-        #endregion
-
-        /// <summary cref="Object.MemberwiseClone" />
-        public new object MemberwiseClone()
-        {
-            ApplicationIdentityDataTypeCollection clone = new ApplicationIdentityDataTypeCollection(this.Count);
-
-            for (int ii = 0; ii < this.Count; ii++)
-            {
-                clone.Add((ApplicationIdentityDataType)Utils.Clone(this[ii]));
-            }
-
-            return clone;
-        }
-    }
-    #endregion
-    #endif
-    #endregion
-
-    #region EndpointDataType Class
-    #if (!OPCUA_EXCLUDE_EndpointDataType)
-    /// <remarks />
-    /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class EndpointDataType : Opc.Ua.BaseConfigurationRecordDataType
-    {
-        #region Constructors
-        /// <remarks />
-        public EndpointDataType()
-        {
-            Initialize();
-        }
-
-        [OnDeserializing]
-        private void Initialize(StreamingContext context)
-        {
-            Initialize();
-        }
-
-        private void Initialize()
-        {
-            m_endpointUrls = new StringCollection();
-            m_networkName = null;
-            m_port = (ushort)0;
-        }
-        #endregion
-
-        #region Public Properties
-        /// <remarks />
-        [DataMember(Name = "EndpointUrls", IsRequired = false, Order = 1)]
-        public StringCollection EndpointUrls
-        {
-            get
-            {
-                return m_endpointUrls;
-            }
-
-            set
-            {
-                m_endpointUrls = value;
-
-                if (value == null)
-                {
-                    m_endpointUrls = new StringCollection();
-                }
-            }
-        }
-
-        /// <remarks />
-        [DataMember(Name = "NetworkName", IsRequired = false, Order = 2)]
-        public string NetworkName
-        {
-            get { return m_networkName;  }
-            set { m_networkName = value; }
-        }
-
-        /// <remarks />
-        [DataMember(Name = "Port", IsRequired = false, Order = 3)]
-        public ushort Port
-        {
-            get { return m_port;  }
-            set { m_port = value; }
-        }
-        #endregion
-
-        #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId TypeId => DataTypeIds.EndpointDataType; 
-
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public override ExpandedNodeId BinaryEncodingId => ObjectIds.EndpointDataType_Encoding_DefaultBinary;
-
-        /// <summary cref="IEncodeable.XmlEncodingId" />
-        public override ExpandedNodeId XmlEncodingId => ObjectIds.EndpointDataType_Encoding_DefaultXml;
-            
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => ObjectIds.EndpointDataType_Encoding_DefaultJson; 
-
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
-        public override void Encode(IEncoder encoder)
-        {
-            base.Encode(encoder);
-
-            encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
-
-            encoder.WriteStringArray("EndpointUrls", EndpointUrls);
-            encoder.WriteString("NetworkName", NetworkName);
-            encoder.WriteUInt16("Port", Port);
-
-            encoder.PopNamespace();
-        }
-
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
-        public override void Decode(IDecoder decoder)
-        {
-            base.Decode(decoder);
-
-            decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
-
-            EndpointUrls = decoder.ReadStringArray("EndpointUrls");
-            NetworkName = decoder.ReadString("NetworkName");
-            Port = decoder.ReadUInt16("Port");
-
-            decoder.PopNamespace();
-        }
-
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
-        public override bool IsEqual(IEncodeable encodeable)
-        {
-            if (Object.ReferenceEquals(this, encodeable))
-            {
-                return true;
-            }
-
-            EndpointDataType value = encodeable as EndpointDataType;
-
-            if (value == null)
-            {
-                return false;
-            }
-
-            if (!Utils.IsEqual(m_endpointUrls, value.m_endpointUrls)) return false;
-            if (!Utils.IsEqual(m_networkName, value.m_networkName)) return false;
-            if (!Utils.IsEqual(m_port, value.m_port)) return false;
-
-            return base.IsEqual(encodeable);
-        }    
-
-        /// <summary cref="ICloneable.Clone" />
-        public override object Clone()
-        {
-            return (EndpointDataType)this.MemberwiseClone();
-        }
-
-        /// <summary cref="Object.MemberwiseClone" />
-        public new object MemberwiseClone()
-        {
-            EndpointDataType clone = (EndpointDataType)base.MemberwiseClone();
-
-            clone.m_endpointUrls = (StringCollection)Utils.Clone(this.m_endpointUrls);
-            clone.m_networkName = (string)Utils.Clone(this.m_networkName);
-            clone.m_port = (ushort)Utils.Clone(this.m_port);
-
-            return clone;
-        }
-        #endregion
-
-        #region Private Fields
-        private StringCollection m_endpointUrls;
-        private string m_networkName;
-        private ushort m_port;
-        #endregion
-    }
-
-    #region EndpointDataTypeCollection Class
-    /// <remarks />
-    /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfEndpointDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "EndpointDataType")]
-    public partial class EndpointDataTypeCollection : List<EndpointDataType>, ICloneable
-    {
-        #region Constructors
-        /// <remarks />
-        public EndpointDataTypeCollection() {}
-
-        /// <remarks />
-        public EndpointDataTypeCollection(int capacity) : base(capacity) {}
-
-        /// <remarks />
-        public EndpointDataTypeCollection(IEnumerable<EndpointDataType> collection) : base(collection) {}
-        #endregion
-
-        #region Static Operators
-        /// <remarks />
-        public static implicit operator EndpointDataTypeCollection(EndpointDataType[] values)
-        {
-            if (values != null)
-            {
-                return new EndpointDataTypeCollection(values);
-            }
-
-            return new EndpointDataTypeCollection();
-        }
-
-        /// <remarks />
-        public static explicit operator EndpointDataType[](EndpointDataTypeCollection values)
-        {
-            if (values != null)
-            {
-                return values.ToArray();
-            }
-
-            return null;
-        }
-        #endregion
-
-        #region ICloneable Methods
-        /// <remarks />
-        public object Clone()
-        {
-            return (EndpointDataTypeCollection)this.MemberwiseClone();
-        }
-        #endregion
-
-        /// <summary cref="Object.MemberwiseClone" />
-        public new object MemberwiseClone()
-        {
-            EndpointDataTypeCollection clone = new EndpointDataTypeCollection(this.Count);
-
-            for (int ii = 0; ii < this.Count; ii++)
-            {
-                clone.Add((EndpointDataType)Utils.Clone(this[ii]));
-            }
-
-            return clone;
-        }
-    }
-    #endregion
-    #endif
-    #endregion
-
-    #region ServerEndpointDataType Class
-    #if (!OPCUA_EXCLUDE_ServerEndpointDataType)
-    /// <remarks />
-    /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class ServerEndpointDataType : Opc.Ua.EndpointDataType
-    {
-        #region Constructors
-        /// <remarks />
-        public ServerEndpointDataType()
-        {
-            Initialize();
-        }
-
-        [OnDeserializing]
-        private void Initialize(StreamingContext context)
-        {
-            Initialize();
-        }
-
-        private void Initialize()
-        {
-            m_securitySettings = new StringCollection();
-            m_transportProfileUri = null;
-            m_userTokenPolicies = new UserTokenPolicyCollection();
-            m_reverseConnectUrls = new StringCollection();
-        }
-        #endregion
-
-        #region Public Properties
-        /// <remarks />
-        [DataMember(Name = "SecuritySettings", IsRequired = false, Order = 1)]
-        public StringCollection SecuritySettings
-        {
-            get
-            {
-                return m_securitySettings;
-            }
-
-            set
-            {
-                m_securitySettings = value;
-
-                if (value == null)
-                {
-                    m_securitySettings = new StringCollection();
-                }
-            }
-        }
-
-        /// <remarks />
-        [DataMember(Name = "TransportProfileUri", IsRequired = false, Order = 2)]
-        public string TransportProfileUri
-        {
-            get { return m_transportProfileUri;  }
-            set { m_transportProfileUri = value; }
-        }
-
-        /// <remarks />
-        [DataMember(Name = "UserTokenPolicies", IsRequired = false, Order = 3)]
-        public UserTokenPolicyCollection UserTokenPolicies
-        {
-            get
-            {
-                return m_userTokenPolicies;
-            }
-
-            set
-            {
-                m_userTokenPolicies = value;
-
-                if (value == null)
-                {
-                    m_userTokenPolicies = new UserTokenPolicyCollection();
-                }
-            }
-        }
-
-        /// <remarks />
-        [DataMember(Name = "ReverseConnectUrls", IsRequired = false, Order = 4)]
-        public StringCollection ReverseConnectUrls
-        {
-            get
-            {
-                return m_reverseConnectUrls;
-            }
-
-            set
-            {
-                m_reverseConnectUrls = value;
-
-                if (value == null)
-                {
-                    m_reverseConnectUrls = new StringCollection();
-                }
-            }
-        }
-        #endregion
-
-        #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId TypeId => DataTypeIds.ServerEndpointDataType; 
-
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public override ExpandedNodeId BinaryEncodingId => ObjectIds.ServerEndpointDataType_Encoding_DefaultBinary;
-
-        /// <summary cref="IEncodeable.XmlEncodingId" />
-        public override ExpandedNodeId XmlEncodingId => ObjectIds.ServerEndpointDataType_Encoding_DefaultXml;
-            
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => ObjectIds.ServerEndpointDataType_Encoding_DefaultJson; 
-
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
-        public override void Encode(IEncoder encoder)
-        {
-            base.Encode(encoder);
-
-            encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
-
-            encoder.WriteStringArray("SecuritySettings", SecuritySettings);
-            encoder.WriteString("TransportProfileUri", TransportProfileUri);
-            encoder.WriteEncodeableArray("UserTokenPolicies", UserTokenPolicies.ToArray(), typeof(UserTokenPolicy));
-            encoder.WriteStringArray("ReverseConnectUrls", ReverseConnectUrls);
-
-            encoder.PopNamespace();
-        }
-
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
-        public override void Decode(IDecoder decoder)
-        {
-            base.Decode(decoder);
-
-            decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
-
-            SecuritySettings = decoder.ReadStringArray("SecuritySettings");
-            TransportProfileUri = decoder.ReadString("TransportProfileUri");
-            UserTokenPolicies = (UserTokenPolicyCollection)decoder.ReadEncodeableArray("UserTokenPolicies", typeof(UserTokenPolicy));
-            ReverseConnectUrls = decoder.ReadStringArray("ReverseConnectUrls");
-
-            decoder.PopNamespace();
-        }
-
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
-        public override bool IsEqual(IEncodeable encodeable)
-        {
-            if (Object.ReferenceEquals(this, encodeable))
-            {
-                return true;
-            }
-
-            ServerEndpointDataType value = encodeable as ServerEndpointDataType;
-
-            if (value == null)
-            {
-                return false;
-            }
-
-            if (!Utils.IsEqual(m_securitySettings, value.m_securitySettings)) return false;
-            if (!Utils.IsEqual(m_transportProfileUri, value.m_transportProfileUri)) return false;
-            if (!Utils.IsEqual(m_userTokenPolicies, value.m_userTokenPolicies)) return false;
-            if (!Utils.IsEqual(m_reverseConnectUrls, value.m_reverseConnectUrls)) return false;
-
-            return base.IsEqual(encodeable);
-        }    
-
-        /// <summary cref="ICloneable.Clone" />
-        public override object Clone()
-        {
-            return (ServerEndpointDataType)this.MemberwiseClone();
-        }
-
-        /// <summary cref="Object.MemberwiseClone" />
-        public new object MemberwiseClone()
-        {
-            ServerEndpointDataType clone = (ServerEndpointDataType)base.MemberwiseClone();
-
-            clone.m_securitySettings = (StringCollection)Utils.Clone(this.m_securitySettings);
-            clone.m_transportProfileUri = (string)Utils.Clone(this.m_transportProfileUri);
-            clone.m_userTokenPolicies = (UserTokenPolicyCollection)Utils.Clone(this.m_userTokenPolicies);
-            clone.m_reverseConnectUrls = (StringCollection)Utils.Clone(this.m_reverseConnectUrls);
-
-            return clone;
-        }
-        #endregion
-
-        #region Private Fields
-        private StringCollection m_securitySettings;
-        private string m_transportProfileUri;
-        private UserTokenPolicyCollection m_userTokenPolicies;
-        private StringCollection m_reverseConnectUrls;
-        #endregion
-    }
-
-    #region ServerEndpointDataTypeCollection Class
-    /// <remarks />
-    /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfServerEndpointDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ServerEndpointDataType")]
-    public partial class ServerEndpointDataTypeCollection : List<ServerEndpointDataType>, ICloneable
-    {
-        #region Constructors
-        /// <remarks />
-        public ServerEndpointDataTypeCollection() {}
-
-        /// <remarks />
-        public ServerEndpointDataTypeCollection(int capacity) : base(capacity) {}
-
-        /// <remarks />
-        public ServerEndpointDataTypeCollection(IEnumerable<ServerEndpointDataType> collection) : base(collection) {}
-        #endregion
-
-        #region Static Operators
-        /// <remarks />
-        public static implicit operator ServerEndpointDataTypeCollection(ServerEndpointDataType[] values)
-        {
-            if (values != null)
-            {
-                return new ServerEndpointDataTypeCollection(values);
-            }
-
-            return new ServerEndpointDataTypeCollection();
-        }
-
-        /// <remarks />
-        public static explicit operator ServerEndpointDataType[](ServerEndpointDataTypeCollection values)
-        {
-            if (values != null)
-            {
-                return values.ToArray();
-            }
-
-            return null;
-        }
-        #endregion
-
-        #region ICloneable Methods
-        /// <remarks />
-        public object Clone()
-        {
-            return (ServerEndpointDataTypeCollection)this.MemberwiseClone();
-        }
-        #endregion
-
-        /// <summary cref="Object.MemberwiseClone" />
-        public new object MemberwiseClone()
-        {
-            ServerEndpointDataTypeCollection clone = new ServerEndpointDataTypeCollection(this.Count);
-
-            for (int ii = 0; ii < this.Count; ii++)
-            {
-                clone.Add((ServerEndpointDataType)Utils.Clone(this[ii]));
-            }
-
-            return clone;
-        }
-    }
-    #endregion
-    #endif
-    #endregion
-
-    #region SecuritySettingsDataType Class
-    #if (!OPCUA_EXCLUDE_SecuritySettingsDataType)
-    /// <remarks />
-    /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class SecuritySettingsDataType : Opc.Ua.BaseConfigurationRecordDataType
-    {
-        #region Constructors
-        /// <remarks />
-        public SecuritySettingsDataType()
-        {
-            Initialize();
-        }
-
-        [OnDeserializing]
-        private void Initialize(StreamingContext context)
-        {
-            Initialize();
-        }
-
-        private void Initialize()
-        {
-            m_securityModes = new MessageSecurityModeCollection();
-            m_securityPolicyUris = new StringCollection();
-            m_transportProfileUri = null;
-            m_defaultSecurityLevel = (byte)0;
-            m_certificateGroupName = null;
-        }
-        #endregion
-
-        #region Public Properties
-        /// <remarks />
-        [DataMember(Name = "SecurityModes", IsRequired = false, Order = 1)]
-        public MessageSecurityModeCollection SecurityModes
-        {
-            get
-            {
-                return m_securityModes;
-            }
-
-            set
-            {
-                m_securityModes = value;
-
-                if (value == null)
-                {
-                    m_securityModes = new MessageSecurityModeCollection();
-                }
-            }
-        }
-
-        /// <remarks />
-        [DataMember(Name = "SecurityPolicyUris", IsRequired = false, Order = 2)]
-        public StringCollection SecurityPolicyUris
-        {
-            get
-            {
-                return m_securityPolicyUris;
-            }
-
-            set
-            {
-                m_securityPolicyUris = value;
-
-                if (value == null)
-                {
-                    m_securityPolicyUris = new StringCollection();
-                }
-            }
-        }
-
-        /// <remarks />
-        [DataMember(Name = "TransportProfileUri", IsRequired = false, Order = 3)]
-        public string TransportProfileUri
-        {
-            get { return m_transportProfileUri;  }
-            set { m_transportProfileUri = value; }
-        }
-
-        /// <remarks />
-        [DataMember(Name = "DefaultSecurityLevel", IsRequired = false, Order = 4)]
-        public byte DefaultSecurityLevel
-        {
-            get { return m_defaultSecurityLevel;  }
-            set { m_defaultSecurityLevel = value; }
-        }
-
-        /// <remarks />
-        [DataMember(Name = "CertificateGroupName", IsRequired = false, Order = 5)]
-        public string CertificateGroupName
-        {
-            get { return m_certificateGroupName;  }
-            set { m_certificateGroupName = value; }
-        }
-        #endregion
-
-        #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId TypeId => DataTypeIds.SecuritySettingsDataType; 
-
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public override ExpandedNodeId BinaryEncodingId => ObjectIds.SecuritySettingsDataType_Encoding_DefaultBinary;
-
-        /// <summary cref="IEncodeable.XmlEncodingId" />
-        public override ExpandedNodeId XmlEncodingId => ObjectIds.SecuritySettingsDataType_Encoding_DefaultXml;
-            
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => ObjectIds.SecuritySettingsDataType_Encoding_DefaultJson; 
-
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
-        public override void Encode(IEncoder encoder)
-        {
-            base.Encode(encoder);
-
-            encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
-
-            encoder.WriteEnumeratedArray("SecurityModes", SecurityModes.ToArray(), typeof(MessageSecurityMode));
-            encoder.WriteStringArray("SecurityPolicyUris", SecurityPolicyUris);
-            encoder.WriteString("TransportProfileUri", TransportProfileUri);
-            encoder.WriteByte("DefaultSecurityLevel", DefaultSecurityLevel);
-            encoder.WriteString("CertificateGroupName", CertificateGroupName);
-
-            encoder.PopNamespace();
-        }
-
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
-        public override void Decode(IDecoder decoder)
-        {
-            base.Decode(decoder);
-
-            decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
-
-            SecurityModes = (MessageSecurityModeCollection)decoder.ReadEnumeratedArray("SecurityModes", typeof(MessageSecurityMode));
-            SecurityPolicyUris = decoder.ReadStringArray("SecurityPolicyUris");
-            TransportProfileUri = decoder.ReadString("TransportProfileUri");
-            DefaultSecurityLevel = decoder.ReadByte("DefaultSecurityLevel");
-            CertificateGroupName = decoder.ReadString("CertificateGroupName");
-
-            decoder.PopNamespace();
-        }
-
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
-        public override bool IsEqual(IEncodeable encodeable)
-        {
-            if (Object.ReferenceEquals(this, encodeable))
-            {
-                return true;
-            }
-
-            SecuritySettingsDataType value = encodeable as SecuritySettingsDataType;
-
-            if (value == null)
-            {
-                return false;
-            }
-
-            if (!Utils.IsEqual(m_securityModes, value.m_securityModes)) return false;
-            if (!Utils.IsEqual(m_securityPolicyUris, value.m_securityPolicyUris)) return false;
-            if (!Utils.IsEqual(m_transportProfileUri, value.m_transportProfileUri)) return false;
-            if (!Utils.IsEqual(m_defaultSecurityLevel, value.m_defaultSecurityLevel)) return false;
-            if (!Utils.IsEqual(m_certificateGroupName, value.m_certificateGroupName)) return false;
-
-            return base.IsEqual(encodeable);
-        }    
-
-        /// <summary cref="ICloneable.Clone" />
-        public override object Clone()
-        {
-            return (SecuritySettingsDataType)this.MemberwiseClone();
-        }
-
-        /// <summary cref="Object.MemberwiseClone" />
-        public new object MemberwiseClone()
-        {
-            SecuritySettingsDataType clone = (SecuritySettingsDataType)base.MemberwiseClone();
-
-            clone.m_securityModes = (MessageSecurityModeCollection)Utils.Clone(this.m_securityModes);
-            clone.m_securityPolicyUris = (StringCollection)Utils.Clone(this.m_securityPolicyUris);
-            clone.m_transportProfileUri = (string)Utils.Clone(this.m_transportProfileUri);
-            clone.m_defaultSecurityLevel = (byte)Utils.Clone(this.m_defaultSecurityLevel);
-            clone.m_certificateGroupName = (string)Utils.Clone(this.m_certificateGroupName);
-
-            return clone;
-        }
-        #endregion
-
-        #region Private Fields
-        private MessageSecurityModeCollection m_securityModes;
-        private StringCollection m_securityPolicyUris;
-        private string m_transportProfileUri;
-        private byte m_defaultSecurityLevel;
-        private string m_certificateGroupName;
-        #endregion
-    }
-
-    #region SecuritySettingsDataTypeCollection Class
-    /// <remarks />
-    /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfSecuritySettingsDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "SecuritySettingsDataType")]
-    public partial class SecuritySettingsDataTypeCollection : List<SecuritySettingsDataType>, ICloneable
-    {
-        #region Constructors
-        /// <remarks />
-        public SecuritySettingsDataTypeCollection() {}
-
-        /// <remarks />
-        public SecuritySettingsDataTypeCollection(int capacity) : base(capacity) {}
-
-        /// <remarks />
-        public SecuritySettingsDataTypeCollection(IEnumerable<SecuritySettingsDataType> collection) : base(collection) {}
-        #endregion
-
-        #region Static Operators
-        /// <remarks />
-        public static implicit operator SecuritySettingsDataTypeCollection(SecuritySettingsDataType[] values)
-        {
-            if (values != null)
-            {
-                return new SecuritySettingsDataTypeCollection(values);
-            }
-
-            return new SecuritySettingsDataTypeCollection();
-        }
-
-        /// <remarks />
-        public static explicit operator SecuritySettingsDataType[](SecuritySettingsDataTypeCollection values)
-        {
-            if (values != null)
-            {
-                return values.ToArray();
-            }
-
-            return null;
-        }
-        #endregion
-
-        #region ICloneable Methods
-        /// <remarks />
-        public object Clone()
-        {
-            return (SecuritySettingsDataTypeCollection)this.MemberwiseClone();
-        }
-        #endregion
-
-        /// <summary cref="Object.MemberwiseClone" />
-        public new object MemberwiseClone()
-        {
-            SecuritySettingsDataTypeCollection clone = new SecuritySettingsDataTypeCollection(this.Count);
-
-            for (int ii = 0; ii < this.Count; ii++)
-            {
-                clone.Add((SecuritySettingsDataType)Utils.Clone(this[ii]));
-            }
-
-            return clone;
-        }
-    }
-    #endregion
-    #endif
-    #endregion
-
-    #region UserTokenSettingsDataType Class
-    #if (!OPCUA_EXCLUDE_UserTokenSettingsDataType)
-    /// <remarks />
-    /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class UserTokenSettingsDataType : Opc.Ua.BaseConfigurationRecordDataType
-    {
-        #region Constructors
-        /// <remarks />
-        public UserTokenSettingsDataType()
-        {
-            Initialize();
-        }
-
-        [OnDeserializing]
-        private void Initialize(StreamingContext context)
-        {
-            Initialize();
-        }
-
-        private void Initialize()
-        {
-            m_tokenType = UserTokenType.Anonymous;
-            m_issuedTokenType = null;
-            m_certificateGroupName = null;
-            m_keyCredentialName = null;
-        }
-        #endregion
-
-        #region Public Properties
-        /// <remarks />
-        [DataMember(Name = "TokenType", IsRequired = false, Order = 1)]
-        public UserTokenType TokenType
-        {
-            get { return m_tokenType;  }
-            set { m_tokenType = value; }
-        }
-
-        /// <remarks />
-        [DataMember(Name = "IssuedTokenType", IsRequired = false, Order = 2)]
-        public string IssuedTokenType
-        {
-            get { return m_issuedTokenType;  }
-            set { m_issuedTokenType = value; }
-        }
-
-        /// <remarks />
-        [DataMember(Name = "CertificateGroupName", IsRequired = false, Order = 3)]
-        public string CertificateGroupName
-        {
-            get { return m_certificateGroupName;  }
-            set { m_certificateGroupName = value; }
-        }
-
-        /// <remarks />
-        [DataMember(Name = "KeyCredentialName", IsRequired = false, Order = 4)]
-        public string KeyCredentialName
-        {
-            get { return m_keyCredentialName;  }
-            set { m_keyCredentialName = value; }
-        }
-        #endregion
-
-        #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
-        public override ExpandedNodeId TypeId => DataTypeIds.UserTokenSettingsDataType; 
-
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public override ExpandedNodeId BinaryEncodingId => ObjectIds.UserTokenSettingsDataType_Encoding_DefaultBinary;
-
-        /// <summary cref="IEncodeable.XmlEncodingId" />
-        public override ExpandedNodeId XmlEncodingId => ObjectIds.UserTokenSettingsDataType_Encoding_DefaultXml;
-            
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => ObjectIds.UserTokenSettingsDataType_Encoding_DefaultJson; 
-
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
-        public override void Encode(IEncoder encoder)
-        {
-            base.Encode(encoder);
-
-            encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
-
-            encoder.WriteEnumerated("TokenType", TokenType);
-            encoder.WriteString("IssuedTokenType", IssuedTokenType);
-            encoder.WriteString("CertificateGroupName", CertificateGroupName);
-            encoder.WriteString("KeyCredentialName", KeyCredentialName);
-
-            encoder.PopNamespace();
-        }
-
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
-        public override void Decode(IDecoder decoder)
-        {
-            base.Decode(decoder);
-
-            decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
-
-            TokenType = (UserTokenType)decoder.ReadEnumerated("TokenType", typeof(UserTokenType));
-            IssuedTokenType = decoder.ReadString("IssuedTokenType");
-            CertificateGroupName = decoder.ReadString("CertificateGroupName");
-            KeyCredentialName = decoder.ReadString("KeyCredentialName");
-
-            decoder.PopNamespace();
-        }
-
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
-        public override bool IsEqual(IEncodeable encodeable)
-        {
-            if (Object.ReferenceEquals(this, encodeable))
-            {
-                return true;
-            }
-
-            UserTokenSettingsDataType value = encodeable as UserTokenSettingsDataType;
-
-            if (value == null)
-            {
-                return false;
-            }
-
-            if (!Utils.IsEqual(m_tokenType, value.m_tokenType)) return false;
-            if (!Utils.IsEqual(m_issuedTokenType, value.m_issuedTokenType)) return false;
-            if (!Utils.IsEqual(m_certificateGroupName, value.m_certificateGroupName)) return false;
-            if (!Utils.IsEqual(m_keyCredentialName, value.m_keyCredentialName)) return false;
-
-            return base.IsEqual(encodeable);
-        }    
-
-        /// <summary cref="ICloneable.Clone" />
-        public override object Clone()
-        {
-            return (UserTokenSettingsDataType)this.MemberwiseClone();
-        }
-
-        /// <summary cref="Object.MemberwiseClone" />
-        public new object MemberwiseClone()
-        {
-            UserTokenSettingsDataType clone = (UserTokenSettingsDataType)base.MemberwiseClone();
-
-            clone.m_tokenType = (UserTokenType)Utils.Clone(this.m_tokenType);
-            clone.m_issuedTokenType = (string)Utils.Clone(this.m_issuedTokenType);
-            clone.m_certificateGroupName = (string)Utils.Clone(this.m_certificateGroupName);
-            clone.m_keyCredentialName = (string)Utils.Clone(this.m_keyCredentialName);
-
-            return clone;
-        }
-        #endregion
-
-        #region Private Fields
-        private UserTokenType m_tokenType;
-        private string m_issuedTokenType;
-        private string m_certificateGroupName;
-        private string m_keyCredentialName;
-        #endregion
-    }
-
-    #region UserTokenSettingsDataTypeCollection Class
-    /// <remarks />
-    /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfUserTokenSettingsDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "UserTokenSettingsDataType")]
-    public partial class UserTokenSettingsDataTypeCollection : List<UserTokenSettingsDataType>, ICloneable
-    {
-        #region Constructors
-        /// <remarks />
-        public UserTokenSettingsDataTypeCollection() {}
-
-        /// <remarks />
-        public UserTokenSettingsDataTypeCollection(int capacity) : base(capacity) {}
-
-        /// <remarks />
-        public UserTokenSettingsDataTypeCollection(IEnumerable<UserTokenSettingsDataType> collection) : base(collection) {}
-        #endregion
-
-        #region Static Operators
-        /// <remarks />
-        public static implicit operator UserTokenSettingsDataTypeCollection(UserTokenSettingsDataType[] values)
-        {
-            if (values != null)
-            {
-                return new UserTokenSettingsDataTypeCollection(values);
-            }
-
-            return new UserTokenSettingsDataTypeCollection();
-        }
-
-        /// <remarks />
-        public static explicit operator UserTokenSettingsDataType[](UserTokenSettingsDataTypeCollection values)
-        {
-            if (values != null)
-            {
-                return values.ToArray();
-            }
-
-            return null;
-        }
-        #endregion
-
-        #region ICloneable Methods
-        /// <remarks />
-        public object Clone()
-        {
-            return (UserTokenSettingsDataTypeCollection)this.MemberwiseClone();
-        }
-        #endregion
-
-        /// <summary cref="Object.MemberwiseClone" />
-        public new object MemberwiseClone()
-        {
-            UserTokenSettingsDataTypeCollection clone = new UserTokenSettingsDataTypeCollection(this.Count);
-
-            for (int ii = 0; ii < this.Count; ii++)
-            {
-                clone.Add((UserTokenSettingsDataType)Utils.Clone(this[ii]));
             }
 
             return clone;
@@ -10527,7 +8066,7 @@ namespace Opc.Ua
             m_dataSetFolder = new StringCollection();
             m_dataSetMetaData = new DataSetMetaDataType();
             m_extensionFields = new KeyValuePairCollection();
-            m_dataSetSource = new PublishedDataSetSourceDataType();
+            m_dataSetSource = null;
         }
         #endregion
 
@@ -10602,7 +8141,7 @@ namespace Opc.Ua
 
         /// <remarks />
         [DataMember(Name = "DataSetSource", IsRequired = false, Order = 5)]
-        public PublishedDataSetSourceDataType DataSetSource
+        public ExtensionObject DataSetSource
         {
             get { return m_dataSetSource;  }
             set { m_dataSetSource = value; }
@@ -10631,7 +8170,7 @@ namespace Opc.Ua
             encoder.WriteStringArray("DataSetFolder", DataSetFolder);
             encoder.WriteEncodeable("DataSetMetaData", DataSetMetaData, typeof(DataSetMetaDataType));
             encoder.WriteEncodeableArray("ExtensionFields", ExtensionFields.ToArray(), typeof(KeyValuePair));
-            encoder.WriteExtensionObject("DataSetSource", new ExtensionObject(DataSetSource));
+            encoder.WriteExtensionObject("DataSetSource", DataSetSource);
 
             encoder.PopNamespace();
         }
@@ -10645,7 +8184,7 @@ namespace Opc.Ua
             DataSetFolder = decoder.ReadStringArray("DataSetFolder");
             DataSetMetaData = (DataSetMetaDataType)decoder.ReadEncodeable("DataSetMetaData", typeof(DataSetMetaDataType));
             ExtensionFields = (KeyValuePairCollection)decoder.ReadEncodeableArray("ExtensionFields", typeof(KeyValuePair));
-            DataSetSource = (PublishedDataSetSourceDataType)ExtensionObject.ToEncodeable(decoder.ReadExtensionObject("DataSetSource"));
+            DataSetSource = decoder.ReadExtensionObject("DataSetSource");
 
             decoder.PopNamespace();
         }
@@ -10689,7 +8228,7 @@ namespace Opc.Ua
             clone.m_dataSetFolder = (StringCollection)Utils.Clone(this.m_dataSetFolder);
             clone.m_dataSetMetaData = (DataSetMetaDataType)Utils.Clone(this.m_dataSetMetaData);
             clone.m_extensionFields = (KeyValuePairCollection)Utils.Clone(this.m_extensionFields);
-            clone.m_dataSetSource = (PublishedDataSetSourceDataType)Utils.Clone(this.m_dataSetSource);
+            clone.m_dataSetSource = (ExtensionObject)Utils.Clone(this.m_dataSetSource);
 
             return clone;
         }
@@ -10700,7 +8239,7 @@ namespace Opc.Ua
         private StringCollection m_dataSetFolder;
         private DataSetMetaDataType m_dataSetMetaData;
         private KeyValuePairCollection m_extensionFields;
-        private PublishedDataSetSourceDataType m_dataSetSource;
+        private ExtensionObject m_dataSetSource;
         #endregion
     }
 
@@ -12877,8 +10416,8 @@ namespace Opc.Ua
             m_keyFrameCount = (uint)0;
             m_dataSetName = null;
             m_dataSetWriterProperties = new KeyValuePairCollection();
-            m_transportSettings = new DataSetWriterTransportDataType();
-            m_messageSettings = new DataSetWriterMessageDataType();
+            m_transportSettings = null;
+            m_messageSettings = null;
         }
         #endregion
 
@@ -12953,7 +10492,7 @@ namespace Opc.Ua
 
         /// <remarks />
         [DataMember(Name = "TransportSettings", IsRequired = false, Order = 8)]
-        public DataSetWriterTransportDataType TransportSettings
+        public ExtensionObject TransportSettings
         {
             get { return m_transportSettings;  }
             set { m_transportSettings = value; }
@@ -12961,7 +10500,7 @@ namespace Opc.Ua
 
         /// <remarks />
         [DataMember(Name = "MessageSettings", IsRequired = false, Order = 9)]
-        public DataSetWriterMessageDataType MessageSettings
+        public ExtensionObject MessageSettings
         {
             get { return m_messageSettings;  }
             set { m_messageSettings = value; }
@@ -12993,8 +10532,8 @@ namespace Opc.Ua
             encoder.WriteUInt32("KeyFrameCount", KeyFrameCount);
             encoder.WriteString("DataSetName", DataSetName);
             encoder.WriteEncodeableArray("DataSetWriterProperties", DataSetWriterProperties.ToArray(), typeof(KeyValuePair));
-            encoder.WriteExtensionObject("TransportSettings", new ExtensionObject(TransportSettings));
-            encoder.WriteExtensionObject("MessageSettings", new ExtensionObject(MessageSettings));
+            encoder.WriteExtensionObject("TransportSettings", TransportSettings);
+            encoder.WriteExtensionObject("MessageSettings", MessageSettings);
 
             encoder.PopNamespace();
         }
@@ -13011,8 +10550,8 @@ namespace Opc.Ua
             KeyFrameCount = decoder.ReadUInt32("KeyFrameCount");
             DataSetName = decoder.ReadString("DataSetName");
             DataSetWriterProperties = (KeyValuePairCollection)decoder.ReadEncodeableArray("DataSetWriterProperties", typeof(KeyValuePair));
-            TransportSettings = (DataSetWriterTransportDataType)ExtensionObject.ToEncodeable(decoder.ReadExtensionObject("TransportSettings"));
-            MessageSettings = (DataSetWriterMessageDataType)ExtensionObject.ToEncodeable(decoder.ReadExtensionObject("MessageSettings"));
+            TransportSettings = decoder.ReadExtensionObject("TransportSettings");
+            MessageSettings = decoder.ReadExtensionObject("MessageSettings");
 
             decoder.PopNamespace();
         }
@@ -13063,8 +10602,8 @@ namespace Opc.Ua
             clone.m_keyFrameCount = (uint)Utils.Clone(this.m_keyFrameCount);
             clone.m_dataSetName = (string)Utils.Clone(this.m_dataSetName);
             clone.m_dataSetWriterProperties = (KeyValuePairCollection)Utils.Clone(this.m_dataSetWriterProperties);
-            clone.m_transportSettings = (DataSetWriterTransportDataType)Utils.Clone(this.m_transportSettings);
-            clone.m_messageSettings = (DataSetWriterMessageDataType)Utils.Clone(this.m_messageSettings);
+            clone.m_transportSettings = (ExtensionObject)Utils.Clone(this.m_transportSettings);
+            clone.m_messageSettings = (ExtensionObject)Utils.Clone(this.m_messageSettings);
 
             return clone;
         }
@@ -13078,8 +10617,8 @@ namespace Opc.Ua
         private uint m_keyFrameCount;
         private string m_dataSetName;
         private KeyValuePairCollection m_dataSetWriterProperties;
-        private DataSetWriterTransportDataType m_transportSettings;
-        private DataSetWriterMessageDataType m_messageSettings;
+        private ExtensionObject m_transportSettings;
+        private ExtensionObject m_messageSettings;
         #endregion
     }
 
@@ -13798,8 +11337,8 @@ namespace Opc.Ua
             m_priority = (byte)0;
             m_localeIds = new StringCollection();
             m_headerLayoutUri = null;
-            m_transportSettings = new WriterGroupTransportDataType();
-            m_messageSettings = new WriterGroupMessageDataType();
+            m_transportSettings = null;
+            m_messageSettings = null;
             m_dataSetWriters = new DataSetWriterDataTypeCollection();
         }
         #endregion
@@ -13867,7 +11406,7 @@ namespace Opc.Ua
 
         /// <remarks />
         [DataMember(Name = "TransportSettings", IsRequired = false, Order = 7)]
-        public WriterGroupTransportDataType TransportSettings
+        public ExtensionObject TransportSettings
         {
             get { return m_transportSettings;  }
             set { m_transportSettings = value; }
@@ -13875,7 +11414,7 @@ namespace Opc.Ua
 
         /// <remarks />
         [DataMember(Name = "MessageSettings", IsRequired = false, Order = 8)]
-        public WriterGroupMessageDataType MessageSettings
+        public ExtensionObject MessageSettings
         {
             get { return m_messageSettings;  }
             set { m_messageSettings = value; }
@@ -13928,8 +11467,8 @@ namespace Opc.Ua
             encoder.WriteByte("Priority", Priority);
             encoder.WriteStringArray("LocaleIds", LocaleIds);
             encoder.WriteString("HeaderLayoutUri", HeaderLayoutUri);
-            encoder.WriteExtensionObject("TransportSettings", new ExtensionObject(TransportSettings));
-            encoder.WriteExtensionObject("MessageSettings", new ExtensionObject(MessageSettings));
+            encoder.WriteExtensionObject("TransportSettings", TransportSettings);
+            encoder.WriteExtensionObject("MessageSettings", MessageSettings);
             encoder.WriteEncodeableArray("DataSetWriters", DataSetWriters.ToArray(), typeof(DataSetWriterDataType));
 
             encoder.PopNamespace();
@@ -13948,8 +11487,8 @@ namespace Opc.Ua
             Priority = decoder.ReadByte("Priority");
             LocaleIds = decoder.ReadStringArray("LocaleIds");
             HeaderLayoutUri = decoder.ReadString("HeaderLayoutUri");
-            TransportSettings = (WriterGroupTransportDataType)ExtensionObject.ToEncodeable(decoder.ReadExtensionObject("TransportSettings"));
-            MessageSettings = (WriterGroupMessageDataType)ExtensionObject.ToEncodeable(decoder.ReadExtensionObject("MessageSettings"));
+            TransportSettings = decoder.ReadExtensionObject("TransportSettings");
+            MessageSettings = decoder.ReadExtensionObject("MessageSettings");
             DataSetWriters = (DataSetWriterDataTypeCollection)decoder.ReadEncodeableArray("DataSetWriters", typeof(DataSetWriterDataType));
 
             decoder.PopNamespace();
@@ -14000,8 +11539,8 @@ namespace Opc.Ua
             clone.m_priority = (byte)Utils.Clone(this.m_priority);
             clone.m_localeIds = (StringCollection)Utils.Clone(this.m_localeIds);
             clone.m_headerLayoutUri = (string)Utils.Clone(this.m_headerLayoutUri);
-            clone.m_transportSettings = (WriterGroupTransportDataType)Utils.Clone(this.m_transportSettings);
-            clone.m_messageSettings = (WriterGroupMessageDataType)Utils.Clone(this.m_messageSettings);
+            clone.m_transportSettings = (ExtensionObject)Utils.Clone(this.m_transportSettings);
+            clone.m_messageSettings = (ExtensionObject)Utils.Clone(this.m_messageSettings);
             clone.m_dataSetWriters = (DataSetWriterDataTypeCollection)Utils.Clone(this.m_dataSetWriters);
 
             return clone;
@@ -14015,8 +11554,8 @@ namespace Opc.Ua
         private byte m_priority;
         private StringCollection m_localeIds;
         private string m_headerLayoutUri;
-        private WriterGroupTransportDataType m_transportSettings;
-        private WriterGroupMessageDataType m_messageSettings;
+        private ExtensionObject m_transportSettings;
+        private ExtensionObject m_messageSettings;
         private DataSetWriterDataTypeCollection m_dataSetWriters;
         #endregion
     }
@@ -14447,9 +11986,9 @@ namespace Opc.Ua
             m_enabled = true;
             m_publisherId = Variant.Null;
             m_transportProfileUri = null;
-            m_address = new NetworkAddressDataType();
+            m_address = null;
             m_connectionProperties = new KeyValuePairCollection();
-            m_transportSettings = new ConnectionTransportDataType();
+            m_transportSettings = null;
             m_writerGroups = new WriterGroupDataTypeCollection();
             m_readerGroups = new ReaderGroupDataTypeCollection();
         }
@@ -14490,7 +12029,7 @@ namespace Opc.Ua
 
         /// <remarks />
         [DataMember(Name = "Address", IsRequired = false, Order = 5)]
-        public NetworkAddressDataType Address
+        public ExtensionObject Address
         {
             get { return m_address;  }
             set { m_address = value; }
@@ -14518,7 +12057,7 @@ namespace Opc.Ua
 
         /// <remarks />
         [DataMember(Name = "TransportSettings", IsRequired = false, Order = 7)]
-        public ConnectionTransportDataType TransportSettings
+        public ExtensionObject TransportSettings
         {
             get { return m_transportSettings;  }
             set { m_transportSettings = value; }
@@ -14587,9 +12126,9 @@ namespace Opc.Ua
             encoder.WriteBoolean("Enabled", Enabled);
             encoder.WriteVariant("PublisherId", PublisherId);
             encoder.WriteString("TransportProfileUri", TransportProfileUri);
-            encoder.WriteExtensionObject("Address", new ExtensionObject(Address));
+            encoder.WriteExtensionObject("Address", Address);
             encoder.WriteEncodeableArray("ConnectionProperties", ConnectionProperties.ToArray(), typeof(KeyValuePair));
-            encoder.WriteExtensionObject("TransportSettings", new ExtensionObject(TransportSettings));
+            encoder.WriteExtensionObject("TransportSettings", TransportSettings);
             encoder.WriteEncodeableArray("WriterGroups", WriterGroups.ToArray(), typeof(WriterGroupDataType));
             encoder.WriteEncodeableArray("ReaderGroups", ReaderGroups.ToArray(), typeof(ReaderGroupDataType));
 
@@ -14605,9 +12144,9 @@ namespace Opc.Ua
             Enabled = decoder.ReadBoolean("Enabled");
             PublisherId = decoder.ReadVariant("PublisherId");
             TransportProfileUri = decoder.ReadString("TransportProfileUri");
-            Address = (NetworkAddressDataType)ExtensionObject.ToEncodeable(decoder.ReadExtensionObject("Address"));
+            Address = decoder.ReadExtensionObject("Address");
             ConnectionProperties = (KeyValuePairCollection)decoder.ReadEncodeableArray("ConnectionProperties", typeof(KeyValuePair));
-            TransportSettings = (ConnectionTransportDataType)ExtensionObject.ToEncodeable(decoder.ReadExtensionObject("TransportSettings"));
+            TransportSettings = decoder.ReadExtensionObject("TransportSettings");
             WriterGroups = (WriterGroupDataTypeCollection)decoder.ReadEncodeableArray("WriterGroups", typeof(WriterGroupDataType));
             ReaderGroups = (ReaderGroupDataTypeCollection)decoder.ReadEncodeableArray("ReaderGroups", typeof(ReaderGroupDataType));
 
@@ -14657,9 +12196,9 @@ namespace Opc.Ua
             clone.m_enabled = (bool)Utils.Clone(this.m_enabled);
             clone.m_publisherId = (Variant)Utils.Clone(this.m_publisherId);
             clone.m_transportProfileUri = (string)Utils.Clone(this.m_transportProfileUri);
-            clone.m_address = (NetworkAddressDataType)Utils.Clone(this.m_address);
+            clone.m_address = (ExtensionObject)Utils.Clone(this.m_address);
             clone.m_connectionProperties = (KeyValuePairCollection)Utils.Clone(this.m_connectionProperties);
-            clone.m_transportSettings = (ConnectionTransportDataType)Utils.Clone(this.m_transportSettings);
+            clone.m_transportSettings = (ExtensionObject)Utils.Clone(this.m_transportSettings);
             clone.m_writerGroups = (WriterGroupDataTypeCollection)Utils.Clone(this.m_writerGroups);
             clone.m_readerGroups = (ReaderGroupDataTypeCollection)Utils.Clone(this.m_readerGroups);
 
@@ -14672,9 +12211,9 @@ namespace Opc.Ua
         private bool m_enabled;
         private Variant m_publisherId;
         private string m_transportProfileUri;
-        private NetworkAddressDataType m_address;
+        private ExtensionObject m_address;
         private KeyValuePairCollection m_connectionProperties;
-        private ConnectionTransportDataType m_transportSettings;
+        private ExtensionObject m_transportSettings;
         private WriterGroupDataTypeCollection m_writerGroups;
         private ReaderGroupDataTypeCollection m_readerGroups;
         #endregion
@@ -15298,8 +12837,8 @@ namespace Opc.Ua
 
         private void Initialize()
         {
-            m_transportSettings = new ReaderGroupTransportDataType();
-            m_messageSettings = new ReaderGroupMessageDataType();
+            m_transportSettings = null;
+            m_messageSettings = null;
             m_dataSetReaders = new DataSetReaderDataTypeCollection();
         }
         #endregion
@@ -15307,7 +12846,7 @@ namespace Opc.Ua
         #region Public Properties
         /// <remarks />
         [DataMember(Name = "TransportSettings", IsRequired = false, Order = 1)]
-        public ReaderGroupTransportDataType TransportSettings
+        public ExtensionObject TransportSettings
         {
             get { return m_transportSettings;  }
             set { m_transportSettings = value; }
@@ -15315,7 +12854,7 @@ namespace Opc.Ua
 
         /// <remarks />
         [DataMember(Name = "MessageSettings", IsRequired = false, Order = 2)]
-        public ReaderGroupMessageDataType MessageSettings
+        public ExtensionObject MessageSettings
         {
             get { return m_messageSettings;  }
             set { m_messageSettings = value; }
@@ -15362,8 +12901,8 @@ namespace Opc.Ua
 
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
-            encoder.WriteExtensionObject("TransportSettings", new ExtensionObject(TransportSettings));
-            encoder.WriteExtensionObject("MessageSettings", new ExtensionObject(MessageSettings));
+            encoder.WriteExtensionObject("TransportSettings", TransportSettings);
+            encoder.WriteExtensionObject("MessageSettings", MessageSettings);
             encoder.WriteEncodeableArray("DataSetReaders", DataSetReaders.ToArray(), typeof(DataSetReaderDataType));
 
             encoder.PopNamespace();
@@ -15376,8 +12915,8 @@ namespace Opc.Ua
 
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
-            TransportSettings = (ReaderGroupTransportDataType)ExtensionObject.ToEncodeable(decoder.ReadExtensionObject("TransportSettings"));
-            MessageSettings = (ReaderGroupMessageDataType)ExtensionObject.ToEncodeable(decoder.ReadExtensionObject("MessageSettings"));
+            TransportSettings = decoder.ReadExtensionObject("TransportSettings");
+            MessageSettings = decoder.ReadExtensionObject("MessageSettings");
             DataSetReaders = (DataSetReaderDataTypeCollection)decoder.ReadEncodeableArray("DataSetReaders", typeof(DataSetReaderDataType));
 
             decoder.PopNamespace();
@@ -15416,8 +12955,8 @@ namespace Opc.Ua
         {
             ReaderGroupDataType clone = (ReaderGroupDataType)base.MemberwiseClone();
 
-            clone.m_transportSettings = (ReaderGroupTransportDataType)Utils.Clone(this.m_transportSettings);
-            clone.m_messageSettings = (ReaderGroupMessageDataType)Utils.Clone(this.m_messageSettings);
+            clone.m_transportSettings = (ExtensionObject)Utils.Clone(this.m_transportSettings);
+            clone.m_messageSettings = (ExtensionObject)Utils.Clone(this.m_messageSettings);
             clone.m_dataSetReaders = (DataSetReaderDataTypeCollection)Utils.Clone(this.m_dataSetReaders);
 
             return clone;
@@ -15425,8 +12964,8 @@ namespace Opc.Ua
         #endregion
 
         #region Private Fields
-        private ReaderGroupTransportDataType m_transportSettings;
-        private ReaderGroupMessageDataType m_messageSettings;
+        private ExtensionObject m_transportSettings;
+        private ExtensionObject m_messageSettings;
         private DataSetReaderDataTypeCollection m_dataSetReaders;
         #endregion
     }
@@ -15867,9 +13406,9 @@ namespace Opc.Ua
             m_securityGroupId = null;
             m_securityKeyServices = new EndpointDescriptionCollection();
             m_dataSetReaderProperties = new KeyValuePairCollection();
-            m_transportSettings = new DataSetReaderTransportDataType();
-            m_messageSettings = new DataSetReaderMessageDataType();
-            m_subscribedDataSet = new SubscribedDataSetDataType();
+            m_transportSettings = null;
+            m_messageSettings = null;
+            m_subscribedDataSet = null;
         }
         #endregion
 
@@ -16024,7 +13563,7 @@ namespace Opc.Ua
 
         /// <remarks />
         [DataMember(Name = "TransportSettings", IsRequired = false, Order = 15)]
-        public DataSetReaderTransportDataType TransportSettings
+        public ExtensionObject TransportSettings
         {
             get { return m_transportSettings;  }
             set { m_transportSettings = value; }
@@ -16032,7 +13571,7 @@ namespace Opc.Ua
 
         /// <remarks />
         [DataMember(Name = "MessageSettings", IsRequired = false, Order = 16)]
-        public DataSetReaderMessageDataType MessageSettings
+        public ExtensionObject MessageSettings
         {
             get { return m_messageSettings;  }
             set { m_messageSettings = value; }
@@ -16040,7 +13579,7 @@ namespace Opc.Ua
 
         /// <remarks />
         [DataMember(Name = "SubscribedDataSet", IsRequired = false, Order = 17)]
-        public SubscribedDataSetDataType SubscribedDataSet
+        public ExtensionObject SubscribedDataSet
         {
             get { return m_subscribedDataSet;  }
             set { m_subscribedDataSet = value; }
@@ -16079,9 +13618,9 @@ namespace Opc.Ua
             encoder.WriteString("SecurityGroupId", SecurityGroupId);
             encoder.WriteEncodeableArray("SecurityKeyServices", SecurityKeyServices.ToArray(), typeof(EndpointDescription));
             encoder.WriteEncodeableArray("DataSetReaderProperties", DataSetReaderProperties.ToArray(), typeof(KeyValuePair));
-            encoder.WriteExtensionObject("TransportSettings", new ExtensionObject(TransportSettings));
-            encoder.WriteExtensionObject("MessageSettings", new ExtensionObject(MessageSettings));
-            encoder.WriteExtensionObject("SubscribedDataSet", new ExtensionObject(SubscribedDataSet));
+            encoder.WriteExtensionObject("TransportSettings", TransportSettings);
+            encoder.WriteExtensionObject("MessageSettings", MessageSettings);
+            encoder.WriteExtensionObject("SubscribedDataSet", SubscribedDataSet);
 
             encoder.PopNamespace();
         }
@@ -16105,9 +13644,9 @@ namespace Opc.Ua
             SecurityGroupId = decoder.ReadString("SecurityGroupId");
             SecurityKeyServices = (EndpointDescriptionCollection)decoder.ReadEncodeableArray("SecurityKeyServices", typeof(EndpointDescription));
             DataSetReaderProperties = (KeyValuePairCollection)decoder.ReadEncodeableArray("DataSetReaderProperties", typeof(KeyValuePair));
-            TransportSettings = (DataSetReaderTransportDataType)ExtensionObject.ToEncodeable(decoder.ReadExtensionObject("TransportSettings"));
-            MessageSettings = (DataSetReaderMessageDataType)ExtensionObject.ToEncodeable(decoder.ReadExtensionObject("MessageSettings"));
-            SubscribedDataSet = (SubscribedDataSetDataType)ExtensionObject.ToEncodeable(decoder.ReadExtensionObject("SubscribedDataSet"));
+            TransportSettings = decoder.ReadExtensionObject("TransportSettings");
+            MessageSettings = decoder.ReadExtensionObject("MessageSettings");
+            SubscribedDataSet = decoder.ReadExtensionObject("SubscribedDataSet");
 
             decoder.PopNamespace();
         }
@@ -16173,9 +13712,9 @@ namespace Opc.Ua
             clone.m_securityGroupId = (string)Utils.Clone(this.m_securityGroupId);
             clone.m_securityKeyServices = (EndpointDescriptionCollection)Utils.Clone(this.m_securityKeyServices);
             clone.m_dataSetReaderProperties = (KeyValuePairCollection)Utils.Clone(this.m_dataSetReaderProperties);
-            clone.m_transportSettings = (DataSetReaderTransportDataType)Utils.Clone(this.m_transportSettings);
-            clone.m_messageSettings = (DataSetReaderMessageDataType)Utils.Clone(this.m_messageSettings);
-            clone.m_subscribedDataSet = (SubscribedDataSetDataType)Utils.Clone(this.m_subscribedDataSet);
+            clone.m_transportSettings = (ExtensionObject)Utils.Clone(this.m_transportSettings);
+            clone.m_messageSettings = (ExtensionObject)Utils.Clone(this.m_messageSettings);
+            clone.m_subscribedDataSet = (ExtensionObject)Utils.Clone(this.m_subscribedDataSet);
 
             return clone;
         }
@@ -16196,9 +13735,9 @@ namespace Opc.Ua
         private string m_securityGroupId;
         private EndpointDescriptionCollection m_securityKeyServices;
         private KeyValuePairCollection m_dataSetReaderProperties;
-        private DataSetReaderTransportDataType m_transportSettings;
-        private DataSetReaderMessageDataType m_messageSettings;
-        private SubscribedDataSetDataType m_subscribedDataSet;
+        private ExtensionObject m_transportSettings;
+        private ExtensionObject m_messageSettings;
+        private ExtensionObject m_subscribedDataSet;
         #endregion
     }
 
@@ -17962,7 +15501,7 @@ namespace Opc.Ua
             m_name = null;
             m_dataSetFolder = new StringCollection();
             m_dataSetMetaData = new DataSetMetaDataType();
-            m_subscribedDataSet = new SubscribedDataSetDataType();
+            m_subscribedDataSet = null;
         }
         #endregion
 
@@ -18017,7 +15556,7 @@ namespace Opc.Ua
 
         /// <remarks />
         [DataMember(Name = "SubscribedDataSet", IsRequired = false, Order = 4)]
-        public SubscribedDataSetDataType SubscribedDataSet
+        public ExtensionObject SubscribedDataSet
         {
             get { return m_subscribedDataSet;  }
             set { m_subscribedDataSet = value; }
@@ -18047,7 +15586,7 @@ namespace Opc.Ua
             encoder.WriteString("Name", Name);
             encoder.WriteStringArray("DataSetFolder", DataSetFolder);
             encoder.WriteEncodeable("DataSetMetaData", DataSetMetaData, typeof(DataSetMetaDataType));
-            encoder.WriteExtensionObject("SubscribedDataSet", new ExtensionObject(SubscribedDataSet));
+            encoder.WriteExtensionObject("SubscribedDataSet", SubscribedDataSet);
 
             encoder.PopNamespace();
         }
@@ -18062,7 +15601,7 @@ namespace Opc.Ua
             Name = decoder.ReadString("Name");
             DataSetFolder = decoder.ReadStringArray("DataSetFolder");
             DataSetMetaData = (DataSetMetaDataType)decoder.ReadEncodeable("DataSetMetaData", typeof(DataSetMetaDataType));
-            SubscribedDataSet = (SubscribedDataSetDataType)ExtensionObject.ToEncodeable(decoder.ReadExtensionObject("SubscribedDataSet"));
+            SubscribedDataSet = decoder.ReadExtensionObject("SubscribedDataSet");
 
             decoder.PopNamespace();
         }
@@ -18104,7 +15643,7 @@ namespace Opc.Ua
             clone.m_name = (string)Utils.Clone(this.m_name);
             clone.m_dataSetFolder = (StringCollection)Utils.Clone(this.m_dataSetFolder);
             clone.m_dataSetMetaData = (DataSetMetaDataType)Utils.Clone(this.m_dataSetMetaData);
-            clone.m_subscribedDataSet = (SubscribedDataSetDataType)Utils.Clone(this.m_subscribedDataSet);
+            clone.m_subscribedDataSet = (ExtensionObject)Utils.Clone(this.m_subscribedDataSet);
 
             return clone;
         }
@@ -18114,7 +15653,7 @@ namespace Opc.Ua
         private string m_name;
         private StringCollection m_dataSetFolder;
         private DataSetMetaDataType m_dataSetMetaData;
-        private SubscribedDataSetDataType m_subscribedDataSet;
+        private ExtensionObject m_subscribedDataSet;
         #endregion
     }
 
@@ -21971,14 +19510,14 @@ namespace Opc.Ua
 
         private void Initialize()
         {
-            m_discoveryAddress = new NetworkAddressDataType();
+            m_discoveryAddress = null;
         }
         #endregion
 
         #region Public Properties
         /// <remarks />
         [DataMember(Name = "DiscoveryAddress", IsRequired = false, Order = 1)]
-        public NetworkAddressDataType DiscoveryAddress
+        public ExtensionObject DiscoveryAddress
         {
             get { return m_discoveryAddress;  }
             set { m_discoveryAddress = value; }
@@ -22005,7 +19544,7 @@ namespace Opc.Ua
 
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
-            encoder.WriteExtensionObject("DiscoveryAddress", new ExtensionObject(DiscoveryAddress));
+            encoder.WriteExtensionObject("DiscoveryAddress", DiscoveryAddress);
 
             encoder.PopNamespace();
         }
@@ -22017,7 +19556,7 @@ namespace Opc.Ua
 
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
-            DiscoveryAddress = (NetworkAddressDataType)ExtensionObject.ToEncodeable(decoder.ReadExtensionObject("DiscoveryAddress"));
+            DiscoveryAddress = decoder.ReadExtensionObject("DiscoveryAddress");
 
             decoder.PopNamespace();
         }
@@ -22053,14 +19592,14 @@ namespace Opc.Ua
         {
             DatagramConnectionTransportDataType clone = (DatagramConnectionTransportDataType)base.MemberwiseClone();
 
-            clone.m_discoveryAddress = (NetworkAddressDataType)Utils.Clone(this.m_discoveryAddress);
+            clone.m_discoveryAddress = (ExtensionObject)Utils.Clone(this.m_discoveryAddress);
 
             return clone;
         }
         #endregion
 
         #region Private Fields
-        private NetworkAddressDataType m_discoveryAddress;
+        private ExtensionObject m_discoveryAddress;
         #endregion
     }
 
@@ -22157,7 +19696,7 @@ namespace Opc.Ua
             m_discoveryAnnounceRate = (uint)0;
             m_discoveryMaxMessageSize = (uint)0;
             m_qosCategory = null;
-            m_datagramQos = new QosDataTypeCollection();
+            m_datagramQos = new ExtensionObjectCollection();
         }
         #endregion
 
@@ -22188,7 +19727,7 @@ namespace Opc.Ua
 
         /// <remarks />
         [DataMember(Name = "DatagramQos", IsRequired = false, Order = 4)]
-        public QosDataTypeCollection DatagramQos
+        public ExtensionObjectCollection DatagramQos
         {
             get { return m_datagramQos;  }
             set { m_datagramQos = value; }
@@ -22218,7 +19757,7 @@ namespace Opc.Ua
             encoder.WriteUInt32("DiscoveryAnnounceRate", DiscoveryAnnounceRate);
             encoder.WriteUInt32("DiscoveryMaxMessageSize", DiscoveryMaxMessageSize);
             encoder.WriteString("QosCategory", QosCategory);
-            encoder.WriteExtensionObjectArray("DatagramQos", ExtensionObjectCollection.ToExtensionObjects(DatagramQos));
+            encoder.WriteExtensionObjectArray("DatagramQos", DatagramQos);
 
             encoder.PopNamespace();
         }
@@ -22233,7 +19772,7 @@ namespace Opc.Ua
             DiscoveryAnnounceRate = decoder.ReadUInt32("DiscoveryAnnounceRate");
             DiscoveryMaxMessageSize = decoder.ReadUInt32("DiscoveryMaxMessageSize");
             QosCategory = decoder.ReadString("QosCategory");
-            DatagramQos = (QosDataType[])ExtensionObject.ToArray(decoder.ReadExtensionObjectArray("DatagramQos"), typeof(QosDataType));
+            DatagramQos = decoder.ReadExtensionObjectArray("DatagramQos");
 
             decoder.PopNamespace();
         }
@@ -22275,7 +19814,7 @@ namespace Opc.Ua
             clone.m_discoveryAnnounceRate = (uint)Utils.Clone(this.m_discoveryAnnounceRate);
             clone.m_discoveryMaxMessageSize = (uint)Utils.Clone(this.m_discoveryMaxMessageSize);
             clone.m_qosCategory = (string)Utils.Clone(this.m_qosCategory);
-            clone.m_datagramQos = (QosDataTypeCollection)Utils.Clone(this.m_datagramQos);
+            clone.m_datagramQos = (ExtensionObjectCollection)Utils.Clone(this.m_datagramQos);
 
             return clone;
         }
@@ -22285,7 +19824,7 @@ namespace Opc.Ua
         private uint m_discoveryAnnounceRate;
         private uint m_discoveryMaxMessageSize;
         private string m_qosCategory;
-        private QosDataTypeCollection m_datagramQos;
+        private ExtensionObjectCollection m_datagramQos;
         #endregion
     }
 
@@ -22576,9 +20115,9 @@ namespace Opc.Ua
 
         private void Initialize()
         {
-            m_address = new NetworkAddressDataType();
+            m_address = null;
             m_qosCategory = null;
-            m_datagramQos = new TransmitQosDataTypeCollection();
+            m_datagramQos = new ExtensionObjectCollection();
             m_discoveryAnnounceRate = (uint)0;
             m_topic = null;
         }
@@ -22587,7 +20126,7 @@ namespace Opc.Ua
         #region Public Properties
         /// <remarks />
         [DataMember(Name = "Address", IsRequired = false, Order = 1)]
-        public NetworkAddressDataType Address
+        public ExtensionObject Address
         {
             get { return m_address;  }
             set { m_address = value; }
@@ -22603,7 +20142,7 @@ namespace Opc.Ua
 
         /// <remarks />
         [DataMember(Name = "DatagramQos", IsRequired = false, Order = 3)]
-        public TransmitQosDataTypeCollection DatagramQos
+        public ExtensionObjectCollection DatagramQos
         {
             get { return m_datagramQos;  }
             set { m_datagramQos = value; }
@@ -22646,9 +20185,9 @@ namespace Opc.Ua
 
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
-            encoder.WriteExtensionObject("Address", new ExtensionObject(Address));
+            encoder.WriteExtensionObject("Address", Address);
             encoder.WriteString("QosCategory", QosCategory);
-            encoder.WriteExtensionObjectArray("DatagramQos", ExtensionObjectCollection.ToExtensionObjects(DatagramQos));
+            encoder.WriteExtensionObjectArray("DatagramQos", DatagramQos);
             encoder.WriteUInt32("DiscoveryAnnounceRate", DiscoveryAnnounceRate);
             encoder.WriteString("Topic", Topic);
 
@@ -22662,9 +20201,9 @@ namespace Opc.Ua
 
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
-            Address = (NetworkAddressDataType)ExtensionObject.ToEncodeable(decoder.ReadExtensionObject("Address"));
+            Address = decoder.ReadExtensionObject("Address");
             QosCategory = decoder.ReadString("QosCategory");
-            DatagramQos = (TransmitQosDataType[])ExtensionObject.ToArray(decoder.ReadExtensionObjectArray("DatagramQos"), typeof(TransmitQosDataType));
+            DatagramQos = decoder.ReadExtensionObjectArray("DatagramQos");
             DiscoveryAnnounceRate = decoder.ReadUInt32("DiscoveryAnnounceRate");
             Topic = decoder.ReadString("Topic");
 
@@ -22706,9 +20245,9 @@ namespace Opc.Ua
         {
             DatagramWriterGroupTransport2DataType clone = (DatagramWriterGroupTransport2DataType)base.MemberwiseClone();
 
-            clone.m_address = (NetworkAddressDataType)Utils.Clone(this.m_address);
+            clone.m_address = (ExtensionObject)Utils.Clone(this.m_address);
             clone.m_qosCategory = (string)Utils.Clone(this.m_qosCategory);
-            clone.m_datagramQos = (TransmitQosDataTypeCollection)Utils.Clone(this.m_datagramQos);
+            clone.m_datagramQos = (ExtensionObjectCollection)Utils.Clone(this.m_datagramQos);
             clone.m_discoveryAnnounceRate = (uint)Utils.Clone(this.m_discoveryAnnounceRate);
             clone.m_topic = (string)Utils.Clone(this.m_topic);
 
@@ -22717,9 +20256,9 @@ namespace Opc.Ua
         #endregion
 
         #region Private Fields
-        private NetworkAddressDataType m_address;
+        private ExtensionObject m_address;
         private string m_qosCategory;
-        private TransmitQosDataTypeCollection m_datagramQos;
+        private ExtensionObjectCollection m_datagramQos;
         private uint m_discoveryAnnounceRate;
         private string m_topic;
         #endregion
@@ -22815,9 +20354,9 @@ namespace Opc.Ua
 
         private void Initialize()
         {
-            m_address = new NetworkAddressDataType();
+            m_address = null;
             m_qosCategory = null;
-            m_datagramQos = new ReceiveQosDataTypeCollection();
+            m_datagramQos = new ExtensionObjectCollection();
             m_topic = null;
         }
         #endregion
@@ -22825,7 +20364,7 @@ namespace Opc.Ua
         #region Public Properties
         /// <remarks />
         [DataMember(Name = "Address", IsRequired = false, Order = 1)]
-        public NetworkAddressDataType Address
+        public ExtensionObject Address
         {
             get { return m_address;  }
             set { m_address = value; }
@@ -22841,7 +20380,7 @@ namespace Opc.Ua
 
         /// <remarks />
         [DataMember(Name = "DatagramQos", IsRequired = false, Order = 3)]
-        public ReceiveQosDataTypeCollection DatagramQos
+        public ExtensionObjectCollection DatagramQos
         {
             get { return m_datagramQos;  }
             set { m_datagramQos = value; }
@@ -22876,9 +20415,9 @@ namespace Opc.Ua
 
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
-            encoder.WriteExtensionObject("Address", new ExtensionObject(Address));
+            encoder.WriteExtensionObject("Address", Address);
             encoder.WriteString("QosCategory", QosCategory);
-            encoder.WriteExtensionObjectArray("DatagramQos", ExtensionObjectCollection.ToExtensionObjects(DatagramQos));
+            encoder.WriteExtensionObjectArray("DatagramQos", DatagramQos);
             encoder.WriteString("Topic", Topic);
 
             encoder.PopNamespace();
@@ -22891,9 +20430,9 @@ namespace Opc.Ua
 
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
-            Address = (NetworkAddressDataType)ExtensionObject.ToEncodeable(decoder.ReadExtensionObject("Address"));
+            Address = decoder.ReadExtensionObject("Address");
             QosCategory = decoder.ReadString("QosCategory");
-            DatagramQos = (ReceiveQosDataType[])ExtensionObject.ToArray(decoder.ReadExtensionObjectArray("DatagramQos"), typeof(ReceiveQosDataType));
+            DatagramQos = decoder.ReadExtensionObjectArray("DatagramQos");
             Topic = decoder.ReadString("Topic");
 
             decoder.PopNamespace();
@@ -22933,9 +20472,9 @@ namespace Opc.Ua
         {
             DatagramDataSetReaderTransportDataType clone = (DatagramDataSetReaderTransportDataType)base.MemberwiseClone();
 
-            clone.m_address = (NetworkAddressDataType)Utils.Clone(this.m_address);
+            clone.m_address = (ExtensionObject)Utils.Clone(this.m_address);
             clone.m_qosCategory = (string)Utils.Clone(this.m_qosCategory);
-            clone.m_datagramQos = (ReceiveQosDataTypeCollection)Utils.Clone(this.m_datagramQos);
+            clone.m_datagramQos = (ExtensionObjectCollection)Utils.Clone(this.m_datagramQos);
             clone.m_topic = (string)Utils.Clone(this.m_topic);
 
             return clone;
@@ -22943,9 +20482,9 @@ namespace Opc.Ua
         #endregion
 
         #region Private Fields
-        private NetworkAddressDataType m_address;
+        private ExtensionObject m_address;
         private string m_qosCategory;
-        private ReceiveQosDataTypeCollection m_datagramQos;
+        private ExtensionObjectCollection m_datagramQos;
         private string m_topic;
         #endregion
     }
