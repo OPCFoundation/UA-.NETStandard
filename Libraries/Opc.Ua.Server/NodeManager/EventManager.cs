@@ -104,34 +104,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Creates a set of monitored items.
         /// </summary>
-        [Obsolete("Replaced by variant that includes the publishingInterval")]
-        public MonitoredItem CreateMonitoredItem(
-            OperationContext context,
-            INodeManager nodeManager,
-            object handle,
-            uint subscriptionId,
-            uint monitoredItemId,
-            TimestampsToReturn timestampsToReturn,
-            MonitoredItemCreateRequest itemToCreate,
-            EventFilter filter)
-        {
-            return CreateMonitoredItem(
-                context,
-                nodeManager,
-                handle,
-                subscriptionId,
-                monitoredItemId,
-                timestampsToReturn,
-                0,
-                itemToCreate,
-                filter,
-                false);
-        }
-
-        /// <summary>
-        /// Creates a set of monitored items.
-        /// </summary>
-        public MonitoredItem CreateMonitoredItem(
+        public IEventMonitoredItem CreateMonitoredItem(
             OperationContext context,
             INodeManager nodeManager,
             object handle,
@@ -157,7 +130,7 @@ namespace Opc.Ua.Server
                 uint revisedQueueSize = CalculateRevisedQueueSize(createDurable, itemToCreate.RequestedParameters.QueueSize);
 
                 // create the monitored item.
-                MonitoredItem monitoredItem = new MonitoredItem(
+                IEventMonitoredItem monitoredItem = new MonitoredItem(
                     m_server,
                     nodeManager,
                     handle,
@@ -186,7 +159,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Restore a MonitoredItem after a restart
         /// </summary>
-        public MonitoredItem RestoreMonitoredItem(
+        public IEventMonitoredItem RestoreMonitoredItem(
             INodeManager nodeManager,
             object handle,
             IStoredMonitoredItem storedMonitoredItem)
@@ -197,7 +170,7 @@ namespace Opc.Ua.Server
                 storedMonitoredItem.QueueSize = CalculateRevisedQueueSize(storedMonitoredItem.IsDurable, storedMonitoredItem.QueueSize);
 
                 // create the monitored item.
-                MonitoredItem monitoredItem = new MonitoredItem(
+                IEventMonitoredItem monitoredItem = new MonitoredItem(
                     m_server,
                     nodeManager,
                     handle,
