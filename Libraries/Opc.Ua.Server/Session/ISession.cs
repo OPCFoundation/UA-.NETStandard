@@ -67,12 +67,6 @@ namespace Opc.Ua.Server
         /// Returns the session's endpoint
         /// </summary>
         EndpointDescription EndpointDescription { get; }
-#if ECC_SUPPORT
-        /// <summary>
-        /// The Server generated ephemeral key
-        /// </summary>
-        EphemeralKeyType EphemeralKey { set; }
-#endif
         /// <summary>
         /// Whether the session timeout has elapsed since the last communication from the client.
         /// </summary>
