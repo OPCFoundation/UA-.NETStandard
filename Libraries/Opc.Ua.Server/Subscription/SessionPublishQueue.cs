@@ -44,7 +44,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Creates a new queue.
         /// </summary>
-        public SessionPublishQueue(IServerInternal server, Session session, int maxPublishRequests)
+        public SessionPublishQueue(IServerInternal server, ISession session, int maxPublishRequests)
         {
             if (server == null) throw new ArgumentNullException(nameof(server));
             if (session == null) throw new ArgumentNullException(nameof(session));
@@ -911,7 +911,7 @@ namespace Opc.Ua.Server
         #region Private Fields
         private readonly object m_lock = new object();
         private IServerInternal m_server;
-        private Session m_session;
+        private ISession m_session;
         private ManualResetEvent m_publishEvent;
         private LinkedList<QueuedRequest> m_queuedRequests;
         private List<QueuedSubscription> m_queuedSubscriptions;
