@@ -312,6 +312,29 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
             Assert.AreEqual(expectedResult, result);
         }
 
+        [Test]
+        [TestCase("mainstation", "mainstation", StringComparison.Ordinal, true)]
+        [TestCase("mainstation", "Mainstation", StringComparison.Ordinal, false)]
+        [TestCase("mainstation", "Mainstation", StringComparison.OrdinalIgnoreCase, true)]
+        [TestCase("mainstation", "Mainstation", StringComparison.InvariantCultureIgnoreCase, true)]
+        [TestCase("mainstation", "Mainstation", StringComparison.InvariantCulture, false)]
+        [TestCase("mainstation", "mainstation", StringComparison.InvariantCulture, true)]
+        public void EqualsStringComparsion(string operandFirst1, string operandFirst2, StringComparison stringComparison, object expectedResult)
+        {
+            Opc.Ua.ContentFilter.EqualsOperatorDefaultStringComparison = stringComparison;
+            LiteralOperand loperand1 = new LiteralOperand { Value = new Variant(operandFirst1)};
+            LiteralOperand loperand2 = new LiteralOperand { Value = new Variant(operandFirst2)};
+
+            ContentFilterElement filterElement = new ContentFilterElement();
+            filterElement.FilterOperator = FilterOperator.Equals;
+            filterElement.SetOperands(new List<LiteralOperand>() { loperand1, loperand2 });
+            Filter.WhereClause.Elements = new[] { filterElement };
+
+            // apply filter.
+            object result = Filter.WhereClause.Evaluate(FilterContext, TestFilterTarget);
+            Assert.AreEqual(expectedResult, result);
+        }
+
 
         #endregion
     }
