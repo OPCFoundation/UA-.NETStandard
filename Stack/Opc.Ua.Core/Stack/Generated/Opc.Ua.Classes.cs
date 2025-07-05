@@ -31,7 +31,10 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Xml;
+using System.Linq;
 using System.Runtime.Serialization;
+using System.Threading.Tasks;
+using System.Threading;
 
 namespace Opc.Ua
 {
@@ -29371,6 +29374,9 @@ namespace Opc.Ua
         #region Event Callbacks
         /// <remarks />
         public GetMonitoredItemsMethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public GetMonitoredItemsMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -29412,6 +29418,45 @@ namespace Opc.Ua
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken);
+            }
+
+            GetMonitoredItemsMethodStateResult _result = null;
+
+            uint subscriptionId = (uint)_inputArguments[0];
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    subscriptionId,
+                    cancellationToken);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            _outputArguments[0] = _result.ServerHandles;
+            _outputArguments[1] = _result.ClientHandles;
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -29427,6 +29472,28 @@ namespace Opc.Ua
         uint subscriptionId,
         ref uint[] serverHandles,
         ref uint[] clientHandles);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class GetMonitoredItemsMethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+        /// <remarks />
+        public uint[] ServerHandles { get; set; }
+        /// <remarks />
+        public uint[] ClientHandles { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<GetMonitoredItemsMethodStateResult> GetMonitoredItemsMethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        uint subscriptionId,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -29476,6 +29543,9 @@ namespace Opc.Ua
         #region Event Callbacks
         /// <remarks />
         public ResendDataMethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public ResendDataMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -29509,6 +29579,42 @@ namespace Opc.Ua
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken);
+            }
+
+            ResendDataMethodStateResult _result = null;
+
+            uint subscriptionId = (uint)_inputArguments[0];
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    subscriptionId,
+                    cancellationToken);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -29522,6 +29628,24 @@ namespace Opc.Ua
         MethodState _method,
         NodeId _objectId,
         uint subscriptionId);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class ResendDataMethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<ResendDataMethodStateResult> ResendDataMethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        uint subscriptionId,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -29574,6 +29698,9 @@ namespace Opc.Ua
         #region Event Callbacks
         /// <remarks />
         public SetSubscriptionDurableMethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public SetSubscriptionDurableMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -29614,6 +29741,46 @@ namespace Opc.Ua
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken);
+            }
+
+            SetSubscriptionDurableMethodStateResult _result = null;
+
+            uint subscriptionId = (uint)_inputArguments[0];
+            uint lifetimeInHours = (uint)_inputArguments[1];
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    subscriptionId,
+                    lifetimeInHours,
+                    cancellationToken);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            _outputArguments[0] = _result.RevisedLifetimeInHours;
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -29629,6 +29796,27 @@ namespace Opc.Ua
         uint subscriptionId,
         uint lifetimeInHours,
         ref uint revisedLifetimeInHours);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class SetSubscriptionDurableMethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+        /// <remarks />
+        public uint RevisedLifetimeInHours { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<SetSubscriptionDurableMethodStateResult> SetSubscriptionDurableMethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        uint subscriptionId,
+        uint lifetimeInHours,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -29681,6 +29869,9 @@ namespace Opc.Ua
         #region Event Callbacks
         /// <remarks />
         public RequestServerStateChangeMethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public RequestServerStateChangeMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -29722,6 +29913,50 @@ namespace Opc.Ua
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken);
+            }
+
+            RequestServerStateChangeMethodStateResult _result = null;
+
+            ServerState state = (ServerState)_inputArguments[0];
+            DateTime estimatedReturnTime = (DateTime)_inputArguments[1];
+            uint secondsTillShutdown = (uint)_inputArguments[2];
+            LocalizedText reason = (LocalizedText)_inputArguments[3];
+            bool restart = (bool)_inputArguments[4];
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    state,
+                    estimatedReturnTime,
+                    secondsTillShutdown,
+                    reason,
+                    restart,
+                    cancellationToken);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -29739,6 +29974,28 @@ namespace Opc.Ua
         uint secondsTillShutdown,
         LocalizedText reason,
         bool restart);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class RequestServerStateChangeMethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<RequestServerStateChangeMethodStateResult> RequestServerStateChangeMethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        ServerState state,
+        DateTime estimatedReturnTime,
+        uint secondsTillShutdown,
+        LocalizedText reason,
+        bool restart,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -36156,6 +36413,9 @@ namespace Opc.Ua
         #region Event Callbacks
         /// <remarks />
         public OpenMethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public OpenMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -36194,6 +36454,44 @@ namespace Opc.Ua
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken);
+            }
+
+            OpenMethodStateResult _result = null;
+
+            byte mode = (byte)_inputArguments[0];
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    mode,
+                    cancellationToken);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            _outputArguments[0] = _result.FileHandle;
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -36208,6 +36506,26 @@ namespace Opc.Ua
         NodeId _objectId,
         byte mode,
         ref uint fileHandle);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class OpenMethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+        /// <remarks />
+        public uint FileHandle { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<OpenMethodStateResult> OpenMethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        byte mode,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -36257,6 +36575,9 @@ namespace Opc.Ua
         #region Event Callbacks
         /// <remarks />
         public CloseMethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public CloseMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -36290,6 +36611,42 @@ namespace Opc.Ua
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken);
+            }
+
+            CloseMethodStateResult _result = null;
+
+            uint fileHandle = (uint)_inputArguments[0];
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    fileHandle,
+                    cancellationToken);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -36303,6 +36660,24 @@ namespace Opc.Ua
         MethodState _method,
         NodeId _objectId,
         uint fileHandle);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class CloseMethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<CloseMethodStateResult> CloseMethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        uint fileHandle,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -36354,6 +36729,9 @@ namespace Opc.Ua
         #region Event Callbacks
         /// <remarks />
         public ReadMethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public ReadMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -36394,6 +36772,46 @@ namespace Opc.Ua
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken);
+            }
+
+            ReadMethodStateResult _result = null;
+
+            uint fileHandle = (uint)_inputArguments[0];
+            int length = (int)_inputArguments[1];
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    fileHandle,
+                    length,
+                    cancellationToken);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            _outputArguments[0] = _result.Data;
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -36409,6 +36827,27 @@ namespace Opc.Ua
         uint fileHandle,
         int length,
         ref byte[] data);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class ReadMethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+        /// <remarks />
+        public byte[] Data { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<ReadMethodStateResult> ReadMethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        uint fileHandle,
+        int length,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -36459,6 +36898,9 @@ namespace Opc.Ua
         #region Event Callbacks
         /// <remarks />
         public WriteMethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public WriteMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -36494,6 +36936,44 @@ namespace Opc.Ua
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken);
+            }
+
+            WriteMethodStateResult _result = null;
+
+            uint fileHandle = (uint)_inputArguments[0];
+            byte[] data = (byte[])_inputArguments[1];
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    fileHandle,
+                    data,
+                    cancellationToken);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -36508,6 +36988,25 @@ namespace Opc.Ua
         NodeId _objectId,
         uint fileHandle,
         byte[] data);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class WriteMethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<WriteMethodStateResult> WriteMethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        uint fileHandle,
+        byte[] data,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -36559,6 +37058,9 @@ namespace Opc.Ua
         #region Event Callbacks
         /// <remarks />
         public GetPositionMethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public GetPositionMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -36597,6 +37099,44 @@ namespace Opc.Ua
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken);
+            }
+
+            GetPositionMethodStateResult _result = null;
+
+            uint fileHandle = (uint)_inputArguments[0];
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    fileHandle,
+                    cancellationToken);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            _outputArguments[0] = _result.Position;
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -36611,6 +37151,26 @@ namespace Opc.Ua
         NodeId _objectId,
         uint fileHandle,
         ref ulong position);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class GetPositionMethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+        /// <remarks />
+        public ulong Position { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<GetPositionMethodStateResult> GetPositionMethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        uint fileHandle,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -36661,6 +37221,9 @@ namespace Opc.Ua
         #region Event Callbacks
         /// <remarks />
         public SetPositionMethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public SetPositionMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -36696,6 +37259,44 @@ namespace Opc.Ua
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken);
+            }
+
+            SetPositionMethodStateResult _result = null;
+
+            uint fileHandle = (uint)_inputArguments[0];
+            ulong position = (ulong)_inputArguments[1];
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    fileHandle,
+                    position,
+                    cancellationToken);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -36710,6 +37311,25 @@ namespace Opc.Ua
         NodeId _objectId,
         uint fileHandle,
         ulong position);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class SetPositionMethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<SetPositionMethodStateResult> SetPositionMethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        uint fileHandle,
+        ulong position,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -37056,6 +37676,9 @@ namespace Opc.Ua
         #region Event Callbacks
         /// <remarks />
         public CreateDirectoryMethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public CreateDirectoryMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -37094,6 +37717,44 @@ namespace Opc.Ua
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken);
+            }
+
+            CreateDirectoryMethodStateResult _result = null;
+
+            string directoryName = (string)_inputArguments[0];
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    directoryName,
+                    cancellationToken);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            _outputArguments[0] = _result.DirectoryNodeId;
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -37108,6 +37769,26 @@ namespace Opc.Ua
         NodeId _objectId,
         string directoryName,
         ref NodeId directoryNodeId);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class CreateDirectoryMethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+        /// <remarks />
+        public NodeId DirectoryNodeId { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<CreateDirectoryMethodStateResult> CreateDirectoryMethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        string directoryName,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -37160,6 +37841,9 @@ namespace Opc.Ua
         #region Event Callbacks
         /// <remarks />
         public CreateFileMethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public CreateFileMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -37203,6 +37887,47 @@ namespace Opc.Ua
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken);
+            }
+
+            CreateFileMethodStateResult _result = null;
+
+            string fileName = (string)_inputArguments[0];
+            bool requestFileOpen = (bool)_inputArguments[1];
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    fileName,
+                    requestFileOpen,
+                    cancellationToken);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            _outputArguments[0] = _result.FileNodeId;
+            _outputArguments[1] = _result.FileHandle;
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -37219,6 +37944,29 @@ namespace Opc.Ua
         bool requestFileOpen,
         ref NodeId fileNodeId,
         ref uint fileHandle);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class CreateFileMethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+        /// <remarks />
+        public NodeId FileNodeId { get; set; }
+        /// <remarks />
+        public uint FileHandle { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<CreateFileMethodStateResult> CreateFileMethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        string fileName,
+        bool requestFileOpen,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -37268,6 +38016,9 @@ namespace Opc.Ua
         #region Event Callbacks
         /// <remarks />
         public DeleteFileMethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public DeleteFileMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -37301,6 +38052,42 @@ namespace Opc.Ua
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken);
+            }
+
+            DeleteFileMethodStateResult _result = null;
+
+            NodeId objectToDelete = (NodeId)_inputArguments[0];
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    objectToDelete,
+                    cancellationToken);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -37314,6 +38101,24 @@ namespace Opc.Ua
         MethodState _method,
         NodeId _objectId,
         NodeId objectToDelete);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class DeleteFileMethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<DeleteFileMethodStateResult> DeleteFileMethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        NodeId objectToDelete,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -37367,6 +38172,9 @@ namespace Opc.Ua
         #region Event Callbacks
         /// <remarks />
         public MoveOrCopyMethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public MoveOrCopyMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -37411,6 +38219,50 @@ namespace Opc.Ua
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken);
+            }
+
+            MoveOrCopyMethodStateResult _result = null;
+
+            NodeId objectToMoveOrCopy = (NodeId)_inputArguments[0];
+            NodeId targetDirectory = (NodeId)_inputArguments[1];
+            bool createCopy = (bool)_inputArguments[2];
+            string newName = (string)_inputArguments[3];
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    objectToMoveOrCopy,
+                    targetDirectory,
+                    createCopy,
+                    newName,
+                    cancellationToken);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            _outputArguments[0] = _result.NewNodeId;
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -37428,6 +38280,29 @@ namespace Opc.Ua
         bool createCopy,
         string newName,
         ref NodeId newNodeId);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class MoveOrCopyMethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+        /// <remarks />
+        public NodeId NewNodeId { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<MoveOrCopyMethodStateResult> MoveOrCopyMethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        NodeId objectToMoveOrCopy,
+        NodeId targetDirectory,
+        bool createCopy,
+        string newName,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -37773,6 +38648,9 @@ namespace Opc.Ua
         #region Event Callbacks
         /// <remarks />
         public GenerateFileForReadMethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public GenerateFileForReadMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -37817,6 +38695,46 @@ namespace Opc.Ua
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken);
+            }
+
+            GenerateFileForReadMethodStateResult _result = null;
+
+            object generateOptions = (object)_inputArguments[0];
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    generateOptions,
+                    cancellationToken);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            _outputArguments[0] = _result.FileNodeId;
+            _outputArguments[1] = _result.FileHandle;
+            _outputArguments[2] = _result.CompletionStateMachine;
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -37833,6 +38751,30 @@ namespace Opc.Ua
         ref NodeId fileNodeId,
         ref uint fileHandle,
         ref NodeId completionStateMachine);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class GenerateFileForReadMethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+        /// <remarks />
+        public NodeId FileNodeId { get; set; }
+        /// <remarks />
+        public uint FileHandle { get; set; }
+        /// <remarks />
+        public NodeId CompletionStateMachine { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<GenerateFileForReadMethodStateResult> GenerateFileForReadMethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        object generateOptions,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -37885,6 +38827,9 @@ namespace Opc.Ua
         #region Event Callbacks
         /// <remarks />
         public GenerateFileForWriteMethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public GenerateFileForWriteMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -37926,6 +38871,45 @@ namespace Opc.Ua
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken);
+            }
+
+            GenerateFileForWriteMethodStateResult _result = null;
+
+            object generateOptions = (object)_inputArguments[0];
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    generateOptions,
+                    cancellationToken);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            _outputArguments[0] = _result.FileNodeId;
+            _outputArguments[1] = _result.FileHandle;
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -37941,6 +38925,28 @@ namespace Opc.Ua
         object generateOptions,
         ref NodeId fileNodeId,
         ref uint fileHandle);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class GenerateFileForWriteMethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+        /// <remarks />
+        public NodeId FileNodeId { get; set; }
+        /// <remarks />
+        public uint FileHandle { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<GenerateFileForWriteMethodStateResult> GenerateFileForWriteMethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        object generateOptions,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -37992,6 +38998,9 @@ namespace Opc.Ua
         #region Event Callbacks
         /// <remarks />
         public CloseAndCommitMethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public CloseAndCommitMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -38030,6 +39039,44 @@ namespace Opc.Ua
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken);
+            }
+
+            CloseAndCommitMethodStateResult _result = null;
+
+            uint fileHandle = (uint)_inputArguments[0];
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    fileHandle,
+                    cancellationToken);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            _outputArguments[0] = _result.CompletionStateMachine;
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -38044,6 +39091,26 @@ namespace Opc.Ua
         NodeId _objectId,
         uint fileHandle,
         ref NodeId completionStateMachine);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class CloseAndCommitMethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+        /// <remarks />
+        public NodeId CompletionStateMachine { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<CloseAndCommitMethodStateResult> CloseAndCommitMethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        uint fileHandle,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -38427,6 +39494,9 @@ namespace Opc.Ua
         #region Event Callbacks
         /// <remarks />
         public AddRoleMethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public AddRoleMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -38467,6 +39537,46 @@ namespace Opc.Ua
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken);
+            }
+
+            AddRoleMethodStateResult _result = null;
+
+            string roleName = (string)_inputArguments[0];
+            string namespaceUri = (string)_inputArguments[1];
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    roleName,
+                    namespaceUri,
+                    cancellationToken);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            _outputArguments[0] = _result.RoleNodeId;
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -38482,6 +39592,27 @@ namespace Opc.Ua
         string roleName,
         string namespaceUri,
         ref NodeId roleNodeId);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class AddRoleMethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+        /// <remarks />
+        public NodeId RoleNodeId { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<AddRoleMethodStateResult> AddRoleMethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        string roleName,
+        string namespaceUri,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -38531,6 +39662,9 @@ namespace Opc.Ua
         #region Event Callbacks
         /// <remarks />
         public RemoveRoleMethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public RemoveRoleMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -38564,6 +39698,42 @@ namespace Opc.Ua
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken);
+            }
+
+            RemoveRoleMethodStateResult _result = null;
+
+            NodeId roleNodeId = (NodeId)_inputArguments[0];
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    roleNodeId,
+                    cancellationToken);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -38577,6 +39747,24 @@ namespace Opc.Ua
         MethodState _method,
         NodeId _objectId,
         NodeId roleNodeId);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class RemoveRoleMethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<RemoveRoleMethodStateResult> RemoveRoleMethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        NodeId roleNodeId,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -39396,6 +40584,9 @@ namespace Opc.Ua
         #region Event Callbacks
         /// <remarks />
         public AddIdentityMethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public AddIdentityMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -39429,6 +40620,42 @@ namespace Opc.Ua
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken);
+            }
+
+            AddIdentityMethodStateResult _result = null;
+
+            IdentityMappingRuleType rule = (IdentityMappingRuleType)ExtensionObject.ToEncodeable((ExtensionObject)_inputArguments[0]);
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    rule,
+                    cancellationToken);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -39442,6 +40669,24 @@ namespace Opc.Ua
         MethodState _method,
         NodeId _objectId,
         IdentityMappingRuleType rule);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class AddIdentityMethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<AddIdentityMethodStateResult> AddIdentityMethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        IdentityMappingRuleType rule,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -39491,6 +40736,9 @@ namespace Opc.Ua
         #region Event Callbacks
         /// <remarks />
         public RemoveIdentityMethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public RemoveIdentityMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -39524,6 +40772,42 @@ namespace Opc.Ua
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken);
+            }
+
+            RemoveIdentityMethodStateResult _result = null;
+
+            IdentityMappingRuleType rule = (IdentityMappingRuleType)ExtensionObject.ToEncodeable((ExtensionObject)_inputArguments[0]);
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    rule,
+                    cancellationToken);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -39537,6 +40821,24 @@ namespace Opc.Ua
         MethodState _method,
         NodeId _objectId,
         IdentityMappingRuleType rule);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class RemoveIdentityMethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<RemoveIdentityMethodStateResult> RemoveIdentityMethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        IdentityMappingRuleType rule,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -39586,6 +40888,9 @@ namespace Opc.Ua
         #region Event Callbacks
         /// <remarks />
         public AddApplicationMethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public AddApplicationMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -39619,6 +40924,42 @@ namespace Opc.Ua
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken);
+            }
+
+            AddApplicationMethodStateResult _result = null;
+
+            string applicationUri = (string)_inputArguments[0];
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    applicationUri,
+                    cancellationToken);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -39632,6 +40973,24 @@ namespace Opc.Ua
         MethodState _method,
         NodeId _objectId,
         string applicationUri);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class AddApplicationMethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<AddApplicationMethodStateResult> AddApplicationMethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        string applicationUri,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -39682,6 +41041,9 @@ namespace Opc.Ua
         #region Event Callbacks
         /// <remarks />
         public RemoveApplicationMethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public RemoveApplicationMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -39715,6 +41077,42 @@ namespace Opc.Ua
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken);
+            }
+
+            RemoveApplicationMethodStateResult _result = null;
+
+            string applicationUri = (string)_inputArguments[0];
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    applicationUri,
+                    cancellationToken);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -39728,6 +41126,24 @@ namespace Opc.Ua
         MethodState _method,
         NodeId _objectId,
         string applicationUri);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class RemoveApplicationMethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<RemoveApplicationMethodStateResult> RemoveApplicationMethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        string applicationUri,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -39777,6 +41193,9 @@ namespace Opc.Ua
         #region Event Callbacks
         /// <remarks />
         public AddEndpointMethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public AddEndpointMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -39810,6 +41229,42 @@ namespace Opc.Ua
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken);
+            }
+
+            AddEndpointMethodStateResult _result = null;
+
+            EndpointType endpoint = (EndpointType)ExtensionObject.ToEncodeable((ExtensionObject)_inputArguments[0]);
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    endpoint,
+                    cancellationToken);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -39823,6 +41278,24 @@ namespace Opc.Ua
         MethodState _method,
         NodeId _objectId,
         EndpointType endpoint);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class AddEndpointMethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<AddEndpointMethodStateResult> AddEndpointMethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        EndpointType endpoint,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -39872,6 +41345,9 @@ namespace Opc.Ua
         #region Event Callbacks
         /// <remarks />
         public RemoveEndpointMethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public RemoveEndpointMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -39905,6 +41381,42 @@ namespace Opc.Ua
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken);
+            }
+
+            RemoveEndpointMethodStateResult _result = null;
+
+            EndpointType endpoint = (EndpointType)ExtensionObject.ToEncodeable((ExtensionObject)_inputArguments[0]);
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    endpoint,
+                    cancellationToken);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -39918,6 +41430,24 @@ namespace Opc.Ua
         MethodState _method,
         NodeId _objectId,
         EndpointType endpoint);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class RemoveEndpointMethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<RemoveEndpointMethodStateResult> RemoveEndpointMethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        EndpointType endpoint,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -46342,6 +47872,9 @@ namespace Opc.Ua
         #region Event Callbacks
         /// <remarks />
         public ConditionRefresh2MethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public ConditionRefresh2MethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -46377,6 +47910,44 @@ namespace Opc.Ua
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken);
+            }
+
+            ConditionRefresh2MethodStateResult _result = null;
+
+            uint subscriptionId = (uint)_inputArguments[0];
+            uint monitoredItemId = (uint)_inputArguments[1];
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    subscriptionId,
+                    monitoredItemId,
+                    cancellationToken);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -46391,6 +47962,25 @@ namespace Opc.Ua
         NodeId _objectId,
         uint subscriptionId,
         uint monitoredItemId);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class ConditionRefresh2MethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<ConditionRefresh2MethodStateResult> ConditionRefresh2MethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        uint subscriptionId,
+        uint monitoredItemId,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -46441,6 +48031,9 @@ namespace Opc.Ua
         #region Event Callbacks
         /// <remarks />
         public ConditionRefreshMethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public ConditionRefreshMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -46474,6 +48067,42 @@ namespace Opc.Ua
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken);
+            }
+
+            ConditionRefreshMethodStateResult _result = null;
+
+            uint subscriptionId = (uint)_inputArguments[0];
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    subscriptionId,
+                    cancellationToken);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -46487,6 +48116,24 @@ namespace Opc.Ua
         MethodState _method,
         NodeId _objectId,
         uint subscriptionId);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class ConditionRefreshMethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<ConditionRefreshMethodStateResult> ConditionRefreshMethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        uint subscriptionId,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -46538,6 +48185,9 @@ namespace Opc.Ua
         #region Event Callbacks
         /// <remarks />
         public AddCommentMethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public AddCommentMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -46573,6 +48223,44 @@ namespace Opc.Ua
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken);
+            }
+
+            AddCommentMethodStateResult _result = null;
+
+            byte[] eventId = (byte[])_inputArguments[0];
+            LocalizedText comment = (LocalizedText)_inputArguments[1];
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    eventId,
+                    comment,
+                    cancellationToken);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -46587,6 +48275,25 @@ namespace Opc.Ua
         NodeId _objectId,
         byte[] eventId,
         LocalizedText comment);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class AddCommentMethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<AddCommentMethodStateResult> AddCommentMethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        byte[] eventId,
+        LocalizedText comment,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -47195,6 +48902,9 @@ namespace Opc.Ua
         #region Event Callbacks
         /// <remarks />
         public DialogResponseMethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public DialogResponseMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -47228,6 +48938,42 @@ namespace Opc.Ua
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken);
+            }
+
+            DialogResponseMethodStateResult _result = null;
+
+            int selectedResponse = (int)_inputArguments[0];
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    selectedResponse,
+                    cancellationToken);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -47241,6 +48987,24 @@ namespace Opc.Ua
         MethodState _method,
         NodeId _objectId,
         int selectedResponse);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class DialogResponseMethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<DialogResponseMethodStateResult> DialogResponseMethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        int selectedResponse,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -47291,6 +49055,9 @@ namespace Opc.Ua
         #region Event Callbacks
         /// <remarks />
         public DialogResponse2MethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public DialogResponse2MethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -47326,6 +49093,44 @@ namespace Opc.Ua
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken);
+            }
+
+            DialogResponse2MethodStateResult _result = null;
+
+            int selectedResponse = (int)_inputArguments[0];
+            LocalizedText comment = (LocalizedText)_inputArguments[1];
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    selectedResponse,
+                    comment,
+                    cancellationToken);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -47340,6 +49145,25 @@ namespace Opc.Ua
         NodeId _objectId,
         int selectedResponse,
         LocalizedText comment);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class DialogResponse2MethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<DialogResponse2MethodStateResult> DialogResponse2MethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        int selectedResponse,
+        LocalizedText comment,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -49498,6 +51322,9 @@ namespace Opc.Ua
         #region Event Callbacks
         /// <remarks />
         public WithCommentMethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public WithCommentMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -49531,6 +51358,42 @@ namespace Opc.Ua
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken);
+            }
+
+            WithCommentMethodStateResult _result = null;
+
+            LocalizedText comment = (LocalizedText)_inputArguments[0];
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    comment,
+                    cancellationToken);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -49544,6 +51407,24 @@ namespace Opc.Ua
         MethodState _method,
         NodeId _objectId,
         LocalizedText comment);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class WithCommentMethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<WithCommentMethodStateResult> WithCommentMethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        LocalizedText comment,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -49594,6 +51475,9 @@ namespace Opc.Ua
         #region Event Callbacks
         /// <remarks />
         public GetGroupMembershipsMethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public GetGroupMembershipsMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -49629,6 +51513,41 @@ namespace Opc.Ua
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken);
+            }
+
+            GetGroupMembershipsMethodStateResult _result = null;
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    cancellationToken);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            _outputArguments[0] = _result.Groups;
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -49642,6 +51561,25 @@ namespace Opc.Ua
         MethodState _method,
         NodeId _objectId,
         ref NodeId[] groups);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class GetGroupMembershipsMethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+        /// <remarks />
+        public NodeId[] Groups { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<GetGroupMembershipsMethodStateResult> GetGroupMembershipsMethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -50276,6 +52214,9 @@ namespace Opc.Ua
         #region Event Callbacks
         /// <remarks />
         public TimedShelveMethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public TimedShelveMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -50309,6 +52250,42 @@ namespace Opc.Ua
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken);
+            }
+
+            TimedShelveMethodStateResult _result = null;
+
+            double shelvingTime = (double)_inputArguments[0];
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    shelvingTime,
+                    cancellationToken);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -50322,6 +52299,24 @@ namespace Opc.Ua
         MethodState _method,
         NodeId _objectId,
         double shelvingTime);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class TimedShelveMethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<TimedShelveMethodStateResult> TimedShelveMethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        double shelvingTime,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -50372,6 +52367,9 @@ namespace Opc.Ua
         #region Event Callbacks
         /// <remarks />
         public TimedShelve2MethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public TimedShelve2MethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -50407,6 +52405,44 @@ namespace Opc.Ua
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken);
+            }
+
+            TimedShelve2MethodStateResult _result = null;
+
+            double shelvingTime = (double)_inputArguments[0];
+            LocalizedText comment = (LocalizedText)_inputArguments[1];
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    shelvingTime,
+                    comment,
+                    cancellationToken);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -50421,6 +52457,25 @@ namespace Opc.Ua
         NodeId _objectId,
         double shelvingTime,
         LocalizedText comment);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class TimedShelve2MethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<TimedShelve2MethodStateResult> TimedShelve2MethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        double shelvingTime,
+        LocalizedText comment,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -66067,6 +68122,9 @@ namespace Opc.Ua
         #region Event Callbacks
         /// <remarks />
         public OpenWithMasksMethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public OpenWithMasksMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -66105,6 +68163,44 @@ namespace Opc.Ua
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken);
+            }
+
+            OpenWithMasksMethodStateResult _result = null;
+
+            uint masks = (uint)_inputArguments[0];
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    masks,
+                    cancellationToken);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            _outputArguments[0] = _result.FileHandle;
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -66119,6 +68215,26 @@ namespace Opc.Ua
         NodeId _objectId,
         uint masks,
         ref uint fileHandle);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class OpenWithMasksMethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+        /// <remarks />
+        public uint FileHandle { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<OpenWithMasksMethodStateResult> OpenWithMasksMethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        uint masks,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -66170,6 +68286,9 @@ namespace Opc.Ua
         #region Event Callbacks
         /// <remarks />
         public CloseAndUpdateMethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public CloseAndUpdateMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -66208,6 +68327,44 @@ namespace Opc.Ua
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken);
+            }
+
+            CloseAndUpdateMethodStateResult _result = null;
+
+            uint fileHandle = (uint)_inputArguments[0];
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    fileHandle,
+                    cancellationToken);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            _outputArguments[0] = _result.ApplyChangesRequired;
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -66222,6 +68379,26 @@ namespace Opc.Ua
         NodeId _objectId,
         uint fileHandle,
         ref bool applyChangesRequired);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class CloseAndUpdateMethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+        /// <remarks />
+        public bool ApplyChangesRequired { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<CloseAndUpdateMethodStateResult> CloseAndUpdateMethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        uint fileHandle,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -66272,6 +68449,9 @@ namespace Opc.Ua
         #region Event Callbacks
         /// <remarks />
         public AddCertificateMethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public AddCertificateMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -66307,6 +68487,44 @@ namespace Opc.Ua
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken);
+            }
+
+            AddCertificateMethodStateResult _result = null;
+
+            byte[] certificate = (byte[])_inputArguments[0];
+            bool isTrustedCertificate = (bool)_inputArguments[1];
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    certificate,
+                    isTrustedCertificate,
+                    cancellationToken);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -66321,6 +68539,25 @@ namespace Opc.Ua
         NodeId _objectId,
         byte[] certificate,
         bool isTrustedCertificate);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class AddCertificateMethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<AddCertificateMethodStateResult> AddCertificateMethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        byte[] certificate,
+        bool isTrustedCertificate,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -66371,6 +68608,9 @@ namespace Opc.Ua
         #region Event Callbacks
         /// <remarks />
         public RemoveCertificateMethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public RemoveCertificateMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -66406,6 +68646,44 @@ namespace Opc.Ua
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken);
+            }
+
+            RemoveCertificateMethodStateResult _result = null;
+
+            string thumbprint = (string)_inputArguments[0];
+            bool isTrustedCertificate = (bool)_inputArguments[1];
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    thumbprint,
+                    isTrustedCertificate,
+                    cancellationToken);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -66420,6 +68698,25 @@ namespace Opc.Ua
         NodeId _objectId,
         string thumbprint,
         bool isTrustedCertificate);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class RemoveCertificateMethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<RemoveCertificateMethodStateResult> RemoveCertificateMethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        string thumbprint,
+        bool isTrustedCertificate,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -69326,6 +71623,9 @@ namespace Opc.Ua
         #region Event Callbacks
         /// <remarks />
         public UpdateCertificateMethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public UpdateCertificateMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -69374,6 +71674,54 @@ namespace Opc.Ua
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken);
+            }
+
+            UpdateCertificateMethodStateResult _result = null;
+
+            NodeId certificateGroupId = (NodeId)_inputArguments[0];
+            NodeId certificateTypeId = (NodeId)_inputArguments[1];
+            byte[] certificate = (byte[])_inputArguments[2];
+            byte[][] issuerCertificates = (byte[][])_inputArguments[3];
+            string privateKeyFormat = (string)_inputArguments[4];
+            byte[] privateKey = (byte[])_inputArguments[5];
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    certificateGroupId,
+                    certificateTypeId,
+                    certificate,
+                    issuerCertificates,
+                    privateKeyFormat,
+                    privateKey,
+                    cancellationToken);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            _outputArguments[0] = _result.ApplyChangesRequired;
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -69393,6 +71741,31 @@ namespace Opc.Ua
         string privateKeyFormat,
         byte[] privateKey,
         ref bool applyChangesRequired);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class UpdateCertificateMethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+        /// <remarks />
+        public bool ApplyChangesRequired { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<UpdateCertificateMethodStateResult> UpdateCertificateMethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        NodeId certificateGroupId,
+        NodeId certificateTypeId,
+        byte[] certificate,
+        byte[][] issuerCertificates,
+        string privateKeyFormat,
+        byte[] privateKey,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -69447,6 +71820,9 @@ namespace Opc.Ua
         #region Event Callbacks
         /// <remarks />
         public CreateSigningRequestMethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public CreateSigningRequestMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -69493,6 +71869,52 @@ namespace Opc.Ua
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken);
+            }
+
+            CreateSigningRequestMethodStateResult _result = null;
+
+            NodeId certificateGroupId = (NodeId)_inputArguments[0];
+            NodeId certificateTypeId = (NodeId)_inputArguments[1];
+            string subjectName = (string)_inputArguments[2];
+            bool regeneratePrivateKey = (bool)_inputArguments[3];
+            byte[] nonce = (byte[])_inputArguments[4];
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    certificateGroupId,
+                    certificateTypeId,
+                    subjectName,
+                    regeneratePrivateKey,
+                    nonce,
+                    cancellationToken);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            _outputArguments[0] = _result.CertificateRequest;
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -69511,6 +71933,30 @@ namespace Opc.Ua
         bool regeneratePrivateKey,
         byte[] nonce,
         ref byte[] certificateRequest);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class CreateSigningRequestMethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+        /// <remarks />
+        public byte[] CertificateRequest { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<CreateSigningRequestMethodStateResult> CreateSigningRequestMethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        NodeId certificateGroupId,
+        NodeId certificateTypeId,
+        string subjectName,
+        bool regeneratePrivateKey,
+        byte[] nonce,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -69561,6 +72007,9 @@ namespace Opc.Ua
         #region Event Callbacks
         /// <remarks />
         public GetRejectedListMethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public GetRejectedListMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -69596,6 +72045,41 @@ namespace Opc.Ua
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken);
+            }
+
+            GetRejectedListMethodStateResult _result = null;
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    cancellationToken);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            _outputArguments[0] = _result.Certificates;
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -69609,6 +72093,25 @@ namespace Opc.Ua
         MethodState _method,
         NodeId _objectId,
         ref byte[][] certificates);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class GetRejectedListMethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+        /// <remarks />
+        public byte[][] Certificates { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<GetRejectedListMethodStateResult> GetRejectedListMethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -69661,6 +72164,9 @@ namespace Opc.Ua
         #region Event Callbacks
         /// <remarks />
         public GetCertificatesMethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public GetCertificatesMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -69702,6 +72208,45 @@ namespace Opc.Ua
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken);
+            }
+
+            GetCertificatesMethodStateResult _result = null;
+
+            NodeId certificateGroupId = (NodeId)_inputArguments[0];
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    certificateGroupId,
+                    cancellationToken);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            _outputArguments[0] = _result.CertificateTypeIds;
+            _outputArguments[1] = _result.Certificates;
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -69717,6 +72262,28 @@ namespace Opc.Ua
         NodeId certificateGroupId,
         ref NodeId[] certificateTypeIds,
         ref byte[][] certificates);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class GetCertificatesMethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+        /// <remarks />
+        public NodeId[] CertificateTypeIds { get; set; }
+        /// <remarks />
+        public byte[][] Certificates { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<GetCertificatesMethodStateResult> GetCertificatesMethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        NodeId certificateGroupId,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -71688,6 +74255,9 @@ namespace Opc.Ua
         #region Event Callbacks
         /// <remarks />
         public CreateCredentialMethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public CreateCredentialMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -71732,6 +74302,50 @@ namespace Opc.Ua
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken);
+            }
+
+            CreateCredentialMethodStateResult _result = null;
+
+            string name = (string)_inputArguments[0];
+            string resourceUri = (string)_inputArguments[1];
+            string profileUri = (string)_inputArguments[2];
+            string[] endpointUrls = (string[])_inputArguments[3];
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    name,
+                    resourceUri,
+                    profileUri,
+                    endpointUrls,
+                    cancellationToken);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            _outputArguments[0] = _result.CredentialNodeId;
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -71749,6 +74363,29 @@ namespace Opc.Ua
         string profileUri,
         string[] endpointUrls,
         ref NodeId credentialNodeId);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class CreateCredentialMethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+        /// <remarks />
+        public NodeId CredentialNodeId { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<CreateCredentialMethodStateResult> CreateCredentialMethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        string name,
+        string resourceUri,
+        string profileUri,
+        string[] endpointUrls,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -71960,6 +74597,9 @@ namespace Opc.Ua
         #region Event Callbacks
         /// <remarks />
         public GetEncryptingKeyMethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public GetEncryptingKeyMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -72003,6 +74643,47 @@ namespace Opc.Ua
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken);
+            }
+
+            GetEncryptingKeyMethodStateResult _result = null;
+
+            string credentialId = (string)_inputArguments[0];
+            string requestedSecurityPolicyUri = (string)_inputArguments[1];
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    credentialId,
+                    requestedSecurityPolicyUri,
+                    cancellationToken);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            _outputArguments[0] = _result.PublicKey;
+            _outputArguments[1] = _result.RevisedSecurityPolicyUri;
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -72019,6 +74700,29 @@ namespace Opc.Ua
         string requestedSecurityPolicyUri,
         ref byte[] publicKey,
         ref string revisedSecurityPolicyUri);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class GetEncryptingKeyMethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+        /// <remarks />
+        public byte[] PublicKey { get; set; }
+        /// <remarks />
+        public string RevisedSecurityPolicyUri { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<GetEncryptingKeyMethodStateResult> GetEncryptingKeyMethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        string credentialId,
+        string requestedSecurityPolicyUri,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -72609,6 +75313,9 @@ namespace Opc.Ua
         #region Event Callbacks
         /// <remarks />
         public KeyCredentialUpdateMethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public KeyCredentialUpdateMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -72648,6 +75355,48 @@ namespace Opc.Ua
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken);
+            }
+
+            KeyCredentialUpdateMethodStateResult _result = null;
+
+            string credentialId = (string)_inputArguments[0];
+            byte[] credentialSecret = (byte[])_inputArguments[1];
+            string certificateThumbprint = (string)_inputArguments[2];
+            string securityPolicyUri = (string)_inputArguments[3];
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    credentialId,
+                    credentialSecret,
+                    certificateThumbprint,
+                    securityPolicyUri,
+                    cancellationToken);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -72664,6 +75413,27 @@ namespace Opc.Ua
         byte[] credentialSecret,
         string certificateThumbprint,
         string securityPolicyUri);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class KeyCredentialUpdateMethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<KeyCredentialUpdateMethodStateResult> KeyCredentialUpdateMethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        string credentialId,
+        byte[] credentialSecret,
+        string certificateThumbprint,
+        string securityPolicyUri,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -73976,6 +76746,9 @@ namespace Opc.Ua
         #region Event Callbacks
         /// <remarks />
         public GetSecurityKeysMethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public GetSecurityKeysMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -74030,6 +76803,52 @@ namespace Opc.Ua
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken);
+            }
+
+            GetSecurityKeysMethodStateResult _result = null;
+
+            string securityGroupId = (string)_inputArguments[0];
+            uint startingTokenId = (uint)_inputArguments[1];
+            uint requestedKeyCount = (uint)_inputArguments[2];
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    securityGroupId,
+                    startingTokenId,
+                    requestedKeyCount,
+                    cancellationToken);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            _outputArguments[0] = _result.SecurityPolicyUri;
+            _outputArguments[1] = _result.FirstTokenId;
+            _outputArguments[2] = _result.Keys;
+            _outputArguments[3] = _result.TimeToNextKey;
+            _outputArguments[4] = _result.KeyLifetime;
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -74050,6 +76869,36 @@ namespace Opc.Ua
         ref byte[][] keys,
         ref double timeToNextKey,
         ref double keyLifetime);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class GetSecurityKeysMethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+        /// <remarks />
+        public string SecurityPolicyUri { get; set; }
+        /// <remarks />
+        public uint FirstTokenId { get; set; }
+        /// <remarks />
+        public byte[][] Keys { get; set; }
+        /// <remarks />
+        public double TimeToNextKey { get; set; }
+        /// <remarks />
+        public double KeyLifetime { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<GetSecurityKeysMethodStateResult> GetSecurityKeysMethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        string securityGroupId,
+        uint startingTokenId,
+        uint requestedKeyCount,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -74101,6 +76950,9 @@ namespace Opc.Ua
         #region Event Callbacks
         /// <remarks />
         public GetSecurityGroupMethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public GetSecurityGroupMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -74139,6 +76991,44 @@ namespace Opc.Ua
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken);
+            }
+
+            GetSecurityGroupMethodStateResult _result = null;
+
+            string securityGroupId = (string)_inputArguments[0];
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    securityGroupId,
+                    cancellationToken);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            _outputArguments[0] = _result.SecurityGroupNodeId;
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -74153,6 +77043,26 @@ namespace Opc.Ua
         NodeId _objectId,
         string securityGroupId,
         ref NodeId securityGroupNodeId);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class GetSecurityGroupMethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+        /// <remarks />
+        public NodeId SecurityGroupNodeId { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<GetSecurityGroupMethodStateResult> GetSecurityGroupMethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        string securityGroupId,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -74208,6 +77118,9 @@ namespace Opc.Ua
         #region Event Callbacks
         /// <remarks />
         public AddSecurityGroupMethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public AddSecurityGroupMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -74257,6 +77170,53 @@ namespace Opc.Ua
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken);
+            }
+
+            AddSecurityGroupMethodStateResult _result = null;
+
+            string securityGroupName = (string)_inputArguments[0];
+            double keyLifetime = (double)_inputArguments[1];
+            string securityPolicyUri = (string)_inputArguments[2];
+            uint maxFutureKeyCount = (uint)_inputArguments[3];
+            uint maxPastKeyCount = (uint)_inputArguments[4];
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    securityGroupName,
+                    keyLifetime,
+                    securityPolicyUri,
+                    maxFutureKeyCount,
+                    maxPastKeyCount,
+                    cancellationToken);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            _outputArguments[0] = _result.SecurityGroupId;
+            _outputArguments[1] = _result.SecurityGroupNodeId;
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -74276,6 +77236,32 @@ namespace Opc.Ua
         uint maxPastKeyCount,
         ref string securityGroupId,
         ref NodeId securityGroupNodeId);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class AddSecurityGroupMethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+        /// <remarks />
+        public string SecurityGroupId { get; set; }
+        /// <remarks />
+        public NodeId SecurityGroupNodeId { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<AddSecurityGroupMethodStateResult> AddSecurityGroupMethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        string securityGroupName,
+        double keyLifetime,
+        string securityPolicyUri,
+        uint maxFutureKeyCount,
+        uint maxPastKeyCount,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -74326,6 +77312,9 @@ namespace Opc.Ua
         #region Event Callbacks
         /// <remarks />
         public RemoveSecurityGroupMethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public RemoveSecurityGroupMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -74359,6 +77348,42 @@ namespace Opc.Ua
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken);
+            }
+
+            RemoveSecurityGroupMethodStateResult _result = null;
+
+            NodeId securityGroupNodeId = (NodeId)_inputArguments[0];
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    securityGroupNodeId,
+                    cancellationToken);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -74372,6 +77397,24 @@ namespace Opc.Ua
         MethodState _method,
         NodeId _objectId,
         NodeId securityGroupNodeId);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class RemoveSecurityGroupMethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<RemoveSecurityGroupMethodStateResult> RemoveSecurityGroupMethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        NodeId securityGroupNodeId,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -74423,6 +77466,9 @@ namespace Opc.Ua
         #region Event Callbacks
         /// <remarks />
         public AddSecurityGroupFolderMethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public AddSecurityGroupFolderMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -74461,6 +77507,44 @@ namespace Opc.Ua
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken);
+            }
+
+            AddSecurityGroupFolderMethodStateResult _result = null;
+
+            string name = (string)_inputArguments[0];
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    name,
+                    cancellationToken);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            _outputArguments[0] = _result.SecurityGroupFolderNodeId;
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -74475,6 +77559,26 @@ namespace Opc.Ua
         NodeId _objectId,
         string name,
         ref NodeId securityGroupFolderNodeId);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class AddSecurityGroupFolderMethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+        /// <remarks />
+        public NodeId SecurityGroupFolderNodeId { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<AddSecurityGroupFolderMethodStateResult> AddSecurityGroupFolderMethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        string name,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -74525,6 +77629,9 @@ namespace Opc.Ua
         #region Event Callbacks
         /// <remarks />
         public RemoveSecurityGroupFolderMethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public RemoveSecurityGroupFolderMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -74558,6 +77665,42 @@ namespace Opc.Ua
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken);
+            }
+
+            RemoveSecurityGroupFolderMethodStateResult _result = null;
+
+            NodeId securityGroupFolderNodeId = (NodeId)_inputArguments[0];
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    securityGroupFolderNodeId,
+                    cancellationToken);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -74571,6 +77714,24 @@ namespace Opc.Ua
         MethodState _method,
         NodeId _objectId,
         NodeId securityGroupFolderNodeId);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class RemoveSecurityGroupFolderMethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<RemoveSecurityGroupFolderMethodStateResult> RemoveSecurityGroupFolderMethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        NodeId securityGroupFolderNodeId,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -75434,6 +78595,9 @@ namespace Opc.Ua
         #region Event Callbacks
         /// <remarks />
         public ConnectSecurityGroupsMethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public ConnectSecurityGroupsMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -75472,6 +78636,44 @@ namespace Opc.Ua
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken);
+            }
+
+            ConnectSecurityGroupsMethodStateResult _result = null;
+
+            NodeId[] securityGroupIds = (NodeId[])_inputArguments[0];
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    securityGroupIds,
+                    cancellationToken);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            _outputArguments[0] = _result.ConnectResults;
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -75486,6 +78688,26 @@ namespace Opc.Ua
         NodeId _objectId,
         NodeId[] securityGroupIds,
         ref StatusCode[] connectResults);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class ConnectSecurityGroupsMethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+        /// <remarks />
+        public StatusCode[] ConnectResults { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<ConnectSecurityGroupsMethodStateResult> ConnectSecurityGroupsMethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        NodeId[] securityGroupIds,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -75538,6 +78760,9 @@ namespace Opc.Ua
         #region Event Callbacks
         /// <remarks />
         public DisconnectSecurityGroupsMethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public DisconnectSecurityGroupsMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -75576,6 +78801,44 @@ namespace Opc.Ua
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken);
+            }
+
+            DisconnectSecurityGroupsMethodStateResult _result = null;
+
+            NodeId[] securityGroupIds = (NodeId[])_inputArguments[0];
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    securityGroupIds,
+                    cancellationToken);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            _outputArguments[0] = _result.DisconnectResults;
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -75590,6 +78853,26 @@ namespace Opc.Ua
         NodeId _objectId,
         NodeId[] securityGroupIds,
         ref StatusCode[] disconnectResults);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class DisconnectSecurityGroupsMethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+        /// <remarks />
+        public StatusCode[] DisconnectResults { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<DisconnectSecurityGroupsMethodStateResult> DisconnectSecurityGroupsMethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        NodeId[] securityGroupIds,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -76578,6 +79861,9 @@ namespace Opc.Ua
         #region Event Callbacks
         /// <remarks />
         public AddPushTargetMethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public AddPushTargetMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -76626,6 +79912,54 @@ namespace Opc.Ua
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken);
+            }
+
+            AddPushTargetMethodStateResult _result = null;
+
+            string applicationUri = (string)_inputArguments[0];
+            string endpointUrl = (string)_inputArguments[1];
+            string securityPolicyUri = (string)_inputArguments[2];
+            UserTokenPolicy userTokenType = (UserTokenPolicy)ExtensionObject.ToEncodeable((ExtensionObject)_inputArguments[3]);
+            ushort requestedKeyCount = (ushort)_inputArguments[4];
+            double retryInterval = (double)_inputArguments[5];
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    applicationUri,
+                    endpointUrl,
+                    securityPolicyUri,
+                    userTokenType,
+                    requestedKeyCount,
+                    retryInterval,
+                    cancellationToken);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            _outputArguments[0] = _result.PushTargetId;
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -76645,6 +79979,31 @@ namespace Opc.Ua
         ushort requestedKeyCount,
         double retryInterval,
         ref NodeId pushTargetId);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class AddPushTargetMethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+        /// <remarks />
+        public NodeId PushTargetId { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<AddPushTargetMethodStateResult> AddPushTargetMethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        string applicationUri,
+        string endpointUrl,
+        string securityPolicyUri,
+        UserTokenPolicy userTokenType,
+        ushort requestedKeyCount,
+        double retryInterval,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -76694,6 +80053,9 @@ namespace Opc.Ua
         #region Event Callbacks
         /// <remarks />
         public RemovePushTargetMethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public RemovePushTargetMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -76727,6 +80089,42 @@ namespace Opc.Ua
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken);
+            }
+
+            RemovePushTargetMethodStateResult _result = null;
+
+            NodeId pushTargetId = (NodeId)_inputArguments[0];
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    pushTargetId,
+                    cancellationToken);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -76740,6 +80138,24 @@ namespace Opc.Ua
         MethodState _method,
         NodeId _objectId,
         NodeId pushTargetId);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class RemovePushTargetMethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<RemovePushTargetMethodStateResult> RemovePushTargetMethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        NodeId pushTargetId,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -76791,6 +80207,9 @@ namespace Opc.Ua
         #region Event Callbacks
         /// <remarks />
         public AddPushTargetFolderMethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public AddPushTargetFolderMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -76829,6 +80248,44 @@ namespace Opc.Ua
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken);
+            }
+
+            AddPushTargetFolderMethodStateResult _result = null;
+
+            string name = (string)_inputArguments[0];
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    name,
+                    cancellationToken);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            _outputArguments[0] = _result.PushTargetFolderNodeId;
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -76843,6 +80300,26 @@ namespace Opc.Ua
         NodeId _objectId,
         string name,
         ref NodeId pushTargetFolderNodeId);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class AddPushTargetFolderMethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+        /// <remarks />
+        public NodeId PushTargetFolderNodeId { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<AddPushTargetFolderMethodStateResult> AddPushTargetFolderMethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        string name,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -76893,6 +80370,9 @@ namespace Opc.Ua
         #region Event Callbacks
         /// <remarks />
         public RemovePushTargetFolderMethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public RemovePushTargetFolderMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -76926,6 +80406,42 @@ namespace Opc.Ua
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken);
+            }
+
+            RemovePushTargetFolderMethodStateResult _result = null;
+
+            NodeId pushTargetFolderNodeId = (NodeId)_inputArguments[0];
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    pushTargetFolderNodeId,
+                    cancellationToken);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -76939,6 +80455,24 @@ namespace Opc.Ua
         MethodState _method,
         NodeId _objectId,
         NodeId pushTargetFolderNodeId);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class RemovePushTargetFolderMethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<RemovePushTargetFolderMethodStateResult> RemovePushTargetFolderMethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        NodeId pushTargetFolderNodeId,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -78098,6 +81632,9 @@ namespace Opc.Ua
         #region Event Callbacks
         /// <remarks />
         public SetSecurityKeysMethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public SetSecurityKeysMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -78143,6 +81680,54 @@ namespace Opc.Ua
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken);
+            }
+
+            SetSecurityKeysMethodStateResult _result = null;
+
+            string securityGroupId = (string)_inputArguments[0];
+            string securityPolicyUri = (string)_inputArguments[1];
+            uint currentTokenId = (uint)_inputArguments[2];
+            byte[] currentKey = (byte[])_inputArguments[3];
+            byte[][] futureKeys = (byte[][])_inputArguments[4];
+            double timeToNextKey = (double)_inputArguments[5];
+            double keyLifetime = (double)_inputArguments[6];
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    securityGroupId,
+                    securityPolicyUri,
+                    currentTokenId,
+                    currentKey,
+                    futureKeys,
+                    timeToNextKey,
+                    keyLifetime,
+                    cancellationToken);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -78162,6 +81747,30 @@ namespace Opc.Ua
         byte[][] futureKeys,
         double timeToNextKey,
         double keyLifetime);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class SetSecurityKeysMethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<SetSecurityKeysMethodStateResult> SetSecurityKeysMethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        string securityGroupId,
+        string securityPolicyUri,
+        uint currentTokenId,
+        byte[] currentKey,
+        byte[][] futureKeys,
+        double timeToNextKey,
+        double keyLifetime,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -78213,6 +81822,9 @@ namespace Opc.Ua
         #region Event Callbacks
         /// <remarks />
         public AddConnectionMethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public AddConnectionMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -78251,6 +81863,44 @@ namespace Opc.Ua
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken);
+            }
+
+            AddConnectionMethodStateResult _result = null;
+
+            PubSubConnectionDataType configuration = (PubSubConnectionDataType)ExtensionObject.ToEncodeable((ExtensionObject)_inputArguments[0]);
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    configuration,
+                    cancellationToken);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            _outputArguments[0] = _result.ConnectionId;
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -78265,6 +81915,26 @@ namespace Opc.Ua
         NodeId _objectId,
         PubSubConnectionDataType configuration,
         ref NodeId connectionId);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class AddConnectionMethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+        /// <remarks />
+        public NodeId ConnectionId { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<AddConnectionMethodStateResult> AddConnectionMethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        PubSubConnectionDataType configuration,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -78314,6 +81984,9 @@ namespace Opc.Ua
         #region Event Callbacks
         /// <remarks />
         public RemoveConnectionMethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public RemoveConnectionMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -78347,6 +82020,42 @@ namespace Opc.Ua
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken);
+            }
+
+            RemoveConnectionMethodStateResult _result = null;
+
+            NodeId connectionId = (NodeId)_inputArguments[0];
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    connectionId,
+                    cancellationToken);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -78360,6 +82069,24 @@ namespace Opc.Ua
         MethodState _method,
         NodeId _objectId,
         NodeId connectionId);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class RemoveConnectionMethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<RemoveConnectionMethodStateResult> RemoveConnectionMethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        NodeId connectionId,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -78641,6 +82368,9 @@ namespace Opc.Ua
         #region Event Callbacks
         /// <remarks />
         public PubSubConfigurationTypeReserveIdsMethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public PubSubConfigurationTypeReserveIdsMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -78689,6 +82419,50 @@ namespace Opc.Ua
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken);
+            }
+
+            PubSubConfigurationTypeReserveIdsMethodStateResult _result = null;
+
+            string transportProfileUri = (string)_inputArguments[0];
+            ushort numReqWriterGroupIds = (ushort)_inputArguments[1];
+            ushort numReqDataSetWriterIds = (ushort)_inputArguments[2];
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    transportProfileUri,
+                    numReqWriterGroupIds,
+                    numReqDataSetWriterIds,
+                    cancellationToken);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            _outputArguments[0] = _result.DefaultPublisherId;
+            _outputArguments[1] = _result.WriterGroupIds;
+            _outputArguments[2] = _result.DataSetWriterIds;
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -78707,6 +82481,32 @@ namespace Opc.Ua
         ref object defaultPublisherId,
         ref ushort[] writerGroupIds,
         ref ushort[] dataSetWriterIds);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class PubSubConfigurationTypeReserveIdsMethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+        /// <remarks />
+        public object DefaultPublisherId { get; set; }
+        /// <remarks />
+        public ushort[] WriterGroupIds { get; set; }
+        /// <remarks />
+        public ushort[] DataSetWriterIds { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<PubSubConfigurationTypeReserveIdsMethodStateResult> PubSubConfigurationTypeReserveIdsMethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        string transportProfileUri,
+        ushort numReqWriterGroupIds,
+        ushort numReqDataSetWriterIds,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -78763,6 +82563,9 @@ namespace Opc.Ua
         #region Event Callbacks
         /// <remarks />
         public PubSubConfigurationTypeCloseAndUpdateMethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public PubSubConfigurationTypeCloseAndUpdateMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -78814,6 +82617,51 @@ namespace Opc.Ua
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken);
+            }
+
+            PubSubConfigurationTypeCloseAndUpdateMethodStateResult _result = null;
+
+            uint fileHandle = (uint)_inputArguments[0];
+            bool requireCompleteUpdate = (bool)_inputArguments[1];
+            PubSubConfigurationRefDataType[] configurationReferences = (PubSubConfigurationRefDataType[])ExtensionObject.ToArray(_inputArguments[2], typeof(PubSubConfigurationRefDataType));
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    fileHandle,
+                    requireCompleteUpdate,
+                    configurationReferences,
+                    cancellationToken);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            _outputArguments[0] = _result.ChangesApplied;
+            _outputArguments[1] = _result.ReferencesResults;
+            _outputArguments[2] = _result.ConfigurationValues;
+            _outputArguments[3] = _result.ConfigurationObjects;
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -78833,6 +82681,34 @@ namespace Opc.Ua
         ref StatusCode[] referencesResults,
         ref PubSubConfigurationValueDataType[] configurationValues,
         ref NodeId[] configurationObjects);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class PubSubConfigurationTypeCloseAndUpdateMethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+        /// <remarks />
+        public bool ChangesApplied { get; set; }
+        /// <remarks />
+        public StatusCode[] ReferencesResults { get; set; }
+        /// <remarks />
+        public PubSubConfigurationValueDataType[] ConfigurationValues { get; set; }
+        /// <remarks />
+        public NodeId[] ConfigurationObjects { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<PubSubConfigurationTypeCloseAndUpdateMethodStateResult> PubSubConfigurationTypeCloseAndUpdateMethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        uint fileHandle,
+        bool requireCompleteUpdate,
+        PubSubConfigurationRefDataType[] configurationReferences,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -79444,6 +83320,9 @@ namespace Opc.Ua
         #region Event Callbacks
         /// <remarks />
         public AddExtensionFieldMethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public AddExtensionFieldMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -79484,6 +83363,46 @@ namespace Opc.Ua
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken);
+            }
+
+            AddExtensionFieldMethodStateResult _result = null;
+
+            QualifiedName fieldName = (QualifiedName)_inputArguments[0];
+            object fieldValue = (object)_inputArguments[1];
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    fieldName,
+                    fieldValue,
+                    cancellationToken);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            _outputArguments[0] = _result.FieldId;
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -79499,6 +83418,27 @@ namespace Opc.Ua
         QualifiedName fieldName,
         object fieldValue,
         ref NodeId fieldId);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class AddExtensionFieldMethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+        /// <remarks />
+        public NodeId FieldId { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<AddExtensionFieldMethodStateResult> AddExtensionFieldMethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        QualifiedName fieldName,
+        object fieldValue,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -79548,6 +83488,9 @@ namespace Opc.Ua
         #region Event Callbacks
         /// <remarks />
         public RemoveExtensionFieldMethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public RemoveExtensionFieldMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -79581,6 +83524,42 @@ namespace Opc.Ua
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken);
+            }
+
+            RemoveExtensionFieldMethodStateResult _result = null;
+
+            NodeId fieldId = (NodeId)_inputArguments[0];
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    fieldId,
+                    cancellationToken);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -79594,6 +83573,24 @@ namespace Opc.Ua
         MethodState _method,
         NodeId _objectId,
         NodeId fieldId);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class RemoveExtensionFieldMethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<RemoveExtensionFieldMethodStateResult> RemoveExtensionFieldMethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        NodeId fieldId,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -79925,6 +83922,9 @@ namespace Opc.Ua
         #region Event Callbacks
         /// <remarks />
         public PublishedDataItemsAddVariablesMethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public PublishedDataItemsAddVariablesMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -79972,6 +83972,51 @@ namespace Opc.Ua
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken);
+            }
+
+            PublishedDataItemsAddVariablesMethodStateResult _result = null;
+
+            ConfigurationVersionDataType configurationVersion = (ConfigurationVersionDataType)ExtensionObject.ToEncodeable((ExtensionObject)_inputArguments[0]);
+            string[] fieldNameAliases = (string[])_inputArguments[1];
+            bool[] promotedFields = (bool[])_inputArguments[2];
+            PublishedVariableDataType[] variablesToAdd = (PublishedVariableDataType[])ExtensionObject.ToArray(_inputArguments[3], typeof(PublishedVariableDataType));
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    configurationVersion,
+                    fieldNameAliases,
+                    promotedFields,
+                    variablesToAdd,
+                    cancellationToken);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            _outputArguments[0] = _result.NewConfigurationVersion;
+            _outputArguments[1] = _result.AddResults;
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -79990,6 +84035,31 @@ namespace Opc.Ua
         PublishedVariableDataType[] variablesToAdd,
         ref ConfigurationVersionDataType newConfigurationVersion,
         ref StatusCode[] addResults);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class PublishedDataItemsAddVariablesMethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+        /// <remarks />
+        public ConfigurationVersionDataType NewConfigurationVersion { get; set; }
+        /// <remarks />
+        public StatusCode[] AddResults { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<PublishedDataItemsAddVariablesMethodStateResult> PublishedDataItemsAddVariablesMethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        ConfigurationVersionDataType configurationVersion,
+        string[] fieldNameAliases,
+        bool[] promotedFields,
+        PublishedVariableDataType[] variablesToAdd,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -80043,6 +84113,9 @@ namespace Opc.Ua
         #region Event Callbacks
         /// <remarks />
         public PublishedDataItemsRemoveVariablesMethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public PublishedDataItemsRemoveVariablesMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -80086,6 +84159,47 @@ namespace Opc.Ua
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken);
+            }
+
+            PublishedDataItemsRemoveVariablesMethodStateResult _result = null;
+
+            ConfigurationVersionDataType configurationVersion = (ConfigurationVersionDataType)ExtensionObject.ToEncodeable((ExtensionObject)_inputArguments[0]);
+            uint[] variablesToRemove = (uint[])_inputArguments[1];
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    configurationVersion,
+                    variablesToRemove,
+                    cancellationToken);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            _outputArguments[0] = _result.NewConfigurationVersion;
+            _outputArguments[1] = _result.RemoveResults;
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -80102,6 +84216,29 @@ namespace Opc.Ua
         uint[] variablesToRemove,
         ref ConfigurationVersionDataType newConfigurationVersion,
         ref StatusCode[] removeResults);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class PublishedDataItemsRemoveVariablesMethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+        /// <remarks />
+        public ConfigurationVersionDataType NewConfigurationVersion { get; set; }
+        /// <remarks />
+        public StatusCode[] RemoveResults { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<PublishedDataItemsRemoveVariablesMethodStateResult> PublishedDataItemsRemoveVariablesMethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        ConfigurationVersionDataType configurationVersion,
+        uint[] variablesToRemove,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -81006,6 +85143,9 @@ namespace Opc.Ua
         #region Event Callbacks
         /// <remarks />
         public PublishedEventsTypeModifyFieldSelectionMethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public PublishedEventsTypeModifyFieldSelectionMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -81050,6 +85190,50 @@ namespace Opc.Ua
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken);
+            }
+
+            PublishedEventsTypeModifyFieldSelectionMethodStateResult _result = null;
+
+            ConfigurationVersionDataType configurationVersion = (ConfigurationVersionDataType)ExtensionObject.ToEncodeable((ExtensionObject)_inputArguments[0]);
+            string[] fieldNameAliases = (string[])_inputArguments[1];
+            bool[] promotedFields = (bool[])_inputArguments[2];
+            SimpleAttributeOperand[] selectedFields = (SimpleAttributeOperand[])ExtensionObject.ToArray(_inputArguments[3], typeof(SimpleAttributeOperand));
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    configurationVersion,
+                    fieldNameAliases,
+                    promotedFields,
+                    selectedFields,
+                    cancellationToken);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            _outputArguments[0] = _result.NewConfigurationVersion;
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -81067,6 +85251,29 @@ namespace Opc.Ua
         bool[] promotedFields,
         SimpleAttributeOperand[] selectedFields,
         ref ConfigurationVersionDataType newConfigurationVersion);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class PublishedEventsTypeModifyFieldSelectionMethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+        /// <remarks />
+        public ConfigurationVersionDataType NewConfigurationVersion { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<PublishedEventsTypeModifyFieldSelectionMethodStateResult> PublishedEventsTypeModifyFieldSelectionMethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        ConfigurationVersionDataType configurationVersion,
+        string[] fieldNameAliases,
+        bool[] promotedFields,
+        SimpleAttributeOperand[] selectedFields,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -81122,6 +85329,9 @@ namespace Opc.Ua
         #region Event Callbacks
         /// <remarks />
         public AddPublishedDataItemsMethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public AddPublishedDataItemsMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -81172,6 +85382,52 @@ namespace Opc.Ua
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken);
+            }
+
+            AddPublishedDataItemsMethodStateResult _result = null;
+
+            string name = (string)_inputArguments[0];
+            string[] fieldNameAliases = (string[])_inputArguments[1];
+            ushort[] fieldFlags = (ushort[])_inputArguments[2];
+            PublishedVariableDataType[] variablesToAdd = (PublishedVariableDataType[])ExtensionObject.ToArray(_inputArguments[3], typeof(PublishedVariableDataType));
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    name,
+                    fieldNameAliases,
+                    fieldFlags,
+                    variablesToAdd,
+                    cancellationToken);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            _outputArguments[0] = _result.DataSetNodeId;
+            _outputArguments[1] = _result.ConfigurationVersion;
+            _outputArguments[2] = _result.AddResults;
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -81191,6 +85447,33 @@ namespace Opc.Ua
         ref NodeId dataSetNodeId,
         ref ConfigurationVersionDataType configurationVersion,
         ref StatusCode[] addResults);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class AddPublishedDataItemsMethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+        /// <remarks />
+        public NodeId DataSetNodeId { get; set; }
+        /// <remarks />
+        public ConfigurationVersionDataType ConfigurationVersion { get; set; }
+        /// <remarks />
+        public StatusCode[] AddResults { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<AddPublishedDataItemsMethodStateResult> AddPublishedDataItemsMethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        string name,
+        string[] fieldNameAliases,
+        ushort[] fieldFlags,
+        PublishedVariableDataType[] variablesToAdd,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -81246,6 +85529,9 @@ namespace Opc.Ua
         #region Event Callbacks
         /// <remarks />
         public AddPublishedEventsMethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public AddPublishedEventsMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -81297,6 +85583,55 @@ namespace Opc.Ua
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken);
+            }
+
+            AddPublishedEventsMethodStateResult _result = null;
+
+            string name = (string)_inputArguments[0];
+            NodeId eventNotifier = (NodeId)_inputArguments[1];
+            string[] fieldNameAliases = (string[])_inputArguments[2];
+            ushort[] fieldFlags = (ushort[])_inputArguments[3];
+            SimpleAttributeOperand[] selectedFields = (SimpleAttributeOperand[])ExtensionObject.ToArray(_inputArguments[4], typeof(SimpleAttributeOperand));
+            ContentFilter filter = (ContentFilter)ExtensionObject.ToEncodeable((ExtensionObject)_inputArguments[5]);
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    name,
+                    eventNotifier,
+                    fieldNameAliases,
+                    fieldFlags,
+                    selectedFields,
+                    filter,
+                    cancellationToken);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            _outputArguments[0] = _result.ConfigurationVersion;
+            _outputArguments[1] = _result.DataSetNodeId;
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -81317,6 +85652,33 @@ namespace Opc.Ua
         ContentFilter filter,
         ref ConfigurationVersionDataType configurationVersion,
         ref NodeId dataSetNodeId);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class AddPublishedEventsMethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+        /// <remarks />
+        public ConfigurationVersionDataType ConfigurationVersion { get; set; }
+        /// <remarks />
+        public NodeId DataSetNodeId { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<AddPublishedEventsMethodStateResult> AddPublishedEventsMethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        string name,
+        NodeId eventNotifier,
+        string[] fieldNameAliases,
+        ushort[] fieldFlags,
+        SimpleAttributeOperand[] selectedFields,
+        ContentFilter filter,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -81370,6 +85732,9 @@ namespace Opc.Ua
         #region Event Callbacks
         /// <remarks />
         public AddPublishedDataItemsTemplateMethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public AddPublishedDataItemsTemplateMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -81415,6 +85780,49 @@ namespace Opc.Ua
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken);
+            }
+
+            AddPublishedDataItemsTemplateMethodStateResult _result = null;
+
+            string name = (string)_inputArguments[0];
+            DataSetMetaDataType dataSetMetaData = (DataSetMetaDataType)ExtensionObject.ToEncodeable((ExtensionObject)_inputArguments[1]);
+            PublishedVariableDataType[] variablesToAdd = (PublishedVariableDataType[])ExtensionObject.ToArray(_inputArguments[2], typeof(PublishedVariableDataType));
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    name,
+                    dataSetMetaData,
+                    variablesToAdd,
+                    cancellationToken);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            _outputArguments[0] = _result.DataSetNodeId;
+            _outputArguments[1] = _result.AddResults;
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -81432,6 +85840,30 @@ namespace Opc.Ua
         PublishedVariableDataType[] variablesToAdd,
         ref NodeId dataSetNodeId,
         ref StatusCode[] addResults);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class AddPublishedDataItemsTemplateMethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+        /// <remarks />
+        public NodeId DataSetNodeId { get; set; }
+        /// <remarks />
+        public StatusCode[] AddResults { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<AddPublishedDataItemsTemplateMethodStateResult> AddPublishedDataItemsTemplateMethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        string name,
+        DataSetMetaDataType dataSetMetaData,
+        PublishedVariableDataType[] variablesToAdd,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -81486,6 +85918,9 @@ namespace Opc.Ua
         #region Event Callbacks
         /// <remarks />
         public AddPublishedEventsTemplateMethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public AddPublishedEventsTemplateMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -81532,6 +85967,52 @@ namespace Opc.Ua
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken);
+            }
+
+            AddPublishedEventsTemplateMethodStateResult _result = null;
+
+            string name = (string)_inputArguments[0];
+            DataSetMetaDataType dataSetMetaData = (DataSetMetaDataType)ExtensionObject.ToEncodeable((ExtensionObject)_inputArguments[1]);
+            NodeId eventNotifier = (NodeId)_inputArguments[2];
+            SimpleAttributeOperand[] selectedFields = (SimpleAttributeOperand[])ExtensionObject.ToArray(_inputArguments[3], typeof(SimpleAttributeOperand));
+            ContentFilter filter = (ContentFilter)ExtensionObject.ToEncodeable((ExtensionObject)_inputArguments[4]);
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    name,
+                    dataSetMetaData,
+                    eventNotifier,
+                    selectedFields,
+                    filter,
+                    cancellationToken);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            _outputArguments[0] = _result.DataSetNodeId;
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -81550,6 +86031,30 @@ namespace Opc.Ua
         SimpleAttributeOperand[] selectedFields,
         ContentFilter filter,
         ref NodeId dataSetNodeId);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class AddPublishedEventsTemplateMethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+        /// <remarks />
+        public NodeId DataSetNodeId { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<AddPublishedEventsTemplateMethodStateResult> AddPublishedEventsTemplateMethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        string name,
+        DataSetMetaDataType dataSetMetaData,
+        NodeId eventNotifier,
+        SimpleAttributeOperand[] selectedFields,
+        ContentFilter filter,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -81600,6 +86105,9 @@ namespace Opc.Ua
         #region Event Callbacks
         /// <remarks />
         public RemovePublishedDataSetMethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public RemovePublishedDataSetMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -81633,6 +86141,42 @@ namespace Opc.Ua
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken);
+            }
+
+            RemovePublishedDataSetMethodStateResult _result = null;
+
+            NodeId dataSetNodeId = (NodeId)_inputArguments[0];
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    dataSetNodeId,
+                    cancellationToken);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -81646,6 +86190,24 @@ namespace Opc.Ua
         MethodState _method,
         NodeId _objectId,
         NodeId dataSetNodeId);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class RemovePublishedDataSetMethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<RemovePublishedDataSetMethodStateResult> RemovePublishedDataSetMethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        NodeId dataSetNodeId,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -81697,6 +86259,9 @@ namespace Opc.Ua
         #region Event Callbacks
         /// <remarks />
         public AddDataSetFolderMethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public AddDataSetFolderMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -81735,6 +86300,44 @@ namespace Opc.Ua
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken);
+            }
+
+            AddDataSetFolderMethodStateResult _result = null;
+
+            string name = (string)_inputArguments[0];
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    name,
+                    cancellationToken);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            _outputArguments[0] = _result.DataSetFolderNodeId;
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -81749,6 +86352,26 @@ namespace Opc.Ua
         NodeId _objectId,
         string name,
         ref NodeId dataSetFolderNodeId);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class AddDataSetFolderMethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+        /// <remarks />
+        public NodeId DataSetFolderNodeId { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<AddDataSetFolderMethodStateResult> AddDataSetFolderMethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        string name,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -81799,6 +86422,9 @@ namespace Opc.Ua
         #region Event Callbacks
         /// <remarks />
         public RemoveDataSetFolderMethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public RemoveDataSetFolderMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -81832,6 +86458,42 @@ namespace Opc.Ua
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken);
+            }
+
+            RemoveDataSetFolderMethodStateResult _result = null;
+
+            NodeId dataSetFolderNodeId = (NodeId)_inputArguments[0];
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    dataSetFolderNodeId,
+                    cancellationToken);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -81845,6 +86507,24 @@ namespace Opc.Ua
         MethodState _method,
         NodeId _objectId,
         NodeId dataSetFolderNodeId);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class RemoveDataSetFolderMethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<RemoveDataSetFolderMethodStateResult> RemoveDataSetFolderMethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        NodeId dataSetFolderNodeId,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -82597,6 +87277,9 @@ namespace Opc.Ua
         #region Event Callbacks
         /// <remarks />
         public GetConnectionMethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public GetConnectionMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -82638,6 +87321,45 @@ namespace Opc.Ua
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken);
+            }
+
+            GetConnectionMethodStateResult _result = null;
+
+            bool includeChildren = (bool)_inputArguments[0];
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    includeChildren,
+                    cancellationToken);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            _outputArguments[0] = _result.Configuration;
+            _outputArguments[1] = _result.CheckSum;
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -82653,6 +87375,28 @@ namespace Opc.Ua
         bool includeChildren,
         ref PubSubConnectionDataType configuration,
         ref byte[] checkSum);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class GetConnectionMethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+        /// <remarks />
+        public PubSubConnectionDataType Configuration { get; set; }
+        /// <remarks />
+        public byte[] CheckSum { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<GetConnectionMethodStateResult> GetConnectionMethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        bool includeChildren,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -82706,6 +87450,9 @@ namespace Opc.Ua
         #region Event Callbacks
         /// <remarks />
         public ModifyConnectionMethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public ModifyConnectionMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -82750,6 +87497,50 @@ namespace Opc.Ua
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken);
+            }
+
+            ModifyConnectionMethodStateResult _result = null;
+
+            PubSubConnectionDataType configuration = (PubSubConnectionDataType)ExtensionObject.ToEncodeable((ExtensionObject)_inputArguments[0]);
+            bool modifyChildren = (bool)_inputArguments[1];
+            byte[] checkSum = (byte[])_inputArguments[2];
+            bool force = (bool)_inputArguments[3];
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    configuration,
+                    modifyChildren,
+                    checkSum,
+                    force,
+                    cancellationToken);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            _outputArguments[0] = _result.NewCheckSum;
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -82767,6 +87558,29 @@ namespace Opc.Ua
         byte[] checkSum,
         bool force,
         ref byte[] newCheckSum);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class ModifyConnectionMethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+        /// <remarks />
+        public byte[] NewCheckSum { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<ModifyConnectionMethodStateResult> ModifyConnectionMethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        PubSubConnectionDataType configuration,
+        bool modifyChildren,
+        byte[] checkSum,
+        bool force,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -82819,6 +87633,9 @@ namespace Opc.Ua
         #region Event Callbacks
         /// <remarks />
         public PubSubConnectionTypeAddWriterGroupMethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public PubSubConnectionTypeAddWriterGroupMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -82857,6 +87674,44 @@ namespace Opc.Ua
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken);
+            }
+
+            PubSubConnectionTypeAddWriterGroupMethodStateResult _result = null;
+
+            WriterGroupDataType configuration = (WriterGroupDataType)ExtensionObject.ToEncodeable((ExtensionObject)_inputArguments[0]);
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    configuration,
+                    cancellationToken);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            _outputArguments[0] = _result.GroupId;
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -82871,6 +87726,26 @@ namespace Opc.Ua
         NodeId _objectId,
         WriterGroupDataType configuration,
         ref NodeId groupId);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class PubSubConnectionTypeAddWriterGroupMethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+        /// <remarks />
+        public NodeId GroupId { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<PubSubConnectionTypeAddWriterGroupMethodStateResult> PubSubConnectionTypeAddWriterGroupMethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        WriterGroupDataType configuration,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -82923,6 +87798,9 @@ namespace Opc.Ua
         #region Event Callbacks
         /// <remarks />
         public PubSubConnectionAddReaderGroupGroupMethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public PubSubConnectionAddReaderGroupGroupMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -82961,6 +87839,44 @@ namespace Opc.Ua
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken);
+            }
+
+            PubSubConnectionAddReaderGroupGroupMethodStateResult _result = null;
+
+            ReaderGroupDataType configuration = (ReaderGroupDataType)ExtensionObject.ToEncodeable((ExtensionObject)_inputArguments[0]);
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    configuration,
+                    cancellationToken);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            _outputArguments[0] = _result.GroupId;
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -82975,6 +87891,26 @@ namespace Opc.Ua
         NodeId _objectId,
         ReaderGroupDataType configuration,
         ref NodeId groupId);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class PubSubConnectionAddReaderGroupGroupMethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+        /// <remarks />
+        public NodeId GroupId { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<PubSubConnectionAddReaderGroupGroupMethodStateResult> PubSubConnectionAddReaderGroupGroupMethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        ReaderGroupDataType configuration,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -83025,6 +87961,9 @@ namespace Opc.Ua
         #region Event Callbacks
         /// <remarks />
         public PubSubConnectionTypeRemoveGroupMethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public PubSubConnectionTypeRemoveGroupMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -83058,6 +87997,42 @@ namespace Opc.Ua
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken);
+            }
+
+            PubSubConnectionTypeRemoveGroupMethodStateResult _result = null;
+
+            NodeId groupId = (NodeId)_inputArguments[0];
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    groupId,
+                    cancellationToken);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -83071,6 +88046,24 @@ namespace Opc.Ua
         MethodState _method,
         NodeId _objectId,
         NodeId groupId);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class PubSubConnectionTypeRemoveGroupMethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<PubSubConnectionTypeRemoveGroupMethodStateResult> PubSubConnectionTypeRemoveGroupMethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        NodeId groupId,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -84345,6 +89338,9 @@ namespace Opc.Ua
         #region Event Callbacks
         /// <remarks />
         public GetWriterGroupMethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public GetWriterGroupMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -84386,6 +89382,45 @@ namespace Opc.Ua
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken);
+            }
+
+            GetWriterGroupMethodStateResult _result = null;
+
+            bool includeChildren = (bool)_inputArguments[0];
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    includeChildren,
+                    cancellationToken);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            _outputArguments[0] = _result.Configuration;
+            _outputArguments[1] = _result.CheckSum;
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -84401,6 +89436,28 @@ namespace Opc.Ua
         bool includeChildren,
         ref WriterGroupDataType configuration,
         ref byte[] checkSum);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class GetWriterGroupMethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+        /// <remarks />
+        public WriterGroupDataType Configuration { get; set; }
+        /// <remarks />
+        public byte[] CheckSum { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<GetWriterGroupMethodStateResult> GetWriterGroupMethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        bool includeChildren,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -84454,6 +89511,9 @@ namespace Opc.Ua
         #region Event Callbacks
         /// <remarks />
         public ModifyWriterGroupMethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public ModifyWriterGroupMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -84498,6 +89558,50 @@ namespace Opc.Ua
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken);
+            }
+
+            ModifyWriterGroupMethodStateResult _result = null;
+
+            WriterGroupDataType configuration = (WriterGroupDataType)ExtensionObject.ToEncodeable((ExtensionObject)_inputArguments[0]);
+            bool modifyChildren = (bool)_inputArguments[1];
+            byte[] checkSum = (byte[])_inputArguments[2];
+            bool force = (bool)_inputArguments[3];
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    configuration,
+                    modifyChildren,
+                    checkSum,
+                    force,
+                    cancellationToken);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            _outputArguments[0] = _result.NewCheckSum;
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -84515,6 +89619,29 @@ namespace Opc.Ua
         byte[] checkSum,
         bool force,
         ref byte[] newCheckSum);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class ModifyWriterGroupMethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+        /// <remarks />
+        public byte[] NewCheckSum { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<ModifyWriterGroupMethodStateResult> ModifyWriterGroupMethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        WriterGroupDataType configuration,
+        bool modifyChildren,
+        byte[] checkSum,
+        bool force,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -84567,6 +89694,9 @@ namespace Opc.Ua
         #region Event Callbacks
         /// <remarks />
         public PubSubGroupTypeAddWriterMethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public PubSubGroupTypeAddWriterMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -84605,6 +89735,44 @@ namespace Opc.Ua
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken);
+            }
+
+            PubSubGroupTypeAddWriterMethodStateResult _result = null;
+
+            DataSetWriterDataType configuration = (DataSetWriterDataType)ExtensionObject.ToEncodeable((ExtensionObject)_inputArguments[0]);
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    configuration,
+                    cancellationToken);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            _outputArguments[0] = _result.DataSetWriterNodeId;
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -84619,6 +89787,26 @@ namespace Opc.Ua
         NodeId _objectId,
         DataSetWriterDataType configuration,
         ref NodeId dataSetWriterNodeId);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class PubSubGroupTypeAddWriterMethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+        /// <remarks />
+        public NodeId DataSetWriterNodeId { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<PubSubGroupTypeAddWriterMethodStateResult> PubSubGroupTypeAddWriterMethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        DataSetWriterDataType configuration,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -84669,6 +89857,9 @@ namespace Opc.Ua
         #region Event Callbacks
         /// <remarks />
         public PubSubGroupTypeRemoveWriterMethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public PubSubGroupTypeRemoveWriterMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -84702,6 +89893,42 @@ namespace Opc.Ua
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken);
+            }
+
+            PubSubGroupTypeRemoveWriterMethodStateResult _result = null;
+
+            NodeId dataSetWriterNodeId = (NodeId)_inputArguments[0];
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    dataSetWriterNodeId,
+                    cancellationToken);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -84715,6 +89942,24 @@ namespace Opc.Ua
         MethodState _method,
         NodeId _objectId,
         NodeId dataSetWriterNodeId);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class PubSubGroupTypeRemoveWriterMethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<PubSubGroupTypeRemoveWriterMethodStateResult> PubSubGroupTypeRemoveWriterMethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        NodeId dataSetWriterNodeId,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -85360,6 +90605,9 @@ namespace Opc.Ua
         #region Event Callbacks
         /// <remarks />
         public GetReaderGroupMethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public GetReaderGroupMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -85401,6 +90649,45 @@ namespace Opc.Ua
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken);
+            }
+
+            GetReaderGroupMethodStateResult _result = null;
+
+            bool includeChildren = (bool)_inputArguments[0];
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    includeChildren,
+                    cancellationToken);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            _outputArguments[0] = _result.Configuration;
+            _outputArguments[1] = _result.CheckSum;
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -85416,6 +90703,28 @@ namespace Opc.Ua
         bool includeChildren,
         ref ReaderGroupDataType configuration,
         ref byte[] checkSum);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class GetReaderGroupMethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+        /// <remarks />
+        public ReaderGroupDataType Configuration { get; set; }
+        /// <remarks />
+        public byte[] CheckSum { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<GetReaderGroupMethodStateResult> GetReaderGroupMethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        bool includeChildren,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -85469,6 +90778,9 @@ namespace Opc.Ua
         #region Event Callbacks
         /// <remarks />
         public ModifyReaderGroupMethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public ModifyReaderGroupMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -85513,6 +90825,50 @@ namespace Opc.Ua
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken);
+            }
+
+            ModifyReaderGroupMethodStateResult _result = null;
+
+            ReaderGroupDataType configuration = (ReaderGroupDataType)ExtensionObject.ToEncodeable((ExtensionObject)_inputArguments[0]);
+            bool modifyChildren = (bool)_inputArguments[1];
+            byte[] checkSum = (byte[])_inputArguments[2];
+            bool force = (bool)_inputArguments[3];
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    configuration,
+                    modifyChildren,
+                    checkSum,
+                    force,
+                    cancellationToken);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            _outputArguments[0] = _result.NewCheckSum;
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -85530,6 +90886,29 @@ namespace Opc.Ua
         byte[] checkSum,
         bool force,
         ref byte[] newCheckSum);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class ModifyReaderGroupMethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+        /// <remarks />
+        public byte[] NewCheckSum { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<ModifyReaderGroupMethodStateResult> ModifyReaderGroupMethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        ReaderGroupDataType configuration,
+        bool modifyChildren,
+        byte[] checkSum,
+        bool force,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -85582,6 +90961,9 @@ namespace Opc.Ua
         #region Event Callbacks
         /// <remarks />
         public PubSubGroupTypeAddReaderMethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public PubSubGroupTypeAddReaderMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -85620,6 +91002,44 @@ namespace Opc.Ua
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken);
+            }
+
+            PubSubGroupTypeAddReaderMethodStateResult _result = null;
+
+            DataSetReaderDataType configuration = (DataSetReaderDataType)ExtensionObject.ToEncodeable((ExtensionObject)_inputArguments[0]);
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    configuration,
+                    cancellationToken);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            _outputArguments[0] = _result.DataSetReaderNodeId;
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -85634,6 +91054,26 @@ namespace Opc.Ua
         NodeId _objectId,
         DataSetReaderDataType configuration,
         ref NodeId dataSetReaderNodeId);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class PubSubGroupTypeAddReaderMethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+        /// <remarks />
+        public NodeId DataSetReaderNodeId { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<PubSubGroupTypeAddReaderMethodStateResult> PubSubGroupTypeAddReaderMethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        DataSetReaderDataType configuration,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -85684,6 +91124,9 @@ namespace Opc.Ua
         #region Event Callbacks
         /// <remarks />
         public PubSubGroupTypeRemoveReaderMethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public PubSubGroupTypeRemoveReaderMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -85717,6 +91160,42 @@ namespace Opc.Ua
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken);
+            }
+
+            PubSubGroupTypeRemoveReaderMethodStateResult _result = null;
+
+            NodeId dataSetReaderNodeId = (NodeId)_inputArguments[0];
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    dataSetReaderNodeId,
+                    cancellationToken);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -85730,6 +91209,24 @@ namespace Opc.Ua
         MethodState _method,
         NodeId _objectId,
         NodeId dataSetReaderNodeId);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class PubSubGroupTypeRemoveReaderMethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<PubSubGroupTypeRemoveReaderMethodStateResult> PubSubGroupTypeRemoveReaderMethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        NodeId dataSetReaderNodeId,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -86483,6 +91980,9 @@ namespace Opc.Ua
         #region Event Callbacks
         /// <remarks />
         public GetDataSetWriterMethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public GetDataSetWriterMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -86521,6 +92021,42 @@ namespace Opc.Ua
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken);
+            }
+
+            GetDataSetWriterMethodStateResult _result = null;
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    cancellationToken);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            _outputArguments[0] = _result.Configuration;
+            _outputArguments[1] = _result.CheckSum;
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -86535,6 +92071,27 @@ namespace Opc.Ua
         NodeId _objectId,
         ref DataSetWriterDataType configuration,
         ref byte[] checkSum);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class GetDataSetWriterMethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+        /// <remarks />
+        public DataSetWriterDataType Configuration { get; set; }
+        /// <remarks />
+        public byte[] CheckSum { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<GetDataSetWriterMethodStateResult> GetDataSetWriterMethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -86587,6 +92144,9 @@ namespace Opc.Ua
         #region Event Callbacks
         /// <remarks />
         public ModifyDataSetWriterMethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public ModifyDataSetWriterMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -86629,6 +92189,48 @@ namespace Opc.Ua
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken);
+            }
+
+            ModifyDataSetWriterMethodStateResult _result = null;
+
+            DataSetWriterDataType configuration = (DataSetWriterDataType)ExtensionObject.ToEncodeable((ExtensionObject)_inputArguments[0]);
+            byte[] checkSum = (byte[])_inputArguments[1];
+            bool force = (bool)_inputArguments[2];
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    configuration,
+                    checkSum,
+                    force,
+                    cancellationToken);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            _outputArguments[0] = _result.NewCheckSum;
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -86645,6 +92247,28 @@ namespace Opc.Ua
         byte[] checkSum,
         bool force,
         ref byte[] newCheckSum);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class ModifyDataSetWriterMethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+        /// <remarks />
+        public byte[] NewCheckSum { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<ModifyDataSetWriterMethodStateResult> ModifyDataSetWriterMethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        DataSetWriterDataType configuration,
+        byte[] checkSum,
+        bool force,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -88090,6 +93714,9 @@ namespace Opc.Ua
         #region Event Callbacks
         /// <remarks />
         public GetDataSetReaderMethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public GetDataSetReaderMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -88128,6 +93755,42 @@ namespace Opc.Ua
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken);
+            }
+
+            GetDataSetReaderMethodStateResult _result = null;
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    cancellationToken);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            _outputArguments[0] = _result.Configuration;
+            _outputArguments[1] = _result.CheckSum;
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -88142,6 +93805,27 @@ namespace Opc.Ua
         NodeId _objectId,
         ref DataSetReaderDataType configuration,
         ref byte[] checkSum);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class GetDataSetReaderMethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+        /// <remarks />
+        public DataSetReaderDataType Configuration { get; set; }
+        /// <remarks />
+        public byte[] CheckSum { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<GetDataSetReaderMethodStateResult> GetDataSetReaderMethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -88194,6 +93878,9 @@ namespace Opc.Ua
         #region Event Callbacks
         /// <remarks />
         public ModifyDataSetReaderMethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public ModifyDataSetReaderMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -88236,6 +93923,48 @@ namespace Opc.Ua
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken);
+            }
+
+            ModifyDataSetReaderMethodStateResult _result = null;
+
+            DataSetReaderDataType configuration = (DataSetReaderDataType)ExtensionObject.ToEncodeable((ExtensionObject)_inputArguments[0]);
+            byte[] checkSum = (byte[])_inputArguments[1];
+            bool force = (bool)_inputArguments[2];
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    configuration,
+                    checkSum,
+                    force,
+                    cancellationToken);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            _outputArguments[0] = _result.NewCheckSum;
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -88252,6 +93981,28 @@ namespace Opc.Ua
         byte[] checkSum,
         bool force,
         ref byte[] newCheckSum);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class ModifyDataSetReaderMethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+        /// <remarks />
+        public byte[] NewCheckSum { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<ModifyDataSetReaderMethodStateResult> ModifyDataSetReaderMethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        DataSetReaderDataType configuration,
+        byte[] checkSum,
+        bool force,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -88305,6 +94056,9 @@ namespace Opc.Ua
         #region Event Callbacks
         /// <remarks />
         public DataSetReaderTypeCreateTargetVariablesMethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public DataSetReaderTypeCreateTargetVariablesMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -88345,6 +94099,46 @@ namespace Opc.Ua
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken);
+            }
+
+            DataSetReaderTypeCreateTargetVariablesMethodStateResult _result = null;
+
+            ConfigurationVersionDataType configurationVersion = (ConfigurationVersionDataType)ExtensionObject.ToEncodeable((ExtensionObject)_inputArguments[0]);
+            FieldTargetDataType[] targetVariablesToAdd = (FieldTargetDataType[])ExtensionObject.ToArray(_inputArguments[1], typeof(FieldTargetDataType));
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    configurationVersion,
+                    targetVariablesToAdd,
+                    cancellationToken);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            _outputArguments[0] = _result.AddResults;
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -88360,6 +94154,27 @@ namespace Opc.Ua
         ConfigurationVersionDataType configurationVersion,
         FieldTargetDataType[] targetVariablesToAdd,
         ref StatusCode[] addResults);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class DataSetReaderTypeCreateTargetVariablesMethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+        /// <remarks />
+        public StatusCode[] AddResults { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<DataSetReaderTypeCreateTargetVariablesMethodStateResult> DataSetReaderTypeCreateTargetVariablesMethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        ConfigurationVersionDataType configurationVersion,
+        FieldTargetDataType[] targetVariablesToAdd,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -88412,6 +94227,9 @@ namespace Opc.Ua
         #region Event Callbacks
         /// <remarks />
         public DataSetReaderTypeCreateDataSetMirrorMethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public DataSetReaderTypeCreateDataSetMirrorMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -88452,6 +94270,46 @@ namespace Opc.Ua
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken);
+            }
+
+            DataSetReaderTypeCreateDataSetMirrorMethodStateResult _result = null;
+
+            string parentNodeName = (string)_inputArguments[0];
+            RolePermissionType[] rolePermissions = (RolePermissionType[])ExtensionObject.ToArray(_inputArguments[1], typeof(RolePermissionType));
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    parentNodeName,
+                    rolePermissions,
+                    cancellationToken);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            _outputArguments[0] = _result.ParentNodeId;
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -88467,6 +94325,27 @@ namespace Opc.Ua
         string parentNodeName,
         RolePermissionType[] rolePermissions,
         ref NodeId parentNodeId);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class DataSetReaderTypeCreateDataSetMirrorMethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+        /// <remarks />
+        public NodeId ParentNodeId { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<DataSetReaderTypeCreateDataSetMirrorMethodStateResult> DataSetReaderTypeCreateDataSetMirrorMethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        string parentNodeName,
+        RolePermissionType[] rolePermissions,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -88849,6 +94728,9 @@ namespace Opc.Ua
         #region Event Callbacks
         /// <remarks />
         public TargetVariablesTypeAddTargetVariablesMethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public TargetVariablesTypeAddTargetVariablesMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -88889,6 +94771,46 @@ namespace Opc.Ua
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken);
+            }
+
+            TargetVariablesTypeAddTargetVariablesMethodStateResult _result = null;
+
+            ConfigurationVersionDataType configurationVersion = (ConfigurationVersionDataType)ExtensionObject.ToEncodeable((ExtensionObject)_inputArguments[0]);
+            FieldTargetDataType[] targetVariablesToAdd = (FieldTargetDataType[])ExtensionObject.ToArray(_inputArguments[1], typeof(FieldTargetDataType));
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    configurationVersion,
+                    targetVariablesToAdd,
+                    cancellationToken);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            _outputArguments[0] = _result.AddResults;
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -88904,6 +94826,27 @@ namespace Opc.Ua
         ConfigurationVersionDataType configurationVersion,
         FieldTargetDataType[] targetVariablesToAdd,
         ref StatusCode[] addResults);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class TargetVariablesTypeAddTargetVariablesMethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+        /// <remarks />
+        public StatusCode[] AddResults { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<TargetVariablesTypeAddTargetVariablesMethodStateResult> TargetVariablesTypeAddTargetVariablesMethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        ConfigurationVersionDataType configurationVersion,
+        FieldTargetDataType[] targetVariablesToAdd,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -88957,6 +94900,9 @@ namespace Opc.Ua
         #region Event Callbacks
         /// <remarks />
         public TargetVariablesTypeRemoveTargetVariablesMethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public TargetVariablesTypeRemoveTargetVariablesMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -88997,6 +94943,46 @@ namespace Opc.Ua
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken);
+            }
+
+            TargetVariablesTypeRemoveTargetVariablesMethodStateResult _result = null;
+
+            ConfigurationVersionDataType configurationVersion = (ConfigurationVersionDataType)ExtensionObject.ToEncodeable((ExtensionObject)_inputArguments[0]);
+            uint[] targetsToRemove = (uint[])_inputArguments[1];
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    configurationVersion,
+                    targetsToRemove,
+                    cancellationToken);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            _outputArguments[0] = _result.RemoveResults;
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -89012,6 +94998,27 @@ namespace Opc.Ua
         ConfigurationVersionDataType configurationVersion,
         uint[] targetsToRemove,
         ref StatusCode[] removeResults);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class TargetVariablesTypeRemoveTargetVariablesMethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+        /// <remarks />
+        public StatusCode[] RemoveResults { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<TargetVariablesTypeRemoveTargetVariablesMethodStateResult> TargetVariablesTypeRemoveTargetVariablesMethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        ConfigurationVersionDataType configurationVersion,
+        uint[] targetsToRemove,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -89461,6 +95468,9 @@ namespace Opc.Ua
         #region Event Callbacks
         /// <remarks />
         public AddSubscribedDataSetMethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public AddSubscribedDataSetMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -89499,6 +95509,44 @@ namespace Opc.Ua
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken);
+            }
+
+            AddSubscribedDataSetMethodStateResult _result = null;
+
+            StandaloneSubscribedDataSetDataType subscribedDataSet = (StandaloneSubscribedDataSetDataType)ExtensionObject.ToEncodeable((ExtensionObject)_inputArguments[0]);
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    subscribedDataSet,
+                    cancellationToken);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            _outputArguments[0] = _result.SubscribedDataSetNodeId;
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -89513,6 +95561,26 @@ namespace Opc.Ua
         NodeId _objectId,
         StandaloneSubscribedDataSetDataType subscribedDataSet,
         ref NodeId subscribedDataSetNodeId);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class AddSubscribedDataSetMethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+        /// <remarks />
+        public NodeId SubscribedDataSetNodeId { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<AddSubscribedDataSetMethodStateResult> AddSubscribedDataSetMethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        StandaloneSubscribedDataSetDataType subscribedDataSet,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -89563,6 +95631,9 @@ namespace Opc.Ua
         #region Event Callbacks
         /// <remarks />
         public RemoveSubscribedDataSetMethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public RemoveSubscribedDataSetMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -89596,6 +95667,42 @@ namespace Opc.Ua
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken);
+            }
+
+            RemoveSubscribedDataSetMethodStateResult _result = null;
+
+            NodeId subscribedDataSetNodeId = (NodeId)_inputArguments[0];
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    subscribedDataSetNodeId,
+                    cancellationToken);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -89609,6 +95716,24 @@ namespace Opc.Ua
         MethodState _method,
         NodeId _objectId,
         NodeId subscribedDataSetNodeId);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class RemoveSubscribedDataSetMethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<RemoveSubscribedDataSetMethodStateResult> RemoveSubscribedDataSetMethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        NodeId subscribedDataSetNodeId,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -97542,6 +103667,9 @@ namespace Opc.Ua
         #region Event Callbacks
         /// <remarks />
         public FindAliasMethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public FindAliasMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -97582,6 +103710,46 @@ namespace Opc.Ua
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken);
+            }
+
+            FindAliasMethodStateResult _result = null;
+
+            string aliasNameSearchPattern = (string)_inputArguments[0];
+            NodeId referenceTypeFilter = (NodeId)_inputArguments[1];
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    aliasNameSearchPattern,
+                    referenceTypeFilter,
+                    cancellationToken);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            _outputArguments[0] = _result.AliasNodeList;
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -97597,6 +103765,27 @@ namespace Opc.Ua
         string aliasNameSearchPattern,
         NodeId referenceTypeFilter,
         ref AliasNameDataType[] aliasNodeList);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class FindAliasMethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+        /// <remarks />
+        public AliasNameDataType[] AliasNodeList { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<FindAliasMethodStateResult> FindAliasMethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        string aliasNameSearchPattern,
+        NodeId referenceTypeFilter,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -98137,6 +104326,9 @@ namespace Opc.Ua
         #region Event Callbacks
         /// <remarks />
         public AddUserMethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public AddUserMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -98176,6 +104368,48 @@ namespace Opc.Ua
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken);
+            }
+
+            AddUserMethodStateResult _result = null;
+
+            string userName = (string)_inputArguments[0];
+            string password = (string)_inputArguments[1];
+            uint userConfiguration = (uint)_inputArguments[2];
+            string description = (string)_inputArguments[3];
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    userName,
+                    password,
+                    userConfiguration,
+                    description,
+                    cancellationToken);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -98192,6 +104426,27 @@ namespace Opc.Ua
         string password,
         uint userConfiguration,
         string description);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class AddUserMethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<AddUserMethodStateResult> AddUserMethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        string userName,
+        string password,
+        uint userConfiguration,
+        string description,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -98245,6 +104500,9 @@ namespace Opc.Ua
         #region Event Callbacks
         /// <remarks />
         public ModifyUserMethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public ModifyUserMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -98290,6 +104548,54 @@ namespace Opc.Ua
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken);
+            }
+
+            ModifyUserMethodStateResult _result = null;
+
+            string userName = (string)_inputArguments[0];
+            bool modifyPassword = (bool)_inputArguments[1];
+            string password = (string)_inputArguments[2];
+            bool modifyUserConfiguration = (bool)_inputArguments[3];
+            uint userConfiguration = (uint)_inputArguments[4];
+            bool modifyDescription = (bool)_inputArguments[5];
+            string description = (string)_inputArguments[6];
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    userName,
+                    modifyPassword,
+                    password,
+                    modifyUserConfiguration,
+                    userConfiguration,
+                    modifyDescription,
+                    description,
+                    cancellationToken);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -98309,6 +104615,30 @@ namespace Opc.Ua
         uint userConfiguration,
         bool modifyDescription,
         string description);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class ModifyUserMethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<ModifyUserMethodStateResult> ModifyUserMethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        string userName,
+        bool modifyPassword,
+        string password,
+        bool modifyUserConfiguration,
+        uint userConfiguration,
+        bool modifyDescription,
+        string description,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -98358,6 +104688,9 @@ namespace Opc.Ua
         #region Event Callbacks
         /// <remarks />
         public RemoveUserMethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public RemoveUserMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -98391,6 +104724,42 @@ namespace Opc.Ua
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken);
+            }
+
+            RemoveUserMethodStateResult _result = null;
+
+            string userName = (string)_inputArguments[0];
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    userName,
+                    cancellationToken);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -98404,6 +104773,24 @@ namespace Opc.Ua
         MethodState _method,
         NodeId _objectId,
         string userName);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class RemoveUserMethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<RemoveUserMethodStateResult> RemoveUserMethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        string userName,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -98454,6 +104841,9 @@ namespace Opc.Ua
         #region Event Callbacks
         /// <remarks />
         public ChangePasswordMethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public ChangePasswordMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -98489,6 +104879,44 @@ namespace Opc.Ua
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken);
+            }
+
+            ChangePasswordMethodStateResult _result = null;
+
+            string oldPassword = (string)_inputArguments[0];
+            string newPassword = (string)_inputArguments[1];
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    oldPassword,
+                    newPassword,
+                    cancellationToken);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -98503,6 +104931,25 @@ namespace Opc.Ua
         NodeId _objectId,
         string oldPassword,
         string newPassword);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class ChangePasswordMethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<ChangePasswordMethodStateResult> ChangePasswordMethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        string oldPassword,
+        string newPassword,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -98938,6 +105385,9 @@ namespace Opc.Ua
         #region Event Callbacks
         /// <remarks />
         public RequestTicketsMethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public RequestTicketsMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -98973,6 +105423,41 @@ namespace Opc.Ua
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken);
+            }
+
+            RequestTicketsMethodStateResult _result = null;
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    cancellationToken);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            _outputArguments[0] = _result.Tickets;
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -98986,6 +105471,25 @@ namespace Opc.Ua
         MethodState _method,
         NodeId _objectId,
         ref string[] tickets);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class RequestTicketsMethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+        /// <remarks />
+        public string[] Tickets { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<RequestTicketsMethodStateResult> RequestTicketsMethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -99036,6 +105540,9 @@ namespace Opc.Ua
         #region Event Callbacks
         /// <remarks />
         public SetRegistrarEndpointsMethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public SetRegistrarEndpointsMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -99069,6 +105576,42 @@ namespace Opc.Ua
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken);
+            }
+
+            SetRegistrarEndpointsMethodStateResult _result = null;
+
+            ApplicationDescription[] registrars = (ApplicationDescription[])ExtensionObject.ToArray(_inputArguments[0], typeof(ApplicationDescription));
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    registrars,
+                    cancellationToken);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -99082,6 +105625,24 @@ namespace Opc.Ua
         MethodState _method,
         NodeId _objectId,
         ApplicationDescription[] registrars);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class SetRegistrarEndpointsMethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<SetRegistrarEndpointsMethodStateResult> SetRegistrarEndpointsMethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        ApplicationDescription[] registrars,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -103364,6 +109925,9 @@ namespace Opc.Ua
         #region Event Callbacks
         /// <remarks />
         public AddPriorityMappingEntryMethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public AddPriorityMappingEntryMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -103403,6 +109967,48 @@ namespace Opc.Ua
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken);
+            }
+
+            AddPriorityMappingEntryMethodStateResult _result = null;
+
+            string mappingUri = (string)_inputArguments[0];
+            string priorityLabel = (string)_inputArguments[1];
+            byte priorityValue_PCP = (byte)_inputArguments[2];
+            uint priorityValue_DSCP = (uint)_inputArguments[3];
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    mappingUri,
+                    priorityLabel,
+                    priorityValue_PCP,
+                    priorityValue_DSCP,
+                    cancellationToken);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -103419,6 +110025,27 @@ namespace Opc.Ua
         string priorityLabel,
         byte priorityValue_PCP,
         uint priorityValue_DSCP);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class AddPriorityMappingEntryMethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<AddPriorityMappingEntryMethodStateResult> AddPriorityMappingEntryMethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        string mappingUri,
+        string priorityLabel,
+        byte priorityValue_PCP,
+        uint priorityValue_DSCP,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -103469,6 +110096,9 @@ namespace Opc.Ua
         #region Event Callbacks
         /// <remarks />
         public DeletePriorityMappingEntryMethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public DeletePriorityMappingEntryMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -103504,6 +110134,44 @@ namespace Opc.Ua
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken);
+            }
+
+            DeletePriorityMappingEntryMethodStateResult _result = null;
+
+            string mappingUri = (string)_inputArguments[0];
+            string priorityLabel = (string)_inputArguments[1];
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    mappingUri,
+                    priorityLabel,
+                    cancellationToken);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -103518,6 +110186,25 @@ namespace Opc.Ua
         NodeId _objectId,
         string mappingUri,
         string priorityLabel);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class DeletePriorityMappingEntryMethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<DeletePriorityMappingEntryMethodStateResult> DeletePriorityMappingEntryMethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        string mappingUri,
+        string priorityLabel,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 

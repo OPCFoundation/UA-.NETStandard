@@ -39,6 +39,7 @@ using System.Runtime.Serialization;
 #endif
 
 #if (NET_STANDARD_ASYNC)
+using System.Threading;
 using System.Threading.Tasks;
 #endif
 
@@ -209,7 +210,36 @@ namespace Opc.Ua
                 throw fault;
             }
         }
+        #endif
 
+        #if (!OPCUA_EXCLUDE_FindServers_ASYNC)
+        /// <summary>
+        /// Invokes the FindServers service.
+        /// </summary>
+        public async Task<IServiceResponse> FindServersAsync(IServiceRequest incoming, CancellationToken cancellationToken = default)
+        {
+            FindServersResponse response = null;
+
+            try
+            {
+                OnRequestReceived(incoming);
+
+                FindServersRequest request = (FindServersRequest)incoming;
+
+                response = await ServerInstance.FindServersAsync(
+                   request.RequestHeader,
+                   request.EndpointUrl,
+                   request.LocaleIds,
+                   request.ServerUris,cancellationToken);
+
+            }
+            finally
+            {
+                OnResponseSent(response);
+            }
+
+            return response;
+        }
         #endif
         #endif
         #endregion
@@ -324,7 +354,36 @@ namespace Opc.Ua
                 throw fault;
             }
         }
+        #endif
 
+        #if (!OPCUA_EXCLUDE_FindServersOnNetwork_ASYNC)
+        /// <summary>
+        /// Invokes the FindServersOnNetwork service.
+        /// </summary>
+        public async Task<IServiceResponse> FindServersOnNetworkAsync(IServiceRequest incoming, CancellationToken cancellationToken = default)
+        {
+            FindServersOnNetworkResponse response = null;
+
+            try
+            {
+                OnRequestReceived(incoming);
+
+                FindServersOnNetworkRequest request = (FindServersOnNetworkRequest)incoming;
+
+                response = await ServerInstance.FindServersOnNetworkAsync(
+                   request.RequestHeader,
+                   request.StartingRecordId,
+                   request.MaxRecordsToReturn,
+                   request.ServerCapabilityFilter,cancellationToken);
+
+            }
+            finally
+            {
+                OnResponseSent(response);
+            }
+
+            return response;
+        }
         #endif
         #endif
         #endregion
@@ -436,7 +495,36 @@ namespace Opc.Ua
                 throw fault;
             }
         }
+        #endif
 
+        #if (!OPCUA_EXCLUDE_GetEndpoints_ASYNC)
+        /// <summary>
+        /// Invokes the GetEndpoints service.
+        /// </summary>
+        public async Task<IServiceResponse> GetEndpointsAsync(IServiceRequest incoming, CancellationToken cancellationToken = default)
+        {
+            GetEndpointsResponse response = null;
+
+            try
+            {
+                OnRequestReceived(incoming);
+
+                GetEndpointsRequest request = (GetEndpointsRequest)incoming;
+
+                response = await ServerInstance.GetEndpointsAsync(
+                   request.RequestHeader,
+                   request.EndpointUrl,
+                   request.LocaleIds,
+                   request.ProfileUris,cancellationToken);
+
+            }
+            finally
+            {
+                OnResponseSent(response);
+            }
+
+            return response;
+        }
         #endif
         #endif
         #endregion
@@ -577,7 +665,41 @@ namespace Opc.Ua
                 throw fault;
             }
         }
+        #endif
 
+        #if (!OPCUA_EXCLUDE_CreateSession_ASYNC)
+        /// <summary>
+        /// Invokes the CreateSession service.
+        /// </summary>
+        public async Task<IServiceResponse> CreateSessionAsync(IServiceRequest incoming, CancellationToken cancellationToken = default)
+        {
+            CreateSessionResponse response = null;
+
+            try
+            {
+                OnRequestReceived(incoming);
+
+                CreateSessionRequest request = (CreateSessionRequest)incoming;
+
+                response = await ServerInstance.CreateSessionAsync(
+                   request.RequestHeader,
+                   request.ClientDescription,
+                   request.ServerUri,
+                   request.EndpointUrl,
+                   request.SessionName,
+                   request.ClientNonce,
+                   request.ClientCertificate,
+                   request.RequestedSessionTimeout,
+                   request.MaxResponseMessageSize,cancellationToken);
+
+            }
+            finally
+            {
+                OnResponseSent(response);
+            }
+
+            return response;
+        }
         #endif
         #endif
         #endregion
@@ -697,7 +819,38 @@ namespace Opc.Ua
                 throw fault;
             }
         }
+        #endif
 
+        #if (!OPCUA_EXCLUDE_ActivateSession_ASYNC)
+        /// <summary>
+        /// Invokes the ActivateSession service.
+        /// </summary>
+        public async Task<IServiceResponse> ActivateSessionAsync(IServiceRequest incoming, CancellationToken cancellationToken = default)
+        {
+            ActivateSessionResponse response = null;
+
+            try
+            {
+                OnRequestReceived(incoming);
+
+                ActivateSessionRequest request = (ActivateSessionRequest)incoming;
+
+                response = await ServerInstance.ActivateSessionAsync(
+                   request.RequestHeader,
+                   request.ClientSignature,
+                   request.ClientSoftwareCertificates,
+                   request.LocaleIds,
+                   request.UserIdentityToken,
+                   request.UserTokenSignature,cancellationToken);
+
+            }
+            finally
+            {
+                OnResponseSent(response);
+            }
+
+            return response;
+        }
         #endif
         #endif
         #endregion
@@ -804,7 +957,34 @@ namespace Opc.Ua
                 throw fault;
             }
         }
+        #endif
 
+        #if (!OPCUA_EXCLUDE_CloseSession_ASYNC)
+        /// <summary>
+        /// Invokes the CloseSession service.
+        /// </summary>
+        public async Task<IServiceResponse> CloseSessionAsync(IServiceRequest incoming, CancellationToken cancellationToken = default)
+        {
+            CloseSessionResponse response = null;
+
+            try
+            {
+                OnRequestReceived(incoming);
+
+                CloseSessionRequest request = (CloseSessionRequest)incoming;
+
+                response = await ServerInstance.CloseSessionAsync(
+                   request.RequestHeader,
+                   request.DeleteSubscriptions,cancellationToken);
+
+            }
+            finally
+            {
+                OnResponseSent(response);
+            }
+
+            return response;
+        }
         #endif
         #endif
         #endregion
@@ -914,7 +1094,34 @@ namespace Opc.Ua
                 throw fault;
             }
         }
+        #endif
 
+        #if (!OPCUA_EXCLUDE_Cancel_ASYNC)
+        /// <summary>
+        /// Invokes the Cancel service.
+        /// </summary>
+        public async Task<IServiceResponse> CancelAsync(IServiceRequest incoming, CancellationToken cancellationToken = default)
+        {
+            CancelResponse response = null;
+
+            try
+            {
+                OnRequestReceived(incoming);
+
+                CancelRequest request = (CancelRequest)incoming;
+
+                response = await ServerInstance.CancelAsync(
+                   request.RequestHeader,
+                   request.RequestHandle,cancellationToken);
+
+            }
+            finally
+            {
+                OnResponseSent(response);
+            }
+
+            return response;
+        }
         #endif
         #endif
         #endregion
@@ -1027,7 +1234,34 @@ namespace Opc.Ua
                 throw fault;
             }
         }
+        #endif
 
+        #if (!OPCUA_EXCLUDE_AddNodes_ASYNC)
+        /// <summary>
+        /// Invokes the AddNodes service.
+        /// </summary>
+        public async Task<IServiceResponse> AddNodesAsync(IServiceRequest incoming, CancellationToken cancellationToken = default)
+        {
+            AddNodesResponse response = null;
+
+            try
+            {
+                OnRequestReceived(incoming);
+
+                AddNodesRequest request = (AddNodesRequest)incoming;
+
+                response = await ServerInstance.AddNodesAsync(
+                   request.RequestHeader,
+                   request.NodesToAdd,cancellationToken);
+
+            }
+            finally
+            {
+                OnResponseSent(response);
+            }
+
+            return response;
+        }
         #endif
         #endif
         #endregion
@@ -1140,7 +1374,34 @@ namespace Opc.Ua
                 throw fault;
             }
         }
+        #endif
 
+        #if (!OPCUA_EXCLUDE_AddReferences_ASYNC)
+        /// <summary>
+        /// Invokes the AddReferences service.
+        /// </summary>
+        public async Task<IServiceResponse> AddReferencesAsync(IServiceRequest incoming, CancellationToken cancellationToken = default)
+        {
+            AddReferencesResponse response = null;
+
+            try
+            {
+                OnRequestReceived(incoming);
+
+                AddReferencesRequest request = (AddReferencesRequest)incoming;
+
+                response = await ServerInstance.AddReferencesAsync(
+                   request.RequestHeader,
+                   request.ReferencesToAdd,cancellationToken);
+
+            }
+            finally
+            {
+                OnResponseSent(response);
+            }
+
+            return response;
+        }
         #endif
         #endif
         #endregion
@@ -1253,7 +1514,34 @@ namespace Opc.Ua
                 throw fault;
             }
         }
+        #endif
 
+        #if (!OPCUA_EXCLUDE_DeleteNodes_ASYNC)
+        /// <summary>
+        /// Invokes the DeleteNodes service.
+        /// </summary>
+        public async Task<IServiceResponse> DeleteNodesAsync(IServiceRequest incoming, CancellationToken cancellationToken = default)
+        {
+            DeleteNodesResponse response = null;
+
+            try
+            {
+                OnRequestReceived(incoming);
+
+                DeleteNodesRequest request = (DeleteNodesRequest)incoming;
+
+                response = await ServerInstance.DeleteNodesAsync(
+                   request.RequestHeader,
+                   request.NodesToDelete,cancellationToken);
+
+            }
+            finally
+            {
+                OnResponseSent(response);
+            }
+
+            return response;
+        }
         #endif
         #endif
         #endregion
@@ -1366,7 +1654,34 @@ namespace Opc.Ua
                 throw fault;
             }
         }
+        #endif
 
+        #if (!OPCUA_EXCLUDE_DeleteReferences_ASYNC)
+        /// <summary>
+        /// Invokes the DeleteReferences service.
+        /// </summary>
+        public async Task<IServiceResponse> DeleteReferencesAsync(IServiceRequest incoming, CancellationToken cancellationToken = default)
+        {
+            DeleteReferencesResponse response = null;
+
+            try
+            {
+                OnRequestReceived(incoming);
+
+                DeleteReferencesRequest request = (DeleteReferencesRequest)incoming;
+
+                response = await ServerInstance.DeleteReferencesAsync(
+                   request.RequestHeader,
+                   request.ReferencesToDelete,cancellationToken);
+
+            }
+            finally
+            {
+                OnResponseSent(response);
+            }
+
+            return response;
+        }
         #endif
         #endif
         #endregion
@@ -1481,7 +1796,36 @@ namespace Opc.Ua
                 throw fault;
             }
         }
+        #endif
 
+        #if (!OPCUA_EXCLUDE_Browse_ASYNC)
+        /// <summary>
+        /// Invokes the Browse service.
+        /// </summary>
+        public async Task<IServiceResponse> BrowseAsync(IServiceRequest incoming, CancellationToken cancellationToken = default)
+        {
+            BrowseResponse response = null;
+
+            try
+            {
+                OnRequestReceived(incoming);
+
+                BrowseRequest request = (BrowseRequest)incoming;
+
+                response = await ServerInstance.BrowseAsync(
+                   request.RequestHeader,
+                   request.View,
+                   request.RequestedMaxReferencesPerNode,
+                   request.NodesToBrowse,cancellationToken);
+
+            }
+            finally
+            {
+                OnResponseSent(response);
+            }
+
+            return response;
+        }
         #endif
         #endif
         #endregion
@@ -1595,7 +1939,35 @@ namespace Opc.Ua
                 throw fault;
             }
         }
+        #endif
 
+        #if (!OPCUA_EXCLUDE_BrowseNext_ASYNC)
+        /// <summary>
+        /// Invokes the BrowseNext service.
+        /// </summary>
+        public async Task<IServiceResponse> BrowseNextAsync(IServiceRequest incoming, CancellationToken cancellationToken = default)
+        {
+            BrowseNextResponse response = null;
+
+            try
+            {
+                OnRequestReceived(incoming);
+
+                BrowseNextRequest request = (BrowseNextRequest)incoming;
+
+                response = await ServerInstance.BrowseNextAsync(
+                   request.RequestHeader,
+                   request.ReleaseContinuationPoints,
+                   request.ContinuationPoints,cancellationToken);
+
+            }
+            finally
+            {
+                OnResponseSent(response);
+            }
+
+            return response;
+        }
         #endif
         #endif
         #endregion
@@ -1708,7 +2080,34 @@ namespace Opc.Ua
                 throw fault;
             }
         }
+        #endif
 
+        #if (!OPCUA_EXCLUDE_TranslateBrowsePathsToNodeIds_ASYNC)
+        /// <summary>
+        /// Invokes the TranslateBrowsePathsToNodeIds service.
+        /// </summary>
+        public async Task<IServiceResponse> TranslateBrowsePathsToNodeIdsAsync(IServiceRequest incoming, CancellationToken cancellationToken = default)
+        {
+            TranslateBrowsePathsToNodeIdsResponse response = null;
+
+            try
+            {
+                OnRequestReceived(incoming);
+
+                TranslateBrowsePathsToNodeIdsRequest request = (TranslateBrowsePathsToNodeIdsRequest)incoming;
+
+                response = await ServerInstance.TranslateBrowsePathsToNodeIdsAsync(
+                   request.RequestHeader,
+                   request.BrowsePaths,cancellationToken);
+
+            }
+            finally
+            {
+                OnResponseSent(response);
+            }
+
+            return response;
+        }
         #endif
         #endif
         #endregion
@@ -1818,7 +2217,34 @@ namespace Opc.Ua
                 throw fault;
             }
         }
+        #endif
 
+        #if (!OPCUA_EXCLUDE_RegisterNodes_ASYNC)
+        /// <summary>
+        /// Invokes the RegisterNodes service.
+        /// </summary>
+        public async Task<IServiceResponse> RegisterNodesAsync(IServiceRequest incoming, CancellationToken cancellationToken = default)
+        {
+            RegisterNodesResponse response = null;
+
+            try
+            {
+                OnRequestReceived(incoming);
+
+                RegisterNodesRequest request = (RegisterNodesRequest)incoming;
+
+                response = await ServerInstance.RegisterNodesAsync(
+                   request.RequestHeader,
+                   request.NodesToRegister,cancellationToken);
+
+            }
+            finally
+            {
+                OnResponseSent(response);
+            }
+
+            return response;
+        }
         #endif
         #endif
         #endregion
@@ -1925,7 +2351,34 @@ namespace Opc.Ua
                 throw fault;
             }
         }
+        #endif
 
+        #if (!OPCUA_EXCLUDE_UnregisterNodes_ASYNC)
+        /// <summary>
+        /// Invokes the UnregisterNodes service.
+        /// </summary>
+        public async Task<IServiceResponse> UnregisterNodesAsync(IServiceRequest incoming, CancellationToken cancellationToken = default)
+        {
+            UnregisterNodesResponse response = null;
+
+            try
+            {
+                OnRequestReceived(incoming);
+
+                UnregisterNodesRequest request = (UnregisterNodesRequest)incoming;
+
+                response = await ServerInstance.UnregisterNodesAsync(
+                   request.RequestHeader,
+                   request.NodesToUnregister,cancellationToken);
+
+            }
+            finally
+            {
+                OnResponseSent(response);
+            }
+
+            return response;
+        }
         #endif
         #endif
         #endregion
@@ -2051,7 +2504,38 @@ namespace Opc.Ua
                 throw fault;
             }
         }
+        #endif
 
+        #if (!OPCUA_EXCLUDE_QueryFirst_ASYNC)
+        /// <summary>
+        /// Invokes the QueryFirst service.
+        /// </summary>
+        public async Task<IServiceResponse> QueryFirstAsync(IServiceRequest incoming, CancellationToken cancellationToken = default)
+        {
+            QueryFirstResponse response = null;
+
+            try
+            {
+                OnRequestReceived(incoming);
+
+                QueryFirstRequest request = (QueryFirstRequest)incoming;
+
+                response = await ServerInstance.QueryFirstAsync(
+                   request.RequestHeader,
+                   request.View,
+                   request.NodeTypes,
+                   request.Filter,
+                   request.MaxDataSetsToReturn,
+                   request.MaxReferencesToReturn,cancellationToken);
+
+            }
+            finally
+            {
+                OnResponseSent(response);
+            }
+
+            return response;
+        }
         #endif
         #endif
         #endregion
@@ -2165,7 +2649,35 @@ namespace Opc.Ua
                 throw fault;
             }
         }
+        #endif
 
+        #if (!OPCUA_EXCLUDE_QueryNext_ASYNC)
+        /// <summary>
+        /// Invokes the QueryNext service.
+        /// </summary>
+        public async Task<IServiceResponse> QueryNextAsync(IServiceRequest incoming, CancellationToken cancellationToken = default)
+        {
+            QueryNextResponse response = null;
+
+            try
+            {
+                OnRequestReceived(incoming);
+
+                QueryNextRequest request = (QueryNextRequest)incoming;
+
+                response = await ServerInstance.QueryNextAsync(
+                   request.RequestHeader,
+                   request.ReleaseContinuationPoint,
+                   request.ContinuationPoint,cancellationToken);
+
+            }
+            finally
+            {
+                OnResponseSent(response);
+            }
+
+            return response;
+        }
         #endif
         #endif
         #endregion
@@ -2280,7 +2792,36 @@ namespace Opc.Ua
                 throw fault;
             }
         }
+        #endif
 
+        #if (!OPCUA_EXCLUDE_Read_ASYNC)
+        /// <summary>
+        /// Invokes the Read service.
+        /// </summary>
+        public async Task<IServiceResponse> ReadAsync(IServiceRequest incoming, CancellationToken cancellationToken = default)
+        {
+            ReadResponse response = null;
+
+            try
+            {
+                OnRequestReceived(incoming);
+
+                ReadRequest request = (ReadRequest)incoming;
+
+                response = await ServerInstance.ReadAsync(
+                   request.RequestHeader,
+                   request.MaxAge,
+                   request.TimestampsToReturn,
+                   request.NodesToRead,cancellationToken);
+
+            }
+            finally
+            {
+                OnResponseSent(response);
+            }
+
+            return response;
+        }
         #endif
         #endif
         #endregion
@@ -2396,7 +2937,37 @@ namespace Opc.Ua
                 throw fault;
             }
         }
+        #endif
 
+        #if (!OPCUA_EXCLUDE_HistoryRead_ASYNC)
+        /// <summary>
+        /// Invokes the HistoryRead service.
+        /// </summary>
+        public async Task<IServiceResponse> HistoryReadAsync(IServiceRequest incoming, CancellationToken cancellationToken = default)
+        {
+            HistoryReadResponse response = null;
+
+            try
+            {
+                OnRequestReceived(incoming);
+
+                HistoryReadRequest request = (HistoryReadRequest)incoming;
+
+                response = await ServerInstance.HistoryReadAsync(
+                   request.RequestHeader,
+                   request.HistoryReadDetails,
+                   request.TimestampsToReturn,
+                   request.ReleaseContinuationPoints,
+                   request.NodesToRead,cancellationToken);
+
+            }
+            finally
+            {
+                OnResponseSent(response);
+            }
+
+            return response;
+        }
         #endif
         #endif
         #endregion
@@ -2509,7 +3080,34 @@ namespace Opc.Ua
                 throw fault;
             }
         }
+        #endif
 
+        #if (!OPCUA_EXCLUDE_Write_ASYNC)
+        /// <summary>
+        /// Invokes the Write service.
+        /// </summary>
+        public async Task<IServiceResponse> WriteAsync(IServiceRequest incoming, CancellationToken cancellationToken = default)
+        {
+            WriteResponse response = null;
+
+            try
+            {
+                OnRequestReceived(incoming);
+
+                WriteRequest request = (WriteRequest)incoming;
+
+                response = await ServerInstance.WriteAsync(
+                   request.RequestHeader,
+                   request.NodesToWrite,cancellationToken);
+
+            }
+            finally
+            {
+                OnResponseSent(response);
+            }
+
+            return response;
+        }
         #endif
         #endif
         #endregion
@@ -2622,7 +3220,34 @@ namespace Opc.Ua
                 throw fault;
             }
         }
+        #endif
 
+        #if (!OPCUA_EXCLUDE_HistoryUpdate_ASYNC)
+        /// <summary>
+        /// Invokes the HistoryUpdate service.
+        /// </summary>
+        public async Task<IServiceResponse> HistoryUpdateAsync(IServiceRequest incoming, CancellationToken cancellationToken = default)
+        {
+            HistoryUpdateResponse response = null;
+
+            try
+            {
+                OnRequestReceived(incoming);
+
+                HistoryUpdateRequest request = (HistoryUpdateRequest)incoming;
+
+                response = await ServerInstance.HistoryUpdateAsync(
+                   request.RequestHeader,
+                   request.HistoryUpdateDetails,cancellationToken);
+
+            }
+            finally
+            {
+                OnResponseSent(response);
+            }
+
+            return response;
+        }
         #endif
         #endif
         #endregion
@@ -2735,7 +3360,34 @@ namespace Opc.Ua
                 throw fault;
             }
         }
+        #endif
 
+        #if (!OPCUA_EXCLUDE_Call_ASYNC)
+        /// <summary>
+        /// Invokes the Call service.
+        /// </summary>
+        public async Task<IServiceResponse> CallAsync(IServiceRequest incoming, CancellationToken cancellationToken = default)
+        {
+            CallResponse response = null;
+
+            try
+            {
+                OnRequestReceived(incoming);
+
+                CallRequest request = (CallRequest)incoming;
+
+                response = await ServerInstance.CallAsync(
+                   request.RequestHeader,
+                   request.MethodsToCall,cancellationToken);
+
+            }
+            finally
+            {
+                OnResponseSent(response);
+            }
+
+            return response;
+        }
         #endif
         #endif
         #endregion
@@ -2850,7 +3502,36 @@ namespace Opc.Ua
                 throw fault;
             }
         }
+        #endif
 
+        #if (!OPCUA_EXCLUDE_CreateMonitoredItems_ASYNC)
+        /// <summary>
+        /// Invokes the CreateMonitoredItems service.
+        /// </summary>
+        public async Task<IServiceResponse> CreateMonitoredItemsAsync(IServiceRequest incoming, CancellationToken cancellationToken = default)
+        {
+            CreateMonitoredItemsResponse response = null;
+
+            try
+            {
+                OnRequestReceived(incoming);
+
+                CreateMonitoredItemsRequest request = (CreateMonitoredItemsRequest)incoming;
+
+                response = await ServerInstance.CreateMonitoredItemsAsync(
+                   request.RequestHeader,
+                   request.SubscriptionId,
+                   request.TimestampsToReturn,
+                   request.ItemsToCreate,cancellationToken);
+
+            }
+            finally
+            {
+                OnResponseSent(response);
+            }
+
+            return response;
+        }
         #endif
         #endif
         #endregion
@@ -2965,7 +3646,36 @@ namespace Opc.Ua
                 throw fault;
             }
         }
+        #endif
 
+        #if (!OPCUA_EXCLUDE_ModifyMonitoredItems_ASYNC)
+        /// <summary>
+        /// Invokes the ModifyMonitoredItems service.
+        /// </summary>
+        public async Task<IServiceResponse> ModifyMonitoredItemsAsync(IServiceRequest incoming, CancellationToken cancellationToken = default)
+        {
+            ModifyMonitoredItemsResponse response = null;
+
+            try
+            {
+                OnRequestReceived(incoming);
+
+                ModifyMonitoredItemsRequest request = (ModifyMonitoredItemsRequest)incoming;
+
+                response = await ServerInstance.ModifyMonitoredItemsAsync(
+                   request.RequestHeader,
+                   request.SubscriptionId,
+                   request.TimestampsToReturn,
+                   request.ItemsToModify,cancellationToken);
+
+            }
+            finally
+            {
+                OnResponseSent(response);
+            }
+
+            return response;
+        }
         #endif
         #endif
         #endregion
@@ -3080,7 +3790,36 @@ namespace Opc.Ua
                 throw fault;
             }
         }
+        #endif
 
+        #if (!OPCUA_EXCLUDE_SetMonitoringMode_ASYNC)
+        /// <summary>
+        /// Invokes the SetMonitoringMode service.
+        /// </summary>
+        public async Task<IServiceResponse> SetMonitoringModeAsync(IServiceRequest incoming, CancellationToken cancellationToken = default)
+        {
+            SetMonitoringModeResponse response = null;
+
+            try
+            {
+                OnRequestReceived(incoming);
+
+                SetMonitoringModeRequest request = (SetMonitoringModeRequest)incoming;
+
+                response = await ServerInstance.SetMonitoringModeAsync(
+                   request.RequestHeader,
+                   request.SubscriptionId,
+                   request.MonitoringMode,
+                   request.MonitoredItemIds,cancellationToken);
+
+            }
+            finally
+            {
+                OnResponseSent(response);
+            }
+
+            return response;
+        }
         #endif
         #endif
         #endregion
@@ -3202,7 +3941,37 @@ namespace Opc.Ua
                 throw fault;
             }
         }
+        #endif
 
+        #if (!OPCUA_EXCLUDE_SetTriggering_ASYNC)
+        /// <summary>
+        /// Invokes the SetTriggering service.
+        /// </summary>
+        public async Task<IServiceResponse> SetTriggeringAsync(IServiceRequest incoming, CancellationToken cancellationToken = default)
+        {
+            SetTriggeringResponse response = null;
+
+            try
+            {
+                OnRequestReceived(incoming);
+
+                SetTriggeringRequest request = (SetTriggeringRequest)incoming;
+
+                response = await ServerInstance.SetTriggeringAsync(
+                   request.RequestHeader,
+                   request.SubscriptionId,
+                   request.TriggeringItemId,
+                   request.LinksToAdd,
+                   request.LinksToRemove,cancellationToken);
+
+            }
+            finally
+            {
+                OnResponseSent(response);
+            }
+
+            return response;
+        }
         #endif
         #endif
         #endregion
@@ -3316,7 +4085,35 @@ namespace Opc.Ua
                 throw fault;
             }
         }
+        #endif
 
+        #if (!OPCUA_EXCLUDE_DeleteMonitoredItems_ASYNC)
+        /// <summary>
+        /// Invokes the DeleteMonitoredItems service.
+        /// </summary>
+        public async Task<IServiceResponse> DeleteMonitoredItemsAsync(IServiceRequest incoming, CancellationToken cancellationToken = default)
+        {
+            DeleteMonitoredItemsResponse response = null;
+
+            try
+            {
+                OnRequestReceived(incoming);
+
+                DeleteMonitoredItemsRequest request = (DeleteMonitoredItemsRequest)incoming;
+
+                response = await ServerInstance.DeleteMonitoredItemsAsync(
+                   request.RequestHeader,
+                   request.SubscriptionId,
+                   request.MonitoredItemIds,cancellationToken);
+
+            }
+            finally
+            {
+                OnResponseSent(response);
+            }
+
+            return response;
+        }
         #endif
         #endif
         #endregion
@@ -3440,7 +4237,39 @@ namespace Opc.Ua
                 throw fault;
             }
         }
+        #endif
 
+        #if (!OPCUA_EXCLUDE_CreateSubscription_ASYNC)
+        /// <summary>
+        /// Invokes the CreateSubscription service.
+        /// </summary>
+        public async Task<IServiceResponse> CreateSubscriptionAsync(IServiceRequest incoming, CancellationToken cancellationToken = default)
+        {
+            CreateSubscriptionResponse response = null;
+
+            try
+            {
+                OnRequestReceived(incoming);
+
+                CreateSubscriptionRequest request = (CreateSubscriptionRequest)incoming;
+
+                response = await ServerInstance.CreateSubscriptionAsync(
+                   request.RequestHeader,
+                   request.RequestedPublishingInterval,
+                   request.RequestedLifetimeCount,
+                   request.RequestedMaxKeepAliveCount,
+                   request.MaxNotificationsPerPublish,
+                   request.PublishingEnabled,
+                   request.Priority,cancellationToken);
+
+            }
+            finally
+            {
+                OnResponseSent(response);
+            }
+
+            return response;
+        }
         #endif
         #endif
         #endregion
@@ -3561,7 +4390,39 @@ namespace Opc.Ua
                 throw fault;
             }
         }
+        #endif
 
+        #if (!OPCUA_EXCLUDE_ModifySubscription_ASYNC)
+        /// <summary>
+        /// Invokes the ModifySubscription service.
+        /// </summary>
+        public async Task<IServiceResponse> ModifySubscriptionAsync(IServiceRequest incoming, CancellationToken cancellationToken = default)
+        {
+            ModifySubscriptionResponse response = null;
+
+            try
+            {
+                OnRequestReceived(incoming);
+
+                ModifySubscriptionRequest request = (ModifySubscriptionRequest)incoming;
+
+                response = await ServerInstance.ModifySubscriptionAsync(
+                   request.RequestHeader,
+                   request.SubscriptionId,
+                   request.RequestedPublishingInterval,
+                   request.RequestedLifetimeCount,
+                   request.RequestedMaxKeepAliveCount,
+                   request.MaxNotificationsPerPublish,
+                   request.Priority,cancellationToken);
+
+            }
+            finally
+            {
+                OnResponseSent(response);
+            }
+
+            return response;
+        }
         #endif
         #endif
         #endregion
@@ -3675,7 +4536,35 @@ namespace Opc.Ua
                 throw fault;
             }
         }
+        #endif
 
+        #if (!OPCUA_EXCLUDE_SetPublishingMode_ASYNC)
+        /// <summary>
+        /// Invokes the SetPublishingMode service.
+        /// </summary>
+        public async Task<IServiceResponse> SetPublishingModeAsync(IServiceRequest incoming, CancellationToken cancellationToken = default)
+        {
+            SetPublishingModeResponse response = null;
+
+            try
+            {
+                OnRequestReceived(incoming);
+
+                SetPublishingModeRequest request = (SetPublishingModeRequest)incoming;
+
+                response = await ServerInstance.SetPublishingModeAsync(
+                   request.RequestHeader,
+                   request.PublishingEnabled,
+                   request.SubscriptionIds,cancellationToken);
+
+            }
+            finally
+            {
+                OnResponseSent(response);
+            }
+
+            return response;
+        }
         #endif
         #endif
         #endregion
@@ -3800,7 +4689,34 @@ namespace Opc.Ua
                 throw fault;
             }
         }
+        #endif
 
+        #if (!OPCUA_EXCLUDE_Publish_ASYNC)
+        /// <summary>
+        /// Invokes the Publish service.
+        /// </summary>
+        public async Task<IServiceResponse> PublishAsync(IServiceRequest incoming, CancellationToken cancellationToken = default)
+        {
+            PublishResponse response = null;
+
+            try
+            {
+                OnRequestReceived(incoming);
+
+                PublishRequest request = (PublishRequest)incoming;
+
+                response = await ServerInstance.PublishAsync(
+                   request.RequestHeader,
+                   request.SubscriptionAcknowledgements,cancellationToken);
+
+            }
+            finally
+            {
+                OnResponseSent(response);
+            }
+
+            return response;
+        }
         #endif
         #endif
         #endregion
@@ -3911,7 +4827,35 @@ namespace Opc.Ua
                 throw fault;
             }
         }
+        #endif
 
+        #if (!OPCUA_EXCLUDE_Republish_ASYNC)
+        /// <summary>
+        /// Invokes the Republish service.
+        /// </summary>
+        public async Task<IServiceResponse> RepublishAsync(IServiceRequest incoming, CancellationToken cancellationToken = default)
+        {
+            RepublishResponse response = null;
+
+            try
+            {
+                OnRequestReceived(incoming);
+
+                RepublishRequest request = (RepublishRequest)incoming;
+
+                response = await ServerInstance.RepublishAsync(
+                   request.RequestHeader,
+                   request.SubscriptionId,
+                   request.RetransmitSequenceNumber,cancellationToken);
+
+            }
+            finally
+            {
+                OnResponseSent(response);
+            }
+
+            return response;
+        }
         #endif
         #endif
         #endregion
@@ -4025,7 +4969,35 @@ namespace Opc.Ua
                 throw fault;
             }
         }
+        #endif
 
+        #if (!OPCUA_EXCLUDE_TransferSubscriptions_ASYNC)
+        /// <summary>
+        /// Invokes the TransferSubscriptions service.
+        /// </summary>
+        public async Task<IServiceResponse> TransferSubscriptionsAsync(IServiceRequest incoming, CancellationToken cancellationToken = default)
+        {
+            TransferSubscriptionsResponse response = null;
+
+            try
+            {
+                OnRequestReceived(incoming);
+
+                TransferSubscriptionsRequest request = (TransferSubscriptionsRequest)incoming;
+
+                response = await ServerInstance.TransferSubscriptionsAsync(
+                   request.RequestHeader,
+                   request.SubscriptionIds,
+                   request.SendInitialValues,cancellationToken);
+
+            }
+            finally
+            {
+                OnResponseSent(response);
+            }
+
+            return response;
+        }
         #endif
         #endif
         #endregion
@@ -4138,7 +5110,34 @@ namespace Opc.Ua
                 throw fault;
             }
         }
+        #endif
 
+        #if (!OPCUA_EXCLUDE_DeleteSubscriptions_ASYNC)
+        /// <summary>
+        /// Invokes the DeleteSubscriptions service.
+        /// </summary>
+        public async Task<IServiceResponse> DeleteSubscriptionsAsync(IServiceRequest incoming, CancellationToken cancellationToken = default)
+        {
+            DeleteSubscriptionsResponse response = null;
+
+            try
+            {
+                OnRequestReceived(incoming);
+
+                DeleteSubscriptionsRequest request = (DeleteSubscriptionsRequest)incoming;
+
+                response = await ServerInstance.DeleteSubscriptionsAsync(
+                   request.RequestHeader,
+                   request.SubscriptionIds,cancellationToken);
+
+            }
+            finally
+            {
+                OnResponseSent(response);
+            }
+
+            return response;
+        }
         #endif
         #endif
         #endregion
@@ -4150,109 +5149,179 @@ namespace Opc.Ua
         /// </summary>
         protected virtual void CreateKnownTypes()
         {
-            #if (!OPCUA_EXCLUDE_FindServers)
+            #if (!OPCUA_EXCLUDE_FindServers && !OPCUA_EXCLUDE_FindServers_ASYNC)
+            SupportedServices.Add(DataTypeIds.FindServersRequest, new ServiceDefinition(typeof(FindServersRequest), new InvokeServiceEventHandler(FindServers), new InvokeServiceAsyncEventHandler(FindServersAsync)));
+            #elif (!OPCUA_EXCLUDE_FindServers)
             SupportedServices.Add(DataTypeIds.FindServersRequest, new ServiceDefinition(typeof(FindServersRequest), new InvokeServiceEventHandler(FindServers)));
             #endif
-            #if (!OPCUA_EXCLUDE_FindServersOnNetwork)
+            #if (!OPCUA_EXCLUDE_FindServersOnNetwork && !OPCUA_EXCLUDE_FindServersOnNetwork_ASYNC)
+            SupportedServices.Add(DataTypeIds.FindServersOnNetworkRequest, new ServiceDefinition(typeof(FindServersOnNetworkRequest), new InvokeServiceEventHandler(FindServersOnNetwork), new InvokeServiceAsyncEventHandler(FindServersOnNetworkAsync)));
+            #elif (!OPCUA_EXCLUDE_FindServersOnNetwork)
             SupportedServices.Add(DataTypeIds.FindServersOnNetworkRequest, new ServiceDefinition(typeof(FindServersOnNetworkRequest), new InvokeServiceEventHandler(FindServersOnNetwork)));
             #endif
-            #if (!OPCUA_EXCLUDE_GetEndpoints)
+            #if (!OPCUA_EXCLUDE_GetEndpoints && !OPCUA_EXCLUDE_GetEndpoints_ASYNC)
+            SupportedServices.Add(DataTypeIds.GetEndpointsRequest, new ServiceDefinition(typeof(GetEndpointsRequest), new InvokeServiceEventHandler(GetEndpoints), new InvokeServiceAsyncEventHandler(GetEndpointsAsync)));
+            #elif (!OPCUA_EXCLUDE_GetEndpoints)
             SupportedServices.Add(DataTypeIds.GetEndpointsRequest, new ServiceDefinition(typeof(GetEndpointsRequest), new InvokeServiceEventHandler(GetEndpoints)));
             #endif
-            #if (!OPCUA_EXCLUDE_CreateSession)
+            #if (!OPCUA_EXCLUDE_CreateSession && !OPCUA_EXCLUDE_CreateSession_ASYNC)
+            SupportedServices.Add(DataTypeIds.CreateSessionRequest, new ServiceDefinition(typeof(CreateSessionRequest), new InvokeServiceEventHandler(CreateSession), new InvokeServiceAsyncEventHandler(CreateSessionAsync)));
+            #elif (!OPCUA_EXCLUDE_CreateSession)
             SupportedServices.Add(DataTypeIds.CreateSessionRequest, new ServiceDefinition(typeof(CreateSessionRequest), new InvokeServiceEventHandler(CreateSession)));
             #endif
-            #if (!OPCUA_EXCLUDE_ActivateSession)
+            #if (!OPCUA_EXCLUDE_ActivateSession && !OPCUA_EXCLUDE_ActivateSession_ASYNC)
+            SupportedServices.Add(DataTypeIds.ActivateSessionRequest, new ServiceDefinition(typeof(ActivateSessionRequest), new InvokeServiceEventHandler(ActivateSession), new InvokeServiceAsyncEventHandler(ActivateSessionAsync)));
+            #elif (!OPCUA_EXCLUDE_ActivateSession)
             SupportedServices.Add(DataTypeIds.ActivateSessionRequest, new ServiceDefinition(typeof(ActivateSessionRequest), new InvokeServiceEventHandler(ActivateSession)));
             #endif
-            #if (!OPCUA_EXCLUDE_CloseSession)
+            #if (!OPCUA_EXCLUDE_CloseSession && !OPCUA_EXCLUDE_CloseSession_ASYNC)
+            SupportedServices.Add(DataTypeIds.CloseSessionRequest, new ServiceDefinition(typeof(CloseSessionRequest), new InvokeServiceEventHandler(CloseSession), new InvokeServiceAsyncEventHandler(CloseSessionAsync)));
+            #elif (!OPCUA_EXCLUDE_CloseSession)
             SupportedServices.Add(DataTypeIds.CloseSessionRequest, new ServiceDefinition(typeof(CloseSessionRequest), new InvokeServiceEventHandler(CloseSession)));
             #endif
-            #if (!OPCUA_EXCLUDE_Cancel)
+            #if (!OPCUA_EXCLUDE_Cancel && !OPCUA_EXCLUDE_Cancel_ASYNC)
+            SupportedServices.Add(DataTypeIds.CancelRequest, new ServiceDefinition(typeof(CancelRequest), new InvokeServiceEventHandler(Cancel), new InvokeServiceAsyncEventHandler(CancelAsync)));
+            #elif (!OPCUA_EXCLUDE_Cancel)
             SupportedServices.Add(DataTypeIds.CancelRequest, new ServiceDefinition(typeof(CancelRequest), new InvokeServiceEventHandler(Cancel)));
             #endif
-            #if (!OPCUA_EXCLUDE_AddNodes)
+            #if (!OPCUA_EXCLUDE_AddNodes && !OPCUA_EXCLUDE_AddNodes_ASYNC)
+            SupportedServices.Add(DataTypeIds.AddNodesRequest, new ServiceDefinition(typeof(AddNodesRequest), new InvokeServiceEventHandler(AddNodes), new InvokeServiceAsyncEventHandler(AddNodesAsync)));
+            #elif (!OPCUA_EXCLUDE_AddNodes)
             SupportedServices.Add(DataTypeIds.AddNodesRequest, new ServiceDefinition(typeof(AddNodesRequest), new InvokeServiceEventHandler(AddNodes)));
             #endif
-            #if (!OPCUA_EXCLUDE_AddReferences)
+            #if (!OPCUA_EXCLUDE_AddReferences && !OPCUA_EXCLUDE_AddReferences_ASYNC)
+            SupportedServices.Add(DataTypeIds.AddReferencesRequest, new ServiceDefinition(typeof(AddReferencesRequest), new InvokeServiceEventHandler(AddReferences), new InvokeServiceAsyncEventHandler(AddReferencesAsync)));
+            #elif (!OPCUA_EXCLUDE_AddReferences)
             SupportedServices.Add(DataTypeIds.AddReferencesRequest, new ServiceDefinition(typeof(AddReferencesRequest), new InvokeServiceEventHandler(AddReferences)));
             #endif
-            #if (!OPCUA_EXCLUDE_DeleteNodes)
+            #if (!OPCUA_EXCLUDE_DeleteNodes && !OPCUA_EXCLUDE_DeleteNodes_ASYNC)
+            SupportedServices.Add(DataTypeIds.DeleteNodesRequest, new ServiceDefinition(typeof(DeleteNodesRequest), new InvokeServiceEventHandler(DeleteNodes), new InvokeServiceAsyncEventHandler(DeleteNodesAsync)));
+            #elif (!OPCUA_EXCLUDE_DeleteNodes)
             SupportedServices.Add(DataTypeIds.DeleteNodesRequest, new ServiceDefinition(typeof(DeleteNodesRequest), new InvokeServiceEventHandler(DeleteNodes)));
             #endif
-            #if (!OPCUA_EXCLUDE_DeleteReferences)
+            #if (!OPCUA_EXCLUDE_DeleteReferences && !OPCUA_EXCLUDE_DeleteReferences_ASYNC)
+            SupportedServices.Add(DataTypeIds.DeleteReferencesRequest, new ServiceDefinition(typeof(DeleteReferencesRequest), new InvokeServiceEventHandler(DeleteReferences), new InvokeServiceAsyncEventHandler(DeleteReferencesAsync)));
+            #elif (!OPCUA_EXCLUDE_DeleteReferences)
             SupportedServices.Add(DataTypeIds.DeleteReferencesRequest, new ServiceDefinition(typeof(DeleteReferencesRequest), new InvokeServiceEventHandler(DeleteReferences)));
             #endif
-            #if (!OPCUA_EXCLUDE_Browse)
+            #if (!OPCUA_EXCLUDE_Browse && !OPCUA_EXCLUDE_Browse_ASYNC)
+            SupportedServices.Add(DataTypeIds.BrowseRequest, new ServiceDefinition(typeof(BrowseRequest), new InvokeServiceEventHandler(Browse), new InvokeServiceAsyncEventHandler(BrowseAsync)));
+            #elif (!OPCUA_EXCLUDE_Browse)
             SupportedServices.Add(DataTypeIds.BrowseRequest, new ServiceDefinition(typeof(BrowseRequest), new InvokeServiceEventHandler(Browse)));
             #endif
-            #if (!OPCUA_EXCLUDE_BrowseNext)
+            #if (!OPCUA_EXCLUDE_BrowseNext && !OPCUA_EXCLUDE_BrowseNext_ASYNC)
+            SupportedServices.Add(DataTypeIds.BrowseNextRequest, new ServiceDefinition(typeof(BrowseNextRequest), new InvokeServiceEventHandler(BrowseNext), new InvokeServiceAsyncEventHandler(BrowseNextAsync)));
+            #elif (!OPCUA_EXCLUDE_BrowseNext)
             SupportedServices.Add(DataTypeIds.BrowseNextRequest, new ServiceDefinition(typeof(BrowseNextRequest), new InvokeServiceEventHandler(BrowseNext)));
             #endif
-            #if (!OPCUA_EXCLUDE_TranslateBrowsePathsToNodeIds)
+            #if (!OPCUA_EXCLUDE_TranslateBrowsePathsToNodeIds && !OPCUA_EXCLUDE_TranslateBrowsePathsToNodeIds_ASYNC)
+            SupportedServices.Add(DataTypeIds.TranslateBrowsePathsToNodeIdsRequest, new ServiceDefinition(typeof(TranslateBrowsePathsToNodeIdsRequest), new InvokeServiceEventHandler(TranslateBrowsePathsToNodeIds), new InvokeServiceAsyncEventHandler(TranslateBrowsePathsToNodeIdsAsync)));
+            #elif (!OPCUA_EXCLUDE_TranslateBrowsePathsToNodeIds)
             SupportedServices.Add(DataTypeIds.TranslateBrowsePathsToNodeIdsRequest, new ServiceDefinition(typeof(TranslateBrowsePathsToNodeIdsRequest), new InvokeServiceEventHandler(TranslateBrowsePathsToNodeIds)));
             #endif
-            #if (!OPCUA_EXCLUDE_RegisterNodes)
+            #if (!OPCUA_EXCLUDE_RegisterNodes && !OPCUA_EXCLUDE_RegisterNodes_ASYNC)
+            SupportedServices.Add(DataTypeIds.RegisterNodesRequest, new ServiceDefinition(typeof(RegisterNodesRequest), new InvokeServiceEventHandler(RegisterNodes), new InvokeServiceAsyncEventHandler(RegisterNodesAsync)));
+            #elif (!OPCUA_EXCLUDE_RegisterNodes)
             SupportedServices.Add(DataTypeIds.RegisterNodesRequest, new ServiceDefinition(typeof(RegisterNodesRequest), new InvokeServiceEventHandler(RegisterNodes)));
             #endif
-            #if (!OPCUA_EXCLUDE_UnregisterNodes)
+            #if (!OPCUA_EXCLUDE_UnregisterNodes && !OPCUA_EXCLUDE_UnregisterNodes_ASYNC)
+            SupportedServices.Add(DataTypeIds.UnregisterNodesRequest, new ServiceDefinition(typeof(UnregisterNodesRequest), new InvokeServiceEventHandler(UnregisterNodes), new InvokeServiceAsyncEventHandler(UnregisterNodesAsync)));
+            #elif (!OPCUA_EXCLUDE_UnregisterNodes)
             SupportedServices.Add(DataTypeIds.UnregisterNodesRequest, new ServiceDefinition(typeof(UnregisterNodesRequest), new InvokeServiceEventHandler(UnregisterNodes)));
             #endif
-            #if (!OPCUA_EXCLUDE_QueryFirst)
+            #if (!OPCUA_EXCLUDE_QueryFirst && !OPCUA_EXCLUDE_QueryFirst_ASYNC)
+            SupportedServices.Add(DataTypeIds.QueryFirstRequest, new ServiceDefinition(typeof(QueryFirstRequest), new InvokeServiceEventHandler(QueryFirst), new InvokeServiceAsyncEventHandler(QueryFirstAsync)));
+            #elif (!OPCUA_EXCLUDE_QueryFirst)
             SupportedServices.Add(DataTypeIds.QueryFirstRequest, new ServiceDefinition(typeof(QueryFirstRequest), new InvokeServiceEventHandler(QueryFirst)));
             #endif
-            #if (!OPCUA_EXCLUDE_QueryNext)
+            #if (!OPCUA_EXCLUDE_QueryNext && !OPCUA_EXCLUDE_QueryNext_ASYNC)
+            SupportedServices.Add(DataTypeIds.QueryNextRequest, new ServiceDefinition(typeof(QueryNextRequest), new InvokeServiceEventHandler(QueryNext), new InvokeServiceAsyncEventHandler(QueryNextAsync)));
+            #elif (!OPCUA_EXCLUDE_QueryNext)
             SupportedServices.Add(DataTypeIds.QueryNextRequest, new ServiceDefinition(typeof(QueryNextRequest), new InvokeServiceEventHandler(QueryNext)));
             #endif
-            #if (!OPCUA_EXCLUDE_Read)
+            #if (!OPCUA_EXCLUDE_Read && !OPCUA_EXCLUDE_Read_ASYNC)
+            SupportedServices.Add(DataTypeIds.ReadRequest, new ServiceDefinition(typeof(ReadRequest), new InvokeServiceEventHandler(Read), new InvokeServiceAsyncEventHandler(ReadAsync)));
+            #elif (!OPCUA_EXCLUDE_Read)
             SupportedServices.Add(DataTypeIds.ReadRequest, new ServiceDefinition(typeof(ReadRequest), new InvokeServiceEventHandler(Read)));
             #endif
-            #if (!OPCUA_EXCLUDE_HistoryRead)
+            #if (!OPCUA_EXCLUDE_HistoryRead && !OPCUA_EXCLUDE_HistoryRead_ASYNC)
+            SupportedServices.Add(DataTypeIds.HistoryReadRequest, new ServiceDefinition(typeof(HistoryReadRequest), new InvokeServiceEventHandler(HistoryRead), new InvokeServiceAsyncEventHandler(HistoryReadAsync)));
+            #elif (!OPCUA_EXCLUDE_HistoryRead)
             SupportedServices.Add(DataTypeIds.HistoryReadRequest, new ServiceDefinition(typeof(HistoryReadRequest), new InvokeServiceEventHandler(HistoryRead)));
             #endif
-            #if (!OPCUA_EXCLUDE_Write)
+            #if (!OPCUA_EXCLUDE_Write && !OPCUA_EXCLUDE_Write_ASYNC)
+            SupportedServices.Add(DataTypeIds.WriteRequest, new ServiceDefinition(typeof(WriteRequest), new InvokeServiceEventHandler(Write), new InvokeServiceAsyncEventHandler(WriteAsync)));
+            #elif (!OPCUA_EXCLUDE_Write)
             SupportedServices.Add(DataTypeIds.WriteRequest, new ServiceDefinition(typeof(WriteRequest), new InvokeServiceEventHandler(Write)));
             #endif
-            #if (!OPCUA_EXCLUDE_HistoryUpdate)
+            #if (!OPCUA_EXCLUDE_HistoryUpdate && !OPCUA_EXCLUDE_HistoryUpdate_ASYNC)
+            SupportedServices.Add(DataTypeIds.HistoryUpdateRequest, new ServiceDefinition(typeof(HistoryUpdateRequest), new InvokeServiceEventHandler(HistoryUpdate), new InvokeServiceAsyncEventHandler(HistoryUpdateAsync)));
+            #elif (!OPCUA_EXCLUDE_HistoryUpdate)
             SupportedServices.Add(DataTypeIds.HistoryUpdateRequest, new ServiceDefinition(typeof(HistoryUpdateRequest), new InvokeServiceEventHandler(HistoryUpdate)));
             #endif
-            #if (!OPCUA_EXCLUDE_Call)
+            #if (!OPCUA_EXCLUDE_Call && !OPCUA_EXCLUDE_Call_ASYNC)
+            SupportedServices.Add(DataTypeIds.CallRequest, new ServiceDefinition(typeof(CallRequest), new InvokeServiceEventHandler(Call), new InvokeServiceAsyncEventHandler(CallAsync)));
+            #elif (!OPCUA_EXCLUDE_Call)
             SupportedServices.Add(DataTypeIds.CallRequest, new ServiceDefinition(typeof(CallRequest), new InvokeServiceEventHandler(Call)));
             #endif
-            #if (!OPCUA_EXCLUDE_CreateMonitoredItems)
+            #if (!OPCUA_EXCLUDE_CreateMonitoredItems && !OPCUA_EXCLUDE_CreateMonitoredItems_ASYNC)
+            SupportedServices.Add(DataTypeIds.CreateMonitoredItemsRequest, new ServiceDefinition(typeof(CreateMonitoredItemsRequest), new InvokeServiceEventHandler(CreateMonitoredItems), new InvokeServiceAsyncEventHandler(CreateMonitoredItemsAsync)));
+            #elif (!OPCUA_EXCLUDE_CreateMonitoredItems)
             SupportedServices.Add(DataTypeIds.CreateMonitoredItemsRequest, new ServiceDefinition(typeof(CreateMonitoredItemsRequest), new InvokeServiceEventHandler(CreateMonitoredItems)));
             #endif
-            #if (!OPCUA_EXCLUDE_ModifyMonitoredItems)
+            #if (!OPCUA_EXCLUDE_ModifyMonitoredItems && !OPCUA_EXCLUDE_ModifyMonitoredItems_ASYNC)
+            SupportedServices.Add(DataTypeIds.ModifyMonitoredItemsRequest, new ServiceDefinition(typeof(ModifyMonitoredItemsRequest), new InvokeServiceEventHandler(ModifyMonitoredItems), new InvokeServiceAsyncEventHandler(ModifyMonitoredItemsAsync)));
+            #elif (!OPCUA_EXCLUDE_ModifyMonitoredItems)
             SupportedServices.Add(DataTypeIds.ModifyMonitoredItemsRequest, new ServiceDefinition(typeof(ModifyMonitoredItemsRequest), new InvokeServiceEventHandler(ModifyMonitoredItems)));
             #endif
-            #if (!OPCUA_EXCLUDE_SetMonitoringMode)
+            #if (!OPCUA_EXCLUDE_SetMonitoringMode && !OPCUA_EXCLUDE_SetMonitoringMode_ASYNC)
+            SupportedServices.Add(DataTypeIds.SetMonitoringModeRequest, new ServiceDefinition(typeof(SetMonitoringModeRequest), new InvokeServiceEventHandler(SetMonitoringMode), new InvokeServiceAsyncEventHandler(SetMonitoringModeAsync)));
+            #elif (!OPCUA_EXCLUDE_SetMonitoringMode)
             SupportedServices.Add(DataTypeIds.SetMonitoringModeRequest, new ServiceDefinition(typeof(SetMonitoringModeRequest), new InvokeServiceEventHandler(SetMonitoringMode)));
             #endif
-            #if (!OPCUA_EXCLUDE_SetTriggering)
+            #if (!OPCUA_EXCLUDE_SetTriggering && !OPCUA_EXCLUDE_SetTriggering_ASYNC)
+            SupportedServices.Add(DataTypeIds.SetTriggeringRequest, new ServiceDefinition(typeof(SetTriggeringRequest), new InvokeServiceEventHandler(SetTriggering), new InvokeServiceAsyncEventHandler(SetTriggeringAsync)));
+            #elif (!OPCUA_EXCLUDE_SetTriggering)
             SupportedServices.Add(DataTypeIds.SetTriggeringRequest, new ServiceDefinition(typeof(SetTriggeringRequest), new InvokeServiceEventHandler(SetTriggering)));
             #endif
-            #if (!OPCUA_EXCLUDE_DeleteMonitoredItems)
+            #if (!OPCUA_EXCLUDE_DeleteMonitoredItems && !OPCUA_EXCLUDE_DeleteMonitoredItems_ASYNC)
+            SupportedServices.Add(DataTypeIds.DeleteMonitoredItemsRequest, new ServiceDefinition(typeof(DeleteMonitoredItemsRequest), new InvokeServiceEventHandler(DeleteMonitoredItems), new InvokeServiceAsyncEventHandler(DeleteMonitoredItemsAsync)));
+            #elif (!OPCUA_EXCLUDE_DeleteMonitoredItems)
             SupportedServices.Add(DataTypeIds.DeleteMonitoredItemsRequest, new ServiceDefinition(typeof(DeleteMonitoredItemsRequest), new InvokeServiceEventHandler(DeleteMonitoredItems)));
             #endif
-            #if (!OPCUA_EXCLUDE_CreateSubscription)
+            #if (!OPCUA_EXCLUDE_CreateSubscription && !OPCUA_EXCLUDE_CreateSubscription_ASYNC)
+            SupportedServices.Add(DataTypeIds.CreateSubscriptionRequest, new ServiceDefinition(typeof(CreateSubscriptionRequest), new InvokeServiceEventHandler(CreateSubscription), new InvokeServiceAsyncEventHandler(CreateSubscriptionAsync)));
+            #elif (!OPCUA_EXCLUDE_CreateSubscription)
             SupportedServices.Add(DataTypeIds.CreateSubscriptionRequest, new ServiceDefinition(typeof(CreateSubscriptionRequest), new InvokeServiceEventHandler(CreateSubscription)));
             #endif
-            #if (!OPCUA_EXCLUDE_ModifySubscription)
+            #if (!OPCUA_EXCLUDE_ModifySubscription && !OPCUA_EXCLUDE_ModifySubscription_ASYNC)
+            SupportedServices.Add(DataTypeIds.ModifySubscriptionRequest, new ServiceDefinition(typeof(ModifySubscriptionRequest), new InvokeServiceEventHandler(ModifySubscription), new InvokeServiceAsyncEventHandler(ModifySubscriptionAsync)));
+            #elif (!OPCUA_EXCLUDE_ModifySubscription)
             SupportedServices.Add(DataTypeIds.ModifySubscriptionRequest, new ServiceDefinition(typeof(ModifySubscriptionRequest), new InvokeServiceEventHandler(ModifySubscription)));
             #endif
-            #if (!OPCUA_EXCLUDE_SetPublishingMode)
+            #if (!OPCUA_EXCLUDE_SetPublishingMode && !OPCUA_EXCLUDE_SetPublishingMode_ASYNC)
+            SupportedServices.Add(DataTypeIds.SetPublishingModeRequest, new ServiceDefinition(typeof(SetPublishingModeRequest), new InvokeServiceEventHandler(SetPublishingMode), new InvokeServiceAsyncEventHandler(SetPublishingModeAsync)));
+            #elif (!OPCUA_EXCLUDE_SetPublishingMode)
             SupportedServices.Add(DataTypeIds.SetPublishingModeRequest, new ServiceDefinition(typeof(SetPublishingModeRequest), new InvokeServiceEventHandler(SetPublishingMode)));
             #endif
-            #if (!OPCUA_EXCLUDE_Publish)
+            #if (!OPCUA_EXCLUDE_Publish && !OPCUA_EXCLUDE_Publish_ASYNC)
+            SupportedServices.Add(DataTypeIds.PublishRequest, new ServiceDefinition(typeof(PublishRequest), new InvokeServiceEventHandler(Publish), new InvokeServiceAsyncEventHandler(PublishAsync)));
+            #elif (!OPCUA_EXCLUDE_Publish)
             SupportedServices.Add(DataTypeIds.PublishRequest, new ServiceDefinition(typeof(PublishRequest), new InvokeServiceEventHandler(Publish)));
             #endif
-            #if (!OPCUA_EXCLUDE_Republish)
+            #if (!OPCUA_EXCLUDE_Republish && !OPCUA_EXCLUDE_Republish_ASYNC)
+            SupportedServices.Add(DataTypeIds.RepublishRequest, new ServiceDefinition(typeof(RepublishRequest), new InvokeServiceEventHandler(Republish), new InvokeServiceAsyncEventHandler(RepublishAsync)));
+            #elif (!OPCUA_EXCLUDE_Republish)
             SupportedServices.Add(DataTypeIds.RepublishRequest, new ServiceDefinition(typeof(RepublishRequest), new InvokeServiceEventHandler(Republish)));
             #endif
-            #if (!OPCUA_EXCLUDE_TransferSubscriptions)
+            #if (!OPCUA_EXCLUDE_TransferSubscriptions && !OPCUA_EXCLUDE_TransferSubscriptions_ASYNC)
+            SupportedServices.Add(DataTypeIds.TransferSubscriptionsRequest, new ServiceDefinition(typeof(TransferSubscriptionsRequest), new InvokeServiceEventHandler(TransferSubscriptions), new InvokeServiceAsyncEventHandler(TransferSubscriptionsAsync)));
+            #elif (!OPCUA_EXCLUDE_TransferSubscriptions)
             SupportedServices.Add(DataTypeIds.TransferSubscriptionsRequest, new ServiceDefinition(typeof(TransferSubscriptionsRequest), new InvokeServiceEventHandler(TransferSubscriptions)));
             #endif
-            #if (!OPCUA_EXCLUDE_DeleteSubscriptions)
+            #if (!OPCUA_EXCLUDE_DeleteSubscriptions && !OPCUA_EXCLUDE_DeleteSubscriptions_ASYNC)
+            SupportedServices.Add(DataTypeIds.DeleteSubscriptionsRequest, new ServiceDefinition(typeof(DeleteSubscriptionsRequest), new InvokeServiceEventHandler(DeleteSubscriptions), new InvokeServiceAsyncEventHandler(DeleteSubscriptionsAsync)));
+            #elif (!OPCUA_EXCLUDE_DeleteSubscriptions)
             SupportedServices.Add(DataTypeIds.DeleteSubscriptionsRequest, new ServiceDefinition(typeof(DeleteSubscriptionsRequest), new InvokeServiceEventHandler(DeleteSubscriptions)));
             #endif
         }
@@ -4425,7 +5494,36 @@ namespace Opc.Ua
                 throw fault;
             }
         }
+        #endif
 
+        #if (!OPCUA_EXCLUDE_FindServers_ASYNC)
+        /// <summary>
+        /// Invokes the FindServers service.
+        /// </summary>
+        public async Task<IServiceResponse> FindServersAsync(IServiceRequest incoming, CancellationToken cancellationToken = default)
+        {
+            FindServersResponse response = null;
+
+            try
+            {
+                OnRequestReceived(incoming);
+
+                FindServersRequest request = (FindServersRequest)incoming;
+
+                response = await ServerInstance.FindServersAsync(
+                   request.RequestHeader,
+                   request.EndpointUrl,
+                   request.LocaleIds,
+                   request.ServerUris,cancellationToken);
+
+            }
+            finally
+            {
+                OnResponseSent(response);
+            }
+
+            return response;
+        }
         #endif
         #endif
         #endregion
@@ -4540,7 +5638,36 @@ namespace Opc.Ua
                 throw fault;
             }
         }
+        #endif
 
+        #if (!OPCUA_EXCLUDE_FindServersOnNetwork_ASYNC)
+        /// <summary>
+        /// Invokes the FindServersOnNetwork service.
+        /// </summary>
+        public async Task<IServiceResponse> FindServersOnNetworkAsync(IServiceRequest incoming, CancellationToken cancellationToken = default)
+        {
+            FindServersOnNetworkResponse response = null;
+
+            try
+            {
+                OnRequestReceived(incoming);
+
+                FindServersOnNetworkRequest request = (FindServersOnNetworkRequest)incoming;
+
+                response = await ServerInstance.FindServersOnNetworkAsync(
+                   request.RequestHeader,
+                   request.StartingRecordId,
+                   request.MaxRecordsToReturn,
+                   request.ServerCapabilityFilter,cancellationToken);
+
+            }
+            finally
+            {
+                OnResponseSent(response);
+            }
+
+            return response;
+        }
         #endif
         #endif
         #endregion
@@ -4652,7 +5779,36 @@ namespace Opc.Ua
                 throw fault;
             }
         }
+        #endif
 
+        #if (!OPCUA_EXCLUDE_GetEndpoints_ASYNC)
+        /// <summary>
+        /// Invokes the GetEndpoints service.
+        /// </summary>
+        public async Task<IServiceResponse> GetEndpointsAsync(IServiceRequest incoming, CancellationToken cancellationToken = default)
+        {
+            GetEndpointsResponse response = null;
+
+            try
+            {
+                OnRequestReceived(incoming);
+
+                GetEndpointsRequest request = (GetEndpointsRequest)incoming;
+
+                response = await ServerInstance.GetEndpointsAsync(
+                   request.RequestHeader,
+                   request.EndpointUrl,
+                   request.LocaleIds,
+                   request.ProfileUris,cancellationToken);
+
+            }
+            finally
+            {
+                OnResponseSent(response);
+            }
+
+            return response;
+        }
         #endif
         #endif
         #endregion
@@ -4759,7 +5915,34 @@ namespace Opc.Ua
                 throw fault;
             }
         }
+        #endif
 
+        #if (!OPCUA_EXCLUDE_RegisterServer_ASYNC)
+        /// <summary>
+        /// Invokes the RegisterServer service.
+        /// </summary>
+        public async Task<IServiceResponse> RegisterServerAsync(IServiceRequest incoming, CancellationToken cancellationToken = default)
+        {
+            RegisterServerResponse response = null;
+
+            try
+            {
+                OnRequestReceived(incoming);
+
+                RegisterServerRequest request = (RegisterServerRequest)incoming;
+
+                response = await ServerInstance.RegisterServerAsync(
+                   request.RequestHeader,
+                   request.Server,cancellationToken);
+
+            }
+            finally
+            {
+                OnResponseSent(response);
+            }
+
+            return response;
+        }
         #endif
         #endif
         #endregion
@@ -4873,7 +6056,35 @@ namespace Opc.Ua
                 throw fault;
             }
         }
+        #endif
 
+        #if (!OPCUA_EXCLUDE_RegisterServer2_ASYNC)
+        /// <summary>
+        /// Invokes the RegisterServer2 service.
+        /// </summary>
+        public async Task<IServiceResponse> RegisterServer2Async(IServiceRequest incoming, CancellationToken cancellationToken = default)
+        {
+            RegisterServer2Response response = null;
+
+            try
+            {
+                OnRequestReceived(incoming);
+
+                RegisterServer2Request request = (RegisterServer2Request)incoming;
+
+                response = await ServerInstance.RegisterServer2Async(
+                   request.RequestHeader,
+                   request.Server,
+                   request.DiscoveryConfiguration,cancellationToken);
+
+            }
+            finally
+            {
+                OnResponseSent(response);
+            }
+
+            return response;
+        }
         #endif
         #endif
         #endregion
@@ -4885,19 +6096,29 @@ namespace Opc.Ua
         /// </summary>
         protected virtual void CreateKnownTypes()
         {
-            #if (!OPCUA_EXCLUDE_FindServers)
+            #if (!OPCUA_EXCLUDE_FindServers && !OPCUA_EXCLUDE_FindServers_ASYNC)
+            SupportedServices.Add(DataTypeIds.FindServersRequest, new ServiceDefinition(typeof(FindServersRequest), new InvokeServiceEventHandler(FindServers), new InvokeServiceAsyncEventHandler(FindServersAsync)));
+            #elif (!OPCUA_EXCLUDE_FindServers)
             SupportedServices.Add(DataTypeIds.FindServersRequest, new ServiceDefinition(typeof(FindServersRequest), new InvokeServiceEventHandler(FindServers)));
             #endif
-            #if (!OPCUA_EXCLUDE_FindServersOnNetwork)
+            #if (!OPCUA_EXCLUDE_FindServersOnNetwork && !OPCUA_EXCLUDE_FindServersOnNetwork_ASYNC)
+            SupportedServices.Add(DataTypeIds.FindServersOnNetworkRequest, new ServiceDefinition(typeof(FindServersOnNetworkRequest), new InvokeServiceEventHandler(FindServersOnNetwork), new InvokeServiceAsyncEventHandler(FindServersOnNetworkAsync)));
+            #elif (!OPCUA_EXCLUDE_FindServersOnNetwork)
             SupportedServices.Add(DataTypeIds.FindServersOnNetworkRequest, new ServiceDefinition(typeof(FindServersOnNetworkRequest), new InvokeServiceEventHandler(FindServersOnNetwork)));
             #endif
-            #if (!OPCUA_EXCLUDE_GetEndpoints)
+            #if (!OPCUA_EXCLUDE_GetEndpoints && !OPCUA_EXCLUDE_GetEndpoints_ASYNC)
+            SupportedServices.Add(DataTypeIds.GetEndpointsRequest, new ServiceDefinition(typeof(GetEndpointsRequest), new InvokeServiceEventHandler(GetEndpoints), new InvokeServiceAsyncEventHandler(GetEndpointsAsync)));
+            #elif (!OPCUA_EXCLUDE_GetEndpoints)
             SupportedServices.Add(DataTypeIds.GetEndpointsRequest, new ServiceDefinition(typeof(GetEndpointsRequest), new InvokeServiceEventHandler(GetEndpoints)));
             #endif
-            #if (!OPCUA_EXCLUDE_RegisterServer)
+            #if (!OPCUA_EXCLUDE_RegisterServer && !OPCUA_EXCLUDE_RegisterServer_ASYNC)
+            SupportedServices.Add(DataTypeIds.RegisterServerRequest, new ServiceDefinition(typeof(RegisterServerRequest), new InvokeServiceEventHandler(RegisterServer), new InvokeServiceAsyncEventHandler(RegisterServerAsync)));
+            #elif (!OPCUA_EXCLUDE_RegisterServer)
             SupportedServices.Add(DataTypeIds.RegisterServerRequest, new ServiceDefinition(typeof(RegisterServerRequest), new InvokeServiceEventHandler(RegisterServer)));
             #endif
-            #if (!OPCUA_EXCLUDE_RegisterServer2)
+            #if (!OPCUA_EXCLUDE_RegisterServer2 && !OPCUA_EXCLUDE_RegisterServer2_ASYNC)
+            SupportedServices.Add(DataTypeIds.RegisterServer2Request, new ServiceDefinition(typeof(RegisterServer2Request), new InvokeServiceEventHandler(RegisterServer2), new InvokeServiceAsyncEventHandler(RegisterServer2Async)));
+            #elif (!OPCUA_EXCLUDE_RegisterServer2)
             SupportedServices.Add(DataTypeIds.RegisterServer2Request, new ServiceDefinition(typeof(RegisterServer2Request), new InvokeServiceEventHandler(RegisterServer2)));
             #endif
         }

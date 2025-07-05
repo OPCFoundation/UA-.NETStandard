@@ -30,6 +30,8 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Opc.Ua.Server
 {
@@ -367,6 +369,21 @@ namespace Opc.Ua.Server
             BrowseResultMask resultMask,
             Dictionary<NodeId, List<object>> uniqueNodesServiceAttributesCache,
             bool permissionsOnly);
+    }
+    /// <summary>
+    /// An asynchronous verson of the <see cref="INodeManager2"/> interface.
+    /// </summary>
+    public interface IAsyncNodeManager : INodeManager2
+    {
+        /// <summary>
+        /// Asycnhronously calls a method defined on an object.
+        /// </summary>
+        ValueTask CallAsync(
+            OperationContext context,
+            IList<CallMethodRequest> methodsToCall,
+            IList<CallMethodResult> results,
+            IList<ServiceResult> errors,
+            CancellationToken cancellationToken = default);
     }
 
     /// <summary>
