@@ -988,7 +988,7 @@ namespace Opc.Ua.Server
 
                         lock (DiagnosticsWriteLock)
                         {
-                            m_diagnostics.DataChangeNotificationsCount += (uint)dataChangeCount;
+                            m_diagnostics.DataChangeNotificationsCount += (uint)(dataChangeCount - datachanges.Count);
                             m_diagnostics.EventNotificationsCount += (uint)(eventCount - events.Count);
                             m_diagnostics.NotificationsCount += (uint)notificationCount;
                         }
@@ -1023,7 +1023,7 @@ namespace Opc.Ua.Server
 
                     lock (DiagnosticsWriteLock)
                     {
-                        m_diagnostics.DataChangeNotificationsCount += (uint)dataChangeCount;
+                        m_diagnostics.DataChangeNotificationsCount += (uint)(dataChangeCount - datachanges.Count);
                         m_diagnostics.EventNotificationsCount += (uint)(eventCount - events.Count);
                         m_diagnostics.NotificationsCount += (uint)notificationCount;
                     }
