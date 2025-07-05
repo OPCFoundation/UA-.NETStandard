@@ -2984,7 +2984,7 @@ namespace Opc.Ua.Server
                     methodToCall,
                     method,
                     result,
-                    cancellationToken);
+                    cancellationToken).ConfigureAwait(false);
                 }
             }
         }
@@ -3023,7 +3023,7 @@ namespace Opc.Ua.Server
                    methodToCall.InputArguments,
                    argumentErrors,
                    outputArguments,
-                   cancellationToken);
+                   cancellationToken).ConfigureAwait(false);
             }
 
             if (ServiceResult.IsBad(callResult))

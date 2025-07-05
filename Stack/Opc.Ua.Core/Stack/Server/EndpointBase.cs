@@ -729,7 +729,7 @@ namespace Opc.Ua
 
                 if (asyncHandler != null)
                 {
-                    return await asyncHandler(request, cancellationToken);
+                    return await asyncHandler(request, cancellationToken).ConfigureAwait(false);
                 }
 
                 var syncHandler = m_InvokeService;

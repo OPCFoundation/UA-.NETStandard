@@ -2328,7 +2328,7 @@ namespace Opc.Ua.Server
                 (CallMethodResultCollection results, DiagnosticInfoCollection diagnosticInfos) =
                     await m_serverInternal.NodeManager.CallAsync(
                         context,
-                        methodsToCall);
+                        methodsToCall).ConfigureAwait(false);
 
                 return new CallResponse {
                     Results = results,

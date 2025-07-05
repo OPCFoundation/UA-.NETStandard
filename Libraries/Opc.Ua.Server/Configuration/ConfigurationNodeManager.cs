@@ -582,7 +582,7 @@ namespace Opc.Ua.Server
                             updateCertificate.CertificateWithPrivateKey.Dispose();
                             updateCertificate.CertificateWithPrivateKey = certOnly;
                             //update certificate identifier with new certificate
-                            await existingCertIdentifier.Find(m_configuration.ApplicationUri);
+                            await existingCertIdentifier.Find(m_configuration.ApplicationUri).ConfigureAwait(false);
                         }
 
                         ICertificateStore issuerStore = certificateGroup.IssuerStore.OpenStore();

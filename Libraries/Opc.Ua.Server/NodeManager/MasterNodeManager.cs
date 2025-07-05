@@ -2165,7 +2165,7 @@ namespace Opc.Ua.Server
                                 methodsToCall,
                                 results,
                                 errors,
-                                cancellationToken);
+                                cancellationToken).ConfigureAwait(false);
                         }
                     }
                     else
