@@ -1804,14 +1804,17 @@ namespace Opc.Ua
                 {
                     m_stopped = true;
                     m_cts.Cancel();
-                    m_queueSignal.Release(m_totalThreadCount); // Unblock all workers
 
-                    try
+                    if (m_totalThreadCount > 0)
                     {
-                        Task.WaitAll(m_workers.ToArray(), TimeSpan.FromSeconds(5));
-                    }
-                    catch { /* Ignore exceptions on shutdown */ }
+                        m_queueSignal.Release(m_totalThreadCount); // Unblock all workers
 
+                        try
+                        {
+                            Task.WaitAll(m_workers.ToArray(), TimeSpan.FromSeconds(1));
+                        }
+                        catch { /* Ignore exceptions on shutdown */ }
+                    }
                     m_queueSignal.Dispose();
 #if NETSTANDARD2_1_OR_GREATER
                     m_queue.Clear();
@@ -1871,7 +1874,7 @@ namespace Opc.Ua
                             //end loop if no requests and we have enough threads
                             return;
                         }
-                        
+
                         //process request from queue
                         if (m_queue.TryDequeue(out var request))
                         {
@@ -1918,7 +1921,7 @@ namespace Opc.Ua
             private bool m_stopped;
             #endregion
         }
-#endregion
+        #endregion
 
         #region Private Fields
         private object m_messageContext;
