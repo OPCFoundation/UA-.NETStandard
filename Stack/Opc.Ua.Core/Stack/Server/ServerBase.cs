@@ -511,7 +511,7 @@ namespace Opc.Ua
 
             if (m_requestQueue != null)
             {
-                m_requestQueue.Dispose();
+                Utils.SilentDispose(m_requestQueue);
             }
 
             m_requestQueue = new AsyncRequestQueue(this, minRequestThreadCount, maxRequestThreadCount, maxQueuedRequestCount);
@@ -1808,12 +1808,6 @@ namespace Opc.Ua
                     if (m_totalThreadCount > 0)
                     {
                         m_queueSignal.Release(m_totalThreadCount); // Unblock all workers
-
-                        try
-                        {
-                            Task.WaitAll(m_workers.ToArray(), TimeSpan.FromSeconds(1));
-                        }
-                        catch { /* Ignore exceptions on shutdown */ }
                     }
                     m_queueSignal.Dispose();
 #if NETSTANDARD2_1_OR_GREATER
