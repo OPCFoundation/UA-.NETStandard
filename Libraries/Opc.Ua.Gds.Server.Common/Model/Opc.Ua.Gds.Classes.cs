@@ -33,6 +33,8 @@ using System.Text;
 using System.Xml;
 using System.Linq;
 using System.Runtime.Serialization;
+using System.Threading.Tasks;
+using System.Threading;
 using Opc.Ua;
 
 namespace Opc.Ua.Gds
@@ -86,6 +88,9 @@ namespace Opc.Ua.Gds
         #region Event Callbacks
         /// <remarks />
         public FindApplicationsMethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public FindApplicationsMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -124,6 +129,44 @@ namespace Opc.Ua.Gds
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken).ConfigureAwait(false);
+            }
+
+            FindApplicationsMethodStateResult _result = null;
+
+            string applicationUri = (string)_inputArguments[0];
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    applicationUri,
+                    cancellationToken).ConfigureAwait(false);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            _outputArguments[0] = _result.Applications;
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -138,6 +181,26 @@ namespace Opc.Ua.Gds
         NodeId _objectId,
         string applicationUri,
         ref ApplicationRecordDataType[] applications);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class FindApplicationsMethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+        /// <remarks />
+        public ApplicationRecordDataType[] Applications { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<FindApplicationsMethodStateResult> FindApplicationsMethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        string applicationUri,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -190,6 +253,9 @@ namespace Opc.Ua.Gds
         #region Event Callbacks
         /// <remarks />
         public RegisterApplicationMethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public RegisterApplicationMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -228,6 +294,44 @@ namespace Opc.Ua.Gds
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken).ConfigureAwait(false);
+            }
+
+            RegisterApplicationMethodStateResult _result = null;
+
+            ApplicationRecordDataType application = (ApplicationRecordDataType)ExtensionObject.ToEncodeable((ExtensionObject)_inputArguments[0]);
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    application,
+                    cancellationToken).ConfigureAwait(false);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            _outputArguments[0] = _result.ApplicationId;
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -242,6 +346,26 @@ namespace Opc.Ua.Gds
         NodeId _objectId,
         ApplicationRecordDataType application,
         ref NodeId applicationId);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class RegisterApplicationMethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+        /// <remarks />
+        public NodeId ApplicationId { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<RegisterApplicationMethodStateResult> RegisterApplicationMethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        ApplicationRecordDataType application,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -292,6 +416,9 @@ namespace Opc.Ua.Gds
         #region Event Callbacks
         /// <remarks />
         public UpdateApplicationMethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public UpdateApplicationMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -325,6 +452,42 @@ namespace Opc.Ua.Gds
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken).ConfigureAwait(false);
+            }
+
+            UpdateApplicationMethodStateResult _result = null;
+
+            ApplicationRecordDataType application = (ApplicationRecordDataType)ExtensionObject.ToEncodeable((ExtensionObject)_inputArguments[0]);
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    application,
+                    cancellationToken).ConfigureAwait(false);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -338,6 +501,24 @@ namespace Opc.Ua.Gds
         MethodState _method,
         NodeId _objectId,
         ApplicationRecordDataType application);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class UpdateApplicationMethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<UpdateApplicationMethodStateResult> UpdateApplicationMethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        ApplicationRecordDataType application,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -388,6 +569,9 @@ namespace Opc.Ua.Gds
         #region Event Callbacks
         /// <remarks />
         public UnregisterApplicationMethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public UnregisterApplicationMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -421,6 +605,42 @@ namespace Opc.Ua.Gds
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken).ConfigureAwait(false);
+            }
+
+            UnregisterApplicationMethodStateResult _result = null;
+
+            NodeId applicationId = (NodeId)_inputArguments[0];
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    applicationId,
+                    cancellationToken).ConfigureAwait(false);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -434,6 +654,24 @@ namespace Opc.Ua.Gds
         MethodState _method,
         NodeId _objectId,
         NodeId applicationId);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class UnregisterApplicationMethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<UnregisterApplicationMethodStateResult> UnregisterApplicationMethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        NodeId applicationId,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -486,6 +724,9 @@ namespace Opc.Ua.Gds
         #region Event Callbacks
         /// <remarks />
         public GetApplicationMethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public GetApplicationMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -524,6 +765,44 @@ namespace Opc.Ua.Gds
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken).ConfigureAwait(false);
+            }
+
+            GetApplicationMethodStateResult _result = null;
+
+            NodeId applicationId = (NodeId)_inputArguments[0];
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    applicationId,
+                    cancellationToken).ConfigureAwait(false);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            _outputArguments[0] = _result.Application;
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -538,6 +817,26 @@ namespace Opc.Ua.Gds
         NodeId _objectId,
         NodeId applicationId,
         ref ApplicationRecordDataType application);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class GetApplicationMethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+        /// <remarks />
+        public ApplicationRecordDataType Application { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<GetApplicationMethodStateResult> GetApplicationMethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        NodeId applicationId,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -595,6 +894,9 @@ namespace Opc.Ua.Gds
         #region Event Callbacks
         /// <remarks />
         public QueryApplicationsMethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public QueryApplicationsMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -651,6 +953,58 @@ namespace Opc.Ua.Gds
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken).ConfigureAwait(false);
+            }
+
+            QueryApplicationsMethodStateResult _result = null;
+
+            uint startingRecordId = (uint)_inputArguments[0];
+            uint maxRecordsToReturn = (uint)_inputArguments[1];
+            string applicationName = (string)_inputArguments[2];
+            string applicationUri = (string)_inputArguments[3];
+            uint applicationType = (uint)_inputArguments[4];
+            string productUri = (string)_inputArguments[5];
+            string[] capabilities = (string[])_inputArguments[6];
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    startingRecordId,
+                    maxRecordsToReturn,
+                    applicationName,
+                    applicationUri,
+                    applicationType,
+                    productUri,
+                    capabilities,
+                    cancellationToken).ConfigureAwait(false);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            _outputArguments[0] = _result.LastCounterResetTime;
+            _outputArguments[1] = _result.NextRecordId;
+            _outputArguments[2] = _result.Applications;
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -673,6 +1027,36 @@ namespace Opc.Ua.Gds
         ref DateTime lastCounterResetTime,
         ref uint nextRecordId,
         ref Opc.Ua.ApplicationDescription[] applications);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class QueryApplicationsMethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+        /// <remarks />
+        public DateTime LastCounterResetTime { get; set; }
+        /// <remarks />
+        public uint NextRecordId { get; set; }
+        /// <remarks />
+        public Opc.Ua.ApplicationDescription[] Applications { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<QueryApplicationsMethodStateResult> QueryApplicationsMethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        uint startingRecordId,
+        uint maxRecordsToReturn,
+        string applicationName,
+        string applicationUri,
+        uint applicationType,
+        string productUri,
+        string[] capabilities,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -729,6 +1113,9 @@ namespace Opc.Ua.Gds
         #region Event Callbacks
         /// <remarks />
         public QueryServersMethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public QueryServersMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -780,6 +1167,55 @@ namespace Opc.Ua.Gds
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken).ConfigureAwait(false);
+            }
+
+            QueryServersMethodStateResult _result = null;
+
+            uint startingRecordId = (uint)_inputArguments[0];
+            uint maxRecordsToReturn = (uint)_inputArguments[1];
+            string applicationName = (string)_inputArguments[2];
+            string applicationUri = (string)_inputArguments[3];
+            string productUri = (string)_inputArguments[4];
+            string[] serverCapabilities = (string[])_inputArguments[5];
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    startingRecordId,
+                    maxRecordsToReturn,
+                    applicationName,
+                    applicationUri,
+                    productUri,
+                    serverCapabilities,
+                    cancellationToken).ConfigureAwait(false);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            _outputArguments[0] = _result.LastCounterResetTime;
+            _outputArguments[1] = _result.Servers;
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -800,6 +1236,33 @@ namespace Opc.Ua.Gds
         string[] serverCapabilities,
         ref DateTime lastCounterResetTime,
         ref Opc.Ua.ServerOnNetwork[] servers);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class QueryServersMethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+        /// <remarks />
+        public DateTime LastCounterResetTime { get; set; }
+        /// <remarks />
+        public Opc.Ua.ServerOnNetwork[] Servers { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<QueryServersMethodStateResult> QueryServersMethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        uint startingRecordId,
+        uint maxRecordsToReturn,
+        string applicationName,
+        string applicationUri,
+        string productUri,
+        string[] serverCapabilities,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -853,40 +1316,40 @@ namespace Opc.Ua.Gds
            "AQAAAAEAKgEBHQAAAA4AAABBcHBsaWNhdGlvblVyaQAM/////wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB" +
            "/////wAAAAAXYKkKAgAAAAAADwAAAE91dHB1dEFyZ3VtZW50cwEBEQAALgBEEQAAAJYBAAAAAQAqAQEh" +
            "AAAADAAAAEFwcGxpY2F0aW9ucwEBAQABAAAAAQAAAAAAAAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAA" +
-           "AAAEYYIKBAAAAAEAEwAAAFJlZ2lzdGVyQXBwbGljYXRpb24BARIAAC8BARIAEgAAAAEB/////wIAAAAX" +
-           "YKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQETAAAuAEQTAAAAlgEAAAABACoBARwAAAALAAAAQXBw" +
-           "bGljYXRpb24BAQEA/////wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAAAAAXYKkKAgAAAAAADwAA" +
-           "AE91dHB1dEFyZ3VtZW50cwEBFAAALgBEFAAAAJYBAAAAAQAqAQEcAAAADQAAAEFwcGxpY2F0aW9uSWQA" +
-           "Ef////8AAAAAAAEAKAEBAAAAAQAAAAEAAAABAf////8AAAAABGGCCgQAAAABABEAAABVcGRhdGVBcHBs" +
-           "aWNhdGlvbgEBvAAALwEBvAC8AAAAAQH/////AQAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMB" +
-           "Ab0AAC4ARL0AAACWAQAAAAEAKgEBHAAAAAsAAABBcHBsaWNhdGlvbgEBAQD/////AAAAAAABACgBAQAA" +
-           "AAEAAAABAAAAAQH/////AAAAAARhggoEAAAAAQAVAAAAVW5yZWdpc3RlckFwcGxpY2F0aW9uAQEVAAAv" +
-           "AQEVABUAAAABAf////8BAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEBFgAALgBEFgAAAJYB" +
-           "AAAAAQAqAQEcAAAADQAAAEFwcGxpY2F0aW9uSWQAEf////8AAAAAAAEAKAEBAAAAAQAAAAEAAAABAf//" +
-           "//8AAAAABGGCCgQAAAABAA4AAABHZXRBcHBsaWNhdGlvbgEB0gAALwEB0gDSAAAAAQH/////AgAAABdg" +
-           "qQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAdMAAC4ARNMAAACWAQAAAAEAKgEBHAAAAA0AAABBcHBs" +
-           "aWNhdGlvbklkABH/////AAAAAAABACgBAQAAAAEAAAABAAAAAQH/////AAAAABdgqQoCAAAAAAAPAAAA" +
-           "T3V0cHV0QXJndW1lbnRzAQHUAAAuAETUAAAAlgEAAAABACoBARwAAAALAAAAQXBwbGljYXRpb24BAQEA" +
-           "/////wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAAAAAEYYIKBAAAAAEAEQAAAFF1ZXJ5QXBwbGlj" +
-           "YXRpb25zAQFkAwAvAQFkA2QDAAABAf////8CAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEB" +
-           "ZQMALgBEZQMAAJYHAAAAAQAqAQEfAAAAEAAAAFN0YXJ0aW5nUmVjb3JkSWQAB/////8AAAAAAAEAKgEB" +
-           "IQAAABIAAABNYXhSZWNvcmRzVG9SZXR1cm4AB/////8AAAAAAAEAKgEBHgAAAA8AAABBcHBsaWNhdGlv" +
-           "bk5hbWUADP////8AAAAAAAEAKgEBHQAAAA4AAABBcHBsaWNhdGlvblVyaQAM/////wAAAAAAAQAqAQEe" +
-           "AAAADwAAAEFwcGxpY2F0aW9uVHlwZQAH/////wAAAAAAAQAqAQEZAAAACgAAAFByb2R1Y3RVcmkADP//" +
-           "//8AAAAAAAEAKgEBHwAAAAwAAABDYXBhYmlsaXRpZXMADAEAAAABAAAAAAAAAAABACgBAQAAAAEAAAAH" +
-           "AAAAAQH/////AAAAABdgqQoCAAAAAAAPAAAAT3V0cHV0QXJndW1lbnRzAQFmAwAuAERmAwAAlgMAAAAB" +
-           "ACoBASUAAAAUAAAATGFzdENvdW50ZXJSZXNldFRpbWUBACYB/////wAAAAAAAQAqAQEbAAAADAAAAE5l" +
-           "eHRSZWNvcmRJZAAH/////wAAAAAAAQAqAQEhAAAADAAAAEFwcGxpY2F0aW9ucwEANAEBAAAAAQAAAAAA" +
-           "AAAAAQAoAQEAAAABAAAAAwAAAAEB/////wAAAAAEYYIKBAAAAAEADAAAAFF1ZXJ5U2VydmVycwEBFwAA" +
-           "LwEBFwAXAAAAAQH/////AgAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBARgAAC4ARBgAAACW" +
-           "BgAAAAEAKgEBHwAAABAAAABTdGFydGluZ1JlY29yZElkAAf/////AAAAAAABACoBASEAAAASAAAATWF4" +
-           "UmVjb3Jkc1RvUmV0dXJuAAf/////AAAAAAABACoBAR4AAAAPAAAAQXBwbGljYXRpb25OYW1lAAz/////" +
-           "AAAAAAABACoBAR0AAAAOAAAAQXBwbGljYXRpb25VcmkADP////8AAAAAAAEAKgEBGQAAAAoAAABQcm9k" +
-           "dWN0VXJpAAz/////AAAAAAABACoBASUAAAASAAAAU2VydmVyQ2FwYWJpbGl0aWVzAAwBAAAAAQAAAAAA" +
-           "AAAAAQAoAQEAAAABAAAABgAAAAEB/////wAAAAAXYKkKAgAAAAAADwAAAE91dHB1dEFyZ3VtZW50cwEB" +
-           "GQAALgBEGQAAAJYCAAAAAQAqAQElAAAAFAAAAExhc3RDb3VudGVyUmVzZXRUaW1lAQAmAf////8AAAAA" +
-           "AAEAKgEBHAAAAAcAAABTZXJ2ZXJzAQCdLwEAAAABAAAAAAAAAAABACgBAQAAAAEAAAACAAAAAQH/////" +
-           "AAAAAA==";
+           "AAAEYYIKBAAAAAEAEwAAAFJlZ2lzdGVyQXBwbGljYXRpb24BARIAAC8BARIAEgAAAAEBAQAAAAApAAEB" +
+           "GgACAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEBEwAALgBEEwAAAJYBAAAAAQAqAQEcAAAA" +
+           "CwAAAEFwcGxpY2F0aW9uAQEBAP////8AAAAAAAEAKAEBAAAAAQAAAAEAAAABAf////8AAAAAF2CpCgIA" +
+           "AAAAAA8AAABPdXRwdXRBcmd1bWVudHMBARQAAC4ARBQAAACWAQAAAAEAKgEBHAAAAA0AAABBcHBsaWNh" +
+           "dGlvbklkABH/////AAAAAAABACgBAQAAAAEAAAABAAAAAQH/////AAAAAARhggoEAAAAAQARAAAAVXBk" +
+           "YXRlQXBwbGljYXRpb24BAbwAAC8BAbwAvAAAAAEB/////wEAAAAXYKkKAgAAAAAADgAAAElucHV0QXJn" +
+           "dW1lbnRzAQG9AAAuAES9AAAAlgEAAAABACoBARwAAAALAAAAQXBwbGljYXRpb24BAQEA/////wAAAAAA" +
+           "AQAoAQEAAAABAAAAAQAAAAEB/////wAAAAAEYYIKBAAAAAEAFQAAAFVucmVnaXN0ZXJBcHBsaWNhdGlv" +
+           "bgEBFQAALwEBFQAVAAAAAQH/////AQAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBARYAAC4A" +
+           "RBYAAACWAQAAAAEAKgEBHAAAAA0AAABBcHBsaWNhdGlvbklkABH/////AAAAAAABACgBAQAAAAEAAAAB" +
+           "AAAAAQH/////AAAAAARhggoEAAAAAQAOAAAAR2V0QXBwbGljYXRpb24BAdIAAC8BAdIA0gAAAAEB////" +
+           "/wIAAAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQHTAAAuAETTAAAAlgEAAAABACoBARwAAAAN" +
+           "AAAAQXBwbGljYXRpb25JZAAR/////wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAAAAAXYKkKAgAA" +
+           "AAAADwAAAE91dHB1dEFyZ3VtZW50cwEB1AAALgBE1AAAAJYBAAAAAQAqAQEcAAAACwAAAEFwcGxpY2F0" +
+           "aW9uAQEBAP////8AAAAAAAEAKAEBAAAAAQAAAAEAAAABAf////8AAAAABGGCCgQAAAABABEAAABRdWVy" +
+           "eUFwcGxpY2F0aW9ucwEBZAMALwEBZANkAwAAAQH/////AgAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1" +
+           "bWVudHMBAWUDAC4ARGUDAACWBwAAAAEAKgEBHwAAABAAAABTdGFydGluZ1JlY29yZElkAAf/////AAAA" +
+           "AAABACoBASEAAAASAAAATWF4UmVjb3Jkc1RvUmV0dXJuAAf/////AAAAAAABACoBAR4AAAAPAAAAQXBw" +
+           "bGljYXRpb25OYW1lAAz/////AAAAAAABACoBAR0AAAAOAAAAQXBwbGljYXRpb25VcmkADP////8AAAAA" +
+           "AAEAKgEBHgAAAA8AAABBcHBsaWNhdGlvblR5cGUAB/////8AAAAAAAEAKgEBGQAAAAoAAABQcm9kdWN0" +
+           "VXJpAAz/////AAAAAAABACoBAR8AAAAMAAAAQ2FwYWJpbGl0aWVzAAwBAAAAAQAAAAAAAAAAAQAoAQEA" +
+           "AAABAAAABwAAAAEB/////wAAAAAXYKkKAgAAAAAADwAAAE91dHB1dEFyZ3VtZW50cwEBZgMALgBEZgMA" +
+           "AJYDAAAAAQAqAQElAAAAFAAAAExhc3RDb3VudGVyUmVzZXRUaW1lAQAmAf////8AAAAAAAEAKgEBGwAA" +
+           "AAwAAABOZXh0UmVjb3JkSWQAB/////8AAAAAAAEAKgEBIQAAAAwAAABBcHBsaWNhdGlvbnMBADQBAQAA" +
+           "AAEAAAAAAAAAAAEAKAEBAAAAAQAAAAMAAAABAf////8AAAAABGGCCgQAAAABAAwAAABRdWVyeVNlcnZl" +
+           "cnMBARcAAC8BARcAFwAAAAEB/////wIAAAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQEYAAAu" +
+           "AEQYAAAAlgYAAAABACoBAR8AAAAQAAAAU3RhcnRpbmdSZWNvcmRJZAAH/////wAAAAAAAQAqAQEhAAAA" +
+           "EgAAAE1heFJlY29yZHNUb1JldHVybgAH/////wAAAAAAAQAqAQEeAAAADwAAAEFwcGxpY2F0aW9uTmFt" +
+           "ZQAM/////wAAAAAAAQAqAQEdAAAADgAAAEFwcGxpY2F0aW9uVXJpAAz/////AAAAAAABACoBARkAAAAK" +
+           "AAAAUHJvZHVjdFVyaQAM/////wAAAAAAAQAqAQElAAAAEgAAAFNlcnZlckNhcGFiaWxpdGllcwAMAQAA" +
+           "AAEAAAAAAAAAAAEAKAEBAAAAAQAAAAYAAAABAf////8AAAAAF2CpCgIAAAAAAA8AAABPdXRwdXRBcmd1" +
+           "bWVudHMBARkAAC4ARBkAAACWAgAAAAEAKgEBJQAAABQAAABMYXN0Q291bnRlclJlc2V0VGltZQEAJgH/" +
+           "////AAAAAAABACoBARwAAAAHAAAAU2VydmVycwEAnS8BAAAAAQAAAAAAAAAAAQAoAQEAAAABAAAAAgAA" +
+           "AAEB/////wAAAAA=";
         #endregion
         #endif
         #endregion
@@ -1429,6 +1892,9 @@ namespace Opc.Ua.Gds
         #region Event Callbacks
         /// <remarks />
         public StartSigningRequestMethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public StartSigningRequestMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -1473,6 +1939,50 @@ namespace Opc.Ua.Gds
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken).ConfigureAwait(false);
+            }
+
+            StartSigningRequestMethodStateResult _result = null;
+
+            NodeId applicationId = (NodeId)_inputArguments[0];
+            NodeId certificateGroupId = (NodeId)_inputArguments[1];
+            NodeId certificateTypeId = (NodeId)_inputArguments[2];
+            byte[] certificateRequest = (byte[])_inputArguments[3];
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    applicationId,
+                    certificateGroupId,
+                    certificateTypeId,
+                    certificateRequest,
+                    cancellationToken).ConfigureAwait(false);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            _outputArguments[0] = _result.RequestId;
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -1490,6 +2000,29 @@ namespace Opc.Ua.Gds
         NodeId certificateTypeId,
         byte[] certificateRequest,
         ref NodeId requestId);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class StartSigningRequestMethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+        /// <remarks />
+        public NodeId RequestId { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<StartSigningRequestMethodStateResult> StartSigningRequestMethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        NodeId applicationId,
+        NodeId certificateGroupId,
+        NodeId certificateTypeId,
+        byte[] certificateRequest,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -1546,6 +2079,9 @@ namespace Opc.Ua.Gds
         #region Event Callbacks
         /// <remarks />
         public StartNewKeyPairRequestMethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public StartNewKeyPairRequestMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -1596,6 +2132,56 @@ namespace Opc.Ua.Gds
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken).ConfigureAwait(false);
+            }
+
+            StartNewKeyPairRequestMethodStateResult _result = null;
+
+            NodeId applicationId = (NodeId)_inputArguments[0];
+            NodeId certificateGroupId = (NodeId)_inputArguments[1];
+            NodeId certificateTypeId = (NodeId)_inputArguments[2];
+            string subjectName = (string)_inputArguments[3];
+            string[] domainNames = (string[])_inputArguments[4];
+            string privateKeyFormat = (string)_inputArguments[5];
+            string privateKeyPassword = (string)_inputArguments[6];
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    applicationId,
+                    certificateGroupId,
+                    certificateTypeId,
+                    subjectName,
+                    domainNames,
+                    privateKeyFormat,
+                    privateKeyPassword,
+                    cancellationToken).ConfigureAwait(false);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            _outputArguments[0] = _result.RequestId;
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -1616,6 +2202,32 @@ namespace Opc.Ua.Gds
         string privateKeyFormat,
         string privateKeyPassword,
         ref NodeId requestId);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class StartNewKeyPairRequestMethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+        /// <remarks />
+        public NodeId RequestId { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<StartNewKeyPairRequestMethodStateResult> StartNewKeyPairRequestMethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        NodeId applicationId,
+        NodeId certificateGroupId,
+        NodeId certificateTypeId,
+        string subjectName,
+        string[] domainNames,
+        string privateKeyFormat,
+        string privateKeyPassword,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -1670,6 +2282,9 @@ namespace Opc.Ua.Gds
         #region Event Callbacks
         /// <remarks />
         public FinishRequestMethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public FinishRequestMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -1716,6 +2331,48 @@ namespace Opc.Ua.Gds
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken).ConfigureAwait(false);
+            }
+
+            FinishRequestMethodStateResult _result = null;
+
+            NodeId applicationId = (NodeId)_inputArguments[0];
+            NodeId requestId = (NodeId)_inputArguments[1];
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    applicationId,
+                    requestId,
+                    cancellationToken).ConfigureAwait(false);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            _outputArguments[0] = _result.Certificate;
+            _outputArguments[1] = _result.PrivateKey;
+            _outputArguments[2] = _result.IssuerCertificates;
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -1733,6 +2390,31 @@ namespace Opc.Ua.Gds
         ref byte[] certificate,
         ref byte[] privateKey,
         ref byte[][] issuerCertificates);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class FinishRequestMethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+        /// <remarks />
+        public byte[] Certificate { get; set; }
+        /// <remarks />
+        public byte[] PrivateKey { get; set; }
+        /// <remarks />
+        public byte[][] IssuerCertificates { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<FinishRequestMethodStateResult> FinishRequestMethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        NodeId applicationId,
+        NodeId requestId,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -1785,6 +2467,9 @@ namespace Opc.Ua.Gds
         #region Event Callbacks
         /// <remarks />
         public GetCertificateGroupsMethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public GetCertificateGroupsMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -1823,6 +2508,44 @@ namespace Opc.Ua.Gds
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken).ConfigureAwait(false);
+            }
+
+            GetCertificateGroupsMethodStateResult _result = null;
+
+            NodeId applicationId = (NodeId)_inputArguments[0];
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    applicationId,
+                    cancellationToken).ConfigureAwait(false);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            _outputArguments[0] = _result.CertificateGroupIds;
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -1837,6 +2560,26 @@ namespace Opc.Ua.Gds
         NodeId _objectId,
         NodeId applicationId,
         ref NodeId[] certificateGroupIds);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class GetCertificateGroupsMethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+        /// <remarks />
+        public NodeId[] CertificateGroupIds { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<GetCertificateGroupsMethodStateResult> GetCertificateGroupsMethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        NodeId applicationId,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -1890,6 +2633,9 @@ namespace Opc.Ua.Gds
         #region Event Callbacks
         /// <remarks />
         public GetTrustListMethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public GetTrustListMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -1930,6 +2676,46 @@ namespace Opc.Ua.Gds
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken).ConfigureAwait(false);
+            }
+
+            GetTrustListMethodStateResult _result = null;
+
+            NodeId applicationId = (NodeId)_inputArguments[0];
+            NodeId certificateGroupId = (NodeId)_inputArguments[1];
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    applicationId,
+                    certificateGroupId,
+                    cancellationToken).ConfigureAwait(false);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            _outputArguments[0] = _result.TrustListId;
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -1945,6 +2731,27 @@ namespace Opc.Ua.Gds
         NodeId applicationId,
         NodeId certificateGroupId,
         ref NodeId trustListId);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class GetTrustListMethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+        /// <remarks />
+        public NodeId TrustListId { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<GetTrustListMethodStateResult> GetTrustListMethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        NodeId applicationId,
+        NodeId certificateGroupId,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -1996,6 +2803,9 @@ namespace Opc.Ua.Gds
         #region Event Callbacks
         /// <remarks />
         public RevokeCertificateMethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public RevokeCertificateMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -2031,6 +2841,44 @@ namespace Opc.Ua.Gds
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken).ConfigureAwait(false);
+            }
+
+            RevokeCertificateMethodStateResult _result = null;
+
+            NodeId applicationId = (NodeId)_inputArguments[0];
+            byte[] certificate = (byte[])_inputArguments[1];
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    applicationId,
+                    certificate,
+                    cancellationToken).ConfigureAwait(false);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -2045,6 +2893,25 @@ namespace Opc.Ua.Gds
         NodeId _objectId,
         NodeId applicationId,
         byte[] certificate);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class RevokeCertificateMethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<RevokeCertificateMethodStateResult> RevokeCertificateMethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        NodeId applicationId,
+        byte[] certificate,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -2098,6 +2965,9 @@ namespace Opc.Ua.Gds
         #region Event Callbacks
         /// <remarks />
         public GetCertificateStatusMethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public GetCertificateStatusMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -2140,6 +3010,48 @@ namespace Opc.Ua.Gds
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken).ConfigureAwait(false);
+            }
+
+            GetCertificateStatusMethodStateResult _result = null;
+
+            NodeId applicationId = (NodeId)_inputArguments[0];
+            NodeId certificateGroupId = (NodeId)_inputArguments[1];
+            NodeId certificateTypeId = (NodeId)_inputArguments[2];
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    applicationId,
+                    certificateGroupId,
+                    certificateTypeId,
+                    cancellationToken).ConfigureAwait(false);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            _outputArguments[0] = _result.UpdateRequired;
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -2156,6 +3068,28 @@ namespace Opc.Ua.Gds
         NodeId certificateGroupId,
         NodeId certificateTypeId,
         ref bool updateRequired);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class GetCertificateStatusMethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+        /// <remarks />
+        public bool UpdateRequired { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<GetCertificateStatusMethodStateResult> GetCertificateStatusMethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        NodeId applicationId,
+        NodeId certificateGroupId,
+        NodeId certificateTypeId,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -2209,6 +3143,9 @@ namespace Opc.Ua.Gds
         #region Event Callbacks
         /// <remarks />
         public GetCertificatesMethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public GetCertificatesMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -2252,6 +3189,47 @@ namespace Opc.Ua.Gds
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken).ConfigureAwait(false);
+            }
+
+            GetCertificatesMethodStateResult _result = null;
+
+            NodeId applicationId = (NodeId)_inputArguments[0];
+            NodeId certificateGroupId = (NodeId)_inputArguments[1];
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    applicationId,
+                    certificateGroupId,
+                    cancellationToken).ConfigureAwait(false);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            _outputArguments[0] = _result.CertificateTypeIds;
+            _outputArguments[1] = _result.Certificates;
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -2268,6 +3246,29 @@ namespace Opc.Ua.Gds
         NodeId certificateGroupId,
         ref NodeId[] certificateTypeIds,
         ref byte[][] certificates);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class GetCertificatesMethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+        /// <remarks />
+        public NodeId[] CertificateTypeIds { get; set; }
+        /// <remarks />
+        public byte[][] Certificates { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<GetCertificatesMethodStateResult> GetCertificatesMethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        NodeId applicationId,
+        NodeId certificateGroupId,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -2321,6 +3322,9 @@ namespace Opc.Ua.Gds
         #region Event Callbacks
         /// <remarks />
         public CheckRevocationStatusMethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public CheckRevocationStatusMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -2362,6 +3366,45 @@ namespace Opc.Ua.Gds
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken).ConfigureAwait(false);
+            }
+
+            CheckRevocationStatusMethodStateResult _result = null;
+
+            byte[] certificate = (byte[])_inputArguments[0];
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    certificate,
+                    cancellationToken).ConfigureAwait(false);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            _outputArguments[0] = _result.CertificateStatus;
+            _outputArguments[1] = _result.ValidityTime;
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -2377,6 +3420,28 @@ namespace Opc.Ua.Gds
         byte[] certificate,
         ref StatusCode certificateStatus,
         ref DateTime validityTime);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class CheckRevocationStatusMethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+        /// <remarks />
+        public StatusCode CertificateStatus { get; set; }
+        /// <remarks />
+        public DateTime ValidityTime { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<CheckRevocationStatusMethodStateResult> CheckRevocationStatusMethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        byte[] certificate,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -2470,137 +3535,137 @@ namespace Opc.Ua.Gds
            "AAABACgBAQAAAAEAAAABAAAAAQH/////AAAAABdgqQoCAAAAAAAPAAAAT3V0cHV0QXJndW1lbnRzAgEA" +
            "WkIPAAAuAERaQg8AlgEAAAABACoBASEAAAAMAAAAQXBwbGljYXRpb25zAQEBAAEAAAABAAAAAAAAAAAB" +
            "ACgBAQAAAAEAAAABAAAAAQH/////AAAAAARhggoEAAAAAQATAAAAUmVnaXN0ZXJBcHBsaWNhdGlvbgIB" +
-           "AFtCDwAALwEBEgBbQg8AAQH/////AgAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMCAQBcQg8A" +
-           "AC4ARFxCDwCWAQAAAAEAKgEBHAAAAAsAAABBcHBsaWNhdGlvbgEBAQD/////AAAAAAABACgBAQAAAAEA" +
-           "AAABAAAAAQH/////AAAAABdgqQoCAAAAAAAPAAAAT3V0cHV0QXJndW1lbnRzAgEAXUIPAAAuAERdQg8A" +
-           "lgEAAAABACoBARwAAAANAAAAQXBwbGljYXRpb25JZAAR/////wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB" +
-           "/////wAAAAAEYYIKBAAAAAEAEQAAAFVwZGF0ZUFwcGxpY2F0aW9uAgEAXkIPAAAvAQG8AF5CDwABAf//" +
-           "//8BAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwIBAF9CDwAALgBEX0IPAJYBAAAAAQAqAQEc" +
-           "AAAACwAAAEFwcGxpY2F0aW9uAQEBAP////8AAAAAAAEAKAEBAAAAAQAAAAEAAAABAf////8AAAAABGGC" +
-           "CgQAAAABABUAAABVbnJlZ2lzdGVyQXBwbGljYXRpb24CAQBgQg8AAC8BARUAYEIPAAEB/////wEAAAAX" +
-           "YKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAgEAYUIPAAAuAERhQg8AlgEAAAABACoBARwAAAANAAAA" +
-           "QXBwbGljYXRpb25JZAAR/////wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAAAAAEYYIKBAAAAAEA" +
-           "DgAAAEdldEFwcGxpY2F0aW9uAgEAYkIPAAAvAQHSAGJCDwABAf////8CAAAAF2CpCgIAAAAAAA4AAABJ" +
-           "bnB1dEFyZ3VtZW50cwIBAGNCDwAALgBEY0IPAJYBAAAAAQAqAQEcAAAADQAAAEFwcGxpY2F0aW9uSWQA" +
-           "Ef////8AAAAAAAEAKAEBAAAAAQAAAAEAAAABAf////8AAAAAF2CpCgIAAAAAAA8AAABPdXRwdXRBcmd1" +
-           "bWVudHMCAQBkQg8AAC4ARGRCDwCWAQAAAAEAKgEBHAAAAAsAAABBcHBsaWNhdGlvbgEBAQD/////AAAA" +
-           "AAABACgBAQAAAAEAAAABAAAAAQH/////AAAAAARhggoEAAAAAQARAAAAUXVlcnlBcHBsaWNhdGlvbnMC" +
-           "AQBlQg8AAC8BAWQDZUIPAAEB/////wIAAAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAgEAZkIP" +
-           "AAAuAERmQg8AlgcAAAABACoBAR8AAAAQAAAAU3RhcnRpbmdSZWNvcmRJZAAH/////wAAAAAAAQAqAQEh" +
-           "AAAAEgAAAE1heFJlY29yZHNUb1JldHVybgAH/////wAAAAAAAQAqAQEeAAAADwAAAEFwcGxpY2F0aW9u" +
-           "TmFtZQAM/////wAAAAAAAQAqAQEdAAAADgAAAEFwcGxpY2F0aW9uVXJpAAz/////AAAAAAABACoBAR4A" +
-           "AAAPAAAAQXBwbGljYXRpb25UeXBlAAf/////AAAAAAABACoBARkAAAAKAAAAUHJvZHVjdFVyaQAM////" +
-           "/wAAAAAAAQAqAQEfAAAADAAAAENhcGFiaWxpdGllcwAMAQAAAAEAAAAAAAAAAAEAKAEBAAAAAQAAAAcA" +
-           "AAABAf////8AAAAAF2CpCgIAAAAAAA8AAABPdXRwdXRBcmd1bWVudHMCAQBnQg8AAC4ARGdCDwCWAwAA" +
-           "AAEAKgEBJQAAABQAAABMYXN0Q291bnRlclJlc2V0VGltZQEAJgH/////AAAAAAABACoBARsAAAAMAAAA" +
-           "TmV4dFJlY29yZElkAAf/////AAAAAAABACoBASEAAAAMAAAAQXBwbGljYXRpb25zAQA0AQEAAAABAAAA" +
-           "AAAAAAABACgBAQAAAAEAAAADAAAAAQH/////AAAAAARhggoEAAAAAQAMAAAAUXVlcnlTZXJ2ZXJzAgEA" +
-           "aEIPAAAvAQEXAGhCDwABAf////8CAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwIBAGlCDwAA" +
-           "LgBEaUIPAJYGAAAAAQAqAQEfAAAAEAAAAFN0YXJ0aW5nUmVjb3JkSWQAB/////8AAAAAAAEAKgEBIQAA" +
-           "ABIAAABNYXhSZWNvcmRzVG9SZXR1cm4AB/////8AAAAAAAEAKgEBHgAAAA8AAABBcHBsaWNhdGlvbk5h" +
-           "bWUADP////8AAAAAAAEAKgEBHQAAAA4AAABBcHBsaWNhdGlvblVyaQAM/////wAAAAAAAQAqAQEZAAAA" +
-           "CgAAAFByb2R1Y3RVcmkADP////8AAAAAAAEAKgEBJQAAABIAAABTZXJ2ZXJDYXBhYmlsaXRpZXMADAEA" +
-           "AAABAAAAAAAAAAABACgBAQAAAAEAAAAGAAAAAQH/////AAAAABdgqQoCAAAAAAAPAAAAT3V0cHV0QXJn" +
-           "dW1lbnRzAgEAakIPAAAuAERqQg8AlgIAAAABACoBASUAAAAUAAAATGFzdENvdW50ZXJSZXNldFRpbWUB" +
-           "ACYB/////wAAAAAAAQAqAQEcAAAABwAAAFNlcnZlcnMBAJ0vAQAAAAEAAAAAAAAAAAEAKAEBAAAAAQAA" +
-           "AAIAAAABAf////8AAAAABGCACgEAAAABABEAAABDZXJ0aWZpY2F0ZUdyb3VwcwEB/wEAIwEA9TX/AQAA" +
-           "/////wEAAAAEYIAKAQAAAAAAFwAAAERlZmF1bHRBcHBsaWNhdGlvbkdyb3VwAQEAAgAvAQALMQACAAAB" +
-           "AAAAAQAuIwABAKkzAgAAAARggAoBAAAAAAAJAAAAVHJ1c3RMaXN0AQEBAgAvAQDqMAECAAD/////DwAA" +
-           "ABVgiQoCAAAAAAAEAAAAU2l6ZQEBAgIALgBEAgIAAAAJ/////wEB/////wAAAAAVYIkKAgAAAAAACAAA" +
-           "AFdyaXRhYmxlAQEDAgAuAEQDAgAAAAH/////AQH/////AAAAABVgiQoCAAAAAAAMAAAAVXNlcldyaXRh" +
-           "YmxlAQEEAgAuAEQEAgAAAAH/////AQH/////AAAAABVgiQoCAAAAAAAJAAAAT3BlbkNvdW50AQEFAgAu" +
-           "AEQFAgAAAAX/////AQH/////AAAAAARhggoEAAAAAAAEAAAAT3BlbgEBBwIALwEAPC0HAgAAAQH/////" +
-           "AgAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAQgCAC4ARAgCAACWAQAAAAEAKgEBEwAAAAQA" +
-           "AABNb2RlAAP/////AAAAAAABACgBAQAAAAEAAAABAAAAAQH/////AAAAABdgqQoCAAAAAAAPAAAAT3V0" +
-           "cHV0QXJndW1lbnRzAQEJAgAuAEQJAgAAlgEAAAABACoBARkAAAAKAAAARmlsZUhhbmRsZQAH/////wAA" +
-           "AAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAAAAAEYYIKBAAAAAAABQAAAENsb3NlAQEKAgAvAQA/LQoC" +
-           "AAABAf////8BAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEBCwIALgBECwIAAJYBAAAAAQAq" +
-           "AQEZAAAACgAAAEZpbGVIYW5kbGUAB/////8AAAAAAAEAKAEBAAAAAQAAAAEAAAABAf////8AAAAABGGC" +
-           "CgQAAAAAAAQAAABSZWFkAQEMAgAvAQBBLQwCAAABAf////8CAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFy" +
-           "Z3VtZW50cwEBDQIALgBEDQIAAJYCAAAAAQAqAQEZAAAACgAAAEZpbGVIYW5kbGUAB/////8AAAAAAAEA" +
-           "KgEBFQAAAAYAAABMZW5ndGgABv////8AAAAAAAEAKAEBAAAAAQAAAAIAAAABAf////8AAAAAF2CpCgIA" +
-           "AAAAAA8AAABPdXRwdXRBcmd1bWVudHMBAQ4CAC4ARA4CAACWAQAAAAEAKgEBEwAAAAQAAABEYXRhAA//" +
-           "////AAAAAAABACgBAQAAAAEAAAABAAAAAQH/////AAAAAARhggoEAAAAAAAFAAAAV3JpdGUBAQ8CAC8B" +
-           "AEQtDwIAAAEB/////wEAAAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQEQAgAuAEQQAgAAlgIA" +
-           "AAABACoBARkAAAAKAAAARmlsZUhhbmRsZQAH/////wAAAAAAAQAqAQETAAAABAAAAERhdGEAD/////8A" +
-           "AAAAAAEAKAEBAAAAAQAAAAIAAAABAf////8AAAAABGGCCgQAAAAAAAsAAABHZXRQb3NpdGlvbgEBEQIA" +
-           "LwEARi0RAgAAAQH/////AgAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBARICAC4ARBICAACW" +
+           "AFtCDwAALwEBEgBbQg8AAQEBAAAAACkAAQEaAAIAAAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRz" +
+           "AgEAXEIPAAAuAERcQg8AlgEAAAABACoBARwAAAALAAAAQXBwbGljYXRpb24BAQEA/////wAAAAAAAQAo" +
+           "AQEAAAABAAAAAQAAAAEB/////wAAAAAXYKkKAgAAAAAADwAAAE91dHB1dEFyZ3VtZW50cwIBAF1CDwAA" +
+           "LgBEXUIPAJYBAAAAAQAqAQEcAAAADQAAAEFwcGxpY2F0aW9uSWQAEf////8AAAAAAAEAKAEBAAAAAQAA" +
+           "AAEAAAABAf////8AAAAABGGCCgQAAAABABEAAABVcGRhdGVBcHBsaWNhdGlvbgIBAF5CDwAALwEBvABe" +
+           "Qg8AAQH/////AQAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMCAQBfQg8AAC4ARF9CDwCWAQAA" +
+           "AAEAKgEBHAAAAAsAAABBcHBsaWNhdGlvbgEBAQD/////AAAAAAABACgBAQAAAAEAAAABAAAAAQH/////" +
+           "AAAAAARhggoEAAAAAQAVAAAAVW5yZWdpc3RlckFwcGxpY2F0aW9uAgEAYEIPAAAvAQEVAGBCDwABAf//" +
+           "//8BAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwIBAGFCDwAALgBEYUIPAJYBAAAAAQAqAQEc" +
+           "AAAADQAAAEFwcGxpY2F0aW9uSWQAEf////8AAAAAAAEAKAEBAAAAAQAAAAEAAAABAf////8AAAAABGGC" +
+           "CgQAAAABAA4AAABHZXRBcHBsaWNhdGlvbgIBAGJCDwAALwEB0gBiQg8AAQH/////AgAAABdgqQoCAAAA" +
+           "AAAOAAAASW5wdXRBcmd1bWVudHMCAQBjQg8AAC4ARGNCDwCWAQAAAAEAKgEBHAAAAA0AAABBcHBsaWNh" +
+           "dGlvbklkABH/////AAAAAAABACgBAQAAAAEAAAABAAAAAQH/////AAAAABdgqQoCAAAAAAAPAAAAT3V0" +
+           "cHV0QXJndW1lbnRzAgEAZEIPAAAuAERkQg8AlgEAAAABACoBARwAAAALAAAAQXBwbGljYXRpb24BAQEA" +
+           "/////wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAAAAAEYYIKBAAAAAEAEQAAAFF1ZXJ5QXBwbGlj" +
+           "YXRpb25zAgEAZUIPAAAvAQFkA2VCDwABAf////8CAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50" +
+           "cwIBAGZCDwAALgBEZkIPAJYHAAAAAQAqAQEfAAAAEAAAAFN0YXJ0aW5nUmVjb3JkSWQAB/////8AAAAA" +
+           "AAEAKgEBIQAAABIAAABNYXhSZWNvcmRzVG9SZXR1cm4AB/////8AAAAAAAEAKgEBHgAAAA8AAABBcHBs" +
+           "aWNhdGlvbk5hbWUADP////8AAAAAAAEAKgEBHQAAAA4AAABBcHBsaWNhdGlvblVyaQAM/////wAAAAAA" +
+           "AQAqAQEeAAAADwAAAEFwcGxpY2F0aW9uVHlwZQAH/////wAAAAAAAQAqAQEZAAAACgAAAFByb2R1Y3RV" +
+           "cmkADP////8AAAAAAAEAKgEBHwAAAAwAAABDYXBhYmlsaXRpZXMADAEAAAABAAAAAAAAAAABACgBAQAA" +
+           "AAEAAAAHAAAAAQH/////AAAAABdgqQoCAAAAAAAPAAAAT3V0cHV0QXJndW1lbnRzAgEAZ0IPAAAuAERn" +
+           "Qg8AlgMAAAABACoBASUAAAAUAAAATGFzdENvdW50ZXJSZXNldFRpbWUBACYB/////wAAAAAAAQAqAQEb" +
+           "AAAADAAAAE5leHRSZWNvcmRJZAAH/////wAAAAAAAQAqAQEhAAAADAAAAEFwcGxpY2F0aW9ucwEANAEB" +
+           "AAAAAQAAAAAAAAAAAQAoAQEAAAABAAAAAwAAAAEB/////wAAAAAEYYIKBAAAAAEADAAAAFF1ZXJ5U2Vy" +
+           "dmVycwIBAGhCDwAALwEBFwBoQg8AAQH/////AgAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMC" +
+           "AQBpQg8AAC4ARGlCDwCWBgAAAAEAKgEBHwAAABAAAABTdGFydGluZ1JlY29yZElkAAf/////AAAAAAAB" +
+           "ACoBASEAAAASAAAATWF4UmVjb3Jkc1RvUmV0dXJuAAf/////AAAAAAABACoBAR4AAAAPAAAAQXBwbGlj" +
+           "YXRpb25OYW1lAAz/////AAAAAAABACoBAR0AAAAOAAAAQXBwbGljYXRpb25VcmkADP////8AAAAAAAEA" +
+           "KgEBGQAAAAoAAABQcm9kdWN0VXJpAAz/////AAAAAAABACoBASUAAAASAAAAU2VydmVyQ2FwYWJpbGl0" +
+           "aWVzAAwBAAAAAQAAAAAAAAAAAQAoAQEAAAABAAAABgAAAAEB/////wAAAAAXYKkKAgAAAAAADwAAAE91" +
+           "dHB1dEFyZ3VtZW50cwIBAGpCDwAALgBEakIPAJYCAAAAAQAqAQElAAAAFAAAAExhc3RDb3VudGVyUmVz" +
+           "ZXRUaW1lAQAmAf////8AAAAAAAEAKgEBHAAAAAcAAABTZXJ2ZXJzAQCdLwEAAAABAAAAAAAAAAABACgB" +
+           "AQAAAAEAAAACAAAAAQH/////AAAAAARggAoBAAAAAQARAAAAQ2VydGlmaWNhdGVHcm91cHMBAf8BACMB" +
+           "APU1/wEAAP////8BAAAABGCACgEAAAAAABcAAABEZWZhdWx0QXBwbGljYXRpb25Hcm91cAEBAAIALwEA" +
+           "CzEAAgAAAQAAAAEALiMAAQCpMwIAAAAEYIAKAQAAAAAACQAAAFRydXN0TGlzdAEBAQIALwEA6jABAgAA" +
+           "/////w8AAAAVYIkKAgAAAAAABAAAAFNpemUBAQICAC4ARAICAAAACf////8BAf////8AAAAAFWCJCgIA" +
+           "AAAAAAgAAABXcml0YWJsZQEBAwIALgBEAwIAAAAB/////wEB/////wAAAAAVYIkKAgAAAAAADAAAAFVz" +
+           "ZXJXcml0YWJsZQEBBAIALgBEBAIAAAAB/////wEB/////wAAAAAVYIkKAgAAAAAACQAAAE9wZW5Db3Vu" +
+           "dAEBBQIALgBEBQIAAAAF/////wEB/////wAAAAAEYYIKBAAAAAAABAAAAE9wZW4BAQcCAC8BADwtBwIA" +
+           "AAEB/////wIAAAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQEIAgAuAEQIAgAAlgEAAAABACoB" +
+           "ARMAAAAEAAAATW9kZQAD/////wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAAAAAXYKkKAgAAAAAA" +
+           "DwAAAE91dHB1dEFyZ3VtZW50cwEBCQIALgBECQIAAJYBAAAAAQAqAQEZAAAACgAAAEZpbGVIYW5kbGUA" +
+           "B/////8AAAAAAAEAKAEBAAAAAQAAAAEAAAABAf////8AAAAABGGCCgQAAAAAAAUAAABDbG9zZQEBCgIA" +
+           "LwEAPy0KAgAAAQH/////AQAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAQsCAC4ARAsCAACW" +
            "AQAAAAEAKgEBGQAAAAoAAABGaWxlSGFuZGxlAAf/////AAAAAAABACgBAQAAAAEAAAABAAAAAQH/////" +
-           "AAAAABdgqQoCAAAAAAAPAAAAT3V0cHV0QXJndW1lbnRzAQETAgAuAEQTAgAAlgEAAAABACoBARcAAAAI" +
-           "AAAAUG9zaXRpb24ACf////8AAAAAAAEAKAEBAAAAAQAAAAEAAAABAf////8AAAAABGGCCgQAAAAAAAsA" +
-           "AABTZXRQb3NpdGlvbgEBFAIALwEASS0UAgAAAQH/////AQAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1" +
-           "bWVudHMBARUCAC4ARBUCAACWAgAAAAEAKgEBGQAAAAoAAABGaWxlSGFuZGxlAAf/////AAAAAAABACoB" +
-           "ARcAAAAIAAAAUG9zaXRpb24ACf////8AAAAAAAEAKAEBAAAAAQAAAAIAAAABAf////8AAAAAFWCJCgIA" +
-           "AAAAAA4AAABMYXN0VXBkYXRlVGltZQEBFgIALgBEFgIAAAEAJgH/////AQH/////AAAAAARhggoEAAAA" +
-           "AAANAAAAT3BlbldpdGhNYXNrcwEBFwIALwEA/zAXAgAAAQH/////AgAAABdgqQoCAAAAAAAOAAAASW5w" +
-           "dXRBcmd1bWVudHMBARgCAC4ARBgCAACWAQAAAAEAKgEBFAAAAAUAAABNYXNrcwAH/////wAAAAAAAQAo" +
-           "AQEAAAABAAAAAQAAAAEB/////wAAAAAXYKkKAgAAAAAADwAAAE91dHB1dEFyZ3VtZW50cwEBGQIALgBE" +
-           "GQIAAJYBAAAAAQAqAQEZAAAACgAAAEZpbGVIYW5kbGUAB/////8AAAAAAAEAKAEBAAAAAQAAAAEAAAAB" +
-           "Af////8AAAAABGGCCgQAAAAAAA4AAABDbG9zZUFuZFVwZGF0ZQEBGgIALwEAAjEaAgAAAQH/////AgAA" +
-           "ABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBARsCAC4ARBsCAACWAQAAAAEAKgEBGQAAAAoAAABG" +
-           "aWxlSGFuZGxlAAf/////AAAAAAABACgBAQAAAAEAAAABAAAAAQH/////AAAAABdgqQoCAAAAAAAPAAAA" +
-           "T3V0cHV0QXJndW1lbnRzAQEcAgAuAEQcAgAAlgEAAAABACoBASMAAAAUAAAAQXBwbHlDaGFuZ2VzUmVx" +
-           "dWlyZWQAAf////8AAAAAAAEAKAEBAAAAAQAAAAEAAAABAf////8AAAAABGGCCgQAAAAAAA4AAABBZGRD" +
-           "ZXJ0aWZpY2F0ZQEBHQIALwEABDEdAgAAAQH/////AQAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVu" +
-           "dHMBAR4CAC4ARB4CAACWAgAAAAEAKgEBGgAAAAsAAABDZXJ0aWZpY2F0ZQAP/////wAAAAAAAQAqAQEj" +
-           "AAAAFAAAAElzVHJ1c3RlZENlcnRpZmljYXRlAAH/////AAAAAAABACgBAQAAAAEAAAACAAAAAQH/////" +
-           "AAAAAARhggoEAAAAAAARAAAAUmVtb3ZlQ2VydGlmaWNhdGUBAR8CAC8BAAYxHwIAAAEB/////wEAAAAX" +
-           "YKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQEgAgAuAEQgAgAAlgIAAAABACoBARkAAAAKAAAAVGh1" +
-           "bWJwcmludAAM/////wAAAAAAAQAqAQEjAAAAFAAAAElzVHJ1c3RlZENlcnRpZmljYXRlAAH/////AAAA" +
-           "AAABACgBAQAAAAEAAAACAAAAAQH/////AAAAABdgiQoCAAAAAAAQAAAAQ2VydGlmaWNhdGVUeXBlcwEB" +
-           "IQIALgBEIQIAAAARAQAAAAEAAAAAAAAAAQH/////AAAAAARhggoEAAAAAQATAAAAU3RhcnRTaWduaW5n" +
-           "UmVxdWVzdAEBTwAALwEBTwBPAAAAAQH/////AgAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMB" +
-           "AVAAAC4ARFAAAACWBAAAAAEAKgEBHAAAAA0AAABBcHBsaWNhdGlvbklkABH/////AAAAAAABACoBASEA" +
-           "AAASAAAAQ2VydGlmaWNhdGVHcm91cElkABH/////AAAAAAABACoBASAAAAARAAAAQ2VydGlmaWNhdGVU" +
-           "eXBlSWQAEf////8AAAAAAAEAKgEBIQAAABIAAABDZXJ0aWZpY2F0ZVJlcXVlc3QAD/////8AAAAAAAEA" +
-           "KAEBAAAAAQAAAAQAAAABAf////8AAAAAF2CpCgIAAAAAAA8AAABPdXRwdXRBcmd1bWVudHMBAVEAAC4A" +
-           "RFEAAACWAQAAAAEAKgEBGAAAAAkAAABSZXF1ZXN0SWQAEf////8AAAAAAAEAKAEBAAAAAQAAAAEAAAAB" +
-           "Af////8AAAAABGGCCgQAAAABABYAAABTdGFydE5ld0tleVBhaXJSZXF1ZXN0AQFMAAAvAQFMAEwAAAAB" +
-           "Af////8CAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEBTQAALgBETQAAAJYHAAAAAQAqAQEc" +
-           "AAAADQAAAEFwcGxpY2F0aW9uSWQAEf////8AAAAAAAEAKgEBIQAAABIAAABDZXJ0aWZpY2F0ZUdyb3Vw" +
-           "SWQAEf////8AAAAAAAEAKgEBIAAAABEAAABDZXJ0aWZpY2F0ZVR5cGVJZAAR/////wAAAAAAAQAqAQEa" +
-           "AAAACwAAAFN1YmplY3ROYW1lAAz/////AAAAAAABACoBAR4AAAALAAAARG9tYWluTmFtZXMADAEAAAAB" +
-           "AAAAAAAAAAABACoBAR8AAAAQAAAAUHJpdmF0ZUtleUZvcm1hdAAM/////wAAAAAAAQAqAQEhAAAAEgAA" +
-           "AFByaXZhdGVLZXlQYXNzd29yZAAM/////wAAAAAAAQAoAQEAAAABAAAABwAAAAEB/////wAAAAAXYKkK" +
-           "AgAAAAAADwAAAE91dHB1dEFyZ3VtZW50cwEBTgAALgBETgAAAJYBAAAAAQAqAQEYAAAACQAAAFJlcXVl" +
-           "c3RJZAAR/////wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAAAAAEYYIKBAAAAAEADQAAAEZpbmlz" +
-           "aFJlcXVlc3QBAVUAAC8BAVUAVQAAAAEB/////wIAAAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRz" +
-           "AQFWAAAuAERWAAAAlgIAAAABACoBARwAAAANAAAAQXBwbGljYXRpb25JZAAR/////wAAAAAAAQAqAQEY" +
-           "AAAACQAAAFJlcXVlc3RJZAAR/////wAAAAAAAQAoAQEAAAABAAAAAgAAAAEB/////wAAAAAXYKkKAgAA" +
-           "AAAADwAAAE91dHB1dEFyZ3VtZW50cwEBVwAALgBEVwAAAJYDAAAAAQAqAQEaAAAACwAAAENlcnRpZmlj" +
-           "YXRlAA//////AAAAAAABACoBARkAAAAKAAAAUHJpdmF0ZUtleQAP/////wAAAAAAAQAqAQElAAAAEgAA" +
-           "AElzc3VlckNlcnRpZmljYXRlcwAPAQAAAAEAAAAAAAAAAAEAKAEBAAAAAQAAAAMAAAABAf////8AAAAA" +
-           "BGGCCgQAAAABABEAAABSZXZva2VDZXJ0aWZpY2F0ZQEBmzoALwEBmzqbOgAAAQH/////AQAAABdgqQoC" +
-           "AAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAZw6AC4ARJw6AACWAgAAAAEAKgEBHAAAAA0AAABBcHBsaWNh" +
-           "dGlvbklkABH/////AAAAAAABACoBARoAAAALAAAAQ2VydGlmaWNhdGUAD/////8AAAAAAAEAKAEBAAAA" +
-           "AQAAAAIAAAABAf////8AAAAABGGCCgQAAAABABQAAABHZXRDZXJ0aWZpY2F0ZUdyb3VwcwEBcQEALwEB" +
-           "cQFxAQAAAQH/////AgAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAXIBAC4ARHIBAACWAQAA" +
-           "AAEAKgEBHAAAAA0AAABBcHBsaWNhdGlvbklkABH/////AAAAAAABACgBAQAAAAEAAAABAAAAAQH/////" +
-           "AAAAABdgqQoCAAAAAAAPAAAAT3V0cHV0QXJndW1lbnRzAQFzAQAuAERzAQAAlgEAAAABACoBASYAAAAT" +
-           "AAAAQ2VydGlmaWNhdGVHcm91cElkcwARAQAAAAEAAAAAAAAAAAEAKAEBAAAAAQAAAAEAAAABAf////8A" +
-           "AAAABGGCCgQAAAABAA8AAABHZXRDZXJ0aWZpY2F0ZXMBAVkAAC8BAVkAWQAAAAEB/////wIAAAAXYKkK" +
-           "AgAAAAAADgAAAElucHV0QXJndW1lbnRzAQFaAAAuAERaAAAAlgIAAAABACoBARwAAAANAAAAQXBwbGlj" +
-           "YXRpb25JZAAR/////wAAAAAAAQAqAQEhAAAAEgAAAENlcnRpZmljYXRlR3JvdXBJZAAR/////wAAAAAA" +
-           "AQAoAQEAAAABAAAAAgAAAAEB/////wAAAAAXYKkKAgAAAAAADwAAAE91dHB1dEFyZ3VtZW50cwEBbAAA" +
-           "LgBEbAAAAJYCAAAAAQAqAQElAAAAEgAAAENlcnRpZmljYXRlVHlwZUlkcwARAQAAAAEAAAAAAAAAAAEA" +
-           "KgEBHwAAAAwAAABDZXJ0aWZpY2F0ZXMADwEAAAABAAAAAAAAAAABACgBAQAAAAEAAAACAAAAAQH/////" +
-           "AAAAAARhggoEAAAAAQAMAAAAR2V0VHJ1c3RMaXN0AQHFAAAvAQHFAMUAAAABAf////8CAAAAF2CpCgIA" +
-           "AAAAAA4AAABJbnB1dEFyZ3VtZW50cwEBxgAALgBExgAAAJYCAAAAAQAqAQEcAAAADQAAAEFwcGxpY2F0" +
-           "aW9uSWQAEf////8AAAAAAAEAKgEBIQAAABIAAABDZXJ0aWZpY2F0ZUdyb3VwSWQAEf////8AAAAAAAEA" +
-           "KAEBAAAAAQAAAAIAAAABAf////8AAAAAF2CpCgIAAAAAAA8AAABPdXRwdXRBcmd1bWVudHMBAccAAC4A" +
-           "RMcAAACWAQAAAAEAKgEBGgAAAAsAAABUcnVzdExpc3RJZAAR/////wAAAAAAAQAoAQEAAAABAAAAAQAA" +
-           "AAEB/////wAAAAAEYYIKBAAAAAEAFAAAAEdldENlcnRpZmljYXRlU3RhdHVzAQHeAAAvAQHeAN4AAAAB" +
-           "Af////8CAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEB3wAALgBE3wAAAJYDAAAAAQAqAQEc" +
-           "AAAADQAAAEFwcGxpY2F0aW9uSWQAEf////8AAAAAAAEAKgEBIQAAABIAAABDZXJ0aWZpY2F0ZUdyb3Vw" +
-           "SWQAEf////8AAAAAAAEAKgEBIAAAABEAAABDZXJ0aWZpY2F0ZVR5cGVJZAAR/////wAAAAAAAQAoAQEA" +
-           "AAABAAAAAwAAAAEB/////wAAAAAXYKkKAgAAAAAADwAAAE91dHB1dEFyZ3VtZW50cwEB4AAALgBE4AAA" +
-           "AJYBAAAAAQAqAQEdAAAADgAAAFVwZGF0ZVJlcXVpcmVkAAH/////AAAAAAABACgBAQAAAAEAAAABAAAA" +
-           "AQH/////AAAAAARhggoEAAAAAQAVAAAAQ2hlY2tSZXZvY2F0aW9uU3RhdHVzAQF+AAAvAQF+AH4AAAAB" +
-           "Af////8CAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEBoAAALgBEoAAAAJYBAAAAAQAqAQEa" +
-           "AAAACwAAAENlcnRpZmljYXRlAA//////AAAAAAABACgBAQAAAAEAAAABAAAAAQH/////AAAAABdgqQoC" +
-           "AAAAAAAPAAAAT3V0cHV0QXJndW1lbnRzAQGhAAAuAEShAAAAlgIAAAABACoBASAAAAARAAAAQ2VydGlm" +
-           "aWNhdGVTdGF0dXMAE/////8AAAAAAAEAKgEBHQAAAAwAAABWYWxpZGl0eVRpbWUBACYB/////wAAAAAA" +
-           "AQAoAQEAAAABAAAAAgAAAAEB/////wAAAAA=";
+           "AAAAAARhggoEAAAAAAAEAAAAUmVhZAEBDAIALwEAQS0MAgAAAQH/////AgAAABdgqQoCAAAAAAAOAAAA" +
+           "SW5wdXRBcmd1bWVudHMBAQ0CAC4ARA0CAACWAgAAAAEAKgEBGQAAAAoAAABGaWxlSGFuZGxlAAf/////" +
+           "AAAAAAABACoBARUAAAAGAAAATGVuZ3RoAAb/////AAAAAAABACgBAQAAAAEAAAACAAAAAQH/////AAAA" +
+           "ABdgqQoCAAAAAAAPAAAAT3V0cHV0QXJndW1lbnRzAQEOAgAuAEQOAgAAlgEAAAABACoBARMAAAAEAAAA" +
+           "RGF0YQAP/////wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAAAAAEYYIKBAAAAAAABQAAAFdyaXRl" +
+           "AQEPAgAvAQBELQ8CAAABAf////8BAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEBEAIALgBE" +
+           "EAIAAJYCAAAAAQAqAQEZAAAACgAAAEZpbGVIYW5kbGUAB/////8AAAAAAAEAKgEBEwAAAAQAAABEYXRh" +
+           "AA//////AAAAAAABACgBAQAAAAEAAAACAAAAAQH/////AAAAAARhggoEAAAAAAALAAAAR2V0UG9zaXRp" +
+           "b24BARECAC8BAEYtEQIAAAEB/////wIAAAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQESAgAu" +
+           "AEQSAgAAlgEAAAABACoBARkAAAAKAAAARmlsZUhhbmRsZQAH/////wAAAAAAAQAoAQEAAAABAAAAAQAA" +
+           "AAEB/////wAAAAAXYKkKAgAAAAAADwAAAE91dHB1dEFyZ3VtZW50cwEBEwIALgBEEwIAAJYBAAAAAQAq" +
+           "AQEXAAAACAAAAFBvc2l0aW9uAAn/////AAAAAAABACgBAQAAAAEAAAABAAAAAQH/////AAAAAARhggoE" +
+           "AAAAAAALAAAAU2V0UG9zaXRpb24BARQCAC8BAEktFAIAAAEB/////wEAAAAXYKkKAgAAAAAADgAAAElu" +
+           "cHV0QXJndW1lbnRzAQEVAgAuAEQVAgAAlgIAAAABACoBARkAAAAKAAAARmlsZUhhbmRsZQAH/////wAA" +
+           "AAAAAQAqAQEXAAAACAAAAFBvc2l0aW9uAAn/////AAAAAAABACgBAQAAAAEAAAACAAAAAQH/////AAAA" +
+           "ABVgiQoCAAAAAAAOAAAATGFzdFVwZGF0ZVRpbWUBARYCAC4ARBYCAAABACYB/////wEB/////wAAAAAE" +
+           "YYIKBAAAAAAADQAAAE9wZW5XaXRoTWFza3MBARcCAC8BAP8wFwIAAAEB/////wIAAAAXYKkKAgAAAAAA" +
+           "DgAAAElucHV0QXJndW1lbnRzAQEYAgAuAEQYAgAAlgEAAAABACoBARQAAAAFAAAATWFza3MAB/////8A" +
+           "AAAAAAEAKAEBAAAAAQAAAAEAAAABAf////8AAAAAF2CpCgIAAAAAAA8AAABPdXRwdXRBcmd1bWVudHMB" +
+           "ARkCAC4ARBkCAACWAQAAAAEAKgEBGQAAAAoAAABGaWxlSGFuZGxlAAf/////AAAAAAABACgBAQAAAAEA" +
+           "AAABAAAAAQH/////AAAAAARhggoEAAAAAAAOAAAAQ2xvc2VBbmRVcGRhdGUBARoCAC8BAAIxGgIAAAEB" +
+           "/////wIAAAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQEbAgAuAEQbAgAAlgEAAAABACoBARkA" +
+           "AAAKAAAARmlsZUhhbmRsZQAH/////wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAAAAAXYKkKAgAA" +
+           "AAAADwAAAE91dHB1dEFyZ3VtZW50cwEBHAIALgBEHAIAAJYBAAAAAQAqAQEjAAAAFAAAAEFwcGx5Q2hh" +
+           "bmdlc1JlcXVpcmVkAAH/////AAAAAAABACgBAQAAAAEAAAABAAAAAQH/////AAAAAARhggoEAAAAAAAO" +
+           "AAAAQWRkQ2VydGlmaWNhdGUBAR0CAC8BAAQxHQIAAAEB/////wEAAAAXYKkKAgAAAAAADgAAAElucHV0" +
+           "QXJndW1lbnRzAQEeAgAuAEQeAgAAlgIAAAABACoBARoAAAALAAAAQ2VydGlmaWNhdGUAD/////8AAAAA" +
+           "AAEAKgEBIwAAABQAAABJc1RydXN0ZWRDZXJ0aWZpY2F0ZQAB/////wAAAAAAAQAoAQEAAAABAAAAAgAA" +
+           "AAEB/////wAAAAAEYYIKBAAAAAAAEQAAAFJlbW92ZUNlcnRpZmljYXRlAQEfAgAvAQAGMR8CAAABAf//" +
+           "//8BAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEBIAIALgBEIAIAAJYCAAAAAQAqAQEZAAAA" +
+           "CgAAAFRodW1icHJpbnQADP////8AAAAAAAEAKgEBIwAAABQAAABJc1RydXN0ZWRDZXJ0aWZpY2F0ZQAB" +
+           "/////wAAAAAAAQAoAQEAAAABAAAAAgAAAAEB/////wAAAAAXYIkKAgAAAAAAEAAAAENlcnRpZmljYXRl" +
+           "VHlwZXMBASECAC4ARCECAAAAEQEAAAABAAAAAAAAAAEB/////wAAAAAEYYIKBAAAAAEAEwAAAFN0YXJ0" +
+           "U2lnbmluZ1JlcXVlc3QBAU8AAC8BAU8ATwAAAAEB/////wIAAAAXYKkKAgAAAAAADgAAAElucHV0QXJn" +
+           "dW1lbnRzAQFQAAAuAERQAAAAlgQAAAABACoBARwAAAANAAAAQXBwbGljYXRpb25JZAAR/////wAAAAAA" +
+           "AQAqAQEhAAAAEgAAAENlcnRpZmljYXRlR3JvdXBJZAAR/////wAAAAAAAQAqAQEgAAAAEQAAAENlcnRp" +
+           "ZmljYXRlVHlwZUlkABH/////AAAAAAABACoBASEAAAASAAAAQ2VydGlmaWNhdGVSZXF1ZXN0AA//////" +
+           "AAAAAAABACgBAQAAAAEAAAAEAAAAAQH/////AAAAABdgqQoCAAAAAAAPAAAAT3V0cHV0QXJndW1lbnRz" +
+           "AQFRAAAuAERRAAAAlgEAAAABACoBARgAAAAJAAAAUmVxdWVzdElkABH/////AAAAAAABACgBAQAAAAEA" +
+           "AAABAAAAAQH/////AAAAAARhggoEAAAAAQAWAAAAU3RhcnROZXdLZXlQYWlyUmVxdWVzdAEBTAAALwEB" +
+           "TABMAAAAAQH/////AgAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAU0AAC4ARE0AAACWBwAA" +
+           "AAEAKgEBHAAAAA0AAABBcHBsaWNhdGlvbklkABH/////AAAAAAABACoBASEAAAASAAAAQ2VydGlmaWNh" +
+           "dGVHcm91cElkABH/////AAAAAAABACoBASAAAAARAAAAQ2VydGlmaWNhdGVUeXBlSWQAEf////8AAAAA" +
+           "AAEAKgEBGgAAAAsAAABTdWJqZWN0TmFtZQAM/////wAAAAAAAQAqAQEeAAAACwAAAERvbWFpbk5hbWVz" +
+           "AAwBAAAAAQAAAAAAAAAAAQAqAQEfAAAAEAAAAFByaXZhdGVLZXlGb3JtYXQADP////8AAAAAAAEAKgEB" +
+           "IQAAABIAAABQcml2YXRlS2V5UGFzc3dvcmQADP////8AAAAAAAEAKAEBAAAAAQAAAAcAAAABAf////8A" +
+           "AAAAF2CpCgIAAAAAAA8AAABPdXRwdXRBcmd1bWVudHMBAU4AAC4ARE4AAACWAQAAAAEAKgEBGAAAAAkA" +
+           "AABSZXF1ZXN0SWQAEf////8AAAAAAAEAKAEBAAAAAQAAAAEAAAABAf////8AAAAABGGCCgQAAAABAA0A" +
+           "AABGaW5pc2hSZXF1ZXN0AQFVAAAvAQFVAFUAAAABAf////8CAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFy" +
+           "Z3VtZW50cwEBVgAALgBEVgAAAJYCAAAAAQAqAQEcAAAADQAAAEFwcGxpY2F0aW9uSWQAEf////8AAAAA" +
+           "AAEAKgEBGAAAAAkAAABSZXF1ZXN0SWQAEf////8AAAAAAAEAKAEBAAAAAQAAAAIAAAABAf////8AAAAA" +
+           "F2CpCgIAAAAAAA8AAABPdXRwdXRBcmd1bWVudHMBAVcAAC4ARFcAAACWAwAAAAEAKgEBGgAAAAsAAABD" +
+           "ZXJ0aWZpY2F0ZQAP/////wAAAAAAAQAqAQEZAAAACgAAAFByaXZhdGVLZXkAD/////8AAAAAAAEAKgEB" +
+           "JQAAABIAAABJc3N1ZXJDZXJ0aWZpY2F0ZXMADwEAAAABAAAAAAAAAAABACgBAQAAAAEAAAADAAAAAQH/" +
+           "////AAAAAARhggoEAAAAAQARAAAAUmV2b2tlQ2VydGlmaWNhdGUBAZs6AC8BAZs6mzoAAAEB/////wEA" +
+           "AAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQGcOgAuAEScOgAAlgIAAAABACoBARwAAAANAAAA" +
+           "QXBwbGljYXRpb25JZAAR/////wAAAAAAAQAqAQEaAAAACwAAAENlcnRpZmljYXRlAA//////AAAAAAAB" +
+           "ACgBAQAAAAEAAAACAAAAAQH/////AAAAAARhggoEAAAAAQAUAAAAR2V0Q2VydGlmaWNhdGVHcm91cHMB" +
+           "AXEBAC8BAXEBcQEAAAEB/////wIAAAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQFyAQAuAERy" +
+           "AQAAlgEAAAABACoBARwAAAANAAAAQXBwbGljYXRpb25JZAAR/////wAAAAAAAQAoAQEAAAABAAAAAQAA" +
+           "AAEB/////wAAAAAXYKkKAgAAAAAADwAAAE91dHB1dEFyZ3VtZW50cwEBcwEALgBEcwEAAJYBAAAAAQAq" +
+           "AQEmAAAAEwAAAENlcnRpZmljYXRlR3JvdXBJZHMAEQEAAAABAAAAAAAAAAABACgBAQAAAAEAAAABAAAA" +
+           "AQH/////AAAAAARhggoEAAAAAQAPAAAAR2V0Q2VydGlmaWNhdGVzAQFZAAAvAQFZAFkAAAABAf////8C" +
+           "AAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEBWgAALgBEWgAAAJYCAAAAAQAqAQEcAAAADQAA" +
+           "AEFwcGxpY2F0aW9uSWQAEf////8AAAAAAAEAKgEBIQAAABIAAABDZXJ0aWZpY2F0ZUdyb3VwSWQAEf//" +
+           "//8AAAAAAAEAKAEBAAAAAQAAAAIAAAABAf////8AAAAAF2CpCgIAAAAAAA8AAABPdXRwdXRBcmd1bWVu" +
+           "dHMBAWwAAC4ARGwAAACWAgAAAAEAKgEBJQAAABIAAABDZXJ0aWZpY2F0ZVR5cGVJZHMAEQEAAAABAAAA" +
+           "AAAAAAABACoBAR8AAAAMAAAAQ2VydGlmaWNhdGVzAA8BAAAAAQAAAAAAAAAAAQAoAQEAAAABAAAAAgAA" +
+           "AAEB/////wAAAAAEYYIKBAAAAAEADAAAAEdldFRydXN0TGlzdAEBxQAALwEBxQDFAAAAAQH/////AgAA" +
+           "ABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAcYAAC4ARMYAAACWAgAAAAEAKgEBHAAAAA0AAABB" +
+           "cHBsaWNhdGlvbklkABH/////AAAAAAABACoBASEAAAASAAAAQ2VydGlmaWNhdGVHcm91cElkABH/////" +
+           "AAAAAAABACgBAQAAAAEAAAACAAAAAQH/////AAAAABdgqQoCAAAAAAAPAAAAT3V0cHV0QXJndW1lbnRz" +
+           "AQHHAAAuAETHAAAAlgEAAAABACoBARoAAAALAAAAVHJ1c3RMaXN0SWQAEf////8AAAAAAAEAKAEBAAAA" +
+           "AQAAAAEAAAABAf////8AAAAABGGCCgQAAAABABQAAABHZXRDZXJ0aWZpY2F0ZVN0YXR1cwEB3gAALwEB" +
+           "3gDeAAAAAQH/////AgAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAd8AAC4ARN8AAACWAwAA" +
+           "AAEAKgEBHAAAAA0AAABBcHBsaWNhdGlvbklkABH/////AAAAAAABACoBASEAAAASAAAAQ2VydGlmaWNh" +
+           "dGVHcm91cElkABH/////AAAAAAABACoBASAAAAARAAAAQ2VydGlmaWNhdGVUeXBlSWQAEf////8AAAAA" +
+           "AAEAKAEBAAAAAQAAAAMAAAABAf////8AAAAAF2CpCgIAAAAAAA8AAABPdXRwdXRBcmd1bWVudHMBAeAA" +
+           "AC4AROAAAACWAQAAAAEAKgEBHQAAAA4AAABVcGRhdGVSZXF1aXJlZAAB/////wAAAAAAAQAoAQEAAAAB" +
+           "AAAAAQAAAAEB/////wAAAAAEYYIKBAAAAAEAFQAAAENoZWNrUmV2b2NhdGlvblN0YXR1cwEBfgAALwEB" +
+           "fgB+AAAAAQH/////AgAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAaAAAC4ARKAAAACWAQAA" +
+           "AAEAKgEBGgAAAAsAAABDZXJ0aWZpY2F0ZQAP/////wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAA" +
+           "AAAXYKkKAgAAAAAADwAAAE91dHB1dEFyZ3VtZW50cwEBoQAALgBEoQAAAJYCAAAAAQAqAQEgAAAAEQAA" +
+           "AENlcnRpZmljYXRlU3RhdHVzABP/////AAAAAAABACoBAR0AAAAMAAAAVmFsaWRpdHlUaW1lAQAmAf//" +
+           "//8AAAAAAAEAKAEBAAAAAQAAAAIAAAABAf////8AAAAA";
         #endregion
         #endif
         #endregion
@@ -3508,6 +4573,81 @@ namespace Opc.Ua.Gds
     #endif
     #endregion
 
+    #region CertificateRevokedAuditEventState Class
+    #if (!OPCUA_EXCLUDE_CertificateRevokedAuditEventState)
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    public partial class CertificateRevokedAuditEventState : AuditUpdateMethodEventState
+    {
+        #region Constructors
+        /// <remarks />
+        public CertificateRevokedAuditEventState(NodeState parent) : base(parent)
+        {
+        }
+
+        /// <remarks />
+        protected override NodeId GetDefaultTypeDefinitionId(NamespaceTable namespaceUris)
+        {
+            return Opc.Ua.NodeId.Create(Opc.Ua.Gds.ObjectTypes.CertificateRevokedAuditEventType, Opc.Ua.Gds.Namespaces.OpcUaGds, namespaceUris);
+        }
+
+        #if (!OPCUA_EXCLUDE_InitializationStrings)
+        /// <remarks />
+        protected override void Initialize(ISystemContext context)
+        {
+            base.Initialize(context);
+            Initialize(context, InitializationString);
+            InitializeOptionalChildren(context);
+        }
+
+        /// <remarks />
+        protected override void Initialize(ISystemContext context, NodeState source)
+        {
+            InitializeOptionalChildren(context);
+            base.Initialize(context, source);
+        }
+
+        /// <remarks />
+        protected override void InitializeOptionalChildren(ISystemContext context)
+        {
+            base.InitializeOptionalChildren(context);
+        }
+
+        #region Initialization String
+        private const string InitializationString =
+           "AQAAACAAAABodHRwOi8vb3BjZm91bmRhdGlvbi5vcmcvVUEvR0RTL/////8EYIACAQAAAAEAKAAAAENl" +
+           "cnRpZmljYXRlUmV2b2tlZEF1ZGl0RXZlbnRUeXBlSW5zdGFuY2UBARsAAQEbABsAAAD/////DwAAABVg" +
+           "iQoCAAAAAAAHAAAARXZlbnRJZAIBAJdCDwAALgBEl0IPAAAP/////wEB/////wAAAAAVYIkKAgAAAAAA" +
+           "CQAAAEV2ZW50VHlwZQIBAJhCDwAALgBEmEIPAAAR/////wEB/////wAAAAAVYIkKAgAAAAAACgAAAFNv" +
+           "dXJjZU5vZGUCAQCZQg8AAC4ARJlCDwAAEf////8BAf////8AAAAAFWCJCgIAAAAAAAoAAABTb3VyY2VO" +
+           "YW1lAgEAmkIPAAAuAESaQg8AAAz/////AQH/////AAAAABVgiQoCAAAAAAAEAAAAVGltZQIBAJtCDwAA" +
+           "LgBEm0IPAAEAJgH/////AQH/////AAAAABVgiQoCAAAAAAALAAAAUmVjZWl2ZVRpbWUCAQCcQg8AAC4A" +
+           "RJxCDwABACYB/////wEB/////wAAAAAVYIkKAgAAAAAABwAAAE1lc3NhZ2UCAQCeQg8AAC4ARJ5CDwAA" +
+           "Ff////8BAf////8AAAAAFWCJCgIAAAAAAAgAAABTZXZlcml0eQIBAJ9CDwAALgBEn0IPAAAF/////wEB" +
+           "/////wAAAAAVYIkKAgAAAAAADwAAAEFjdGlvblRpbWVTdGFtcAIBAKRCDwAALgBEpEIPAAEAJgH/////" +
+           "AQH/////AAAAABVgiQoCAAAAAAAGAAAAU3RhdHVzAgEApUIPAAAuAESlQg8AAAH/////AQH/////AAAA" +
+           "ABVgiQoCAAAAAAAIAAAAU2VydmVySWQCAQCmQg8AAC4ARKZCDwAADP////8BAf////8AAAAAFWCJCgIA" +
+           "AAAAABIAAABDbGllbnRBdWRpdEVudHJ5SWQCAQCnQg8AAC4ARKdCDwAADP////8BAf////8AAAAAFWCJ" +
+           "CgIAAAAAAAwAAABDbGllbnRVc2VySWQCAQCoQg8AAC4ARKhCDwAADP////8BAf////8AAAAAFWCJCgIA" +
+           "AAAAAAgAAABNZXRob2RJZAIBAKlCDwAALgBEqUIPAAAR/////wEB/////wAAAAAXYIkKAgAAAAAADgAA" +
+           "AElucHV0QXJndW1lbnRzAgEAq0IPAAAuAESrQg8AABgBAAAAAQAAAAAAAAABAf////8AAAAA";
+        #endregion
+        #endif
+        #endregion
+
+        #region Public Properties
+        #endregion
+
+        #region Overridden Methods
+        #endregion
+
+        #region Private Fields
+        #endregion
+    }
+    #endif
+    #endregion
+
     #region KeyCredentialManagementFolderState Class
     #if (!OPCUA_EXCLUDE_KeyCredentialManagementFolderState)
     /// <remarks />
@@ -4028,6 +5168,9 @@ namespace Opc.Ua.Gds
         #region Event Callbacks
         /// <remarks />
         public KeyCredentialStartRequestMethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public KeyCredentialStartRequestMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -4072,6 +5215,50 @@ namespace Opc.Ua.Gds
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken).ConfigureAwait(false);
+            }
+
+            KeyCredentialStartRequestMethodStateResult _result = null;
+
+            string applicationUri = (string)_inputArguments[0];
+            byte[] publicKey = (byte[])_inputArguments[1];
+            string securityPolicyUri = (string)_inputArguments[2];
+            NodeId[] requestedRoles = (NodeId[])_inputArguments[3];
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    applicationUri,
+                    publicKey,
+                    securityPolicyUri,
+                    requestedRoles,
+                    cancellationToken).ConfigureAwait(false);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            _outputArguments[0] = _result.RequestId;
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -4089,6 +5276,29 @@ namespace Opc.Ua.Gds
         string securityPolicyUri,
         NodeId[] requestedRoles,
         ref NodeId requestId);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class KeyCredentialStartRequestMethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+        /// <remarks />
+        public NodeId RequestId { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<KeyCredentialStartRequestMethodStateResult> KeyCredentialStartRequestMethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        string applicationUri,
+        byte[] publicKey,
+        string securityPolicyUri,
+        NodeId[] requestedRoles,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -4144,6 +5354,9 @@ namespace Opc.Ua.Gds
         #region Event Callbacks
         /// <remarks />
         public KeyCredentialFinishRequestMethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public KeyCredentialFinishRequestMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -4196,6 +5409,50 @@ namespace Opc.Ua.Gds
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken).ConfigureAwait(false);
+            }
+
+            KeyCredentialFinishRequestMethodStateResult _result = null;
+
+            NodeId requestId = (NodeId)_inputArguments[0];
+            bool cancelRequest = (bool)_inputArguments[1];
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    requestId,
+                    cancelRequest,
+                    cancellationToken).ConfigureAwait(false);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            _outputArguments[0] = _result.CredentialId;
+            _outputArguments[1] = _result.CredentialSecret;
+            _outputArguments[2] = _result.CertificateThumbprint;
+            _outputArguments[3] = _result.SecurityPolicyUri;
+            _outputArguments[4] = _result.GrantedRoles;
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -4215,6 +5472,35 @@ namespace Opc.Ua.Gds
         ref string certificateThumbprint,
         ref string securityPolicyUri,
         ref NodeId[] grantedRoles);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class KeyCredentialFinishRequestMethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+        /// <remarks />
+        public string CredentialId { get; set; }
+        /// <remarks />
+        public byte[] CredentialSecret { get; set; }
+        /// <remarks />
+        public string CertificateThumbprint { get; set; }
+        /// <remarks />
+        public string SecurityPolicyUri { get; set; }
+        /// <remarks />
+        public NodeId[] GrantedRoles { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<KeyCredentialFinishRequestMethodStateResult> KeyCredentialFinishRequestMethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        NodeId requestId,
+        bool cancelRequest,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -4265,6 +5551,9 @@ namespace Opc.Ua.Gds
         #region Event Callbacks
         /// <remarks />
         public KeyCredentialRevokeMethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public KeyCredentialRevokeMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -4298,6 +5587,42 @@ namespace Opc.Ua.Gds
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken).ConfigureAwait(false);
+            }
+
+            KeyCredentialRevokeMethodStateResult _result = null;
+
+            string credentialId = (string)_inputArguments[0];
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    credentialId,
+                    cancellationToken).ConfigureAwait(false);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -4311,6 +5636,24 @@ namespace Opc.Ua.Gds
         MethodState _method,
         NodeId _objectId,
         string credentialId);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class KeyCredentialRevokeMethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<KeyCredentialRevokeMethodStateResult> KeyCredentialRevokeMethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        string credentialId,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -4359,21 +5702,21 @@ namespace Opc.Ua.Gds
         private const string InitializationString =
            "AQAAACAAAABodHRwOi8vb3BjZm91bmRhdGlvbi5vcmcvVUEvR0RTL/////8EYIACAQAAAAEALAAAAEtl" +
            "eUNyZWRlbnRpYWxSZXF1ZXN0ZWRBdWRpdEV2ZW50VHlwZUluc3RhbmNlAQEPBAEBDwQPBAAA/////xAA" +
-           "AAAVYIkKAgAAAAAABwAAAEV2ZW50SWQCAQCjQg8AAC4ARKNCDwAAD/////8BAf////8AAAAAFWCJCgIA" +
-           "AAAAAAkAAABFdmVudFR5cGUCAQCkQg8AAC4ARKRCDwAAEf////8BAf////8AAAAAFWCJCgIAAAAAAAoA" +
-           "AABTb3VyY2VOb2RlAgEApUIPAAAuAESlQg8AABH/////AQH/////AAAAABVgiQoCAAAAAAAKAAAAU291" +
-           "cmNlTmFtZQIBAKZCDwAALgBEpkIPAAAM/////wEB/////wAAAAAVYIkKAgAAAAAABAAAAFRpbWUCAQCn" +
-           "Qg8AAC4ARKdCDwABACYB/////wEB/////wAAAAAVYIkKAgAAAAAACwAAAFJlY2VpdmVUaW1lAgEAqEIP" +
-           "AAAuAESoQg8AAQAmAf////8BAf////8AAAAAFWCJCgIAAAAAAAcAAABNZXNzYWdlAgEAqkIPAAAuAESq" +
-           "Qg8AABX/////AQH/////AAAAABVgiQoCAAAAAAAIAAAAU2V2ZXJpdHkCAQCrQg8AAC4ARKtCDwAABf//" +
-           "//8BAf////8AAAAAFWCJCgIAAAAAAA8AAABBY3Rpb25UaW1lU3RhbXACAQCwQg8AAC4ARLBCDwABACYB" +
-           "/////wEB/////wAAAAAVYIkKAgAAAAAABgAAAFN0YXR1cwIBALFCDwAALgBEsUIPAAAB/////wEB////" +
-           "/wAAAAAVYIkKAgAAAAAACAAAAFNlcnZlcklkAgEAskIPAAAuAESyQg8AAAz/////AQH/////AAAAABVg" +
-           "iQoCAAAAAAASAAAAQ2xpZW50QXVkaXRFbnRyeUlkAgEAs0IPAAAuAESzQg8AAAz/////AQH/////AAAA" +
-           "ABVgiQoCAAAAAAAMAAAAQ2xpZW50VXNlcklkAgEAtEIPAAAuAES0Qg8AAAz/////AQH/////AAAAABVg" +
-           "iQoCAAAAAAAIAAAATWV0aG9kSWQCAQC1Qg8AAC4ARLVCDwAAEf////8BAf////8AAAAAF2CJCgIAAAAA" +
-           "AA4AAABJbnB1dEFyZ3VtZW50cwIBALdCDwAALgBEt0IPAAAYAQAAAAEAAAAAAAAAAQH/////AAAAABVg" +
-           "iQoCAAAAAAALAAAAUmVzb3VyY2VVcmkCAQC5Qg8AAC4ARLlCDwAADP////8BAf////8AAAAA";
+           "AAAVYIkKAgAAAAAABwAAAEV2ZW50SWQCAQC5Qg8AAC4ARLlCDwAAD/////8BAf////8AAAAAFWCJCgIA" +
+           "AAAAAAkAAABFdmVudFR5cGUCAQC6Qg8AAC4ARLpCDwAAEf////8BAf////8AAAAAFWCJCgIAAAAAAAoA" +
+           "AABTb3VyY2VOb2RlAgEAu0IPAAAuAES7Qg8AABH/////AQH/////AAAAABVgiQoCAAAAAAAKAAAAU291" +
+           "cmNlTmFtZQIBALxCDwAALgBEvEIPAAAM/////wEB/////wAAAAAVYIkKAgAAAAAABAAAAFRpbWUCAQC9" +
+           "Qg8AAC4ARL1CDwABACYB/////wEB/////wAAAAAVYIkKAgAAAAAACwAAAFJlY2VpdmVUaW1lAgEAvkIP" +
+           "AAAuAES+Qg8AAQAmAf////8BAf////8AAAAAFWCJCgIAAAAAAAcAAABNZXNzYWdlAgEAwEIPAAAuAETA" +
+           "Qg8AABX/////AQH/////AAAAABVgiQoCAAAAAAAIAAAAU2V2ZXJpdHkCAQDBQg8AAC4ARMFCDwAABf//" +
+           "//8BAf////8AAAAAFWCJCgIAAAAAAA8AAABBY3Rpb25UaW1lU3RhbXACAQDGQg8AAC4ARMZCDwABACYB" +
+           "/////wEB/////wAAAAAVYIkKAgAAAAAABgAAAFN0YXR1cwIBAMdCDwAALgBEx0IPAAAB/////wEB////" +
+           "/wAAAAAVYIkKAgAAAAAACAAAAFNlcnZlcklkAgEAyEIPAAAuAETIQg8AAAz/////AQH/////AAAAABVg" +
+           "iQoCAAAAAAASAAAAQ2xpZW50QXVkaXRFbnRyeUlkAgEAyUIPAAAuAETJQg8AAAz/////AQH/////AAAA" +
+           "ABVgiQoCAAAAAAAMAAAAQ2xpZW50VXNlcklkAgEAykIPAAAuAETKQg8AAAz/////AQH/////AAAAABVg" +
+           "iQoCAAAAAAAIAAAATWV0aG9kSWQCAQDLQg8AAC4ARMtCDwAAEf////8BAf////8AAAAAF2CJCgIAAAAA" +
+           "AA4AAABJbnB1dEFyZ3VtZW50cwIBAM1CDwAALgBEzUIPAAAYAQAAAAEAAAAAAAAAAQH/////AAAAABVg" +
+           "iQoCAAAAAAALAAAAUmVzb3VyY2VVcmkCAQDPQg8AAC4ARM9CDwAADP////8BAf////8AAAAA";
         #endregion
         #endif
         #endregion
@@ -4435,21 +5778,21 @@ namespace Opc.Ua.Gds
         private const string InitializationString =
            "AQAAACAAAABodHRwOi8vb3BjZm91bmRhdGlvbi5vcmcvVUEvR0RTL/////8EYIACAQAAAAEALAAAAEtl" +
            "eUNyZWRlbnRpYWxEZWxpdmVyZWRBdWRpdEV2ZW50VHlwZUluc3RhbmNlAQEhBAEBIQQhBAAA/////xAA" +
-           "AAAVYIkKAgAAAAAABwAAAEV2ZW50SWQCAQC6Qg8AAC4ARLpCDwAAD/////8BAf////8AAAAAFWCJCgIA" +
-           "AAAAAAkAAABFdmVudFR5cGUCAQC7Qg8AAC4ARLtCDwAAEf////8BAf////8AAAAAFWCJCgIAAAAAAAoA" +
-           "AABTb3VyY2VOb2RlAgEAvEIPAAAuAES8Qg8AABH/////AQH/////AAAAABVgiQoCAAAAAAAKAAAAU291" +
-           "cmNlTmFtZQIBAL1CDwAALgBEvUIPAAAM/////wEB/////wAAAAAVYIkKAgAAAAAABAAAAFRpbWUCAQC+" +
-           "Qg8AAC4ARL5CDwABACYB/////wEB/////wAAAAAVYIkKAgAAAAAACwAAAFJlY2VpdmVUaW1lAgEAv0IP" +
-           "AAAuAES/Qg8AAQAmAf////8BAf////8AAAAAFWCJCgIAAAAAAAcAAABNZXNzYWdlAgEAwUIPAAAuAETB" +
-           "Qg8AABX/////AQH/////AAAAABVgiQoCAAAAAAAIAAAAU2V2ZXJpdHkCAQDCQg8AAC4ARMJCDwAABf//" +
-           "//8BAf////8AAAAAFWCJCgIAAAAAAA8AAABBY3Rpb25UaW1lU3RhbXACAQDHQg8AAC4ARMdCDwABACYB" +
-           "/////wEB/////wAAAAAVYIkKAgAAAAAABgAAAFN0YXR1cwIBAMhCDwAALgBEyEIPAAAB/////wEB////" +
-           "/wAAAAAVYIkKAgAAAAAACAAAAFNlcnZlcklkAgEAyUIPAAAuAETJQg8AAAz/////AQH/////AAAAABVg" +
-           "iQoCAAAAAAASAAAAQ2xpZW50QXVkaXRFbnRyeUlkAgEAykIPAAAuAETKQg8AAAz/////AQH/////AAAA" +
-           "ABVgiQoCAAAAAAAMAAAAQ2xpZW50VXNlcklkAgEAy0IPAAAuAETLQg8AAAz/////AQH/////AAAAABVg" +
-           "iQoCAAAAAAAIAAAATWV0aG9kSWQCAQDMQg8AAC4ARMxCDwAAEf////8BAf////8AAAAAF2CJCgIAAAAA" +
-           "AA4AAABJbnB1dEFyZ3VtZW50cwIBAM5CDwAALgBEzkIPAAAYAQAAAAEAAAAAAAAAAQH/////AAAAABVg" +
-           "iQoCAAAAAAALAAAAUmVzb3VyY2VVcmkCAQDQQg8AAC4ARNBCDwAADP////8BAf////8AAAAA";
+           "AAAVYIkKAgAAAAAABwAAAEV2ZW50SWQCAQDQQg8AAC4ARNBCDwAAD/////8BAf////8AAAAAFWCJCgIA" +
+           "AAAAAAkAAABFdmVudFR5cGUCAQDRQg8AAC4ARNFCDwAAEf////8BAf////8AAAAAFWCJCgIAAAAAAAoA" +
+           "AABTb3VyY2VOb2RlAgEA0kIPAAAuAETSQg8AABH/////AQH/////AAAAABVgiQoCAAAAAAAKAAAAU291" +
+           "cmNlTmFtZQIBANNCDwAALgBE00IPAAAM/////wEB/////wAAAAAVYIkKAgAAAAAABAAAAFRpbWUCAQDU" +
+           "Qg8AAC4ARNRCDwABACYB/////wEB/////wAAAAAVYIkKAgAAAAAACwAAAFJlY2VpdmVUaW1lAgEA1UIP" +
+           "AAAuAETVQg8AAQAmAf////8BAf////8AAAAAFWCJCgIAAAAAAAcAAABNZXNzYWdlAgEA10IPAAAuAETX" +
+           "Qg8AABX/////AQH/////AAAAABVgiQoCAAAAAAAIAAAAU2V2ZXJpdHkCAQDYQg8AAC4ARNhCDwAABf//" +
+           "//8BAf////8AAAAAFWCJCgIAAAAAAA8AAABBY3Rpb25UaW1lU3RhbXACAQDdQg8AAC4ARN1CDwABACYB" +
+           "/////wEB/////wAAAAAVYIkKAgAAAAAABgAAAFN0YXR1cwIBAN5CDwAALgBE3kIPAAAB/////wEB////" +
+           "/wAAAAAVYIkKAgAAAAAACAAAAFNlcnZlcklkAgEA30IPAAAuAETfQg8AAAz/////AQH/////AAAAABVg" +
+           "iQoCAAAAAAASAAAAQ2xpZW50QXVkaXRFbnRyeUlkAgEA4EIPAAAuAETgQg8AAAz/////AQH/////AAAA" +
+           "ABVgiQoCAAAAAAAMAAAAQ2xpZW50VXNlcklkAgEA4UIPAAAuAEThQg8AAAz/////AQH/////AAAAABVg" +
+           "iQoCAAAAAAAIAAAATWV0aG9kSWQCAQDiQg8AAC4AROJCDwAAEf////8BAf////8AAAAAF2CJCgIAAAAA" +
+           "AA4AAABJbnB1dEFyZ3VtZW50cwIBAORCDwAALgBE5EIPAAAYAQAAAAEAAAAAAAAAAQH/////AAAAABVg" +
+           "iQoCAAAAAAALAAAAUmVzb3VyY2VVcmkCAQDmQg8AAC4AROZCDwAADP////8BAf////8AAAAA";
         #endregion
         #endif
         #endregion
@@ -4511,21 +5854,21 @@ namespace Opc.Ua.Gds
         private const string InitializationString =
            "AQAAACAAAABodHRwOi8vb3BjZm91bmRhdGlvbi5vcmcvVUEvR0RTL/////8EYIACAQAAAAEAKgAAAEtl" +
            "eUNyZWRlbnRpYWxSZXZva2VkQXVkaXRFdmVudFR5cGVJbnN0YW5jZQEBMwQBATMEMwQAAP////8QAAAA" +
-           "FWCJCgIAAAAAAAcAAABFdmVudElkAgEA0UIPAAAuAETRQg8AAA//////AQH/////AAAAABVgiQoCAAAA" +
-           "AAAJAAAARXZlbnRUeXBlAgEA0kIPAAAuAETSQg8AABH/////AQH/////AAAAABVgiQoCAAAAAAAKAAAA" +
-           "U291cmNlTm9kZQIBANNCDwAALgBE00IPAAAR/////wEB/////wAAAAAVYIkKAgAAAAAACgAAAFNvdXJj" +
-           "ZU5hbWUCAQDUQg8AAC4ARNRCDwAADP////8BAf////8AAAAAFWCJCgIAAAAAAAQAAABUaW1lAgEA1UIP" +
-           "AAAuAETVQg8AAQAmAf////8BAf////8AAAAAFWCJCgIAAAAAAAsAAABSZWNlaXZlVGltZQIBANZCDwAA" +
-           "LgBE1kIPAAEAJgH/////AQH/////AAAAABVgiQoCAAAAAAAHAAAATWVzc2FnZQIBANhCDwAALgBE2EIP" +
-           "AAAV/////wEB/////wAAAAAVYIkKAgAAAAAACAAAAFNldmVyaXR5AgEA2UIPAAAuAETZQg8AAAX/////" +
-           "AQH/////AAAAABVgiQoCAAAAAAAPAAAAQWN0aW9uVGltZVN0YW1wAgEA3kIPAAAuAETeQg8AAQAmAf//" +
-           "//8BAf////8AAAAAFWCJCgIAAAAAAAYAAABTdGF0dXMCAQDfQg8AAC4ARN9CDwAAAf////8BAf////8A" +
-           "AAAAFWCJCgIAAAAAAAgAAABTZXJ2ZXJJZAIBAOBCDwAALgBE4EIPAAAM/////wEB/////wAAAAAVYIkK" +
-           "AgAAAAAAEgAAAENsaWVudEF1ZGl0RW50cnlJZAIBAOFCDwAALgBE4UIPAAAM/////wEB/////wAAAAAV" +
-           "YIkKAgAAAAAADAAAAENsaWVudFVzZXJJZAIBAOJCDwAALgBE4kIPAAAM/////wEB/////wAAAAAVYIkK" +
-           "AgAAAAAACAAAAE1ldGhvZElkAgEA40IPAAAuAETjQg8AABH/////AQH/////AAAAABdgiQoCAAAAAAAO" +
-           "AAAASW5wdXRBcmd1bWVudHMCAQDlQg8AAC4AROVCDwAAGAEAAAABAAAAAAAAAAEB/////wAAAAAVYIkK" +
-           "AgAAAAAACwAAAFJlc291cmNlVXJpAgEA50IPAAAuAETnQg8AAAz/////AQH/////AAAAAA==";
+           "FWCJCgIAAAAAAAcAAABFdmVudElkAgEA50IPAAAuAETnQg8AAA//////AQH/////AAAAABVgiQoCAAAA" +
+           "AAAJAAAARXZlbnRUeXBlAgEA6EIPAAAuAEToQg8AABH/////AQH/////AAAAABVgiQoCAAAAAAAKAAAA" +
+           "U291cmNlTm9kZQIBAOlCDwAALgBE6UIPAAAR/////wEB/////wAAAAAVYIkKAgAAAAAACgAAAFNvdXJj" +
+           "ZU5hbWUCAQDqQg8AAC4AROpCDwAADP////8BAf////8AAAAAFWCJCgIAAAAAAAQAAABUaW1lAgEA60IP" +
+           "AAAuAETrQg8AAQAmAf////8BAf////8AAAAAFWCJCgIAAAAAAAsAAABSZWNlaXZlVGltZQIBAOxCDwAA" +
+           "LgBE7EIPAAEAJgH/////AQH/////AAAAABVgiQoCAAAAAAAHAAAATWVzc2FnZQIBAO5CDwAALgBE7kIP" +
+           "AAAV/////wEB/////wAAAAAVYIkKAgAAAAAACAAAAFNldmVyaXR5AgEA70IPAAAuAETvQg8AAAX/////" +
+           "AQH/////AAAAABVgiQoCAAAAAAAPAAAAQWN0aW9uVGltZVN0YW1wAgEA9EIPAAAuAET0Qg8AAQAmAf//" +
+           "//8BAf////8AAAAAFWCJCgIAAAAAAAYAAABTdGF0dXMCAQD1Qg8AAC4ARPVCDwAAAf////8BAf////8A" +
+           "AAAAFWCJCgIAAAAAAAgAAABTZXJ2ZXJJZAIBAPZCDwAALgBE9kIPAAAM/////wEB/////wAAAAAVYIkK" +
+           "AgAAAAAAEgAAAENsaWVudEF1ZGl0RW50cnlJZAIBAPdCDwAALgBE90IPAAAM/////wEB/////wAAAAAV" +
+           "YIkKAgAAAAAADAAAAENsaWVudFVzZXJJZAIBAPhCDwAALgBE+EIPAAAM/////wEB/////wAAAAAVYIkK" +
+           "AgAAAAAACAAAAE1ldGhvZElkAgEA+UIPAAAuAET5Qg8AABH/////AQH/////AAAAABdgiQoCAAAAAAAO" +
+           "AAAASW5wdXRBcmd1bWVudHMCAQD7Qg8AAC4ARPtCDwAAGAEAAAABAAAAAAAAAAEB/////wAAAAAVYIkK" +
+           "AgAAAAAACwAAAFJlc291cmNlVXJpAgEA/UIPAAAuAET9Qg8AAAz/////AQH/////AAAAAA==";
         #endregion
         #endif
         #endregion
@@ -5009,6 +6352,9 @@ namespace Opc.Ua.Gds
         #region Event Callbacks
         /// <remarks />
         public GetServiceDescriptionMethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public GetServiceDescriptionMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -5050,6 +6396,43 @@ namespace Opc.Ua.Gds
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken).ConfigureAwait(false);
+            }
+
+            GetServiceDescriptionMethodStateResult _result = null;
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    cancellationToken).ConfigureAwait(false);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            _outputArguments[0] = _result.ServiceUri;
+            _outputArguments[1] = _result.ServiceCertificate;
+            _outputArguments[2] = _result.UserTokenPolicies;
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -5065,6 +6448,29 @@ namespace Opc.Ua.Gds
         ref string serviceUri,
         ref byte[] serviceCertificate,
         ref Opc.Ua.UserTokenPolicy[] userTokenPolicies);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class GetServiceDescriptionMethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+        /// <remarks />
+        public string ServiceUri { get; set; }
+        /// <remarks />
+        public byte[] ServiceCertificate { get; set; }
+        /// <remarks />
+        public Opc.Ua.UserTokenPolicy[] UserTokenPolicies { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<GetServiceDescriptionMethodStateResult> GetServiceDescriptionMethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -5118,6 +6524,9 @@ namespace Opc.Ua.Gds
         #region Event Callbacks
         /// <remarks />
         public RequestAccessTokenMethodStateMethodCallHandler OnCall;
+
+        /// <remarks />
+        public RequestAccessTokenMethodStateMethodAsyncCallHandler OnCallAsync;
         #endregion
 
         #region Public Properties
@@ -5158,6 +6567,46 @@ namespace Opc.Ua.Gds
 
             return _result;
         }
+
+        /// <remarks />
+        protected override async ValueTask<ServiceResult> CallAsync(
+            ISystemContext _context,
+            NodeId _objectId,
+            IList<object> _inputArguments,
+            IList<object> _outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (OnCall == null && OnCallAsync == null)
+            {
+                return await base.CallAsync(_context, _objectId, _inputArguments, _outputArguments, cancellationToken).ConfigureAwait(false);
+            }
+
+            RequestAccessTokenMethodStateResult _result = null;
+
+            Opc.Ua.UserIdentityToken identityToken = (Opc.Ua.UserIdentityToken)ExtensionObject.ToEncodeable((ExtensionObject)_inputArguments[0]);
+            string resourceId = (string)_inputArguments[1];
+
+            if (OnCallAsync != null)
+            {
+                _result = await OnCallAsync(
+                    _context,
+                    this,
+                    _objectId,
+                    identityToken,
+                    resourceId,
+                    cancellationToken).ConfigureAwait(false);
+            }
+
+            if (OnCall != null)
+            {
+                return Call(_context, _objectId, _inputArguments, _outputArguments);
+            }
+
+            _outputArguments[0] = _result.AccessToken;
+
+            return _result.ServiceResult;
+        }
+
         #endregion
 
         #region Private Fields
@@ -5173,6 +6622,27 @@ namespace Opc.Ua.Gds
         Opc.Ua.UserIdentityToken identityToken,
         string resourceId,
         ref string accessToken);
+
+    /// <remarks />
+    /// <exclude />
+    public partial class RequestAccessTokenMethodStateResult
+    {
+        /// <remarks />
+        public ServiceResult ServiceResult { get; set; }
+        /// <remarks />
+        public string AccessToken { get; set; }
+    }
+
+
+    /// <remarks />
+    /// <exclude />
+    public delegate ValueTask<RequestAccessTokenMethodStateResult> RequestAccessTokenMethodStateMethodAsyncCallHandler(
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
+        Opc.Ua.UserIdentityToken identityToken,
+        string resourceId,
+        CancellationToken cancellationToken);
     #endif
     #endregion
 
@@ -5221,20 +6691,20 @@ namespace Opc.Ua.Gds
         private const string InitializationString =
            "AQAAACAAAABodHRwOi8vb3BjZm91bmRhdGlvbi5vcmcvVUEvR0RTL/////8EYIACAQAAAAEAJwAAAEFj" +
            "Y2Vzc1Rva2VuSXNzdWVkQXVkaXRFdmVudFR5cGVJbnN0YW5jZQEBzwMBAc8DzwMAAP////8PAAAAFWCJ" +
-           "CgIAAAAAAAcAAABFdmVudElkAgEA8UIPAAAuAETxQg8AAA//////AQH/////AAAAABVgiQoCAAAAAAAJ" +
-           "AAAARXZlbnRUeXBlAgEA8kIPAAAuAETyQg8AABH/////AQH/////AAAAABVgiQoCAAAAAAAKAAAAU291" +
-           "cmNlTm9kZQIBAPNCDwAALgBE80IPAAAR/////wEB/////wAAAAAVYIkKAgAAAAAACgAAAFNvdXJjZU5h" +
-           "bWUCAQD0Qg8AAC4ARPRCDwAADP////8BAf////8AAAAAFWCJCgIAAAAAAAQAAABUaW1lAgEA9UIPAAAu" +
-           "AET1Qg8AAQAmAf////8BAf////8AAAAAFWCJCgIAAAAAAAsAAABSZWNlaXZlVGltZQIBAPZCDwAALgBE" +
-           "9kIPAAEAJgH/////AQH/////AAAAABVgiQoCAAAAAAAHAAAATWVzc2FnZQIBAPhCDwAALgBE+EIPAAAV" +
-           "/////wEB/////wAAAAAVYIkKAgAAAAAACAAAAFNldmVyaXR5AgEA+UIPAAAuAET5Qg8AAAX/////AQH/" +
-           "////AAAAABVgiQoCAAAAAAAPAAAAQWN0aW9uVGltZVN0YW1wAgEA/kIPAAAuAET+Qg8AAQAmAf////8B" +
-           "Af////8AAAAAFWCJCgIAAAAAAAYAAABTdGF0dXMCAQD/Qg8AAC4ARP9CDwAAAf////8BAf////8AAAAA" +
-           "FWCJCgIAAAAAAAgAAABTZXJ2ZXJJZAIBAABDDwAALgBEAEMPAAAM/////wEB/////wAAAAAVYIkKAgAA" +
-           "AAAAEgAAAENsaWVudEF1ZGl0RW50cnlJZAIBAAFDDwAALgBEAUMPAAAM/////wEB/////wAAAAAVYIkK" +
-           "AgAAAAAADAAAAENsaWVudFVzZXJJZAIBAAJDDwAALgBEAkMPAAAM/////wEB/////wAAAAAVYIkKAgAA" +
-           "AAAACAAAAE1ldGhvZElkAgEAA0MPAAAuAEQDQw8AABH/////AQH/////AAAAABdgiQoCAAAAAAAOAAAA" +
-           "SW5wdXRBcmd1bWVudHMCAQAFQw8AAC4ARAVDDwAAGAEAAAABAAAAAAAAAAEB/////wAAAAA=";
+           "CgIAAAAAAAcAAABFdmVudElkAgEAB0MPAAAuAEQHQw8AAA//////AQH/////AAAAABVgiQoCAAAAAAAJ" +
+           "AAAARXZlbnRUeXBlAgEACEMPAAAuAEQIQw8AABH/////AQH/////AAAAABVgiQoCAAAAAAAKAAAAU291" +
+           "cmNlTm9kZQIBAAlDDwAALgBECUMPAAAR/////wEB/////wAAAAAVYIkKAgAAAAAACgAAAFNvdXJjZU5h" +
+           "bWUCAQAKQw8AAC4ARApDDwAADP////8BAf////8AAAAAFWCJCgIAAAAAAAQAAABUaW1lAgEAC0MPAAAu" +
+           "AEQLQw8AAQAmAf////8BAf////8AAAAAFWCJCgIAAAAAAAsAAABSZWNlaXZlVGltZQIBAAxDDwAALgBE" +
+           "DEMPAAEAJgH/////AQH/////AAAAABVgiQoCAAAAAAAHAAAATWVzc2FnZQIBAA5DDwAALgBEDkMPAAAV" +
+           "/////wEB/////wAAAAAVYIkKAgAAAAAACAAAAFNldmVyaXR5AgEAD0MPAAAuAEQPQw8AAAX/////AQH/" +
+           "////AAAAABVgiQoCAAAAAAAPAAAAQWN0aW9uVGltZVN0YW1wAgEAFEMPAAAuAEQUQw8AAQAmAf////8B" +
+           "Af////8AAAAAFWCJCgIAAAAAAAYAAABTdGF0dXMCAQAVQw8AAC4ARBVDDwAAAf////8BAf////8AAAAA" +
+           "FWCJCgIAAAAAAAgAAABTZXJ2ZXJJZAIBABZDDwAALgBEFkMPAAAM/////wEB/////wAAAAAVYIkKAgAA" +
+           "AAAAEgAAAENsaWVudEF1ZGl0RW50cnlJZAIBABdDDwAALgBEF0MPAAAM/////wEB/////wAAAAAVYIkK" +
+           "AgAAAAAADAAAAENsaWVudFVzZXJJZAIBABhDDwAALgBEGEMPAAAM/////wEB/////wAAAAAVYIkKAgAA" +
+           "AAAACAAAAE1ldGhvZElkAgEAGUMPAAAuAEQZQw8AABH/////AQH/////AAAAABdgiQoCAAAAAAAOAAAA" +
+           "SW5wdXRBcmd1bWVudHMCAQAbQw8AAC4ARBtDDwAAGAEAAAABAAAAAAAAAAEB/////wAAAAA=";
         #endregion
         #endif
         #endregion
