@@ -230,7 +230,7 @@ namespace Opc.Ua
                    request.RequestHeader,
                    request.EndpointUrl,
                    request.LocaleIds,
-                   request.ServerUris,cancellationToken);
+                   request.ServerUris,cancellationToken).ConfigureAwait(false);
 
             }
             finally
@@ -374,7 +374,7 @@ namespace Opc.Ua
                    request.RequestHeader,
                    request.StartingRecordId,
                    request.MaxRecordsToReturn,
-                   request.ServerCapabilityFilter,cancellationToken);
+                   request.ServerCapabilityFilter,cancellationToken).ConfigureAwait(false);
 
             }
             finally
@@ -515,7 +515,7 @@ namespace Opc.Ua
                    request.RequestHeader,
                    request.EndpointUrl,
                    request.LocaleIds,
-                   request.ProfileUris,cancellationToken);
+                   request.ProfileUris,cancellationToken).ConfigureAwait(false);
 
             }
             finally
@@ -690,7 +690,7 @@ namespace Opc.Ua
                    request.ClientNonce,
                    request.ClientCertificate,
                    request.RequestedSessionTimeout,
-                   request.MaxResponseMessageSize,cancellationToken);
+                   request.MaxResponseMessageSize,cancellationToken).ConfigureAwait(false);
 
             }
             finally
@@ -841,7 +841,7 @@ namespace Opc.Ua
                    request.ClientSoftwareCertificates,
                    request.LocaleIds,
                    request.UserIdentityToken,
-                   request.UserTokenSignature,cancellationToken);
+                   request.UserTokenSignature,cancellationToken).ConfigureAwait(false);
 
             }
             finally
@@ -975,7 +975,7 @@ namespace Opc.Ua
 
                 response = await ServerInstance.CloseSessionAsync(
                    request.RequestHeader,
-                   request.DeleteSubscriptions,cancellationToken);
+                   request.DeleteSubscriptions,cancellationToken).ConfigureAwait(false);
 
             }
             finally
@@ -1112,7 +1112,7 @@ namespace Opc.Ua
 
                 response = await ServerInstance.CancelAsync(
                    request.RequestHeader,
-                   request.RequestHandle,cancellationToken);
+                   request.RequestHandle,cancellationToken).ConfigureAwait(false);
 
             }
             finally
@@ -1252,7 +1252,7 @@ namespace Opc.Ua
 
                 response = await ServerInstance.AddNodesAsync(
                    request.RequestHeader,
-                   request.NodesToAdd,cancellationToken);
+                   request.NodesToAdd,cancellationToken).ConfigureAwait(false);
 
             }
             finally
@@ -1392,7 +1392,7 @@ namespace Opc.Ua
 
                 response = await ServerInstance.AddReferencesAsync(
                    request.RequestHeader,
-                   request.ReferencesToAdd,cancellationToken);
+                   request.ReferencesToAdd,cancellationToken).ConfigureAwait(false);
 
             }
             finally
@@ -1532,7 +1532,7 @@ namespace Opc.Ua
 
                 response = await ServerInstance.DeleteNodesAsync(
                    request.RequestHeader,
-                   request.NodesToDelete,cancellationToken);
+                   request.NodesToDelete,cancellationToken).ConfigureAwait(false);
 
             }
             finally
@@ -1672,7 +1672,7 @@ namespace Opc.Ua
 
                 response = await ServerInstance.DeleteReferencesAsync(
                    request.RequestHeader,
-                   request.ReferencesToDelete,cancellationToken);
+                   request.ReferencesToDelete,cancellationToken).ConfigureAwait(false);
 
             }
             finally
@@ -1816,7 +1816,7 @@ namespace Opc.Ua
                    request.RequestHeader,
                    request.View,
                    request.RequestedMaxReferencesPerNode,
-                   request.NodesToBrowse,cancellationToken);
+                   request.NodesToBrowse,cancellationToken).ConfigureAwait(false);
 
             }
             finally
@@ -1958,7 +1958,7 @@ namespace Opc.Ua
                 response = await ServerInstance.BrowseNextAsync(
                    request.RequestHeader,
                    request.ReleaseContinuationPoints,
-                   request.ContinuationPoints,cancellationToken);
+                   request.ContinuationPoints,cancellationToken).ConfigureAwait(false);
 
             }
             finally
@@ -2098,7 +2098,7 @@ namespace Opc.Ua
 
                 response = await ServerInstance.TranslateBrowsePathsToNodeIdsAsync(
                    request.RequestHeader,
-                   request.BrowsePaths,cancellationToken);
+                   request.BrowsePaths,cancellationToken).ConfigureAwait(false);
 
             }
             finally
@@ -2235,7 +2235,7 @@ namespace Opc.Ua
 
                 response = await ServerInstance.RegisterNodesAsync(
                    request.RequestHeader,
-                   request.NodesToRegister,cancellationToken);
+                   request.NodesToRegister,cancellationToken).ConfigureAwait(false);
 
             }
             finally
@@ -2369,7 +2369,7 @@ namespace Opc.Ua
 
                 response = await ServerInstance.UnregisterNodesAsync(
                    request.RequestHeader,
-                   request.NodesToUnregister,cancellationToken);
+                   request.NodesToUnregister,cancellationToken).ConfigureAwait(false);
 
             }
             finally
@@ -2526,7 +2526,7 @@ namespace Opc.Ua
                    request.NodeTypes,
                    request.Filter,
                    request.MaxDataSetsToReturn,
-                   request.MaxReferencesToReturn,cancellationToken);
+                   request.MaxReferencesToReturn,cancellationToken).ConfigureAwait(false);
 
             }
             finally
@@ -2668,7 +2668,7 @@ namespace Opc.Ua
                 response = await ServerInstance.QueryNextAsync(
                    request.RequestHeader,
                    request.ReleaseContinuationPoint,
-                   request.ContinuationPoint,cancellationToken);
+                   request.ContinuationPoint,cancellationToken).ConfigureAwait(false);
 
             }
             finally
@@ -2812,7 +2812,7 @@ namespace Opc.Ua
                    request.RequestHeader,
                    request.MaxAge,
                    request.TimestampsToReturn,
-                   request.NodesToRead,cancellationToken);
+                   request.NodesToRead,cancellationToken).ConfigureAwait(false);
 
             }
             finally
@@ -2958,7 +2958,7 @@ namespace Opc.Ua
                    request.HistoryReadDetails,
                    request.TimestampsToReturn,
                    request.ReleaseContinuationPoints,
-                   request.NodesToRead,cancellationToken);
+                   request.NodesToRead,cancellationToken).ConfigureAwait(false);
 
             }
             finally
@@ -3098,7 +3098,7 @@ namespace Opc.Ua
 
                 response = await ServerInstance.WriteAsync(
                    request.RequestHeader,
-                   request.NodesToWrite,cancellationToken);
+                   request.NodesToWrite,cancellationToken).ConfigureAwait(false);
 
             }
             finally
@@ -3238,7 +3238,7 @@ namespace Opc.Ua
 
                 response = await ServerInstance.HistoryUpdateAsync(
                    request.RequestHeader,
-                   request.HistoryUpdateDetails,cancellationToken);
+                   request.HistoryUpdateDetails,cancellationToken).ConfigureAwait(false);
 
             }
             finally
@@ -3378,7 +3378,7 @@ namespace Opc.Ua
 
                 response = await ServerInstance.CallAsync(
                    request.RequestHeader,
-                   request.MethodsToCall,cancellationToken);
+                   request.MethodsToCall,cancellationToken).ConfigureAwait(false);
 
             }
             finally
@@ -3522,7 +3522,7 @@ namespace Opc.Ua
                    request.RequestHeader,
                    request.SubscriptionId,
                    request.TimestampsToReturn,
-                   request.ItemsToCreate,cancellationToken);
+                   request.ItemsToCreate,cancellationToken).ConfigureAwait(false);
 
             }
             finally
@@ -3666,7 +3666,7 @@ namespace Opc.Ua
                    request.RequestHeader,
                    request.SubscriptionId,
                    request.TimestampsToReturn,
-                   request.ItemsToModify,cancellationToken);
+                   request.ItemsToModify,cancellationToken).ConfigureAwait(false);
 
             }
             finally
@@ -3810,7 +3810,7 @@ namespace Opc.Ua
                    request.RequestHeader,
                    request.SubscriptionId,
                    request.MonitoringMode,
-                   request.MonitoredItemIds,cancellationToken);
+                   request.MonitoredItemIds,cancellationToken).ConfigureAwait(false);
 
             }
             finally
@@ -3962,7 +3962,7 @@ namespace Opc.Ua
                    request.SubscriptionId,
                    request.TriggeringItemId,
                    request.LinksToAdd,
-                   request.LinksToRemove,cancellationToken);
+                   request.LinksToRemove,cancellationToken).ConfigureAwait(false);
 
             }
             finally
@@ -4104,7 +4104,7 @@ namespace Opc.Ua
                 response = await ServerInstance.DeleteMonitoredItemsAsync(
                    request.RequestHeader,
                    request.SubscriptionId,
-                   request.MonitoredItemIds,cancellationToken);
+                   request.MonitoredItemIds,cancellationToken).ConfigureAwait(false);
 
             }
             finally
@@ -4260,7 +4260,7 @@ namespace Opc.Ua
                    request.RequestedMaxKeepAliveCount,
                    request.MaxNotificationsPerPublish,
                    request.PublishingEnabled,
-                   request.Priority,cancellationToken);
+                   request.Priority,cancellationToken).ConfigureAwait(false);
 
             }
             finally
@@ -4413,7 +4413,7 @@ namespace Opc.Ua
                    request.RequestedLifetimeCount,
                    request.RequestedMaxKeepAliveCount,
                    request.MaxNotificationsPerPublish,
-                   request.Priority,cancellationToken);
+                   request.Priority,cancellationToken).ConfigureAwait(false);
 
             }
             finally
@@ -4555,7 +4555,7 @@ namespace Opc.Ua
                 response = await ServerInstance.SetPublishingModeAsync(
                    request.RequestHeader,
                    request.PublishingEnabled,
-                   request.SubscriptionIds,cancellationToken);
+                   request.SubscriptionIds,cancellationToken).ConfigureAwait(false);
 
             }
             finally
@@ -4707,7 +4707,7 @@ namespace Opc.Ua
 
                 response = await ServerInstance.PublishAsync(
                    request.RequestHeader,
-                   request.SubscriptionAcknowledgements,cancellationToken);
+                   request.SubscriptionAcknowledgements,cancellationToken).ConfigureAwait(false);
 
             }
             finally
@@ -4846,7 +4846,7 @@ namespace Opc.Ua
                 response = await ServerInstance.RepublishAsync(
                    request.RequestHeader,
                    request.SubscriptionId,
-                   request.RetransmitSequenceNumber,cancellationToken);
+                   request.RetransmitSequenceNumber,cancellationToken).ConfigureAwait(false);
 
             }
             finally
@@ -4988,7 +4988,7 @@ namespace Opc.Ua
                 response = await ServerInstance.TransferSubscriptionsAsync(
                    request.RequestHeader,
                    request.SubscriptionIds,
-                   request.SendInitialValues,cancellationToken);
+                   request.SendInitialValues,cancellationToken).ConfigureAwait(false);
 
             }
             finally
@@ -5128,7 +5128,7 @@ namespace Opc.Ua
 
                 response = await ServerInstance.DeleteSubscriptionsAsync(
                    request.RequestHeader,
-                   request.SubscriptionIds,cancellationToken);
+                   request.SubscriptionIds,cancellationToken).ConfigureAwait(false);
 
             }
             finally
@@ -5514,7 +5514,7 @@ namespace Opc.Ua
                    request.RequestHeader,
                    request.EndpointUrl,
                    request.LocaleIds,
-                   request.ServerUris,cancellationToken);
+                   request.ServerUris,cancellationToken).ConfigureAwait(false);
 
             }
             finally
@@ -5658,7 +5658,7 @@ namespace Opc.Ua
                    request.RequestHeader,
                    request.StartingRecordId,
                    request.MaxRecordsToReturn,
-                   request.ServerCapabilityFilter,cancellationToken);
+                   request.ServerCapabilityFilter,cancellationToken).ConfigureAwait(false);
 
             }
             finally
@@ -5799,7 +5799,7 @@ namespace Opc.Ua
                    request.RequestHeader,
                    request.EndpointUrl,
                    request.LocaleIds,
-                   request.ProfileUris,cancellationToken);
+                   request.ProfileUris,cancellationToken).ConfigureAwait(false);
 
             }
             finally
@@ -5933,7 +5933,7 @@ namespace Opc.Ua
 
                 response = await ServerInstance.RegisterServerAsync(
                    request.RequestHeader,
-                   request.Server,cancellationToken);
+                   request.Server,cancellationToken).ConfigureAwait(false);
 
             }
             finally
@@ -6075,7 +6075,7 @@ namespace Opc.Ua
                 response = await ServerInstance.RegisterServer2Async(
                    request.RequestHeader,
                    request.Server,
-                   request.DiscoveryConfiguration,cancellationToken);
+                   request.DiscoveryConfiguration,cancellationToken).ConfigureAwait(false);
 
             }
             finally

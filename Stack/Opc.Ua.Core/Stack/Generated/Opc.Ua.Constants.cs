@@ -253,7 +253,43 @@ namespace Opc.Ua
         public const uint TrustListDataType = 12554;
 
         /// <remarks />
+        public const uint BaseConfigurationDataType = 15434;
+
+        /// <remarks />
+        public const uint BaseConfigurationRecordDataType = 15435;
+
+        /// <remarks />
+        public const uint CertificateGroupDataType = 15436;
+
+        /// <remarks />
+        public const uint ConfigurationUpdateTargetType = 15538;
+
+        /// <remarks />
+        public const uint ConfigurationUpdateType = 15539;
+
+        /// <remarks />
         public const uint TransactionErrorType = 32285;
+
+        /// <remarks />
+        public const uint ApplicationConfigurationDataType = 15549;
+
+        /// <remarks />
+        public const uint ApplicationIdentityDataType = 15556;
+
+        /// <remarks />
+        public const uint EndpointDataType = 15557;
+
+        /// <remarks />
+        public const uint ServerEndpointDataType = 15558;
+
+        /// <remarks />
+        public const uint SecuritySettingsDataType = 15559;
+
+        /// <remarks />
+        public const uint UserTokenSettingsDataType = 15560;
+
+        /// <remarks />
+        public const uint AuthorizationServiceConfigurationDataType = 19445;
 
         /// <remarks />
         public const uint DecimalDataType = 17861;
@@ -620,6 +656,24 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint ReferenceListEntryDataType = 32660;
+
+        /// <remarks />
+        public const uint LogRecord = 19361;
+
+        /// <remarks />
+        public const uint LogRecordsDataType = 19745;
+
+        /// <remarks />
+        public const uint SpanContextDataType = 19746;
+
+        /// <remarks />
+        public const uint TraceContextDataType = 19747;
+
+        /// <remarks />
+        public const uint NameValuePair = 19748;
+
+        /// <remarks />
+        public const uint LogRecordMask = 19749;
 
         /// <remarks />
         public const uint IdType = 256;
@@ -2019,9 +2073,6 @@ namespace Opc.Ua
         public const uint CertificateGroupType_TrustList_RemoveCertificate = 13629;
 
         /// <remarks />
-        public const uint CertificateGroupType_GetRejectedList = 23526;
-
-        /// <remarks />
         public const uint CertificateGroupType_CertificateExpired_Disable = 19483;
 
         /// <remarks />
@@ -2062,6 +2113,9 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint CertificateGroupType_TrustListOutOfDate_ShelvingState_OneShotShelve = 20248;
+
+        /// <remarks />
+        public const uint CertificateGroupType_GetRejectedList = 23526;
 
         /// <remarks />
         public const uint CertificateGroupFolderType_DefaultApplicationGroup_TrustList_Open = 13821;
@@ -2352,6 +2406,24 @@ namespace Opc.Ua
         public const uint CertificateGroupFolderType_AdditionalGroup_Placeholder_TrustListOutOfDate_ShelvingState_OneShotShelve = 21637;
 
         /// <remarks />
+        public const uint ConfigurationFileType_ConfirmUpdate = 15508;
+
+        /// <remarks />
+        public const uint ConfigurationFileType_CloseAndUpdate = 15505;
+
+        /// <remarks />
+        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_UpdateCertificate = 18533;
+
+        /// <remarks />
+        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ApplyChanges = 18539;
+
+        /// <remarks />
+        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CreateSigningRequest = 18541;
+
+        /// <remarks />
+        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_GetRejectedList = 18544;
+
+        /// <remarks />
         public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustList_Open = 16717;
 
         /// <remarks />
@@ -2568,16 +2640,55 @@ namespace Opc.Ua
         public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_OneShotShelve = 18468;
 
         /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_UpdateCertificate = 18533;
+        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_Open = 18562;
 
         /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ApplyChanges = 18539;
+        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_Close = 18565;
 
         /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CreateSigningRequest = 18541;
+        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_Read = 18567;
 
         /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_GetRejectedList = 18544;
+        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_Write = 18570;
+
+        /// <remarks />
+        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_GetPosition = 18572;
+
+        /// <remarks />
+        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_SetPosition = 18575;
+
+        /// <remarks />
+        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_ConfirmUpdate = 18584;
+
+        /// <remarks />
+        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_CloseAndUpdate = 18581;
+
+        /// <remarks />
+        public const uint ServerConfigurationType_UpdateCertificate = 12616;
+
+        /// <remarks />
+        public const uint ServerConfigurationType_CreateSelfSignedCertificate = 19337;
+
+        /// <remarks />
+        public const uint ServerConfigurationType_DeleteCertificate = 19340;
+
+        /// <remarks />
+        public const uint ServerConfigurationType_GetCertificates = 32296;
+
+        /// <remarks />
+        public const uint ServerConfigurationType_ApplyChanges = 12734;
+
+        /// <remarks />
+        public const uint ServerConfigurationType_CancelChanges = 25698;
+
+        /// <remarks />
+        public const uint ServerConfigurationType_CreateSigningRequest = 12731;
+
+        /// <remarks />
+        public const uint ServerConfigurationType_GetRejectedList = 12775;
+
+        /// <remarks />
+        public const uint ServerConfigurationType_ResetToServerDefaults = 25699;
 
         /// <remarks />
         public const uint ServerConfigurationType_CertificateGroups_DefaultApplicationGroup_TrustList_Open = 13958;
@@ -2796,25 +2907,46 @@ namespace Opc.Ua
         public const uint ServerConfigurationType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_OneShotShelve = 22525;
 
         /// <remarks />
-        public const uint ServerConfigurationType_UpdateCertificate = 12616;
+        public const uint ServerConfigurationType_ConfigurationFile_Open = 15572;
 
         /// <remarks />
-        public const uint ServerConfigurationType_GetCertificates = 32296;
+        public const uint ServerConfigurationType_ConfigurationFile_Close = 15575;
 
         /// <remarks />
-        public const uint ServerConfigurationType_ApplyChanges = 12734;
+        public const uint ServerConfigurationType_ConfigurationFile_Read = 15791;
 
         /// <remarks />
-        public const uint ServerConfigurationType_CancelChanges = 25698;
+        public const uint ServerConfigurationType_ConfigurationFile_Write = 15805;
 
         /// <remarks />
-        public const uint ServerConfigurationType_CreateSigningRequest = 12731;
+        public const uint ServerConfigurationType_ConfigurationFile_GetPosition = 15807;
 
         /// <remarks />
-        public const uint ServerConfigurationType_GetRejectedList = 12775;
+        public const uint ServerConfigurationType_ConfigurationFile_SetPosition = 15810;
 
         /// <remarks />
-        public const uint ServerConfigurationType_ResetToServerDefaults = 25699;
+        public const uint ServerConfigurationType_ConfigurationFile_ConfirmUpdate = 15863;
+
+        /// <remarks />
+        public const uint ServerConfigurationType_ConfigurationFile_CloseAndUpdate = 15849;
+
+        /// <remarks />
+        public const uint ServerConfiguration_UpdateCertificate = 13737;
+
+        /// <remarks />
+        public const uint ServerConfiguration_ApplyChanges = 12740;
+
+        /// <remarks />
+        public const uint ServerConfiguration_CancelChanges = 25708;
+
+        /// <remarks />
+        public const uint ServerConfiguration_CreateSigningRequest = 12737;
+
+        /// <remarks />
+        public const uint ServerConfiguration_GetRejectedList = 12777;
+
+        /// <remarks />
+        public const uint ServerConfiguration_ResetToServerDefaults = 25709;
 
         /// <remarks />
         public const uint ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList_Open = 12647;
@@ -3033,22 +3165,28 @@ namespace Opc.Ua
         public const uint ServerConfiguration_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_OneShotShelve = 23413;
 
         /// <remarks />
-        public const uint ServerConfiguration_UpdateCertificate = 13737;
+        public const uint ServerConfiguration_ConfigurationFile_Open = 16013;
 
         /// <remarks />
-        public const uint ServerConfiguration_ApplyChanges = 12740;
+        public const uint ServerConfiguration_ConfigurationFile_Close = 16060;
 
         /// <remarks />
-        public const uint ServerConfiguration_CancelChanges = 25708;
+        public const uint ServerConfiguration_ConfigurationFile_Read = 16074;
 
         /// <remarks />
-        public const uint ServerConfiguration_CreateSigningRequest = 12737;
+        public const uint ServerConfiguration_ConfigurationFile_Write = 16101;
 
         /// <remarks />
-        public const uint ServerConfiguration_GetRejectedList = 12777;
+        public const uint ServerConfiguration_ConfigurationFile_GetPosition = 16103;
 
         /// <remarks />
-        public const uint ServerConfiguration_ResetToServerDefaults = 25709;
+        public const uint ServerConfiguration_ConfigurationFile_SetPosition = 16124;
+
+        /// <remarks />
+        public const uint ServerConfiguration_ConfigurationFile_ConfirmUpdate = 16320;
+
+        /// <remarks />
+        public const uint ServerConfiguration_ConfigurationFile_CloseAndUpdate = 16317;
 
         /// <remarks />
         public const uint KeyCredentialConfigurationFolderType_CreateCredential = 17522;
@@ -3465,6 +3603,18 @@ namespace Opc.Ua
         public const uint ProvisionableDeviceType_SetRegistrarEndpoints = 26875;
 
         /// <remarks />
+        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_UpdateCertificate = 28005;
+
+        /// <remarks />
+        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ApplyChanges = 28008;
+
+        /// <remarks />
+        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_CreateSigningRequest = 28010;
+
+        /// <remarks />
+        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_GetRejectedList = 28013;
+
+        /// <remarks />
         public const uint ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustList_Open = 26889;
 
         /// <remarks />
@@ -3681,16 +3831,28 @@ namespace Opc.Ua
         public const uint ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_OneShotShelve = 27940;
 
         /// <remarks />
-        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_UpdateCertificate = 28005;
+        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_Open = 16332;
 
         /// <remarks />
-        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ApplyChanges = 28008;
+        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_Close = 16335;
 
         /// <remarks />
-        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_CreateSigningRequest = 28010;
+        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_Read = 16337;
 
         /// <remarks />
-        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_GetRejectedList = 28013;
+        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_Write = 16340;
+
+        /// <remarks />
+        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_GetPosition = 16342;
+
+        /// <remarks />
+        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_SetPosition = 16345;
+
+        /// <remarks />
+        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_ConfirmUpdate = 16523;
+
+        /// <remarks />
+        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_CloseAndUpdate = 16368;
 
         /// <remarks />
         public const uint ProvisionableDevice_RequestTickets = 29880;
@@ -3700,6 +3862,12 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint PriorityMappingTableType_DeletePriorityMappingEntry = 25231;
+
+        /// <remarks />
+        public const uint LogObjectType_GetRecords = 19353;
+
+        /// <remarks />
+        public const uint ServerLog_GetRecords = 19373;
     }
     #endregion
 
@@ -4205,6 +4373,15 @@ namespace Opc.Ua
         public const uint ServerConfigurationType_TransactionDiagnostics = 32299;
 
         /// <remarks />
+        public const uint ServerConfigurationType_ConfigurationFile = 15564;
+
+        /// <remarks />
+        public const uint ApplicationConfigurationType_KeyCredentials = 19423;
+
+        /// <remarks />
+        public const uint ApplicationConfigurationType_AuthorizationServices = 19427;
+
+        /// <remarks />
         public const uint ServerConfiguration = 12637;
 
         /// <remarks />
@@ -4230,6 +4407,9 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint ServerConfiguration_TransactionDiagnostics = 32336;
+
+        /// <remarks />
+        public const uint ServerConfiguration_ConfigurationFile = 15892;
 
         /// <remarks />
         public const uint KeyCredentialConfigurationFolderType_ServiceName_Placeholder = 17511;
@@ -4763,6 +4943,12 @@ namespace Opc.Ua
         public const uint LldpPortInformationType_RemoteSystemsData_LldpRemoteSystem_Placeholder = 19017;
 
         /// <remarks />
+        public const uint ServerLog = 19372;
+
+        /// <remarks />
+        public const uint Logs = 19378;
+
+        /// <remarks />
         public const uint Union_Encoding_DefaultBinary = 12766;
 
         /// <remarks />
@@ -4826,7 +5012,40 @@ namespace Opc.Ua
         public const uint TrustListDataType_Encoding_DefaultBinary = 12680;
 
         /// <remarks />
+        public const uint BaseConfigurationDataType_Encoding_DefaultBinary = 16538;
+
+        /// <remarks />
+        public const uint BaseConfigurationRecordDataType_Encoding_DefaultBinary = 16539;
+
+        /// <remarks />
+        public const uint CertificateGroupDataType_Encoding_DefaultBinary = 16540;
+
+        /// <remarks />
+        public const uint ConfigurationUpdateTargetType_Encoding_DefaultBinary = 16541;
+
+        /// <remarks />
         public const uint TransactionErrorType_Encoding_DefaultBinary = 32382;
+
+        /// <remarks />
+        public const uint ApplicationConfigurationDataType_Encoding_DefaultBinary = 16542;
+
+        /// <remarks />
+        public const uint ApplicationIdentityDataType_Encoding_DefaultBinary = 16543;
+
+        /// <remarks />
+        public const uint EndpointDataType_Encoding_DefaultBinary = 16544;
+
+        /// <remarks />
+        public const uint ServerEndpointDataType_Encoding_DefaultBinary = 16545;
+
+        /// <remarks />
+        public const uint SecuritySettingsDataType_Encoding_DefaultBinary = 16546;
+
+        /// <remarks />
+        public const uint UserTokenSettingsDataType_Encoding_DefaultBinary = 16547;
+
+        /// <remarks />
+        public const uint AuthorizationServiceConfigurationDataType_Encoding_DefaultBinary = 19752;
 
         /// <remarks />
         public const uint DecimalDataType_Encoding_DefaultBinary = 17863;
@@ -5070,6 +5289,21 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint ReferenceListEntryDataType_Encoding_DefaultBinary = 32662;
+
+        /// <remarks />
+        public const uint LogRecord_Encoding_DefaultBinary = 19379;
+
+        /// <remarks />
+        public const uint LogRecordsDataType_Encoding_DefaultBinary = 19753;
+
+        /// <remarks />
+        public const uint SpanContextDataType_Encoding_DefaultBinary = 19754;
+
+        /// <remarks />
+        public const uint TraceContextDataType_Encoding_DefaultBinary = 19755;
+
+        /// <remarks />
+        public const uint NameValuePair_Encoding_DefaultBinary = 19756;
 
         /// <remarks />
         public const uint RolePermissionType_Encoding_DefaultBinary = 128;
@@ -5837,7 +6071,40 @@ namespace Opc.Ua
         public const uint TrustListDataType_Encoding_DefaultXml = 12676;
 
         /// <remarks />
+        public const uint BaseConfigurationDataType_Encoding_DefaultXml = 16587;
+
+        /// <remarks />
+        public const uint BaseConfigurationRecordDataType_Encoding_DefaultXml = 16588;
+
+        /// <remarks />
+        public const uint CertificateGroupDataType_Encoding_DefaultXml = 16589;
+
+        /// <remarks />
+        public const uint ConfigurationUpdateTargetType_Encoding_DefaultXml = 16590;
+
+        /// <remarks />
         public const uint TransactionErrorType_Encoding_DefaultXml = 32386;
+
+        /// <remarks />
+        public const uint ApplicationConfigurationDataType_Encoding_DefaultXml = 16591;
+
+        /// <remarks />
+        public const uint ApplicationIdentityDataType_Encoding_DefaultXml = 16592;
+
+        /// <remarks />
+        public const uint EndpointDataType_Encoding_DefaultXml = 16593;
+
+        /// <remarks />
+        public const uint ServerEndpointDataType_Encoding_DefaultXml = 16594;
+
+        /// <remarks />
+        public const uint SecuritySettingsDataType_Encoding_DefaultXml = 16595;
+
+        /// <remarks />
+        public const uint UserTokenSettingsDataType_Encoding_DefaultXml = 16596;
+
+        /// <remarks />
+        public const uint AuthorizationServiceConfigurationDataType_Encoding_DefaultXml = 19772;
 
         /// <remarks />
         public const uint DecimalDataType_Encoding_DefaultXml = 17862;
@@ -6081,6 +6348,21 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint ReferenceListEntryDataType_Encoding_DefaultXml = 32670;
+
+        /// <remarks />
+        public const uint LogRecord_Encoding_DefaultXml = 19383;
+
+        /// <remarks />
+        public const uint LogRecordsDataType_Encoding_DefaultXml = 19773;
+
+        /// <remarks />
+        public const uint SpanContextDataType_Encoding_DefaultXml = 19774;
+
+        /// <remarks />
+        public const uint TraceContextDataType_Encoding_DefaultXml = 19775;
+
+        /// <remarks />
+        public const uint NameValuePair_Encoding_DefaultXml = 19776;
 
         /// <remarks />
         public const uint RolePermissionType_Encoding_DefaultXml = 16126;
@@ -6848,7 +7130,40 @@ namespace Opc.Ua
         public const uint TrustListDataType_Encoding_DefaultJson = 15044;
 
         /// <remarks />
+        public const uint BaseConfigurationDataType_Encoding_DefaultJson = 16632;
+
+        /// <remarks />
+        public const uint BaseConfigurationRecordDataType_Encoding_DefaultJson = 16633;
+
+        /// <remarks />
+        public const uint CertificateGroupDataType_Encoding_DefaultJson = 16634;
+
+        /// <remarks />
+        public const uint ConfigurationUpdateTargetType_Encoding_DefaultJson = 16635;
+
+        /// <remarks />
         public const uint TransactionErrorType_Encoding_DefaultJson = 32390;
+
+        /// <remarks />
+        public const uint ApplicationConfigurationDataType_Encoding_DefaultJson = 16636;
+
+        /// <remarks />
+        public const uint ApplicationIdentityDataType_Encoding_DefaultJson = 16637;
+
+        /// <remarks />
+        public const uint EndpointDataType_Encoding_DefaultJson = 16642;
+
+        /// <remarks />
+        public const uint ServerEndpointDataType_Encoding_DefaultJson = 16643;
+
+        /// <remarks />
+        public const uint SecuritySettingsDataType_Encoding_DefaultJson = 16644;
+
+        /// <remarks />
+        public const uint UserTokenSettingsDataType_Encoding_DefaultJson = 16645;
+
+        /// <remarks />
+        public const uint AuthorizationServiceConfigurationDataType_Encoding_DefaultJson = 19802;
 
         /// <remarks />
         public const uint DecimalDataType_Encoding_DefaultJson = 15045;
@@ -7092,6 +7407,21 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint ReferenceListEntryDataType_Encoding_DefaultJson = 32678;
+
+        /// <remarks />
+        public const uint LogRecord_Encoding_DefaultJson = 19387;
+
+        /// <remarks />
+        public const uint LogRecordsDataType_Encoding_DefaultJson = 19803;
+
+        /// <remarks />
+        public const uint SpanContextDataType_Encoding_DefaultJson = 19804;
+
+        /// <remarks />
+        public const uint TraceContextDataType_Encoding_DefaultJson = 19805;
+
+        /// <remarks />
+        public const uint NameValuePair_Encoding_DefaultJson = 19806;
 
         /// <remarks />
         public const uint RolePermissionType_Encoding_DefaultJson = 15062;
@@ -8278,6 +8608,18 @@ namespace Opc.Ua
         public const uint HttpsCertificateType = 12558;
 
         /// <remarks />
+        public const uint UserCertificateType = 19323;
+
+        /// <remarks />
+        public const uint TlsCertificateType = 19324;
+
+        /// <remarks />
+        public const uint TlsServerCertificateType = 19325;
+
+        /// <remarks />
+        public const uint TlsClientCertificateType = 19326;
+
+        /// <remarks />
         public const uint UserCredentialCertificateType = 15181;
 
         /// <remarks />
@@ -8308,6 +8650,12 @@ namespace Opc.Ua
         public const uint EccCurve448ApplicationCertificateType = 23543;
 
         /// <remarks />
+        public const uint ConfigurationFileType = 15437;
+
+        /// <remarks />
+        public const uint ConfigurationUpdatedAuditEventType = 15541;
+
+        /// <remarks />
         public const uint TrustListUpdateRequestedAuditEventType = 32260;
 
         /// <remarks />
@@ -8320,7 +8668,13 @@ namespace Opc.Ua
         public const uint ApplicationConfigurationFolderType = 16662;
 
         /// <remarks />
+        public const uint ApplicationConfigurationFileType = 15550;
+
+        /// <remarks />
         public const uint ServerConfigurationType = 12581;
+
+        /// <remarks />
+        public const uint ApplicationConfigurationType = 25731;
 
         /// <remarks />
         public const uint CertificateUpdateRequestedAuditEventType = 32306;
@@ -8539,9 +8893,6 @@ namespace Opc.Ua
         public const uint UserManagementType = 24264;
 
         /// <remarks />
-        public const uint ApplicationConfigurationType = 25731;
-
-        /// <remarks />
         public const uint ProvisionableDeviceType = 26871;
 
         /// <remarks />
@@ -8609,6 +8960,18 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint LldpRemoteSystemType = 19033;
+
+        /// <remarks />
+        public const uint LogObjectType = 19352;
+
+        /// <remarks />
+        public const uint BaseLogEventType = 19362;
+
+        /// <remarks />
+        public const uint LogOverflowEventType = 19369;
+
+        /// <remarks />
+        public const uint LogEntryConditionClassType = 19370;
     }
     #endregion
 
@@ -8833,6 +9196,9 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint HasReferenceDescription = 32679;
+
+        /// <remarks />
+        public const uint HasLogHierarchy = 19371;
     }
     #endregion
 
@@ -9164,10 +9530,10 @@ namespace Opc.Ua
         public const uint ServerCapabilitiesType_MaxHistoryContinuationPoints = 2734;
 
         /// <remarks />
-        public const uint ServerCapabilitiesType_SoftwareCertificates = 3049;
+        public const uint ServerCapabilitiesType_MaxLogObjectContinuationPoints = 19809;
 
         /// <remarks />
-        public const uint ServerCapabilitiesType_MaxArrayLength = 11549;
+        public const uint ServerCapabilitiesType_SoftwareCertificates = 3049;
 
         /// <remarks />
         public const uint ServerCapabilitiesType_MaxStringLength = 11550;
@@ -10778,9 +11144,6 @@ namespace Opc.Ua
         public const uint Server_ServerCapabilities_SoftwareCertificates = 3704;
 
         /// <remarks />
-        public const uint Server_ServerCapabilities_MaxArrayLength = 11702;
-
-        /// <remarks />
         public const uint Server_ServerCapabilities_MaxStringLength = 11703;
 
         /// <remarks />
@@ -10935,6 +11298,9 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint Server_RequestServerStateChange_InputArguments = 12887;
+
+        /// <remarks />
+        public const uint Server_ServerCapabilities_MaxArrayLength = 11702;
 
         /// <remarks />
         public const uint Server_ServerRedundancy_CurrentServerId = 11312;
@@ -13361,7 +13727,7 @@ namespace Opc.Ua
         public const uint CertificateGroupType_CertificateTypes = 13631;
 
         /// <remarks />
-        public const uint CertificateGroupType_GetRejectedList_OutputArguments = 23527;
+        public const uint CertificateGroupType_Purpose = 19398;
 
         /// <remarks />
         public const uint CertificateGroupType_CertificateExpired_EventId = 19451;
@@ -13688,6 +14054,9 @@ namespace Opc.Ua
         public const uint CertificateGroupType_TrustListOutOfDate_UpdateFrequency = 20289;
 
         /// <remarks />
+        public const uint CertificateGroupType_GetRejectedList_OutputArguments = 23527;
+
+        /// <remarks />
         public const uint CertificateGroupFolderType_DefaultApplicationGroup_TrustList_Size = 13816;
 
         /// <remarks />
@@ -13749,9 +14118,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint CertificateGroupFolderType_DefaultApplicationGroup_CertificateTypes = 13847;
-
-        /// <remarks />
-        public const uint CertificateGroupFolderType_DefaultApplicationGroup_GetRejectedList_OutputArguments = 23530;
 
         /// <remarks />
         public const uint CertificateGroupFolderType_DefaultApplicationGroup_CertificateExpired_EventId = 20292;
@@ -14078,6 +14444,9 @@ namespace Opc.Ua
         public const uint CertificateGroupFolderType_DefaultApplicationGroup_TrustListOutOfDate_UpdateFrequency = 20587;
 
         /// <remarks />
+        public const uint CertificateGroupFolderType_DefaultApplicationGroup_GetRejectedList_OutputArguments = 23530;
+
+        /// <remarks />
         public const uint CertificateGroupFolderType_DefaultHttpsGroup_TrustList_Size = 13850;
 
         /// <remarks />
@@ -14139,9 +14508,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint CertificateGroupFolderType_DefaultHttpsGroup_CertificateTypes = 13881;
-
-        /// <remarks />
-        public const uint CertificateGroupFolderType_DefaultHttpsGroup_GetRejectedList_OutputArguments = 23532;
 
         /// <remarks />
         public const uint CertificateGroupFolderType_DefaultHttpsGroup_CertificateExpired_EventId = 20590;
@@ -14468,6 +14834,9 @@ namespace Opc.Ua
         public const uint CertificateGroupFolderType_DefaultHttpsGroup_TrustListOutOfDate_UpdateFrequency = 20883;
 
         /// <remarks />
+        public const uint CertificateGroupFolderType_DefaultHttpsGroup_GetRejectedList_OutputArguments = 23532;
+
+        /// <remarks />
         public const uint CertificateGroupFolderType_DefaultUserTokenGroup_TrustList_Size = 13884;
 
         /// <remarks />
@@ -14529,9 +14898,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint CertificateGroupFolderType_DefaultUserTokenGroup_CertificateTypes = 13915;
-
-        /// <remarks />
-        public const uint CertificateGroupFolderType_DefaultUserTokenGroup_GetRejectedList_OutputArguments = 23534;
 
         /// <remarks />
         public const uint CertificateGroupFolderType_DefaultUserTokenGroup_CertificateExpired_EventId = 20886;
@@ -14858,6 +15224,9 @@ namespace Opc.Ua
         public const uint CertificateGroupFolderType_DefaultUserTokenGroup_TrustListOutOfDate_UpdateFrequency = 21382;
 
         /// <remarks />
+        public const uint CertificateGroupFolderType_DefaultUserTokenGroup_GetRejectedList_OutputArguments = 23534;
+
+        /// <remarks />
         public const uint CertificateGroupFolderType_AdditionalGroup_Placeholder_TrustList_Size = 13918;
 
         /// <remarks />
@@ -14919,9 +15288,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint CertificateGroupFolderType_AdditionalGroup_Placeholder_CertificateTypes = 13949;
-
-        /// <remarks />
-        public const uint CertificateGroupFolderType_AdditionalGroup_Placeholder_GetRejectedList_OutputArguments = 23536;
 
         /// <remarks />
         public const uint CertificateGroupFolderType_AdditionalGroup_Placeholder_CertificateExpired_EventId = 21385;
@@ -15248,6 +15614,39 @@ namespace Opc.Ua
         public const uint CertificateGroupFolderType_AdditionalGroup_Placeholder_TrustListOutOfDate_UpdateFrequency = 21678;
 
         /// <remarks />
+        public const uint CertificateGroupFolderType_AdditionalGroup_Placeholder_GetRejectedList_OutputArguments = 23536;
+
+        /// <remarks />
+        public const uint ConfigurationFileType_LastUpdateTime = 15438;
+
+        /// <remarks />
+        public const uint ConfigurationFileType_CurrentVersion = 15439;
+
+        /// <remarks />
+        public const uint ConfigurationFileType_ActivityTimeout = 15503;
+
+        /// <remarks />
+        public const uint ConfigurationFileType_SupportedDataType = 15504;
+
+        /// <remarks />
+        public const uint ConfigurationFileType_ConfirmUpdate_InputArguments = 15511;
+
+        /// <remarks />
+        public const uint ConfigurationFileType_CloseAndUpdate_InputArguments = 15506;
+
+        /// <remarks />
+        public const uint ConfigurationFileType_CloseAndUpdate_OutputArguments = 15507;
+
+        /// <remarks />
+        public const uint ConfigurationUpdateType_EnumValues = 15540;
+
+        /// <remarks />
+        public const uint ConfigurationUpdatedAuditEventType_OldVersion = 15542;
+
+        /// <remarks />
+        public const uint ConfigurationUpdatedAuditEventType_NewVersion = 15543;
+
+        /// <remarks />
         public const uint TrustListUpdatedAuditEventType_TrustListId = 32281;
 
         /// <remarks />
@@ -15267,6 +15666,57 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint TransactionDiagnosticsType_Errors = 32292;
+
+        /// <remarks />
+        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ApplicationUri = 18525;
+
+        /// <remarks />
+        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ProductUri = 18526;
+
+        /// <remarks />
+        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ApplicationType = 18527;
+
+        /// <remarks />
+        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ServerCapabilities = 18528;
+
+        /// <remarks />
+        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_SupportedPrivateKeyFormats = 18529;
+
+        /// <remarks />
+        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_MaxTrustListSize = 18530;
+
+        /// <remarks />
+        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_MulticastDnsEnabled = 18531;
+
+        /// <remarks />
+        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_UpdateCertificate_InputArguments = 18534;
+
+        /// <remarks />
+        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_UpdateCertificate_OutputArguments = 18535;
+
+        /// <remarks />
+        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CreateSelfSignedCertificate_InputArguments = 19333;
+
+        /// <remarks />
+        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CreateSelfSignedCertificate_OutputArguments = 19334;
+
+        /// <remarks />
+        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_DeleteCertificate_InputArguments = 19336;
+
+        /// <remarks />
+        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_GetCertificates_InputArguments = 18537;
+
+        /// <remarks />
+        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_GetCertificates_OutputArguments = 18538;
+
+        /// <remarks />
+        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CreateSigningRequest_InputArguments = 18542;
+
+        /// <remarks />
+        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CreateSigningRequest_OutputArguments = 18543;
+
+        /// <remarks />
+        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_GetRejectedList_OutputArguments = 18545;
 
         /// <remarks />
         public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustList_Size = 16710;
@@ -15330,9 +15780,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateTypes = 16751;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_GetRejectedList_OutputArguments = 16753;
 
         /// <remarks />
         public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_EventId = 16755;
@@ -15659,6 +16106,9 @@ namespace Opc.Ua
         public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_UpdateFrequency = 17124;
 
         /// <remarks />
+        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_GetRejectedList_OutputArguments = 16753;
+
+        /// <remarks />
         public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustList_Size = 17127;
 
         /// <remarks />
@@ -15720,9 +16170,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateTypes = 17163;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_GetRejectedList_OutputArguments = 17165;
 
         /// <remarks />
         public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_EventId = 17167;
@@ -16049,6 +16496,9 @@ namespace Opc.Ua
         public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_UpdateFrequency = 18014;
 
         /// <remarks />
+        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_GetRejectedList_OutputArguments = 17165;
+
+        /// <remarks />
         public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustList_Size = 18017;
 
         /// <remarks />
@@ -16110,9 +16560,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateTypes = 18056;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_GetRejectedList_OutputArguments = 18058;
 
         /// <remarks />
         public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_EventId = 18060;
@@ -16439,46 +16886,7 @@ namespace Opc.Ua
         public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_UpdateFrequency = 18524;
 
         /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ApplicationUri = 18525;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ProductUri = 18526;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ApplicationType = 18527;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ServerCapabilities = 18528;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_SupportedPrivateKeyFormats = 18529;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_MaxTrustListSize = 18530;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_MulticastDnsEnabled = 18531;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_UpdateCertificate_InputArguments = 18534;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_UpdateCertificate_OutputArguments = 18535;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_GetCertificates_InputArguments = 18537;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_GetCertificates_OutputArguments = 18538;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CreateSigningRequest_InputArguments = 18542;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CreateSigningRequest_OutputArguments = 18543;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_GetRejectedList_OutputArguments = 18545;
+        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_GetRejectedList_OutputArguments = 18058;
 
         /// <remarks />
         public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_TransactionDiagnostics_StartTime = 18548;
@@ -16499,7 +16907,184 @@ namespace Opc.Ua
         public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_TransactionDiagnostics_Errors = 18553;
 
         /// <remarks />
+        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_Size = 18555;
+
+        /// <remarks />
+        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_Writable = 18556;
+
+        /// <remarks />
+        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_UserWritable = 18557;
+
+        /// <remarks />
+        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_OpenCount = 18558;
+
+        /// <remarks />
+        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_Open_InputArguments = 18563;
+
+        /// <remarks />
+        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_Open_OutputArguments = 18564;
+
+        /// <remarks />
+        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_Close_InputArguments = 18566;
+
+        /// <remarks />
+        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_Read_InputArguments = 18568;
+
+        /// <remarks />
+        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_Read_OutputArguments = 18569;
+
+        /// <remarks />
+        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_Write_InputArguments = 18571;
+
+        /// <remarks />
+        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_GetPosition_InputArguments = 18573;
+
+        /// <remarks />
+        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_GetPosition_OutputArguments = 18574;
+
+        /// <remarks />
+        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_SetPosition_InputArguments = 18576;
+
+        /// <remarks />
+        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_LastUpdateTime = 18577;
+
+        /// <remarks />
+        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_CurrentVersion = 18578;
+
+        /// <remarks />
+        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_ActivityTimeout = 18579;
+
+        /// <remarks />
+        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_SupportedDataType = 18580;
+
+        /// <remarks />
+        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_ConfirmUpdate_InputArguments = 18585;
+
+        /// <remarks />
+        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_CloseAndUpdate_InputArguments = 18582;
+
+        /// <remarks />
+        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_CloseAndUpdate_OutputArguments = 18583;
+
+        /// <remarks />
+        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_AvailableNetworks = 18587;
+
+        /// <remarks />
+        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_AvailablePorts = 18588;
+
+        /// <remarks />
+        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_MaxEndpoints = 19406;
+
+        /// <remarks />
+        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_MaxCertificateGroups = 19407;
+
+        /// <remarks />
+        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_SecurityPolicyUris = 18589;
+
+        /// <remarks />
+        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_UserTokenTypes = 18590;
+
+        /// <remarks />
+        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_CertificateTypes = 18591;
+
+        /// <remarks />
+        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_CertificateGroupPurposes = 19408;
+
+        /// <remarks />
         public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_Enabled = 18592;
+
+        /// <remarks />
+        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_KeyCredentials_CreateCredential_InputArguments = 19411;
+
+        /// <remarks />
+        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_KeyCredentials_CreateCredential_OutputArguments = 19412;
+
+        /// <remarks />
+        public const uint ApplicationConfigurationFileType_AvailableNetworks = 15551;
+
+        /// <remarks />
+        public const uint ApplicationConfigurationFileType_AvailablePorts = 15552;
+
+        /// <remarks />
+        public const uint ApplicationConfigurationFileType_MaxEndpoints = 19414;
+
+        /// <remarks />
+        public const uint ApplicationConfigurationFileType_MaxCertificateGroups = 19415;
+
+        /// <remarks />
+        public const uint ApplicationConfigurationFileType_SecurityPolicyUris = 15553;
+
+        /// <remarks />
+        public const uint ApplicationConfigurationFileType_UserTokenTypes = 15554;
+
+        /// <remarks />
+        public const uint ApplicationConfigurationFileType_CertificateTypes = 15555;
+
+        /// <remarks />
+        public const uint ApplicationConfigurationFileType_CertificateGroupPurposes = 19416;
+
+        /// <remarks />
+        public const uint ServerConfigurationType_ApplicationUri = 25696;
+
+        /// <remarks />
+        public const uint ServerConfigurationType_ProductUri = 25724;
+
+        /// <remarks />
+        public const uint ServerConfigurationType_ApplicationType = 25697;
+
+        /// <remarks />
+        public const uint ServerConfigurationType_ApplicationNames = 18660;
+
+        /// <remarks />
+        public const uint ServerConfigurationType_ServerCapabilities = 12708;
+
+        /// <remarks />
+        public const uint ServerConfigurationType_SupportedPrivateKeyFormats = 12583;
+
+        /// <remarks />
+        public const uint ServerConfigurationType_MaxTrustListSize = 12584;
+
+        /// <remarks />
+        public const uint ServerConfigurationType_MulticastDnsEnabled = 12585;
+
+        /// <remarks />
+        public const uint ServerConfigurationType_HasSecureElement = 23593;
+
+        /// <remarks />
+        public const uint ServerConfigurationType_SupportsTransactions = 18661;
+
+        /// <remarks />
+        public const uint ServerConfigurationType_InApplicationSetup = 19308;
+
+        /// <remarks />
+        public const uint ServerConfigurationType_UpdateCertificate_InputArguments = 12617;
+
+        /// <remarks />
+        public const uint ServerConfigurationType_UpdateCertificate_OutputArguments = 12618;
+
+        /// <remarks />
+        public const uint ServerConfigurationType_CreateSelfSignedCertificate_InputArguments = 19338;
+
+        /// <remarks />
+        public const uint ServerConfigurationType_CreateSelfSignedCertificate_OutputArguments = 19339;
+
+        /// <remarks />
+        public const uint ServerConfigurationType_DeleteCertificate_InputArguments = 19341;
+
+        /// <remarks />
+        public const uint ServerConfigurationType_GetCertificates_InputArguments = 32297;
+
+        /// <remarks />
+        public const uint ServerConfigurationType_GetCertificates_OutputArguments = 32298;
+
+        /// <remarks />
+        public const uint ServerConfigurationType_CreateSigningRequest_InputArguments = 12732;
+
+        /// <remarks />
+        public const uint ServerConfigurationType_CreateSigningRequest_OutputArguments = 12733;
+
+        /// <remarks />
+        public const uint ServerConfigurationType_GetRejectedList_OutputArguments = 12776;
 
         /// <remarks />
         public const uint ServerConfigurationType_CertificateGroups_DefaultApplicationGroup_TrustList_Size = 13953;
@@ -16563,9 +17148,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint ServerConfigurationType_CertificateGroups_DefaultApplicationGroup_CertificateTypes = 13984;
-
-        /// <remarks />
-        public const uint ServerConfigurationType_CertificateGroups_DefaultApplicationGroup_GetRejectedList_OutputArguments = 23545;
 
         /// <remarks />
         public const uint ServerConfigurationType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_EventId = 21681;
@@ -16892,6 +17474,9 @@ namespace Opc.Ua
         public const uint ServerConfigurationType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_UpdateFrequency = 21974;
 
         /// <remarks />
+        public const uint ServerConfigurationType_CertificateGroups_DefaultApplicationGroup_GetRejectedList_OutputArguments = 23545;
+
+        /// <remarks />
         public const uint ServerConfigurationType_CertificateGroups_DefaultHttpsGroup_TrustList_Size = 13987;
 
         /// <remarks />
@@ -16953,9 +17538,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint ServerConfigurationType_CertificateGroups_DefaultHttpsGroup_CertificateTypes = 14018;
-
-        /// <remarks />
-        public const uint ServerConfigurationType_CertificateGroups_DefaultHttpsGroup_GetRejectedList_OutputArguments = 23547;
 
         /// <remarks />
         public const uint ServerConfigurationType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_EventId = 21977;
@@ -17282,6 +17864,9 @@ namespace Opc.Ua
         public const uint ServerConfigurationType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_UpdateFrequency = 22270;
 
         /// <remarks />
+        public const uint ServerConfigurationType_CertificateGroups_DefaultHttpsGroup_GetRejectedList_OutputArguments = 23547;
+
+        /// <remarks />
         public const uint ServerConfigurationType_CertificateGroups_DefaultUserTokenGroup_TrustList_Size = 14021;
 
         /// <remarks />
@@ -17343,9 +17928,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint ServerConfigurationType_CertificateGroups_DefaultUserTokenGroup_CertificateTypes = 14052;
-
-        /// <remarks />
-        public const uint ServerConfigurationType_CertificateGroups_DefaultUserTokenGroup_GetRejectedList_OutputArguments = 23549;
 
         /// <remarks />
         public const uint ServerConfigurationType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_EventId = 22273;
@@ -17672,58 +18254,7 @@ namespace Opc.Ua
         public const uint ServerConfigurationType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_UpdateFrequency = 22566;
 
         /// <remarks />
-        public const uint ServerConfigurationType_ApplicationUri = 25696;
-
-        /// <remarks />
-        public const uint ServerConfigurationType_ProductUri = 25724;
-
-        /// <remarks />
-        public const uint ServerConfigurationType_ApplicationType = 25697;
-
-        /// <remarks />
-        public const uint ServerConfigurationType_ApplicationNames = 18660;
-
-        /// <remarks />
-        public const uint ServerConfigurationType_ServerCapabilities = 12708;
-
-        /// <remarks />
-        public const uint ServerConfigurationType_SupportedPrivateKeyFormats = 12583;
-
-        /// <remarks />
-        public const uint ServerConfigurationType_MaxTrustListSize = 12584;
-
-        /// <remarks />
-        public const uint ServerConfigurationType_MulticastDnsEnabled = 12585;
-
-        /// <remarks />
-        public const uint ServerConfigurationType_HasSecureElement = 23593;
-
-        /// <remarks />
-        public const uint ServerConfigurationType_SupportsTransactions = 18661;
-
-        /// <remarks />
-        public const uint ServerConfigurationType_InApplicationSetup = 19308;
-
-        /// <remarks />
-        public const uint ServerConfigurationType_UpdateCertificate_InputArguments = 12617;
-
-        /// <remarks />
-        public const uint ServerConfigurationType_UpdateCertificate_OutputArguments = 12618;
-
-        /// <remarks />
-        public const uint ServerConfigurationType_GetCertificates_InputArguments = 32297;
-
-        /// <remarks />
-        public const uint ServerConfigurationType_GetCertificates_OutputArguments = 32298;
-
-        /// <remarks />
-        public const uint ServerConfigurationType_CreateSigningRequest_InputArguments = 12732;
-
-        /// <remarks />
-        public const uint ServerConfigurationType_CreateSigningRequest_OutputArguments = 12733;
-
-        /// <remarks />
-        public const uint ServerConfigurationType_GetRejectedList_OutputArguments = 12776;
+        public const uint ServerConfigurationType_CertificateGroups_DefaultUserTokenGroup_GetRejectedList_OutputArguments = 23549;
 
         /// <remarks />
         public const uint ServerConfigurationType_TransactionDiagnostics_StartTime = 32300;
@@ -17744,10 +18275,166 @@ namespace Opc.Ua
         public const uint ServerConfigurationType_TransactionDiagnostics_Errors = 32305;
 
         /// <remarks />
+        public const uint ServerConfigurationType_ConfigurationFile_Size = 15565;
+
+        /// <remarks />
+        public const uint ServerConfigurationType_ConfigurationFile_Writable = 15566;
+
+        /// <remarks />
+        public const uint ServerConfigurationType_ConfigurationFile_UserWritable = 15567;
+
+        /// <remarks />
+        public const uint ServerConfigurationType_ConfigurationFile_OpenCount = 15568;
+
+        /// <remarks />
+        public const uint ServerConfigurationType_ConfigurationFile_Open_InputArguments = 15573;
+
+        /// <remarks />
+        public const uint ServerConfigurationType_ConfigurationFile_Open_OutputArguments = 15574;
+
+        /// <remarks />
+        public const uint ServerConfigurationType_ConfigurationFile_Close_InputArguments = 15790;
+
+        /// <remarks />
+        public const uint ServerConfigurationType_ConfigurationFile_Read_InputArguments = 15792;
+
+        /// <remarks />
+        public const uint ServerConfigurationType_ConfigurationFile_Read_OutputArguments = 15804;
+
+        /// <remarks />
+        public const uint ServerConfigurationType_ConfigurationFile_Write_InputArguments = 15806;
+
+        /// <remarks />
+        public const uint ServerConfigurationType_ConfigurationFile_GetPosition_InputArguments = 15808;
+
+        /// <remarks />
+        public const uint ServerConfigurationType_ConfigurationFile_GetPosition_OutputArguments = 15809;
+
+        /// <remarks />
+        public const uint ServerConfigurationType_ConfigurationFile_SetPosition_InputArguments = 15811;
+
+        /// <remarks />
+        public const uint ServerConfigurationType_ConfigurationFile_LastUpdateTime = 15812;
+
+        /// <remarks />
+        public const uint ServerConfigurationType_ConfigurationFile_CurrentVersion = 15813;
+
+        /// <remarks />
+        public const uint ServerConfigurationType_ConfigurationFile_ActivityTimeout = 15814;
+
+        /// <remarks />
+        public const uint ServerConfigurationType_ConfigurationFile_SupportedDataType = 15848;
+
+        /// <remarks />
+        public const uint ServerConfigurationType_ConfigurationFile_ConfirmUpdate_InputArguments = 15864;
+
+        /// <remarks />
+        public const uint ServerConfigurationType_ConfigurationFile_CloseAndUpdate_InputArguments = 15850;
+
+        /// <remarks />
+        public const uint ServerConfigurationType_ConfigurationFile_CloseAndUpdate_OutputArguments = 15851;
+
+        /// <remarks />
+        public const uint ServerConfigurationType_ConfigurationFile_AvailableNetworks = 16646;
+
+        /// <remarks />
+        public const uint ServerConfigurationType_ConfigurationFile_AvailablePorts = 16647;
+
+        /// <remarks />
+        public const uint ServerConfigurationType_ConfigurationFile_MaxEndpoints = 19420;
+
+        /// <remarks />
+        public const uint ServerConfigurationType_ConfigurationFile_MaxCertificateGroups = 19421;
+
+        /// <remarks />
+        public const uint ServerConfigurationType_ConfigurationFile_SecurityPolicyUris = 16648;
+
+        /// <remarks />
+        public const uint ServerConfigurationType_ConfigurationFile_UserTokenTypes = 16649;
+
+        /// <remarks />
+        public const uint ServerConfigurationType_ConfigurationFile_CertificateTypes = 16650;
+
+        /// <remarks />
+        public const uint ServerConfigurationType_ConfigurationFile_CertificateGroupPurposes = 19422;
+
+        /// <remarks />
+        public const uint ApplicationConfigurationType_ApplicationUri = 26850;
+
+        /// <remarks />
+        public const uint ApplicationConfigurationType_ProductUri = 26851;
+
+        /// <remarks />
+        public const uint ApplicationConfigurationType_ApplicationType = 26852;
+
+        /// <remarks />
+        public const uint ApplicationConfigurationType_Enabled = 26849;
+
+        /// <remarks />
+        public const uint ApplicationConfigurationType_KeyCredentials_CreateCredential_InputArguments = 19425;
+
+        /// <remarks />
+        public const uint ApplicationConfigurationType_KeyCredentials_CreateCredential_OutputArguments = 19426;
+
+        /// <remarks />
         public const uint CertificateUpdatedAuditEventType_CertificateGroup = 13735;
 
         /// <remarks />
         public const uint CertificateUpdatedAuditEventType_CertificateType = 13736;
+
+        /// <remarks />
+        public const uint ServerConfiguration_ApplicationUri = 25706;
+
+        /// <remarks />
+        public const uint ServerConfiguration_ProductUri = 25725;
+
+        /// <remarks />
+        public const uint ServerConfiguration_ApplicationType = 25707;
+
+        /// <remarks />
+        public const uint ServerConfiguration_ServerCapabilities = 12710;
+
+        /// <remarks />
+        public const uint ServerConfiguration_SupportedPrivateKeyFormats = 12639;
+
+        /// <remarks />
+        public const uint ServerConfiguration_MaxTrustListSize = 12640;
+
+        /// <remarks />
+        public const uint ServerConfiguration_MulticastDnsEnabled = 12641;
+
+        /// <remarks />
+        public const uint ServerConfiguration_HasSecureElement = 23597;
+
+        /// <remarks />
+        public const uint ServerConfiguration_UpdateCertificate_InputArguments = 13738;
+
+        /// <remarks />
+        public const uint ServerConfiguration_UpdateCertificate_OutputArguments = 13739;
+
+        /// <remarks />
+        public const uint ServerConfiguration_CreateSelfSignedCertificate_InputArguments = 19343;
+
+        /// <remarks />
+        public const uint ServerConfiguration_CreateSelfSignedCertificate_OutputArguments = 19344;
+
+        /// <remarks />
+        public const uint ServerConfiguration_DeleteCertificate_InputArguments = 19346;
+
+        /// <remarks />
+        public const uint ServerConfiguration_GetCertificates_InputArguments = 32334;
+
+        /// <remarks />
+        public const uint ServerConfiguration_GetCertificates_OutputArguments = 32335;
+
+        /// <remarks />
+        public const uint ServerConfiguration_CreateSigningRequest_InputArguments = 12738;
+
+        /// <remarks />
+        public const uint ServerConfiguration_CreateSigningRequest_OutputArguments = 12739;
+
+        /// <remarks />
+        public const uint ServerConfiguration_GetRejectedList_OutputArguments = 12778;
 
         /// <remarks />
         public const uint ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList_Size = 12643;
@@ -17811,9 +18498,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint ServerConfiguration_CertificateGroups_DefaultApplicationGroup_CertificateTypes = 14161;
-
-        /// <remarks />
-        public const uint ServerConfiguration_CertificateGroups_DefaultApplicationGroup_GetRejectedList_OutputArguments = 23551;
 
         /// <remarks />
         public const uint ServerConfiguration_CertificateGroups_DefaultApplicationGroup_CertificateExpired_EventId = 22569;
@@ -18140,6 +18824,9 @@ namespace Opc.Ua
         public const uint ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_UpdateFrequency = 22862;
 
         /// <remarks />
+        public const uint ServerConfiguration_CertificateGroups_DefaultApplicationGroup_GetRejectedList_OutputArguments = 23551;
+
+        /// <remarks />
         public const uint ServerConfiguration_CertificateGroups_DefaultHttpsGroup_TrustList_Size = 14090;
 
         /// <remarks />
@@ -18201,9 +18888,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint ServerConfiguration_CertificateGroups_DefaultHttpsGroup_CertificateTypes = 14121;
-
-        /// <remarks />
-        public const uint ServerConfiguration_CertificateGroups_DefaultHttpsGroup_GetRejectedList_OutputArguments = 23553;
 
         /// <remarks />
         public const uint ServerConfiguration_CertificateGroups_DefaultHttpsGroup_CertificateExpired_EventId = 22865;
@@ -18530,6 +19214,9 @@ namespace Opc.Ua
         public const uint ServerConfiguration_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_UpdateFrequency = 23158;
 
         /// <remarks />
+        public const uint ServerConfiguration_CertificateGroups_DefaultHttpsGroup_GetRejectedList_OutputArguments = 23553;
+
+        /// <remarks />
         public const uint ServerConfiguration_CertificateGroups_DefaultUserTokenGroup_TrustList_Size = 14124;
 
         /// <remarks />
@@ -18591,9 +19278,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint ServerConfiguration_CertificateGroups_DefaultUserTokenGroup_CertificateTypes = 14155;
-
-        /// <remarks />
-        public const uint ServerConfiguration_CertificateGroups_DefaultUserTokenGroup_GetRejectedList_OutputArguments = 23555;
 
         /// <remarks />
         public const uint ServerConfiguration_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_EventId = 23161;
@@ -18920,49 +19604,7 @@ namespace Opc.Ua
         public const uint ServerConfiguration_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_UpdateFrequency = 23454;
 
         /// <remarks />
-        public const uint ServerConfiguration_ApplicationUri = 25706;
-
-        /// <remarks />
-        public const uint ServerConfiguration_ProductUri = 25725;
-
-        /// <remarks />
-        public const uint ServerConfiguration_ApplicationType = 25707;
-
-        /// <remarks />
-        public const uint ServerConfiguration_ServerCapabilities = 12710;
-
-        /// <remarks />
-        public const uint ServerConfiguration_SupportedPrivateKeyFormats = 12639;
-
-        /// <remarks />
-        public const uint ServerConfiguration_MaxTrustListSize = 12640;
-
-        /// <remarks />
-        public const uint ServerConfiguration_MulticastDnsEnabled = 12641;
-
-        /// <remarks />
-        public const uint ServerConfiguration_HasSecureElement = 23597;
-
-        /// <remarks />
-        public const uint ServerConfiguration_UpdateCertificate_InputArguments = 13738;
-
-        /// <remarks />
-        public const uint ServerConfiguration_UpdateCertificate_OutputArguments = 13739;
-
-        /// <remarks />
-        public const uint ServerConfiguration_GetCertificates_InputArguments = 32334;
-
-        /// <remarks />
-        public const uint ServerConfiguration_GetCertificates_OutputArguments = 32335;
-
-        /// <remarks />
-        public const uint ServerConfiguration_CreateSigningRequest_InputArguments = 12738;
-
-        /// <remarks />
-        public const uint ServerConfiguration_CreateSigningRequest_OutputArguments = 12739;
-
-        /// <remarks />
-        public const uint ServerConfiguration_GetRejectedList_OutputArguments = 12778;
+        public const uint ServerConfiguration_CertificateGroups_DefaultUserTokenGroup_GetRejectedList_OutputArguments = 23555;
 
         /// <remarks />
         public const uint ServerConfiguration_TransactionDiagnostics_StartTime = 32337;
@@ -18981,6 +19623,90 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint ServerConfiguration_TransactionDiagnostics_Errors = 32342;
+
+        /// <remarks />
+        public const uint ServerConfiguration_ConfigurationFile_Size = 15893;
+
+        /// <remarks />
+        public const uint ServerConfiguration_ConfigurationFile_Writable = 15894;
+
+        /// <remarks />
+        public const uint ServerConfiguration_ConfigurationFile_UserWritable = 15937;
+
+        /// <remarks />
+        public const uint ServerConfiguration_ConfigurationFile_OpenCount = 15938;
+
+        /// <remarks />
+        public const uint ServerConfiguration_ConfigurationFile_Open_InputArguments = 16020;
+
+        /// <remarks />
+        public const uint ServerConfiguration_ConfigurationFile_Open_OutputArguments = 16059;
+
+        /// <remarks />
+        public const uint ServerConfiguration_ConfigurationFile_Close_InputArguments = 16061;
+
+        /// <remarks />
+        public const uint ServerConfiguration_ConfigurationFile_Read_InputArguments = 16075;
+
+        /// <remarks />
+        public const uint ServerConfiguration_ConfigurationFile_Read_OutputArguments = 16076;
+
+        /// <remarks />
+        public const uint ServerConfiguration_ConfigurationFile_Write_InputArguments = 16102;
+
+        /// <remarks />
+        public const uint ServerConfiguration_ConfigurationFile_GetPosition_InputArguments = 16122;
+
+        /// <remarks />
+        public const uint ServerConfiguration_ConfigurationFile_GetPosition_OutputArguments = 16123;
+
+        /// <remarks />
+        public const uint ServerConfiguration_ConfigurationFile_SetPosition_InputArguments = 16160;
+
+        /// <remarks />
+        public const uint ServerConfiguration_ConfigurationFile_LastUpdateTime = 16283;
+
+        /// <remarks />
+        public const uint ServerConfiguration_ConfigurationFile_CurrentVersion = 16306;
+
+        /// <remarks />
+        public const uint ServerConfiguration_ConfigurationFile_ActivityTimeout = 16315;
+
+        /// <remarks />
+        public const uint ServerConfiguration_ConfigurationFile_SupportedDataType = 16316;
+
+        /// <remarks />
+        public const uint ServerConfiguration_ConfigurationFile_ConfirmUpdate_InputArguments = 16321;
+
+        /// <remarks />
+        public const uint ServerConfiguration_ConfigurationFile_CloseAndUpdate_InputArguments = 16318;
+
+        /// <remarks />
+        public const uint ServerConfiguration_ConfigurationFile_CloseAndUpdate_OutputArguments = 16319;
+
+        /// <remarks />
+        public const uint ServerConfiguration_ConfigurationFile_AvailableNetworks = 16652;
+
+        /// <remarks />
+        public const uint ServerConfiguration_ConfigurationFile_AvailablePorts = 16653;
+
+        /// <remarks />
+        public const uint ServerConfiguration_ConfigurationFile_MaxEndpoints = 19442;
+
+        /// <remarks />
+        public const uint ServerConfiguration_ConfigurationFile_MaxCertificateGroups = 19443;
+
+        /// <remarks />
+        public const uint ServerConfiguration_ConfigurationFile_SecurityPolicyUris = 16654;
+
+        /// <remarks />
+        public const uint ServerConfiguration_ConfigurationFile_UserTokenTypes = 16655;
+
+        /// <remarks />
+        public const uint ServerConfiguration_ConfigurationFile_CertificateTypes = 16656;
+
+        /// <remarks />
+        public const uint ServerConfiguration_ConfigurationFile_CertificateGroupPurposes = 19444;
 
         /// <remarks />
         public const uint KeyCredentialConfigurationFolderType_ServiceName_Placeholder_ResourceUri = 17512;
@@ -23003,18 +23729,6 @@ namespace Opc.Ua
         public const uint MultiStateDictionaryEntryDiscreteType_ValueAsDictionaryEntries = 19090;
 
         /// <remarks />
-        public const uint ApplicationConfigurationType_ApplicationUri = 26850;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationType_ProductUri = 26851;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationType_ApplicationType = 26852;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationType_Enabled = 26849;
-
-        /// <remarks />
         public const uint ProvisionableDeviceType_IsSingleton = 26872;
 
         /// <remarks />
@@ -23022,6 +23736,57 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint ProvisionableDeviceType_SetRegistrarEndpoints_InputArguments = 26876;
+
+        /// <remarks />
+        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ApplicationUri = 27997;
+
+        /// <remarks />
+        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ProductUri = 27998;
+
+        /// <remarks />
+        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ApplicationType = 27999;
+
+        /// <remarks />
+        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ServerCapabilities = 28000;
+
+        /// <remarks />
+        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_SupportedPrivateKeyFormats = 28001;
+
+        /// <remarks />
+        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_MaxTrustListSize = 28002;
+
+        /// <remarks />
+        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_MulticastDnsEnabled = 28003;
+
+        /// <remarks />
+        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_UpdateCertificate_InputArguments = 28006;
+
+        /// <remarks />
+        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_UpdateCertificate_OutputArguments = 28007;
+
+        /// <remarks />
+        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_CreateSelfSignedCertificate_InputArguments = 19348;
+
+        /// <remarks />
+        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_CreateSelfSignedCertificate_OutputArguments = 19349;
+
+        /// <remarks />
+        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_DeleteCertificate_InputArguments = 19351;
+
+        /// <remarks />
+        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_GetCertificates_InputArguments = 32360;
+
+        /// <remarks />
+        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_GetCertificates_OutputArguments = 32361;
+
+        /// <remarks />
+        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_CreateSigningRequest_InputArguments = 28011;
+
+        /// <remarks />
+        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_CreateSigningRequest_OutputArguments = 28012;
+
+        /// <remarks />
+        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_GetRejectedList_OutputArguments = 28014;
 
         /// <remarks />
         public const uint ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustList_Size = 26882;
@@ -23085,9 +23850,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateTypes = 26917;
-
-        /// <remarks />
-        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_GetRejectedList_OutputArguments = 26920;
 
         /// <remarks />
         public const uint ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_EventId = 26922;
@@ -23414,6 +24176,9 @@ namespace Opc.Ua
         public const uint ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_UpdateFrequency = 27251;
 
         /// <remarks />
+        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_GetRejectedList_OutputArguments = 26920;
+
+        /// <remarks />
         public const uint ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustList_Size = 27254;
 
         /// <remarks />
@@ -23475,9 +24240,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateTypes = 27289;
-
-        /// <remarks />
-        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_GetRejectedList_OutputArguments = 27292;
 
         /// <remarks />
         public const uint ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_EventId = 27294;
@@ -23804,6 +24566,9 @@ namespace Opc.Ua
         public const uint ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_UpdateFrequency = 27623;
 
         /// <remarks />
+        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_GetRejectedList_OutputArguments = 27292;
+
+        /// <remarks />
         public const uint ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustList_Size = 27626;
 
         /// <remarks />
@@ -23865,9 +24630,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateTypes = 27661;
-
-        /// <remarks />
-        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_GetRejectedList_OutputArguments = 27664;
 
         /// <remarks />
         public const uint ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_EventId = 27666;
@@ -24194,46 +24956,7 @@ namespace Opc.Ua
         public const uint ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_UpdateFrequency = 27995;
 
         /// <remarks />
-        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ApplicationUri = 27997;
-
-        /// <remarks />
-        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ProductUri = 27998;
-
-        /// <remarks />
-        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ApplicationType = 27999;
-
-        /// <remarks />
-        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ServerCapabilities = 28000;
-
-        /// <remarks />
-        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_SupportedPrivateKeyFormats = 28001;
-
-        /// <remarks />
-        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_MaxTrustListSize = 28002;
-
-        /// <remarks />
-        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_MulticastDnsEnabled = 28003;
-
-        /// <remarks />
-        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_UpdateCertificate_InputArguments = 28006;
-
-        /// <remarks />
-        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_UpdateCertificate_OutputArguments = 28007;
-
-        /// <remarks />
-        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_GetCertificates_InputArguments = 32360;
-
-        /// <remarks />
-        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_GetCertificates_OutputArguments = 32361;
-
-        /// <remarks />
-        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_CreateSigningRequest_InputArguments = 28011;
-
-        /// <remarks />
-        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_CreateSigningRequest_OutputArguments = 28012;
-
-        /// <remarks />
-        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_GetRejectedList_OutputArguments = 28014;
+        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_GetRejectedList_OutputArguments = 27664;
 
         /// <remarks />
         public const uint ProvisionableDeviceType_ApplicationName_Placeholder_TransactionDiagnostics_StartTime = 32363;
@@ -24254,7 +24977,97 @@ namespace Opc.Ua
         public const uint ProvisionableDeviceType_ApplicationName_Placeholder_TransactionDiagnostics_Errors = 32368;
 
         /// <remarks />
+        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_Size = 16325;
+
+        /// <remarks />
+        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_Writable = 16326;
+
+        /// <remarks />
+        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_UserWritable = 16327;
+
+        /// <remarks />
+        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_OpenCount = 16328;
+
+        /// <remarks />
+        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_Open_InputArguments = 16333;
+
+        /// <remarks />
+        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_Open_OutputArguments = 16334;
+
+        /// <remarks />
+        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_Close_InputArguments = 16336;
+
+        /// <remarks />
+        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_Read_InputArguments = 16338;
+
+        /// <remarks />
+        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_Read_OutputArguments = 16339;
+
+        /// <remarks />
+        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_Write_InputArguments = 16341;
+
+        /// <remarks />
+        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_GetPosition_InputArguments = 16343;
+
+        /// <remarks />
+        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_GetPosition_OutputArguments = 16344;
+
+        /// <remarks />
+        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_SetPosition_InputArguments = 16346;
+
+        /// <remarks />
+        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_LastUpdateTime = 16347;
+
+        /// <remarks />
+        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_CurrentVersion = 16365;
+
+        /// <remarks />
+        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_ActivityTimeout = 16366;
+
+        /// <remarks />
+        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_SupportedDataType = 16367;
+
+        /// <remarks />
+        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_ConfirmUpdate_InputArguments = 16536;
+
+        /// <remarks />
+        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_CloseAndUpdate_InputArguments = 16369;
+
+        /// <remarks />
+        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_CloseAndUpdate_OutputArguments = 16370;
+
+        /// <remarks />
+        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_AvailableNetworks = 16657;
+
+        /// <remarks />
+        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_AvailablePorts = 16658;
+
+        /// <remarks />
+        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_MaxEndpoints = 19736;
+
+        /// <remarks />
+        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_MaxCertificateGroups = 19737;
+
+        /// <remarks />
+        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_SecurityPolicyUris = 16659;
+
+        /// <remarks />
+        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_UserTokenTypes = 16660;
+
+        /// <remarks />
+        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_CertificateTypes = 16661;
+
+        /// <remarks />
+        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_CertificateGroupPurposes = 19738;
+
+        /// <remarks />
         public const uint ProvisionableDeviceType_ApplicationName_Placeholder_Enabled = 27996;
+
+        /// <remarks />
+        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_KeyCredentials_CreateCredential_InputArguments = 19741;
+
+        /// <remarks />
+        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_KeyCredentials_CreateCredential_OutputArguments = 19742;
 
         /// <remarks />
         public const uint ProvisionableDevice_IsSingleton = 29879;
@@ -24626,6 +25439,48 @@ namespace Opc.Ua
         public const uint ReferenceDescriptionVariableType_ReferenceRefinement = 32658;
 
         /// <remarks />
+        public const uint LogObjectType_GetRecords_InputArguments = 19354;
+
+        /// <remarks />
+        public const uint LogObjectType_GetRecords_OutputArguments = 19355;
+
+        /// <remarks />
+        public const uint LogObjectType_MaxRecords = 19356;
+
+        /// <remarks />
+        public const uint LogObjectType_MaxStorageDuration = 19357;
+
+        /// <remarks />
+        public const uint LogObjectType_MinimumSeverity = 19744;
+
+        /// <remarks />
+        public const uint LogRecordMask_OptionSetValues = 19750;
+
+        /// <remarks />
+        public const uint BaseLogEventType_ConditionClassId = 19363;
+
+        /// <remarks />
+        public const uint BaseLogEventType_ConditionClassName = 19364;
+
+        /// <remarks />
+        public const uint BaseLogEventType_ErrorCode = 19365;
+
+        /// <remarks />
+        public const uint BaseLogEventType_ErrorCodeNode = 19366;
+
+        /// <remarks />
+        public const uint ServerLog_GetRecords_InputArguments = 19374;
+
+        /// <remarks />
+        public const uint ServerLog_GetRecords_OutputArguments = 19375;
+
+        /// <remarks />
+        public const uint ServerLog_MaxRecords = 19376;
+
+        /// <remarks />
+        public const uint ServerLog_MaxStorageDuration = 19377;
+
+        /// <remarks />
         public const uint IdType_EnumStrings = 7591;
 
         /// <remarks />
@@ -24785,7 +25640,40 @@ namespace Opc.Ua
         public const uint OpcUa_BinarySchema_TrustListDataType = 12681;
 
         /// <remarks />
+        public const uint OpcUa_BinarySchema_BaseConfigurationDataType = 16548;
+
+        /// <remarks />
+        public const uint OpcUa_BinarySchema_BaseConfigurationRecordDataType = 16551;
+
+        /// <remarks />
+        public const uint OpcUa_BinarySchema_CertificateGroupDataType = 16554;
+
+        /// <remarks />
+        public const uint OpcUa_BinarySchema_ConfigurationUpdateTargetType = 16557;
+
+        /// <remarks />
         public const uint OpcUa_BinarySchema_TransactionErrorType = 32383;
+
+        /// <remarks />
+        public const uint OpcUa_BinarySchema_ApplicationConfigurationDataType = 16564;
+
+        /// <remarks />
+        public const uint OpcUa_BinarySchema_ApplicationIdentityDataType = 16567;
+
+        /// <remarks />
+        public const uint OpcUa_BinarySchema_EndpointDataType = 16570;
+
+        /// <remarks />
+        public const uint OpcUa_BinarySchema_ServerEndpointDataType = 16578;
+
+        /// <remarks />
+        public const uint OpcUa_BinarySchema_SecuritySettingsDataType = 16581;
+
+        /// <remarks />
+        public const uint OpcUa_BinarySchema_UserTokenSettingsDataType = 16584;
+
+        /// <remarks />
+        public const uint OpcUa_BinarySchema_AuthorizationServiceConfigurationDataType = 19757;
 
         /// <remarks />
         public const uint OpcUa_BinarySchema_DataTypeSchemaHeader = 15741;
@@ -25026,6 +25914,21 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint OpcUa_BinarySchema_ReferenceListEntryDataType = 32666;
+
+        /// <remarks />
+        public const uint OpcUa_BinarySchema_LogRecord = 19380;
+
+        /// <remarks />
+        public const uint OpcUa_BinarySchema_LogRecordsDataType = 19760;
+
+        /// <remarks />
+        public const uint OpcUa_BinarySchema_SpanContextDataType = 19763;
+
+        /// <remarks />
+        public const uint OpcUa_BinarySchema_TraceContextDataType = 19766;
+
+        /// <remarks />
+        public const uint OpcUa_BinarySchema_NameValuePair = 19769;
 
         /// <remarks />
         public const uint OpcUa_BinarySchema_RolePermissionType = 16131;
@@ -25301,7 +26204,40 @@ namespace Opc.Ua
         public const uint OpcUa_XmlSchema_TrustListDataType = 12677;
 
         /// <remarks />
+        public const uint OpcUa_XmlSchema_BaseConfigurationDataType = 16597;
+
+        /// <remarks />
+        public const uint OpcUa_XmlSchema_BaseConfigurationRecordDataType = 16604;
+
+        /// <remarks />
+        public const uint OpcUa_XmlSchema_CertificateGroupDataType = 16607;
+
+        /// <remarks />
+        public const uint OpcUa_XmlSchema_ConfigurationUpdateTargetType = 16610;
+
+        /// <remarks />
         public const uint OpcUa_XmlSchema_TransactionErrorType = 32387;
+
+        /// <remarks />
+        public const uint OpcUa_XmlSchema_ApplicationConfigurationDataType = 16614;
+
+        /// <remarks />
+        public const uint OpcUa_XmlSchema_ApplicationIdentityDataType = 16617;
+
+        /// <remarks />
+        public const uint OpcUa_XmlSchema_EndpointDataType = 16620;
+
+        /// <remarks />
+        public const uint OpcUa_XmlSchema_ServerEndpointDataType = 16623;
+
+        /// <remarks />
+        public const uint OpcUa_XmlSchema_SecuritySettingsDataType = 16626;
+
+        /// <remarks />
+        public const uint OpcUa_XmlSchema_UserTokenSettingsDataType = 16629;
+
+        /// <remarks />
+        public const uint OpcUa_XmlSchema_AuthorizationServiceConfigurationDataType = 19787;
 
         /// <remarks />
         public const uint OpcUa_XmlSchema_DataTypeSchemaHeader = 16027;
@@ -25542,6 +26478,21 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint OpcUa_XmlSchema_ReferenceListEntryDataType = 32674;
+
+        /// <remarks />
+        public const uint OpcUa_XmlSchema_LogRecord = 19384;
+
+        /// <remarks />
+        public const uint OpcUa_XmlSchema_LogRecordsDataType = 19790;
+
+        /// <remarks />
+        public const uint OpcUa_XmlSchema_SpanContextDataType = 19793;
+
+        /// <remarks />
+        public const uint OpcUa_XmlSchema_TraceContextDataType = 19796;
+
+        /// <remarks />
+        public const uint OpcUa_XmlSchema_NameValuePair = 19799;
 
         /// <remarks />
         public const uint OpcUa_XmlSchema_RolePermissionType = 16127;
@@ -26157,7 +27108,43 @@ namespace Opc.Ua
         public static readonly NodeId TrustListDataType = new NodeId(Opc.Ua.DataTypes.TrustListDataType);
 
         /// <remarks />
+        public static readonly NodeId BaseConfigurationDataType = new NodeId(Opc.Ua.DataTypes.BaseConfigurationDataType);
+
+        /// <remarks />
+        public static readonly NodeId BaseConfigurationRecordDataType = new NodeId(Opc.Ua.DataTypes.BaseConfigurationRecordDataType);
+
+        /// <remarks />
+        public static readonly NodeId CertificateGroupDataType = new NodeId(Opc.Ua.DataTypes.CertificateGroupDataType);
+
+        /// <remarks />
+        public static readonly NodeId ConfigurationUpdateTargetType = new NodeId(Opc.Ua.DataTypes.ConfigurationUpdateTargetType);
+
+        /// <remarks />
+        public static readonly NodeId ConfigurationUpdateType = new NodeId(Opc.Ua.DataTypes.ConfigurationUpdateType);
+
+        /// <remarks />
         public static readonly NodeId TransactionErrorType = new NodeId(Opc.Ua.DataTypes.TransactionErrorType);
+
+        /// <remarks />
+        public static readonly NodeId ApplicationConfigurationDataType = new NodeId(Opc.Ua.DataTypes.ApplicationConfigurationDataType);
+
+        /// <remarks />
+        public static readonly NodeId ApplicationIdentityDataType = new NodeId(Opc.Ua.DataTypes.ApplicationIdentityDataType);
+
+        /// <remarks />
+        public static readonly NodeId EndpointDataType = new NodeId(Opc.Ua.DataTypes.EndpointDataType);
+
+        /// <remarks />
+        public static readonly NodeId ServerEndpointDataType = new NodeId(Opc.Ua.DataTypes.ServerEndpointDataType);
+
+        /// <remarks />
+        public static readonly NodeId SecuritySettingsDataType = new NodeId(Opc.Ua.DataTypes.SecuritySettingsDataType);
+
+        /// <remarks />
+        public static readonly NodeId UserTokenSettingsDataType = new NodeId(Opc.Ua.DataTypes.UserTokenSettingsDataType);
+
+        /// <remarks />
+        public static readonly NodeId AuthorizationServiceConfigurationDataType = new NodeId(Opc.Ua.DataTypes.AuthorizationServiceConfigurationDataType);
 
         /// <remarks />
         public static readonly NodeId DecimalDataType = new NodeId(Opc.Ua.DataTypes.DecimalDataType);
@@ -26524,6 +27511,24 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId ReferenceListEntryDataType = new NodeId(Opc.Ua.DataTypes.ReferenceListEntryDataType);
+
+        /// <remarks />
+        public static readonly NodeId LogRecord = new NodeId(Opc.Ua.DataTypes.LogRecord);
+
+        /// <remarks />
+        public static readonly NodeId LogRecordsDataType = new NodeId(Opc.Ua.DataTypes.LogRecordsDataType);
+
+        /// <remarks />
+        public static readonly NodeId SpanContextDataType = new NodeId(Opc.Ua.DataTypes.SpanContextDataType);
+
+        /// <remarks />
+        public static readonly NodeId TraceContextDataType = new NodeId(Opc.Ua.DataTypes.TraceContextDataType);
+
+        /// <remarks />
+        public static readonly NodeId NameValuePair = new NodeId(Opc.Ua.DataTypes.NameValuePair);
+
+        /// <remarks />
+        public static readonly NodeId LogRecordMask = new NodeId(Opc.Ua.DataTypes.LogRecordMask);
 
         /// <remarks />
         public static readonly NodeId IdType = new NodeId(Opc.Ua.DataTypes.IdType);
@@ -27923,9 +28928,6 @@ namespace Opc.Ua
         public static readonly NodeId CertificateGroupType_TrustList_RemoveCertificate = new NodeId(Opc.Ua.Methods.CertificateGroupType_TrustList_RemoveCertificate);
 
         /// <remarks />
-        public static readonly NodeId CertificateGroupType_GetRejectedList = new NodeId(Opc.Ua.Methods.CertificateGroupType_GetRejectedList);
-
-        /// <remarks />
         public static readonly NodeId CertificateGroupType_CertificateExpired_Disable = new NodeId(Opc.Ua.Methods.CertificateGroupType_CertificateExpired_Disable);
 
         /// <remarks />
@@ -27966,6 +28968,9 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId CertificateGroupType_TrustListOutOfDate_ShelvingState_OneShotShelve = new NodeId(Opc.Ua.Methods.CertificateGroupType_TrustListOutOfDate_ShelvingState_OneShotShelve);
+
+        /// <remarks />
+        public static readonly NodeId CertificateGroupType_GetRejectedList = new NodeId(Opc.Ua.Methods.CertificateGroupType_GetRejectedList);
 
         /// <remarks />
         public static readonly NodeId CertificateGroupFolderType_DefaultApplicationGroup_TrustList_Open = new NodeId(Opc.Ua.Methods.CertificateGroupFolderType_DefaultApplicationGroup_TrustList_Open);
@@ -28256,6 +29261,24 @@ namespace Opc.Ua
         public static readonly NodeId CertificateGroupFolderType_AdditionalGroup_Placeholder_TrustListOutOfDate_ShelvingState_OneShotShelve = new NodeId(Opc.Ua.Methods.CertificateGroupFolderType_AdditionalGroup_Placeholder_TrustListOutOfDate_ShelvingState_OneShotShelve);
 
         /// <remarks />
+        public static readonly NodeId ConfigurationFileType_ConfirmUpdate = new NodeId(Opc.Ua.Methods.ConfigurationFileType_ConfirmUpdate);
+
+        /// <remarks />
+        public static readonly NodeId ConfigurationFileType_CloseAndUpdate = new NodeId(Opc.Ua.Methods.ConfigurationFileType_CloseAndUpdate);
+
+        /// <remarks />
+        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_UpdateCertificate = new NodeId(Opc.Ua.Methods.ApplicationConfigurationFolderType_ApplicationName_Placeholder_UpdateCertificate);
+
+        /// <remarks />
+        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ApplyChanges = new NodeId(Opc.Ua.Methods.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ApplyChanges);
+
+        /// <remarks />
+        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CreateSigningRequest = new NodeId(Opc.Ua.Methods.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CreateSigningRequest);
+
+        /// <remarks />
+        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_GetRejectedList = new NodeId(Opc.Ua.Methods.ApplicationConfigurationFolderType_ApplicationName_Placeholder_GetRejectedList);
+
+        /// <remarks />
         public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustList_Open = new NodeId(Opc.Ua.Methods.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustList_Open);
 
         /// <remarks />
@@ -28472,16 +29495,55 @@ namespace Opc.Ua
         public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_OneShotShelve = new NodeId(Opc.Ua.Methods.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_OneShotShelve);
 
         /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_UpdateCertificate = new NodeId(Opc.Ua.Methods.ApplicationConfigurationFolderType_ApplicationName_Placeholder_UpdateCertificate);
+        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_Open = new NodeId(Opc.Ua.Methods.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_Open);
 
         /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ApplyChanges = new NodeId(Opc.Ua.Methods.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ApplyChanges);
+        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_Close = new NodeId(Opc.Ua.Methods.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_Close);
 
         /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CreateSigningRequest = new NodeId(Opc.Ua.Methods.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CreateSigningRequest);
+        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_Read = new NodeId(Opc.Ua.Methods.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_Read);
 
         /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_GetRejectedList = new NodeId(Opc.Ua.Methods.ApplicationConfigurationFolderType_ApplicationName_Placeholder_GetRejectedList);
+        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_Write = new NodeId(Opc.Ua.Methods.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_Write);
+
+        /// <remarks />
+        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_GetPosition = new NodeId(Opc.Ua.Methods.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_GetPosition);
+
+        /// <remarks />
+        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_SetPosition = new NodeId(Opc.Ua.Methods.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_SetPosition);
+
+        /// <remarks />
+        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_ConfirmUpdate = new NodeId(Opc.Ua.Methods.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_ConfirmUpdate);
+
+        /// <remarks />
+        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_CloseAndUpdate = new NodeId(Opc.Ua.Methods.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_CloseAndUpdate);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfigurationType_UpdateCertificate = new NodeId(Opc.Ua.Methods.ServerConfigurationType_UpdateCertificate);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfigurationType_CreateSelfSignedCertificate = new NodeId(Opc.Ua.Methods.ServerConfigurationType_CreateSelfSignedCertificate);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfigurationType_DeleteCertificate = new NodeId(Opc.Ua.Methods.ServerConfigurationType_DeleteCertificate);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfigurationType_GetCertificates = new NodeId(Opc.Ua.Methods.ServerConfigurationType_GetCertificates);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfigurationType_ApplyChanges = new NodeId(Opc.Ua.Methods.ServerConfigurationType_ApplyChanges);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfigurationType_CancelChanges = new NodeId(Opc.Ua.Methods.ServerConfigurationType_CancelChanges);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfigurationType_CreateSigningRequest = new NodeId(Opc.Ua.Methods.ServerConfigurationType_CreateSigningRequest);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfigurationType_GetRejectedList = new NodeId(Opc.Ua.Methods.ServerConfigurationType_GetRejectedList);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfigurationType_ResetToServerDefaults = new NodeId(Opc.Ua.Methods.ServerConfigurationType_ResetToServerDefaults);
 
         /// <remarks />
         public static readonly NodeId ServerConfigurationType_CertificateGroups_DefaultApplicationGroup_TrustList_Open = new NodeId(Opc.Ua.Methods.ServerConfigurationType_CertificateGroups_DefaultApplicationGroup_TrustList_Open);
@@ -28700,25 +29762,46 @@ namespace Opc.Ua
         public static readonly NodeId ServerConfigurationType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_OneShotShelve = new NodeId(Opc.Ua.Methods.ServerConfigurationType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_OneShotShelve);
 
         /// <remarks />
-        public static readonly NodeId ServerConfigurationType_UpdateCertificate = new NodeId(Opc.Ua.Methods.ServerConfigurationType_UpdateCertificate);
+        public static readonly NodeId ServerConfigurationType_ConfigurationFile_Open = new NodeId(Opc.Ua.Methods.ServerConfigurationType_ConfigurationFile_Open);
 
         /// <remarks />
-        public static readonly NodeId ServerConfigurationType_GetCertificates = new NodeId(Opc.Ua.Methods.ServerConfigurationType_GetCertificates);
+        public static readonly NodeId ServerConfigurationType_ConfigurationFile_Close = new NodeId(Opc.Ua.Methods.ServerConfigurationType_ConfigurationFile_Close);
 
         /// <remarks />
-        public static readonly NodeId ServerConfigurationType_ApplyChanges = new NodeId(Opc.Ua.Methods.ServerConfigurationType_ApplyChanges);
+        public static readonly NodeId ServerConfigurationType_ConfigurationFile_Read = new NodeId(Opc.Ua.Methods.ServerConfigurationType_ConfigurationFile_Read);
 
         /// <remarks />
-        public static readonly NodeId ServerConfigurationType_CancelChanges = new NodeId(Opc.Ua.Methods.ServerConfigurationType_CancelChanges);
+        public static readonly NodeId ServerConfigurationType_ConfigurationFile_Write = new NodeId(Opc.Ua.Methods.ServerConfigurationType_ConfigurationFile_Write);
 
         /// <remarks />
-        public static readonly NodeId ServerConfigurationType_CreateSigningRequest = new NodeId(Opc.Ua.Methods.ServerConfigurationType_CreateSigningRequest);
+        public static readonly NodeId ServerConfigurationType_ConfigurationFile_GetPosition = new NodeId(Opc.Ua.Methods.ServerConfigurationType_ConfigurationFile_GetPosition);
 
         /// <remarks />
-        public static readonly NodeId ServerConfigurationType_GetRejectedList = new NodeId(Opc.Ua.Methods.ServerConfigurationType_GetRejectedList);
+        public static readonly NodeId ServerConfigurationType_ConfigurationFile_SetPosition = new NodeId(Opc.Ua.Methods.ServerConfigurationType_ConfigurationFile_SetPosition);
 
         /// <remarks />
-        public static readonly NodeId ServerConfigurationType_ResetToServerDefaults = new NodeId(Opc.Ua.Methods.ServerConfigurationType_ResetToServerDefaults);
+        public static readonly NodeId ServerConfigurationType_ConfigurationFile_ConfirmUpdate = new NodeId(Opc.Ua.Methods.ServerConfigurationType_ConfigurationFile_ConfirmUpdate);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfigurationType_ConfigurationFile_CloseAndUpdate = new NodeId(Opc.Ua.Methods.ServerConfigurationType_ConfigurationFile_CloseAndUpdate);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfiguration_UpdateCertificate = new NodeId(Opc.Ua.Methods.ServerConfiguration_UpdateCertificate);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfiguration_ApplyChanges = new NodeId(Opc.Ua.Methods.ServerConfiguration_ApplyChanges);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfiguration_CancelChanges = new NodeId(Opc.Ua.Methods.ServerConfiguration_CancelChanges);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfiguration_CreateSigningRequest = new NodeId(Opc.Ua.Methods.ServerConfiguration_CreateSigningRequest);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfiguration_GetRejectedList = new NodeId(Opc.Ua.Methods.ServerConfiguration_GetRejectedList);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfiguration_ResetToServerDefaults = new NodeId(Opc.Ua.Methods.ServerConfiguration_ResetToServerDefaults);
 
         /// <remarks />
         public static readonly NodeId ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList_Open = new NodeId(Opc.Ua.Methods.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList_Open);
@@ -28937,22 +30020,28 @@ namespace Opc.Ua
         public static readonly NodeId ServerConfiguration_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_OneShotShelve = new NodeId(Opc.Ua.Methods.ServerConfiguration_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_OneShotShelve);
 
         /// <remarks />
-        public static readonly NodeId ServerConfiguration_UpdateCertificate = new NodeId(Opc.Ua.Methods.ServerConfiguration_UpdateCertificate);
+        public static readonly NodeId ServerConfiguration_ConfigurationFile_Open = new NodeId(Opc.Ua.Methods.ServerConfiguration_ConfigurationFile_Open);
 
         /// <remarks />
-        public static readonly NodeId ServerConfiguration_ApplyChanges = new NodeId(Opc.Ua.Methods.ServerConfiguration_ApplyChanges);
+        public static readonly NodeId ServerConfiguration_ConfigurationFile_Close = new NodeId(Opc.Ua.Methods.ServerConfiguration_ConfigurationFile_Close);
 
         /// <remarks />
-        public static readonly NodeId ServerConfiguration_CancelChanges = new NodeId(Opc.Ua.Methods.ServerConfiguration_CancelChanges);
+        public static readonly NodeId ServerConfiguration_ConfigurationFile_Read = new NodeId(Opc.Ua.Methods.ServerConfiguration_ConfigurationFile_Read);
 
         /// <remarks />
-        public static readonly NodeId ServerConfiguration_CreateSigningRequest = new NodeId(Opc.Ua.Methods.ServerConfiguration_CreateSigningRequest);
+        public static readonly NodeId ServerConfiguration_ConfigurationFile_Write = new NodeId(Opc.Ua.Methods.ServerConfiguration_ConfigurationFile_Write);
 
         /// <remarks />
-        public static readonly NodeId ServerConfiguration_GetRejectedList = new NodeId(Opc.Ua.Methods.ServerConfiguration_GetRejectedList);
+        public static readonly NodeId ServerConfiguration_ConfigurationFile_GetPosition = new NodeId(Opc.Ua.Methods.ServerConfiguration_ConfigurationFile_GetPosition);
 
         /// <remarks />
-        public static readonly NodeId ServerConfiguration_ResetToServerDefaults = new NodeId(Opc.Ua.Methods.ServerConfiguration_ResetToServerDefaults);
+        public static readonly NodeId ServerConfiguration_ConfigurationFile_SetPosition = new NodeId(Opc.Ua.Methods.ServerConfiguration_ConfigurationFile_SetPosition);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfiguration_ConfigurationFile_ConfirmUpdate = new NodeId(Opc.Ua.Methods.ServerConfiguration_ConfigurationFile_ConfirmUpdate);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfiguration_ConfigurationFile_CloseAndUpdate = new NodeId(Opc.Ua.Methods.ServerConfiguration_ConfigurationFile_CloseAndUpdate);
 
         /// <remarks />
         public static readonly NodeId KeyCredentialConfigurationFolderType_CreateCredential = new NodeId(Opc.Ua.Methods.KeyCredentialConfigurationFolderType_CreateCredential);
@@ -29369,6 +30458,18 @@ namespace Opc.Ua
         public static readonly NodeId ProvisionableDeviceType_SetRegistrarEndpoints = new NodeId(Opc.Ua.Methods.ProvisionableDeviceType_SetRegistrarEndpoints);
 
         /// <remarks />
+        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_UpdateCertificate = new NodeId(Opc.Ua.Methods.ProvisionableDeviceType_ApplicationName_Placeholder_UpdateCertificate);
+
+        /// <remarks />
+        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ApplyChanges = new NodeId(Opc.Ua.Methods.ProvisionableDeviceType_ApplicationName_Placeholder_ApplyChanges);
+
+        /// <remarks />
+        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_CreateSigningRequest = new NodeId(Opc.Ua.Methods.ProvisionableDeviceType_ApplicationName_Placeholder_CreateSigningRequest);
+
+        /// <remarks />
+        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_GetRejectedList = new NodeId(Opc.Ua.Methods.ProvisionableDeviceType_ApplicationName_Placeholder_GetRejectedList);
+
+        /// <remarks />
         public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustList_Open = new NodeId(Opc.Ua.Methods.ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustList_Open);
 
         /// <remarks />
@@ -29585,16 +30686,28 @@ namespace Opc.Ua
         public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_OneShotShelve = new NodeId(Opc.Ua.Methods.ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ShelvingState_OneShotShelve);
 
         /// <remarks />
-        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_UpdateCertificate = new NodeId(Opc.Ua.Methods.ProvisionableDeviceType_ApplicationName_Placeholder_UpdateCertificate);
+        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_Open = new NodeId(Opc.Ua.Methods.ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_Open);
 
         /// <remarks />
-        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ApplyChanges = new NodeId(Opc.Ua.Methods.ProvisionableDeviceType_ApplicationName_Placeholder_ApplyChanges);
+        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_Close = new NodeId(Opc.Ua.Methods.ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_Close);
 
         /// <remarks />
-        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_CreateSigningRequest = new NodeId(Opc.Ua.Methods.ProvisionableDeviceType_ApplicationName_Placeholder_CreateSigningRequest);
+        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_Read = new NodeId(Opc.Ua.Methods.ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_Read);
 
         /// <remarks />
-        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_GetRejectedList = new NodeId(Opc.Ua.Methods.ProvisionableDeviceType_ApplicationName_Placeholder_GetRejectedList);
+        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_Write = new NodeId(Opc.Ua.Methods.ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_Write);
+
+        /// <remarks />
+        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_GetPosition = new NodeId(Opc.Ua.Methods.ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_GetPosition);
+
+        /// <remarks />
+        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_SetPosition = new NodeId(Opc.Ua.Methods.ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_SetPosition);
+
+        /// <remarks />
+        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_ConfirmUpdate = new NodeId(Opc.Ua.Methods.ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_ConfirmUpdate);
+
+        /// <remarks />
+        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_CloseAndUpdate = new NodeId(Opc.Ua.Methods.ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_CloseAndUpdate);
 
         /// <remarks />
         public static readonly NodeId ProvisionableDevice_RequestTickets = new NodeId(Opc.Ua.Methods.ProvisionableDevice_RequestTickets);
@@ -29604,6 +30717,12 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId PriorityMappingTableType_DeletePriorityMappingEntry = new NodeId(Opc.Ua.Methods.PriorityMappingTableType_DeletePriorityMappingEntry);
+
+        /// <remarks />
+        public static readonly NodeId LogObjectType_GetRecords = new NodeId(Opc.Ua.Methods.LogObjectType_GetRecords);
+
+        /// <remarks />
+        public static readonly NodeId ServerLog_GetRecords = new NodeId(Opc.Ua.Methods.ServerLog_GetRecords);
     }
     #endregion
 
@@ -30109,6 +31228,15 @@ namespace Opc.Ua
         public static readonly NodeId ServerConfigurationType_TransactionDiagnostics = new NodeId(Opc.Ua.Objects.ServerConfigurationType_TransactionDiagnostics);
 
         /// <remarks />
+        public static readonly NodeId ServerConfigurationType_ConfigurationFile = new NodeId(Opc.Ua.Objects.ServerConfigurationType_ConfigurationFile);
+
+        /// <remarks />
+        public static readonly NodeId ApplicationConfigurationType_KeyCredentials = new NodeId(Opc.Ua.Objects.ApplicationConfigurationType_KeyCredentials);
+
+        /// <remarks />
+        public static readonly NodeId ApplicationConfigurationType_AuthorizationServices = new NodeId(Opc.Ua.Objects.ApplicationConfigurationType_AuthorizationServices);
+
+        /// <remarks />
         public static readonly NodeId ServerConfiguration = new NodeId(Opc.Ua.Objects.ServerConfiguration);
 
         /// <remarks />
@@ -30134,6 +31262,9 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId ServerConfiguration_TransactionDiagnostics = new NodeId(Opc.Ua.Objects.ServerConfiguration_TransactionDiagnostics);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfiguration_ConfigurationFile = new NodeId(Opc.Ua.Objects.ServerConfiguration_ConfigurationFile);
 
         /// <remarks />
         public static readonly NodeId KeyCredentialConfigurationFolderType_ServiceName_Placeholder = new NodeId(Opc.Ua.Objects.KeyCredentialConfigurationFolderType_ServiceName_Placeholder);
@@ -30667,6 +31798,12 @@ namespace Opc.Ua
         public static readonly NodeId LldpPortInformationType_RemoteSystemsData_LldpRemoteSystem_Placeholder = new NodeId(Opc.Ua.Objects.LldpPortInformationType_RemoteSystemsData_LldpRemoteSystem_Placeholder);
 
         /// <remarks />
+        public static readonly NodeId ServerLog = new NodeId(Opc.Ua.Objects.ServerLog);
+
+        /// <remarks />
+        public static readonly NodeId Logs = new NodeId(Opc.Ua.Objects.Logs);
+
+        /// <remarks />
         public static readonly NodeId Union_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.Union_Encoding_DefaultBinary);
 
         /// <remarks />
@@ -30730,7 +31867,40 @@ namespace Opc.Ua
         public static readonly NodeId TrustListDataType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.TrustListDataType_Encoding_DefaultBinary);
 
         /// <remarks />
+        public static readonly NodeId BaseConfigurationDataType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.BaseConfigurationDataType_Encoding_DefaultBinary);
+
+        /// <remarks />
+        public static readonly NodeId BaseConfigurationRecordDataType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.BaseConfigurationRecordDataType_Encoding_DefaultBinary);
+
+        /// <remarks />
+        public static readonly NodeId CertificateGroupDataType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.CertificateGroupDataType_Encoding_DefaultBinary);
+
+        /// <remarks />
+        public static readonly NodeId ConfigurationUpdateTargetType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.ConfigurationUpdateTargetType_Encoding_DefaultBinary);
+
+        /// <remarks />
         public static readonly NodeId TransactionErrorType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.TransactionErrorType_Encoding_DefaultBinary);
+
+        /// <remarks />
+        public static readonly NodeId ApplicationConfigurationDataType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.ApplicationConfigurationDataType_Encoding_DefaultBinary);
+
+        /// <remarks />
+        public static readonly NodeId ApplicationIdentityDataType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.ApplicationIdentityDataType_Encoding_DefaultBinary);
+
+        /// <remarks />
+        public static readonly NodeId EndpointDataType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.EndpointDataType_Encoding_DefaultBinary);
+
+        /// <remarks />
+        public static readonly NodeId ServerEndpointDataType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.ServerEndpointDataType_Encoding_DefaultBinary);
+
+        /// <remarks />
+        public static readonly NodeId SecuritySettingsDataType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.SecuritySettingsDataType_Encoding_DefaultBinary);
+
+        /// <remarks />
+        public static readonly NodeId UserTokenSettingsDataType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.UserTokenSettingsDataType_Encoding_DefaultBinary);
+
+        /// <remarks />
+        public static readonly NodeId AuthorizationServiceConfigurationDataType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.AuthorizationServiceConfigurationDataType_Encoding_DefaultBinary);
 
         /// <remarks />
         public static readonly NodeId DecimalDataType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.DecimalDataType_Encoding_DefaultBinary);
@@ -30974,6 +32144,21 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId ReferenceListEntryDataType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.ReferenceListEntryDataType_Encoding_DefaultBinary);
+
+        /// <remarks />
+        public static readonly NodeId LogRecord_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.LogRecord_Encoding_DefaultBinary);
+
+        /// <remarks />
+        public static readonly NodeId LogRecordsDataType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.LogRecordsDataType_Encoding_DefaultBinary);
+
+        /// <remarks />
+        public static readonly NodeId SpanContextDataType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.SpanContextDataType_Encoding_DefaultBinary);
+
+        /// <remarks />
+        public static readonly NodeId TraceContextDataType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.TraceContextDataType_Encoding_DefaultBinary);
+
+        /// <remarks />
+        public static readonly NodeId NameValuePair_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.NameValuePair_Encoding_DefaultBinary);
 
         /// <remarks />
         public static readonly NodeId RolePermissionType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.RolePermissionType_Encoding_DefaultBinary);
@@ -31741,7 +32926,40 @@ namespace Opc.Ua
         public static readonly NodeId TrustListDataType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.TrustListDataType_Encoding_DefaultXml);
 
         /// <remarks />
+        public static readonly NodeId BaseConfigurationDataType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.BaseConfigurationDataType_Encoding_DefaultXml);
+
+        /// <remarks />
+        public static readonly NodeId BaseConfigurationRecordDataType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.BaseConfigurationRecordDataType_Encoding_DefaultXml);
+
+        /// <remarks />
+        public static readonly NodeId CertificateGroupDataType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.CertificateGroupDataType_Encoding_DefaultXml);
+
+        /// <remarks />
+        public static readonly NodeId ConfigurationUpdateTargetType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.ConfigurationUpdateTargetType_Encoding_DefaultXml);
+
+        /// <remarks />
         public static readonly NodeId TransactionErrorType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.TransactionErrorType_Encoding_DefaultXml);
+
+        /// <remarks />
+        public static readonly NodeId ApplicationConfigurationDataType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.ApplicationConfigurationDataType_Encoding_DefaultXml);
+
+        /// <remarks />
+        public static readonly NodeId ApplicationIdentityDataType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.ApplicationIdentityDataType_Encoding_DefaultXml);
+
+        /// <remarks />
+        public static readonly NodeId EndpointDataType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.EndpointDataType_Encoding_DefaultXml);
+
+        /// <remarks />
+        public static readonly NodeId ServerEndpointDataType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.ServerEndpointDataType_Encoding_DefaultXml);
+
+        /// <remarks />
+        public static readonly NodeId SecuritySettingsDataType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.SecuritySettingsDataType_Encoding_DefaultXml);
+
+        /// <remarks />
+        public static readonly NodeId UserTokenSettingsDataType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.UserTokenSettingsDataType_Encoding_DefaultXml);
+
+        /// <remarks />
+        public static readonly NodeId AuthorizationServiceConfigurationDataType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.AuthorizationServiceConfigurationDataType_Encoding_DefaultXml);
 
         /// <remarks />
         public static readonly NodeId DecimalDataType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.DecimalDataType_Encoding_DefaultXml);
@@ -31985,6 +33203,21 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId ReferenceListEntryDataType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.ReferenceListEntryDataType_Encoding_DefaultXml);
+
+        /// <remarks />
+        public static readonly NodeId LogRecord_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.LogRecord_Encoding_DefaultXml);
+
+        /// <remarks />
+        public static readonly NodeId LogRecordsDataType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.LogRecordsDataType_Encoding_DefaultXml);
+
+        /// <remarks />
+        public static readonly NodeId SpanContextDataType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.SpanContextDataType_Encoding_DefaultXml);
+
+        /// <remarks />
+        public static readonly NodeId TraceContextDataType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.TraceContextDataType_Encoding_DefaultXml);
+
+        /// <remarks />
+        public static readonly NodeId NameValuePair_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.NameValuePair_Encoding_DefaultXml);
 
         /// <remarks />
         public static readonly NodeId RolePermissionType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.RolePermissionType_Encoding_DefaultXml);
@@ -32752,7 +33985,40 @@ namespace Opc.Ua
         public static readonly NodeId TrustListDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.TrustListDataType_Encoding_DefaultJson);
 
         /// <remarks />
+        public static readonly NodeId BaseConfigurationDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.BaseConfigurationDataType_Encoding_DefaultJson);
+
+        /// <remarks />
+        public static readonly NodeId BaseConfigurationRecordDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.BaseConfigurationRecordDataType_Encoding_DefaultJson);
+
+        /// <remarks />
+        public static readonly NodeId CertificateGroupDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.CertificateGroupDataType_Encoding_DefaultJson);
+
+        /// <remarks />
+        public static readonly NodeId ConfigurationUpdateTargetType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.ConfigurationUpdateTargetType_Encoding_DefaultJson);
+
+        /// <remarks />
         public static readonly NodeId TransactionErrorType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.TransactionErrorType_Encoding_DefaultJson);
+
+        /// <remarks />
+        public static readonly NodeId ApplicationConfigurationDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.ApplicationConfigurationDataType_Encoding_DefaultJson);
+
+        /// <remarks />
+        public static readonly NodeId ApplicationIdentityDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.ApplicationIdentityDataType_Encoding_DefaultJson);
+
+        /// <remarks />
+        public static readonly NodeId EndpointDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.EndpointDataType_Encoding_DefaultJson);
+
+        /// <remarks />
+        public static readonly NodeId ServerEndpointDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.ServerEndpointDataType_Encoding_DefaultJson);
+
+        /// <remarks />
+        public static readonly NodeId SecuritySettingsDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.SecuritySettingsDataType_Encoding_DefaultJson);
+
+        /// <remarks />
+        public static readonly NodeId UserTokenSettingsDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.UserTokenSettingsDataType_Encoding_DefaultJson);
+
+        /// <remarks />
+        public static readonly NodeId AuthorizationServiceConfigurationDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.AuthorizationServiceConfigurationDataType_Encoding_DefaultJson);
 
         /// <remarks />
         public static readonly NodeId DecimalDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.DecimalDataType_Encoding_DefaultJson);
@@ -32996,6 +34262,21 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId ReferenceListEntryDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.ReferenceListEntryDataType_Encoding_DefaultJson);
+
+        /// <remarks />
+        public static readonly NodeId LogRecord_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.LogRecord_Encoding_DefaultJson);
+
+        /// <remarks />
+        public static readonly NodeId LogRecordsDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.LogRecordsDataType_Encoding_DefaultJson);
+
+        /// <remarks />
+        public static readonly NodeId SpanContextDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.SpanContextDataType_Encoding_DefaultJson);
+
+        /// <remarks />
+        public static readonly NodeId TraceContextDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.TraceContextDataType_Encoding_DefaultJson);
+
+        /// <remarks />
+        public static readonly NodeId NameValuePair_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.NameValuePair_Encoding_DefaultJson);
 
         /// <remarks />
         public static readonly NodeId RolePermissionType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.RolePermissionType_Encoding_DefaultJson);
@@ -34182,6 +35463,18 @@ namespace Opc.Ua
         public static readonly NodeId HttpsCertificateType = new NodeId(Opc.Ua.ObjectTypes.HttpsCertificateType);
 
         /// <remarks />
+        public static readonly NodeId UserCertificateType = new NodeId(Opc.Ua.ObjectTypes.UserCertificateType);
+
+        /// <remarks />
+        public static readonly NodeId TlsCertificateType = new NodeId(Opc.Ua.ObjectTypes.TlsCertificateType);
+
+        /// <remarks />
+        public static readonly NodeId TlsServerCertificateType = new NodeId(Opc.Ua.ObjectTypes.TlsServerCertificateType);
+
+        /// <remarks />
+        public static readonly NodeId TlsClientCertificateType = new NodeId(Opc.Ua.ObjectTypes.TlsClientCertificateType);
+
+        /// <remarks />
         public static readonly NodeId UserCredentialCertificateType = new NodeId(Opc.Ua.ObjectTypes.UserCredentialCertificateType);
 
         /// <remarks />
@@ -34212,6 +35505,12 @@ namespace Opc.Ua
         public static readonly NodeId EccCurve448ApplicationCertificateType = new NodeId(Opc.Ua.ObjectTypes.EccCurve448ApplicationCertificateType);
 
         /// <remarks />
+        public static readonly NodeId ConfigurationFileType = new NodeId(Opc.Ua.ObjectTypes.ConfigurationFileType);
+
+        /// <remarks />
+        public static readonly NodeId ConfigurationUpdatedAuditEventType = new NodeId(Opc.Ua.ObjectTypes.ConfigurationUpdatedAuditEventType);
+
+        /// <remarks />
         public static readonly NodeId TrustListUpdateRequestedAuditEventType = new NodeId(Opc.Ua.ObjectTypes.TrustListUpdateRequestedAuditEventType);
 
         /// <remarks />
@@ -34224,7 +35523,13 @@ namespace Opc.Ua
         public static readonly NodeId ApplicationConfigurationFolderType = new NodeId(Opc.Ua.ObjectTypes.ApplicationConfigurationFolderType);
 
         /// <remarks />
+        public static readonly NodeId ApplicationConfigurationFileType = new NodeId(Opc.Ua.ObjectTypes.ApplicationConfigurationFileType);
+
+        /// <remarks />
         public static readonly NodeId ServerConfigurationType = new NodeId(Opc.Ua.ObjectTypes.ServerConfigurationType);
+
+        /// <remarks />
+        public static readonly NodeId ApplicationConfigurationType = new NodeId(Opc.Ua.ObjectTypes.ApplicationConfigurationType);
 
         /// <remarks />
         public static readonly NodeId CertificateUpdateRequestedAuditEventType = new NodeId(Opc.Ua.ObjectTypes.CertificateUpdateRequestedAuditEventType);
@@ -34443,9 +35748,6 @@ namespace Opc.Ua
         public static readonly NodeId UserManagementType = new NodeId(Opc.Ua.ObjectTypes.UserManagementType);
 
         /// <remarks />
-        public static readonly NodeId ApplicationConfigurationType = new NodeId(Opc.Ua.ObjectTypes.ApplicationConfigurationType);
-
-        /// <remarks />
         public static readonly NodeId ProvisionableDeviceType = new NodeId(Opc.Ua.ObjectTypes.ProvisionableDeviceType);
 
         /// <remarks />
@@ -34513,6 +35815,18 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId LldpRemoteSystemType = new NodeId(Opc.Ua.ObjectTypes.LldpRemoteSystemType);
+
+        /// <remarks />
+        public static readonly NodeId LogObjectType = new NodeId(Opc.Ua.ObjectTypes.LogObjectType);
+
+        /// <remarks />
+        public static readonly NodeId BaseLogEventType = new NodeId(Opc.Ua.ObjectTypes.BaseLogEventType);
+
+        /// <remarks />
+        public static readonly NodeId LogOverflowEventType = new NodeId(Opc.Ua.ObjectTypes.LogOverflowEventType);
+
+        /// <remarks />
+        public static readonly NodeId LogEntryConditionClassType = new NodeId(Opc.Ua.ObjectTypes.LogEntryConditionClassType);
     }
     #endregion
 
@@ -34737,6 +36051,9 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId HasReferenceDescription = new NodeId(Opc.Ua.ReferenceTypes.HasReferenceDescription);
+
+        /// <remarks />
+        public static readonly NodeId HasLogHierarchy = new NodeId(Opc.Ua.ReferenceTypes.HasLogHierarchy);
     }
     #endregion
 
@@ -35068,10 +36385,10 @@ namespace Opc.Ua
         public static readonly NodeId ServerCapabilitiesType_MaxHistoryContinuationPoints = new NodeId(Opc.Ua.Variables.ServerCapabilitiesType_MaxHistoryContinuationPoints);
 
         /// <remarks />
-        public static readonly NodeId ServerCapabilitiesType_SoftwareCertificates = new NodeId(Opc.Ua.Variables.ServerCapabilitiesType_SoftwareCertificates);
+        public static readonly NodeId ServerCapabilitiesType_MaxLogObjectContinuationPoints = new NodeId(Opc.Ua.Variables.ServerCapabilitiesType_MaxLogObjectContinuationPoints);
 
         /// <remarks />
-        public static readonly NodeId ServerCapabilitiesType_MaxArrayLength = new NodeId(Opc.Ua.Variables.ServerCapabilitiesType_MaxArrayLength);
+        public static readonly NodeId ServerCapabilitiesType_SoftwareCertificates = new NodeId(Opc.Ua.Variables.ServerCapabilitiesType_SoftwareCertificates);
 
         /// <remarks />
         public static readonly NodeId ServerCapabilitiesType_MaxStringLength = new NodeId(Opc.Ua.Variables.ServerCapabilitiesType_MaxStringLength);
@@ -36682,9 +37999,6 @@ namespace Opc.Ua
         public static readonly NodeId Server_ServerCapabilities_SoftwareCertificates = new NodeId(Opc.Ua.Variables.Server_ServerCapabilities_SoftwareCertificates);
 
         /// <remarks />
-        public static readonly NodeId Server_ServerCapabilities_MaxArrayLength = new NodeId(Opc.Ua.Variables.Server_ServerCapabilities_MaxArrayLength);
-
-        /// <remarks />
         public static readonly NodeId Server_ServerCapabilities_MaxStringLength = new NodeId(Opc.Ua.Variables.Server_ServerCapabilities_MaxStringLength);
 
         /// <remarks />
@@ -36839,6 +38153,9 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId Server_RequestServerStateChange_InputArguments = new NodeId(Opc.Ua.Variables.Server_RequestServerStateChange_InputArguments);
+
+        /// <remarks />
+        public static readonly NodeId Server_ServerCapabilities_MaxArrayLength = new NodeId(Opc.Ua.Variables.Server_ServerCapabilities_MaxArrayLength);
 
         /// <remarks />
         public static readonly NodeId Server_ServerRedundancy_CurrentServerId = new NodeId(Opc.Ua.Variables.Server_ServerRedundancy_CurrentServerId);
@@ -39265,7 +40582,7 @@ namespace Opc.Ua
         public static readonly NodeId CertificateGroupType_CertificateTypes = new NodeId(Opc.Ua.Variables.CertificateGroupType_CertificateTypes);
 
         /// <remarks />
-        public static readonly NodeId CertificateGroupType_GetRejectedList_OutputArguments = new NodeId(Opc.Ua.Variables.CertificateGroupType_GetRejectedList_OutputArguments);
+        public static readonly NodeId CertificateGroupType_Purpose = new NodeId(Opc.Ua.Variables.CertificateGroupType_Purpose);
 
         /// <remarks />
         public static readonly NodeId CertificateGroupType_CertificateExpired_EventId = new NodeId(Opc.Ua.Variables.CertificateGroupType_CertificateExpired_EventId);
@@ -39592,6 +40909,9 @@ namespace Opc.Ua
         public static readonly NodeId CertificateGroupType_TrustListOutOfDate_UpdateFrequency = new NodeId(Opc.Ua.Variables.CertificateGroupType_TrustListOutOfDate_UpdateFrequency);
 
         /// <remarks />
+        public static readonly NodeId CertificateGroupType_GetRejectedList_OutputArguments = new NodeId(Opc.Ua.Variables.CertificateGroupType_GetRejectedList_OutputArguments);
+
+        /// <remarks />
         public static readonly NodeId CertificateGroupFolderType_DefaultApplicationGroup_TrustList_Size = new NodeId(Opc.Ua.Variables.CertificateGroupFolderType_DefaultApplicationGroup_TrustList_Size);
 
         /// <remarks />
@@ -39653,9 +40973,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId CertificateGroupFolderType_DefaultApplicationGroup_CertificateTypes = new NodeId(Opc.Ua.Variables.CertificateGroupFolderType_DefaultApplicationGroup_CertificateTypes);
-
-        /// <remarks />
-        public static readonly NodeId CertificateGroupFolderType_DefaultApplicationGroup_GetRejectedList_OutputArguments = new NodeId(Opc.Ua.Variables.CertificateGroupFolderType_DefaultApplicationGroup_GetRejectedList_OutputArguments);
 
         /// <remarks />
         public static readonly NodeId CertificateGroupFolderType_DefaultApplicationGroup_CertificateExpired_EventId = new NodeId(Opc.Ua.Variables.CertificateGroupFolderType_DefaultApplicationGroup_CertificateExpired_EventId);
@@ -39982,6 +41299,9 @@ namespace Opc.Ua
         public static readonly NodeId CertificateGroupFolderType_DefaultApplicationGroup_TrustListOutOfDate_UpdateFrequency = new NodeId(Opc.Ua.Variables.CertificateGroupFolderType_DefaultApplicationGroup_TrustListOutOfDate_UpdateFrequency);
 
         /// <remarks />
+        public static readonly NodeId CertificateGroupFolderType_DefaultApplicationGroup_GetRejectedList_OutputArguments = new NodeId(Opc.Ua.Variables.CertificateGroupFolderType_DefaultApplicationGroup_GetRejectedList_OutputArguments);
+
+        /// <remarks />
         public static readonly NodeId CertificateGroupFolderType_DefaultHttpsGroup_TrustList_Size = new NodeId(Opc.Ua.Variables.CertificateGroupFolderType_DefaultHttpsGroup_TrustList_Size);
 
         /// <remarks />
@@ -40043,9 +41363,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId CertificateGroupFolderType_DefaultHttpsGroup_CertificateTypes = new NodeId(Opc.Ua.Variables.CertificateGroupFolderType_DefaultHttpsGroup_CertificateTypes);
-
-        /// <remarks />
-        public static readonly NodeId CertificateGroupFolderType_DefaultHttpsGroup_GetRejectedList_OutputArguments = new NodeId(Opc.Ua.Variables.CertificateGroupFolderType_DefaultHttpsGroup_GetRejectedList_OutputArguments);
 
         /// <remarks />
         public static readonly NodeId CertificateGroupFolderType_DefaultHttpsGroup_CertificateExpired_EventId = new NodeId(Opc.Ua.Variables.CertificateGroupFolderType_DefaultHttpsGroup_CertificateExpired_EventId);
@@ -40372,6 +41689,9 @@ namespace Opc.Ua
         public static readonly NodeId CertificateGroupFolderType_DefaultHttpsGroup_TrustListOutOfDate_UpdateFrequency = new NodeId(Opc.Ua.Variables.CertificateGroupFolderType_DefaultHttpsGroup_TrustListOutOfDate_UpdateFrequency);
 
         /// <remarks />
+        public static readonly NodeId CertificateGroupFolderType_DefaultHttpsGroup_GetRejectedList_OutputArguments = new NodeId(Opc.Ua.Variables.CertificateGroupFolderType_DefaultHttpsGroup_GetRejectedList_OutputArguments);
+
+        /// <remarks />
         public static readonly NodeId CertificateGroupFolderType_DefaultUserTokenGroup_TrustList_Size = new NodeId(Opc.Ua.Variables.CertificateGroupFolderType_DefaultUserTokenGroup_TrustList_Size);
 
         /// <remarks />
@@ -40433,9 +41753,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId CertificateGroupFolderType_DefaultUserTokenGroup_CertificateTypes = new NodeId(Opc.Ua.Variables.CertificateGroupFolderType_DefaultUserTokenGroup_CertificateTypes);
-
-        /// <remarks />
-        public static readonly NodeId CertificateGroupFolderType_DefaultUserTokenGroup_GetRejectedList_OutputArguments = new NodeId(Opc.Ua.Variables.CertificateGroupFolderType_DefaultUserTokenGroup_GetRejectedList_OutputArguments);
 
         /// <remarks />
         public static readonly NodeId CertificateGroupFolderType_DefaultUserTokenGroup_CertificateExpired_EventId = new NodeId(Opc.Ua.Variables.CertificateGroupFolderType_DefaultUserTokenGroup_CertificateExpired_EventId);
@@ -40762,6 +42079,9 @@ namespace Opc.Ua
         public static readonly NodeId CertificateGroupFolderType_DefaultUserTokenGroup_TrustListOutOfDate_UpdateFrequency = new NodeId(Opc.Ua.Variables.CertificateGroupFolderType_DefaultUserTokenGroup_TrustListOutOfDate_UpdateFrequency);
 
         /// <remarks />
+        public static readonly NodeId CertificateGroupFolderType_DefaultUserTokenGroup_GetRejectedList_OutputArguments = new NodeId(Opc.Ua.Variables.CertificateGroupFolderType_DefaultUserTokenGroup_GetRejectedList_OutputArguments);
+
+        /// <remarks />
         public static readonly NodeId CertificateGroupFolderType_AdditionalGroup_Placeholder_TrustList_Size = new NodeId(Opc.Ua.Variables.CertificateGroupFolderType_AdditionalGroup_Placeholder_TrustList_Size);
 
         /// <remarks />
@@ -40823,9 +42143,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId CertificateGroupFolderType_AdditionalGroup_Placeholder_CertificateTypes = new NodeId(Opc.Ua.Variables.CertificateGroupFolderType_AdditionalGroup_Placeholder_CertificateTypes);
-
-        /// <remarks />
-        public static readonly NodeId CertificateGroupFolderType_AdditionalGroup_Placeholder_GetRejectedList_OutputArguments = new NodeId(Opc.Ua.Variables.CertificateGroupFolderType_AdditionalGroup_Placeholder_GetRejectedList_OutputArguments);
 
         /// <remarks />
         public static readonly NodeId CertificateGroupFolderType_AdditionalGroup_Placeholder_CertificateExpired_EventId = new NodeId(Opc.Ua.Variables.CertificateGroupFolderType_AdditionalGroup_Placeholder_CertificateExpired_EventId);
@@ -41152,6 +42469,39 @@ namespace Opc.Ua
         public static readonly NodeId CertificateGroupFolderType_AdditionalGroup_Placeholder_TrustListOutOfDate_UpdateFrequency = new NodeId(Opc.Ua.Variables.CertificateGroupFolderType_AdditionalGroup_Placeholder_TrustListOutOfDate_UpdateFrequency);
 
         /// <remarks />
+        public static readonly NodeId CertificateGroupFolderType_AdditionalGroup_Placeholder_GetRejectedList_OutputArguments = new NodeId(Opc.Ua.Variables.CertificateGroupFolderType_AdditionalGroup_Placeholder_GetRejectedList_OutputArguments);
+
+        /// <remarks />
+        public static readonly NodeId ConfigurationFileType_LastUpdateTime = new NodeId(Opc.Ua.Variables.ConfigurationFileType_LastUpdateTime);
+
+        /// <remarks />
+        public static readonly NodeId ConfigurationFileType_CurrentVersion = new NodeId(Opc.Ua.Variables.ConfigurationFileType_CurrentVersion);
+
+        /// <remarks />
+        public static readonly NodeId ConfigurationFileType_ActivityTimeout = new NodeId(Opc.Ua.Variables.ConfigurationFileType_ActivityTimeout);
+
+        /// <remarks />
+        public static readonly NodeId ConfigurationFileType_SupportedDataType = new NodeId(Opc.Ua.Variables.ConfigurationFileType_SupportedDataType);
+
+        /// <remarks />
+        public static readonly NodeId ConfigurationFileType_ConfirmUpdate_InputArguments = new NodeId(Opc.Ua.Variables.ConfigurationFileType_ConfirmUpdate_InputArguments);
+
+        /// <remarks />
+        public static readonly NodeId ConfigurationFileType_CloseAndUpdate_InputArguments = new NodeId(Opc.Ua.Variables.ConfigurationFileType_CloseAndUpdate_InputArguments);
+
+        /// <remarks />
+        public static readonly NodeId ConfigurationFileType_CloseAndUpdate_OutputArguments = new NodeId(Opc.Ua.Variables.ConfigurationFileType_CloseAndUpdate_OutputArguments);
+
+        /// <remarks />
+        public static readonly NodeId ConfigurationUpdateType_EnumValues = new NodeId(Opc.Ua.Variables.ConfigurationUpdateType_EnumValues);
+
+        /// <remarks />
+        public static readonly NodeId ConfigurationUpdatedAuditEventType_OldVersion = new NodeId(Opc.Ua.Variables.ConfigurationUpdatedAuditEventType_OldVersion);
+
+        /// <remarks />
+        public static readonly NodeId ConfigurationUpdatedAuditEventType_NewVersion = new NodeId(Opc.Ua.Variables.ConfigurationUpdatedAuditEventType_NewVersion);
+
+        /// <remarks />
         public static readonly NodeId TrustListUpdatedAuditEventType_TrustListId = new NodeId(Opc.Ua.Variables.TrustListUpdatedAuditEventType_TrustListId);
 
         /// <remarks />
@@ -41171,6 +42521,57 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId TransactionDiagnosticsType_Errors = new NodeId(Opc.Ua.Variables.TransactionDiagnosticsType_Errors);
+
+        /// <remarks />
+        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ApplicationUri = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ApplicationUri);
+
+        /// <remarks />
+        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ProductUri = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ProductUri);
+
+        /// <remarks />
+        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ApplicationType = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ApplicationType);
+
+        /// <remarks />
+        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ServerCapabilities = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ServerCapabilities);
+
+        /// <remarks />
+        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_SupportedPrivateKeyFormats = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_SupportedPrivateKeyFormats);
+
+        /// <remarks />
+        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_MaxTrustListSize = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_MaxTrustListSize);
+
+        /// <remarks />
+        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_MulticastDnsEnabled = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_MulticastDnsEnabled);
+
+        /// <remarks />
+        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_UpdateCertificate_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_UpdateCertificate_InputArguments);
+
+        /// <remarks />
+        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_UpdateCertificate_OutputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_UpdateCertificate_OutputArguments);
+
+        /// <remarks />
+        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CreateSelfSignedCertificate_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CreateSelfSignedCertificate_InputArguments);
+
+        /// <remarks />
+        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CreateSelfSignedCertificate_OutputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CreateSelfSignedCertificate_OutputArguments);
+
+        /// <remarks />
+        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_DeleteCertificate_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_DeleteCertificate_InputArguments);
+
+        /// <remarks />
+        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_GetCertificates_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_GetCertificates_InputArguments);
+
+        /// <remarks />
+        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_GetCertificates_OutputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_GetCertificates_OutputArguments);
+
+        /// <remarks />
+        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CreateSigningRequest_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CreateSigningRequest_InputArguments);
+
+        /// <remarks />
+        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CreateSigningRequest_OutputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CreateSigningRequest_OutputArguments);
+
+        /// <remarks />
+        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_GetRejectedList_OutputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_GetRejectedList_OutputArguments);
 
         /// <remarks />
         public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustList_Size = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustList_Size);
@@ -41234,9 +42635,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateTypes = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateTypes);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_GetRejectedList_OutputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_GetRejectedList_OutputArguments);
 
         /// <remarks />
         public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_EventId = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_EventId);
@@ -41563,6 +42961,9 @@ namespace Opc.Ua
         public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_UpdateFrequency = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_UpdateFrequency);
 
         /// <remarks />
+        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_GetRejectedList_OutputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_GetRejectedList_OutputArguments);
+
+        /// <remarks />
         public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustList_Size = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustList_Size);
 
         /// <remarks />
@@ -41624,9 +43025,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateTypes = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateTypes);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_GetRejectedList_OutputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_GetRejectedList_OutputArguments);
 
         /// <remarks />
         public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_EventId = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_EventId);
@@ -41953,6 +43351,9 @@ namespace Opc.Ua
         public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_UpdateFrequency = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_UpdateFrequency);
 
         /// <remarks />
+        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_GetRejectedList_OutputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_GetRejectedList_OutputArguments);
+
+        /// <remarks />
         public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustList_Size = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustList_Size);
 
         /// <remarks />
@@ -42014,9 +43415,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateTypes = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateTypes);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_GetRejectedList_OutputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_GetRejectedList_OutputArguments);
 
         /// <remarks />
         public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_EventId = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_EventId);
@@ -42343,46 +43741,7 @@ namespace Opc.Ua
         public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_UpdateFrequency = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_UpdateFrequency);
 
         /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ApplicationUri = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ApplicationUri);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ProductUri = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ProductUri);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ApplicationType = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ApplicationType);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ServerCapabilities = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ServerCapabilities);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_SupportedPrivateKeyFormats = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_SupportedPrivateKeyFormats);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_MaxTrustListSize = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_MaxTrustListSize);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_MulticastDnsEnabled = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_MulticastDnsEnabled);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_UpdateCertificate_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_UpdateCertificate_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_UpdateCertificate_OutputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_UpdateCertificate_OutputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_GetCertificates_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_GetCertificates_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_GetCertificates_OutputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_GetCertificates_OutputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CreateSigningRequest_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CreateSigningRequest_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CreateSigningRequest_OutputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CreateSigningRequest_OutputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_GetRejectedList_OutputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_GetRejectedList_OutputArguments);
+        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_GetRejectedList_OutputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_GetRejectedList_OutputArguments);
 
         /// <remarks />
         public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_TransactionDiagnostics_StartTime = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_TransactionDiagnostics_StartTime);
@@ -42403,7 +43762,184 @@ namespace Opc.Ua
         public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_TransactionDiagnostics_Errors = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_TransactionDiagnostics_Errors);
 
         /// <remarks />
+        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_Size = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_Size);
+
+        /// <remarks />
+        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_Writable = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_Writable);
+
+        /// <remarks />
+        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_UserWritable = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_UserWritable);
+
+        /// <remarks />
+        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_OpenCount = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_OpenCount);
+
+        /// <remarks />
+        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_Open_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_Open_InputArguments);
+
+        /// <remarks />
+        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_Open_OutputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_Open_OutputArguments);
+
+        /// <remarks />
+        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_Close_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_Close_InputArguments);
+
+        /// <remarks />
+        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_Read_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_Read_InputArguments);
+
+        /// <remarks />
+        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_Read_OutputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_Read_OutputArguments);
+
+        /// <remarks />
+        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_Write_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_Write_InputArguments);
+
+        /// <remarks />
+        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_GetPosition_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_GetPosition_InputArguments);
+
+        /// <remarks />
+        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_GetPosition_OutputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_GetPosition_OutputArguments);
+
+        /// <remarks />
+        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_SetPosition_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_SetPosition_InputArguments);
+
+        /// <remarks />
+        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_LastUpdateTime = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_LastUpdateTime);
+
+        /// <remarks />
+        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_CurrentVersion = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_CurrentVersion);
+
+        /// <remarks />
+        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_ActivityTimeout = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_ActivityTimeout);
+
+        /// <remarks />
+        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_SupportedDataType = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_SupportedDataType);
+
+        /// <remarks />
+        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_ConfirmUpdate_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_ConfirmUpdate_InputArguments);
+
+        /// <remarks />
+        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_CloseAndUpdate_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_CloseAndUpdate_InputArguments);
+
+        /// <remarks />
+        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_CloseAndUpdate_OutputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_CloseAndUpdate_OutputArguments);
+
+        /// <remarks />
+        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_AvailableNetworks = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_AvailableNetworks);
+
+        /// <remarks />
+        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_AvailablePorts = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_AvailablePorts);
+
+        /// <remarks />
+        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_MaxEndpoints = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_MaxEndpoints);
+
+        /// <remarks />
+        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_MaxCertificateGroups = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_MaxCertificateGroups);
+
+        /// <remarks />
+        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_SecurityPolicyUris = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_SecurityPolicyUris);
+
+        /// <remarks />
+        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_UserTokenTypes = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_UserTokenTypes);
+
+        /// <remarks />
+        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_CertificateTypes = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_CertificateTypes);
+
+        /// <remarks />
+        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_CertificateGroupPurposes = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_CertificateGroupPurposes);
+
+        /// <remarks />
         public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_Enabled = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_Enabled);
+
+        /// <remarks />
+        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_KeyCredentials_CreateCredential_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_KeyCredentials_CreateCredential_InputArguments);
+
+        /// <remarks />
+        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_KeyCredentials_CreateCredential_OutputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_KeyCredentials_CreateCredential_OutputArguments);
+
+        /// <remarks />
+        public static readonly NodeId ApplicationConfigurationFileType_AvailableNetworks = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFileType_AvailableNetworks);
+
+        /// <remarks />
+        public static readonly NodeId ApplicationConfigurationFileType_AvailablePorts = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFileType_AvailablePorts);
+
+        /// <remarks />
+        public static readonly NodeId ApplicationConfigurationFileType_MaxEndpoints = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFileType_MaxEndpoints);
+
+        /// <remarks />
+        public static readonly NodeId ApplicationConfigurationFileType_MaxCertificateGroups = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFileType_MaxCertificateGroups);
+
+        /// <remarks />
+        public static readonly NodeId ApplicationConfigurationFileType_SecurityPolicyUris = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFileType_SecurityPolicyUris);
+
+        /// <remarks />
+        public static readonly NodeId ApplicationConfigurationFileType_UserTokenTypes = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFileType_UserTokenTypes);
+
+        /// <remarks />
+        public static readonly NodeId ApplicationConfigurationFileType_CertificateTypes = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFileType_CertificateTypes);
+
+        /// <remarks />
+        public static readonly NodeId ApplicationConfigurationFileType_CertificateGroupPurposes = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFileType_CertificateGroupPurposes);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfigurationType_ApplicationUri = new NodeId(Opc.Ua.Variables.ServerConfigurationType_ApplicationUri);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfigurationType_ProductUri = new NodeId(Opc.Ua.Variables.ServerConfigurationType_ProductUri);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfigurationType_ApplicationType = new NodeId(Opc.Ua.Variables.ServerConfigurationType_ApplicationType);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfigurationType_ApplicationNames = new NodeId(Opc.Ua.Variables.ServerConfigurationType_ApplicationNames);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfigurationType_ServerCapabilities = new NodeId(Opc.Ua.Variables.ServerConfigurationType_ServerCapabilities);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfigurationType_SupportedPrivateKeyFormats = new NodeId(Opc.Ua.Variables.ServerConfigurationType_SupportedPrivateKeyFormats);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfigurationType_MaxTrustListSize = new NodeId(Opc.Ua.Variables.ServerConfigurationType_MaxTrustListSize);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfigurationType_MulticastDnsEnabled = new NodeId(Opc.Ua.Variables.ServerConfigurationType_MulticastDnsEnabled);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfigurationType_HasSecureElement = new NodeId(Opc.Ua.Variables.ServerConfigurationType_HasSecureElement);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfigurationType_SupportsTransactions = new NodeId(Opc.Ua.Variables.ServerConfigurationType_SupportsTransactions);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfigurationType_InApplicationSetup = new NodeId(Opc.Ua.Variables.ServerConfigurationType_InApplicationSetup);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfigurationType_UpdateCertificate_InputArguments = new NodeId(Opc.Ua.Variables.ServerConfigurationType_UpdateCertificate_InputArguments);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfigurationType_UpdateCertificate_OutputArguments = new NodeId(Opc.Ua.Variables.ServerConfigurationType_UpdateCertificate_OutputArguments);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfigurationType_CreateSelfSignedCertificate_InputArguments = new NodeId(Opc.Ua.Variables.ServerConfigurationType_CreateSelfSignedCertificate_InputArguments);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfigurationType_CreateSelfSignedCertificate_OutputArguments = new NodeId(Opc.Ua.Variables.ServerConfigurationType_CreateSelfSignedCertificate_OutputArguments);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfigurationType_DeleteCertificate_InputArguments = new NodeId(Opc.Ua.Variables.ServerConfigurationType_DeleteCertificate_InputArguments);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfigurationType_GetCertificates_InputArguments = new NodeId(Opc.Ua.Variables.ServerConfigurationType_GetCertificates_InputArguments);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfigurationType_GetCertificates_OutputArguments = new NodeId(Opc.Ua.Variables.ServerConfigurationType_GetCertificates_OutputArguments);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfigurationType_CreateSigningRequest_InputArguments = new NodeId(Opc.Ua.Variables.ServerConfigurationType_CreateSigningRequest_InputArguments);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfigurationType_CreateSigningRequest_OutputArguments = new NodeId(Opc.Ua.Variables.ServerConfigurationType_CreateSigningRequest_OutputArguments);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfigurationType_GetRejectedList_OutputArguments = new NodeId(Opc.Ua.Variables.ServerConfigurationType_GetRejectedList_OutputArguments);
 
         /// <remarks />
         public static readonly NodeId ServerConfigurationType_CertificateGroups_DefaultApplicationGroup_TrustList_Size = new NodeId(Opc.Ua.Variables.ServerConfigurationType_CertificateGroups_DefaultApplicationGroup_TrustList_Size);
@@ -42467,9 +44003,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId ServerConfigurationType_CertificateGroups_DefaultApplicationGroup_CertificateTypes = new NodeId(Opc.Ua.Variables.ServerConfigurationType_CertificateGroups_DefaultApplicationGroup_CertificateTypes);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfigurationType_CertificateGroups_DefaultApplicationGroup_GetRejectedList_OutputArguments = new NodeId(Opc.Ua.Variables.ServerConfigurationType_CertificateGroups_DefaultApplicationGroup_GetRejectedList_OutputArguments);
 
         /// <remarks />
         public static readonly NodeId ServerConfigurationType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_EventId = new NodeId(Opc.Ua.Variables.ServerConfigurationType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_EventId);
@@ -42796,6 +44329,9 @@ namespace Opc.Ua
         public static readonly NodeId ServerConfigurationType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_UpdateFrequency = new NodeId(Opc.Ua.Variables.ServerConfigurationType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_UpdateFrequency);
 
         /// <remarks />
+        public static readonly NodeId ServerConfigurationType_CertificateGroups_DefaultApplicationGroup_GetRejectedList_OutputArguments = new NodeId(Opc.Ua.Variables.ServerConfigurationType_CertificateGroups_DefaultApplicationGroup_GetRejectedList_OutputArguments);
+
+        /// <remarks />
         public static readonly NodeId ServerConfigurationType_CertificateGroups_DefaultHttpsGroup_TrustList_Size = new NodeId(Opc.Ua.Variables.ServerConfigurationType_CertificateGroups_DefaultHttpsGroup_TrustList_Size);
 
         /// <remarks />
@@ -42857,9 +44393,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId ServerConfigurationType_CertificateGroups_DefaultHttpsGroup_CertificateTypes = new NodeId(Opc.Ua.Variables.ServerConfigurationType_CertificateGroups_DefaultHttpsGroup_CertificateTypes);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfigurationType_CertificateGroups_DefaultHttpsGroup_GetRejectedList_OutputArguments = new NodeId(Opc.Ua.Variables.ServerConfigurationType_CertificateGroups_DefaultHttpsGroup_GetRejectedList_OutputArguments);
 
         /// <remarks />
         public static readonly NodeId ServerConfigurationType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_EventId = new NodeId(Opc.Ua.Variables.ServerConfigurationType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_EventId);
@@ -43186,6 +44719,9 @@ namespace Opc.Ua
         public static readonly NodeId ServerConfigurationType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_UpdateFrequency = new NodeId(Opc.Ua.Variables.ServerConfigurationType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_UpdateFrequency);
 
         /// <remarks />
+        public static readonly NodeId ServerConfigurationType_CertificateGroups_DefaultHttpsGroup_GetRejectedList_OutputArguments = new NodeId(Opc.Ua.Variables.ServerConfigurationType_CertificateGroups_DefaultHttpsGroup_GetRejectedList_OutputArguments);
+
+        /// <remarks />
         public static readonly NodeId ServerConfigurationType_CertificateGroups_DefaultUserTokenGroup_TrustList_Size = new NodeId(Opc.Ua.Variables.ServerConfigurationType_CertificateGroups_DefaultUserTokenGroup_TrustList_Size);
 
         /// <remarks />
@@ -43247,9 +44783,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId ServerConfigurationType_CertificateGroups_DefaultUserTokenGroup_CertificateTypes = new NodeId(Opc.Ua.Variables.ServerConfigurationType_CertificateGroups_DefaultUserTokenGroup_CertificateTypes);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfigurationType_CertificateGroups_DefaultUserTokenGroup_GetRejectedList_OutputArguments = new NodeId(Opc.Ua.Variables.ServerConfigurationType_CertificateGroups_DefaultUserTokenGroup_GetRejectedList_OutputArguments);
 
         /// <remarks />
         public static readonly NodeId ServerConfigurationType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_EventId = new NodeId(Opc.Ua.Variables.ServerConfigurationType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_EventId);
@@ -43576,58 +45109,7 @@ namespace Opc.Ua
         public static readonly NodeId ServerConfigurationType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_UpdateFrequency = new NodeId(Opc.Ua.Variables.ServerConfigurationType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_UpdateFrequency);
 
         /// <remarks />
-        public static readonly NodeId ServerConfigurationType_ApplicationUri = new NodeId(Opc.Ua.Variables.ServerConfigurationType_ApplicationUri);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfigurationType_ProductUri = new NodeId(Opc.Ua.Variables.ServerConfigurationType_ProductUri);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfigurationType_ApplicationType = new NodeId(Opc.Ua.Variables.ServerConfigurationType_ApplicationType);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfigurationType_ApplicationNames = new NodeId(Opc.Ua.Variables.ServerConfigurationType_ApplicationNames);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfigurationType_ServerCapabilities = new NodeId(Opc.Ua.Variables.ServerConfigurationType_ServerCapabilities);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfigurationType_SupportedPrivateKeyFormats = new NodeId(Opc.Ua.Variables.ServerConfigurationType_SupportedPrivateKeyFormats);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfigurationType_MaxTrustListSize = new NodeId(Opc.Ua.Variables.ServerConfigurationType_MaxTrustListSize);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfigurationType_MulticastDnsEnabled = new NodeId(Opc.Ua.Variables.ServerConfigurationType_MulticastDnsEnabled);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfigurationType_HasSecureElement = new NodeId(Opc.Ua.Variables.ServerConfigurationType_HasSecureElement);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfigurationType_SupportsTransactions = new NodeId(Opc.Ua.Variables.ServerConfigurationType_SupportsTransactions);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfigurationType_InApplicationSetup = new NodeId(Opc.Ua.Variables.ServerConfigurationType_InApplicationSetup);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfigurationType_UpdateCertificate_InputArguments = new NodeId(Opc.Ua.Variables.ServerConfigurationType_UpdateCertificate_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfigurationType_UpdateCertificate_OutputArguments = new NodeId(Opc.Ua.Variables.ServerConfigurationType_UpdateCertificate_OutputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfigurationType_GetCertificates_InputArguments = new NodeId(Opc.Ua.Variables.ServerConfigurationType_GetCertificates_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfigurationType_GetCertificates_OutputArguments = new NodeId(Opc.Ua.Variables.ServerConfigurationType_GetCertificates_OutputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfigurationType_CreateSigningRequest_InputArguments = new NodeId(Opc.Ua.Variables.ServerConfigurationType_CreateSigningRequest_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfigurationType_CreateSigningRequest_OutputArguments = new NodeId(Opc.Ua.Variables.ServerConfigurationType_CreateSigningRequest_OutputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfigurationType_GetRejectedList_OutputArguments = new NodeId(Opc.Ua.Variables.ServerConfigurationType_GetRejectedList_OutputArguments);
+        public static readonly NodeId ServerConfigurationType_CertificateGroups_DefaultUserTokenGroup_GetRejectedList_OutputArguments = new NodeId(Opc.Ua.Variables.ServerConfigurationType_CertificateGroups_DefaultUserTokenGroup_GetRejectedList_OutputArguments);
 
         /// <remarks />
         public static readonly NodeId ServerConfigurationType_TransactionDiagnostics_StartTime = new NodeId(Opc.Ua.Variables.ServerConfigurationType_TransactionDiagnostics_StartTime);
@@ -43648,10 +45130,166 @@ namespace Opc.Ua
         public static readonly NodeId ServerConfigurationType_TransactionDiagnostics_Errors = new NodeId(Opc.Ua.Variables.ServerConfigurationType_TransactionDiagnostics_Errors);
 
         /// <remarks />
+        public static readonly NodeId ServerConfigurationType_ConfigurationFile_Size = new NodeId(Opc.Ua.Variables.ServerConfigurationType_ConfigurationFile_Size);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfigurationType_ConfigurationFile_Writable = new NodeId(Opc.Ua.Variables.ServerConfigurationType_ConfigurationFile_Writable);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfigurationType_ConfigurationFile_UserWritable = new NodeId(Opc.Ua.Variables.ServerConfigurationType_ConfigurationFile_UserWritable);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfigurationType_ConfigurationFile_OpenCount = new NodeId(Opc.Ua.Variables.ServerConfigurationType_ConfigurationFile_OpenCount);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfigurationType_ConfigurationFile_Open_InputArguments = new NodeId(Opc.Ua.Variables.ServerConfigurationType_ConfigurationFile_Open_InputArguments);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfigurationType_ConfigurationFile_Open_OutputArguments = new NodeId(Opc.Ua.Variables.ServerConfigurationType_ConfigurationFile_Open_OutputArguments);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfigurationType_ConfigurationFile_Close_InputArguments = new NodeId(Opc.Ua.Variables.ServerConfigurationType_ConfigurationFile_Close_InputArguments);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfigurationType_ConfigurationFile_Read_InputArguments = new NodeId(Opc.Ua.Variables.ServerConfigurationType_ConfigurationFile_Read_InputArguments);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfigurationType_ConfigurationFile_Read_OutputArguments = new NodeId(Opc.Ua.Variables.ServerConfigurationType_ConfigurationFile_Read_OutputArguments);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfigurationType_ConfigurationFile_Write_InputArguments = new NodeId(Opc.Ua.Variables.ServerConfigurationType_ConfigurationFile_Write_InputArguments);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfigurationType_ConfigurationFile_GetPosition_InputArguments = new NodeId(Opc.Ua.Variables.ServerConfigurationType_ConfigurationFile_GetPosition_InputArguments);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfigurationType_ConfigurationFile_GetPosition_OutputArguments = new NodeId(Opc.Ua.Variables.ServerConfigurationType_ConfigurationFile_GetPosition_OutputArguments);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfigurationType_ConfigurationFile_SetPosition_InputArguments = new NodeId(Opc.Ua.Variables.ServerConfigurationType_ConfigurationFile_SetPosition_InputArguments);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfigurationType_ConfigurationFile_LastUpdateTime = new NodeId(Opc.Ua.Variables.ServerConfigurationType_ConfigurationFile_LastUpdateTime);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfigurationType_ConfigurationFile_CurrentVersion = new NodeId(Opc.Ua.Variables.ServerConfigurationType_ConfigurationFile_CurrentVersion);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfigurationType_ConfigurationFile_ActivityTimeout = new NodeId(Opc.Ua.Variables.ServerConfigurationType_ConfigurationFile_ActivityTimeout);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfigurationType_ConfigurationFile_SupportedDataType = new NodeId(Opc.Ua.Variables.ServerConfigurationType_ConfigurationFile_SupportedDataType);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfigurationType_ConfigurationFile_ConfirmUpdate_InputArguments = new NodeId(Opc.Ua.Variables.ServerConfigurationType_ConfigurationFile_ConfirmUpdate_InputArguments);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfigurationType_ConfigurationFile_CloseAndUpdate_InputArguments = new NodeId(Opc.Ua.Variables.ServerConfigurationType_ConfigurationFile_CloseAndUpdate_InputArguments);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfigurationType_ConfigurationFile_CloseAndUpdate_OutputArguments = new NodeId(Opc.Ua.Variables.ServerConfigurationType_ConfigurationFile_CloseAndUpdate_OutputArguments);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfigurationType_ConfigurationFile_AvailableNetworks = new NodeId(Opc.Ua.Variables.ServerConfigurationType_ConfigurationFile_AvailableNetworks);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfigurationType_ConfigurationFile_AvailablePorts = new NodeId(Opc.Ua.Variables.ServerConfigurationType_ConfigurationFile_AvailablePorts);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfigurationType_ConfigurationFile_MaxEndpoints = new NodeId(Opc.Ua.Variables.ServerConfigurationType_ConfigurationFile_MaxEndpoints);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfigurationType_ConfigurationFile_MaxCertificateGroups = new NodeId(Opc.Ua.Variables.ServerConfigurationType_ConfigurationFile_MaxCertificateGroups);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfigurationType_ConfigurationFile_SecurityPolicyUris = new NodeId(Opc.Ua.Variables.ServerConfigurationType_ConfigurationFile_SecurityPolicyUris);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfigurationType_ConfigurationFile_UserTokenTypes = new NodeId(Opc.Ua.Variables.ServerConfigurationType_ConfigurationFile_UserTokenTypes);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfigurationType_ConfigurationFile_CertificateTypes = new NodeId(Opc.Ua.Variables.ServerConfigurationType_ConfigurationFile_CertificateTypes);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfigurationType_ConfigurationFile_CertificateGroupPurposes = new NodeId(Opc.Ua.Variables.ServerConfigurationType_ConfigurationFile_CertificateGroupPurposes);
+
+        /// <remarks />
+        public static readonly NodeId ApplicationConfigurationType_ApplicationUri = new NodeId(Opc.Ua.Variables.ApplicationConfigurationType_ApplicationUri);
+
+        /// <remarks />
+        public static readonly NodeId ApplicationConfigurationType_ProductUri = new NodeId(Opc.Ua.Variables.ApplicationConfigurationType_ProductUri);
+
+        /// <remarks />
+        public static readonly NodeId ApplicationConfigurationType_ApplicationType = new NodeId(Opc.Ua.Variables.ApplicationConfigurationType_ApplicationType);
+
+        /// <remarks />
+        public static readonly NodeId ApplicationConfigurationType_Enabled = new NodeId(Opc.Ua.Variables.ApplicationConfigurationType_Enabled);
+
+        /// <remarks />
+        public static readonly NodeId ApplicationConfigurationType_KeyCredentials_CreateCredential_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationType_KeyCredentials_CreateCredential_InputArguments);
+
+        /// <remarks />
+        public static readonly NodeId ApplicationConfigurationType_KeyCredentials_CreateCredential_OutputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationType_KeyCredentials_CreateCredential_OutputArguments);
+
+        /// <remarks />
         public static readonly NodeId CertificateUpdatedAuditEventType_CertificateGroup = new NodeId(Opc.Ua.Variables.CertificateUpdatedAuditEventType_CertificateGroup);
 
         /// <remarks />
         public static readonly NodeId CertificateUpdatedAuditEventType_CertificateType = new NodeId(Opc.Ua.Variables.CertificateUpdatedAuditEventType_CertificateType);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfiguration_ApplicationUri = new NodeId(Opc.Ua.Variables.ServerConfiguration_ApplicationUri);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfiguration_ProductUri = new NodeId(Opc.Ua.Variables.ServerConfiguration_ProductUri);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfiguration_ApplicationType = new NodeId(Opc.Ua.Variables.ServerConfiguration_ApplicationType);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfiguration_ServerCapabilities = new NodeId(Opc.Ua.Variables.ServerConfiguration_ServerCapabilities);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfiguration_SupportedPrivateKeyFormats = new NodeId(Opc.Ua.Variables.ServerConfiguration_SupportedPrivateKeyFormats);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfiguration_MaxTrustListSize = new NodeId(Opc.Ua.Variables.ServerConfiguration_MaxTrustListSize);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfiguration_MulticastDnsEnabled = new NodeId(Opc.Ua.Variables.ServerConfiguration_MulticastDnsEnabled);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfiguration_HasSecureElement = new NodeId(Opc.Ua.Variables.ServerConfiguration_HasSecureElement);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfiguration_UpdateCertificate_InputArguments = new NodeId(Opc.Ua.Variables.ServerConfiguration_UpdateCertificate_InputArguments);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfiguration_UpdateCertificate_OutputArguments = new NodeId(Opc.Ua.Variables.ServerConfiguration_UpdateCertificate_OutputArguments);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfiguration_CreateSelfSignedCertificate_InputArguments = new NodeId(Opc.Ua.Variables.ServerConfiguration_CreateSelfSignedCertificate_InputArguments);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfiguration_CreateSelfSignedCertificate_OutputArguments = new NodeId(Opc.Ua.Variables.ServerConfiguration_CreateSelfSignedCertificate_OutputArguments);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfiguration_DeleteCertificate_InputArguments = new NodeId(Opc.Ua.Variables.ServerConfiguration_DeleteCertificate_InputArguments);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfiguration_GetCertificates_InputArguments = new NodeId(Opc.Ua.Variables.ServerConfiguration_GetCertificates_InputArguments);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfiguration_GetCertificates_OutputArguments = new NodeId(Opc.Ua.Variables.ServerConfiguration_GetCertificates_OutputArguments);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfiguration_CreateSigningRequest_InputArguments = new NodeId(Opc.Ua.Variables.ServerConfiguration_CreateSigningRequest_InputArguments);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfiguration_CreateSigningRequest_OutputArguments = new NodeId(Opc.Ua.Variables.ServerConfiguration_CreateSigningRequest_OutputArguments);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfiguration_GetRejectedList_OutputArguments = new NodeId(Opc.Ua.Variables.ServerConfiguration_GetRejectedList_OutputArguments);
 
         /// <remarks />
         public static readonly NodeId ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList_Size = new NodeId(Opc.Ua.Variables.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList_Size);
@@ -43715,9 +45353,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId ServerConfiguration_CertificateGroups_DefaultApplicationGroup_CertificateTypes = new NodeId(Opc.Ua.Variables.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_CertificateTypes);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfiguration_CertificateGroups_DefaultApplicationGroup_GetRejectedList_OutputArguments = new NodeId(Opc.Ua.Variables.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_GetRejectedList_OutputArguments);
 
         /// <remarks />
         public static readonly NodeId ServerConfiguration_CertificateGroups_DefaultApplicationGroup_CertificateExpired_EventId = new NodeId(Opc.Ua.Variables.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_CertificateExpired_EventId);
@@ -44044,6 +45679,9 @@ namespace Opc.Ua
         public static readonly NodeId ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_UpdateFrequency = new NodeId(Opc.Ua.Variables.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_UpdateFrequency);
 
         /// <remarks />
+        public static readonly NodeId ServerConfiguration_CertificateGroups_DefaultApplicationGroup_GetRejectedList_OutputArguments = new NodeId(Opc.Ua.Variables.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_GetRejectedList_OutputArguments);
+
+        /// <remarks />
         public static readonly NodeId ServerConfiguration_CertificateGroups_DefaultHttpsGroup_TrustList_Size = new NodeId(Opc.Ua.Variables.ServerConfiguration_CertificateGroups_DefaultHttpsGroup_TrustList_Size);
 
         /// <remarks />
@@ -44105,9 +45743,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId ServerConfiguration_CertificateGroups_DefaultHttpsGroup_CertificateTypes = new NodeId(Opc.Ua.Variables.ServerConfiguration_CertificateGroups_DefaultHttpsGroup_CertificateTypes);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfiguration_CertificateGroups_DefaultHttpsGroup_GetRejectedList_OutputArguments = new NodeId(Opc.Ua.Variables.ServerConfiguration_CertificateGroups_DefaultHttpsGroup_GetRejectedList_OutputArguments);
 
         /// <remarks />
         public static readonly NodeId ServerConfiguration_CertificateGroups_DefaultHttpsGroup_CertificateExpired_EventId = new NodeId(Opc.Ua.Variables.ServerConfiguration_CertificateGroups_DefaultHttpsGroup_CertificateExpired_EventId);
@@ -44434,6 +46069,9 @@ namespace Opc.Ua
         public static readonly NodeId ServerConfiguration_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_UpdateFrequency = new NodeId(Opc.Ua.Variables.ServerConfiguration_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_UpdateFrequency);
 
         /// <remarks />
+        public static readonly NodeId ServerConfiguration_CertificateGroups_DefaultHttpsGroup_GetRejectedList_OutputArguments = new NodeId(Opc.Ua.Variables.ServerConfiguration_CertificateGroups_DefaultHttpsGroup_GetRejectedList_OutputArguments);
+
+        /// <remarks />
         public static readonly NodeId ServerConfiguration_CertificateGroups_DefaultUserTokenGroup_TrustList_Size = new NodeId(Opc.Ua.Variables.ServerConfiguration_CertificateGroups_DefaultUserTokenGroup_TrustList_Size);
 
         /// <remarks />
@@ -44495,9 +46133,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId ServerConfiguration_CertificateGroups_DefaultUserTokenGroup_CertificateTypes = new NodeId(Opc.Ua.Variables.ServerConfiguration_CertificateGroups_DefaultUserTokenGroup_CertificateTypes);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfiguration_CertificateGroups_DefaultUserTokenGroup_GetRejectedList_OutputArguments = new NodeId(Opc.Ua.Variables.ServerConfiguration_CertificateGroups_DefaultUserTokenGroup_GetRejectedList_OutputArguments);
 
         /// <remarks />
         public static readonly NodeId ServerConfiguration_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_EventId = new NodeId(Opc.Ua.Variables.ServerConfiguration_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_EventId);
@@ -44824,49 +46459,7 @@ namespace Opc.Ua
         public static readonly NodeId ServerConfiguration_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_UpdateFrequency = new NodeId(Opc.Ua.Variables.ServerConfiguration_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_UpdateFrequency);
 
         /// <remarks />
-        public static readonly NodeId ServerConfiguration_ApplicationUri = new NodeId(Opc.Ua.Variables.ServerConfiguration_ApplicationUri);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfiguration_ProductUri = new NodeId(Opc.Ua.Variables.ServerConfiguration_ProductUri);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfiguration_ApplicationType = new NodeId(Opc.Ua.Variables.ServerConfiguration_ApplicationType);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfiguration_ServerCapabilities = new NodeId(Opc.Ua.Variables.ServerConfiguration_ServerCapabilities);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfiguration_SupportedPrivateKeyFormats = new NodeId(Opc.Ua.Variables.ServerConfiguration_SupportedPrivateKeyFormats);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfiguration_MaxTrustListSize = new NodeId(Opc.Ua.Variables.ServerConfiguration_MaxTrustListSize);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfiguration_MulticastDnsEnabled = new NodeId(Opc.Ua.Variables.ServerConfiguration_MulticastDnsEnabled);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfiguration_HasSecureElement = new NodeId(Opc.Ua.Variables.ServerConfiguration_HasSecureElement);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfiguration_UpdateCertificate_InputArguments = new NodeId(Opc.Ua.Variables.ServerConfiguration_UpdateCertificate_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfiguration_UpdateCertificate_OutputArguments = new NodeId(Opc.Ua.Variables.ServerConfiguration_UpdateCertificate_OutputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfiguration_GetCertificates_InputArguments = new NodeId(Opc.Ua.Variables.ServerConfiguration_GetCertificates_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfiguration_GetCertificates_OutputArguments = new NodeId(Opc.Ua.Variables.ServerConfiguration_GetCertificates_OutputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfiguration_CreateSigningRequest_InputArguments = new NodeId(Opc.Ua.Variables.ServerConfiguration_CreateSigningRequest_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfiguration_CreateSigningRequest_OutputArguments = new NodeId(Opc.Ua.Variables.ServerConfiguration_CreateSigningRequest_OutputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfiguration_GetRejectedList_OutputArguments = new NodeId(Opc.Ua.Variables.ServerConfiguration_GetRejectedList_OutputArguments);
+        public static readonly NodeId ServerConfiguration_CertificateGroups_DefaultUserTokenGroup_GetRejectedList_OutputArguments = new NodeId(Opc.Ua.Variables.ServerConfiguration_CertificateGroups_DefaultUserTokenGroup_GetRejectedList_OutputArguments);
 
         /// <remarks />
         public static readonly NodeId ServerConfiguration_TransactionDiagnostics_StartTime = new NodeId(Opc.Ua.Variables.ServerConfiguration_TransactionDiagnostics_StartTime);
@@ -44885,6 +46478,90 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId ServerConfiguration_TransactionDiagnostics_Errors = new NodeId(Opc.Ua.Variables.ServerConfiguration_TransactionDiagnostics_Errors);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfiguration_ConfigurationFile_Size = new NodeId(Opc.Ua.Variables.ServerConfiguration_ConfigurationFile_Size);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfiguration_ConfigurationFile_Writable = new NodeId(Opc.Ua.Variables.ServerConfiguration_ConfigurationFile_Writable);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfiguration_ConfigurationFile_UserWritable = new NodeId(Opc.Ua.Variables.ServerConfiguration_ConfigurationFile_UserWritable);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfiguration_ConfigurationFile_OpenCount = new NodeId(Opc.Ua.Variables.ServerConfiguration_ConfigurationFile_OpenCount);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfiguration_ConfigurationFile_Open_InputArguments = new NodeId(Opc.Ua.Variables.ServerConfiguration_ConfigurationFile_Open_InputArguments);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfiguration_ConfigurationFile_Open_OutputArguments = new NodeId(Opc.Ua.Variables.ServerConfiguration_ConfigurationFile_Open_OutputArguments);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfiguration_ConfigurationFile_Close_InputArguments = new NodeId(Opc.Ua.Variables.ServerConfiguration_ConfigurationFile_Close_InputArguments);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfiguration_ConfigurationFile_Read_InputArguments = new NodeId(Opc.Ua.Variables.ServerConfiguration_ConfigurationFile_Read_InputArguments);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfiguration_ConfigurationFile_Read_OutputArguments = new NodeId(Opc.Ua.Variables.ServerConfiguration_ConfigurationFile_Read_OutputArguments);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfiguration_ConfigurationFile_Write_InputArguments = new NodeId(Opc.Ua.Variables.ServerConfiguration_ConfigurationFile_Write_InputArguments);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfiguration_ConfigurationFile_GetPosition_InputArguments = new NodeId(Opc.Ua.Variables.ServerConfiguration_ConfigurationFile_GetPosition_InputArguments);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfiguration_ConfigurationFile_GetPosition_OutputArguments = new NodeId(Opc.Ua.Variables.ServerConfiguration_ConfigurationFile_GetPosition_OutputArguments);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfiguration_ConfigurationFile_SetPosition_InputArguments = new NodeId(Opc.Ua.Variables.ServerConfiguration_ConfigurationFile_SetPosition_InputArguments);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfiguration_ConfigurationFile_LastUpdateTime = new NodeId(Opc.Ua.Variables.ServerConfiguration_ConfigurationFile_LastUpdateTime);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfiguration_ConfigurationFile_CurrentVersion = new NodeId(Opc.Ua.Variables.ServerConfiguration_ConfigurationFile_CurrentVersion);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfiguration_ConfigurationFile_ActivityTimeout = new NodeId(Opc.Ua.Variables.ServerConfiguration_ConfigurationFile_ActivityTimeout);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfiguration_ConfigurationFile_SupportedDataType = new NodeId(Opc.Ua.Variables.ServerConfiguration_ConfigurationFile_SupportedDataType);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfiguration_ConfigurationFile_ConfirmUpdate_InputArguments = new NodeId(Opc.Ua.Variables.ServerConfiguration_ConfigurationFile_ConfirmUpdate_InputArguments);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfiguration_ConfigurationFile_CloseAndUpdate_InputArguments = new NodeId(Opc.Ua.Variables.ServerConfiguration_ConfigurationFile_CloseAndUpdate_InputArguments);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfiguration_ConfigurationFile_CloseAndUpdate_OutputArguments = new NodeId(Opc.Ua.Variables.ServerConfiguration_ConfigurationFile_CloseAndUpdate_OutputArguments);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfiguration_ConfigurationFile_AvailableNetworks = new NodeId(Opc.Ua.Variables.ServerConfiguration_ConfigurationFile_AvailableNetworks);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfiguration_ConfigurationFile_AvailablePorts = new NodeId(Opc.Ua.Variables.ServerConfiguration_ConfigurationFile_AvailablePorts);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfiguration_ConfigurationFile_MaxEndpoints = new NodeId(Opc.Ua.Variables.ServerConfiguration_ConfigurationFile_MaxEndpoints);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfiguration_ConfigurationFile_MaxCertificateGroups = new NodeId(Opc.Ua.Variables.ServerConfiguration_ConfigurationFile_MaxCertificateGroups);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfiguration_ConfigurationFile_SecurityPolicyUris = new NodeId(Opc.Ua.Variables.ServerConfiguration_ConfigurationFile_SecurityPolicyUris);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfiguration_ConfigurationFile_UserTokenTypes = new NodeId(Opc.Ua.Variables.ServerConfiguration_ConfigurationFile_UserTokenTypes);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfiguration_ConfigurationFile_CertificateTypes = new NodeId(Opc.Ua.Variables.ServerConfiguration_ConfigurationFile_CertificateTypes);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfiguration_ConfigurationFile_CertificateGroupPurposes = new NodeId(Opc.Ua.Variables.ServerConfiguration_ConfigurationFile_CertificateGroupPurposes);
 
         /// <remarks />
         public static readonly NodeId KeyCredentialConfigurationFolderType_ServiceName_Placeholder_ResourceUri = new NodeId(Opc.Ua.Variables.KeyCredentialConfigurationFolderType_ServiceName_Placeholder_ResourceUri);
@@ -48907,18 +50584,6 @@ namespace Opc.Ua
         public static readonly NodeId MultiStateDictionaryEntryDiscreteType_ValueAsDictionaryEntries = new NodeId(Opc.Ua.Variables.MultiStateDictionaryEntryDiscreteType_ValueAsDictionaryEntries);
 
         /// <remarks />
-        public static readonly NodeId ApplicationConfigurationType_ApplicationUri = new NodeId(Opc.Ua.Variables.ApplicationConfigurationType_ApplicationUri);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationType_ProductUri = new NodeId(Opc.Ua.Variables.ApplicationConfigurationType_ProductUri);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationType_ApplicationType = new NodeId(Opc.Ua.Variables.ApplicationConfigurationType_ApplicationType);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationType_Enabled = new NodeId(Opc.Ua.Variables.ApplicationConfigurationType_Enabled);
-
-        /// <remarks />
         public static readonly NodeId ProvisionableDeviceType_IsSingleton = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_IsSingleton);
 
         /// <remarks />
@@ -48926,6 +50591,57 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId ProvisionableDeviceType_SetRegistrarEndpoints_InputArguments = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_SetRegistrarEndpoints_InputArguments);
+
+        /// <remarks />
+        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ApplicationUri = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_ApplicationUri);
+
+        /// <remarks />
+        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ProductUri = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_ProductUri);
+
+        /// <remarks />
+        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ApplicationType = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_ApplicationType);
+
+        /// <remarks />
+        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ServerCapabilities = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_ServerCapabilities);
+
+        /// <remarks />
+        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_SupportedPrivateKeyFormats = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_SupportedPrivateKeyFormats);
+
+        /// <remarks />
+        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_MaxTrustListSize = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_MaxTrustListSize);
+
+        /// <remarks />
+        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_MulticastDnsEnabled = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_MulticastDnsEnabled);
+
+        /// <remarks />
+        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_UpdateCertificate_InputArguments = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_UpdateCertificate_InputArguments);
+
+        /// <remarks />
+        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_UpdateCertificate_OutputArguments = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_UpdateCertificate_OutputArguments);
+
+        /// <remarks />
+        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_CreateSelfSignedCertificate_InputArguments = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_CreateSelfSignedCertificate_InputArguments);
+
+        /// <remarks />
+        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_CreateSelfSignedCertificate_OutputArguments = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_CreateSelfSignedCertificate_OutputArguments);
+
+        /// <remarks />
+        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_DeleteCertificate_InputArguments = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_DeleteCertificate_InputArguments);
+
+        /// <remarks />
+        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_GetCertificates_InputArguments = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_GetCertificates_InputArguments);
+
+        /// <remarks />
+        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_GetCertificates_OutputArguments = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_GetCertificates_OutputArguments);
+
+        /// <remarks />
+        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_CreateSigningRequest_InputArguments = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_CreateSigningRequest_InputArguments);
+
+        /// <remarks />
+        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_CreateSigningRequest_OutputArguments = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_CreateSigningRequest_OutputArguments);
+
+        /// <remarks />
+        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_GetRejectedList_OutputArguments = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_GetRejectedList_OutputArguments);
 
         /// <remarks />
         public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustList_Size = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustList_Size);
@@ -48989,9 +50705,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateTypes = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateTypes);
-
-        /// <remarks />
-        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_GetRejectedList_OutputArguments = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_GetRejectedList_OutputArguments);
 
         /// <remarks />
         public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_EventId = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_EventId);
@@ -49318,6 +51031,9 @@ namespace Opc.Ua
         public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_UpdateFrequency = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_UpdateFrequency);
 
         /// <remarks />
+        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_GetRejectedList_OutputArguments = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_GetRejectedList_OutputArguments);
+
+        /// <remarks />
         public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustList_Size = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustList_Size);
 
         /// <remarks />
@@ -49379,9 +51095,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateTypes = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateTypes);
-
-        /// <remarks />
-        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_GetRejectedList_OutputArguments = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_GetRejectedList_OutputArguments);
 
         /// <remarks />
         public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_EventId = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_EventId);
@@ -49708,6 +51421,9 @@ namespace Opc.Ua
         public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_UpdateFrequency = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_UpdateFrequency);
 
         /// <remarks />
+        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_GetRejectedList_OutputArguments = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_GetRejectedList_OutputArguments);
+
+        /// <remarks />
         public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustList_Size = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustList_Size);
 
         /// <remarks />
@@ -49769,9 +51485,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateTypes = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateTypes);
-
-        /// <remarks />
-        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_GetRejectedList_OutputArguments = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_GetRejectedList_OutputArguments);
 
         /// <remarks />
         public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_EventId = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_EventId);
@@ -50098,46 +51811,7 @@ namespace Opc.Ua
         public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_UpdateFrequency = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_UpdateFrequency);
 
         /// <remarks />
-        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ApplicationUri = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_ApplicationUri);
-
-        /// <remarks />
-        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ProductUri = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_ProductUri);
-
-        /// <remarks />
-        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ApplicationType = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_ApplicationType);
-
-        /// <remarks />
-        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ServerCapabilities = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_ServerCapabilities);
-
-        /// <remarks />
-        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_SupportedPrivateKeyFormats = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_SupportedPrivateKeyFormats);
-
-        /// <remarks />
-        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_MaxTrustListSize = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_MaxTrustListSize);
-
-        /// <remarks />
-        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_MulticastDnsEnabled = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_MulticastDnsEnabled);
-
-        /// <remarks />
-        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_UpdateCertificate_InputArguments = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_UpdateCertificate_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_UpdateCertificate_OutputArguments = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_UpdateCertificate_OutputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_GetCertificates_InputArguments = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_GetCertificates_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_GetCertificates_OutputArguments = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_GetCertificates_OutputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_CreateSigningRequest_InputArguments = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_CreateSigningRequest_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_CreateSigningRequest_OutputArguments = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_CreateSigningRequest_OutputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_GetRejectedList_OutputArguments = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_GetRejectedList_OutputArguments);
+        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_GetRejectedList_OutputArguments = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_GetRejectedList_OutputArguments);
 
         /// <remarks />
         public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_TransactionDiagnostics_StartTime = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_TransactionDiagnostics_StartTime);
@@ -50158,7 +51832,97 @@ namespace Opc.Ua
         public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_TransactionDiagnostics_Errors = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_TransactionDiagnostics_Errors);
 
         /// <remarks />
+        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_Size = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_Size);
+
+        /// <remarks />
+        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_Writable = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_Writable);
+
+        /// <remarks />
+        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_UserWritable = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_UserWritable);
+
+        /// <remarks />
+        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_OpenCount = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_OpenCount);
+
+        /// <remarks />
+        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_Open_InputArguments = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_Open_InputArguments);
+
+        /// <remarks />
+        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_Open_OutputArguments = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_Open_OutputArguments);
+
+        /// <remarks />
+        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_Close_InputArguments = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_Close_InputArguments);
+
+        /// <remarks />
+        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_Read_InputArguments = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_Read_InputArguments);
+
+        /// <remarks />
+        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_Read_OutputArguments = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_Read_OutputArguments);
+
+        /// <remarks />
+        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_Write_InputArguments = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_Write_InputArguments);
+
+        /// <remarks />
+        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_GetPosition_InputArguments = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_GetPosition_InputArguments);
+
+        /// <remarks />
+        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_GetPosition_OutputArguments = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_GetPosition_OutputArguments);
+
+        /// <remarks />
+        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_SetPosition_InputArguments = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_SetPosition_InputArguments);
+
+        /// <remarks />
+        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_LastUpdateTime = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_LastUpdateTime);
+
+        /// <remarks />
+        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_CurrentVersion = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_CurrentVersion);
+
+        /// <remarks />
+        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_ActivityTimeout = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_ActivityTimeout);
+
+        /// <remarks />
+        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_SupportedDataType = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_SupportedDataType);
+
+        /// <remarks />
+        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_ConfirmUpdate_InputArguments = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_ConfirmUpdate_InputArguments);
+
+        /// <remarks />
+        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_CloseAndUpdate_InputArguments = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_CloseAndUpdate_InputArguments);
+
+        /// <remarks />
+        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_CloseAndUpdate_OutputArguments = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_CloseAndUpdate_OutputArguments);
+
+        /// <remarks />
+        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_AvailableNetworks = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_AvailableNetworks);
+
+        /// <remarks />
+        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_AvailablePorts = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_AvailablePorts);
+
+        /// <remarks />
+        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_MaxEndpoints = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_MaxEndpoints);
+
+        /// <remarks />
+        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_MaxCertificateGroups = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_MaxCertificateGroups);
+
+        /// <remarks />
+        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_SecurityPolicyUris = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_SecurityPolicyUris);
+
+        /// <remarks />
+        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_UserTokenTypes = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_UserTokenTypes);
+
+        /// <remarks />
+        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_CertificateTypes = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_CertificateTypes);
+
+        /// <remarks />
+        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_CertificateGroupPurposes = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_CertificateGroupPurposes);
+
+        /// <remarks />
         public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_Enabled = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_Enabled);
+
+        /// <remarks />
+        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_KeyCredentials_CreateCredential_InputArguments = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_KeyCredentials_CreateCredential_InputArguments);
+
+        /// <remarks />
+        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_KeyCredentials_CreateCredential_OutputArguments = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_KeyCredentials_CreateCredential_OutputArguments);
 
         /// <remarks />
         public static readonly NodeId ProvisionableDevice_IsSingleton = new NodeId(Opc.Ua.Variables.ProvisionableDevice_IsSingleton);
@@ -50530,6 +52294,48 @@ namespace Opc.Ua
         public static readonly NodeId ReferenceDescriptionVariableType_ReferenceRefinement = new NodeId(Opc.Ua.Variables.ReferenceDescriptionVariableType_ReferenceRefinement);
 
         /// <remarks />
+        public static readonly NodeId LogObjectType_GetRecords_InputArguments = new NodeId(Opc.Ua.Variables.LogObjectType_GetRecords_InputArguments);
+
+        /// <remarks />
+        public static readonly NodeId LogObjectType_GetRecords_OutputArguments = new NodeId(Opc.Ua.Variables.LogObjectType_GetRecords_OutputArguments);
+
+        /// <remarks />
+        public static readonly NodeId LogObjectType_MaxRecords = new NodeId(Opc.Ua.Variables.LogObjectType_MaxRecords);
+
+        /// <remarks />
+        public static readonly NodeId LogObjectType_MaxStorageDuration = new NodeId(Opc.Ua.Variables.LogObjectType_MaxStorageDuration);
+
+        /// <remarks />
+        public static readonly NodeId LogObjectType_MinimumSeverity = new NodeId(Opc.Ua.Variables.LogObjectType_MinimumSeverity);
+
+        /// <remarks />
+        public static readonly NodeId LogRecordMask_OptionSetValues = new NodeId(Opc.Ua.Variables.LogRecordMask_OptionSetValues);
+
+        /// <remarks />
+        public static readonly NodeId BaseLogEventType_ConditionClassId = new NodeId(Opc.Ua.Variables.BaseLogEventType_ConditionClassId);
+
+        /// <remarks />
+        public static readonly NodeId BaseLogEventType_ConditionClassName = new NodeId(Opc.Ua.Variables.BaseLogEventType_ConditionClassName);
+
+        /// <remarks />
+        public static readonly NodeId BaseLogEventType_ErrorCode = new NodeId(Opc.Ua.Variables.BaseLogEventType_ErrorCode);
+
+        /// <remarks />
+        public static readonly NodeId BaseLogEventType_ErrorCodeNode = new NodeId(Opc.Ua.Variables.BaseLogEventType_ErrorCodeNode);
+
+        /// <remarks />
+        public static readonly NodeId ServerLog_GetRecords_InputArguments = new NodeId(Opc.Ua.Variables.ServerLog_GetRecords_InputArguments);
+
+        /// <remarks />
+        public static readonly NodeId ServerLog_GetRecords_OutputArguments = new NodeId(Opc.Ua.Variables.ServerLog_GetRecords_OutputArguments);
+
+        /// <remarks />
+        public static readonly NodeId ServerLog_MaxRecords = new NodeId(Opc.Ua.Variables.ServerLog_MaxRecords);
+
+        /// <remarks />
+        public static readonly NodeId ServerLog_MaxStorageDuration = new NodeId(Opc.Ua.Variables.ServerLog_MaxStorageDuration);
+
+        /// <remarks />
         public static readonly NodeId IdType_EnumStrings = new NodeId(Opc.Ua.Variables.IdType_EnumStrings);
 
         /// <remarks />
@@ -50689,7 +52495,40 @@ namespace Opc.Ua
         public static readonly NodeId OpcUa_BinarySchema_TrustListDataType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_TrustListDataType);
 
         /// <remarks />
+        public static readonly NodeId OpcUa_BinarySchema_BaseConfigurationDataType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_BaseConfigurationDataType);
+
+        /// <remarks />
+        public static readonly NodeId OpcUa_BinarySchema_BaseConfigurationRecordDataType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_BaseConfigurationRecordDataType);
+
+        /// <remarks />
+        public static readonly NodeId OpcUa_BinarySchema_CertificateGroupDataType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_CertificateGroupDataType);
+
+        /// <remarks />
+        public static readonly NodeId OpcUa_BinarySchema_ConfigurationUpdateTargetType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_ConfigurationUpdateTargetType);
+
+        /// <remarks />
         public static readonly NodeId OpcUa_BinarySchema_TransactionErrorType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_TransactionErrorType);
+
+        /// <remarks />
+        public static readonly NodeId OpcUa_BinarySchema_ApplicationConfigurationDataType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_ApplicationConfigurationDataType);
+
+        /// <remarks />
+        public static readonly NodeId OpcUa_BinarySchema_ApplicationIdentityDataType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_ApplicationIdentityDataType);
+
+        /// <remarks />
+        public static readonly NodeId OpcUa_BinarySchema_EndpointDataType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_EndpointDataType);
+
+        /// <remarks />
+        public static readonly NodeId OpcUa_BinarySchema_ServerEndpointDataType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_ServerEndpointDataType);
+
+        /// <remarks />
+        public static readonly NodeId OpcUa_BinarySchema_SecuritySettingsDataType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_SecuritySettingsDataType);
+
+        /// <remarks />
+        public static readonly NodeId OpcUa_BinarySchema_UserTokenSettingsDataType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_UserTokenSettingsDataType);
+
+        /// <remarks />
+        public static readonly NodeId OpcUa_BinarySchema_AuthorizationServiceConfigurationDataType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_AuthorizationServiceConfigurationDataType);
 
         /// <remarks />
         public static readonly NodeId OpcUa_BinarySchema_DataTypeSchemaHeader = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_DataTypeSchemaHeader);
@@ -50930,6 +52769,21 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId OpcUa_BinarySchema_ReferenceListEntryDataType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_ReferenceListEntryDataType);
+
+        /// <remarks />
+        public static readonly NodeId OpcUa_BinarySchema_LogRecord = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_LogRecord);
+
+        /// <remarks />
+        public static readonly NodeId OpcUa_BinarySchema_LogRecordsDataType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_LogRecordsDataType);
+
+        /// <remarks />
+        public static readonly NodeId OpcUa_BinarySchema_SpanContextDataType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_SpanContextDataType);
+
+        /// <remarks />
+        public static readonly NodeId OpcUa_BinarySchema_TraceContextDataType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_TraceContextDataType);
+
+        /// <remarks />
+        public static readonly NodeId OpcUa_BinarySchema_NameValuePair = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_NameValuePair);
 
         /// <remarks />
         public static readonly NodeId OpcUa_BinarySchema_RolePermissionType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_RolePermissionType);
@@ -51205,7 +53059,40 @@ namespace Opc.Ua
         public static readonly NodeId OpcUa_XmlSchema_TrustListDataType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_TrustListDataType);
 
         /// <remarks />
+        public static readonly NodeId OpcUa_XmlSchema_BaseConfigurationDataType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_BaseConfigurationDataType);
+
+        /// <remarks />
+        public static readonly NodeId OpcUa_XmlSchema_BaseConfigurationRecordDataType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_BaseConfigurationRecordDataType);
+
+        /// <remarks />
+        public static readonly NodeId OpcUa_XmlSchema_CertificateGroupDataType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_CertificateGroupDataType);
+
+        /// <remarks />
+        public static readonly NodeId OpcUa_XmlSchema_ConfigurationUpdateTargetType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_ConfigurationUpdateTargetType);
+
+        /// <remarks />
         public static readonly NodeId OpcUa_XmlSchema_TransactionErrorType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_TransactionErrorType);
+
+        /// <remarks />
+        public static readonly NodeId OpcUa_XmlSchema_ApplicationConfigurationDataType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_ApplicationConfigurationDataType);
+
+        /// <remarks />
+        public static readonly NodeId OpcUa_XmlSchema_ApplicationIdentityDataType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_ApplicationIdentityDataType);
+
+        /// <remarks />
+        public static readonly NodeId OpcUa_XmlSchema_EndpointDataType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_EndpointDataType);
+
+        /// <remarks />
+        public static readonly NodeId OpcUa_XmlSchema_ServerEndpointDataType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_ServerEndpointDataType);
+
+        /// <remarks />
+        public static readonly NodeId OpcUa_XmlSchema_SecuritySettingsDataType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_SecuritySettingsDataType);
+
+        /// <remarks />
+        public static readonly NodeId OpcUa_XmlSchema_UserTokenSettingsDataType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_UserTokenSettingsDataType);
+
+        /// <remarks />
+        public static readonly NodeId OpcUa_XmlSchema_AuthorizationServiceConfigurationDataType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_AuthorizationServiceConfigurationDataType);
 
         /// <remarks />
         public static readonly NodeId OpcUa_XmlSchema_DataTypeSchemaHeader = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_DataTypeSchemaHeader);
@@ -51446,6 +53333,21 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId OpcUa_XmlSchema_ReferenceListEntryDataType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_ReferenceListEntryDataType);
+
+        /// <remarks />
+        public static readonly NodeId OpcUa_XmlSchema_LogRecord = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_LogRecord);
+
+        /// <remarks />
+        public static readonly NodeId OpcUa_XmlSchema_LogRecordsDataType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_LogRecordsDataType);
+
+        /// <remarks />
+        public static readonly NodeId OpcUa_XmlSchema_SpanContextDataType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_SpanContextDataType);
+
+        /// <remarks />
+        public static readonly NodeId OpcUa_XmlSchema_TraceContextDataType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_TraceContextDataType);
+
+        /// <remarks />
+        public static readonly NodeId OpcUa_XmlSchema_NameValuePair = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_NameValuePair);
 
         /// <remarks />
         public static readonly NodeId OpcUa_XmlSchema_RolePermissionType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_RolePermissionType);
@@ -52270,6 +54172,12 @@ namespace Opc.Ua
         public const string ApplicationCertificateType = "ApplicationCertificateType";
 
         /// <remarks />
+        public const string ApplicationConfigurationDataType = "ApplicationConfigurationDataType";
+
+        /// <remarks />
+        public const string ApplicationConfigurationFileType = "ApplicationConfigurationFileType";
+
+        /// <remarks />
         public const string ApplicationConfigurationFolderType = "ApplicationConfigurationFolderType";
 
         /// <remarks />
@@ -52277,6 +54185,9 @@ namespace Opc.Ua
 
         /// <remarks />
         public const string ApplicationDescription = "ApplicationDescription";
+
+        /// <remarks />
+        public const string ApplicationIdentityDataType = "ApplicationIdentityDataType";
 
         /// <remarks />
         public const string ApplicationInstanceCertificate = "ApplicationInstanceCertificate";
@@ -52498,6 +54409,9 @@ namespace Opc.Ua
         public const string AuthenticationProfileUri = "AuthenticationProfileUri";
 
         /// <remarks />
+        public const string AuthorizationServiceConfigurationDataType = "AuthorizationServiceConfigurationDataType";
+
+        /// <remarks />
         public const string AuthorizationServiceConfigurationType = "AuthorizationServiceConfigurationType";
 
         /// <remarks />
@@ -52508,6 +54422,12 @@ namespace Opc.Ua
 
         /// <remarks />
         public const string AutoDelete = "AutoDelete";
+
+        /// <remarks />
+        public const string AvailableNetworks = "AvailableNetworks";
+
+        /// <remarks />
+        public const string AvailablePorts = "AvailablePorts";
 
         /// <remarks />
         public const string AvailableStates = "AvailableStates";
@@ -52540,6 +54460,12 @@ namespace Opc.Ua
         public const string BaseConditionClassType = "BaseConditionClassType";
 
         /// <remarks />
+        public const string BaseConfigurationDataType = "BaseConfigurationDataType";
+
+        /// <remarks />
+        public const string BaseConfigurationRecordDataType = "BaseConfigurationRecordDataType";
+
+        /// <remarks />
         public const string BaseDataType = "BaseDataType";
 
         /// <remarks />
@@ -52559,6 +54485,9 @@ namespace Opc.Ua
 
         /// <remarks />
         public const string BaseInterfaceType = "BaseInterfaceType";
+
+        /// <remarks />
+        public const string BaseLogEventType = "BaseLogEventType";
 
         /// <remarks />
         public const string BaseLowLimit = "BaseLowLimit";
@@ -52732,7 +54661,13 @@ namespace Opc.Ua
         public const string CertificateGroup = "CertificateGroup";
 
         /// <remarks />
+        public const string CertificateGroupDataType = "CertificateGroupDataType";
+
+        /// <remarks />
         public const string CertificateGroupFolderType = "CertificateGroupFolderType";
+
+        /// <remarks />
+        public const string CertificateGroupPurposes = "CertificateGroupPurposes";
 
         /// <remarks />
         public const string CertificateGroups = "CertificateGroups";
@@ -52876,7 +54811,22 @@ namespace Opc.Ua
         public const string ConditionVariableType = "ConditionVariableType";
 
         /// <remarks />
+        public const string ConfigurationFile = "ConfigurationFile";
+
+        /// <remarks />
+        public const string ConfigurationFileType = "ConfigurationFileType";
+
+        /// <remarks />
         public const string ConfigurationProperties = "ConfigurationProperties";
+
+        /// <remarks />
+        public const string ConfigurationUpdatedAuditEventType = "ConfigurationUpdatedAuditEventType";
+
+        /// <remarks />
+        public const string ConfigurationUpdateTargetType = "ConfigurationUpdateTargetType";
+
+        /// <remarks />
+        public const string ConfigurationUpdateType = "ConfigurationUpdateType";
 
         /// <remarks />
         public const string ConfigurationVersion = "ConfigurationVersion";
@@ -52892,6 +54842,9 @@ namespace Opc.Ua
 
         /// <remarks />
         public const string ConfirmedState = "ConfirmedState";
+
+        /// <remarks />
+        public const string ConfirmUpdate = "ConfirmUpdate";
 
         /// <remarks />
         public const string ConformanceUnits = "ConformanceUnits";
@@ -52981,6 +54934,9 @@ namespace Opc.Ua
         public const string CreateMonitoredItemsResponse = "CreateMonitoredItemsResponse";
 
         /// <remarks />
+        public const string CreateSelfSignedCertificate = "CreateSelfSignedCertificate";
+
+        /// <remarks />
         public const string CreateSessionId = "CreateSessionId";
 
         /// <remarks />
@@ -53057,6 +55013,9 @@ namespace Opc.Ua
 
         /// <remarks />
         public const string CurrentTime = "CurrentTime";
+
+        /// <remarks />
+        public const string CurrentVersion = "CurrentVersion";
 
         /// <remarks />
         public const string CustomConfiguration = "CustomConfiguration";
@@ -53311,6 +55270,9 @@ namespace Opc.Ua
         public const string DeleteAtTimeDetails = "DeleteAtTimeDetails";
 
         /// <remarks />
+        public const string DeleteCertificate = "DeleteCertificate";
+
+        /// <remarks />
         public const string DeleteCredential = "DeleteCredential";
 
         /// <remarks />
@@ -53548,6 +55510,9 @@ namespace Opc.Ua
         public const string EndpointConfiguration = "EndpointConfiguration";
 
         /// <remarks />
+        public const string EndpointDataType = "EndpointDataType";
+
+        /// <remarks />
         public const string EndpointDescription = "EndpointDescription";
 
         /// <remarks />
@@ -53603,6 +55568,12 @@ namespace Opc.Ua
 
         /// <remarks />
         public const string Error = "Error";
+
+        /// <remarks />
+        public const string ErrorCode = "ErrorCode";
+
+        /// <remarks />
+        public const string ErrorCodeNode = "ErrorCodeNode";
 
         /// <remarks />
         public const string Errors = "Errors";
@@ -53851,6 +55822,9 @@ namespace Opc.Ua
         public const string GetPosition = "GetPosition";
 
         /// <remarks />
+        public const string GetRecords = "GetRecords";
+
+        /// <remarks />
         public const string GetRejectedList = "GetRejectedList";
 
         /// <remarks />
@@ -53972,6 +55946,9 @@ namespace Opc.Ua
 
         /// <remarks />
         public const string HasKeyValueDescription = "HasKeyValueDescription";
+
+        /// <remarks />
+        public const string HasLogHierarchy = "HasLogHierarchy";
 
         /// <remarks />
         public const string HasLowerLayerInterface = "HasLowerLayerInterface";
@@ -54451,6 +56428,9 @@ namespace Opc.Ua
         public const string KeyCredentialDeletedAuditEventType = "KeyCredentialDeletedAuditEventType";
 
         /// <remarks />
+        public const string KeyCredentials = "KeyCredentials";
+
+        /// <remarks />
         public const string KeyCredentialUpdatedAuditEventType = "KeyCredentialUpdatedAuditEventType";
 
         /// <remarks />
@@ -54607,6 +56587,27 @@ namespace Opc.Ua
         public const string Locations = "Locations";
 
         /// <remarks />
+        public const string LogEntryConditionClassType = "LogEntryConditionClassType";
+
+        /// <remarks />
+        public const string LogObjectType = "LogObjectType";
+
+        /// <remarks />
+        public const string LogOverflowEventType = "LogOverflowEventType";
+
+        /// <remarks />
+        public const string LogRecord = "LogRecord";
+
+        /// <remarks />
+        public const string LogRecordMask = "LogRecordMask";
+
+        /// <remarks />
+        public const string LogRecordsDataType = "LogRecordsDataType";
+
+        /// <remarks />
+        public const string Logs = "Logs";
+
+        /// <remarks />
         public const string Low = "Low";
 
         /// <remarks />
@@ -54679,6 +56680,9 @@ namespace Opc.Ua
         public const string MaxByteStringLength = "MaxByteStringLength";
 
         /// <remarks />
+        public const string MaxCertificateGroups = "MaxCertificateGroups";
+
+        /// <remarks />
         public const string MaxCharacters = "MaxCharacters";
 
         /// <remarks />
@@ -54692,6 +56696,9 @@ namespace Opc.Ua
 
         /// <remarks />
         public const string MaxDataSetWritersPerGroup = "MaxDataSetWritersPerGroup";
+
+        /// <remarks />
+        public const string MaxEndpoints = "MaxEndpoints";
 
         /// <remarks />
         public const string MaxFieldsPerDataSet = "MaxFieldsPerDataSet";
@@ -54734,6 +56741,9 @@ namespace Opc.Ua
 
         /// <remarks />
         public const string MaxLifetimeCount = "MaxLifetimeCount";
+
+        /// <remarks />
+        public const string MaxLogObjectContinuationPoints = "MaxLogObjectContinuationPoints";
 
         /// <remarks />
         public const string MaxMonitoredItems = "MaxMonitoredItems";
@@ -54811,6 +56821,9 @@ namespace Opc.Ua
         public const string MaxReaderGroups = "MaxReaderGroups";
 
         /// <remarks />
+        public const string MaxRecords = "MaxRecords";
+
+        /// <remarks />
         public const string MaxRecycleCount = "MaxRecycleCount";
 
         /// <remarks />
@@ -54836,6 +56849,9 @@ namespace Opc.Ua
 
         /// <remarks />
         public const string MaxStandaloneSubscribedDataSets = "MaxStandaloneSubscribedDataSets";
+
+        /// <remarks />
+        public const string MaxStorageDuration = "MaxStorageDuration";
 
         /// <remarks />
         public const string MaxStringLength = "MaxStringLength";
@@ -54902,6 +56918,9 @@ namespace Opc.Ua
 
         /// <remarks />
         public const string MimeType = "MimeType";
+
+        /// <remarks />
+        public const string MinimumSeverity = "MinimumSeverity";
 
         /// <remarks />
         public const string MinSupportedSampleRate = "MinSupportedSampleRate";
@@ -55054,6 +57073,9 @@ namespace Opc.Ua
         public const string NamespaceVersion = "NamespaceVersion";
 
         /// <remarks />
+        public const string NameValuePair = "NameValuePair";
+
+        /// <remarks />
         public const string NamingRuleType = "NamingRuleType";
 
         /// <remarks />
@@ -55097,6 +57119,9 @@ namespace Opc.Ua
 
         /// <remarks />
         public const string NewValues = "NewValues";
+
+        /// <remarks />
+        public const string NewVersion = "NewVersion";
 
         /// <remarks />
         public const string NextSequenceNumber = "NextSequenceNumber";
@@ -55220,6 +57245,9 @@ namespace Opc.Ua
 
         /// <remarks />
         public const string OldValues = "OldValues";
+
+        /// <remarks />
+        public const string OldVersion = "OldVersion";
 
         /// <remarks />
         public const string OnDelay = "OnDelay";
@@ -55628,6 +57656,9 @@ namespace Opc.Ua
 
         /// <remarks />
         public const string PubSubTransportLimitsExceedEventType = "PubSubTransportLimitsExceedEventType";
+
+        /// <remarks />
+        public const string Purpose = "Purpose";
 
         /// <remarks />
         public const string PushTargetFolderName_Placeholder = "<PushTargetFolderName>";
@@ -56218,10 +58249,16 @@ namespace Opc.Ua
         public const string SecurityPolicyUri = "SecurityPolicyUri";
 
         /// <remarks />
+        public const string SecurityPolicyUris = "SecurityPolicyUris";
+
+        /// <remarks />
         public const string SecurityRejectedRequestsCount = "SecurityRejectedRequestsCount";
 
         /// <remarks />
         public const string SecurityRejectedSessionCount = "SecurityRejectedSessionCount";
+
+        /// <remarks />
+        public const string SecuritySettingsDataType = "SecuritySettingsDataType";
 
         /// <remarks />
         public const string SecurityTokenRequestType = "SecurityTokenRequestType";
@@ -56293,7 +58330,13 @@ namespace Opc.Ua
         public const string ServerDiagnosticsType = "ServerDiagnosticsType";
 
         /// <remarks />
+        public const string ServerEndpointDataType = "ServerEndpointDataType";
+
+        /// <remarks />
         public const string ServerId = "ServerId";
+
+        /// <remarks />
+        public const string ServerLog = "ServerLog";
 
         /// <remarks />
         public const string ServerNetworkGroups = "ServerNetworkGroups";
@@ -56545,6 +58588,9 @@ namespace Opc.Ua
         public const string SourceTimestamp = "SourceTimestamp";
 
         /// <remarks />
+        public const string SpanContextDataType = "SpanContextDataType";
+
+        /// <remarks />
         public const string Speed = "Speed";
 
         /// <remarks />
@@ -56696,6 +58742,9 @@ namespace Opc.Ua
 
         /// <remarks />
         public const string SubscriptionId = "SubscriptionId";
+
+        /// <remarks />
+        public const string SupportedDataType = "SupportedDataType";
 
         /// <remarks />
         public const string SupportedPrivateKeyFormats = "SupportedPrivateKeyFormats";
@@ -56875,6 +58924,15 @@ namespace Opc.Ua
         public const string Title = "Title";
 
         /// <remarks />
+        public const string TlsCertificateType = "TlsCertificateType";
+
+        /// <remarks />
+        public const string TlsClientCertificateType = "TlsClientCertificateType";
+
+        /// <remarks />
+        public const string TlsServerCertificateType = "TlsServerCertificateType";
+
+        /// <remarks />
         public const string Tolerance = "Tolerance";
 
         /// <remarks />
@@ -56894,6 +58952,9 @@ namespace Opc.Ua
 
         /// <remarks />
         public const string TotalRequestCount = "TotalRequestCount";
+
+        /// <remarks />
+        public const string TraceContextDataType = "TraceContextDataType";
 
         /// <remarks />
         public const string TrainingConditionClassType = "TrainingConditionClassType";
@@ -57181,6 +59242,9 @@ namespace Opc.Ua
         public const string Url = "Url";
 
         /// <remarks />
+        public const string UserCertificateType = "UserCertificateType";
+
+        /// <remarks />
         public const string UserConfigurationMask = "UserConfigurationMask";
 
         /// <remarks />
@@ -57208,7 +59272,13 @@ namespace Opc.Ua
         public const string UserTokenPolicy = "UserTokenPolicy";
 
         /// <remarks />
+        public const string UserTokenSettingsDataType = "UserTokenSettingsDataType";
+
+        /// <remarks />
         public const string UserTokenType = "UserTokenType";
+
+        /// <remarks />
+        public const string UserTokenTypes = "UserTokenTypes";
 
         /// <remarks />
         public const string UserWritable = "UserWritable";
