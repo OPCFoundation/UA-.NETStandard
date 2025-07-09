@@ -9536,6 +9536,9 @@ namespace Opc.Ua
         public const uint ServerCapabilitiesType_SoftwareCertificates = 3049;
 
         /// <remarks />
+        public const uint ServerCapabilitiesType_MaxArrayLength = 11549;
+
+        /// <remarks />
         public const uint ServerCapabilitiesType_MaxStringLength = 11550;
 
         /// <remarks />
@@ -11144,6 +11147,9 @@ namespace Opc.Ua
         public const uint Server_ServerCapabilities_SoftwareCertificates = 3704;
 
         /// <remarks />
+        public const uint Server_ServerCapabilities_MaxArrayLength = 11702;
+
+        /// <remarks />
         public const uint Server_ServerCapabilities_MaxStringLength = 11703;
 
         /// <remarks />
@@ -11298,9 +11304,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint Server_RequestServerStateChange_InputArguments = 12887;
-
-        /// <remarks />
-        public const uint Server_ServerCapabilities_MaxArrayLength = 11702;
 
         /// <remarks />
         public const uint Server_ServerRedundancy_CurrentServerId = 11312;
@@ -36391,6 +36394,9 @@ namespace Opc.Ua
         public static readonly NodeId ServerCapabilitiesType_SoftwareCertificates = new NodeId(Opc.Ua.Variables.ServerCapabilitiesType_SoftwareCertificates);
 
         /// <remarks />
+        public static readonly NodeId ServerCapabilitiesType_MaxArrayLength = new NodeId(Opc.Ua.Variables.ServerCapabilitiesType_MaxArrayLength);
+
+        /// <remarks />
         public static readonly NodeId ServerCapabilitiesType_MaxStringLength = new NodeId(Opc.Ua.Variables.ServerCapabilitiesType_MaxStringLength);
 
         /// <remarks />
@@ -37999,6 +38005,9 @@ namespace Opc.Ua
         public static readonly NodeId Server_ServerCapabilities_SoftwareCertificates = new NodeId(Opc.Ua.Variables.Server_ServerCapabilities_SoftwareCertificates);
 
         /// <remarks />
+        public static readonly NodeId Server_ServerCapabilities_MaxArrayLength = new NodeId(Opc.Ua.Variables.Server_ServerCapabilities_MaxArrayLength);
+
+        /// <remarks />
         public static readonly NodeId Server_ServerCapabilities_MaxStringLength = new NodeId(Opc.Ua.Variables.Server_ServerCapabilities_MaxStringLength);
 
         /// <remarks />
@@ -38153,9 +38162,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId Server_RequestServerStateChange_InputArguments = new NodeId(Opc.Ua.Variables.Server_RequestServerStateChange_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId Server_ServerCapabilities_MaxArrayLength = new NodeId(Opc.Ua.Variables.Server_ServerCapabilities_MaxArrayLength);
 
         /// <remarks />
         public static readonly NodeId Server_ServerRedundancy_CurrentServerId = new NodeId(Opc.Ua.Variables.Server_ServerRedundancy_CurrentServerId);
