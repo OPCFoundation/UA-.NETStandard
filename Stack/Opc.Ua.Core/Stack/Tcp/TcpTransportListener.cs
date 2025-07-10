@@ -287,20 +287,33 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
+        /// finalizer
+        /// </summary>
+        ~TcpTransportListener()
+        {
+            // Finalizer calls Dispose(false)
+            Dispose(false);
+        }
+
+        /// <summary>
         /// An overrideable version of the Dispose.
         /// </summary>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2213:DisposableFieldsShouldBeDisposed", MessageId = "m_simulator")]
         protected virtual void Dispose(bool disposing)
         {
+            // Clean up the inactivity detection timer regardless of disposing flag,
+            // as timers typically wrap unmanaged resources that must always be released
+            if (m_inactivityDetectionTimer != null)
+            {
+                Utils.SilentDispose(m_inactivityDetectionTimer);
+                m_inactivityDetectionTimer = null;
+            }
+
             if (disposing)
             {
                 lock (m_lock)
                 {
-                    if (m_inactivityDetectionTimer != null)
-                    {
-                        Utils.SilentDispose(m_inactivityDetectionTimer);
-                        m_inactivityDetectionTimer = null;
-                    }
+
 
                     if (m_listeningSocket != null)
                     {

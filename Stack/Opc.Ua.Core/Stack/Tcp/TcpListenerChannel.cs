@@ -48,6 +48,8 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected override void Dispose(bool disposing)
         {
+            if (m_listener is IDisposable disposable)
+                disposable.Dispose();
             base.Dispose(disposing);
         }
         #endregion
