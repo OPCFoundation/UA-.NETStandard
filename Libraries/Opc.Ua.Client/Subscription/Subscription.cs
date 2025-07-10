@@ -811,7 +811,7 @@ namespace Opc.Ua.Client
                 revisedLifetimeCounter,
                 revisedKeepAliveCount,
                 m_maxNotificationsPerPublish,
-                m_publishingEnabled,
+                false,
                 m_priority,
                 out subscriptionId,
                 out revisedPublishingInterval,
@@ -821,6 +821,12 @@ namespace Opc.Ua.Client
             CreateSubscription(subscriptionId, revisedPublishingInterval, revisedKeepAliveCount, revisedLifetimeCounter);
 
             CreateItems();
+
+            // only enable publishing afer CreateSubscription is called to avoid race conditions with subscription cleanup.
+            if (m_publishingEnabled)
+            {
+                SetPublishingMode(m_publishingEnabled);
+            }
 
             ChangesCompleted();
 
