@@ -1112,6 +1112,11 @@ namespace Opc.Ua
                 MaxLogObjectContinuationPoints.Initialize(context, MaxLogObjectContinuationPoints_InitializationString);
             }
 
+            if (MaxArrayLength != null)
+            {
+                MaxArrayLength.Initialize(context, MaxArrayLength_InitializationString);
+            }
+
             if (MaxStringLength != null)
             {
                 MaxStringLength.Initialize(context, MaxStringLength_InitializationString);
@@ -1183,6 +1188,10 @@ namespace Opc.Ua
            "//////////8VYIkKAgAAAAAAHgAAAE1heExvZ09iamVjdENvbnRpbnVhdGlvblBvaW50cwEAYU0ALgBE" +
            "YU0AAAAF/////wEB/////wAAAAA=";
 
+        private const string MaxArrayLength_InitializationString =
+           "//////////8VYIkKAgAAAAAADgAAAE1heEFycmF5TGVuZ3RoAQAdLQAuAEQdLQAAAAf/////AQH/////" +
+           "AAAAAA==";
+
         private const string MaxStringLength_InitializationString =
            "//////////8VYIkKAgAAAAAADwAAAE1heFN0cmluZ0xlbmd0aAEAHi0ALgBEHi0AAAAH/////wEB////" +
            "/wAAAAA=";
@@ -1243,7 +1252,7 @@ namespace Opc.Ua
 
         private const string InitializationString =
            "//////////8EYIACAQAAAAAAHgAAAFNlcnZlckNhcGFiaWxpdGllc1R5cGVJbnN0YW5jZQEA3QcBAN0H" +
-           "3QcAAP////8XAAAAF2CJCgIAAAAAABIAAABTZXJ2ZXJQcm9maWxlQXJyYXkBAN4HAC4ARN4HAAAADAEA" +
+           "3QcAAP////8YAAAAF2CJCgIAAAAAABIAAABTZXJ2ZXJQcm9maWxlQXJyYXkBAN4HAC4ARN4HAAAADAEA" +
            "AAABAAAAAAAAAAEB/////wAAAAAXYIkKAgAAAAAADQAAAExvY2FsZUlkQXJyYXkBAOAHAC4AROAHAAAB" +
            "ACcBAQAAAAEAAAAAAAAAAQH/////AAAAABVgiQoCAAAAAAAWAAAATWluU3VwcG9ydGVkU2FtcGxlUmF0" +
            "ZQEA4QcALgBE4QcAAAEAIgH/////AQH/////AAAAABVgiQoCAAAAAAAbAAAATWF4QnJvd3NlQ29udGlu" +
@@ -1252,29 +1261,30 @@ namespace Opc.Ua
            "AABNYXhIaXN0b3J5Q29udGludWF0aW9uUG9pbnRzAQCuCgAuAESuCgAAAAX/////AQH/////AAAAABVg" +
            "iQoCAAAAAAAeAAAATWF4TG9nT2JqZWN0Q29udGludWF0aW9uUG9pbnRzAQBhTQAuAERhTQAAAAX/////" +
            "AQH/////AAAAABdgiQoCAAAAAAAUAAAAU29mdHdhcmVDZXJ0aWZpY2F0ZXMBAOkLAC4AROkLAAABAFgB" +
-           "AQAAAAEAAAAAAAAAAQH/////AAAAABVgiQoCAAAAAAAPAAAATWF4U3RyaW5nTGVuZ3RoAQAeLQAuAEQe" +
-           "LQAAAAf/////AQH/////AAAAABVgiQoCAAAAAAATAAAATWF4Qnl0ZVN0cmluZ0xlbmd0aAEAbjIALgBE" +
-           "bjIAAAAH/////wEB/////wAAAAAEYIAKAQAAAAAADwAAAE9wZXJhdGlvbkxpbWl0cwEAHy0ALwEALC0f" +
-           "LQAA/////wAAAAAEYIAKAQAAAAAADgAAAE1vZGVsbGluZ1J1bGVzAQDjBwAvAD3jBwAA/////wAAAAAE" +
-           "YIAKAQAAAAAAEgAAAEFnZ3JlZ2F0ZUZ1bmN0aW9ucwEAwgoALwA9wgoAAP////8AAAAABGCACgEAAAAA" +
-           "AAcAAABSb2xlU2V0AQCnPwAvAQD3PKc/AAD/////AgAAAARhggoEAAAAAAAHAAAAQWRkUm9sZQEAqD8A" +
-           "LwEAfT6oPwAAAQH/////AgAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAKk/AC4ARKk/AACW" +
-           "AgAAAAEAKgEBFwAAAAgAAABSb2xlTmFtZQAM/////wAAAAAAAQAqAQEbAAAADAAAAE5hbWVzcGFjZVVy" +
-           "aQAM/////wAAAAAAAQAoAQEAAAABAAAAAgAAAAEB/////wAAAAAXYKkKAgAAAAAADwAAAE91dHB1dEFy" +
-           "Z3VtZW50cwEAqj8ALgBEqj8AAJYBAAAAAQAqAQEZAAAACgAAAFJvbGVOb2RlSWQAEf////8AAAAAAAEA" +
-           "KAEBAAAAAQAAAAEAAAABAf////8AAAAABGGCCgQAAAAAAAoAAABSZW1vdmVSb2xlAQCrPwAvAQCAPqs/" +
-           "AAABAf////8BAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEArD8ALgBErD8AAJYBAAAAAQAq" +
-           "AQEZAAAACgAAAFJvbGVOb2RlSWQAEf////8AAAAAAAEAKAEBAAAAAQAAAAEAAAABAf////8AAAAAFWCJ" +
-           "CgIAAAAAAAsAAABNYXhTZXNzaW9ucwEAGF4ALgBEGF4AAAAH/////wEB/////wAAAAAVYIkKAgAAAAAA" +
-           "EAAAAE1heFN1YnNjcmlwdGlvbnMBABleAC4ARBleAAAAB/////8BAf////8AAAAAFWCJCgIAAAAAABEA" +
-           "AABNYXhNb25pdG9yZWRJdGVtcwEAGl4ALgBEGl4AAAAH/////wEB/////wAAAAAVYIkKAgAAAAAAGgAA" +
-           "AE1heFN1YnNjcmlwdGlvbnNQZXJTZXNzaW9uAQAbXgAuAEQbXgAAAAf/////AQH/////AAAAABVgiQoC" +
-           "AAAAAAAgAAAATWF4TW9uaXRvcmVkSXRlbXNQZXJTdWJzY3JpcHRpb24BACdeAC4ARCdeAAAAB/////8B" +
-           "Af////8AAAAAFWCJCgIAAAAAABkAAABNYXhTZWxlY3RDbGF1c2VQYXJhbWV0ZXJzAQAcXgAuAEQcXgAA" +
-           "AAf/////AQH/////AAAAABVgiQoCAAAAAAAYAAAATWF4V2hlcmVDbGF1c2VQYXJhbWV0ZXJzAQAdXgAu" +
-           "AEQdXgAAAAf/////AQH/////AAAAABVgiQoCAAAAAAAaAAAATWF4TW9uaXRvcmVkSXRlbXNRdWV1ZVNp" +
-           "emUBABp8AC4ARBp8AAAAB/////8BAf////8AAAAAF2CJCgIAAAAAABAAAABDb25mb3JtYW5jZVVuaXRz" +
-           "AQAeXgAuAEQeXgAAABQBAAAAAQAAAAAAAAABAf////8AAAAA";
+           "AQAAAAEAAAAAAAAAAQH/////AAAAABVgiQoCAAAAAAAOAAAATWF4QXJyYXlMZW5ndGgBAB0tAC4ARB0t" +
+           "AAAAB/////8BAf////8AAAAAFWCJCgIAAAAAAA8AAABNYXhTdHJpbmdMZW5ndGgBAB4tAC4ARB4tAAAA" +
+           "B/////8BAf////8AAAAAFWCJCgIAAAAAABMAAABNYXhCeXRlU3RyaW5nTGVuZ3RoAQBuMgAuAERuMgAA" +
+           "AAf/////AQH/////AAAAAARggAoBAAAAAAAPAAAAT3BlcmF0aW9uTGltaXRzAQAfLQAvAQAsLR8tAAD/" +
+           "////AAAAAARggAoBAAAAAAAOAAAATW9kZWxsaW5nUnVsZXMBAOMHAC8APeMHAAD/////AAAAAARggAoB" +
+           "AAAAAAASAAAAQWdncmVnYXRlRnVuY3Rpb25zAQDCCgAvAD3CCgAA/////wAAAAAEYIAKAQAAAAAABwAA" +
+           "AFJvbGVTZXQBAKc/AC8BAPc8pz8AAP////8CAAAABGGCCgQAAAAAAAcAAABBZGRSb2xlAQCoPwAvAQB9" +
+           "Pqg/AAABAf////8CAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEAqT8ALgBEqT8AAJYCAAAA" +
+           "AQAqAQEXAAAACAAAAFJvbGVOYW1lAAz/////AAAAAAABACoBARsAAAAMAAAATmFtZXNwYWNlVXJpAAz/" +
+           "////AAAAAAABACgBAQAAAAEAAAACAAAAAQH/////AAAAABdgqQoCAAAAAAAPAAAAT3V0cHV0QXJndW1l" +
+           "bnRzAQCqPwAuAESqPwAAlgEAAAABACoBARkAAAAKAAAAUm9sZU5vZGVJZAAR/////wAAAAAAAQAoAQEA" +
+           "AAABAAAAAQAAAAEB/////wAAAAAEYYIKBAAAAAAACgAAAFJlbW92ZVJvbGUBAKs/AC8BAIA+qz8AAAEB" +
+           "/////wEAAAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQCsPwAuAESsPwAAlgEAAAABACoBARkA" +
+           "AAAKAAAAUm9sZU5vZGVJZAAR/////wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAAAAAVYIkKAgAA" +
+           "AAAACwAAAE1heFNlc3Npb25zAQAYXgAuAEQYXgAAAAf/////AQH/////AAAAABVgiQoCAAAAAAAQAAAA" +
+           "TWF4U3Vic2NyaXB0aW9ucwEAGV4ALgBEGV4AAAAH/////wEB/////wAAAAAVYIkKAgAAAAAAEQAAAE1h" +
+           "eE1vbml0b3JlZEl0ZW1zAQAaXgAuAEQaXgAAAAf/////AQH/////AAAAABVgiQoCAAAAAAAaAAAATWF4" +
+           "U3Vic2NyaXB0aW9uc1BlclNlc3Npb24BABteAC4ARBteAAAAB/////8BAf////8AAAAAFWCJCgIAAAAA" +
+           "ACAAAABNYXhNb25pdG9yZWRJdGVtc1BlclN1YnNjcmlwdGlvbgEAJ14ALgBEJ14AAAAH/////wEB////" +
+           "/wAAAAAVYIkKAgAAAAAAGQAAAE1heFNlbGVjdENsYXVzZVBhcmFtZXRlcnMBABxeAC4ARBxeAAAAB///" +
+           "//8BAf////8AAAAAFWCJCgIAAAAAABgAAABNYXhXaGVyZUNsYXVzZVBhcmFtZXRlcnMBAB1eAC4ARB1e" +
+           "AAAAB/////8BAf////8AAAAAFWCJCgIAAAAAABoAAABNYXhNb25pdG9yZWRJdGVtc1F1ZXVlU2l6ZQEA" +
+           "GnwALgBEGnwAAAAH/////wEB/////wAAAAAXYIkKAgAAAAAAEAAAAENvbmZvcm1hbmNlVW5pdHMBAB5e" +
+           "AC4ARB5eAAAAFAEAAAABAAAAAAAAAAEB/////wAAAAA=";
         #endregion
         #endif
         #endregion
@@ -1429,6 +1439,25 @@ namespace Opc.Ua
                 }
 
                 m_softwareCertificates = value;
+            }
+        }
+
+        /// <remarks />
+        public PropertyState<uint> MaxArrayLength
+        {
+            get
+            {
+                return m_maxArrayLength;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_maxArrayLength, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_maxArrayLength = value;
             }
         }
 
@@ -1764,6 +1793,11 @@ namespace Opc.Ua
                 children.Add(m_softwareCertificates);
             }
 
+            if (m_maxArrayLength != null)
+            {
+                children.Add(m_maxArrayLength);
+            }
+
             if (m_maxStringLength != null)
             {
                 children.Add(m_maxStringLength);
@@ -2023,6 +2057,27 @@ namespace Opc.Ua
                     }
 
                     instance = SoftwareCertificates;
+                    break;
+                }
+
+                case Opc.Ua.BrowseNames.MaxArrayLength:
+                {
+                    if (createOrReplace)
+                    {
+                        if (MaxArrayLength == null)
+                        {
+                            if (replacement == null)
+                            {
+                                MaxArrayLength = new PropertyState<uint>(this);
+                            }
+                            else
+                            {
+                                MaxArrayLength = (PropertyState<uint>)replacement;
+                            }
+                        }
+                    }
+
+                    instance = MaxArrayLength;
                     break;
                 }
 
@@ -2360,6 +2415,7 @@ namespace Opc.Ua
         private PropertyState<ushort> m_maxHistoryContinuationPoints;
         private PropertyState<ushort> m_maxLogObjectContinuationPoints;
         private PropertyState<SignedSoftwareCertificate[]> m_softwareCertificates;
+        private PropertyState<uint> m_maxArrayLength;
         private PropertyState<uint> m_maxStringLength;
         private PropertyState<uint> m_maxByteStringLength;
         private OperationLimitsState m_operationLimits;
