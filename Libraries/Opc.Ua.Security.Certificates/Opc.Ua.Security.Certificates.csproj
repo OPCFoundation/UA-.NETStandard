@@ -43,13 +43,12 @@
         <PackageReference Include="BouncyCastle.Cryptography" Version="2.6.1" />
       </ItemGroup>
     </When>
-    <Otherwise>
-      <ItemGroup>
-        <PackageReference Include="System.Formats.Asn1" Version="9.0.7" />
-      </ItemGroup>
-    </Otherwise>
   </Choose>
-
+  
+  <ItemGroup>
+    <PackageReference Include="System.Formats.Asn1" Version="9.0.7" />
+  </ItemGroup>
+  
   <Target Name="GetPackagingOutputs" />
 
 </Project>
