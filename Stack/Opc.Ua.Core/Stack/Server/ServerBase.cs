@@ -11,7 +11,7 @@
 */
 
 // use a thread scheduler with dedicated worker threads
-#define THREAD_SCHEDULER
+//#define THREAD_SCHEDULER
 
 using System;
 using System.Collections.Generic;
@@ -46,7 +46,7 @@ namespace Opc.Ua
             m_hosts = new List<ServiceHost>();
             m_listeners = new List<ITransportListener>();
             m_endpoints = null;
-            m_requestQueue = new AsyncRequestQueue(this, 10, 100, 1000);
+            m_requestQueue = new RequestQueue(this, 10, 100, 1000);
             m_userTokenPolicyId = 0;
         }
         #endregion
@@ -514,7 +514,7 @@ namespace Opc.Ua
                 Utils.SilentDispose(m_requestQueue);
             }
 
-            m_requestQueue = new AsyncRequestQueue(this, minRequestThreadCount, maxRequestThreadCount, maxQueuedRequestCount);
+            m_requestQueue = new RequestQueue(this, minRequestThreadCount, maxRequestThreadCount, maxQueuedRequestCount);
         }
 
         /// <summary>
@@ -1507,6 +1507,7 @@ namespace Opc.Ua
         #endregion
 
         #region RequestQueue Class
+#if THREAD_SCHEDULER
         /// <summary>
         /// Manages a queue of requests.
         /// </summary>
@@ -1528,11 +1529,8 @@ namespace Opc.Ua
                 m_maxThreadCount = maxThreadCount;
                 m_maxRequestCount = maxRequestCount;
                 m_activeThreadCount = 0;
-
-#if THREAD_SCHEDULER
                 m_queue = new Queue<IEndpointIncomingRequest>(maxRequestCount);
                 m_totalThreadCount = 0;
-#endif
 
                 // adjust ThreadPool, only increase values if necessary
                 int minCompletionPortThreads;
@@ -1564,7 +1562,6 @@ namespace Opc.Ua
             {
                 if (disposing)
                 {
-#if THREAD_SCHEDULER
                     lock (m_lock)
                     {
                         m_stopped = true;
@@ -1573,9 +1570,6 @@ namespace Opc.Ua
 
                         m_queue.Clear();
                     }
-#else
-                    m_stopped = true;
-#endif
                 }
             }
             #endregion
@@ -1587,7 +1581,6 @@ namespace Opc.Ua
             /// <param name="request">The request.</param>
             public void ScheduleIncomingRequest(IEndpointIncomingRequest request)
             {
-#if THREAD_SCHEDULER
                 int totalThreadCount;
                 int activeThreadCount;
 
@@ -1654,39 +1647,10 @@ namespace Opc.Ua
                         Monitor.Exit(m_lock);
                     }
                 }
-#else
-                if (m_stopped)
-                {
-                    request.OperationCompleted(null, StatusCodes.BadServerHalted);
-                    Utils.LogTrace("Server halted.");
-                    return;
-                }
-
-                int activeThreadCount = Interlocked.Increment(ref m_activeThreadCount);
-                if (activeThreadCount >= m_maxRequestCount)
-                {
-                    Interlocked.Decrement(ref m_activeThreadCount);
-                    request.OperationCompleted(null, StatusCodes.BadServerTooBusy);
-                    Utils.LogWarning("Too many operations. Active thread count: {0}", m_activeThreadCount);
-                    return;
-                }
-
-                Task.Run(async () => {
-                    try
-                    {
-                        await m_server.ProcessRequestAsync(request, null, CancellationToken.None).ConfigureAwait(false);
-                    }
-                    finally
-                    {
-                        Interlocked.Decrement(ref m_activeThreadCount);
-                    }
-                });
-#endif
             }
             #endregion
 
             #region Private Methods
-#if THREAD_SCHEDULER
             /// <summary>
             /// Processes the requests in the request queue.
             /// </summary>
@@ -1733,8 +1697,7 @@ namespace Opc.Ua
                     }
                 }
             }
-#endif
-            #endregion
+        #endregion
 
             #region Private Fields
             private ServerBase m_server;
@@ -1743,22 +1706,17 @@ namespace Opc.Ua
             private int m_maxThreadCount;
             private int m_minThreadCount;
             private int m_maxRequestCount;
-#if THREAD_SCHEDULER
             private readonly object m_lock = new object();
             private Queue<IEndpointIncomingRequest> m_queue;
             private int m_totalThreadCount;
-#endif
-            #endregion
-
-        }
         #endregion
-
-        #region AsyncRequestQueue Class
+    }
+#else
         /// <summary>
         /// Asynchronously manages a queue of requests.
         /// </summary>
-        protected class AsyncRequestQueue : IDisposable
-        {
+        protected class RequestQueue : IDisposable
+    {
             /// <summary>
             /// Initializes a new instance of the <see cref="RequestQueue"/> class.
             /// </summary>
@@ -1766,156 +1724,157 @@ namespace Opc.Ua
             /// <param name="minThreadCount">The minimum number of threads in the pool.</param>
             /// <param name="maxThreadCount">The maximum number of threads  in the pool.</param>
             /// <param name="maxRequestCount">The maximum number of requests that will placed in the queue.</param>
-            public AsyncRequestQueue(ServerBase server, int minThreadCount, int maxThreadCount, int maxRequestCount)
-            {
-                m_server = server;
-                m_minThreadCount = minThreadCount;
-                m_maxThreadCount = maxThreadCount;
-                m_maxRequestCount = maxRequestCount;
-                m_queue = new ConcurrentQueue<IEndpointIncomingRequest>();
-                m_queueSignal = new SemaphoreSlim(0);
-                m_workers = new List<Task>();
-                m_cts = new CancellationTokenSource();
-                m_activeThreadCount = 0;
-                m_totalThreadCount = 0;
-                m_queuedRequestsCount = 0;
-                m_stopped = false;
+            public RequestQueue(ServerBase server, int minThreadCount, int maxThreadCount, int maxRequestCount)
+        {
+            m_server = server;
+            m_minThreadCount = minThreadCount;
+            m_maxThreadCount = maxThreadCount;
+            m_maxRequestCount = maxRequestCount;
+            m_queue = new ConcurrentQueue<IEndpointIncomingRequest>();
+            m_queueSignal = new SemaphoreSlim(0);
+            m_workers = new List<Task>();
+            m_cts = new CancellationTokenSource();
+            m_activeThreadCount = 0;
+            m_totalThreadCount = 0;
+            m_queuedRequestsCount = 0;
+            m_stopped = false;
 
-                // Start worker tasks
-                for (int i = 0; i < m_minThreadCount; i++)
+            // Start worker tasks
+            for (int i = 0; i < m_minThreadCount; i++)
+            {
+                m_workers.Add(Task.Run(() => WorkerLoopAsync(m_cts.Token)));
+            }
+        }
+        /// <summary>
+        /// Frees any unmanaged resources.
+        /// </summary>
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+        /// <summary>
+        /// An overrideable version of the Dispose.
+        /// </summary>
+        protected virtual void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                m_stopped = true;
+                m_cts.Cancel();
+
+                if (m_totalThreadCount > 0)
+                {
+                    m_queueSignal.Release(m_totalThreadCount); // Unblock all workers
+                }
+                m_queueSignal.Dispose();
+#if NETSTANDARD2_1_OR_GREATER
+                    m_queue.Clear();
+#endif
+                m_cts.Dispose();
+            }
+        }
+        /// <summary>
+        /// Schedules an incoming request.
+        /// </summary>
+        /// <param name="request">The request.</param>
+        public void ScheduleIncomingRequest(IEndpointIncomingRequest request)
+        {
+            // check if server is stopped
+            if (m_stopped)
+            {
+                request.OperationCompleted(null, StatusCodes.BadServerHalted);
+                Utils.LogTrace("Server halted.");
+                return;
+            }
+
+            //check if we can accept more requests
+            if (m_queuedRequestsCount >= m_maxRequestCount)
+            {
+                request.OperationCompleted(null, StatusCodes.BadServerTooBusy);
+                Utils.LogTrace("Too many operations. Active: {0}", m_activeThreadCount);
+                return;
+            }
+            // Optionally scale up workers if needed
+            if (m_totalThreadCount < m_maxThreadCount && m_activeThreadCount >= m_totalThreadCount)
+            {
+                lock (m_workers)
                 {
                     m_workers.Add(Task.Run(() => WorkerLoopAsync(m_cts.Token)));
                 }
             }
-            /// <summary>
-            /// Frees any unmanaged resources.
-            /// </summary>
-            public void Dispose()
-            {
-                Dispose(true);
-                GC.SuppressFinalize(this);
-            }
-            /// <summary>
-            /// An overrideable version of the Dispose.
-            /// </summary>
-            protected virtual void Dispose(bool disposing)
-            {
-                if (disposing)
-                {
-                    m_stopped = true;
-                    m_cts.Cancel();
+            //Enqueue requests
+            m_queue.Enqueue(request);
+            Interlocked.Increment(ref m_queuedRequestsCount);
+            m_queueSignal.Release();
+        }
 
-                    if (m_totalThreadCount > 0)
+        /// <summary>
+        /// Ran by the worker threads to process requests.
+        /// </summary>
+        /// <returns></returns>
+        private async Task WorkerLoopAsync(CancellationToken ct)
+        {
+            Interlocked.Increment(ref m_totalThreadCount);
+            try
+            {
+                while (!ct.IsCancellationRequested)
+                {
+                    // wait for a request
+                    if ((!await m_queueSignal.WaitAsync(15_000, ct).ConfigureAwait(false)) && m_totalThreadCount > m_minThreadCount)
                     {
-                        m_queueSignal.Release(m_totalThreadCount); // Unblock all workers
+                        //end loop if no requests and we have enough threads
+                        return;
                     }
-                    m_queueSignal.Dispose();
-#if NETSTANDARD2_1_OR_GREATER
-                    m_queue.Clear();
-#endif
-                    m_cts.Dispose();
-                }
-            }
-            /// <summary>
-            /// Schedules an incoming request.
-            /// </summary>
-            /// <param name="request">The request.</param>
-            public void ScheduleIncomingRequest(IEndpointIncomingRequest request)
-            {
-                // check if server is stopped
-                if (m_stopped)
-                {
-                    request.OperationCompleted(null, StatusCodes.BadServerHalted);
-                    Utils.LogTrace("Server halted.");
-                    return;
-                }
 
-                //check if we can accept more requests
-                if (m_queuedRequestsCount >= m_maxRequestCount)
-                {
-                    request.OperationCompleted(null, StatusCodes.BadServerTooBusy);
-                    Utils.LogTrace("Too many operations. Active: {0}", m_activeThreadCount);
-                    return;
-                }
-                // Optionally scale up workers if needed
-                if (m_totalThreadCount < m_maxThreadCount && m_activeThreadCount >= m_totalThreadCount)
-                {
-                    lock (m_workers)
+                    //process request from queue
+                    if (m_queue.TryDequeue(out var request))
                     {
-                        m_workers.Add(Task.Run(() => WorkerLoopAsync(m_cts.Token)));
-                    }
-                }
-                //Enqueue requests
-                m_queue.Enqueue(request);
-                Interlocked.Increment(ref m_queuedRequestsCount);
-                m_queueSignal.Release();
-            }
-
-            /// <summary>
-            /// Ran by the worker threads to process requests.
-            /// </summary>
-            /// <returns></returns>
-            private async Task WorkerLoopAsync(CancellationToken ct)
-            {
-                Interlocked.Increment(ref m_totalThreadCount);
-                try
-                {
-                    while (!ct.IsCancellationRequested)
-                    {
-                        // wait for a request
-                        if ((!await m_queueSignal.WaitAsync(15_000, ct).ConfigureAwait(false)) && m_totalThreadCount > m_minThreadCount)
+                        try
                         {
-                            //end loop if no requests and we have enough threads
-                            return;
+                            Interlocked.Decrement(ref m_queuedRequestsCount);
+                            Interlocked.Increment(ref m_activeThreadCount);
+                            await m_server.ProcessRequestAsync(request, null, ct).ConfigureAwait(false);
                         }
-
-                        //process request from queue
-                        if (m_queue.TryDequeue(out var request))
+                        catch (Exception ex)
                         {
-                            try
-                            {
-                                Interlocked.Decrement(ref m_queuedRequestsCount);
-                                Interlocked.Increment(ref m_activeThreadCount);
-                                await m_server.ProcessRequestAsync(request, null, ct).ConfigureAwait(false);
-                            }
-                            catch (Exception ex)
-                            {
-                                Utils.LogError(ex, "Unexpected error processing incoming request.");
-                                request.OperationCompleted(null, StatusCodes.BadInternalError);
-                            }
-                            finally
-                            {
-                                Interlocked.Decrement(ref m_activeThreadCount);
-                            }
+                            Utils.LogError(ex, "Unexpected error processing incoming request.");
+                            request.OperationCompleted(null, StatusCodes.BadInternalError);
+                        }
+                        finally
+                        {
+                            Interlocked.Decrement(ref m_activeThreadCount);
                         }
                     }
                 }
-                catch (OperationCanceledException)
-                {
-                    // Graceful shutdown
-                }
-                finally
-                {
-                    Interlocked.Decrement(ref m_totalThreadCount);
-                }
             }
+            catch (OperationCanceledException)
+            {
+                // Graceful shutdown
+            }
+            finally
+            {
+                Interlocked.Decrement(ref m_totalThreadCount);
+            }
+        }
 
-            #region private Fields
-            private readonly ServerBase m_server;
-            private readonly int m_minThreadCount;
-            private readonly int m_maxThreadCount;
-            private readonly int m_maxRequestCount;
-            private readonly ConcurrentQueue<IEndpointIncomingRequest> m_queue;
-            private readonly SemaphoreSlim m_queueSignal;
-            private readonly List<Task> m_workers;
-            private readonly CancellationTokenSource m_cts;
-            private int m_activeThreadCount;
-            private int m_totalThreadCount;
-            private int m_queuedRequestsCount;
-            private bool m_stopped;
+        #region private Fields
+        private readonly ServerBase m_server;
+        private readonly int m_minThreadCount;
+        private readonly int m_maxThreadCount;
+        private readonly int m_maxRequestCount;
+        private readonly ConcurrentQueue<IEndpointIncomingRequest> m_queue;
+        private readonly SemaphoreSlim m_queueSignal;
+        private readonly List<Task> m_workers;
+        private readonly CancellationTokenSource m_cts;
+        private int m_activeThreadCount;
+        private int m_totalThreadCount;
+        private int m_queuedRequestsCount;
+        private bool m_stopped;
             #endregion
         }
-        #endregion
+#endif
+#endregion
 
         #region Private Fields
         private object m_messageContext;
@@ -1928,7 +1887,7 @@ namespace Opc.Ua
         private List<ServiceHost> m_hosts;
         private List<ITransportListener> m_listeners;
         private ReadOnlyList<EndpointDescription> m_endpoints;
-        private AsyncRequestQueue m_requestQueue;
+        private RequestQueue m_requestQueue;
         // identifier for the UserTokenPolicy should be unique within the context of a single Server
         private int m_userTokenPolicyId = 0;
         #endregion
