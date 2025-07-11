@@ -11,10 +11,6 @@
     <RootNamespace>Quickstarts.ConsoleReferenceClient</RootNamespace>
   </PropertyGroup>
 
-  <ItemGroup Condition=" '$(NoHttps)' != 'true' ">
-    <ProjectReference Include="..\..\Stack\Opc.Ua.Bindings.Https\Opc.Ua.Bindings.Https.csproj" />
-  </ItemGroup>
-
   <ItemGroup>
     <Compile Include="..\ConsoleReferenceServer\ConsoleUtils.cs" Exclude="bin\**;obj\**;**\*.xproj;packages\**" />
   </ItemGroup>
