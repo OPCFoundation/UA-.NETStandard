@@ -59610,6 +59610,8 @@
   </UADataType>
   <UAObjectType NodeId="i=19352" BrowseName="LogObjectType">
     <DisplayName>LogObjectType</DisplayName>
+    <Category>LogObject Base</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part26/5.2</Documentation>
     <References>
       <Reference ReferenceType="HasComponent">i=19353</Reference>
       <Reference ReferenceType="HasProperty">i=19356</Reference>
@@ -59620,6 +59622,8 @@
   </UAObjectType>
   <UAMethod NodeId="i=19353" BrowseName="GetRecords" ParentNodeId="i=19352">
     <DisplayName>GetRecords</DisplayName>
+    <Category>LogObject Base</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part26/5.3</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=19354</Reference>
       <Reference ReferenceType="HasProperty">i=19355</Reference>
@@ -59799,8 +59803,8 @@
   </UAVariable>
   <UADataType NodeId="i=19361" BrowseName="LogRecord">
     <DisplayName>LogRecord</DisplayName>
-    <Category>Authorization Service Configuration Server</Category>
-    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part12/9.7.5</Documentation>
+    <Category>LogObject Base</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part26/5.4</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
@@ -59817,6 +59821,8 @@
   </UADataType>
   <UADataType NodeId="i=19745" BrowseName="LogRecordsDataType">
     <DisplayName>LogRecordsDataType</DisplayName>
+    <Category>LogObject Base</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part26/5.9</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
@@ -59826,6 +59832,8 @@
   </UADataType>
   <UADataType NodeId="i=19746" BrowseName="SpanContextDataType">
     <DisplayName>SpanContextDataType</DisplayName>
+    <Category>LogObject TraceContext</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part26/5.5.2</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
@@ -59836,6 +59844,8 @@
   </UADataType>
   <UADataType NodeId="i=19747" BrowseName="TraceContextDataType">
     <DisplayName>TraceContextDataType</DisplayName>
+    <Category>LogObject TraceContext</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part26/5.5.3</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=19746</Reference>
     </References>
@@ -59846,6 +59856,8 @@
   </UADataType>
   <UADataType NodeId="i=19748" BrowseName="NameValuePair">
     <DisplayName>NameValuePair</DisplayName>
+    <Category>LogObject AdditionalData</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part26/5.6</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
@@ -59856,6 +59868,8 @@
   </UADataType>
   <UADataType NodeId="i=19749" BrowseName="LogRecordMask">
     <DisplayName>LogRecordMask</DisplayName>
+    <Category>LogObject Base</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part26/5.7</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=19750</Reference>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=7</Reference>
@@ -59896,6 +59910,8 @@
   </UAVariable>
   <UAObjectType NodeId="i=19362" BrowseName="BaseLogEventType" IsAbstract="true">
     <DisplayName>BaseLogEventType</DisplayName>
+    <Category>LogObject BaseEvent</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part26/6.3</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=19363</Reference>
       <Reference ReferenceType="HasProperty">i=19364</Reference>
@@ -59938,12 +59954,16 @@
   </UAVariable>
   <UAObjectType NodeId="i=19369" BrowseName="LogOverflowEventType" IsAbstract="true">
     <DisplayName>LogOverflowEventType</DisplayName>
+    <Category>LogObject Overflow</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part26/6.4</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=2041</Reference>
     </References>
   </UAObjectType>
   <UAObjectType NodeId="i=19370" BrowseName="LogEntryConditionClassType" IsAbstract="true">
     <DisplayName>LogEntryConditionClassType</DisplayName>
+    <Category>LogObject BaseEvent</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part26/6.5</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=11163</Reference>
     </References>
@@ -59957,6 +59977,8 @@
   </UAReferenceType>
   <UAObject NodeId="i=19372" BrowseName="ServerLog">
     <DisplayName>ServerLog</DisplayName>
+    <Category>LogObject ServerLog</Category>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part26/7.2</Documentation>
     <References>
       <Reference ReferenceType="HasComponent">i=19373</Reference>
       <Reference ReferenceType="HasProperty">i=19376</Reference>
@@ -60136,7 +60158,7 @@
   <UAObject NodeId="i=19378" BrowseName="Logs">
     <DisplayName>Logs</DisplayName>
     <Category>LogObject Logs</Category>
-    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part26/8.3</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part26/7.3</Documentation>
     <References>
       <Reference ReferenceType="Organizes" IsForward="false">i=24226</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=61</Reference>

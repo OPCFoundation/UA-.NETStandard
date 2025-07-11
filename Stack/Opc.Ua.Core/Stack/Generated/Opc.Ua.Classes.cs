@@ -29475,6 +29475,7 @@ namespace Opc.Ua
             return _result;
         }
 
+        #if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -29512,7 +29513,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-
+        #endif
+        
         #endregion
 
         #region Private Fields
@@ -29636,6 +29638,7 @@ namespace Opc.Ua
             return _result;
         }
 
+        #if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -29670,7 +29673,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-
+        #endif
+        
         #endregion
 
         #region Private Fields
@@ -29798,6 +29802,7 @@ namespace Opc.Ua
             return _result;
         }
 
+        #if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -29836,7 +29841,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-
+        #endif
+        
         #endregion
 
         #region Private Fields
@@ -29970,6 +29976,7 @@ namespace Opc.Ua
             return _result;
         }
 
+        #if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -30012,7 +30019,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-
+        #endif
+        
         #endregion
 
         #region Private Fields
@@ -36511,6 +36519,7 @@ namespace Opc.Ua
             return _result;
         }
 
+        #if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -36547,7 +36556,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-
+        #endif
+        
         #endregion
 
         #region Private Fields
@@ -36668,6 +36678,7 @@ namespace Opc.Ua
             return _result;
         }
 
+        #if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -36702,7 +36713,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-
+        #endif
+        
         #endregion
 
         #region Private Fields
@@ -36829,6 +36841,7 @@ namespace Opc.Ua
             return _result;
         }
 
+        #if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -36867,7 +36880,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-
+        #endif
+        
         #endregion
 
         #region Private Fields
@@ -36993,6 +37007,7 @@ namespace Opc.Ua
             return _result;
         }
 
+        #if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -37029,7 +37044,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-
+        #endif
+        
         #endregion
 
         #region Private Fields
@@ -37156,6 +37172,7 @@ namespace Opc.Ua
             return _result;
         }
 
+        #if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -37192,7 +37209,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-
+        #endif
+        
         #endregion
 
         #region Private Fields
@@ -37316,6 +37334,7 @@ namespace Opc.Ua
             return _result;
         }
 
+        #if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -37352,7 +37371,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-
+        #endif
+        
         #endregion
 
         #region Private Fields
@@ -37774,6 +37794,7 @@ namespace Opc.Ua
             return _result;
         }
 
+        #if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -37810,7 +37831,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-
+        #endif
+        
         #endregion
 
         #region Private Fields
@@ -37944,6 +37966,7 @@ namespace Opc.Ua
             return _result;
         }
 
+        #if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -37983,7 +38006,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-
+        #endif
+        
         #endregion
 
         #region Private Fields
@@ -38109,6 +38133,7 @@ namespace Opc.Ua
             return _result;
         }
 
+        #if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -38143,7 +38168,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-
+        #endif
+        
         #endregion
 
         #region Private Fields
@@ -38276,6 +38302,7 @@ namespace Opc.Ua
             return _result;
         }
 
+        #if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -38318,7 +38345,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-
+        #endif
+        
         #endregion
 
         #region Private Fields
@@ -38752,6 +38780,7 @@ namespace Opc.Ua
             return _result;
         }
 
+        #if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -38790,7 +38819,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-
+        #endif
+        
         #endregion
 
         #region Private Fields
@@ -38928,6 +38958,7 @@ namespace Opc.Ua
             return _result;
         }
 
+        #if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -38965,7 +38996,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-
+        #endif
+        
         #endregion
 
         #region Private Fields
@@ -39096,6 +39128,7 @@ namespace Opc.Ua
             return _result;
         }
 
+        #if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -39132,7 +39165,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-
+        #endif
+        
         #endregion
 
         #region Private Fields
@@ -39594,6 +39628,7 @@ namespace Opc.Ua
             return _result;
         }
 
+        #if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -39632,7 +39667,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-
+        #endif
+        
         #endregion
 
         #region Private Fields
@@ -39755,6 +39791,7 @@ namespace Opc.Ua
             return _result;
         }
 
+        #if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -39789,7 +39826,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-
+        #endif
+        
         #endregion
 
         #region Private Fields
@@ -40677,6 +40715,7 @@ namespace Opc.Ua
             return _result;
         }
 
+        #if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -40711,7 +40750,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-
+        #endif
+        
         #endregion
 
         #region Private Fields
@@ -40829,6 +40869,7 @@ namespace Opc.Ua
             return _result;
         }
 
+        #if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -40863,7 +40904,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-
+        #endif
+        
         #endregion
 
         #region Private Fields
@@ -40981,6 +41023,7 @@ namespace Opc.Ua
             return _result;
         }
 
+        #if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -41015,7 +41058,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-
+        #endif
+        
         #endregion
 
         #region Private Fields
@@ -41134,6 +41178,7 @@ namespace Opc.Ua
             return _result;
         }
 
+        #if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -41168,7 +41213,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-
+        #endif
+        
         #endregion
 
         #region Private Fields
@@ -41286,6 +41332,7 @@ namespace Opc.Ua
             return _result;
         }
 
+        #if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -41320,7 +41367,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-
+        #endif
+        
         #endregion
 
         #region Private Fields
@@ -41438,6 +41486,7 @@ namespace Opc.Ua
             return _result;
         }
 
+        #if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -41472,7 +41521,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-
+        #endif
+        
         #endregion
 
         #region Private Fields
@@ -47967,6 +48017,7 @@ namespace Opc.Ua
             return _result;
         }
 
+        #if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -48003,7 +48054,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-
+        #endif
+        
         #endregion
 
         #region Private Fields
@@ -48124,6 +48176,7 @@ namespace Opc.Ua
             return _result;
         }
 
+        #if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -48158,7 +48211,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-
+        #endif
+        
         #endregion
 
         #region Private Fields
@@ -48280,6 +48334,7 @@ namespace Opc.Ua
             return _result;
         }
 
+        #if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -48316,7 +48371,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-
+        #endif
+        
         #endregion
 
         #region Private Fields
@@ -48995,6 +49051,7 @@ namespace Opc.Ua
             return _result;
         }
 
+        #if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -49029,7 +49086,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-
+        #endif
+        
         #endregion
 
         #region Private Fields
@@ -49150,6 +49208,7 @@ namespace Opc.Ua
             return _result;
         }
 
+        #if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -49186,7 +49245,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-
+        #endif
+        
         #endregion
 
         #region Private Fields
@@ -51415,6 +51475,7 @@ namespace Opc.Ua
             return _result;
         }
 
+        #if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -51449,7 +51510,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-
+        #endif
+        
         #endregion
 
         #region Private Fields
@@ -51570,6 +51632,7 @@ namespace Opc.Ua
             return _result;
         }
 
+        #if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -51603,7 +51666,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-
+        #endif
+        
         #endregion
 
         #region Private Fields
@@ -52307,6 +52371,7 @@ namespace Opc.Ua
             return _result;
         }
 
+        #if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -52341,7 +52406,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-
+        #endif
+        
         #endregion
 
         #region Private Fields
@@ -52462,6 +52528,7 @@ namespace Opc.Ua
             return _result;
         }
 
+        #if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -52498,7 +52565,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-
+        #endif
+        
         #endregion
 
         #region Private Fields
@@ -68220,6 +68288,7 @@ namespace Opc.Ua
             return _result;
         }
 
+        #if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -68256,7 +68325,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-
+        #endif
+        
         #endregion
 
         #region Private Fields
@@ -68384,6 +68454,7 @@ namespace Opc.Ua
             return _result;
         }
 
+        #if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -68420,7 +68491,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-
+        #endif
+        
         #endregion
 
         #region Private Fields
@@ -68544,6 +68616,7 @@ namespace Opc.Ua
             return _result;
         }
 
+        #if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -68580,7 +68653,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-
+        #endif
+        
         #endregion
 
         #region Private Fields
@@ -68703,6 +68777,7 @@ namespace Opc.Ua
             return _result;
         }
 
+        #if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -68739,7 +68814,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-
+        #endif
+        
         #endregion
 
         #region Private Fields
@@ -72214,6 +72290,7 @@ namespace Opc.Ua
             return _result;
         }
 
+        #if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -72260,7 +72337,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-
+        #endif
+        
         #endregion
 
         #region Private Fields
@@ -72396,6 +72474,7 @@ namespace Opc.Ua
             return _result;
         }
 
+        #if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -72430,7 +72509,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-
+        #endif
+        
         #endregion
 
         #region Private Fields
@@ -72995,6 +73075,7 @@ namespace Opc.Ua
             return _result;
         }
 
+        #if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -73041,7 +73122,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-
+        #endif
+        
         #endregion
 
         #region Private Fields
@@ -73190,6 +73272,7 @@ namespace Opc.Ua
             return _result;
         }
 
+        #if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -73234,7 +73317,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-
+        #endif
+        
         #endregion
 
         #region Private Fields
@@ -73386,6 +73470,7 @@ namespace Opc.Ua
             return _result;
         }
 
+        #if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -73434,7 +73519,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-
+        #endif
+        
         #endregion
 
         #region Private Fields
@@ -73570,6 +73656,7 @@ namespace Opc.Ua
             return _result;
         }
 
+        #if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -73606,7 +73693,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-
+        #endif
+        
         #endregion
 
         #region Private Fields
@@ -73729,6 +73817,7 @@ namespace Opc.Ua
             return _result;
         }
 
+        #if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -73762,7 +73851,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-
+        #endif
+        
         #endregion
 
         #region Private Fields
@@ -73892,6 +73982,7 @@ namespace Opc.Ua
             return _result;
         }
 
+        #if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -73929,7 +74020,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-
+        #endif
+        
         #endregion
 
         #region Private Fields
@@ -77102,6 +77194,7 @@ namespace Opc.Ua
             return _result;
         }
 
+        #if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -77144,7 +77237,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-
+        #endif
+        
         #endregion
 
         #region Private Fields
@@ -77443,6 +77537,7 @@ namespace Opc.Ua
             return _result;
         }
 
+        #if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -77482,7 +77577,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-
+        #endif
+        
         #endregion
 
         #region Private Fields
@@ -78155,6 +78251,7 @@ namespace Opc.Ua
             return _result;
         }
 
+        #if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -78195,7 +78292,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-
+        #endif
+        
         #endregion
 
         #region Private Fields
@@ -79603,6 +79701,7 @@ namespace Opc.Ua
             return _result;
         }
 
+        #if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -79647,7 +79746,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-
+        #endif
+        
         #endregion
 
         #region Private Fields
@@ -79791,6 +79891,7 @@ namespace Opc.Ua
             return _result;
         }
 
+        #if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -79827,7 +79928,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-
+        #endif
+        
         #endregion
 
         #region Private Fields
@@ -79970,6 +80072,7 @@ namespace Opc.Ua
             return _result;
         }
 
+        #if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -80015,7 +80118,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-
+        #endif
+        
         #endregion
 
         #region Private Fields
@@ -80148,6 +80252,7 @@ namespace Opc.Ua
             return _result;
         }
 
+        #if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -80182,7 +80287,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-
+        #endif
+        
         #endregion
 
         #region Private Fields
@@ -80307,6 +80413,7 @@ namespace Opc.Ua
             return _result;
         }
 
+        #if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -80343,7 +80450,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-
+        #endif
+        
         #endregion
 
         #region Private Fields
@@ -80465,6 +80573,7 @@ namespace Opc.Ua
             return _result;
         }
 
+        #if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -80499,7 +80608,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-
+        #endif
+        
         #endregion
 
         #region Private Fields
@@ -81436,6 +81546,7 @@ namespace Opc.Ua
             return _result;
         }
 
+        #if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -81472,7 +81583,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-
+        #endif
+        
         #endregion
 
         #region Private Fields
@@ -81601,6 +81713,7 @@ namespace Opc.Ua
             return _result;
         }
 
+        #if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -81637,7 +81750,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-
+        #endif
+        
         #endregion
 
         #region Private Fields
@@ -82712,6 +82826,7 @@ namespace Opc.Ua
             return _result;
         }
 
+        #if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -82758,7 +82873,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-
+        #endif
+        
         #endregion
 
         #region Private Fields
@@ -82889,6 +83005,7 @@ namespace Opc.Ua
             return _result;
         }
 
+        #if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -82923,7 +83040,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-
+        #endif
+        
         #endregion
 
         #region Private Fields
@@ -83048,6 +83166,7 @@ namespace Opc.Ua
             return _result;
         }
 
+        #if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -83084,7 +83203,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-
+        #endif
+        
         #endregion
 
         #region Private Fields
@@ -83206,6 +83326,7 @@ namespace Opc.Ua
             return _result;
         }
 
+        #if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -83240,7 +83361,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-
+        #endif
+        
         #endregion
 
         #region Private Fields
@@ -84480,6 +84602,7 @@ namespace Opc.Ua
             return _result;
         }
 
+        #if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -84526,7 +84649,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-
+        #endif
+        
         #endregion
 
         #region Private Fields
@@ -84663,6 +84787,7 @@ namespace Opc.Ua
             return _result;
         }
 
+        #if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -84699,7 +84824,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-
+        #endif
+        
         #endregion
 
         #region Private Fields
@@ -84820,6 +84946,7 @@ namespace Opc.Ua
             return _result;
         }
 
+        #if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -84854,7 +84981,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-
+        #endif
+        
         #endregion
 
         #region Private Fields
@@ -85219,6 +85347,7 @@ namespace Opc.Ua
             return _result;
         }
 
+        #if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -85261,7 +85390,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-
+        #endif
+        
         #endregion
 
         #region Private Fields
@@ -85417,6 +85547,7 @@ namespace Opc.Ua
             return _result;
         }
 
+        #if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -85460,7 +85591,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-
+        #endif
+        
         #endregion
 
         #region Private Fields
@@ -86163,6 +86295,7 @@ namespace Opc.Ua
             return _result;
         }
 
+        #if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -86201,7 +86334,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-
+        #endif
+        
         #endregion
 
         #region Private Fields
@@ -86324,6 +86458,7 @@ namespace Opc.Ua
             return _result;
         }
 
+        #if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -86358,7 +86493,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-
+        #endif
+        
         #endregion
 
         #region Private Fields
@@ -86772,6 +86908,7 @@ namespace Opc.Ua
             return _result;
         }
 
+        #if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -86815,7 +86952,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-
+        #endif
+        
         #endregion
 
         #region Private Fields
@@ -86959,6 +87097,7 @@ namespace Opc.Ua
             return _result;
         }
 
+        #if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -86998,7 +87137,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-
+        #endif
+        
         #endregion
 
         #region Private Fields
@@ -87990,6 +88130,7 @@ namespace Opc.Ua
             return _result;
         }
 
+        #if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -88032,7 +88173,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-
+        #endif
+        
         #endregion
 
         #region Private Fields
@@ -88182,6 +88324,7 @@ namespace Opc.Ua
             return _result;
         }
 
+        #if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -88226,7 +88369,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-
+        #endif
+        
         #endregion
 
         #region Private Fields
@@ -88383,6 +88527,7 @@ namespace Opc.Ua
             return _result;
         }
 
+        #if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -88430,7 +88575,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-
+        #endif
+        
         #endregion
 
         #region Private Fields
@@ -88580,6 +88726,7 @@ namespace Opc.Ua
             return _result;
         }
 
+        #if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -88621,7 +88768,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-
+        #endif
+        
         #endregion
 
         #region Private Fields
@@ -88767,6 +88915,7 @@ namespace Opc.Ua
             return _result;
         }
 
+        #if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -88811,7 +88960,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-
+        #endif
+        
         #endregion
 
         #region Private Fields
@@ -88941,6 +89091,7 @@ namespace Opc.Ua
             return _result;
         }
 
+        #if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -88975,7 +89126,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-
+        #endif
+        
         #endregion
 
         #region Private Fields
@@ -89100,6 +89252,7 @@ namespace Opc.Ua
             return _result;
         }
 
+        #if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -89136,7 +89289,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-
+        #endif
+        
         #endregion
 
         #region Private Fields
@@ -89258,6 +89412,7 @@ namespace Opc.Ua
             return _result;
         }
 
+        #if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -89292,7 +89447,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-
+        #endif
+        
         #endregion
 
         #region Private Fields
@@ -90121,6 +90277,7 @@ namespace Opc.Ua
             return _result;
         }
 
+        #if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -90158,7 +90315,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-
+        #endif
+        
         #endregion
 
         #region Private Fields
@@ -90297,6 +90455,7 @@ namespace Opc.Ua
             return _result;
         }
 
+        #if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -90339,7 +90498,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-
+        #endif
+        
         #endregion
 
         #region Private Fields
@@ -90474,6 +90634,7 @@ namespace Opc.Ua
             return _result;
         }
 
+        #if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -90510,7 +90671,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-
+        #endif
+        
         #endregion
 
         #region Private Fields
@@ -90639,6 +90801,7 @@ namespace Opc.Ua
             return _result;
         }
 
+        #if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -90675,7 +90838,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-
+        #endif
+        
         #endregion
 
         #region Private Fields
@@ -90797,6 +90961,7 @@ namespace Opc.Ua
             return _result;
         }
 
+        #if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -90831,7 +90996,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-
+        #endif
+        
         #endregion
 
         #region Private Fields
@@ -92182,6 +92348,7 @@ namespace Opc.Ua
             return _result;
         }
 
+        #if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -92219,7 +92386,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-
+        #endif
+        
         #endregion
 
         #region Private Fields
@@ -92358,6 +92526,7 @@ namespace Opc.Ua
             return _result;
         }
 
+        #if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -92400,7 +92569,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-
+        #endif
+        
         #endregion
 
         #region Private Fields
@@ -92535,6 +92705,7 @@ namespace Opc.Ua
             return _result;
         }
 
+        #if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -92571,7 +92742,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-
+        #endif
+        
         #endregion
 
         #region Private Fields
@@ -92693,6 +92865,7 @@ namespace Opc.Ua
             return _result;
         }
 
+        #if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -92727,7 +92900,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-
+        #endif
+        
         #endregion
 
         #region Private Fields
@@ -93449,6 +93623,7 @@ namespace Opc.Ua
             return _result;
         }
 
+        #if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -93486,7 +93661,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-
+        #endif
+        
         #endregion
 
         #region Private Fields
@@ -93625,6 +93801,7 @@ namespace Opc.Ua
             return _result;
         }
 
+        #if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -93667,7 +93844,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-
+        #endif
+        
         #endregion
 
         #region Private Fields
@@ -93802,6 +93980,7 @@ namespace Opc.Ua
             return _result;
         }
 
+        #if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -93838,7 +94017,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-
+        #endif
+        
         #endregion
 
         #region Private Fields
@@ -93960,6 +94140,7 @@ namespace Opc.Ua
             return _result;
         }
 
+        #if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -93994,7 +94175,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-
+        #endif
+        
         #endregion
 
         #region Private Fields
@@ -94821,6 +95003,7 @@ namespace Opc.Ua
             return _result;
         }
 
+        #if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -94855,7 +95038,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-
+        #endif
+        
         #endregion
 
         #region Private Fields
@@ -94989,6 +95173,7 @@ namespace Opc.Ua
             return _result;
         }
 
+        #if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -95029,7 +95214,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-
+        #endif
+        
         #endregion
 
         #region Private Fields
@@ -96555,6 +96741,7 @@ namespace Opc.Ua
             return _result;
         }
 
+        #if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -96589,7 +96776,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-
+        #endif
+        
         #endregion
 
         #region Private Fields
@@ -96723,6 +96911,7 @@ namespace Opc.Ua
             return _result;
         }
 
+        #if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -96763,7 +96952,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-
+        #endif
+        
         #endregion
 
         #region Private Fields
@@ -96899,6 +97089,7 @@ namespace Opc.Ua
             return _result;
         }
 
+        #if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -96937,7 +97128,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-
+        #endif
+        
         #endregion
 
         #region Private Fields
@@ -97070,6 +97262,7 @@ namespace Opc.Ua
             return _result;
         }
 
+        #if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -97108,7 +97301,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-
+        #endif
+        
         #endregion
 
         #region Private Fields
@@ -97571,6 +97765,7 @@ namespace Opc.Ua
             return _result;
         }
 
+        #if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -97609,7 +97804,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-
+        #endif
+        
         #endregion
 
         #region Private Fields
@@ -97743,6 +97939,7 @@ namespace Opc.Ua
             return _result;
         }
 
+        #if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -97781,7 +97978,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-
+        #endif
+        
         #endregion
 
         #region Private Fields
@@ -98309,6 +98507,7 @@ namespace Opc.Ua
             return _result;
         }
 
+        #if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -98345,7 +98544,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-
+        #endif
+        
         #endregion
 
         #region Private Fields
@@ -98467,6 +98667,7 @@ namespace Opc.Ua
             return _result;
         }
 
+        #if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -98501,7 +98702,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-
+        #endif
+        
         #endregion
 
         #region Private Fields
@@ -106510,6 +106712,7 @@ namespace Opc.Ua
             return _result;
         }
 
+        #if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -106548,7 +106751,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-
+        #endif
+        
         #endregion
 
         #region Private Fields
@@ -107168,6 +107372,7 @@ namespace Opc.Ua
             return _result;
         }
 
+        #if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -107208,7 +107413,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-
+        #endif
+        
         #endregion
 
         #region Private Fields
@@ -107348,6 +107554,7 @@ namespace Opc.Ua
             return _result;
         }
 
+        #if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -107394,7 +107601,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-
+        #endif
+        
         #endregion
 
         #region Private Fields
@@ -107524,6 +107732,7 @@ namespace Opc.Ua
             return _result;
         }
 
+        #if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -107558,7 +107767,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-
+        #endif
+        
         #endregion
 
         #region Private Fields
@@ -107679,6 +107889,7 @@ namespace Opc.Ua
             return _result;
         }
 
+        #if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -107715,7 +107926,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-
+        #endif
+        
         #endregion
 
         #region Private Fields
@@ -108223,6 +108435,7 @@ namespace Opc.Ua
             return _result;
         }
 
+        #if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -108256,7 +108469,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-
+        #endif
+        
         #endregion
 
         #region Private Fields
@@ -108376,6 +108590,7 @@ namespace Opc.Ua
             return _result;
         }
 
+        #if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -108410,7 +108625,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-
+        #endif
+        
         #endregion
 
         #region Private Fields
@@ -112555,6 +112771,7 @@ namespace Opc.Ua
             return _result;
         }
 
+        #if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -112595,7 +112812,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-
+        #endif
+        
         #endregion
 
         #region Private Fields
@@ -112722,6 +112940,7 @@ namespace Opc.Ua
             return _result;
         }
 
+        #if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -112758,7 +112977,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-
+        #endif
+        
         #endregion
 
         #region Private Fields
@@ -115669,6 +115889,7 @@ namespace Opc.Ua
             return _result;
         }
 
+        #if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -115716,7 +115937,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-
+        #endif
+        
         #endregion
 
         #region Private Fields
