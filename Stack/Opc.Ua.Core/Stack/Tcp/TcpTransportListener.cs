@@ -301,13 +301,16 @@ namespace Opc.Ua.Bindings
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2213:DisposableFieldsShouldBeDisposed", MessageId = "m_simulator")]
         protected virtual void Dispose(bool disposing)
         {
-            // Clean up the inactivity detection timer regardless of disposing flag,
-            // as timers typically wrap unmanaged resources that must always be released
-            if (m_inactivityDetectionTimer != null)
+            lock (m_lock)
             {
-                Utils.SilentDispose(m_inactivityDetectionTimer);
-                m_inactivityDetectionTimer = null;
-            }
+                // Clean up the inactivity detection timer regardless of disposing flag,
+                // as timers typically wrap unmanaged resources that must always be released
+                if (m_inactivityDetectionTimer != null)
+                {
+                    Utils.SilentDispose(m_inactivityDetectionTimer);
+                    m_inactivityDetectionTimer = null;
+                }
+             }
 
             if (disposing)
             {
