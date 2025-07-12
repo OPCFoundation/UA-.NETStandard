@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
@@ -14,8 +14,6 @@
   <Choose>
     <When Condition="'$(TargetFramework)' == 'net462'">
     </When>
-    <When Condition="'$(TargetFramework)' == 'netcoreapp2.1'">
-    </When>
     <Otherwise>
       <PropertyGroup Condition="'$(DisableECCTests)' != 'true'">
         <DefineConstants>$(DefineConstants);ECC_SUPPORT</DefineConstants>
@@ -24,7 +22,7 @@
   </Choose>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.13.0" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
     <PackageReference Include="NUnit" Version="4.3.2" />
     <PackageReference Include="NUnit.Console" Version="3.20.1" />

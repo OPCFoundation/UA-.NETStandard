@@ -15,7 +15,7 @@
     <PlatformTarget>AnyCPU</PlatformTarget>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <!-- Highest language version supported by Visual Studio 2019 -->
-    <LangVersion>9</LangVersion>
+    <LangVersion>12</LangVersion>
     <EnablePackageValidation>true</EnablePackageValidation>
     <!-- to check the package validation on a release build, uncomment here -->
     <!--<PackageValidationBaselineVersion>1.5.374.27</PackageValidationBaselineVersion>-->
