@@ -37,7 +37,7 @@
 >
   <xs:annotation>
     <xs:appinfo>
-      <ua:Model ModelUri="http://opcfoundation.org/UA/" Version="1.05.04" PublicationDate="2025-01-08T00:00:00Z" />
+      <ua:Model ModelUri="http://opcfoundation.org/UA/" Version="1.05.05" PublicationDate="2025-06-30T00:00:00Z" />
     </xs:appinfo>
   </xs:annotation>
   
@@ -980,6 +980,89 @@
   </xs:complexType>
   <xs:element name="ListOfTrustListDataType" type="tns:ListOfTrustListDataType" nillable="true"></xs:element>
 
+  <xs:complexType name="BaseConfigurationDataType">
+    <xs:sequence>
+      <xs:element name="ConfigurationVersion" type="xs:unsignedInt" minOccurs="0" />
+      <xs:element name="ConfigurationProperties" type="tns:ListOfKeyValuePair" minOccurs="0" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="BaseConfigurationDataType" type="tns:BaseConfigurationDataType" />
+
+  <xs:complexType name="ListOfBaseConfigurationDataType">
+    <xs:sequence>
+      <xs:element name="BaseConfigurationDataType" type="tns:BaseConfigurationDataType" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfBaseConfigurationDataType" type="tns:ListOfBaseConfigurationDataType" nillable="true"></xs:element>
+
+  <xs:complexType name="BaseConfigurationRecordDataType">
+    <xs:sequence>
+      <xs:element name="Name" type="xs:string" minOccurs="0" nillable="true" />
+      <xs:element name="RecordProperties" type="tns:ListOfKeyValuePair" minOccurs="0" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="BaseConfigurationRecordDataType" type="tns:BaseConfigurationRecordDataType" />
+
+  <xs:complexType name="ListOfBaseConfigurationRecordDataType">
+    <xs:sequence>
+      <xs:element name="BaseConfigurationRecordDataType" type="tns:BaseConfigurationRecordDataType" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfBaseConfigurationRecordDataType" type="tns:ListOfBaseConfigurationRecordDataType" nillable="true"></xs:element>
+
+  <xs:complexType name="CertificateGroupDataType">
+    <xs:complexContent mixed="false">
+      <xs:extension base="tns:BaseConfigurationRecordDataType">
+        <xs:sequence>
+          <xs:element name="Purpose" type="ua:NodeId" minOccurs="0" nillable="true" />
+          <xs:element name="CertificateTypes" type="ua:ListOfNodeId" minOccurs="0" nillable="true" />
+          <xs:element name="IsCertificateAssigned" type="ua:ListOfBoolean" minOccurs="0" nillable="true" />
+          <xs:element name="ValidationOptions" type="tns:TrustListValidationOptions" minOccurs="0" />
+        </xs:sequence>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+  <xs:element name="CertificateGroupDataType" type="tns:CertificateGroupDataType" />
+
+  <xs:complexType name="ListOfCertificateGroupDataType">
+    <xs:sequence>
+      <xs:element name="CertificateGroupDataType" type="tns:CertificateGroupDataType" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfCertificateGroupDataType" type="tns:ListOfCertificateGroupDataType" nillable="true"></xs:element>
+
+  <xs:complexType name="ConfigurationUpdateTargetType">
+    <xs:sequence>
+      <xs:element name="Path" type="xs:string" minOccurs="0" nillable="true" />
+      <xs:element name="UpdateType" type="tns:ConfigurationUpdateType" minOccurs="0" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ConfigurationUpdateTargetType" type="tns:ConfigurationUpdateTargetType" />
+
+  <xs:complexType name="ListOfConfigurationUpdateTargetType">
+    <xs:sequence>
+      <xs:element name="ConfigurationUpdateTargetType" type="tns:ConfigurationUpdateTargetType" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfConfigurationUpdateTargetType" type="tns:ListOfConfigurationUpdateTargetType" nillable="true"></xs:element>
+
+  <xs:simpleType  name="ConfigurationUpdateType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="Insert_1" />
+      <xs:enumeration value="Replace_2" />
+      <xs:enumeration value="InsertOrReplace_3" />
+      <xs:enumeration value="Delete_4" />
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:element name="ConfigurationUpdateType" type="tns:ConfigurationUpdateType" />
+
+  <xs:complexType name="ListOfConfigurationUpdateType">
+    <xs:sequence>
+      <xs:element name="ConfigurationUpdateType" type="tns:ConfigurationUpdateType" minOccurs="0" maxOccurs="unbounded" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfConfigurationUpdateType" type="tns:ListOfConfigurationUpdateType" nillable="true"></xs:element>
+
   <xs:complexType name="TransactionErrorType">
     <xs:sequence>
       <xs:element name="TargetId" type="ua:NodeId" minOccurs="0" nillable="true" />
@@ -995,6 +1078,155 @@
     </xs:sequence>
   </xs:complexType>
   <xs:element name="ListOfTransactionErrorType" type="tns:ListOfTransactionErrorType" nillable="true"></xs:element>
+
+  <xs:complexType name="ApplicationConfigurationDataType">
+    <xs:complexContent mixed="false">
+      <xs:extension base="tns:BaseConfigurationDataType">
+        <xs:sequence>
+          <xs:element name="ApplicationIdentity" type="tns:ApplicationIdentityDataType" minOccurs="0" nillable="true" />
+          <xs:element name="CertificateGroups" type="tns:ListOfCertificateGroupDataType" minOccurs="0" nillable="true" />
+          <xs:element name="ServerEndpoints" type="tns:ListOfServerEndpointDataType" minOccurs="0" nillable="true" />
+          <xs:element name="ClientEndpoints" type="tns:ListOfEndpointDataType" minOccurs="0" nillable="true" />
+          <xs:element name="SecuritySettings" type="tns:ListOfSecuritySettingsDataType" minOccurs="0" nillable="true" />
+          <xs:element name="UserTokenSettings" type="tns:ListOfUserTokenSettingsDataType" minOccurs="0" nillable="true" />
+          <xs:element name="AuthorizationServices" type="tns:ListOfAuthorizationServiceConfigurationDataType" minOccurs="0" nillable="true" />
+        </xs:sequence>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+  <xs:element name="ApplicationConfigurationDataType" type="tns:ApplicationConfigurationDataType" />
+
+  <xs:complexType name="ListOfApplicationConfigurationDataType">
+    <xs:sequence>
+      <xs:element name="ApplicationConfigurationDataType" type="tns:ApplicationConfigurationDataType" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfApplicationConfigurationDataType" type="tns:ListOfApplicationConfigurationDataType" nillable="true"></xs:element>
+
+  <xs:complexType name="ApplicationIdentityDataType">
+    <xs:complexContent mixed="false">
+      <xs:extension base="tns:BaseConfigurationRecordDataType">
+        <xs:sequence>
+          <xs:element name="ApplicationUri" type="xs:string" minOccurs="0" nillable="true" />
+          <xs:element name="ApplicationNames" type="ua:ListOfLocalizedText" minOccurs="0" nillable="true" />
+          <xs:element name="AdditionalServers" type="tns:ListOfApplicationDescription" minOccurs="0" nillable="true" />
+        </xs:sequence>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+  <xs:element name="ApplicationIdentityDataType" type="tns:ApplicationIdentityDataType" />
+
+  <xs:complexType name="ListOfApplicationIdentityDataType">
+    <xs:sequence>
+      <xs:element name="ApplicationIdentityDataType" type="tns:ApplicationIdentityDataType" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfApplicationIdentityDataType" type="tns:ListOfApplicationIdentityDataType" nillable="true"></xs:element>
+
+  <xs:complexType name="EndpointDataType">
+    <xs:complexContent mixed="false">
+      <xs:extension base="tns:BaseConfigurationRecordDataType">
+        <xs:sequence>
+          <xs:element name="DiscoveryUrls" type="ua:ListOfString" minOccurs="0" nillable="true" />
+          <xs:element name="NetworkName" type="xs:string" minOccurs="0" nillable="true" />
+          <xs:element name="Port" type="xs:unsignedShort" minOccurs="0" />
+        </xs:sequence>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+  <xs:element name="EndpointDataType" type="tns:EndpointDataType" />
+
+  <xs:complexType name="ListOfEndpointDataType">
+    <xs:sequence>
+      <xs:element name="EndpointDataType" type="tns:EndpointDataType" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfEndpointDataType" type="tns:ListOfEndpointDataType" nillable="true"></xs:element>
+
+  <xs:complexType name="ServerEndpointDataType">
+    <xs:complexContent mixed="false">
+      <xs:extension base="tns:EndpointDataType">
+        <xs:sequence>
+          <xs:element name="EndpointUrls" type="ua:ListOfString" minOccurs="0" nillable="true" />
+          <xs:element name="SecuritySettingNames" type="ua:ListOfString" minOccurs="0" nillable="true" />
+          <xs:element name="TransportProfileUri" type="xs:string" minOccurs="0" nillable="true" />
+          <xs:element name="UserTokenSettingNames" type="ua:ListOfString" minOccurs="0" nillable="true" />
+          <xs:element name="ReverseConnectUrls" type="ua:ListOfString" minOccurs="0" nillable="true" />
+        </xs:sequence>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+  <xs:element name="ServerEndpointDataType" type="tns:ServerEndpointDataType" />
+
+  <xs:complexType name="ListOfServerEndpointDataType">
+    <xs:sequence>
+      <xs:element name="ServerEndpointDataType" type="tns:ServerEndpointDataType" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfServerEndpointDataType" type="tns:ListOfServerEndpointDataType" nillable="true"></xs:element>
+
+  <xs:complexType name="SecuritySettingsDataType">
+    <xs:complexContent mixed="false">
+      <xs:extension base="tns:BaseConfigurationRecordDataType">
+        <xs:sequence>
+          <xs:element name="SecurityModes" type="tns:ListOfMessageSecurityMode" minOccurs="0" nillable="true" />
+          <xs:element name="SecurityPolicyUris" type="ua:ListOfString" minOccurs="0" nillable="true" />
+          <xs:element name="CertificateGroupName" type="xs:string" minOccurs="0" nillable="true" />
+        </xs:sequence>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+  <xs:element name="SecuritySettingsDataType" type="tns:SecuritySettingsDataType" />
+
+  <xs:complexType name="ListOfSecuritySettingsDataType">
+    <xs:sequence>
+      <xs:element name="SecuritySettingsDataType" type="tns:SecuritySettingsDataType" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfSecuritySettingsDataType" type="tns:ListOfSecuritySettingsDataType" nillable="true"></xs:element>
+
+  <xs:complexType name="UserTokenSettingsDataType">
+    <xs:complexContent mixed="false">
+      <xs:extension base="tns:BaseConfigurationRecordDataType">
+        <xs:sequence>
+          <xs:element name="TokenType" type="tns:UserTokenType" minOccurs="0" />
+          <xs:element name="IssuedTokenType" type="xs:string" minOccurs="0" nillable="true" />
+          <xs:element name="IssuerEndpointUrl" type="xs:string" minOccurs="0" nillable="true" />
+          <xs:element name="SecurityPolicyUri" type="xs:string" minOccurs="0" nillable="true" />
+          <xs:element name="CertificateGroupName" type="xs:string" minOccurs="0" nillable="true" />
+          <xs:element name="AuthorizationServiceName" type="xs:string" minOccurs="0" nillable="true" />
+        </xs:sequence>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+  <xs:element name="UserTokenSettingsDataType" type="tns:UserTokenSettingsDataType" />
+
+  <xs:complexType name="ListOfUserTokenSettingsDataType">
+    <xs:sequence>
+      <xs:element name="UserTokenSettingsDataType" type="tns:UserTokenSettingsDataType" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfUserTokenSettingsDataType" type="tns:ListOfUserTokenSettingsDataType" nillable="true"></xs:element>
+
+  <xs:complexType name="AuthorizationServiceConfigurationDataType">
+    <xs:complexContent mixed="false">
+      <xs:extension base="tns:BaseConfigurationRecordDataType">
+        <xs:sequence>
+          <xs:element name="ServiceUri" type="xs:string" minOccurs="0" nillable="true" />
+          <xs:element name="ServiceCertificate" type="ua:ListOfByteString" minOccurs="0" nillable="true" />
+          <xs:element name="IssuerEndpointSettings" type="xs:string" minOccurs="0" nillable="true" />
+        </xs:sequence>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+  <xs:element name="AuthorizationServiceConfigurationDataType" type="tns:AuthorizationServiceConfigurationDataType" />
+
+  <xs:complexType name="ListOfAuthorizationServiceConfigurationDataType">
+    <xs:sequence>
+      <xs:element name="AuthorizationServiceConfigurationDataType" type="tns:AuthorizationServiceConfigurationDataType" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfAuthorizationServiceConfigurationDataType" type="tns:ListOfAuthorizationServiceConfigurationDataType" nillable="true"></xs:element>
 
   <xs:complexType name="DecimalDataType">
     <xs:sequence>
@@ -3077,6 +3309,103 @@
     </xs:sequence>
   </xs:complexType>
   <xs:element name="ListOfReferenceListEntryDataType" type="tns:ListOfReferenceListEntryDataType" nillable="true"></xs:element>
+
+  <xs:complexType name="LogRecord">
+    <xs:sequence>
+      <xs:element name="Time" type="xs:dateTime" minOccurs="0" />
+      <xs:element name="Severity" type="xs:unsignedShort" minOccurs="0" />
+      <xs:element name="EventType" type="ua:NodeId" minOccurs="0" nillable="true" />
+      <xs:element name="SourceNode" type="ua:NodeId" minOccurs="0" nillable="true" />
+      <xs:element name="SourceName" type="xs:string" minOccurs="0" nillable="true" />
+      <xs:element name="Message" type="ua:LocalizedText" minOccurs="0" nillable="true" />
+      <xs:element name="TraceContext" type="tns:TraceContextDataType" minOccurs="0" nillable="true" />
+      <xs:element name="AdditionalData" type="tns:ListOfNameValuePair" minOccurs="0" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="LogRecord" type="tns:LogRecord" />
+
+  <xs:complexType name="ListOfLogRecord">
+    <xs:sequence>
+      <xs:element name="LogRecord" type="tns:LogRecord" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfLogRecord" type="tns:ListOfLogRecord" nillable="true"></xs:element>
+
+  <xs:complexType name="LogRecordsDataType">
+    <xs:sequence>
+      <xs:element name="LogRecordArray" type="tns:ListOfLogRecord" minOccurs="0" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="LogRecordsDataType" type="tns:LogRecordsDataType" />
+
+  <xs:complexType name="ListOfLogRecordsDataType">
+    <xs:sequence>
+      <xs:element name="LogRecordsDataType" type="tns:LogRecordsDataType" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfLogRecordsDataType" type="tns:ListOfLogRecordsDataType" nillable="true"></xs:element>
+
+  <xs:complexType name="SpanContextDataType">
+    <xs:sequence>
+      <xs:element name="TraceId" type="ua:Guid" minOccurs="0" />
+      <xs:element name="SpanId" type="xs:unsignedLong" minOccurs="0" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="SpanContextDataType" type="tns:SpanContextDataType" />
+
+  <xs:complexType name="ListOfSpanContextDataType">
+    <xs:sequence>
+      <xs:element name="SpanContextDataType" type="tns:SpanContextDataType" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfSpanContextDataType" type="tns:ListOfSpanContextDataType" nillable="true"></xs:element>
+
+  <xs:complexType name="TraceContextDataType">
+    <xs:complexContent mixed="false">
+      <xs:extension base="tns:SpanContextDataType">
+        <xs:sequence>
+          <xs:element name="ParentSpanId" type="xs:unsignedLong" minOccurs="0" />
+          <xs:element name="ParentIdentifier" type="xs:string" minOccurs="0" nillable="true" />
+        </xs:sequence>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+  <xs:element name="TraceContextDataType" type="tns:TraceContextDataType" />
+
+  <xs:complexType name="ListOfTraceContextDataType">
+    <xs:sequence>
+      <xs:element name="TraceContextDataType" type="tns:TraceContextDataType" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfTraceContextDataType" type="tns:ListOfTraceContextDataType" nillable="true"></xs:element>
+
+  <xs:complexType name="NameValuePair">
+    <xs:sequence>
+      <xs:element name="Name" type="xs:string" minOccurs="0" nillable="true" />
+      <xs:element name="Value" type="ua:Variant" minOccurs="0" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="NameValuePair" type="tns:NameValuePair" />
+
+  <xs:complexType name="ListOfNameValuePair">
+    <xs:sequence>
+      <xs:element name="NameValuePair" type="tns:NameValuePair" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfNameValuePair" type="tns:ListOfNameValuePair" nillable="true"></xs:element>
+
+  <xs:simpleType  name="LogRecordMask">
+    <xs:restriction base="xs:unsignedInt">
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:element name="LogRecordMask" type="tns:LogRecordMask" />
+
+  <xs:complexType name="ListOfLogRecordMask">
+    <xs:sequence>
+      <xs:element name="LogRecordMask" type="tns:LogRecordMask" minOccurs="0" maxOccurs="unbounded" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfLogRecordMask" type="tns:ListOfLogRecordMask" nillable="true"></xs:element>
 
   <xs:simpleType  name="IdType">
     <xs:restriction base="xs:string">
@@ -6260,6 +6589,13 @@
   </xs:complexType>
   <xs:element name="Range" type="tns:Range" />
 
+  <xs:complexType name="ListOfRange">
+    <xs:sequence>
+      <xs:element name="Range" type="tns:Range" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfRange" type="tns:ListOfRange" nillable="true"></xs:element>
+
   <xs:complexType name="EUInformation">
     <xs:sequence>
       <xs:element name="NamespaceUri" type="xs:string" minOccurs="0" nillable="true" />
@@ -6270,6 +6606,13 @@
   </xs:complexType>
   <xs:element name="EUInformation" type="tns:EUInformation" />
 
+  <xs:complexType name="ListOfEUInformation">
+    <xs:sequence>
+      <xs:element name="EUInformation" type="tns:EUInformation" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfEUInformation" type="tns:ListOfEUInformation" nillable="true"></xs:element>
+
   <xs:simpleType  name="AxisScaleEnumeration">
     <xs:restriction base="xs:string">
       <xs:enumeration value="Linear_0" />
@@ -6279,6 +6622,13 @@
   </xs:simpleType>
   <xs:element name="AxisScaleEnumeration" type="tns:AxisScaleEnumeration" />
 
+  <xs:complexType name="ListOfAxisScaleEnumeration">
+    <xs:sequence>
+      <xs:element name="AxisScaleEnumeration" type="tns:AxisScaleEnumeration" minOccurs="0" maxOccurs="unbounded" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfAxisScaleEnumeration" type="tns:ListOfAxisScaleEnumeration" nillable="true"></xs:element>
+
   <xs:complexType name="ComplexNumberType">
     <xs:sequence>
       <xs:element name="Real" type="xs:float" minOccurs="0" />
@@ -6287,6 +6637,13 @@
   </xs:complexType>
   <xs:element name="ComplexNumberType" type="tns:ComplexNumberType" />
 
+  <xs:complexType name="ListOfComplexNumberType">
+    <xs:sequence>
+      <xs:element name="ComplexNumberType" type="tns:ComplexNumberType" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfComplexNumberType" type="tns:ListOfComplexNumberType" nillable="true"></xs:element>
+
   <xs:complexType name="DoubleComplexNumberType">
     <xs:sequence>
       <xs:element name="Real" type="xs:double" minOccurs="0" />
@@ -6294,6 +6651,13 @@
     </xs:sequence>
   </xs:complexType>
   <xs:element name="DoubleComplexNumberType" type="tns:DoubleComplexNumberType" />
+
+  <xs:complexType name="ListOfDoubleComplexNumberType">
+    <xs:sequence>
+      <xs:element name="DoubleComplexNumberType" type="tns:DoubleComplexNumberType" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfDoubleComplexNumberType" type="tns:ListOfDoubleComplexNumberType" nillable="true"></xs:element>
 
   <xs:complexType name="AxisInformation">
     <xs:sequence>
@@ -6306,6 +6670,13 @@
   </xs:complexType>
   <xs:element name="AxisInformation" type="tns:AxisInformation" />
 
+  <xs:complexType name="ListOfAxisInformation">
+    <xs:sequence>
+      <xs:element name="AxisInformation" type="tns:AxisInformation" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfAxisInformation" type="tns:ListOfAxisInformation" nillable="true"></xs:element>
+
   <xs:complexType name="XVType">
     <xs:sequence>
       <xs:element name="X" type="xs:double" minOccurs="0" />
@@ -6313,6 +6684,13 @@
     </xs:sequence>
   </xs:complexType>
   <xs:element name="XVType" type="tns:XVType" />
+
+  <xs:complexType name="ListOfXVType">
+    <xs:sequence>
+      <xs:element name="XVType" type="tns:XVType" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfXVType" type="tns:ListOfXVType" nillable="true"></xs:element>
 
   <xs:complexType name="ProgramDiagnosticDataType">
     <xs:sequence>
