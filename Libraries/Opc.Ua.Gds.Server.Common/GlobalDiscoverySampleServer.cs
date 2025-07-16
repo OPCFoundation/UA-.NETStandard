@@ -192,7 +192,7 @@ namespace Opc.Ua.Gds.Server
         /// <summary>
         /// Called when a client tries to change its user identity.
         /// </summary>
-        private void SessionManager_ImpersonateUser(Session session, ImpersonateEventArgs args)
+        private void SessionManager_ImpersonateUser(ISession session, ImpersonateEventArgs args)
         {
             // check for a user name token
             UserNameIdentityToken userNameToken = args.NewIdentity as UserNameIdentityToken;
@@ -236,7 +236,7 @@ namespace Opc.Ua.Gds.Server
         /// </summary>
         /// <param name="session">the session</param>
         /// <returns></returns>
-        private bool VerifiyApplicationRegistered(Session session)
+        private bool VerifiyApplicationRegistered(ISession session)
         {
             X509Certificate2 applicationInstanceCertificate = session.ClientCertificate;
             bool applicationRegistered = false;
@@ -349,7 +349,7 @@ namespace Opc.Ua.Gds.Server
         /// </summary>
         /// <param name="session">the current session</param>
         /// <param name="args">the impersonateEventArgs</param>
-        private void ImpersonateAsApplicationSelfAdmin(Session session, ImpersonateEventArgs args)
+        private void ImpersonateAsApplicationSelfAdmin(ISession session, ImpersonateEventArgs args)
         {
             string applicationUri = session.SessionDiagnostics.ClientDescription.ApplicationUri;
             ApplicationRecordDataType[] application = m_database.FindApplications(applicationUri);

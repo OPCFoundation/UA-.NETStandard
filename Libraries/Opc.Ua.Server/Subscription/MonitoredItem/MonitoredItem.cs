@@ -466,7 +466,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// The session that owns the monitored item.
         /// </summary>
-        public Session Session
+        public ISession Session
         {
             get
             {
