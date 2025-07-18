@@ -3466,7 +3466,10 @@ namespace Opc.Ua.Server
                 monitoredItems[handle.Index] = monitoredItem;
             }
 
-            m_monitoredItemManager.ApplyChanges();
+            lock (Lock)
+            {
+                m_monitoredItemManager.ApplyChanges();
+            }
 
             // do any post processing.
             OnCreateMonitoredItemsComplete(systemContext, monitoredItems);
@@ -3619,7 +3622,10 @@ namespace Opc.Ua.Server
                 createdItems.Add(monitoredItem);
             }
 
-            m_monitoredItemManager.ApplyChanges();
+            lock (Lock)
+            {
+                m_monitoredItemManager.ApplyChanges();
+            }
 
             // do any post processing.
             OnCreateMonitoredItemsComplete(systemContext, createdItems);
@@ -4105,7 +4111,11 @@ namespace Opc.Ua.Server
                     }
                 }
             }
-            m_monitoredItemManager.ApplyChanges();
+
+            lock (Lock)
+            {
+                m_monitoredItemManager.ApplyChanges();
+            }
 
             // do any post processing.
             OnModifyMonitoredItemsComplete(systemContext, modifiedItems);
@@ -4286,7 +4296,11 @@ namespace Opc.Ua.Server
                     }
                 }
             }
-            m_monitoredItemManager.ApplyChanges();
+
+            lock (Lock)
+            {
+                m_monitoredItemManager.ApplyChanges();
+            }
 
             // do any post processing.
             OnDeleteMonitoredItemsComplete(systemContext, deletedItems);
@@ -4468,7 +4482,10 @@ namespace Opc.Ua.Server
                 }
             }
 
-            m_monitoredItemManager.ApplyChanges();
+            lock (Lock)
+            {
+                m_monitoredItemManager.ApplyChanges();
+            }
 
             // do any post processing.
             OnSetMonitoringModeComplete(systemContext, changedItems);
