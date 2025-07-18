@@ -23,7 +23,6 @@ Libraries\Opc.Ua.Client\bin\Debug\net48\Opc.Ua.Client.dll
 Libraries\Opc.Ua.Client\bin\Debug\net8.0\Opc.Ua.Client.dll
 Libraries\Opc.Ua.Client\bin\Debug\net9.0\Opc.Ua.Client.dll
 Libraries\Opc.Ua.Client.ComplexTypes\bin\Debug\netstandard2.1\Opc.Ua.Client.ComplexTypes.dll
-Libraries\Opc.Ua.Client.ComplexTypes\bin\Debug\net462\Opc.Ua.Client.ComplexTypes.dll
 Libraries\Opc.Ua.Client.ComplexTypes\bin\Debug\net472\Opc.Ua.Client.ComplexTypes.dll
 Libraries\Opc.Ua.Client.ComplexTypes\bin\Debug\net48\Opc.Ua.Client.ComplexTypes.dll
 Libraries\Opc.Ua.Client.ComplexTypes\bin\Debug\net8.0\Opc.Ua.Client.ComplexTypes.dll
