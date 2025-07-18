@@ -1960,11 +1960,7 @@ namespace Opc.Ua.Server
                             propertyValue = nodeToWrite.Value.Value;
                         }
 
-                        //not needed for sampling groups
-                        if (m_monitoredItemManager is MonitoredNodeMonitoredItemManager)
-                        {
-                            CheckIfSemanticsHaveChanged(systemContext, propertyState, propertyValue, previousPropertyValue);
-                        }
+                        CheckIfSemanticsHaveChanged(systemContext, propertyState, propertyValue, previousPropertyValue);
                     }
 
                     //not needed for sampling groups
@@ -2012,38 +2008,50 @@ namespace Opc.Ua.Server
                 return;
             }
 
-            //look for the Parent and its monitoring items
-            foreach (var monitoredNode in m_monitoredItemManager.MonitoredNodes.Values)
+            // ceck if property value changed
+            if (Utils.IsEqual(newPropertyValue, previousPropertyValue))
             {
-                var propertyState = monitoredNode.Node.FindChild(systemContext, property.BrowseName);
+                return;
+            }
 
-                if (propertyState != null && property != null && propertyState.NodeId == property.NodeId && !Utils.IsEqual(newPropertyValue, previousPropertyValue))
+            foreach (var kvp in MonitoredItems)
+            {
+                var monitoredItem = kvp.Value as MonitoredItem;
+                if (monitoredItem == null || monitoredItem.AttributeId != Attributes.Value)
                 {
-                    foreach (var monitoredItem in monitoredNode.DataChangeMonitoredItems)
+                    continue;
+                }
+
+                // Try to get the node from the handle
+                NodeHandle handle = monitoredItem.ManagerHandle as NodeHandle;
+                if (handle == null || handle.Node == null)
+                {
+                    continue;
+                }
+
+                NodeState node = handle.Node;
+                var propertyState = node.FindChild(systemContext, property.BrowseName);
+
+                if (propertyState != null && property != null && propertyState.NodeId == property.NodeId)
+                {
+                    if ((node is AnalogItemState && (propertyName == BrowseNames.EURange || propertyName == BrowseNames.EngineeringUnits)) ||
+                        (node is TwoStateDiscreteState && (propertyName == BrowseNames.FalseState || propertyName == BrowseNames.TrueState)) ||
+                        (node is MultiStateDiscreteState && (propertyName == BrowseNames.EnumStrings)) ||
+                        (node is ArrayItemState && (propertyName == BrowseNames.InstrumentRange || propertyName == BrowseNames.EURange || propertyName == BrowseNames.EngineeringUnits || propertyName == BrowseNames.Title)) ||
+                        ((node is YArrayItemState || node is XYArrayItemState) && (propertyName == BrowseNames.InstrumentRange || propertyName == BrowseNames.EURange || propertyName == BrowseNames.EngineeringUnits || propertyName == BrowseNames.Title || propertyName == BrowseNames.XAxisDefinition)) ||
+                        (node is ImageItemState && (propertyName == BrowseNames.InstrumentRange || propertyName == BrowseNames.EURange || propertyName == BrowseNames.EngineeringUnits || propertyName == BrowseNames.Title || propertyName == BrowseNames.XAxisDefinition || propertyName == BrowseNames.YAxisDefinition)) ||
+                        (node is CubeItemState && (propertyName == BrowseNames.InstrumentRange || propertyName == BrowseNames.EURange || propertyName == BrowseNames.EngineeringUnits || propertyName == BrowseNames.Title || propertyName == BrowseNames.XAxisDefinition || propertyName == BrowseNames.YAxisDefinition || propertyName == BrowseNames.ZAxisDefinition)) ||
+                        (node is NDimensionArrayItemState && (propertyName == BrowseNames.InstrumentRange || propertyName == BrowseNames.EURange || propertyName == BrowseNames.EngineeringUnits || propertyName == BrowseNames.Title || propertyName == BrowseNames.AxisDefinition)))
                     {
-                        if (monitoredItem.AttributeId == Attributes.Value)
-                        {
-                            NodeState node = monitoredNode.Node;
+                        monitoredItem.SetSemanticsChanged();
 
-                            if ((node is AnalogItemState && (propertyName == BrowseNames.EURange || propertyName == BrowseNames.EngineeringUnits)) ||
-                                (node is TwoStateDiscreteState && (propertyName == BrowseNames.FalseState || propertyName == BrowseNames.TrueState)) ||
-                                (node is MultiStateDiscreteState && (propertyName == BrowseNames.EnumStrings)) ||
-                                (node is ArrayItemState && (propertyName == BrowseNames.InstrumentRange || propertyName == BrowseNames.EURange || propertyName == BrowseNames.EngineeringUnits || propertyName == BrowseNames.Title)) ||
-                                ((node is YArrayItemState || node is XYArrayItemState) && (propertyName == BrowseNames.InstrumentRange || propertyName == BrowseNames.EURange || propertyName == BrowseNames.EngineeringUnits || propertyName == BrowseNames.Title || propertyName == BrowseNames.XAxisDefinition)) ||
-                                (node is ImageItemState && (propertyName == BrowseNames.InstrumentRange || propertyName == BrowseNames.EURange || propertyName == BrowseNames.EngineeringUnits || propertyName == BrowseNames.Title || propertyName == BrowseNames.XAxisDefinition || propertyName == BrowseNames.YAxisDefinition)) ||
-                                (node is CubeItemState && (propertyName == BrowseNames.InstrumentRange || propertyName == BrowseNames.EURange || propertyName == BrowseNames.EngineeringUnits || propertyName == BrowseNames.Title || propertyName == BrowseNames.XAxisDefinition || propertyName == BrowseNames.YAxisDefinition || propertyName == BrowseNames.ZAxisDefinition)) ||
-                                (node is NDimensionArrayItemState && (propertyName == BrowseNames.InstrumentRange || propertyName == BrowseNames.EURange || propertyName == BrowseNames.EngineeringUnits || propertyName == BrowseNames.Title || propertyName == BrowseNames.AxisDefinition)))
-                            {
-                                monitoredItem.SetSemanticsChanged();
+                        var value = new DataValue {
+                            ServerTimestamp = DateTime.UtcNow
+                        };
 
-                                DataValue value = new DataValue();
-                                value.ServerTimestamp = DateTime.UtcNow;
+                        node.ReadAttribute(systemContext, Attributes.Value, monitoredItem.IndexRange, null, value);
 
-                                monitoredNode.Node.ReadAttribute(systemContext, Attributes.Value, monitoredItem.IndexRange, null, value);
-
-                                monitoredItem.QueueValue(value, ServiceResult.Good, true);
-                            }
-                        }
+                        monitoredItem.QueueValue(value, ServiceResult.Good, true);
                     }
                 }
             }
@@ -3336,13 +3344,11 @@ namespace Opc.Ua.Server
                     else
                     {
                         // check if monitored Item is managed by this node manager
-                        // check both dictionaries for downward compatibility
-                        if (!MonitoredNodes.ContainsKey(monitoredItem.NodeId)
-                            && !MonitoredItems.ContainsKey(monitoredItem.Id))
+                        if (!MonitoredItems.ContainsKey(monitoredItem.Id))
                         {
                             continue;
                         }
-                        
+
                         // get the refresh events.
                         nodesToRefresh.Add(((NodeHandle)monitoredItem.ManagerHandle).Node);
                     }
