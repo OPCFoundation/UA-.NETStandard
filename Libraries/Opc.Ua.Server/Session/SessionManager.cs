@@ -258,42 +258,6 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Creates a new session.
-        /// </summary>
-        [Obsolete("Use CreateSession that passes X509Certificate2Collection)")]
-        public virtual Session CreateSession(
-            OperationContext context,
-            X509Certificate2 serverCertificate,
-            string sessionName,
-            byte[] clientNonce,
-            ApplicationDescription clientDescription,
-            string endpointUrl,
-            X509Certificate2 clientCertificate,
-            double requestedSessionTimeout,
-            uint maxResponseMessageSize,
-            out NodeId sessionId,
-            out NodeId authenticationToken,
-            out byte[] serverNonce,
-            out double revisedSessionTimeout)
-        {
-            return CreateSession(
-              context,
-              serverCertificate,
-              sessionName,
-              clientNonce,
-              clientDescription,
-              endpointUrl,
-              clientCertificate,
-              null,
-              requestedSessionTimeout,
-              maxResponseMessageSize,
-              out sessionId,
-              out authenticationToken,
-              out serverNonce,
-              out revisedSessionTimeout);
-        }
-
-        /// <summary>
         /// Activates an existing session
         /// </summary>
         public virtual bool ActivateSession(

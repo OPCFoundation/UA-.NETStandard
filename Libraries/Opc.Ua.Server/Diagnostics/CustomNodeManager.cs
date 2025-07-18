@@ -3334,7 +3334,7 @@ namespace Opc.Ua.Server
             for (int ii = 0; ii < monitoredItems.Count; ii++)
             {
                 // the IEventMonitoredItem should always be MonitoredItems since they are created by the MasterNodeManager.
-                MonitoredItem monitoredItem = monitoredItems[ii] as MonitoredItem;
+                IEventMonitoredItem monitoredItem = monitoredItems[ii];
 
                 if (monitoredItem == null)
                 {
@@ -3518,7 +3518,7 @@ namespace Opc.Ua.Server
             storedMonitoredItem.QueueSize = SubscriptionManager.CalculateRevisedQueueSize(storedMonitoredItem.IsDurable, storedMonitoredItem.QueueSize, m_maxQueueSize, m_maxDurableQueueSize);
 
             // create the item.
-            MonitoredItem datachangeItem = new MonitoredItem(
+            ISampledDataChangeMonitoredItem datachangeItem = new MonitoredItem(
                 Server,
                 this,
                 handle,
@@ -3752,7 +3752,7 @@ namespace Opc.Ua.Server
             }
 
             // create the item.
-            MonitoredItem datachangeItem = new MonitoredItem(
+            ISampledDataChangeMonitoredItem datachangeItem = new MonitoredItem(
                 Server,
                 this,
                 handle,
@@ -3837,7 +3837,7 @@ namespace Opc.Ua.Server
         protected virtual void OnMonitoredItemCreated(
             ServerSystemContext context,
             NodeHandle handle,
-            MonitoredItem monitoredItem)
+            ISampledDataChangeMonitoredItem monitoredItem)
         {
             // overridden by the sub-class.
         }
@@ -4177,7 +4177,7 @@ namespace Opc.Ua.Server
             filterResult = null;
 
             // check for valid monitored item.
-            MonitoredItem datachangeItem = monitoredItem as MonitoredItem;
+            ISampledDataChangeMonitoredItem datachangeItem = monitoredItem as ISampledDataChangeMonitoredItem;
 
             // validate parameters.
             MonitoringParameters parameters = itemToModify.RequestedParameters;
@@ -4262,7 +4262,7 @@ namespace Opc.Ua.Server
         protected virtual void OnMonitoredItemModified(
             ServerSystemContext context,
             NodeHandle handle,
-            MonitoredItem monitoredItem)
+            ISampledDataChangeMonitoredItem monitoredItem)
         {
             // overridden by the sub-class.
         }
@@ -4352,7 +4352,7 @@ namespace Opc.Ua.Server
             NodeHandle handle)
         {
             // check for valid monitored item.
-            MonitoredItem datachangeItem = monitoredItem as MonitoredItem;
+            ISampledDataChangeMonitoredItem datachangeItem = monitoredItem as ISampledDataChangeMonitoredItem;
 
             // check if the node is already being monitored.
             MonitoredNode2 monitoredNode = null;
@@ -4383,7 +4383,7 @@ namespace Opc.Ua.Server
         protected virtual void OnMonitoredItemDeleted(
             ServerSystemContext context,
             NodeHandle handle,
-            MonitoredItem monitoredItem)
+            ISampledDataChangeMonitoredItem monitoredItem)
         {
             // overridden by the sub-class.
         }
@@ -4545,7 +4545,7 @@ namespace Opc.Ua.Server
             NodeHandle handle)
         {
             // check for valid monitored item.
-            MonitoredItem datachangeItem = monitoredItem as MonitoredItem;
+            ISampledDataChangeMonitoredItem datachangeItem = monitoredItem as ISampledDataChangeMonitoredItem;
 
             // update monitoring mode.
             MonitoringMode previousMode = datachangeItem.SetMonitoringMode(monitoringMode);
@@ -4581,7 +4581,7 @@ namespace Opc.Ua.Server
         protected virtual void OnMonitoringModeChanged(
             ServerSystemContext context,
             NodeHandle handle,
-            MonitoredItem monitoredItem,
+            ISampledDataChangeMonitoredItem monitoredItem,
             MonitoringMode previousMode,
             MonitoringMode monitoringMode)
         {
