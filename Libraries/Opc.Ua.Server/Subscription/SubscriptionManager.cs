@@ -795,7 +795,7 @@ namespace Opc.Ua.Server
             Subscription subscription = null;
 
             // get session from context.
-            Session session = context.Session;
+            ISession session = context.Session;
 
             // assign new identifier.
             subscriptionId = Utils.IncrementIdentifier(ref m_lastSubscriptionId);
@@ -1399,7 +1399,7 @@ namespace Opc.Ua.Server
                 {
                     // find subscription.
                     Subscription subscription = null;
-                    Session ownerSession = null;
+                    ISession ownerSession = null;
 
                     lock (m_lock)
                     {
