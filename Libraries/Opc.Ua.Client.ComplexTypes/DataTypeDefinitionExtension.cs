@@ -283,7 +283,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 {
                     // All we can do here is skip this value. Since there is no
                     // fallback it is better to include all other type fields if
-                    // they are in the extesnion object array.
+                    // they are in the extension object array.
                     continue;
                 }
 
