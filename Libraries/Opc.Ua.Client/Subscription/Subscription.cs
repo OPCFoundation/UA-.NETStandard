@@ -767,7 +767,14 @@ namespace Opc.Ua.Client
         /// </summary>
         public void ChangesCompleted()
         {
-            m_StateChanged?.Invoke(this, new SubscriptionStateChangedEventArgs(m_changeMask));
+            try
+            {
+                m_StateChanged?.Invoke(this, new SubscriptionStateChangedEventArgs(m_changeMask));
+            }
+            catch (Exception ex)
+            {
+                Utils.LogError(ex, "Subscription state change callback exception with change mask 0x{0:X2}", m_changeMask);
+            }
             m_changeMask = SubscriptionChangeMask.None;
         }
 
@@ -1494,17 +1501,7 @@ namespace Opc.Ua.Client
             }
 
             // send notification that publishing received a keep alive or has to republish.
-            if (callback != null)
-            {
-                try
-                {
-                    callback(this, new PublishStateChangedEventArgs(PublishStateChangedMask.Recovered));
-                }
-                catch (Exception e)
-                {
-                    Utils.LogError(e, "Error while raising PublishStateChanged event.");
-                }
-            }
+            PublishingStateChanged(callback, PublishStateChangedMask.Recovered);
 
             // process messages.
             m_messageWorkerEvent.Set();
@@ -1550,9 +1547,14 @@ namespace Opc.Ua.Client
             {
                 foreach (MonitoredItem monitoredItem in monitoredItems)
                 {
+#if NETFRAMEWORK || NETSTANDARD2_0
                     if (!m_monitoredItems.ContainsKey(monitoredItem.ClientHandle))
                     {
                         m_monitoredItems.Add(monitoredItem.ClientHandle, monitoredItem);
+#else
+                    if (m_monitoredItems.TryAdd(monitoredItem.ClientHandle, monitoredItem))
+                    {
+#endif
                         monitoredItem.Subscription = this;
                         added = true;
                     }
@@ -1993,17 +1995,7 @@ namespace Opc.Ua.Client
 
             TraceState("PUBLISHING STOPPED");
 
-            if (callback != null)
-            {
-                try
-                {
-                    callback(this, new PublishStateChangedEventArgs(PublishStateChangedMask.Stopped));
-                }
-                catch (Exception e)
-                {
-                    Utils.LogError(e, "Error while raising PublishStateChanged event.");
-                }
-            }
+            PublishingStateChanged(callback, PublishStateChangedMask.Stopped);
 
             // try to send a publish to recover stopped publishing.
             m_session?.BeginPublish(BeginPublishTimeout());
@@ -2402,12 +2394,11 @@ namespace Opc.Ua.Client
                         {
                             foreach (ExtensionObject notificationData in message.NotificationData)
                             {
-                                var datachange = notificationData.Body as DataChangeNotification;
-
-                                if (datachange != null)
+                                if (notificationData.Body is DataChangeNotification datachange)
                                 {
                                     datachange.PublishTime = message.PublishTime;
                                     datachange.SequenceNumber = message.SequenceNumber;
+                                    datachange.MoreNotifications = message.MoreNotifications;
 
                                     noNotificationsReceived += datachange.MonitoredItems.Count;
 
@@ -2419,9 +2410,8 @@ namespace Opc.Ua.Client
                                     datachangeCallback?.Invoke(this, datachange, message.StringTable);
                                 }
 
-                                var events = notificationData.Body as EventNotificationList;
 
-                                if (events != null)
+                                else if (notificationData.Body is EventNotificationList events)
                                 {
                                     events.PublishTime = message.PublishTime;
                                     events.SequenceNumber = message.SequenceNumber;
@@ -2436,9 +2426,8 @@ namespace Opc.Ua.Client
                                     eventCallback?.Invoke(this, events, message.StringTable);
                                 }
 
-                                StatusChangeNotification statusChanged = notificationData.Body as StatusChangeNotification;
 
-                                if (statusChanged != null)
+                                else if (notificationData.Body is StatusChangeNotification statusChanged)
                                 {
                                     statusChanged.PublishTime = message.PublishTime;
                                     statusChanged.SequenceNumber = message.SequenceNumber;
@@ -2469,16 +2458,10 @@ namespace Opc.Ua.Client
                                 Id, noNotificationsReceived, MaxNotificationsPerPublish);
                         }
                     }
-                    if ((callback != null) && (publishStateChangedMask != PublishStateChangedMask.None))
+
+                    if (publishStateChangedMask != PublishStateChangedMask.None)
                     {
-                        try
-                        {
-                            callback(this, new PublishStateChangedEventArgs(publishStateChangedMask));
-                        }
-                        catch (Exception e)
-                        {
-                            Utils.LogError(e, "Error while raising PublishStateChanged event.");
-                        }
+                        PublishingStateChanged(callback, publishStateChangedMask);
                     }
                 }
 
@@ -2688,12 +2671,13 @@ namespace Opc.Ua.Client
         {
             lock (m_cache)
             {
-                itemsToModify = new List<MonitoredItem>();
-                var updatedMonitoredItems = new Dictionary<uint, MonitoredItem>();
+                int count = clientHandles.Count;
+                itemsToModify = new List<MonitoredItem>(count);
+                var updatedMonitoredItems = new Dictionary<uint, MonitoredItem>(count);
                 foreach (MonitoredItem monitoredItem in m_monitoredItems.Values)
                 {
                     var index = serverHandles.FindIndex(handle => handle == monitoredItem.Status.Id);
-                    if (index >= 0 && index < clientHandles.Count)
+                    if (index >= 0 && index < count)
                     {
                         var clientHandle = clientHandles[index];
                         updatedMonitoredItems[clientHandle] = monitoredItem;
@@ -2870,6 +2854,21 @@ namespace Opc.Ua.Client
             }
 
             return entry;
+        }
+
+        /// <summary>
+        /// Helper to callback event handlers and to catch exceptions.
+        /// </summary>
+        private void PublishingStateChanged(PublishStateChangedEventHandler callback, PublishStateChangedMask newState)
+        {
+            try
+            {
+                callback?.Invoke(this, new PublishStateChangedEventArgs(newState));
+            }
+            catch (Exception e)
+            {
+                Utils.LogError(e, "Error while raising PublishStateChanged event for state {0}.", newState.ToString());
+            }
         }
         #endregion
 
