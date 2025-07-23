@@ -29,7 +29,7 @@ namespace Opc.Ua
     {
         #region Public Fields
         /// <summary>
-        /// The name of the Root array if the json is defined as an array 
+        /// The name of the Root array if the json is defined as an array
         /// </summary>
         public const string RootArrayName = "___root_array___";
 
@@ -854,21 +854,29 @@ namespace Opc.Ua
                 return null;
             }
 
-            try
-            {
-                XmlDocument document = new XmlDocument();
+            var bytes = SafeConvertFromBase64String(value);
 
-                using (XmlReader reader = XmlReader.Create(new StringReader(value), Utils.DefaultXmlReaderSettings()))
+            if (bytes != null && bytes.Length > 0)
+            {
+                try
                 {
-                    document.Load(reader);
-                }
+                    XmlDocument document = new XmlDocument();
+                    string xmlString = Encoding.UTF8.GetString(bytes, 0, bytes.Length);
 
-                return document.DocumentElement;
+                    using (XmlReader reader = XmlReader.Create(new StringReader(xmlString), Utils.DefaultXmlReaderSettings()))
+                    {
+                        document.Load(reader);
+                    }
+
+                    return document.DocumentElement;
+                }
+                catch (XmlException xe)
+                {
+                    throw ServiceResultException.Create(StatusCodes.BadDecodingError, "Unable to decode Xml: {0}", xe.Message);
+                }
             }
-            catch (XmlException xe)
-            {
-                throw ServiceResultException.Create(StatusCodes.BadDecodingError, "Unable to decode Xml: {0}", xe.Message);
-            }
+
+            return null;
         }
 
         /// <summary>
@@ -1416,9 +1424,9 @@ namespace Opc.Ua
 
                 dv.StatusCode = ReadStatusCode("StatusCode");
                 dv.SourceTimestamp = ReadDateTime("SourceTimestamp");
-                dv.SourcePicoseconds = ReadUInt16("SourcePicoseconds");
+                dv.SourcePicoseconds = (dv.SourceTimestamp != DateTime.MinValue) ? ReadUInt16("SourcePicoseconds") : (ushort)0;
                 dv.ServerTimestamp = ReadDateTime("ServerTimestamp");
-                dv.ServerPicoseconds = ReadUInt16("ServerPicoseconds");
+                dv.ServerPicoseconds = (dv.ServerTimestamp != DateTime.MinValue) ? ReadUInt16("ServerPicoseconds") : (ushort)0;
             }
             finally
             {
@@ -2640,7 +2648,7 @@ namespace Opc.Ua
 
                 if (dimensions.Count == 0)
                 {
-                    // for an empty element create the empty dimension array 
+                    // for an empty element create the empty dimension array
                     dimensions = new int[valueRank].ToList();
                 }
                 else if (dimensions.Count < ValueRanks.TwoDimensions)
@@ -3405,7 +3413,7 @@ namespace Opc.Ua
                         Array part = ReadArray(null, ValueRanks.OneDimension, builtInType, systemType, encodeableTypeId);
                         if (part != null && part.Length > 0)
                         {
-                            // add part elements to final list 
+                            // add part elements to final list
                             foreach (var item in part)
                             {
                                 elements.Add(item);
@@ -3421,7 +3429,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Get Default value for NodeId for diferent IdTypes 
+        /// Get Default value for NodeId for diferent IdTypes
         /// </summary>
         /// <returns>new NodeId</returns>
         private NodeId DefaultNodeId(IdType idType, ushort namespaceIndex)

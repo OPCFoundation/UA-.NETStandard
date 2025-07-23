@@ -424,12 +424,14 @@ namespace Opc.Ua
             }
 
             // length is always >= 1 here
-
 #if NET6_0_OR_GREATER
             const int maxStackAlloc = 1024;
-            if (length <= maxStackAlloc)
+            byte[] buffer = null;
+            try
             {
-                Span<byte> bytes = stackalloc byte[length];
+                Span<byte> bytes = (length <= maxStackAlloc) ?
+                    stackalloc byte[length] :
+                    (buffer = ArrayPool<byte>.Shared.Rent(length)).AsSpan(0, length);
 
                 // throws decoding error if length is not met
                 int utf8StringLength = SafeReadCharBytes(bytes);
@@ -441,24 +443,9 @@ namespace Opc.Ua
                 }
                 return Encoding.UTF8.GetString(bytes.Slice(0, utf8StringLength));
             }
-            else
+            finally
             {
-                byte[] buffer = ArrayPool<byte>.Shared.Rent(length);
-                try
-                {
-                    Span<byte> bytes = buffer.AsSpan(0, length);
-
-                    // throws decoding error if length is not met
-                    int utf8StringLength = SafeReadCharBytes(bytes);
-
-                    // If 0 terminated, decrease length to remove 0 terminators before converting to string
-                    while (utf8StringLength > 0 && bytes[utf8StringLength - 1] == 0)
-                    {
-                        utf8StringLength--;
-                    }
-                    return Encoding.UTF8.GetString(buffer.AsSpan(0, utf8StringLength));
-                }
-                finally
+                if (buffer != null)
                 {
                     ArrayPool<byte>.Shared.Return(buffer);
                 }
@@ -736,25 +723,37 @@ namespace Opc.Ua
                 value.StatusCode = ReadStatusCode(null);
             }
 
+            ushort sourcePicoseconds = 0;
+            bool hasPicoseconds = (encodingByte & (byte)DataValueEncodingBits.SourcePicoseconds) != 0;
             if ((encodingByte & (byte)DataValueEncodingBits.SourceTimestamp) != 0)
             {
                 value.SourceTimestamp = ReadDateTime(null);
+                if (hasPicoseconds)
+                {
+                    sourcePicoseconds = ReadUInt16(null);
+                }
             }
-
-            if ((encodingByte & (byte)DataValueEncodingBits.SourcePicoseconds) != 0)
+            else if (hasPicoseconds)
             {
-                value.SourcePicoseconds = ReadUInt16(null);
+                _ = ReadUInt16(null);
             }
+            value.SourcePicoseconds = sourcePicoseconds;
 
+            ushort serverPicoseconds = 0;
+            hasPicoseconds = (encodingByte & (byte)DataValueEncodingBits.ServerPicoseconds) != 0;
             if ((encodingByte & (byte)DataValueEncodingBits.ServerTimestamp) != 0)
             {
                 value.ServerTimestamp = ReadDateTime(null);
+                if (hasPicoseconds)
+                {
+                    serverPicoseconds = ReadUInt16(null);
+                }
             }
-
-            if ((encodingByte & (byte)DataValueEncodingBits.ServerPicoseconds) != 0)
+            else if (hasPicoseconds)
             {
-                value.ServerPicoseconds = ReadUInt16(null);
+                _ = ReadUInt16(null);
             }
+            value.ServerPicoseconds = serverPicoseconds;
 
             return value;
         }
@@ -1860,22 +1859,27 @@ namespace Opc.Ua
 
                 case BuiltInType.XmlElement:
                 {
-                    try
-                    {
-                        XmlElement[] values = new XmlElement[length];
+                    XmlElement[] values = new XmlElement[length];
 
-                        for (int ii = 0; ii < values.Length; ii++)
+                    for (int ii = 0; ii < values.Length; ii++)
+                    {
+                        try
                         {
                             values[ii] = ReadXmlElement(null);
                         }
-
-                        array = values;
+                        catch (ServiceResultException)
+                        {
+                            // fatal decoding error
+                            throw;
+                        }
+                        catch (Exception ex)
+                        {
+                            Utils.LogError(ex, "Error reading array of XmlElement.");
+                            values[ii] = null;
+                        }
                     }
-                    catch (Exception ex)
-                    {
-                        Utils.LogError(ex, "Error reading array of XmlElement.");
-                    }
 
+                    array = values;
                     break;
                 }
 
@@ -2009,7 +2013,7 @@ namespace Opc.Ua
         /// <summary>
         /// Reads the length of an array.
         /// </summary>
-        private int ReadArrayLength()
+        private int ReadArrayLength([CallerMemberName] string callerMemberName = "")
         {
             int length = SafeReadInt32();
 
@@ -2021,7 +2025,7 @@ namespace Opc.Ua
             if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < length)
             {
                 throw ServiceResultException.Create(StatusCodes.BadEncodingLimitsExceeded,
-                    "MaxArrayLength {0} < {1}", m_context.MaxArrayLength, length);
+                    "MaxArrayLength exceeded in {0}: {1} < {2}", callerMemberName, m_context.MaxArrayLength, length);
             }
 
             return length;
@@ -2105,19 +2109,25 @@ namespace Opc.Ua
             }
 
             // read encoding.
-            ExtensionObjectEncoding encoding = (ExtensionObjectEncoding)Enum.ToObject(typeof(ExtensionObjectEncoding), SafeReadByte());
+            byte encoding = SafeReadByte();
 
             // nothing more to do for empty bodies.
-            if (encoding == ExtensionObjectEncoding.None)
+            if (encoding == (byte)ExtensionObjectEncoding.None)
             {
                 return extension;
+            }
+
+            if (encoding != (byte)ExtensionObjectEncoding.Binary && encoding != (byte)ExtensionObjectEncoding.Xml)
+            {
+                throw ServiceResultException.Create(StatusCodes.BadDecodingError,
+                    "Invalid encoding byte (0x{0:X2}) for ExtensionObject.", encoding);
             }
 
             // check for known type.
             Type systemType = m_context.Factory.GetSystemType(extension.TypeId);
 
             // check for XML bodies.
-            if (encoding == ExtensionObjectEncoding.Xml)
+            if (encoding == (byte)ExtensionObjectEncoding.Xml)
             {
                 extension.Body = ReadXmlElement(null);
 
@@ -2254,7 +2264,7 @@ namespace Opc.Ua
                 if (m_context.MaxByteStringLength > 0 && m_context.MaxByteStringLength < length)
                 {
                     throw ServiceResultException.Create(StatusCodes.BadEncodingLimitsExceeded,
-                        "MaxByteStringLength {0} < {1}", m_context.MaxByteStringLength, length);
+                        "MaxByteStringLength exceeded in ExtensionObject: {0} < {1}", m_context.MaxByteStringLength, length);
                 }
 
                 // read the bytes of the body.
@@ -2293,7 +2303,7 @@ namespace Opc.Ua
             // read the encoding byte.
             byte encodingByte = SafeReadByte();
 
-            Variant value = new Variant();
+            Variant value = Variant.Null;
 
             if ((encodingByte & (byte)VariantArrayEncodingBits.Array) != 0)
             {
@@ -2321,10 +2331,10 @@ namespace Opc.Ua
                         Int32Collection dimensions = ReadInt32Array(null);
 
                         // check if ArrayDimensions are consistent with the ArrayLength.
-                        if (dimensions == null || dimensions.Count == 0)
+                        if (dimensions == null || dimensions.Count <= 1)
                         {
                             throw ServiceResultException.Create(StatusCodes.BadDecodingError,
-                                "ArrayDimensions not specified when ArrayDimensions encoding bit was set in Variant object.");
+                                "ArrayDimensions not specified or too small when ArrayDimensions encoding bit was set in Variant object.");
                         }
 
                         int[] dimensionsArray = dimensions.ToArray();
@@ -2357,98 +2367,98 @@ namespace Opc.Ua
                 {
                     case BuiltInType.Null:
                     {
-                        value.Value = null;
+                        value = new Variant((object)null);
                         break;
                     }
 
                     case BuiltInType.Boolean:
                     {
-                        value.Set(SafeReadBoolean());
+                        value = new Variant(SafeReadBoolean());
                         break;
                     }
 
                     case BuiltInType.SByte:
                     {
-                        value.Set(SafeReadSByte());
+                        value = new Variant(SafeReadSByte());
                         break;
                     }
 
                     case BuiltInType.Byte:
                     {
-                        value.Set(SafeReadByte());
+                        value = new Variant(SafeReadByte());
                         break;
                     }
 
                     case BuiltInType.Int16:
                     {
-                        value.Set(SafeReadInt16());
+                        value = new Variant(SafeReadInt16());
                         break;
                     }
 
                     case BuiltInType.UInt16:
                     {
-                        value.Set(SafeReadUInt16());
+                        value = new Variant(SafeReadUInt16());
                         break;
                     }
 
                     case BuiltInType.Int32:
                     case BuiltInType.Enumeration:
                     {
-                        value.Set(SafeReadInt32());
+                        value = new Variant(SafeReadInt32());
                         break;
                     }
 
                     case BuiltInType.UInt32:
                     {
-                        value.Set(SafeReadUInt32());
+                        value = new Variant(SafeReadUInt32());
                         break;
                     }
 
                     case BuiltInType.Int64:
                     {
-                        value.Set(SafeReadInt64());
+                        value = new Variant(SafeReadInt64());
                         break;
                     }
 
                     case BuiltInType.UInt64:
                     {
-                        value.Set(SafeReadUInt64());
+                        value = new Variant(SafeReadUInt64());
                         break;
                     }
 
                     case BuiltInType.Float:
                     {
-                        value.Set(SafeReadFloat());
+                        value = new Variant(SafeReadFloat());
                         break;
                     }
 
                     case BuiltInType.Double:
                     {
-                        value.Set(SafeReadDouble());
+                        value = new Variant(SafeReadDouble());
                         break;
                     }
 
                     case BuiltInType.String:
                     {
-                        value.Set(ReadString(null));
+                        value = new Variant(ReadString(null));
                         break;
                     }
 
                     case BuiltInType.DateTime:
                     {
-                        value.Set(ReadDateTime(null));
+                        value = new Variant(ReadDateTime(null));
                         break;
                     }
 
                     case BuiltInType.Guid:
                     {
-                        value.Set(ReadGuid(null));
+                        value = new Variant(ReadGuid(null));
                         break;
                     }
 
                     case BuiltInType.ByteString:
                     {
-                        value.Set(ReadByteString(null));
+                        value = new Variant(ReadByteString(null));
                         break;
                     }
 
@@ -2456,55 +2466,60 @@ namespace Opc.Ua
                     {
                         try
                         {
-                            value.Set(ReadXmlElement(null));
+                            value = new Variant(ReadXmlElement(null));
+                        }
+                        catch (ServiceResultException)
+                        {
+                            // fatal decoder error, invalid data
+                            throw;
                         }
                         catch (Exception ex)
                         {
-                            Utils.LogTrace(ex, "Error reading xml element for variant.");
-                            value.Set(StatusCodes.BadDecodingError);
+                            Utils.LogTrace(ex, "Error reading xml element for Variant.");
+                            value = new Variant(StatusCodes.BadDecodingError);
                         }
                         break;
                     }
 
                     case BuiltInType.NodeId:
                     {
-                        value.Set(ReadNodeId(null));
+                        value = new Variant(ReadNodeId(null));
                         break;
                     }
 
                     case BuiltInType.ExpandedNodeId:
                     {
-                        value.Set(ReadExpandedNodeId(null));
+                        value = new Variant(ReadExpandedNodeId(null));
                         break;
                     }
 
                     case BuiltInType.StatusCode:
                     {
-                        value.Set(ReadStatusCode(null));
+                        value = new Variant(ReadStatusCode(null));
                         break;
                     }
 
                     case BuiltInType.QualifiedName:
                     {
-                        value.Set(ReadQualifiedName(null));
+                        value = new Variant(ReadQualifiedName(null));
                         break;
                     }
 
                     case BuiltInType.LocalizedText:
                     {
-                        value.Set(ReadLocalizedText(null));
+                        value = new Variant(ReadLocalizedText(null));
                         break;
                     }
 
                     case BuiltInType.ExtensionObject:
                     {
-                        value.Set(ReadExtensionObject());
+                        value = new Variant(ReadExtensionObject());
                         break;
                     }
 
                     case BuiltInType.DataValue:
                     {
-                        value.Set(ReadDataValue(null));
+                        value = new Variant(ReadDataValue(null));
                         break;
                     }
 
