@@ -1219,7 +1219,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             [ValueSource(nameof(GoodAndBadStatusCodes))] StatusCode statusCode)
         {
             var dataValue = new DataValue() {
-                Value = new Variant(statusCodeVariant),
+                WrappedValue = new Variant(statusCodeVariant),
                 ServerTimestamp = DateTime.UtcNow,
                 StatusCode = statusCode
             };
