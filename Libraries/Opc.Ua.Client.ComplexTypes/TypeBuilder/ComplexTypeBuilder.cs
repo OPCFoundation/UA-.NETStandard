@@ -113,7 +113,7 @@ namespace Opc.Ua.Client.ComplexTypes
                     if (fieldNames.Add(fieldName))
                     {
                         var newEnum = enumBuilder.DefineLiteral(fieldName, (int)enumValue.Value);
-                        newEnum.EnumMemberAttribute(enumValue.Name, (int)enumValue.Value);
+                        newEnum.EnumMemberAttribute(fieldName, (int)enumValue.Value);
                     }
                 }
             }
