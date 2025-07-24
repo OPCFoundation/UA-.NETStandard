@@ -704,8 +704,8 @@ namespace Opc.Ua.Client
         /// Returns true if the session is not receiving keep alives.
         /// </summary>
         /// <remarks>
-        /// Set to true if the server does not respond for the KeepAliveInterval * 1 (KeepaliveIntervalFactor) + 1 Second (KeepAliveGuardBand) *
-        /// To change the senstivity of the keep alive check, set the <see cref="m_keepAliveIntervalFactor"/> / <see cref="m_keepAliveGuardBand"/> fields. 
+        /// Set to true if the server does not respond for the KeepAliveInterval * 1 (KeepAliveIntervalFactor) + 1 Second (KeepAliveGuardBand) *
+        /// To change the sensitivity of the keep alive check, set the <see cref="m_keepAliveIntervalFactor"/> / <see cref="m_keepAliveGuardBand"/> fields. 
         /// or if another error was reported.
         /// Set to false is communication is ok or recovered.
         /// </remarks>
@@ -6650,7 +6650,7 @@ namespace Opc.Ua.Client
         protected IUserIdentity m_identity;
 
         /// <summary>
-        /// Factor appiled to the <see cref="m_keepAliveInterval"/> before <see cref="KeepAliveStopped"/> is set to true
+        /// Factor applied to the <see cref="m_keepAliveInterval"/> before <see cref="KeepAliveStopped"/> is set to true
         /// </summary>
         protected int m_keepAliveIntervalFactor = 1;
 
