@@ -2357,7 +2357,7 @@ namespace Opc.Ua.Server
                     // create a globally unique identifier.
                     uint monitoredItemId = Utils.IncrementIdentifier(ref globalIdCounter);
 
-                    MonitoredItem monitoredItem = m_server.EventManager.CreateMonitoredItem(
+                    IEventMonitoredItem monitoredItem = m_server.EventManager.CreateMonitoredItem(
                         context,
                         nodeManager,
                         handle,
@@ -2471,7 +2471,7 @@ namespace Opc.Ua.Server
                         continue;
                     }
 
-                    MonitoredItem monitoredItem = m_server.EventManager.RestoreMonitoredItem(
+                    IEventMonitoredItem monitoredItem = m_server.EventManager.RestoreMonitoredItem(
                         nodeManager,
                         handle,
                         item);

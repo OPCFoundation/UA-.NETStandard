@@ -111,6 +111,11 @@ namespace Opc.Ua.Server
         bool IsResendData { get; }
 
         /// <summary>
+        /// The node id being monitored.
+        /// </summary>
+        NodeId NodeId { get; }
+
+        /// <summary>
         /// Set the resend data trigger flag.
         /// </summary>
         void SetupResendDataTrigger();
@@ -139,6 +144,12 @@ namespace Opc.Ua.Server
         /// Return a <see cref="IStoredMonitoredItem"/> for restore a after a server restart
         /// </summary>
         IStoredMonitoredItem ToStorableMonitoredItem();
+
+        /// <summary>
+        /// Changes the monitoring mode for the item.
+        /// returns the previous monitoring mode.
+        /// </summary>
+        MonitoringMode SetMonitoringMode(MonitoringMode monitoringMode);
     }
 
     /// <summary>
@@ -174,6 +185,11 @@ namespace Opc.Ua.Server
         void QueueEvent(IFilterTarget instance);
 
         /// <summary>
+        /// Adds an event to the queue.
+        /// </summary>
+        void QueueEvent(IFilterTarget instance, bool bypassFilter);
+
+        /// <summary>
         /// The filter used by the monitored item.
         /// </summary>
         EventFilter EventFilter { get; }
@@ -197,11 +213,6 @@ namespace Opc.Ua.Server
             double samplingInterval,
             uint queueSize,
             bool discardOldest);
-
-        /// <summary>
-        /// Changes the monitoring mode for the item.
-        /// </summary>
-        void SetMonitoringMode(MonitoringMode monitoringMode);
     }
 
     /// <summary>
@@ -251,6 +262,27 @@ namespace Opc.Ua.Server
         QualifiedName DataEncoding { get; }
 
         /// <summary>
+        /// Whether the monitored item should report a value without checking if it was changed.
+        /// </summary>
+        public bool AlwaysReportUpdates { get; set; }
+
+        /// <summary>
+        /// Sets a flag indicating that the semantics for the monitored node have changed.
+        /// </summary>
+        /// <remarks>
+        /// The StatusCode for next value reported by the monitored item will have the SemanticsChanged bit set.
+        /// </remarks>
+        void SetSemanticsChanged();
+
+        /// <summary>
+        /// Sets a flag indicating that the structure of the monitored node has changed.
+        /// </summary>
+        /// <remarks>
+        /// The StatusCode for next value reported by the monitored item will have the StructureChanged bit set.
+        /// </remarks>
+        void SetStructureChanged();
+
+        /// <summary>
         /// Updates the queue with a data value or an error.
         /// </summary>
         void QueueValue(DataValue value, ServiceResult error, bool ignoreFilters);
@@ -277,6 +309,11 @@ namespace Opc.Ua.Server
         double MinimumSamplingInterval { get; }
 
         /// <summary>
+        /// The number of milliseconds until the next sample.
+        /// </summary>
+        public int TimeToNextSample { get; }
+
+        /// <summary>
         /// Used to check whether the item is ready to sample.
         /// </summary>
         bool SamplingIntervalExpired();
@@ -299,11 +336,6 @@ namespace Opc.Ua.Server
             double samplingInterval,
             uint queueSize,
             bool discardOldest);
-
-        /// <summary>
-        /// Changes the monitoring mode for the item.
-        /// </summary>
-        void SetMonitoringMode(MonitoringMode monitoringMode);
 
         /// <summary>
         /// Updates the sampling interval for an item.
