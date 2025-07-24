@@ -3,7 +3,7 @@
 #
 parameters:
   configuration: 'Release'
-  framework: net6.0
+  framework: net8.0
   agents: '@{}'
   jobnamesuffix: ''
   customtestarget: ''
@@ -41,11 +41,11 @@ jobs:
     vmImage: $(poolImage)
   steps:
   - task: UseDotNet@2
-    displayName: 'Install .NET 6.0'
-    condition: eq('${{parameters.framework}}', 'net6.0')
+    displayName: 'Install .NET 8.0'
+    condition: eq('${{parameters.framework}}', 'net8.0')
     inputs:
       packageType: 'sdk'
-      version: '6.0.x'
+      version: '8.0.x'
   - task: UseDotNet@2
     displayName: 'Install .NET 9.0'
     inputs:
