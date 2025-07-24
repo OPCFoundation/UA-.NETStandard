@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Reflection.Emit;
@@ -79,16 +80,42 @@ namespace Opc.Ua.Client.ComplexTypes
             {
                 throw new ArgumentNullException(nameof(enumDefinition));
             }
+            if (typeName == null)
+            {
+                throw new ArgumentNullException(nameof(typeName));
+            }
+
+            if (string.IsNullOrEmpty(typeName.Name))
+            {
+                // The type name should not be null or empty then the type definition
+                // or xml is broken. For the latter we want to go into the fallback path
+                // And try to read the data type definition's enum definition.
+                return null;
+            }
 
             var enumBuilder = m_moduleBuilder.DefineEnum(
                 GetFullQualifiedTypeName(typeName),
                 TypeAttributes.Public,
                 typeof(int));
             enumBuilder.DataContractAttribute(m_targetNamespace);
-            foreach (var enumValue in enumDefinition.Fields)
+            if (enumDefinition.Fields != null)
             {
-                var newEnum = enumBuilder.DefineLiteral(enumValue.Name, (int)enumValue.Value);
-                newEnum.EnumMemberAttribute(enumValue.Name, (int)enumValue.Value);
+                var fieldNames = new HashSet<string>();
+                foreach (EnumField enumValue in enumDefinition.Fields)
+                {
+                    // Create a field from the type name and ensure it is not a duplicate
+                    var fieldName = enumValue.Name;
+                    if (string.IsNullOrEmpty(fieldName))
+                    {
+                        // This is to be super safe, but we should never get here.
+                        fieldName = $"{typeName.Name}_{enumValue.Value}";
+                    }
+                    if (fieldNames.Add(fieldName))
+                    {
+                        var newEnum = enumBuilder.DefineLiteral(fieldName, (int)enumValue.Value);
+                        newEnum.EnumMemberAttribute(fieldName, (int)enumValue.Value);
+                    }
+                }
             }
             return enumBuilder.CreateTypeInfo();
         }
