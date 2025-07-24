@@ -899,7 +899,7 @@ namespace Opc.Ua.Client.ComplexTypes
                     if (item is Schema.Binary.EnumeratedType enumeratedObject)
                     {
                         // 1. use Dictionary entry
-                        var enumDefinition = enumeratedObject.ToEnumDefinition();
+                        var enumDefinition = enumeratedObject.ToEnumDefinition(enumeratedObject.Name);
 
                         // Add EnumDefinition to cache
                         m_dataTypeDefinitionCache[enumType.NodeId] = enumDefinition;
@@ -971,12 +971,12 @@ namespace Opc.Ua.Client.ComplexTypes
                     if (enumTypeArray is ExtensionObject[] extensionObject)
                     {
                         // 2. use EnumValues
-                        enumDefinition = extensionObject.ToEnumDefinition();
+                        enumDefinition = extensionObject.ToEnumDefinition(name.Name);
                     }
                     else if (enumTypeArray is LocalizedText[] localizedText)
                     {
                         // 3. use EnumStrings
-                        enumDefinition = localizedText.ToEnumDefinition();
+                        enumDefinition = localizedText.ToEnumDefinition(name.Name);
                     }
                     else
                     {
