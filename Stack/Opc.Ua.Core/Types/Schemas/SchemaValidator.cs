@@ -159,9 +159,9 @@ namespace Opc.Ua.Schema
         protected object Load(Type type, string namespaceUri, string path, Assembly assembly = null)
         {
             // check if already loaded.
-            if (m_loadedFiles.ContainsKey(namespaceUri))
+            if (m_loadedFiles.TryGetValue(namespaceUri, out object value))
             {
-                return m_loadedFiles[namespaceUri];
+                return value;
             }
 
             // check if namespace specified in the import table.

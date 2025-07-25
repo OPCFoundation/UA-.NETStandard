@@ -330,7 +330,7 @@ namespace Opc.Ua
         {
             AttributesToSave attributesToSave = base.GetAttributesToSave(context);
 
-            if (WrappedValue != Variant.Null)
+            if (!WrappedValue.IsNull)
             {
                 attributesToSave |= AttributesToSave.Value;
             }

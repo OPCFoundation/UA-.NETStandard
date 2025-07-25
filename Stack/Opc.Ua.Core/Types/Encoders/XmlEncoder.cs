@@ -98,10 +98,7 @@ namespace Opc.Ua
 
             string uaxPrefix = m_writer.LookupPrefix(Namespaces.OpcUaXsd);
 
-            if (uaxPrefix == null)
-            {
-                uaxPrefix = "uax";
-            }
+            uaxPrefix ??= "uax";
 
             if (namespaceUri == Namespaces.OpcUaXsd)
             {
@@ -462,7 +459,7 @@ namespace Opc.Ua
                     throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
 
-                if (!String.IsNullOrWhiteSpace(value))
+                if (!string.IsNullOrWhiteSpace(value))
                 {
                     m_writer.WriteString(value);
                 }
@@ -751,12 +748,12 @@ namespace Opc.Ua
 
                 if (value != null)
                 {
-                    if (!String.IsNullOrEmpty(value.Locale))
+                    if (!string.IsNullOrEmpty(value.Locale))
                     {
                         WriteString("Locale", value.Locale);
                     }
 
-                    if (!String.IsNullOrEmpty(value.Text))
+                    if (!string.IsNullOrEmpty(value.Text))
                     {
                         WriteString("Text", value.Text);
                     }
@@ -1704,7 +1701,7 @@ namespace Opc.Ua
                 // check the length.
                 if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
                 {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
+                    throw ServiceResultException.Create(StatusCodes.BadEncodingLimitsExceeded, "Encodeable Array length={0}", values.Count);
                 }
 
                 // get name for type being encoded.
@@ -1751,7 +1748,7 @@ namespace Opc.Ua
                 // check the length.
                 if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Length)
                 {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
+                    throw ServiceResultException.Create(StatusCodes.BadEncodingLimitsExceeded, "Enumerated Array length={0}", values.Length);
                 }
 
                 // get name for type being encoded.
@@ -1871,13 +1868,13 @@ namespace Opc.Ua
 
                         case BuiltInType.Enumeration:
                         {
-                            if (!(value is int[] ints))
+                            if (value is not int[] ints)
                             {
-                                if (!(value is Enum[] enums))
+                                if (value is not Enum[] enums)
                                 {
-                                    throw new ServiceResultException(
+                                    throw ServiceResultException.Create(
                                         StatusCodes.BadEncodingError,
-                                        Utils.Format("Type '{0}' is not allowed in an Enumeration.", value.GetType().FullName));
+                                        "Type '{0}' is not allowed in an Enumeration.", value.GetType().FullName);
                                 }
                                 ints = new int[enums.Length];
                                 for (int ii = 0; ii < enums.Length; ii++)
@@ -1897,7 +1894,6 @@ namespace Opc.Ua
                                 WriteVariantArray("ListOfVariant", variants);
                                 return;
                             }
-
 
                             if (value is object[] objects)
                             {
@@ -1962,7 +1958,7 @@ namespace Opc.Ua
                 }
             }
 
-            if (!(body is IEncodeable encodeable))
+            if (body is not IEncodeable encodeable)
             {
                 throw new ServiceResultException(
                     StatusCodes.BadEncodingError,
@@ -2017,8 +2013,8 @@ namespace Opc.Ua
                 // write array.
                 if (valueRank == ValueRanks.OneDimension)
                 {
-                    /*One dimensional Array parameters are always encoded by wrapping the elements in a container element 
-                    * and inserting the container into the structure. The name of the container element should be the name of the parameter. 
+                    /*One dimensional Array parameters are always encoded by wrapping the elements in a container element
+                    * and inserting the container into the structure. The name of the container element should be the name of the parameter.
                     * The name of the element in the array shall be the type name.*/
                     switch (builtInType)
                     {
@@ -2048,9 +2044,9 @@ namespace Opc.Ua
                         case BuiltInType.DiagnosticInfo: { WriteDiagnosticInfoArray(fieldName, (DiagnosticInfo[])array); return; }
                         case BuiltInType.Enumeration:
                         {
-                            if (!(array is int[] ints))
+                            if (array is not int[] ints)
                             {
-                                if (!(array is Enum[] enums))
+                                if (array is not Enum[] enums)
                                 {
                                     throw new ServiceResultException(
                                         StatusCodes.BadEncodingError,
@@ -2081,7 +2077,6 @@ namespace Opc.Ua
                                 WriteEncodeableArray(fieldName, encodeableArray, array.GetType().GetElementType());
                                 return;
                             }
-
 
                             if (array is object[] objects)
                             {
@@ -2115,12 +2110,12 @@ namespace Opc.Ua
                 // write matrix.
                 else if (valueRank > ValueRanks.OneDimension)
                 {
-                    /* Multi-dimensional Arrays are encoded as an Int32 Array containing the dimensions followed by 
-                     * a list of all the values in the Array. The total number of values is equal to the 
+                    /* Multi-dimensional Arrays are encoded as an Int32 Array containing the dimensions followed by
+                     * a list of all the values in the Array. The total number of values is equal to the
                      * product of the dimensions.
                      * The number of values is 0 if one or more dimension is less than or equal to 0.*/
 
-                    if (!(array is Matrix matrix))
+                    if (array is not Matrix matrix)
                     {
                         if (array is Array multiArray && multiArray.Rank == valueRank)
                         {
@@ -2193,7 +2188,7 @@ namespace Opc.Ua
         private bool BeginField(string fieldName, bool isDefault, bool isNillable, bool isArrayElement = false)
         {
             // specifying a null field name means the start/end tags should not be written.
-            if (!String.IsNullOrEmpty(fieldName))
+            if (!string.IsNullOrEmpty(fieldName))
             {
                 if (isNillable && isDefault && !isArrayElement)
                 {
@@ -2222,7 +2217,7 @@ namespace Opc.Ua
         /// </summary>
         private void EndField(string fieldName)
         {
-            if (!String.IsNullOrEmpty(fieldName))
+            if (!string.IsNullOrEmpty(fieldName))
             {
                 m_writer.WriteEndElement();
             }

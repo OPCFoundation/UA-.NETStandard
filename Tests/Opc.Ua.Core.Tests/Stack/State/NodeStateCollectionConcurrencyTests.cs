@@ -56,7 +56,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
 
                 referenceTargets.CompleteAdding();
 
-            });
+            }, cancellationToken);
 
             foreach (var target in referenceTargets.GetConsumingEnumerable(cancellationToken))
             {
@@ -121,7 +121,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
 
                 notifierTargets.CompleteAdding();
 
-            });
+            }, cancellationToken);
 
             foreach(var target in notifierTargets.GetConsumingEnumerable(cancellationToken))
             {
@@ -185,7 +185,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
 
                 childrenCollection.CompleteAdding();
 
-            });
+            }, cancellationToken);
 
             foreach (var child in childrenCollection.GetConsumingEnumerable(cancellationToken))
             {

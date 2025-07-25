@@ -380,7 +380,7 @@ namespace Opc.Ua
         /// </summary>
         protected override NodeId GetDefaultTypeDefinitionId(NamespaceTable namespaceUris)
         {
-            return ObjectTypes.FolderType;
+            return ObjectTypeIds.FolderType;
         }
         #endregion
     }

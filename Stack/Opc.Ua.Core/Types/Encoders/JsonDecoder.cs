@@ -29,7 +29,7 @@ namespace Opc.Ua
     {
         #region Public Fields
         /// <summary>
-        /// The name of the Root array if the json is defined as an array 
+        /// The name of the Root array if the json is defined as an array
         /// </summary>
         public const string RootArrayName = "___root_array___";
 
@@ -397,7 +397,7 @@ namespace Opc.Ua
                 return 0;
             }
 
-            if (value < SByte.MinValue || value > SByte.MaxValue)
+            if (value is < sbyte.MinValue or > sbyte.MaxValue)
             {
                 return 0;
             }
@@ -424,7 +424,7 @@ namespace Opc.Ua
                 return 0;
             }
 
-            if (value < Byte.MinValue || value > Byte.MaxValue)
+            if (value is < byte.MinValue or > byte.MaxValue)
             {
                 return 0;
             }
@@ -451,7 +451,7 @@ namespace Opc.Ua
                 return 0;
             }
 ;
-            if (value < Int16.MinValue || value > Int16.MaxValue)
+            if (value is < short.MinValue or > short.MaxValue)
             {
                 return 0;
             }
@@ -478,7 +478,7 @@ namespace Opc.Ua
                 return 0;
             }
 
-            if (value < UInt16.MinValue || value > UInt16.MaxValue)
+            if (value is < ushort.MinValue or > ushort.MaxValue)
             {
                 return 0;
             }
@@ -505,7 +505,7 @@ namespace Opc.Ua
                 return ReadEnumeratedString<Int32>(token, Int32.TryParse);
             }
 
-            if (value < Int32.MinValue || value > Int32.MaxValue)
+            if (value is < int.MinValue or > int.MaxValue)
             {
                 return 0;
             }
@@ -532,7 +532,7 @@ namespace Opc.Ua
                 return ReadEnumeratedString<UInt32>(token, UInt32.TryParse);
             }
 
-            if (value < UInt32.MinValue || value > UInt32.MaxValue)
+            if (value is < uint.MinValue or > uint.MaxValue)
             {
                 return 0;
             }
@@ -558,17 +558,12 @@ namespace Opc.Ua
             {
                 long number = 0;
 
-                if (!(token is string text) || !Int64.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out number))
+                if (token is not string text || !Int64.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out number))
                 {
                     return 0;
                 }
 
                 return number;
-            }
-
-            if (value < Int64.MinValue || value > Int64.MaxValue)
-            {
-                return 0;
             }
 
             return (long)value;
@@ -657,7 +652,7 @@ namespace Opc.Ua
             }
 
             float floatValue = (float)value;
-            if (floatValue >= Single.MinValue && floatValue <= Single.MaxValue)
+            if (floatValue is >= float.MinValue and <= float.MaxValue)
             {
                 return (float)value;
             }
@@ -731,7 +726,7 @@ namespace Opc.Ua
             }
 
 
-            if (!(token is string value))
+            if (token is not string value)
             {
                 return null;
             }
@@ -790,7 +785,7 @@ namespace Opc.Ua
                 return Uuid.Empty;
             }
 
-            if (!(token is string value))
+            if (token is not string value)
             {
                 return Uuid.Empty;
             }
@@ -822,7 +817,7 @@ namespace Opc.Ua
                 return null;
             }
 
-            if (!(token is string value))
+            if (token is not string value)
             {
                 return Array.Empty<byte>();
             }
@@ -849,7 +844,7 @@ namespace Opc.Ua
                 return null;
             }
 
-            if (!(token is string value))
+            if (token is not string value)
             {
                 return null;
             }
@@ -907,7 +902,7 @@ namespace Opc.Ua
                 return nodeId;
             }
 
-            if (!(token is Dictionary<string, object> value))
+            if (token is not Dictionary<string, object> value)
             {
                 return NodeId.Null;
             }
@@ -939,7 +934,7 @@ namespace Opc.Ua
                     }
                     else
                     {
-                        if (index.Value >= 0 || index.Value < UInt16.MaxValue)
+                        if (index.Value is >= 0 and < ushort.MaxValue)
                         {
                             namespaceIndex = ToNamespaceIndex(index.Value);
                         }
@@ -1016,7 +1011,7 @@ namespace Opc.Ua
                 }
             }
 
-            if (!(token is Dictionary<string, object> value))
+            if (token is not Dictionary<string, object> value)
             {
                 return ExpandedNodeId.Null;
             }
@@ -1047,7 +1042,7 @@ namespace Opc.Ua
                     }
                     else
                     {
-                        if (index.Value >= 0 || index.Value < UInt16.MaxValue)
+                        if (index.Value is >= 0 and < ushort.MaxValue)
                         {
                             namespaceIndex = ToNamespaceIndex(index.Value);
                         }
@@ -1066,7 +1061,7 @@ namespace Opc.Ua
                     }
                     else
                     {
-                        if (index.Value >= 0 || index.Value < UInt32.MaxValue)
+                        if (index.Value is >= 0 and < uint.MaxValue)
                         {
                             serverIndex = ToServerIndex(index.Value);
                         }
@@ -1209,7 +1204,7 @@ namespace Opc.Ua
                 return qn;
             }
 
-            if (!(token is Dictionary<string, object> value))
+            if (token is not Dictionary<string, object> value)
             {
                 return QualifiedName.Null;
             }
@@ -1240,7 +1235,7 @@ namespace Opc.Ua
                     }
                     else
                     {
-                        if (index.Value >= 0 || index.Value < UInt16.MaxValue)
+                        if (index.Value is >= 0 and < ushort.MaxValue)
                         {
                             namespaceIndex = ToNamespaceIndex(index.Value);
                         }
@@ -1271,7 +1266,7 @@ namespace Opc.Ua
             string text = null;
 
 
-            if (!(token is Dictionary<string, object> value))
+            if (token is not Dictionary<string, object> value)
             {
                 // read non reversible encoding
                 text = token as string;
@@ -1354,7 +1349,7 @@ namespace Opc.Ua
             }
 
 
-            if (!(token is Dictionary<string, object> value))
+            if (token is not Dictionary<string, object> value)
             {
                 return Variant.Null;
             }
@@ -1393,7 +1388,7 @@ namespace Opc.Ua
             }
 
 
-            if (!(token is Dictionary<string, object> value))
+            if (token is not Dictionary<string, object> value)
             {
                 return null;
             }
@@ -1416,9 +1411,9 @@ namespace Opc.Ua
 
                 dv.StatusCode = ReadStatusCode("StatusCode");
                 dv.SourceTimestamp = ReadDateTime("SourceTimestamp");
-                dv.SourcePicoseconds = ReadUInt16("SourcePicoseconds");
+                dv.SourcePicoseconds = (dv.SourceTimestamp != DateTime.MinValue) ? ReadUInt16("SourcePicoseconds") : (ushort)0;
                 dv.ServerTimestamp = ReadDateTime("ServerTimestamp");
-                dv.ServerPicoseconds = ReadUInt16("ServerPicoseconds");
+                dv.ServerPicoseconds = (dv.ServerTimestamp != DateTime.MinValue) ? ReadUInt16("ServerPicoseconds") : (ushort)0;
             }
             finally
             {
@@ -2625,14 +2620,14 @@ namespace Opc.Ua
                     }
                 }
 
-                if (!(token is List<object> array))
+                if (token is not List<object> array)
                 {
                     return null;
                 }
 
                 List<object> elements = new List<object>();
                 List<int> dimensions = new List<int>();
-                if (builtInType == BuiltInType.Enumeration || builtInType == BuiltInType.Variant || builtInType == BuiltInType.Null)
+                if (builtInType is BuiltInType.Enumeration or BuiltInType.Variant or BuiltInType.Null)
                 {
                     DetermineIEncodeableSystemType(ref systemType, encodeableTypeId);
                 }
@@ -2640,7 +2635,7 @@ namespace Opc.Ua
 
                 if (dimensions.Count == 0)
                 {
-                    // for an empty element create the empty dimension array 
+                    // for an empty element create the empty dimension array
                     dimensions = new int[valueRank].ToList();
                 }
                 else if (dimensions.Count < ValueRanks.TwoDimensions)
@@ -3064,7 +3059,7 @@ namespace Opc.Ua
             }
 
 
-            if (!(token is Dictionary<string, object> value))
+            if (token is not Dictionary<string, object> value)
             {
                 return null;
             }
@@ -3405,7 +3400,7 @@ namespace Opc.Ua
                         Array part = ReadArray(null, ValueRanks.OneDimension, builtInType, systemType, encodeableTypeId);
                         if (part != null && part.Length > 0)
                         {
-                            // add part elements to final list 
+                            // add part elements to final list
                             foreach (var item in part)
                             {
                                 elements.Add(item);
@@ -3421,7 +3416,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Get Default value for NodeId for diferent IdTypes 
+        /// Get Default value for NodeId for diferent IdTypes
         /// </summary>
         /// <returns>new NodeId</returns>
         private NodeId DefaultNodeId(IdType idType, ushort namespaceIndex)

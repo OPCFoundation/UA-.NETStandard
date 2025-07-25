@@ -259,7 +259,7 @@ namespace Opc.Ua
                 (sanityCheck.BuiltInType == BuiltInType.Int32 && builtInType == BuiltInType.Enumeration) ||
                 (sanityCheck.BuiltInType == BuiltInType.ByteString && builtInType == BuiltInType.Byte) ||
                 (builtInType == BuiltInType.Variant));
-#endif																				 
+#endif
         }
         #endregion
 
@@ -269,8 +269,7 @@ namespace Opc.Ua
         private TypeInfo m_typeInfo;
         #endregion
 
-        #region Helper methods
-
+        #region Validation Methods
         /// <summary>
         /// A function that performs a validation on a given index into the dimensions array
         /// </summary>
@@ -335,15 +334,15 @@ namespace Opc.Ua
             {
                 if (dimCollection[i] == 0 && flatLength > 0)
                 {
-                    throw new ServiceResultException(
+                    throw ServiceResultException.Create(
                         StatusCodes.BadDecodingError,
-                        Utils.Format("ArrayDimensions [{0}] is zero in Variant object.", i));
+                        "ArrayDimensions [{0}] is zero in Variant object.", i);
                 }
                 else if (dimCollection[i] > flatLength && flatLength > 0)
                 {
-                    throw new ServiceResultException(
+                    throw ServiceResultException.Create(
                         StatusCodes.BadDecodingError,
-                        Utils.Format("ArrayDimensions [{0}] = {1} is greater than length {2}.", i, dimCollection[i], flatLength));
+                        "ArrayDimensions [{0}] = {1} is greater than length {2}.", i, dimCollection[i], flatLength);
                 }
                 return true;
             }
@@ -413,9 +412,7 @@ namespace Opc.Ua
             return (valid, flatLength);
         }
         #endregion
-
         #endregion
-
     }
 }
 

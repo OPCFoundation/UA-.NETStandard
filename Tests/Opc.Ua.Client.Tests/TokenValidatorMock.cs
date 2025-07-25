@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using Opc.Ua;
 using Quickstarts.ReferenceServer;
 
 namespace Opc.Ua.Client.Tests

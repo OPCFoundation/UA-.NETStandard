@@ -817,10 +817,7 @@ namespace Opc.Ua
     /// <summary>
     /// The types of encodings that may used with an object.
     /// </summary>
-    /// <remarks>
-    /// The types of encodings that may used with an object.
-    /// </remarks>
-    public enum ExtensionObjectEncoding
+    public enum ExtensionObjectEncoding : byte
     {
         /// <summary>
         /// The extension object has no body.

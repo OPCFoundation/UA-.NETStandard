@@ -292,7 +292,14 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                         case BuiltInType.DiagnosticInfo:
                             if (property.GetValue(typeInstance) == null)
                             {
-                                property.SetValue(typeInstance, new DiagnosticInfo());
+                                if (typeInfo.ValueRank == ValueRanks.Scalar)
+                                {
+                                    property.SetValue(typeInstance, new DiagnosticInfo());
+                                }
+                                else
+                                {
+                                    property.SetValue(typeInstance, new DiagnosticInfoCollection());
+                                }
                             }
                             break;
                         case BuiltInType.Enumeration:

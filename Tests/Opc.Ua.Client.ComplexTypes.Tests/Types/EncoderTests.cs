@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2018 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -195,14 +195,12 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             ServiceMessageContext localCtxt = (ServiceMessageContext)EncoderContext;
 
             // Serialize/Encode a Variant fails without a context available
-            Assert.Throws(
-               typeof(Newtonsoft.Json.JsonSerializationException),
+            Assert.Throws<Newtonsoft.Json.JsonSerializationException>(
                () => Newtonsoft.Json.JsonConvert.SerializeObject(keyValuePair));
 
             // Serialize/Encode an ExtensionObject fails without a context available
             var extObjToEncode = new ExtensionObject(keyValuePair);
-            Assert.Throws(
-                typeof(Newtonsoft.Json.JsonSerializationException),
+            Assert.Throws<Newtonsoft.Json.JsonSerializationException>(
                 () => Newtonsoft.Json.JsonConvert.SerializeObject(extObjToEncode));
 
             // Serialize/Encode a Variant succeeds with a context available
@@ -216,8 +214,6 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             {
                 _ = Newtonsoft.Json.JsonConvert.SerializeObject(extensionObject);
             }
-
-
         }
         #endregion Test Methods
     }

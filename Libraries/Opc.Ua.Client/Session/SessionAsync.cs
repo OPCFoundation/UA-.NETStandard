@@ -566,7 +566,6 @@ namespace Opc.Ua.Client
                 }
                 catch( Exception ex)
                 {
-                    // Archie For Debugging only
                     Utils.LogError("Session TRANSFER ASYNC of {0} subscriptions Failed due to unexpected Exception {1}",
                         subscriptions.Count, ex.Message);
                     failedSubscriptions++;
@@ -1189,7 +1188,8 @@ namespace Opc.Ua.Client
                                 browseDirection,
                                 referenceTypeId,
                                 includeSubtypes,
-                                nodeClassMask
+                                nodeClassMask,
+                                ct
                             ).ConfigureAwait(false);
 
                         int resultOffset = batchOffset;
@@ -1752,6 +1752,20 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public Task ReconnectAsync(ITransportChannel channel, CancellationToken ct)
             => ReconnectAsync(null, channel, ct);
+
+        /// <inheritdoc/>
+        public async Task ReloadInstanceCertificateAsync(CancellationToken ct = default)
+        {
+            await m_reconnectLock.WaitAsync(ct).ConfigureAwait(false);
+            try
+            {
+                await LoadInstanceCertificateAsync(null).ConfigureAwait(false);
+            }
+            finally
+            {
+                m_reconnectLock.Release();
+            }
+        }
 
         /// <summary>
         /// Reconnects to the server after a network failure using a waiting connection.

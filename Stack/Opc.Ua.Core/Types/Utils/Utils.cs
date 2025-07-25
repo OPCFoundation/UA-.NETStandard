@@ -186,7 +186,7 @@ namespace Opc.Ua
 #endif
 
         private static string s_traceFileName = string.Empty;
-        private readonly static object s_traceFileLock = new object();
+        private static readonly object s_traceFileLock = new object();
 
         /// <summary>
         /// The possible trace output mechanisms.
@@ -316,7 +316,7 @@ namespace Opc.Ua
         private static void TraceWriteLine(string message, params object[] args)
         {
             // null strings not supported.
-            if (String.IsNullOrEmpty(message))
+            if (string.IsNullOrEmpty(message))
             {
                 return;
             }
@@ -355,7 +355,7 @@ namespace Opc.Ua
 
                 string traceFileName = s_traceFileName;
 
-                if (s_traceOutput != (int)TraceOutput.Off && !String.IsNullOrEmpty(traceFileName))
+                if (s_traceOutput != (int)TraceOutput.Off && !string.IsNullOrEmpty(traceFileName))
                 {
                     try
                     {
@@ -399,7 +399,7 @@ namespace Opc.Ua
             lock (s_traceFileLock)
             {
                 // check if tracing is being turned off.
-                if (String.IsNullOrEmpty(filePath))
+                if (string.IsNullOrEmpty(filePath))
                 {
                     s_traceFileName = null;
                     return;
@@ -426,7 +426,7 @@ namespace Opc.Ua
                     TraceWriteLine(
                         "{1} Logging started at {0}",
                         DateTime.Now,
-                        new String('*', 25));
+                        new string('*', 25));
                 }
                 catch (Exception e)
                 {
@@ -483,7 +483,7 @@ namespace Opc.Ua
         {
             StringBuilder message = new StringBuilder();
 
-            // format message.            
+            // format message.
             if (args != null && args.Length > 0)
             {
                 try
@@ -519,7 +519,7 @@ namespace Opc.Ua
                 {
                     message.AppendLine();
                     message.AppendLine();
-                    var separator = new String('=', 40);
+                    var separator = new string('=', 40);
                     message.AppendLine(separator);
                     message.AppendLine(new ServiceResult(e).ToLongString());
                     message.AppendLine(separator);
@@ -590,7 +590,7 @@ namespace Opc.Ua
                 message.Append(formatter(state, exception));
                 if (exception != null)
                 {
-                    message.Append(TraceExceptionMessage(exception, String.Empty, null));
+                    message.Append(TraceExceptionMessage(exception, string.Empty, null));
                 }
             }
             catch (Exception)
@@ -680,7 +680,7 @@ namespace Opc.Ua
         public static string ReplaceSpecialFolderNames(string input)
         {
             // nothing to do for nulls.
-            if (String.IsNullOrEmpty(input))
+            if (string.IsNullOrEmpty(input))
             {
                 return null;
             }
@@ -706,7 +706,7 @@ namespace Opc.Ua
             if (index == -1)
             {
                 folder = input.Substring(1);
-                path = String.Empty;
+                path = string.Empty;
             }
             else
             {
@@ -753,7 +753,7 @@ namespace Opc.Ua
         /// <returns>The path to the file. Null if not found.</returns>
         public static string FindInstalledFile(string fileName)
         {
-            if (String.IsNullOrEmpty(fileName))
+            if (string.IsNullOrEmpty(fileName))
             {
                 return null;
             }
@@ -799,7 +799,7 @@ namespace Opc.Ua
         {
             filePath = Utils.ReplaceSpecialFolderNames(filePath);
 
-            if (!String.IsNullOrEmpty(filePath))
+            if (!string.IsNullOrEmpty(filePath))
             {
                 FileInfo file = new FileInfo(filePath);
 
@@ -929,7 +929,7 @@ namespace Opc.Ua
             string originalPath = dirPath;
             dirPath = Utils.ReplaceSpecialFolderNames(dirPath);
 
-            if (!String.IsNullOrEmpty(dirPath))
+            if (!string.IsNullOrEmpty(dirPath))
             {
                 DirectoryInfo directory = new DirectoryInfo(dirPath);
 
@@ -973,7 +973,7 @@ namespace Opc.Ua
                         }
                     }
 
-                    // return full path.      
+                    // return full path.
                     if (directory.Exists)
                     {
                         return directory.FullName;
@@ -1124,7 +1124,7 @@ namespace Opc.Ua
         /// </summary>
         public static int GetTimeout(TimeSpan timeSpan)
         {
-            if (timeSpan.TotalMilliseconds > Int32.MaxValue)
+            if (timeSpan.TotalMilliseconds > int.MaxValue)
             {
                 return -1;
             }
@@ -1169,7 +1169,7 @@ namespace Opc.Ua
             catch
             {
             }
-            if (String.IsNullOrEmpty(domainName))
+            if (string.IsNullOrEmpty(domainName))
             {
                 return Dns.GetHostName();
             }
@@ -1198,13 +1198,13 @@ namespace Opc.Ua
         public static string ReplaceLocalhost(string uri, string hostname = null)
         {
             // ignore nulls.
-            if (String.IsNullOrEmpty(uri))
+            if (string.IsNullOrEmpty(uri))
             {
                 return uri;
             }
 
-            // IPv6 address needs a surrounding [] 
-            if (!String.IsNullOrEmpty(hostname) && hostname.Contains(':'))
+            // IPv6 address needs a surrounding []
+            if (!string.IsNullOrEmpty(hostname) && hostname.Contains(':'))
             {
                 hostname = "[" + hostname + "]";
             }
@@ -1238,13 +1238,13 @@ namespace Opc.Ua
         public static string ReplaceDCLocalhost(string subjectName, string hostname = null)
         {
             // ignore nulls.
-            if (String.IsNullOrEmpty(subjectName))
+            if (string.IsNullOrEmpty(subjectName))
             {
                 return subjectName;
             }
 
-            // IPv6 address needs a surrounding [] 
-            if (!String.IsNullOrEmpty(hostname) && hostname.Contains(':'))
+            // IPv6 address needs a surrounding []
+            if (!string.IsNullOrEmpty(hostname) && hostname.Contains(':'))
             {
                 hostname = "[" + hostname + "]";
             }
@@ -1303,9 +1303,23 @@ namespace Opc.Ua
                 }
                 return buffer.ToString();
             }
-            return String.Empty;
+            return string.Empty;
         }
 
+#if NET9_0_OR_GREATER
+        /// <summary>
+        /// Unescapes a URI string using the percent encoding.
+        /// </summary>
+        public static string UnescapeUri(ReadOnlySpan<char> uri)
+        {
+            if (!uri.IsWhiteSpace())
+            {
+                return Uri.UnescapeDataString(uri);
+            }
+
+            return string.Empty;
+        }
+#else
         /// <summary>
         /// Unescapes a URI string using the percent encoding.
         /// </summary>
@@ -1316,8 +1330,9 @@ namespace Opc.Ua
                 return Uri.UnescapeDataString(uri);
             }
 
-            return String.Empty;
+            return string.Empty;
         }
+#endif
 
         /// <summary>
         /// Parses a URI string. Returns null if it is invalid.
@@ -1326,7 +1341,7 @@ namespace Opc.Ua
         {
             try
             {
-                if (String.IsNullOrEmpty(uri))
+                if (string.IsNullOrEmpty(uri))
                 {
                     return null;
                 }
@@ -1389,12 +1404,12 @@ namespace Opc.Ua
         /// <returns>True if they are equal.</returns>
         public static bool AreDomainsEqual(string domain1, string domain2)
         {
-            if (String.IsNullOrEmpty(domain1) || String.IsNullOrEmpty(domain2))
+            if (string.IsNullOrEmpty(domain1) || string.IsNullOrEmpty(domain2))
             {
                 return false;
             }
 
-            if (String.Equals(domain1, domain2, StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(domain1, domain2, StringComparison.OrdinalIgnoreCase))
             {
                 return true;
             }
@@ -1408,7 +1423,7 @@ namespace Opc.Ua
         public static string UpdateInstanceUri(string instanceUri)
         {
             // check for null.
-            if (String.IsNullOrEmpty(instanceUri))
+            if (string.IsNullOrEmpty(instanceUri))
             {
                 UriBuilder builder = new UriBuilder();
 
@@ -1472,7 +1487,7 @@ namespace Opc.Ua
         /// </summary>
         public static uint IncrementIdentifier(ref long identifier)
         {
-            System.Threading.Interlocked.CompareExchange(ref identifier, 0, UInt32.MaxValue);
+            System.Threading.Interlocked.CompareExchange(ref identifier, 0, uint.MaxValue);
             return (uint)System.Threading.Interlocked.Increment(ref identifier);
         }
 
@@ -1481,7 +1496,7 @@ namespace Opc.Ua
         /// </summary>
         public static int IncrementIdentifier(ref int identifier)
         {
-            System.Threading.Interlocked.CompareExchange(ref identifier, 0, Int32.MaxValue);
+            System.Threading.Interlocked.CompareExchange(ref identifier, 0, int.MaxValue);
             return System.Threading.Interlocked.Increment(ref identifier);
         }
 
@@ -1490,12 +1505,12 @@ namespace Opc.Ua
         /// </summary>
         public static int ToInt32(uint identifier)
         {
-            if (identifier <= (uint)Int32.MaxValue)
+            if (identifier <= (uint)int.MaxValue)
             {
                 return (int)identifier;
             }
 
-            return -(int)((long)UInt32.MaxValue - (long)identifier + 1);
+            return -(int)((long)uint.MaxValue - (long)identifier + 1);
         }
 
         /// <summary>
@@ -1508,7 +1523,7 @@ namespace Opc.Ua
                 return (uint)identifier;
             }
 
-            return (uint)((long)UInt32.MaxValue + 1 + (long)identifier);
+            return (uint)((long)uint.MaxValue + 1 + (long)identifier);
         }
 
         /// <summary>
@@ -1561,7 +1576,7 @@ namespace Opc.Ua
         {
             if (buffer == null || buffer.Length == 0)
             {
-                return String.Empty;
+                return string.Empty;
             }
 
             return ToHexString(new ReadOnlySpan<byte>(buffer), invertEndian);
@@ -1574,7 +1589,7 @@ namespace Opc.Ua
         {
             if (buffer.Length == 0)
             {
-                return String.Empty;
+                return string.Empty;
             }
 #else
         public static string ToHexString(byte[] buffer, bool invertEndian = false)
@@ -1683,7 +1698,7 @@ namespace Opc.Ua
                 return string.Format(CultureInfo.InvariantCulture, "{0}", source);
             }
 
-            return String.Empty;
+            return string.Empty;
         }
 
         /// <summary>
@@ -1699,7 +1714,7 @@ namespace Opc.Ua
         /// </summary>
         public static bool IsValidLocaleId(string localeId)
         {
-            if (String.IsNullOrEmpty(localeId))
+            if (string.IsNullOrEmpty(localeId))
             {
                 return false;
             }
@@ -1728,7 +1743,7 @@ namespace Opc.Ua
         {
             if (localeId == null)
             {
-                return String.Empty;
+                return string.Empty;
             }
 
             int index = localeId.IndexOf('-');
@@ -1768,7 +1783,7 @@ namespace Opc.Ua
                         continue;
                     }
 
-                    if (String.Equals(names[jj].Locale, localeIds[ii], StringComparison.OrdinalIgnoreCase))
+                    if (string.Equals(names[jj].Locale, localeIds[ii], StringComparison.OrdinalIgnoreCase))
                     {
                         return names[jj];
                     }
@@ -1789,7 +1804,7 @@ namespace Opc.Ua
 
                     string actualLanguageId = GetLanguageId(names[jj].Locale);
 
-                    if (String.Equals(languageId, actualLanguageId, StringComparison.OrdinalIgnoreCase))
+                    if (string.Equals(languageId, actualLanguageId, StringComparison.OrdinalIgnoreCase))
                     {
                         return names[jj];
                     }
@@ -1798,6 +1813,14 @@ namespace Opc.Ua
 
             // return default.
             return defaultName;
+        }
+
+        /// <summary>
+        /// Returns a deep copy of the value.
+        /// </summary>
+        public static object Clone(ICloneable value)
+        {
+            return value?.Clone();
         }
 
         /// <summary>
@@ -1813,7 +1836,7 @@ namespace Opc.Ua
             Type type = value.GetType();
 
             // nothing to do for value types.
-            if (type.GetTypeInfo().IsValueType)
+            if (type.GetTypeInfo().IsPrimitive)
             {
                 return value;
             }
@@ -1871,16 +1894,24 @@ namespace Opc.Ua
                 }
             }
 
+            // use ICloneable if supported
+            // must be checked before value type due to some
+            // structs implementing ICloneable
+            if (value is ICloneable cloneable)
+            {
+                return cloneable.Clone();
+            }
+
+            // nothing to do for other value types.
+            if (type.GetTypeInfo().IsValueType)
+            {
+                return value;
+            }
+
             // copy XmlNode.
             if (value is XmlNode node)
             {
                 return node.CloneNode(true);
-            }
-
-            // use ICloneable if supported
-            if (value is ICloneable cloneable)
-            {
-                return cloneable.Clone();
             }
 
             //try to find the MemberwiseClone method by reflection.
@@ -2044,7 +2075,7 @@ namespace Opc.Ua
         private static extern int memcmp(byte[] b1, byte[] b2, long count);
 
         /// <summary>
-        /// Fast memcpy version of byte[] compare. 
+        /// Fast memcpy version of byte[] compare.
         /// </summary>
         public static bool IsEqual(byte[] value1, byte[] value2)
         {
@@ -2060,7 +2091,7 @@ namespace Opc.Ua
             }
 
             // Validate buffers are the same length.
-            // This also ensures that the count does not exceed the length of either buffer.  
+            // This also ensures that the count does not exceed the length of either buffer.
             return value1.Length == value2.Length && memcmp(value1, value2, value1.Length) == 0;
         }
 #endif
@@ -2093,6 +2124,17 @@ namespace Opc.Ua
                 return value1.Equals(value2);
             }
 
+            // check for encodeable objects.
+            if (value1 is IEncodeable encodeable1)
+            {
+                if (!(value2 is IEncodeable encodeable2))
+                {
+                    return false;
+                }
+
+                return encodeable1.IsEqual(encodeable2);
+            }
+
             // check that data types are not the same.
             if (value1.GetType() != value2.GetType())
             {
@@ -2109,17 +2151,6 @@ namespace Opc.Ua
             if (value1 is IComparable comparable1)
             {
                 return comparable1.CompareTo(value2) == 0;
-            }
-
-            // check for encodeable objects.
-            if (value1 is IEncodeable encodeable1)
-            {
-                if (!(value2 is IEncodeable encodeable2))
-                {
-                    return false;
-                }
-
-                return encodeable1.IsEqual(encodeable2);
             }
 
             // check for XmlElement objects.
@@ -2210,7 +2241,7 @@ namespace Opc.Ua
 
                 while (enumerator1.MoveNext())
                 {
-                    // enumerable2 must be shorter. 
+                    // enumerable2 must be shorter.
                     if (!enumerator2.MoveNext())
                     {
                         return false;
@@ -2266,7 +2297,7 @@ namespace Opc.Ua
             }
             else
             {
-                if (String.Equals(target, pattern, StringComparison.OrdinalIgnoreCase))
+                if (string.Equals(target, pattern, StringComparison.OrdinalIgnoreCase))
                 {
                     return true;
                 }
@@ -2323,14 +2354,14 @@ namespace Opc.Ua
                         break;
                     }
 
-                    // match char set 
+                    // match char set
                     case '[':
                     {
                         c = ConvertCase(target[tIndex++], caseSensitive);
 
                         if (tIndex > target.Length)
                         {
-                            return false; // syntax 
+                            return false; // syntax
                         }
 
                         l = '\0';
@@ -2344,20 +2375,20 @@ namespace Opc.Ua
 
                             while (pIndex < pattern.Length)
                             {
-                                if (p == ']') // if end of char set, then 
+                                if (p == ']') // if end of char set, then
                                 {
-                                    break; // no match found 
+                                    break; // no match found
                                 }
 
                                 if (p == '-')
                                 {
-                                    // check a range of chars? 
+                                    // check a range of chars?
                                     p = ConvertCase(pattern[pIndex], caseSensitive);
 
-                                    // get high limit of range 
+                                    // get high limit of range
                                     if (pIndex > pattern.Length || p == ']')
                                     {
-                                        return false; // syntax 
+                                        return false; // syntax
                                     }
 
                                     if (c >= l && c <= p)
@@ -2368,9 +2399,9 @@ namespace Opc.Ua
 
                                 l = p;
 
-                                if (c == p) // if char matches this element 
+                                if (c == p) // if char matches this element
                                 {
-                                    return false; // return false 
+                                    return false; // return false
                                 }
 
                                 p = ConvertCase(pattern[pIndex++], caseSensitive);
@@ -2384,31 +2415,31 @@ namespace Opc.Ua
 
                             while (pIndex < pattern.Length)
                             {
-                                if (p == ']') // if end of char set, then no match found 
+                                if (p == ']') // if end of char set, then no match found
                                 {
                                     return false;
                                 }
 
                                 if (p == '-')
                                 {
-                                    // check a range of chars? 
+                                    // check a range of chars?
                                     p = ConvertCase(pattern[pIndex], caseSensitive);
 
-                                    // get high limit of range 
+                                    // get high limit of range
                                     if (pIndex > pattern.Length || p == ']')
                                     {
-                                        return false; // syntax 
+                                        return false; // syntax
                                     }
 
                                     if (c >= l && c <= p)
                                     {
-                                        break; // if in range, move on 
+                                        break; // if in range, move on
                                     }
                                 }
 
                                 l = p;
 
-                                if (c == p) // if char matches this element move on 
+                                if (c == p) // if char matches this element move on
                                 {
                                     break;
                                 }
@@ -2430,7 +2461,7 @@ namespace Opc.Ua
                     {
                         c = target[tIndex++];
 
-                        if (!Char.IsDigit(c))
+                        if (!char.IsDigit(c))
                         {
                             return false; // not a digit
                         }
@@ -2470,7 +2501,7 @@ namespace Opc.Ua
         // ConvertCase
         private static char ConvertCase(char c, bool caseSensitive)
         {
-            return (caseSensitive) ? c : Char.ToUpperInvariant(c);
+            return (caseSensitive) ? c : char.ToUpperInvariant(c);
         }
 
         /// <summary>
@@ -2666,7 +2697,7 @@ namespace Opc.Ua
                 {
                     if (attributes[ii] is DataMemberAttribute contract)
                     {
-                        if (String.IsNullOrEmpty(contract.Name))
+                        if (string.IsNullOrEmpty(contract.Name))
                         {
                             return property.Name;
                         }
@@ -2826,12 +2857,12 @@ namespace Opc.Ua
         /// <summary>
         /// Creates a X509 certificate object from the DER encoded bytes.
         /// </summary>
-        public static X509Certificate2 ParseCertificateBlob(ReadOnlyMemory<byte> certificateData)
+        public static X509Certificate2 ParseCertificateBlob(ReadOnlyMemory<byte> certificateData, bool useAsnParser = false)
         {
             // macOS X509Certificate2 constructor throws exception if a certchain is encoded
             // use AsnParser on macOS to parse for byteblobs,
 #if !NETFRAMEWORK
-            bool useAsnParser = RuntimeInformation.IsOSPlatform(OSPlatform.OSX);
+            useAsnParser = RuntimeInformation.IsOSPlatform(OSPlatform.OSX);
 #endif
             try
             {
@@ -2860,15 +2891,16 @@ namespace Opc.Ua
         /// Creates a X509 certificate collection object from the DER encoded bytes.
         /// </summary>
         /// <param name="certificateData">The certificate data.</param>
+        /// <param name="useAsnParser">Whether the ASN.1 library should be used to decode certificate blobs.</param>
         /// <returns></returns>
-        public static X509Certificate2Collection ParseCertificateChainBlob(ReadOnlyMemory<byte> certificateData)
+        public static X509Certificate2Collection ParseCertificateChainBlob(ReadOnlyMemory<byte> certificateData, bool useAsnParser = false)
         {
             X509Certificate2Collection certificateChain = new X509Certificate2Collection();
 
             // macOS X509Certificate2 constructor throws exception if a certchain is encoded
             // use AsnParser on macOS to parse for byteblobs,
 #if !NETFRAMEWORK
-            bool useAsnParser = RuntimeInformation.IsOSPlatform(OSPlatform.OSX);
+            useAsnParser = RuntimeInformation.IsOSPlatform(OSPlatform.OSX);
 #endif
             int offset = 0;
             int length = certificateData.Length;
@@ -3050,7 +3082,7 @@ namespace Opc.Ua
             byte[] seed = null;
 
             // convert label to UTF-8 byte sequence.
-            if (!String.IsNullOrEmpty(label))
+            if (!string.IsNullOrEmpty(label))
             {
                 seed = Encoding.UTF8.GetBytes(label);
             }
@@ -3154,7 +3186,7 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < strings.Count; ii++)
             {
-                if (String.Equals(strings[ii], target, StringComparison.OrdinalIgnoreCase))
+                if (string.Equals(strings[ii], target, StringComparison.OrdinalIgnoreCase))
                 {
                     return true;
                 }

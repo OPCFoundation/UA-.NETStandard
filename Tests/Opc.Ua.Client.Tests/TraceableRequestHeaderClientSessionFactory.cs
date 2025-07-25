@@ -42,7 +42,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Object that creates instances of an Opc.Ua.Client.Session object with Activity Source.
         /// </summary>
-        public new static readonly TraceableRequestHeaderClientSessionFactory Instance = new TraceableRequestHeaderClientSessionFactory();
+        public static new readonly TraceableRequestHeaderClientSessionFactory Instance = new TraceableRequestHeaderClientSessionFactory();
 
         /// <inheritdoc/>
         public override Session Create(
