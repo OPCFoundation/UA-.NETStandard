@@ -108,7 +108,7 @@ namespace Opc.Ua.Client.Tests
             return this.MasterNodeManagerReference;
         }
 
-        protected override SessionManager CreateSessionManager(IServerInternal server, ApplicationConfiguration configuration)
+        protected override ISessionManager CreateSessionManager(IServerInternal server, ApplicationConfiguration configuration)
         {
             this.SessionManagerForTest = new SessionManagerWithLimits(server, configuration);
             return this.SessionManagerForTest;
