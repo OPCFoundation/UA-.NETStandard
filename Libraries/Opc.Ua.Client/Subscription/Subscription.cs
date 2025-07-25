@@ -118,7 +118,7 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Resets the state of the publish timer and associated message worker. 
+        /// Resets the state of the publish timer and associated message worker.
         /// </summary>
         private void ResetPublishTimerAndWorkerState()
         {
@@ -420,13 +420,13 @@ namespace Opc.Ua.Client
 
         /// <summary>
         /// If the available sequence numbers of a subscription
-        /// are republished or acknowledged after a transfer. 
+        /// are republished or acknowledged after a transfer.
         /// </summary>
         /// <remarks>
         /// Default <c>false</c>, set to <c>true</c> if no data loss is important
         /// and available publish requests (sequence numbers) that were never acknowledged should be
         /// recovered with a republish. The setting is used after a subscription transfer.
-        /// </remarks>   
+        /// </remarks>
         [DataMember(Name = "RepublishAfterTransfer", Order = 15)]
         public bool RepublishAfterTransfer
         {
@@ -900,7 +900,7 @@ namespace Opc.Ua.Client
                 ModifyItems();
             }
 
-            // add available sequence numbers to incoming 
+            // add available sequence numbers to incoming
             ProcessTransferredSequenceNumbers(availableSequenceNumbers);
 
             m_changeMask |= SubscriptionChangeMask.Transferred;
@@ -979,7 +979,7 @@ namespace Opc.Ua.Client
                 await ModifyItemsAsync(ct).ConfigureAwait(false);
             }
 
-            // add available sequence numbers to incoming 
+            // add available sequence numbers to incoming
             ProcessTransferredSequenceNumbers(availableSequenceNumbers);
 
             m_changeMask |= SubscriptionChangeMask.Transferred;
@@ -2415,6 +2415,7 @@ namespace Opc.Ua.Client
                                 {
                                     events.PublishTime = message.PublishTime;
                                     events.SequenceNumber = message.SequenceNumber;
+                                    events.MoreNotifications = message.MoreNotifications;
 
                                     noNotificationsReceived += events.Events.Count;
 
@@ -2431,6 +2432,7 @@ namespace Opc.Ua.Client
                                 {
                                     statusChanged.PublishTime = message.PublishTime;
                                     statusChanged.SequenceNumber = message.SequenceNumber;
+                                    statusChanged.MoreNotifications = message.MoreNotifications;
 
                                     Utils.LogWarning("StatusChangeNotification received with Status = {0} for SubscriptionId={1}.",
                                         statusChanged.Status.ToString(), Id);
@@ -2529,7 +2531,7 @@ namespace Opc.Ua.Client
         /// </summary>
         private bool ValidSequentialPublishMessage(IncomingMessage message)
         {
-            // If sequential publishing is enabled, only release messages in perfect sequence. 
+            // If sequential publishing is enabled, only release messages in perfect sequence.
             return message.SequenceNumber <= m_lastSequenceNumberProcessed + 1 ||
                 // reconnect / transfer subscription case
                 m_resyncLastSequenceNumberProcessed ||
