@@ -9196,9 +9196,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint HasReferenceDescription = 32679;
-
-        /// <remarks />
-        public const uint HasLogHierarchy = 19371;
     }
     #endregion
 
@@ -9528,9 +9525,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint ServerCapabilitiesType_MaxHistoryContinuationPoints = 2734;
-
-        /// <remarks />
-        public const uint ServerCapabilitiesType_MaxLogObjectContinuationPoints = 19809;
 
         /// <remarks />
         public const uint ServerCapabilitiesType_SoftwareCertificates = 3049;
@@ -25484,6 +25478,9 @@ namespace Opc.Ua
         public const uint ServerLog_MaxStorageDuration = 19377;
 
         /// <remarks />
+        public const uint ServerLog_MinimumSeverity = 19751;
+
+        /// <remarks />
         public const uint IdType_EnumStrings = 7591;
 
         /// <remarks />
@@ -36054,9 +36051,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId HasReferenceDescription = new NodeId(Opc.Ua.ReferenceTypes.HasReferenceDescription);
-
-        /// <remarks />
-        public static readonly NodeId HasLogHierarchy = new NodeId(Opc.Ua.ReferenceTypes.HasLogHierarchy);
     }
     #endregion
 
@@ -36386,9 +36380,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId ServerCapabilitiesType_MaxHistoryContinuationPoints = new NodeId(Opc.Ua.Variables.ServerCapabilitiesType_MaxHistoryContinuationPoints);
-
-        /// <remarks />
-        public static readonly NodeId ServerCapabilitiesType_MaxLogObjectContinuationPoints = new NodeId(Opc.Ua.Variables.ServerCapabilitiesType_MaxLogObjectContinuationPoints);
 
         /// <remarks />
         public static readonly NodeId ServerCapabilitiesType_SoftwareCertificates = new NodeId(Opc.Ua.Variables.ServerCapabilitiesType_SoftwareCertificates);
@@ -52342,6 +52333,9 @@ namespace Opc.Ua
         public static readonly NodeId ServerLog_MaxStorageDuration = new NodeId(Opc.Ua.Variables.ServerLog_MaxStorageDuration);
 
         /// <remarks />
+        public static readonly NodeId ServerLog_MinimumSeverity = new NodeId(Opc.Ua.Variables.ServerLog_MinimumSeverity);
+
+        /// <remarks />
         public static readonly NodeId IdType_EnumStrings = new NodeId(Opc.Ua.Variables.IdType_EnumStrings);
 
         /// <remarks />
@@ -55954,9 +55948,6 @@ namespace Opc.Ua
         public const string HasKeyValueDescription = "HasKeyValueDescription";
 
         /// <remarks />
-        public const string HasLogHierarchy = "HasLogHierarchy";
-
-        /// <remarks />
         public const string HasLowerLayerInterface = "HasLowerLayerInterface";
 
         /// <remarks />
@@ -56747,9 +56738,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public const string MaxLifetimeCount = "MaxLifetimeCount";
-
-        /// <remarks />
-        public const string MaxLogObjectContinuationPoints = "MaxLogObjectContinuationPoints";
 
         /// <remarks />
         public const string MaxMonitoredItems = "MaxMonitoredItems";

@@ -104,6 +104,11 @@ namespace Opc.Ua.Gds
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -157,8 +162,7 @@ namespace Opc.Ua.Gds
                     applicationUri,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -271,6 +275,11 @@ namespace Opc.Ua.Gds
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -324,8 +333,7 @@ namespace Opc.Ua.Gds
                     application,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -436,6 +444,11 @@ namespace Opc.Ua.Gds
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -484,8 +497,7 @@ namespace Opc.Ua.Gds
                     application,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -591,6 +603,11 @@ namespace Opc.Ua.Gds
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -639,8 +656,7 @@ namespace Opc.Ua.Gds
                     applicationId,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -748,6 +764,11 @@ namespace Opc.Ua.Gds
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -801,8 +822,7 @@ namespace Opc.Ua.Gds
                     applicationId,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -920,6 +940,11 @@ namespace Opc.Ua.Gds
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -1003,8 +1028,7 @@ namespace Opc.Ua.Gds
                     capabilities,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -1141,6 +1165,11 @@ namespace Opc.Ua.Gds
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -1217,8 +1246,7 @@ namespace Opc.Ua.Gds
                     serverCapabilities,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -1922,6 +1950,11 @@ namespace Opc.Ua.Gds
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -1987,8 +2020,7 @@ namespace Opc.Ua.Gds
                     certificateRequest,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -2111,6 +2143,11 @@ namespace Opc.Ua.Gds
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -2188,8 +2225,7 @@ namespace Opc.Ua.Gds
                     privateKeyPassword,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -2316,6 +2352,11 @@ namespace Opc.Ua.Gds
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -2379,8 +2420,7 @@ namespace Opc.Ua.Gds
                     requestId,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -2503,6 +2543,11 @@ namespace Opc.Ua.Gds
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -2556,8 +2601,7 @@ namespace Opc.Ua.Gds
                     applicationId,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -2671,6 +2715,11 @@ namespace Opc.Ua.Gds
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -2728,8 +2777,7 @@ namespace Opc.Ua.Gds
                     certificateGroupId,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -2843,6 +2891,11 @@ namespace Opc.Ua.Gds
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -2895,8 +2948,7 @@ namespace Opc.Ua.Gds
                     certificate,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -3007,6 +3059,11 @@ namespace Opc.Ua.Gds
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -3068,8 +3125,7 @@ namespace Opc.Ua.Gds
                     certificateTypeId,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -3187,6 +3243,11 @@ namespace Opc.Ua.Gds
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -3247,8 +3308,7 @@ namespace Opc.Ua.Gds
                     certificateGroupId,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -3368,6 +3428,11 @@ namespace Opc.Ua.Gds
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -3424,8 +3489,7 @@ namespace Opc.Ua.Gds
                     certificate,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -5216,6 +5280,11 @@ namespace Opc.Ua.Gds
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -5281,8 +5350,7 @@ namespace Opc.Ua.Gds
                     requestedRoles,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -5404,6 +5472,11 @@ namespace Opc.Ua.Gds
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -5473,8 +5546,7 @@ namespace Opc.Ua.Gds
                     cancelRequest,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -5603,6 +5675,11 @@ namespace Opc.Ua.Gds
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -5651,8 +5728,7 @@ namespace Opc.Ua.Gds
                     credentialId,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -6406,6 +6482,11 @@ namespace Opc.Ua.Gds
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -6459,8 +6540,7 @@ namespace Opc.Ua.Gds
                     _objectId,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -6580,6 +6660,11 @@ namespace Opc.Ua.Gds
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -6637,8 +6722,7 @@ namespace Opc.Ua.Gds
                     resourceId,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
