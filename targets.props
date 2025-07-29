@@ -10,7 +10,7 @@
   A build with all custom targets which are not part of a regular build
   is scheduled once a week in the DevOps build pipeline.
   Uncomment the following lines to test a custom test target 
-  supported values: net462, netstandard2.0, netstandard2.1, net472, net48, net6.0, net8.0, net9.0
+  supported values: net462, netstandard2.0, netstandard2.1, net472, net48, net8.0, net9.0
    -->
   <!--
   <PropertyGroup>
@@ -55,9 +55,9 @@
         <AnalysisLevel>preview</AnalysisLevel>
         <AnalysisMode>all</AnalysisMode>
         <AnalysisModeStyle>default</AnalysisModeStyle>
-        <AppTargetFrameworks>net6.0</AppTargetFrameworks>
-        <AppTargetFramework>net6.0</AppTargetFramework>
-        <TestsTargetFrameworks>net6.0</TestsTargetFrameworks>
+        <AppTargetFrameworks>net8.0</AppTargetFrameworks>
+        <AppTargetFramework>net8.0</AppTargetFramework>
+        <TestsTargetFrameworks>net8.0</TestsTargetFrameworks>
         <LibTargetFrameworks>netstandard2.0</LibTargetFrameworks>
         <LibCoreTargetFrameworks>netstandard2.0</LibCoreTargetFrameworks>
         <LibxTargetFrameworks>netstandard2.1</LibxTargetFrameworks>
@@ -69,9 +69,9 @@
         <AnalysisLevel>preview</AnalysisLevel>
         <AnalysisMode>all</AnalysisMode>
         <AnalysisModeStyle>default</AnalysisModeStyle>
-        <AppTargetFrameworks>net6.0</AppTargetFrameworks>
-        <AppTargetFramework>net6.0</AppTargetFramework>
-        <TestsTargetFrameworks>net6.0</TestsTargetFrameworks>
+        <AppTargetFrameworks>net8.0</AppTargetFrameworks>
+        <AppTargetFramework>net8.0</AppTargetFramework>
+        <TestsTargetFrameworks>net8.0</TestsTargetFrameworks>
         <LibTargetFrameworks>netstandard2.1</LibTargetFrameworks>
         <LibCoreTargetFrameworks>netstandard2.1</LibCoreTargetFrameworks>
         <LibxTargetFrameworks>netstandard2.1</LibxTargetFrameworks>
