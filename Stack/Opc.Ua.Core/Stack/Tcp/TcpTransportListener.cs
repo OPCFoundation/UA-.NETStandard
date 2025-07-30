@@ -1064,8 +1064,11 @@ namespace Opc.Ua.Bindings
                                 var serverChannel = (TcpServerChannel)newChannel;
 
                                 serverChannel.SendResponse((uint)args[1], response);
+                                return;
                             }
                         }
+                        // if we could not find a new channel, just log the error
+                        throw;
                     }
                 }
             }
