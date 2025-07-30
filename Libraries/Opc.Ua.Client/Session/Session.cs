@@ -228,7 +228,6 @@ namespace Opc.Ua.Client
             m_instanceCertificate = null;
             m_endpoint = null;
             m_subscriptions = new List<Subscription>();
-            m_dictionaries = new Dictionary<NodeId, DataDictionary>();
             m_acknowledgementsToSend = new SubscriptionAcknowledgementCollection();
             m_acknowledgementsToSendLock = new object();
 #if DEBUG_SEQUENTIALPUBLISHING
@@ -599,11 +598,6 @@ namespace Opc.Ua.Client
         /// Gets the locales that the server should use when returning localized text.
         /// </summary>
         public StringCollection PreferredLocales => m_preferredLocales;
-
-        /// <summary>
-        /// Gets the data type system dictionaries in use.
-        /// </summary>
-        public IReadOnlyDictionary<NodeId, DataDictionary> DataTypeSystem => m_dictionaries;
 
         /// <summary>
         /// Gets the subscriptions owned by the session.
@@ -1792,154 +1786,6 @@ namespace Opc.Ua.Client
             }
 
             return references[0];
-        }
-
-        /// <inheritdoc/>
-        public async Task<DataDictionary> FindDataDictionary(NodeId descriptionId, CancellationToken ct = default)
-        {
-            // check if the dictionary has already been loaded.
-            foreach (DataDictionary dictionary in m_dictionaries.Values)
-            {
-                if (dictionary.Contains(descriptionId))
-                {
-                    return dictionary;
-                }
-            }
-
-            IList<INode> references = await NodeCache.FindReferencesAsync(descriptionId, ReferenceTypeIds.HasComponent, true, false, ct).ConfigureAwait(false);
-            if (references.Count == 0)
-            {
-                throw ServiceResultException.Create(StatusCodes.BadNodeIdInvalid, "Description does not refer to a valid data dictionary.");
-            }
-
-            // load the dictionary.
-            NodeId dictionaryId = ExpandedNodeId.ToNodeId(references[0].NodeId, m_namespaceUris);
-
-            DataDictionary dictionaryToLoad = new DataDictionary(this);
-
-            dictionaryToLoad.Load(references[0]);
-
-            m_dictionaries[dictionaryId] = dictionaryToLoad;
-
-            return dictionaryToLoad;
-        }
-
-        /// <inheritdoc/>
-        public DataDictionary LoadDataDictionary(ReferenceDescription dictionaryNode, bool forceReload = false)
-        {
-            // check if the dictionary has already been loaded.
-            DataDictionary dictionary;
-            NodeId dictionaryId = ExpandedNodeId.ToNodeId(dictionaryNode.NodeId, m_namespaceUris);
-            if (!forceReload &&
-                m_dictionaries.TryGetValue(dictionaryId, out dictionary))
-            {
-                return dictionary;
-            }
-
-            // load the dictionary.
-            DataDictionary dictionaryToLoad = new DataDictionary(this);
-            dictionaryToLoad.Load(dictionaryId, dictionaryNode.ToString());
-            m_dictionaries[dictionaryId] = dictionaryToLoad;
-            return dictionaryToLoad;
-        }
-
-        /// <inheritdoc/>
-        public async Task<Dictionary<NodeId, DataDictionary>> LoadDataTypeSystem(NodeId dataTypeSystem = null, CancellationToken ct = default)
-        {
-            if (dataTypeSystem == null)
-            {
-                dataTypeSystem = ObjectIds.OPCBinarySchema_TypeSystem;
-            }
-            else
-            if (!Utils.IsEqual(dataTypeSystem, ObjectIds.OPCBinarySchema_TypeSystem) &&
-                !Utils.IsEqual(dataTypeSystem, ObjectIds.XmlSchema_TypeSystem))
-            {
-                throw ServiceResultException.Create(StatusCodes.BadNodeIdInvalid, $"{nameof(dataTypeSystem)} does not refer to a valid data dictionary.");
-            }
-
-            // find the dictionary for the description.
-            IList<INode> references = await this.NodeCache.FindReferencesAsync(dataTypeSystem, ReferenceTypeIds.HasComponent, false, false, ct).ConfigureAwait(false);
-
-            if (references.Count == 0)
-            {
-                throw ServiceResultException.Create(StatusCodes.BadNodeIdInvalid, "Type system does not contain a valid data dictionary.");
-            }
-
-            // batch read all encodings and namespaces
-            var referenceNodeIds = references.Select(r => r.NodeId).ToList();
-
-            // find namespace properties
-            var namespaceReferences = await this.NodeCache.FindReferencesAsync(referenceNodeIds, new NodeIdCollection { ReferenceTypeIds.HasProperty }, false, false, ct).ConfigureAwait(false);
-            var namespaceNodes = namespaceReferences.Where(n => n.BrowseName == BrowseNames.NamespaceUri).ToList();
-            var namespaceNodeIds = namespaceNodes.Select(n => ExpandedNodeId.ToNodeId(n.NodeId, this.NamespaceUris)).ToList();
-
-            // read all schema definitions
-            var referenceExpandedNodeIds = references
-                .Select(r => ExpandedNodeId.ToNodeId(r.NodeId, this.NamespaceUris))
-                .Where(n => n.NamespaceIndex != 0).ToList();
-            IDictionary<NodeId, byte[]> schemas = await DataDictionary.ReadDictionaries(this, referenceExpandedNodeIds, ct).ConfigureAwait(false);
-
-            // read namespace property values
-            var namespaces = new Dictionary<NodeId, string>();
-            ReadValues(namespaceNodeIds, Enumerable.Repeat(typeof(string), namespaceNodeIds.Count).ToList(), out var nameSpaceValues, out var errors);
-
-            // build the namespace dictionary
-            for (int ii = 0; ii < nameSpaceValues.Count; ii++)
-            {
-                if (StatusCode.IsNotBad(errors[ii].StatusCode))
-                {
-                    // servers may optimize space by not returning a dictionary
-                    if (nameSpaceValues[ii] != null)
-                    {
-                        namespaces[((NodeId)referenceNodeIds[ii])] = (string)nameSpaceValues[ii];
-                    }
-                }
-                else
-                {
-                    Utils.LogWarning("Failed to load namespace {0}: {1}", namespaceNodeIds[ii], errors[ii]);
-                }
-            }
-
-            // build the namespace/schema import dictionary
-            var imports = new Dictionary<string, byte[]>();
-            foreach (var r in references)
-            {
-                NodeId nodeId = ExpandedNodeId.ToNodeId(r.NodeId, NamespaceUris);
-                if (schemas.TryGetValue(nodeId, out var schema) && namespaces.TryGetValue(nodeId, out var ns))
-                {
-                    imports[ns] = schema;
-                }
-            }
-
-            // read all type dictionaries in the type system
-            foreach (var r in references)
-            {
-                DataDictionary dictionaryToLoad = null;
-                NodeId dictionaryId = ExpandedNodeId.ToNodeId(r.NodeId, m_namespaceUris);
-                if (dictionaryId.NamespaceIndex != 0 &&
-                    !m_dictionaries.TryGetValue(dictionaryId, out dictionaryToLoad))
-                {
-                    try
-                    {
-                        dictionaryToLoad = new DataDictionary(this);
-                        if (schemas.TryGetValue(dictionaryId, out var schema))
-                        {
-                            dictionaryToLoad.Load(dictionaryId, dictionaryId.ToString(), schema, imports);
-                        }
-                        else
-                        {
-                            dictionaryToLoad.Load(dictionaryId, dictionaryId.ToString());
-                        }
-                        m_dictionaries[dictionaryId] = dictionaryToLoad;
-                    }
-                    catch (Exception ex)
-                    {
-                        Utils.LogError("Dictionary load error for Dictionary {0} : {1}", r.NodeId, ex.Message);
-                    }
-                }
-            }
-
-            return m_dictionaries;
         }
 
         /// <inheritdoc/>
@@ -6630,7 +6476,6 @@ namespace Opc.Ua.Client
         private Dictionary<uint, uint> m_latestAcknowledgementsSent;
 #endif
         private List<Subscription> m_subscriptions;
-        private Dictionary<NodeId, DataDictionary> m_dictionaries;
         private Subscription m_defaultSubscription;
         private bool m_deleteSubscriptionsOnClose;
         private bool m_transferSubscriptionsOnReconnect;

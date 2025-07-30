@@ -204,11 +204,6 @@ namespace Opc.Ua.Client
         StringCollection PreferredLocales { get; }
 
         /// <summary>
-        /// Gets the data type system dictionaries in use.
-        /// </summary>
-        IReadOnlyDictionary<NodeId, DataDictionary> DataTypeSystem { get; }
-
-        /// <summary>
         /// Gets the subscriptions owned by the session.
         /// </summary>
         IEnumerable<Subscription> Subscriptions { get; }
@@ -455,34 +450,6 @@ namespace Opc.Ua.Client
         /// </summary>
         /// <param name="encodingId">The encoding Id.</param>
         ReferenceDescription FindDataDescription(NodeId encodingId);
-
-#if (CLIENT_ASYNC)
-        /// <summary>
-        ///  Returns the data dictionary that contains the description.
-        /// </summary>
-        /// <param name="descriptionId">The description id.</param>
-        /// <param name="ct"></param>
-        Task<DataDictionary> FindDataDictionary(NodeId descriptionId, CancellationToken ct = default);
-
-        /// <summary>
-        ///  Returns the data dictionary that contains the description.
-        /// </summary>
-        /// <param name="dictionaryNode">The dictionary id.</param>
-        /// <param name="forceReload"></param>
-        /// <returns>The dictionary.</returns>
-        DataDictionary LoadDataDictionary(
-            ReferenceDescription dictionaryNode,
-            bool forceReload = false);
-
-        /// <summary>
-        /// Loads all dictionaries of the OPC binary or Xml schema type system.
-        /// </summary>
-        /// <param name="dataTypeSystem">The type system.</param>
-        /// <param name="ct"></param>
-        Task<Dictionary<NodeId, DataDictionary>> LoadDataTypeSystem(
-            NodeId dataTypeSystem = null,
-            CancellationToken ct = default);
-#endif
 
         /// <summary>
         /// Reads the values for the node attributes and returns a node object.

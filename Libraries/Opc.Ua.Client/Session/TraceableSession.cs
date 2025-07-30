@@ -176,9 +176,6 @@ namespace Opc.Ua.Client
         public StringCollection PreferredLocales => m_session.PreferredLocales;
 
         /// <inheritdoc/>
-        public IReadOnlyDictionary<NodeId, DataDictionary> DataTypeSystem => m_session.DataTypeSystem;
-
-        /// <inheritdoc/>
         public IEnumerable<Subscription> Subscriptions => m_session.Subscriptions;
 
         /// <inheritdoc/>
@@ -373,7 +370,7 @@ namespace Opc.Ua.Client
                 await m_session.ReloadInstanceCertificateAsync(ct).ConfigureAwait(false);
             }
         }
-		
+
         /// <inheritdoc/>
         public void Save(string filePath, IEnumerable<Type> knownTypes = null)
         {
@@ -479,33 +476,6 @@ namespace Opc.Ua.Client
             using (Activity activity = ActivitySource.StartActivity())
             {
                 return m_session.FindDataDescription(encodingId);
-            }
-        }
-
-        /// <inheritdoc/>
-        public async Task<DataDictionary> FindDataDictionary(NodeId descriptionId, CancellationToken ct = default)
-        {
-            using (Activity activity = ActivitySource.StartActivity())
-            {
-                return await m_session.FindDataDictionary(descriptionId, ct).ConfigureAwait(false);
-            }
-        }
-
-        /// <inheritdoc/>
-        public DataDictionary LoadDataDictionary(ReferenceDescription dictionaryNode, bool forceReload = false)
-        {
-            using (Activity activity = ActivitySource.StartActivity())
-            {
-                return m_session.LoadDataDictionary(dictionaryNode, forceReload);
-            }
-        }
-
-        /// <inheritdoc/>
-        public async Task<Dictionary<NodeId, DataDictionary>> LoadDataTypeSystem(NodeId dataTypeSystem = null, CancellationToken ct = default)
-        {
-            using (Activity activity = ActivitySource.StartActivity())
-            {
-                return await m_session.LoadDataTypeSystem(dataTypeSystem, ct).ConfigureAwait(false);
             }
         }
 
@@ -1318,7 +1288,7 @@ namespace Opc.Ua.Client
             }
         }
 
-        /// <inheritdoc/>        
+        /// <inheritdoc/>
         public Task<(
             IList<ReferenceDescriptionCollection>,
             IList<ServiceResult>

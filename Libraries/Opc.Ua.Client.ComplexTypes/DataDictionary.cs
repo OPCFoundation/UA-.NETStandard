@@ -37,7 +37,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Schema;
 
-namespace Opc.Ua.Client
+namespace Opc.Ua.Client.ComplexTypes
 {
     /// <summary>
     /// A class that holds the configuration for a UA service.
@@ -227,7 +227,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Reads the contents of multiple data dictionaries.
         /// </summary>
-        public static async Task<IDictionary<NodeId, byte[]>> ReadDictionaries(
+        public static async Task<IDictionary<NodeId, byte[]>> ReadDictionariesAsync(
             ISessionClientMethods session,
             IList<NodeId> dictionaryIds,
             CancellationToken ct = default)
@@ -251,7 +251,6 @@ namespace Opc.Ua.Client
                 itemsToRead.Add(itemToRead);
             }
 
-#if CLIENT_ASYNC
             // read values.
             ReadResponse readResponse = await session.ReadAsync(
                 null,
@@ -263,16 +262,6 @@ namespace Opc.Ua.Client
             DataValueCollection values = readResponse.Results;
             DiagnosticInfoCollection diagnosticInfos = readResponse.DiagnosticInfos;
             ResponseHeader response = readResponse.ResponseHeader;
-#else
-            // read values.
-            ResponseHeader response = session.Read(
-                null,
-                0,
-                TimestampsToReturn.Neither,
-                itemsToRead,
-                out DataValueCollection values,
-                out DiagnosticInfoCollection diagnosticInfos);
-#endif
             ClientBase.ValidateResponse(values, itemsToRead);
             ClientBase.ValidateDiagnosticInfos(diagnosticInfos, itemsToRead);
 
@@ -336,7 +325,7 @@ namespace Opc.Ua.Client
 
                 // return as a byte array.
                 return values[0].Value as byte[];
-                
+
             }
             catch (ServiceResultException ex)
             {
@@ -360,7 +349,7 @@ namespace Opc.Ua.Client
                 }
             }
 
-            
+
         }
 
         /// <summary>

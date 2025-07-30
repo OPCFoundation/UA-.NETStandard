@@ -66,11 +66,106 @@ namespace Opc.Ua.Client.ComplexTypes
         public IEncodeableFactory Factory => m_session.Factory;
 
         /// <inheritdoc/>
-        public Task<Dictionary<NodeId, DataDictionary>> LoadDataTypeSystem(
+        public NodeIdDictionary<DataDictionary> DataTypeSystem => m_dataTypeSystem;
+
+        /// <inheritdoc/>
+        public async Task<IReadOnlyDictionary<NodeId, DataDictionary>> LoadDataTypeSystem(
             NodeId dataTypeSystem = null,
             CancellationToken ct = default)
         {
-            return m_session.LoadDataTypeSystem(dataTypeSystem, ct);
+            if (dataTypeSystem == null)
+            {
+                dataTypeSystem = ObjectIds.OPCBinarySchema_TypeSystem;
+            }
+            else
+            if (!Utils.IsEqual(dataTypeSystem, ObjectIds.OPCBinarySchema_TypeSystem) &&
+                !Utils.IsEqual(dataTypeSystem, ObjectIds.XmlSchema_TypeSystem))
+            {
+                throw ServiceResultException.Create(StatusCodes.BadNodeIdInvalid, $"{nameof(dataTypeSystem)} does not refer to a valid data dictionary.");
+            }
+
+            // find the dictionary for the description.
+            IList<INode> references = await m_session.NodeCache.FindReferencesAsync(dataTypeSystem, ReferenceTypeIds.HasComponent, false, false, ct).ConfigureAwait(false);
+
+            if (references.Count == 0)
+            {
+                throw ServiceResultException.Create(StatusCodes.BadNodeIdInvalid, "Type system does not contain a valid data dictionary.");
+            }
+
+            // batch read all encodings and namespaces
+            var referenceNodeIds = references.Select(r => r.NodeId).ToList();
+
+            // find namespace properties
+            var namespaceReferences = await m_session.NodeCache.FindReferencesAsync(referenceNodeIds, new NodeIdCollection { ReferenceTypeIds.HasProperty }, false, false, ct).ConfigureAwait(false);
+            var namespaceNodes = namespaceReferences.Where(n => n.BrowseName == BrowseNames.NamespaceUri).ToList();
+            var namespaceNodeIds = namespaceNodes.Select(n => ExpandedNodeId.ToNodeId(n.NodeId, m_session.NamespaceUris)).ToList();
+
+            // read all schema definitions
+            var referenceExpandedNodeIds = references
+                .Select(r => ExpandedNodeId.ToNodeId(r.NodeId, this.NamespaceUris))
+                .Where(n => n.NamespaceIndex != 0).ToList();
+            IDictionary<NodeId, byte[]> schemas = await DataDictionary.ReadDictionariesAsync(m_session, referenceExpandedNodeIds, ct).ConfigureAwait(false);
+
+            // read namespace property values
+            var namespaces = new Dictionary<NodeId, string>();
+            m_session.ReadValues(namespaceNodeIds, Enumerable.Repeat(typeof(string), namespaceNodeIds.Count).ToList(), out var nameSpaceValues, out var errors);
+
+            // build the namespace dictionary
+            for (int ii = 0; ii < nameSpaceValues.Count; ii++)
+            {
+                if (StatusCode.IsNotBad(errors[ii].StatusCode))
+                {
+                    // servers may optimize space by not returning a dictionary
+                    if (nameSpaceValues[ii] != null)
+                    {
+                        namespaces[((NodeId)referenceNodeIds[ii])] = (string)nameSpaceValues[ii];
+                    }
+                }
+                else
+                {
+                    Utils.LogWarning("Failed to load namespace {0}: {1}", namespaceNodeIds[ii], errors[ii]);
+                }
+            }
+
+            // build the namespace/schema import dictionary
+            var imports = new Dictionary<string, byte[]>();
+            foreach (var r in references)
+            {
+                NodeId nodeId = ExpandedNodeId.ToNodeId(r.NodeId, NamespaceUris);
+                if (schemas.TryGetValue(nodeId, out var schema) && namespaces.TryGetValue(nodeId, out var ns))
+                {
+                    imports[ns] = schema;
+                }
+            }
+
+            // read all type dictionaries in the type system
+            foreach (var r in references)
+            {
+                DataDictionary dictionaryToLoad = null;
+                NodeId dictionaryId = ExpandedNodeId.ToNodeId(r.NodeId, m_session.NamespaceUris);
+                if (dictionaryId.NamespaceIndex != 0 &&
+                    !m_dataTypeSystem.TryGetValue(dictionaryId, out dictionaryToLoad))
+                {
+                    try
+                    {
+                        dictionaryToLoad = new DataDictionary(m_session);
+                        if (schemas.TryGetValue(dictionaryId, out var schema))
+                        {
+                            dictionaryToLoad.Load(dictionaryId, dictionaryId.ToString(), schema, imports);
+                        }
+                        else
+                        {
+                            dictionaryToLoad.Load(dictionaryId, dictionaryId.ToString());
+                        }
+                        m_dataTypeSystem[dictionaryId] = dictionaryToLoad;
+                    }
+                    catch (Exception ex)
+                    {
+                        Utils.LogError("Dictionary load error for Dictionary {0} : {1}", r.NodeId, ex.Message);
+                    }
+                }
+            }
+            return m_dataTypeSystem;
         }
 
         /// <inheritdoc/>
@@ -270,6 +365,7 @@ namespace Opc.Ua.Client.ComplexTypes
         #endregion Private Methods
 
         #region Private Fields
+        private readonly NodeIdDictionary<DataDictionary> m_dataTypeSystem = new NodeIdDictionary<DataDictionary>();
         private ISession m_session;
         #endregion Private Fields
     }//namespace

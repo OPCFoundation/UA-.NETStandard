@@ -42,20 +42,25 @@ using Moq;
 using NUnit.Framework;
 using Opc.Ua.Bindings;
 using Opc.Ua.Configuration;
+using Opc.Ua.Client.Tests;
 using Opc.Ua.Server.Tests;
 using Quickstarts.ReferenceServer;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
+using Opc.Ua.Client.ComplexTypes;
 
-namespace Opc.Ua.Client.Tests
+namespace Opc.Ua.Client.ComlexTypes.Tests
 {
-    public class ClientTestServerQuotas : ClientTestFramework
+    /// <summary>
+    /// Data dictionary load tests
+    /// </summary>
+    public class DataDictionaryTests : ClientTestFramework
     {
         const int MaxByteStringLengthForTest = 4096;
-        public ClientTestServerQuotas() : base(Utils.UriSchemeOpcTcp)
+        public DataDictionaryTests() : base(Utils.UriSchemeOpcTcp)
         {
         }
 
-        public ClientTestServerQuotas(string uriScheme = Utils.UriSchemeOpcTcp) :
+        public DataDictionaryTests(string uriScheme = Utils.UriSchemeOpcTcp) :
             base(uriScheme)
         {
         }
@@ -153,40 +158,110 @@ namespace Opc.Ua.Client.Tests
 
         #region Test Methods
 
-        [Test, Order(200)]
-        public void TestBoundaryCaseForReadingChunks()
+        [Test, Order(100)]
+        public void ReadDictionaryByteString()
         {
+            List<NodeId> dictionaryIds = new List<NodeId>();
+            dictionaryIds.Add(VariableIds.OpcUa_BinarySchema);
+            dictionaryIds.Add(GetTestDataDictionaryNodeId());
 
             Session theSession = ((Session)(((TraceableSession)Session).Session));
 
-            int NamespaceIndex = theSession.NamespaceUris.GetIndex("http://opcfoundation.org/Quickstarts/ReferenceServer");
-            NodeId NodeId = new NodeId($"ns={NamespaceIndex};s=Scalar_Static_ByteString");
-
-            Random random = new Random();
-
-            byte[] chunk = new byte[MaxByteStringLengthForTest];
-            random.NextBytes(chunk);
-
-            WriteValue WriteValue = new WriteValue {
-                NodeId = NodeId,
-                AttributeId = Attributes.Value,
-                Value = new DataValue() { WrappedValue = new Variant(chunk) },
-                IndexRange = null
-            };
-            WriteValueCollection writeValues = new WriteValueCollection {
-                    WriteValue
-                };
-            theSession.Write(null, writeValues, out StatusCodeCollection results, out DiagnosticInfoCollection diagnosticInfos);
-
-            if (results[0] != StatusCodes.Good)
+            foreach (NodeId dataDictionaryId in dictionaryIds)
             {
-                Assert.Fail($"Write failed with status code {results[0]}");
+                ReferenceDescription referenceDescription = new ReferenceDescription();
+
+                referenceDescription.NodeId = NodeId.ToExpandedNodeId(dataDictionaryId, theSession.NodeCache.NamespaceUris);
+
+                // make sure the dictionary is too large to fit in a single message
+                ReadValueId readValueId = new ReadValueId {
+                    NodeId = dataDictionaryId,
+                    AttributeId = Attributes.Value,
+                    IndexRange = null,
+                    DataEncoding = null
+                };
+
+                ReadValueIdCollection nodesToRead = new ReadValueIdCollection {
+                    readValueId
+                };
+
+                var x = Assert.Throws<ServiceResultException>(() => {
+                    theSession.Read(null, 0, TimestampsToReturn.Neither, nodesToRead, out DataValueCollection results, out DiagnosticInfoCollection diagnosticInfos);
+                });
+
+                Assert.AreEqual(StatusCodes.BadEncodingLimitsExceeded, x.StatusCode);
+
+                // now ensure we get the dictionary in chunks
+                DataDictionary dictionary = LoadDataDictionary(theSession, referenceDescription);
+                Assert.IsNotNull(dictionary);
+
+                // Sanity checks: verify that some well-known information is present
+                Assert.AreEqual(dictionary.TypeSystemName, "OPC Binary");
+
+                if (dataDictionaryId == dictionaryIds[0])
+                {
+                    Assert.IsTrue(dictionary.DataTypes.Count > 160);
+                    Assert.IsTrue(dictionary.DataTypes.ContainsKey(VariableIds.OpcUa_BinarySchema_Union));
+                    Assert.IsTrue(dictionary.DataTypes.ContainsKey(VariableIds.OpcUa_BinarySchema_OptionSet));
+                    Assert.AreEqual("http://opcfoundation.org/UA/", dictionary.TypeDictionary.TargetNamespace);
+                }
+                else if (dataDictionaryId == dictionaryIds[1])
+                {
+                    Assert.IsTrue(dictionary.DataTypes.Count >= 10);
+                    Assert.AreEqual("http://test.org/UA/Data/", dictionary.TypeDictionary.TargetNamespace);
+                }
             }
-
-            byte[] readData = theSession.ReadByteStringInChunks(NodeId);
-
-            Assert.IsTrue(Utils.IsEqual(chunk, readData));
         }
+
         #endregion // Test Methods
+        #region // helper methods
+
+        /// <summary>
+        /// Load the data dictionary from the server.
+        /// </summary>
+        /// <param name="session"></param>
+        /// <param name="dictionaryNode"></param>
+        /// <returns></returns>
+        public DataDictionary LoadDataDictionary(ISession session, ReferenceDescription dictionaryNode)
+        {
+            // check if the dictionary has already been loaded.
+            NodeId dictionaryId = ExpandedNodeId.ToNodeId(dictionaryNode.NodeId, session.NamespaceUris);
+            // load the dictionary.
+            DataDictionary dictionaryToLoad = new DataDictionary(session);
+            dictionaryToLoad.Load(dictionaryId, dictionaryNode.ToString());
+            return dictionaryToLoad;
+        }
+
+        /// <summary>
+        /// retrieve the node id of the test data dictionary without relying on
+        /// hard coded identifiers
+        /// </summary>
+        /// <returns></returns>
+        public NodeId GetTestDataDictionaryNodeId()
+        {
+            BrowseDescription browseDescription = new BrowseDescription() {
+                NodeId = ObjectIds.OPCBinarySchema_TypeSystem,
+                BrowseDirection = BrowseDirection.Forward,
+                ReferenceTypeId = ReferenceTypeIds.HasComponent,
+                IncludeSubtypes = true,
+                NodeClassMask = (uint)NodeClass.Variable,
+                ResultMask = (uint) BrowseResultMask.All
+            };
+            BrowseDescriptionCollection browseDescriptions = new BrowseDescriptionCollection() { browseDescription };
+
+            Session.Browse(null, null, 0, browseDescriptions, out BrowseResultCollection results, out DiagnosticInfoCollection diagnosticInfos);
+
+            if (results[0] == null || results[0].StatusCode != StatusCodes.Good)
+            {
+                throw new Exception("cannot read the id of the test dictionary");
+            }
+            ReferenceDescription referenceDescription = results[0].References.FirstOrDefault(a => a.BrowseName.Name == "TestData");
+            NodeId result = ExpandedNodeId.ToNodeId(referenceDescription.NodeId,Session.NamespaceUris);
+            return result;
+
+
+        }
+        #endregion // helper methods
+
     }
 }
