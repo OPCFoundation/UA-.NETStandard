@@ -241,7 +241,7 @@ namespace Opc.Ua.Client
         /// Returns true if the session is not receiving keep alives.
         /// </summary>
         /// <remarks>
-        /// Set to true if the server does not respond for 2 times the KeepAliveInterval.
+        /// Set to true if the server does not respond for the KeepAliveInterval times a configurable factor + a configurable guard band.
         /// Set to false is communication recovers.
         /// </remarks>
         bool KeepAliveStopped { get; }

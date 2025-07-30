@@ -1050,8 +1050,7 @@
         <String>15607:16300</String>
         <String>16306:17633</String>
         <String>17635:19090</String>
-        <String>19092:19811</String>
-        <String>19813:24094</String>
+        <String>19092:24094</String>
         <String>24102:24103</String>
         <String>24105:31915</String>
         <String>31917:2147483647</String>
@@ -2081,7 +2080,6 @@
       <Reference ReferenceType="HasProperty">i=2732</Reference>
       <Reference ReferenceType="HasProperty">i=2733</Reference>
       <Reference ReferenceType="HasProperty">i=2734</Reference>
-      <Reference ReferenceType="HasProperty">i=19809</Reference>
       <Reference ReferenceType="HasProperty">i=3049</Reference>
       <Reference ReferenceType="HasProperty">i=11549</Reference>
       <Reference ReferenceType="HasProperty">i=11550</Reference>
@@ -2148,14 +2146,6 @@
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=2013</Reference>
-    </References>
-  </UAVariable>
-  <UAVariable NodeId="i=19809" BrowseName="MaxLogObjectContinuationPoints" ParentNodeId="i=2013" DataType="UInt16">
-    <DisplayName>MaxLogObjectContinuationPoints</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasModellingRule">i=80</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">i=2013</Reference>
     </References>
   </UAVariable>
@@ -59968,13 +59958,6 @@
       <Reference ReferenceType="HasSubtype" IsForward="false">i=11163</Reference>
     </References>
   </UAObjectType>
-  <UAReferenceType NodeId="i=19371" BrowseName="HasLogHierarchy">
-    <DisplayName>HasLogHierarchy</DisplayName>
-    <References>
-      <Reference ReferenceType="HasSubtype" IsForward="false">i=36</Reference>
-    </References>
-    <InverseName>IsChildOfLogHierarchy</InverseName>
-  </UAReferenceType>
   <UAObject NodeId="i=19372" BrowseName="ServerLog">
     <DisplayName>ServerLog</DisplayName>
     <Category>LogObject ServerLog</Category>
@@ -59983,6 +59966,7 @@
       <Reference ReferenceType="HasComponent">i=19373</Reference>
       <Reference ReferenceType="HasProperty">i=19376</Reference>
       <Reference ReferenceType="HasProperty">i=19377</Reference>
+      <Reference ReferenceType="HasProperty">i=19751</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">i=2253</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=19352</Reference>
     </References>
@@ -60150,6 +60134,13 @@
   </UAVariable>
   <UAVariable NodeId="i=19377" BrowseName="MaxStorageDuration" ParentNodeId="i=19372" DataType="i=290">
     <DisplayName>MaxStorageDuration</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=19372</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="i=19751" BrowseName="MinimumSeverity" ParentNodeId="i=19372" DataType="UInt16">
+    <DisplayName>MinimumSeverity</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">i=19372</Reference>

@@ -150,6 +150,65 @@ namespace Opc.Ua.Security.Certificates
             return EncodeAsPEM(exportedPkcs8PrivateKey,
                 String.IsNullOrEmpty(password) ? "PRIVATE KEY" : "ENCRYPTED PRIVATE KEY");
         }
+
+        /// <summary>
+        /// Returns a byte array containing the private key in PEM format.
+        /// </summary>
+        public static bool TryRemovePublicKeyFromPEM(
+            string thumbprint,
+            ReadOnlySpan<byte> pemDataBlob,
+            out byte[] modifiedPemDataBlob
+            )
+        {
+            modifiedPemDataBlob = null;
+            string label = "CERTIFICATE";
+            string beginlabel = $"-----BEGIN {label}-----";
+            string endlabel = $"-----END {label}-----";
+            try
+            {
+                string pemText = Encoding.UTF8.GetString(pemDataBlob);
+                int searchPosition = 0;
+                int count = 0;
+                int endIndex = 0;
+                while (endIndex > -1 && count < 99)
+                {
+                    count++;
+                    int beginIndex = pemText.IndexOf(beginlabel, searchPosition, StringComparison.Ordinal);
+                    if (beginIndex < 0)
+                    {
+                        return false;
+                    }
+                    endIndex = pemText.IndexOf(endlabel, searchPosition, StringComparison.Ordinal);
+                    beginIndex += beginlabel.Length;
+                    if (endIndex < 0 || endIndex <= beginIndex)
+                    {
+                        return false;
+                    }
+                    var pemCertificateContent = pemText.Substring(beginIndex, endIndex - beginIndex);
+                    Span<byte> pemCertificateDecoded = new Span<byte>(new byte[pemCertificateContent.Length]);
+                    if (Convert.TryFromBase64Chars(pemCertificateContent, pemCertificateDecoded, out var bytesWritten))
+                    {
+#if NET6_0_OR_GREATER
+                        var certificate = X509CertificateLoader.LoadCertificate(pemCertificateDecoded);
+#else
+                        var certificate = X509CertificateLoader.LoadCertificate(pemCertificateDecoded.ToArray());
+#endif
+                        if (thumbprint.Equals(certificate.Thumbprint, StringComparison.OrdinalIgnoreCase))
+                        {
+                            modifiedPemDataBlob = Encoding.ASCII.GetBytes(pemText.Replace(pemText.Substring(beginIndex -= beginlabel.Length, endIndex + endlabel.Length), string.Empty));
+                            return true;
+                        }
+                    }
+
+                    searchPosition = endIndex + endlabel.Length;
+                }
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+            return false;
+        }
 #endif
         #endregion
 

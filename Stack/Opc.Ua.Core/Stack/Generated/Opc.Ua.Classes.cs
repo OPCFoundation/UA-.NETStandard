@@ -1107,11 +1107,6 @@ namespace Opc.Ua
         {
             base.InitializeOptionalChildren(context);
 
-            if (MaxLogObjectContinuationPoints != null)
-            {
-                MaxLogObjectContinuationPoints.Initialize(context, MaxLogObjectContinuationPoints_InitializationString);
-            }
-
             if (MaxArrayLength != null)
             {
                 MaxArrayLength.Initialize(context, MaxArrayLength_InitializationString);
@@ -1184,10 +1179,6 @@ namespace Opc.Ua
         }
 
         #region Initialization String
-        private const string MaxLogObjectContinuationPoints_InitializationString =
-           "//////////8VYIkKAgAAAAAAHgAAAE1heExvZ09iamVjdENvbnRpbnVhdGlvblBvaW50cwEAYU0ALgBE" +
-           "YU0AAAAF/////wEB/////wAAAAA=";
-
         private const string MaxArrayLength_InitializationString =
            "//////////8VYIkKAgAAAAAADgAAAE1heEFycmF5TGVuZ3RoAQAdLQAuAEQdLQAAAAf/////AQH/////" +
            "AAAAAA==";
@@ -1252,39 +1243,38 @@ namespace Opc.Ua
 
         private const string InitializationString =
            "//////////8EYIACAQAAAAAAHgAAAFNlcnZlckNhcGFiaWxpdGllc1R5cGVJbnN0YW5jZQEA3QcBAN0H" +
-           "3QcAAP////8YAAAAF2CJCgIAAAAAABIAAABTZXJ2ZXJQcm9maWxlQXJyYXkBAN4HAC4ARN4HAAAADAEA" +
+           "3QcAAP////8XAAAAF2CJCgIAAAAAABIAAABTZXJ2ZXJQcm9maWxlQXJyYXkBAN4HAC4ARN4HAAAADAEA" +
            "AAABAAAAAAAAAAEB/////wAAAAAXYIkKAgAAAAAADQAAAExvY2FsZUlkQXJyYXkBAOAHAC4AROAHAAAB" +
            "ACcBAQAAAAEAAAAAAAAAAQH/////AAAAABVgiQoCAAAAAAAWAAAATWluU3VwcG9ydGVkU2FtcGxlUmF0" +
            "ZQEA4QcALgBE4QcAAAEAIgH/////AQH/////AAAAABVgiQoCAAAAAAAbAAAATWF4QnJvd3NlQ29udGlu" +
            "dWF0aW9uUG9pbnRzAQCsCgAuAESsCgAAAAX/////AQH/////AAAAABVgiQoCAAAAAAAaAAAATWF4UXVl" +
            "cnlDb250aW51YXRpb25Qb2ludHMBAK0KAC4ARK0KAAAABf////8BAf////8AAAAAFWCJCgIAAAAAABwA" +
-           "AABNYXhIaXN0b3J5Q29udGludWF0aW9uUG9pbnRzAQCuCgAuAESuCgAAAAX/////AQH/////AAAAABVg" +
-           "iQoCAAAAAAAeAAAATWF4TG9nT2JqZWN0Q29udGludWF0aW9uUG9pbnRzAQBhTQAuAERhTQAAAAX/////" +
-           "AQH/////AAAAABdgiQoCAAAAAAAUAAAAU29mdHdhcmVDZXJ0aWZpY2F0ZXMBAOkLAC4AROkLAAABAFgB" +
-           "AQAAAAEAAAAAAAAAAQH/////AAAAABVgiQoCAAAAAAAOAAAATWF4QXJyYXlMZW5ndGgBAB0tAC4ARB0t" +
-           "AAAAB/////8BAf////8AAAAAFWCJCgIAAAAAAA8AAABNYXhTdHJpbmdMZW5ndGgBAB4tAC4ARB4tAAAA" +
-           "B/////8BAf////8AAAAAFWCJCgIAAAAAABMAAABNYXhCeXRlU3RyaW5nTGVuZ3RoAQBuMgAuAERuMgAA" +
-           "AAf/////AQH/////AAAAAARggAoBAAAAAAAPAAAAT3BlcmF0aW9uTGltaXRzAQAfLQAvAQAsLR8tAAD/" +
-           "////AAAAAARggAoBAAAAAAAOAAAATW9kZWxsaW5nUnVsZXMBAOMHAC8APeMHAAD/////AAAAAARggAoB" +
-           "AAAAAAASAAAAQWdncmVnYXRlRnVuY3Rpb25zAQDCCgAvAD3CCgAA/////wAAAAAEYIAKAQAAAAAABwAA" +
-           "AFJvbGVTZXQBAKc/AC8BAPc8pz8AAP////8CAAAABGGCCgQAAAAAAAcAAABBZGRSb2xlAQCoPwAvAQB9" +
-           "Pqg/AAABAf////8CAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEAqT8ALgBEqT8AAJYCAAAA" +
-           "AQAqAQEXAAAACAAAAFJvbGVOYW1lAAz/////AAAAAAABACoBARsAAAAMAAAATmFtZXNwYWNlVXJpAAz/" +
-           "////AAAAAAABACgBAQAAAAEAAAACAAAAAQH/////AAAAABdgqQoCAAAAAAAPAAAAT3V0cHV0QXJndW1l" +
-           "bnRzAQCqPwAuAESqPwAAlgEAAAABACoBARkAAAAKAAAAUm9sZU5vZGVJZAAR/////wAAAAAAAQAoAQEA" +
-           "AAABAAAAAQAAAAEB/////wAAAAAEYYIKBAAAAAAACgAAAFJlbW92ZVJvbGUBAKs/AC8BAIA+qz8AAAEB" +
-           "/////wEAAAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQCsPwAuAESsPwAAlgEAAAABACoBARkA" +
-           "AAAKAAAAUm9sZU5vZGVJZAAR/////wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAAAAAVYIkKAgAA" +
-           "AAAACwAAAE1heFNlc3Npb25zAQAYXgAuAEQYXgAAAAf/////AQH/////AAAAABVgiQoCAAAAAAAQAAAA" +
-           "TWF4U3Vic2NyaXB0aW9ucwEAGV4ALgBEGV4AAAAH/////wEB/////wAAAAAVYIkKAgAAAAAAEQAAAE1h" +
-           "eE1vbml0b3JlZEl0ZW1zAQAaXgAuAEQaXgAAAAf/////AQH/////AAAAABVgiQoCAAAAAAAaAAAATWF4" +
-           "U3Vic2NyaXB0aW9uc1BlclNlc3Npb24BABteAC4ARBteAAAAB/////8BAf////8AAAAAFWCJCgIAAAAA" +
-           "ACAAAABNYXhNb25pdG9yZWRJdGVtc1BlclN1YnNjcmlwdGlvbgEAJ14ALgBEJ14AAAAH/////wEB////" +
-           "/wAAAAAVYIkKAgAAAAAAGQAAAE1heFNlbGVjdENsYXVzZVBhcmFtZXRlcnMBABxeAC4ARBxeAAAAB///" +
-           "//8BAf////8AAAAAFWCJCgIAAAAAABgAAABNYXhXaGVyZUNsYXVzZVBhcmFtZXRlcnMBAB1eAC4ARB1e" +
-           "AAAAB/////8BAf////8AAAAAFWCJCgIAAAAAABoAAABNYXhNb25pdG9yZWRJdGVtc1F1ZXVlU2l6ZQEA" +
-           "GnwALgBEGnwAAAAH/////wEB/////wAAAAAXYIkKAgAAAAAAEAAAAENvbmZvcm1hbmNlVW5pdHMBAB5e" +
-           "AC4ARB5eAAAAFAEAAAABAAAAAAAAAAEB/////wAAAAA=";
+           "AABNYXhIaXN0b3J5Q29udGludWF0aW9uUG9pbnRzAQCuCgAuAESuCgAAAAX/////AQH/////AAAAABdg" +
+           "iQoCAAAAAAAUAAAAU29mdHdhcmVDZXJ0aWZpY2F0ZXMBAOkLAC4AROkLAAABAFgBAQAAAAEAAAAAAAAA" +
+           "AQH/////AAAAABVgiQoCAAAAAAAOAAAATWF4QXJyYXlMZW5ndGgBAB0tAC4ARB0tAAAAB/////8BAf//" +
+           "//8AAAAAFWCJCgIAAAAAAA8AAABNYXhTdHJpbmdMZW5ndGgBAB4tAC4ARB4tAAAAB/////8BAf////8A" +
+           "AAAAFWCJCgIAAAAAABMAAABNYXhCeXRlU3RyaW5nTGVuZ3RoAQBuMgAuAERuMgAAAAf/////AQH/////" +
+           "AAAAAARggAoBAAAAAAAPAAAAT3BlcmF0aW9uTGltaXRzAQAfLQAvAQAsLR8tAAD/////AAAAAARggAoB" +
+           "AAAAAAAOAAAATW9kZWxsaW5nUnVsZXMBAOMHAC8APeMHAAD/////AAAAAARggAoBAAAAAAASAAAAQWdn" +
+           "cmVnYXRlRnVuY3Rpb25zAQDCCgAvAD3CCgAA/////wAAAAAEYIAKAQAAAAAABwAAAFJvbGVTZXQBAKc/" +
+           "AC8BAPc8pz8AAP////8CAAAABGGCCgQAAAAAAAcAAABBZGRSb2xlAQCoPwAvAQB9Pqg/AAABAf////8C" +
+           "AAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEAqT8ALgBEqT8AAJYCAAAAAQAqAQEXAAAACAAA" +
+           "AFJvbGVOYW1lAAz/////AAAAAAABACoBARsAAAAMAAAATmFtZXNwYWNlVXJpAAz/////AAAAAAABACgB" +
+           "AQAAAAEAAAACAAAAAQH/////AAAAABdgqQoCAAAAAAAPAAAAT3V0cHV0QXJndW1lbnRzAQCqPwAuAESq" +
+           "PwAAlgEAAAABACoBARkAAAAKAAAAUm9sZU5vZGVJZAAR/////wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB" +
+           "/////wAAAAAEYYIKBAAAAAAACgAAAFJlbW92ZVJvbGUBAKs/AC8BAIA+qz8AAAEB/////wEAAAAXYKkK" +
+           "AgAAAAAADgAAAElucHV0QXJndW1lbnRzAQCsPwAuAESsPwAAlgEAAAABACoBARkAAAAKAAAAUm9sZU5v" +
+           "ZGVJZAAR/////wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAAAAAVYIkKAgAAAAAACwAAAE1heFNl" +
+           "c3Npb25zAQAYXgAuAEQYXgAAAAf/////AQH/////AAAAABVgiQoCAAAAAAAQAAAATWF4U3Vic2NyaXB0" +
+           "aW9ucwEAGV4ALgBEGV4AAAAH/////wEB/////wAAAAAVYIkKAgAAAAAAEQAAAE1heE1vbml0b3JlZEl0" +
+           "ZW1zAQAaXgAuAEQaXgAAAAf/////AQH/////AAAAABVgiQoCAAAAAAAaAAAATWF4U3Vic2NyaXB0aW9u" +
+           "c1BlclNlc3Npb24BABteAC4ARBteAAAAB/////8BAf////8AAAAAFWCJCgIAAAAAACAAAABNYXhNb25p" +
+           "dG9yZWRJdGVtc1BlclN1YnNjcmlwdGlvbgEAJ14ALgBEJ14AAAAH/////wEB/////wAAAAAVYIkKAgAA" +
+           "AAAAGQAAAE1heFNlbGVjdENsYXVzZVBhcmFtZXRlcnMBABxeAC4ARBxeAAAAB/////8BAf////8AAAAA" +
+           "FWCJCgIAAAAAABgAAABNYXhXaGVyZUNsYXVzZVBhcmFtZXRlcnMBAB1eAC4ARB1eAAAAB/////8BAf//" +
+           "//8AAAAAFWCJCgIAAAAAABoAAABNYXhNb25pdG9yZWRJdGVtc1F1ZXVlU2l6ZQEAGnwALgBEGnwAAAAH" +
+           "/////wEB/////wAAAAAXYIkKAgAAAAAAEAAAAENvbmZvcm1hbmNlVW5pdHMBAB5eAC4ARB5eAAAAFAEA" +
+           "AAABAAAAAAAAAAEB/////wAAAAA=";
         #endregion
         #endif
         #endregion
@@ -1401,25 +1391,6 @@ namespace Opc.Ua
                 }
 
                 m_maxHistoryContinuationPoints = value;
-            }
-        }
-
-        /// <remarks />
-        public PropertyState<ushort> MaxLogObjectContinuationPoints
-        {
-            get
-            {
-                return m_maxLogObjectContinuationPoints;
-            }
-
-            set
-            {
-                if (!Object.ReferenceEquals(m_maxLogObjectContinuationPoints, value))
-                {
-                    ChangeMasks |= NodeStateChangeMasks.Children;
-                }
-
-                m_maxLogObjectContinuationPoints = value;
             }
         }
 
@@ -1783,11 +1754,6 @@ namespace Opc.Ua
                 children.Add(m_maxHistoryContinuationPoints);
             }
 
-            if (m_maxLogObjectContinuationPoints != null)
-            {
-                children.Add(m_maxLogObjectContinuationPoints);
-            }
-
             if (m_softwareCertificates != null)
             {
                 children.Add(m_softwareCertificates);
@@ -2015,27 +1981,6 @@ namespace Opc.Ua
                     }
 
                     instance = MaxHistoryContinuationPoints;
-                    break;
-                }
-
-                case Opc.Ua.BrowseNames.MaxLogObjectContinuationPoints:
-                {
-                    if (createOrReplace)
-                    {
-                        if (MaxLogObjectContinuationPoints == null)
-                        {
-                            if (replacement == null)
-                            {
-                                MaxLogObjectContinuationPoints = new PropertyState<ushort>(this);
-                            }
-                            else
-                            {
-                                MaxLogObjectContinuationPoints = (PropertyState<ushort>)replacement;
-                            }
-                        }
-                    }
-
-                    instance = MaxLogObjectContinuationPoints;
                     break;
                 }
 
@@ -2413,7 +2358,6 @@ namespace Opc.Ua
         private PropertyState<ushort> m_maxBrowseContinuationPoints;
         private PropertyState<ushort> m_maxQueryContinuationPoints;
         private PropertyState<ushort> m_maxHistoryContinuationPoints;
-        private PropertyState<ushort> m_maxLogObjectContinuationPoints;
         private PropertyState<SignedSoftwareCertificate[]> m_softwareCertificates;
         private PropertyState<uint> m_maxArrayLength;
         private PropertyState<uint> m_maxStringLength;
@@ -29446,6 +29390,11 @@ namespace Opc.Ua
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -29502,8 +29451,7 @@ namespace Opc.Ua
                     subscriptionId,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -29617,6 +29565,11 @@ namespace Opc.Ua
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -29665,8 +29618,7 @@ namespace Opc.Ua
                     subscriptionId,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -29774,6 +29726,11 @@ namespace Opc.Ua
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -29831,8 +29788,7 @@ namespace Opc.Ua
                     lifetimeInHours,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -29947,6 +29903,11 @@ namespace Opc.Ua
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -30011,8 +29972,7 @@ namespace Opc.Ua
                     restart,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -36493,6 +36453,11 @@ namespace Opc.Ua
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -36546,8 +36511,7 @@ namespace Opc.Ua
                     mode,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -36657,6 +36621,11 @@ namespace Opc.Ua
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -36705,8 +36674,7 @@ namespace Opc.Ua
                     fileHandle,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -36813,6 +36781,11 @@ namespace Opc.Ua
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -36870,8 +36843,7 @@ namespace Opc.Ua
                     length,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -36984,6 +36956,11 @@ namespace Opc.Ua
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -37036,8 +37013,7 @@ namespace Opc.Ua
                     data,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -37146,6 +37122,11 @@ namespace Opc.Ua
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -37199,8 +37180,7 @@ namespace Opc.Ua
                     fileHandle,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -37311,6 +37291,11 @@ namespace Opc.Ua
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -37363,8 +37348,7 @@ namespace Opc.Ua
                     position,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -37768,6 +37752,11 @@ namespace Opc.Ua
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -37821,8 +37810,7 @@ namespace Opc.Ua
                     directoryName,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -37935,6 +37923,11 @@ namespace Opc.Ua
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -37995,8 +37988,7 @@ namespace Opc.Ua
                     requestFileOpen,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -38112,6 +38104,11 @@ namespace Opc.Ua
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -38160,8 +38157,7 @@ namespace Opc.Ua
                     objectToDelete,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -38270,6 +38266,11 @@ namespace Opc.Ua
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -38335,8 +38336,7 @@ namespace Opc.Ua
                     newName,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -38748,6 +38748,11 @@ namespace Opc.Ua
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -38807,8 +38812,7 @@ namespace Opc.Ua
                     generateOptions,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -38929,6 +38933,11 @@ namespace Opc.Ua
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -38985,8 +38994,7 @@ namespace Opc.Ua
                     generateOptions,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -39102,6 +39110,11 @@ namespace Opc.Ua
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -39155,8 +39168,7 @@ namespace Opc.Ua
                     fileHandle,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -39600,6 +39612,11 @@ namespace Opc.Ua
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -39657,8 +39674,7 @@ namespace Opc.Ua
                     namespaceUri,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -39770,6 +39786,11 @@ namespace Opc.Ua
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -39818,8 +39839,7 @@ namespace Opc.Ua
                     roleNodeId,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -40694,6 +40714,11 @@ namespace Opc.Ua
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -40742,8 +40767,7 @@ namespace Opc.Ua
                     rule,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -40848,6 +40872,11 @@ namespace Opc.Ua
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -40896,8 +40925,7 @@ namespace Opc.Ua
                     rule,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -41002,6 +41030,11 @@ namespace Opc.Ua
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -41050,8 +41083,7 @@ namespace Opc.Ua
                     applicationUri,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -41157,6 +41189,11 @@ namespace Opc.Ua
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -41205,8 +41242,7 @@ namespace Opc.Ua
                     applicationUri,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -41311,6 +41347,11 @@ namespace Opc.Ua
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -41359,8 +41400,7 @@ namespace Opc.Ua
                     endpoint,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -41465,6 +41505,11 @@ namespace Opc.Ua
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -41513,8 +41558,7 @@ namespace Opc.Ua
                     endpoint,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -47994,6 +48038,11 @@ namespace Opc.Ua
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -48046,8 +48095,7 @@ namespace Opc.Ua
                     monitoredItemId,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -48155,6 +48203,11 @@ namespace Opc.Ua
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -48203,8 +48256,7 @@ namespace Opc.Ua
                     subscriptionId,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -48311,6 +48363,11 @@ namespace Opc.Ua
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -48363,8 +48420,7 @@ namespace Opc.Ua
                     comment,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -49030,6 +49086,11 @@ namespace Opc.Ua
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -49078,8 +49139,7 @@ namespace Opc.Ua
                     selectedResponse,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -49185,6 +49245,11 @@ namespace Opc.Ua
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -49237,8 +49302,7 @@ namespace Opc.Ua
                     comment,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -51454,6 +51518,11 @@ namespace Opc.Ua
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -51502,8 +51571,7 @@ namespace Opc.Ua
                     comment,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -51609,6 +51677,11 @@ namespace Opc.Ua
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -51656,8 +51729,7 @@ namespace Opc.Ua
                     _objectId,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -52350,6 +52422,11 @@ namespace Opc.Ua
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -52398,8 +52475,7 @@ namespace Opc.Ua
                     shelvingTime,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -52505,6 +52581,11 @@ namespace Opc.Ua
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -52557,8 +52638,7 @@ namespace Opc.Ua
                     comment,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -68262,6 +68342,11 @@ namespace Opc.Ua
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -68315,8 +68400,7 @@ namespace Opc.Ua
                     masks,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -68428,6 +68512,11 @@ namespace Opc.Ua
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -68481,8 +68570,7 @@ namespace Opc.Ua
                     fileHandle,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -68593,6 +68681,11 @@ namespace Opc.Ua
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -68645,8 +68738,7 @@ namespace Opc.Ua
                     isTrustedCertificate,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -68754,6 +68846,11 @@ namespace Opc.Ua
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -68806,8 +68903,7 @@ namespace Opc.Ua
                     isTrustedCertificate,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -72250,6 +72346,11 @@ namespace Opc.Ua
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -72325,8 +72426,7 @@ namespace Opc.Ua
                     restartDelayTime,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -72453,6 +72553,11 @@ namespace Opc.Ua
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -72501,8 +72606,7 @@ namespace Opc.Ua
                     updateId,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -73039,6 +73143,11 @@ namespace Opc.Ua
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -73112,8 +73221,7 @@ namespace Opc.Ua
                     privateKey,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -73238,6 +73346,11 @@ namespace Opc.Ua
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -73307,8 +73420,7 @@ namespace Opc.Ua
                     nonce,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -73432,6 +73544,11 @@ namespace Opc.Ua
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -73509,8 +73626,7 @@ namespace Opc.Ua
                     keySizeInBits,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -73633,6 +73749,11 @@ namespace Opc.Ua
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -73685,8 +73806,7 @@ namespace Opc.Ua
                     certificateTypeId,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -73794,6 +73914,11 @@ namespace Opc.Ua
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -73841,8 +73966,7 @@ namespace Opc.Ua
                     _objectId,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -73953,6 +74077,11 @@ namespace Opc.Ua
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -74009,8 +74138,7 @@ namespace Opc.Ua
                     certificateGroupId,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -77162,6 +77290,11 @@ namespace Opc.Ua
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -77227,8 +77360,7 @@ namespace Opc.Ua
                     endpointUrls,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -77506,6 +77638,11 @@ namespace Opc.Ua
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -77566,8 +77703,7 @@ namespace Opc.Ua
                     requestedSecurityPolicyUri,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -78224,6 +78360,11 @@ namespace Opc.Ua
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -78284,8 +78425,7 @@ namespace Opc.Ua
                     securityPolicyUri,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -79659,6 +79799,11 @@ namespace Opc.Ua
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -79732,8 +79877,7 @@ namespace Opc.Ua
                     requestedKeyCount,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -79865,6 +80009,11 @@ namespace Opc.Ua
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -79918,8 +80067,7 @@ namespace Opc.Ua
                     securityGroupId,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -80035,6 +80183,11 @@ namespace Opc.Ua
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -80107,8 +80260,7 @@ namespace Opc.Ua
                     maxPastKeyCount,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -80231,6 +80383,11 @@ namespace Opc.Ua
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -80279,8 +80436,7 @@ namespace Opc.Ua
                     securityGroupNodeId,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -80387,6 +80543,11 @@ namespace Opc.Ua
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -80440,8 +80601,7 @@ namespace Opc.Ua
                     name,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -80552,6 +80712,11 @@ namespace Opc.Ua
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -80600,8 +80765,7 @@ namespace Opc.Ua
                     securityGroupFolderNodeId,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -81520,6 +81684,11 @@ namespace Opc.Ua
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -81573,8 +81742,7 @@ namespace Opc.Ua
                     securityGroupIds,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -81687,6 +81855,11 @@ namespace Opc.Ua
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -81740,8 +81913,7 @@ namespace Opc.Ua
                     securityGroupIds,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -82790,6 +82962,11 @@ namespace Opc.Ua
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -82863,8 +83040,7 @@ namespace Opc.Ua
                     retryInterval,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -82984,6 +83160,11 @@ namespace Opc.Ua
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -83032,8 +83213,7 @@ namespace Opc.Ua
                     pushTargetId,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -83140,6 +83320,11 @@ namespace Opc.Ua
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -83193,8 +83378,7 @@ namespace Opc.Ua
                     name,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -83305,6 +83489,11 @@ namespace Opc.Ua
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -83353,8 +83542,7 @@ namespace Opc.Ua
                     pushTargetFolderNodeId,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -84569,6 +84757,11 @@ namespace Opc.Ua
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -84641,8 +84834,7 @@ namespace Opc.Ua
                     keyLifetime,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -84761,6 +84953,11 @@ namespace Opc.Ua
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -84814,8 +85011,7 @@ namespace Opc.Ua
                     configuration,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -84925,6 +85121,11 @@ namespace Opc.Ua
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -84973,8 +85174,7 @@ namespace Opc.Ua
                     connectionId,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -85311,6 +85511,11 @@ namespace Opc.Ua
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -85378,8 +85583,7 @@ namespace Opc.Ua
                     numReqDataSetWriterIds,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -85508,6 +85712,11 @@ namespace Opc.Ua
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -85578,8 +85787,7 @@ namespace Opc.Ua
                     configurationReferences,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -86267,6 +86475,11 @@ namespace Opc.Ua
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -86324,8 +86537,7 @@ namespace Opc.Ua
                     fieldValue,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -86437,6 +86649,11 @@ namespace Opc.Ua
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -86485,8 +86702,7 @@ namespace Opc.Ua
                     fieldId,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -86873,6 +87089,11 @@ namespace Opc.Ua
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -86941,8 +87162,7 @@ namespace Opc.Ua
                     variablesToAdd,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -87066,6 +87286,11 @@ namespace Opc.Ua
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -87126,8 +87351,7 @@ namespace Opc.Ua
                     variablesToRemove,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -88098,6 +88322,11 @@ namespace Opc.Ua
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -88163,8 +88392,7 @@ namespace Opc.Ua
                     selectedFields,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -88286,6 +88514,11 @@ namespace Opc.Ua
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -88357,8 +88590,7 @@ namespace Opc.Ua
                     variablesToAdd,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -88488,6 +88720,11 @@ namespace Opc.Ua
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -88564,8 +88801,7 @@ namespace Opc.Ua
                     filter,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -88693,6 +88929,11 @@ namespace Opc.Ua
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -88757,8 +88998,7 @@ namespace Opc.Ua
                     variablesToAdd,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -88881,6 +89121,11 @@ namespace Opc.Ua
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -88950,8 +89195,7 @@ namespace Opc.Ua
                     filter,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -89070,6 +89314,11 @@ namespace Opc.Ua
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -89118,8 +89367,7 @@ namespace Opc.Ua
                     dataSetNodeId,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -89226,6 +89474,11 @@ namespace Opc.Ua
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -89279,8 +89532,7 @@ namespace Opc.Ua
                     name,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -89391,6 +89643,11 @@ namespace Opc.Ua
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -89439,8 +89696,7 @@ namespace Opc.Ua
                     dataSetFolderNodeId,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -90248,6 +90504,11 @@ namespace Opc.Ua
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -90304,8 +90565,7 @@ namespace Opc.Ua
                     includeChildren,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -90423,6 +90683,11 @@ namespace Opc.Ua
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -90488,8 +90753,7 @@ namespace Opc.Ua
                     force,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -90608,6 +90872,11 @@ namespace Opc.Ua
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -90661,8 +90930,7 @@ namespace Opc.Ua
                     configuration,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -90775,6 +91043,11 @@ namespace Opc.Ua
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -90828,8 +91101,7 @@ namespace Opc.Ua
                     configuration,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -90940,6 +91212,11 @@ namespace Opc.Ua
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -90988,8 +91265,7 @@ namespace Opc.Ua
                     groupId,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -92319,6 +92595,11 @@ namespace Opc.Ua
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -92375,8 +92656,7 @@ namespace Opc.Ua
                     includeChildren,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -92494,6 +92774,11 @@ namespace Opc.Ua
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -92559,8 +92844,7 @@ namespace Opc.Ua
                     force,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -92679,6 +92963,11 @@ namespace Opc.Ua
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -92732,8 +93021,7 @@ namespace Opc.Ua
                     configuration,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -92844,6 +93132,11 @@ namespace Opc.Ua
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -92892,8 +93185,7 @@ namespace Opc.Ua
                     dataSetWriterNodeId,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -93594,6 +93886,11 @@ namespace Opc.Ua
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -93650,8 +93947,7 @@ namespace Opc.Ua
                     includeChildren,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -93769,6 +94065,11 @@ namespace Opc.Ua
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -93834,8 +94135,7 @@ namespace Opc.Ua
                     force,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -93954,6 +94254,11 @@ namespace Opc.Ua
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -94007,8 +94312,7 @@ namespace Opc.Ua
                     configuration,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -94119,6 +94423,11 @@ namespace Opc.Ua
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -94167,8 +94476,7 @@ namespace Opc.Ua
                     dataSetReaderNodeId,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -94977,6 +95285,11 @@ namespace Opc.Ua
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -95027,8 +95340,7 @@ namespace Opc.Ua
                     _objectId,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -95143,6 +95455,11 @@ namespace Opc.Ua
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -95204,8 +95521,7 @@ namespace Opc.Ua
                     force,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -96715,6 +97031,11 @@ namespace Opc.Ua
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -96765,8 +97086,7 @@ namespace Opc.Ua
                     _objectId,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -96881,6 +97201,11 @@ namespace Opc.Ua
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -96942,8 +97267,7 @@ namespace Opc.Ua
                     force,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -97061,6 +97385,11 @@ namespace Opc.Ua
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -97118,8 +97447,7 @@ namespace Opc.Ua
                     targetVariablesToAdd,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -97234,6 +97562,11 @@ namespace Opc.Ua
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -97291,8 +97624,7 @@ namespace Opc.Ua
                     rolePermissions,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -97737,6 +98069,11 @@ namespace Opc.Ua
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -97794,8 +98131,7 @@ namespace Opc.Ua
                     targetVariablesToAdd,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -97911,6 +98247,11 @@ namespace Opc.Ua
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -97968,8 +98309,7 @@ namespace Opc.Ua
                     targetsToRemove,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -98481,6 +98821,11 @@ namespace Opc.Ua
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -98534,8 +98879,7 @@ namespace Opc.Ua
                     subscribedDataSet,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -98646,6 +98990,11 @@ namespace Opc.Ua
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -98694,8 +99043,7 @@ namespace Opc.Ua
                     subscribedDataSetNodeId,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -106684,6 +107032,11 @@ namespace Opc.Ua
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -106741,8 +107094,7 @@ namespace Opc.Ua
                     referenceTypeFilter,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -107345,6 +107697,11 @@ namespace Opc.Ua
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -107405,8 +107762,7 @@ namespace Opc.Ua
                     description,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -107521,6 +107877,11 @@ namespace Opc.Ua
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -107593,8 +107954,7 @@ namespace Opc.Ua
                     description,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -107711,6 +108071,11 @@ namespace Opc.Ua
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -107759,8 +108124,7 @@ namespace Opc.Ua
                     userName,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -107866,6 +108230,11 @@ namespace Opc.Ua
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -107918,8 +108287,7 @@ namespace Opc.Ua
                     newPassword,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -108412,6 +108780,11 @@ namespace Opc.Ua
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -108459,8 +108832,7 @@ namespace Opc.Ua
                     _objectId,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -108569,6 +108941,11 @@ namespace Opc.Ua
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -108617,8 +108994,7 @@ namespace Opc.Ua
                     registrars,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -112744,6 +113120,11 @@ namespace Opc.Ua
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -112804,8 +113185,7 @@ namespace Opc.Ua
                     priorityValue_DSCP,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -112917,6 +113297,11 @@ namespace Opc.Ua
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -112969,8 +113354,7 @@ namespace Opc.Ua
                     priorityLabel,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
@@ -115850,6 +116234,11 @@ namespace Opc.Ua
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
+            if (OnCallAsync != null)
+            {
+                throw new System.InvalidOperationException();
+            }
+            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -115926,8 +116315,7 @@ namespace Opc.Ua
                     continuationPointIn,
                     cancellationToken).ConfigureAwait(false);
             }
-
-            if (OnCall != null)
+            else if (OnCall != null)
             {
                 return Call(_context, _objectId, _inputArguments, _outputArguments);
             }
