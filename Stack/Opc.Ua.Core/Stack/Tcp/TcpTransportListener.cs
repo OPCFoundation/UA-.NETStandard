@@ -1063,8 +1063,12 @@ namespace Opc.Ua.Bindings
                             {
                                 var serverChannel = (TcpServerChannel)newChannel;
 
-                                serverChannel.SendResponse((uint)args[1], response);
-                                return;
+                                // if the channel is not the same as the one we started with, send the response over the new channel
+                                if (serverChannel != channel)
+                                {
+                                    serverChannel.SendResponse((uint)args[1], response);
+                                    return;
+                                }
                             }
                         }
                         // if we could not find a new channel, just log the error
