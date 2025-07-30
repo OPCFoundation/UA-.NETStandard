@@ -62,7 +62,7 @@ namespace Opc.Ua.Client
                 revisedLifetimeCount,
                 revisedMaxKeepAliveCount,
                 m_maxNotificationsPerPublish,
-                m_publishingEnabled,
+                false,
                 m_priority,
                 ct).ConfigureAwait(false);
 
@@ -73,6 +73,13 @@ namespace Opc.Ua.Client
                 response.RevisedLifetimeCount);
 
             await CreateItemsAsync(ct).ConfigureAwait(false);
+
+
+            // only enable publishing afer CreateSubscription is called to avoid race conditions with subscription cleanup.
+            if (m_publishingEnabled)
+            {
+                await SetPublishingModeAsync(m_publishingEnabled, ct).ConfigureAwait(false);
+            }
 
             ChangesCompleted();
         }

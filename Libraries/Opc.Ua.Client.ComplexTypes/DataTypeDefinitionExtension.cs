@@ -237,20 +237,33 @@ namespace Opc.Ua.Client.ComplexTypes
         /// Convert a binary schema enumerated type to an enum data type definition
         /// Available before OPC UA V1.04.
         /// </summary>
-        public static EnumDefinition ToEnumDefinition(this Schema.Binary.EnumeratedType enumeratedType)
+        public static EnumDefinition ToEnumDefinition(this Schema.Binary.EnumeratedType enumeratedType, string enumTypeName)
         {
             var enumDefinition = new EnumDefinition();
 
-            foreach (var enumValue in enumeratedType.EnumeratedValue)
+            if (enumeratedType.EnumeratedValue != null)
             {
-                var enumTypeField = new EnumField
+                foreach (var enumValue in enumeratedType.EnumeratedValue)
                 {
-                    Name = enumValue.Name,
-                    Value = enumValue.Value,
-                    Description = enumValue.Documentation?.Text?.FirstOrDefault(),
-                    DisplayName = enumValue.Name
-                };
-                enumDefinition.Fields.Add(enumTypeField);
+                    var fieldName = enumValue.Name;
+                    if (string.IsNullOrEmpty(fieldName))
+                    {
+                        if (string.IsNullOrEmpty(enumTypeName))
+                        {
+                            // Here we give up because the overall type is broken
+                            return null;
+                        }
+                        fieldName = $"{enumTypeName}_{enumValue.Value}";
+                    }
+
+                    var enumTypeField = new EnumField {
+                        Name = fieldName,
+                        Value = enumValue.Value,
+                        Description = enumValue.Documentation?.Text?.FirstOrDefault(),
+                        DisplayName = enumValue.Name
+                    };
+                    enumDefinition.Fields.Add(enumTypeField);
+                }
             }
 
             return enumDefinition;
@@ -260,14 +273,30 @@ namespace Opc.Ua.Client.ComplexTypes
         /// Convert a list of EnumValues to an enum data type definition
         /// Available before OPC UA V1.04.
         /// </summary>
-        public static EnumDefinition ToEnumDefinition(this ExtensionObject[] enumValueTypes)
+        public static EnumDefinition ToEnumDefinition(this ExtensionObject[] enumValueTypes, string enumTypeName)
         {
             var enumDefinition = new EnumDefinition();
 
             foreach (var extensionObject in enumValueTypes)
             {
-                var enumValue = extensionObject.Body as EnumValueType;
+                if (extensionObject.Body is not EnumValueType enumValue)
+                {
+                    // All we can do here is skip this value. Since there is no
+                    // fallback it is better to include all other type fields if
+                    // they are in the extension object array.
+                    continue;
+                }
+
                 var name = enumValue.DisplayName.Text;
+                if (string.IsNullOrEmpty(name))
+                {
+                    if (string.IsNullOrEmpty(enumTypeName))
+                    {
+                        // Here we give up because the overall type is broken
+                        return null;
+                    }
+                    name = $"{enumTypeName}_{enumValue.Value}";
+                }
 
                 var enumTypeField = new EnumField {
                     Name = name,
@@ -284,7 +313,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// Convert a list of EnumValues to an enum data type definition
         /// Available before OPC UA V1.04.
         /// </summary>
-        public static EnumDefinition ToEnumDefinition(this LocalizedText[] enumFieldNames)
+        public static EnumDefinition ToEnumDefinition(this LocalizedText[] enumFieldNames, string enumTypeName)
         {
             var enumDefinition = new EnumDefinition();
 
@@ -292,6 +321,16 @@ namespace Opc.Ua.Client.ComplexTypes
             {
                 LocalizedText enumFieldName = enumFieldNames[ii];
                 var name = enumFieldName.Text;
+
+                if (string.IsNullOrEmpty(name))
+                {
+                    if (string.IsNullOrEmpty(enumTypeName))
+                    {
+                        // Here we give up because the overall type is broken
+                        return null;
+                    }
+                    name = $"{enumTypeName}_{ii}";
+                }
 
                 var enumTypeField = new EnumField {
                     Name = name,
