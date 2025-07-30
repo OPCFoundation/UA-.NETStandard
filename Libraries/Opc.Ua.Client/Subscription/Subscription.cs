@@ -34,7 +34,7 @@ using System.Linq;
 using System.Runtime.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
-using Opc.Ua.Types.Utils;
+using Nito.AsyncEx;
 
 namespace Opc.Ua.Client
 {
@@ -122,13 +122,58 @@ namespace Opc.Ua.Client
         /// </summary>
         private void ResetPublishTimerAndWorkerState()
         {
-            // stop the publish timer.
-            Utils.SilentDispose(m_publishTimer);
-            m_publishTimer = null;
-            Utils.SilentDispose(m_messageWorkerCts);
-            m_messageWorkerEvent.Set();
-            m_messageWorkerCts = null;
-            m_messageWorkerTask = null;
+            ResetPublishTimerAndWorkerStateAsync().GetAwaiter().GetResult();
+        }
+
+        /// <summary>
+        /// Resets the state of the publish timer and associated message worker.
+        /// </summary>
+        private async Task ResetPublishTimerAndWorkerStateAsync()
+        {
+            Task workerTask;
+            CancellationTokenSource workerCts;
+            lock (m_cache)
+            {
+                // Called under the m_cache lock
+                if (m_publishTimer == null &&
+                    m_messageWorkerCts == null &&
+                    m_messageWorkerTask == null &&
+                    m_messageWorkerCts == null)
+                {
+                    return;
+                }
+
+                // stop the publish timer.
+                Utils.SilentDispose(m_publishTimer);
+                m_publishTimer = null;
+
+                if (m_messageWorkerTask == null)
+                {
+                    Utils.SilentDispose(m_messageWorkerCts);
+                    m_messageWorkerCts = null;
+                    return;
+                }
+
+                // stop the publish worker (outside of lock)
+                workerTask = m_messageWorkerTask;
+                workerCts = m_messageWorkerCts;
+                m_messageWorkerTask = null;
+                m_messageWorkerCts = null;
+            }
+            try
+            {
+                m_messageWorkerEvent.Set();
+                workerCts.Cancel();
+                await workerTask.ConfigureAwait(false);
+            }
+            catch (Exception e)
+            {
+                Utils.LogError(e, "SubscriptionId {0} - Reset Publish Worker exception.", m_id);
+            }
+            finally
+            {
+                Utils.SilentDispose(workerCts);
+            }
         }
 
         /// <summary>
@@ -195,6 +240,7 @@ namespace Opc.Ua.Client
             if (disposing)
             {
                 ResetPublishTimerAndWorkerState();
+                m_disposed = true;
             }
         }
         #endregion
@@ -1013,10 +1059,7 @@ namespace Opc.Ua.Client
             {
                 TraceState("DELETE");
 
-                lock (m_cache)
-                {
-                    ResetPublishTimerAndWorkerState();
-                }
+                ResetPublishTimerAndWorkerState();
 
                 // delete the subscription.
                 UInt32Collection subscriptionIds = new uint[] { m_id };
@@ -1913,38 +1956,38 @@ namespace Opc.Ua.Client
             // stop the publish timer.
             lock (m_cache)
             {
+                if (m_disposed)
+                {
+                    throw new ObjectDisposedException(nameof(Subscription), "Starting keep alive timer on disposed subscription");
+                }
+                bool startPublishing = false;
                 int oldKeepAliveInterval = m_keepAliveInterval;
                 m_keepAliveInterval = CalculateKeepAliveInterval();
 
-                //don`t create new KeepAliveTimer if interval did not change and timers are still running
-                if (oldKeepAliveInterval == m_keepAliveInterval
-                    && m_publishTimer != null
-                    && m_messageWorkerTask != null
-                    && !m_messageWorkerTask.IsCompleted)
+                // don`t create new KeepAliveTimer if interval did not change and timers are still running
+                if (oldKeepAliveInterval != m_keepAliveInterval || m_publishTimer == null)
                 {
-                    return;
+                    Utils.SilentDispose(m_publishTimer);
+                    m_publishTimer = null;
+                    Interlocked.Exchange(ref m_lastNotificationTime, DateTime.UtcNow.Ticks);
+                    m_lastNotificationTickCount = HiResClock.TickCount;
+                    m_publishTimer = new Timer(OnKeepAlive, m_keepAliveInterval, m_keepAliveInterval, m_keepAliveInterval);
+                    startPublishing = true;
                 }
-
-                Utils.SilentDispose(m_publishTimer);
-                m_publishTimer = null;
-                Interlocked.Exchange(ref m_lastNotificationTime, DateTime.UtcNow.Ticks);
-                m_lastNotificationTickCount = HiResClock.TickCount;
-#if NET6_0_OR_GREATER
-                var publishTimer = new PeriodicTimer(TimeSpan.FromMilliseconds(m_keepAliveInterval));
-                _ = Task.Run(() => OnKeepAliveAsync(publishTimer));
-                m_publishTimer = publishTimer;
-#else
-                m_publishTimer = new Timer(OnKeepAlive, m_keepAliveInterval, m_keepAliveInterval, m_keepAliveInterval);
-#endif
 
                 if (m_messageWorkerTask == null || m_messageWorkerTask.IsCompleted)
                 {
                     Utils.SilentDispose(m_messageWorkerCts);
                     m_messageWorkerCts = new CancellationTokenSource();
-                    var ct = m_messageWorkerCts.Token;
-                    m_messageWorkerTask = Task.Run(() => {
-                        return PublishResponseMessageWorkerAsync(ct);
-                    });
+                    CancellationToken ct = m_messageWorkerCts.Token;
+                    m_messageWorkerTask = Task.Factory.StartNew(() => PublishResponseMessageWorkerAsync(ct), ct,
+                        TaskCreationOptions.LongRunning, TaskScheduler.Default).Unwrap();
+                    startPublishing = true;
+                }
+
+                if (!startPublishing)
+                {
+                    return;
                 }
             }
 
@@ -1952,23 +1995,6 @@ namespace Opc.Ua.Client
             m_session.StartPublishing(BeginPublishTimeout(), false);
         }
 
-#if NET6_0_OR_GREATER
-        /// <summary>
-        /// Checks if a notification has arrived. Sends a publish if it has not.
-        /// </summary>
-        private async Task OnKeepAliveAsync(PeriodicTimer publishTimer)
-        {
-            while (await publishTimer.WaitForNextTickAsync().ConfigureAwait(false))
-            {
-                if (!PublishingStopped)
-                {
-                    continue;
-                }
-
-                HandleOnKeepAliveStopped();
-            }
-        }
-#else
         /// <summary>
         /// Checks if a notification has arrived. Sends a publish if it has not.
         /// </summary>
@@ -1981,7 +2007,6 @@ namespace Opc.Ua.Client
 
             HandleOnKeepAliveStopped();
         }
-#endif
 
         /// <summary>
         /// Handles callback if publishing stopped. Sends a publish.
@@ -2008,21 +2033,17 @@ namespace Opc.Ua.Client
         {
             Utils.LogTrace("SubscriptionId {0} - Publish Thread {1:X8} Started.", m_id, Environment.CurrentManagedThreadId);
 
-            bool cancelled;
             try
             {
-                do
+                while (!ct.IsCancellationRequested && !m_disposed)
                 {
-                    await m_messageWorkerEvent.WaitAsync().ConfigureAwait(false);
-
-                    cancelled = ct.IsCancellationRequested;
-                    if (!cancelled)
-                    {
-                        await OnMessageReceivedAsync(ct).ConfigureAwait(false);
-                        cancelled = ct.IsCancellationRequested;
-                    }
+                    await m_messageWorkerEvent.WaitAsync(ct).ConfigureAwait(false);
+                    await OnMessageReceivedAsync(ct).ConfigureAwait(false);
                 }
-                while (!cancelled);
+            }
+            catch (ObjectDisposedException)
+            {
+                // intentionally fall through
             }
             catch (OperationCanceledException)
             {
@@ -2372,7 +2393,8 @@ namespace Opc.Ua.Client
                 {
                     foreach (IncomingMessage message in keepAliveToProcess)
                     {
-                        var keepAlive = new NotificationData {
+                        var keepAlive = new NotificationData
+                        {
                             PublishTime = message.Timestamp,
                             SequenceNumber = message.SequenceNumber
                         };
@@ -2440,7 +2462,8 @@ namespace Opc.Ua.Client
                                     if (statusChanged.Status == StatusCodes.GoodSubscriptionTransferred)
                                     {
                                         publishStateChangedMask |= PublishStateChangedMask.Transferred;
-                                        ResetPublishTimerAndWorkerState();
+
+                                        _ = ResetPublishTimerAndWorkerStateAsync(); // Do not block on ourselves but exit
                                     }
                                     else if (statusChanged.Status == StatusCodes.BadTimeout)
                                     {
@@ -2495,7 +2518,7 @@ namespace Opc.Ua.Client
                     }
                 }
             }
-            catch (Exception e)
+            catch (Exception e) when (e is not OperationCanceledException)
             {
                 Utils.LogError(e, "Error while processing incoming messages.");
             }
@@ -2898,17 +2921,14 @@ namespace Opc.Ua.Client
         private uint m_currentLifetimeCount;
         private bool m_currentPublishingEnabled;
         private byte m_currentPriority;
-#if NET6_0_OR_GREATER
-        private PeriodicTimer m_publishTimer;
-#else
         private Timer m_publishTimer;
-#endif
         private long m_lastNotificationTime;
         private int m_lastNotificationTickCount;
         private int m_keepAliveInterval;
         private int m_publishLateCount;
         private event PublishStateChangedEventHandler m_publishStatusChanged;
 
+        private bool m_disposed;
         private object m_cache = new object();
         private LinkedList<NotificationMessage> m_messageCache;
         private IList<uint> m_availableSequenceNumbers;

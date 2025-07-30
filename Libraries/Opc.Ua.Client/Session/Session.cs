@@ -1,7 +1,7 @@
 /* ========================================================================
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
- * OPC Foundation MIT License 1.00 
+ * OPC Foundation MIT License 1.00
  *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
@@ -26,10 +26,6 @@
  * The complete license agreement can be found here:
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
-
-#if NET6_0_OR_GREATER
-#define PERIODIC_TIMER
-#endif
 
 using System;
 using System.Collections.Generic;
@@ -1413,7 +1409,7 @@ namespace Opc.Ua.Client
         {
 
             Nonce serverNonce = Nonce.CreateNonce(m_endpoint.Description?.SecurityPolicyUri, m_serverNonce);
-           
+
             var sessionConfiguration = new SessionConfiguration(this, serverNonce, m_userTokenSecurityPolicyUri, m_eccServerEphemeralKey, AuthenticationToken);
 
             if (stream != null)
@@ -3861,20 +3857,12 @@ namespace Opc.Ua.Client
             {
                 StopKeepAliveTimer();
 
-#if PERIODIC_TIMER
-                // start periodic timer loop
-                var keepAliveTimer = new PeriodicTimer(TimeSpan.FromMilliseconds(keepAliveInterval));
-                _ = Task.Run(() => OnKeepAliveAsync(keepAliveTimer, nodesToRead));
-                m_keepAliveTimer = keepAliveTimer;
-            }
-#else
                 // start timer
                 m_keepAliveTimer = new Timer(OnKeepAlive, nodesToRead, keepAliveInterval, keepAliveInterval);
             }
 
             // send initial keep alive.
             OnKeepAlive(nodesToRead);
-#endif
         }
 
         /// <summary>
@@ -3973,23 +3961,6 @@ namespace Opc.Ua.Client
             }
         }
 
-#if PERIODIC_TIMER
-        /// <summary>
-        /// Sends a keep alive by reading from the server.
-        /// </summary>
-        private async Task OnKeepAliveAsync(PeriodicTimer keepAliveTimer, ReadValueIdCollection nodesToRead)
-        {
-            // trigger first keep alive
-            OnSendKeepAlive(nodesToRead);
-
-            while (await keepAliveTimer.WaitForNextTickAsync().ConfigureAwait(false))
-            {
-                OnSendKeepAlive(nodesToRead);
-            }
-
-            Utils.LogTrace("Session {0}: KeepAlive PeriodicTimer exit.", SessionId);
-        }
-#else
         /// <summary>
         /// Sends a keep alive by reading from the server.
         /// </summary>
@@ -3998,7 +3969,6 @@ namespace Opc.Ua.Client
             ReadValueIdCollection nodesToRead = (ReadValueIdCollection)state;
             OnSendKeepAlive(nodesToRead);
         }
-#endif
 
         /// <summary>
         /// Sends a keep alive by reading from the server.
@@ -6682,11 +6652,7 @@ namespace Opc.Ua.Client
         private StatusCode m_lastKeepAliveErrorStatusCode;
         private ServerState m_serverState;
         private int m_keepAliveInterval;
-#if PERIODIC_TIMER
-        private PeriodicTimer m_keepAliveTimer;
-#else
         private Timer m_keepAliveTimer;
-#endif
         private long m_keepAliveCounter;
         private bool m_reconnecting;
         private SemaphoreSlim m_reconnectLock;
