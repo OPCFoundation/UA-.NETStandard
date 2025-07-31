@@ -2321,10 +2321,10 @@ namespace Opc.Ua
                         Int32Collection dimensions = ReadInt32Array(null);
 
                         // check if ArrayDimensions are consistent with the ArrayLength.
-                        if (dimensions == null || dimensions.Count == 0)
+                        if (dimensions == null || dimensions.Count <= 1)
                         {
                             throw ServiceResultException.Create(StatusCodes.BadDecodingError,
-                                "ArrayDimensions not specified when ArrayDimensions encoding bit was set in Variant object.");
+                                "ArrayDimensions not specified or too small when ArrayDimensions encoding bit was set in Variant object.");
                         }
 
                         int[] dimensionsArray = dimensions.ToArray();
