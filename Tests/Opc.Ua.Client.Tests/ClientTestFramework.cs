@@ -185,7 +185,7 @@ namespace Opc.Ua.Client.Tests
             }
         }
 
-        virtual public async Task CreateReferenceServerFixture(
+        public virtual async Task CreateReferenceServerFixture(
             bool enableTracing,
             bool disableActivityLogging,
             bool securityNone,

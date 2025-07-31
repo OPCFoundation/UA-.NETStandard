@@ -112,7 +112,7 @@ namespace Opc.Ua.Client
 
             // Construct the traceparent header, adhering to the W3C Trace Context format.
             string traceparent = $"00-{context.TraceId}-{context.SpanId}-{traceFlags}";
-            traceData.Parameters.Add(new KeyValuePair() { Key = "traceparent", Value = traceparent });
+            traceData.Parameters.Add(new KeyValuePair() { Key = "traceparent", Value = new Variant(traceparent) });
         }
 
         ///<inheritdoc/>
