@@ -311,7 +311,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// The number of milliseconds until the next sample.
         /// </summary>
-        public int TimeToNextSample { get; }
+        int TimeToNextSample { get; }
 
         /// <summary>
         /// Used to check whether the item is ready to sample.
