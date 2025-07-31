@@ -502,11 +502,11 @@ namespace Opc.Ua.Client
             }
             catch (ServiceResultException sre)
             {
-                if (sre.InnerResult?.StatusCode == StatusCodes.BadSecurityChecksFailed ||
+                if (sre.InnerResult?.StatusCode == StatusCodes.BadSecureChannelClosed ||
+                    sre.InnerResult?.StatusCode == StatusCodes.BadSecurityChecksFailed ||
                     sre.InnerResult?.StatusCode == StatusCodes.BadCertificateInvalid)
                 {
-                    // schedule endpoint update and retry
-                    m_updateFromServer = true;
+                    // schedule a fast endpoint update and retry
                     if (m_maxReconnectPeriod > MinReconnectPeriod &&
                         m_reconnectPeriod >= m_maxReconnectPeriod)
                     {
@@ -516,8 +516,9 @@ namespace Opc.Ua.Client
                 }
                 else
                 {
-                    Utils.LogError("Could not reconnect the Session. {0}", Redact.Create(sre));
+                    Utils.LogError("Could not reconnect the Session. Request endpoint update from server. {0}", Redact.Create(sre));
                 }
+                m_updateFromServer = true;
                 return false;
             }
             catch (Exception exception)

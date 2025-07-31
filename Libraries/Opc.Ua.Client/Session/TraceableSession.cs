@@ -366,6 +366,15 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
+        public async Task ReloadInstanceCertificateAsync(CancellationToken ct = default)
+        {
+            using (Activity activity = ActivitySource.StartActivity())
+            {
+                await m_session.ReloadInstanceCertificateAsync(ct).ConfigureAwait(false);
+            }
+        }
+		
+        /// <inheritdoc/>
         public void Save(string filePath, IEnumerable<Type> knownTypes = null)
         {
             using (Activity activity = ActivitySource.StartActivity())

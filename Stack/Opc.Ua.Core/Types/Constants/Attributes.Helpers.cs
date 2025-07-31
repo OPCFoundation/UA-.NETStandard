@@ -22,6 +22,12 @@ namespace Opc.Ua
     public static partial class Attributes
     {
         #region Static Helper Functions
+
+        /// <summary>
+        /// The maximum number of attributes defined and used by the stack.
+        /// </summary>
+        public const int MaxAttributes = (int)Attributes.AccessLevelEx - (int)Attributes.NodeId + 1;
+
         /// <summary>
         /// Returns true if the attribute id is valid.
         /// </summary>
