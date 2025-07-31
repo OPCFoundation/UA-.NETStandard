@@ -2368,8 +2368,8 @@ namespace Opc.Ua
         {
             if (valueRank == ValueRanks.OneDimension)
             {
-                /*One dimensional Array parameters are always encoded by wrapping the elements in a container element 
-                 * and inserting the container into the structure. The name of the container element should be the name of the parameter. 
+                /*One dimensional Array parameters are always encoded by wrapping the elements in a container element
+                 * and inserting the container into the structure. The name of the container element should be the name of the parameter.
                  * The name of the element in the array shall be the type name.*/
                 return ReadArrayElements(fieldName, builtInType, systemType, encodeableTypeId);
             }
@@ -2590,7 +2590,7 @@ namespace Opc.Ua
                 "ExtensionObject" => TypeInfo.Arrays.ExtensionObject,
                 "Variant" => TypeInfo.Arrays.Variant,
                 "DataValue" => TypeInfo.Arrays.DataValue,
-                "DiagnosticInfo" => TypeInfo.Arrays.DiagnosticInfo,                
+                "DiagnosticInfo" => TypeInfo.Arrays.DiagnosticInfo,
                 _ => throw new ServiceResultException(StatusCodes.BadDecodingError, $"Unsupported element type: {elementTypeName}")
             };
         }
@@ -2819,6 +2819,7 @@ namespace Opc.Ua
             throw ServiceResultException.Create(StatusCodes.BadDecodingError,
                 "Unable to read string of {0}: {1}", functionName, message);
         }
+
         private byte[] SafeConvertFromBase64String(string s)
         {
             try
