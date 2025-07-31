@@ -47,14 +47,13 @@ namespace Opc.Ua.Client.ComplexTypes
     public class NodeCacheResolver : IComplexTypeResolver
     {
         #region Constructors
+#if USE_LRU_CACHE
         /// <summary>
         /// Initializes the type resolver with a session to load the custom type information.
         /// </summary>
         public NodeCacheResolver(ISession session)
+            : this(new LruNodeCache(session))
         {
-            m_session = session;
-#if USE_LRU_CACHE
-            m_lruNodeCache = new LruNodeCache(session);
         }
 
         /// <summary>
@@ -62,21 +61,36 @@ namespace Opc.Ua.Client.ComplexTypes
         /// custom type information with the specified expiry.
         /// </summary>
         public NodeCacheResolver(ISession session, TimeSpan cacheExpiry)
+            : this(new LruNodeCache(session, cacheExpiry))
         {
-            m_session = session;
-            m_lruNodeCache = new LruNodeCache(session, cacheExpiry);
+        }
+
+        /// <summary>
+        /// Initializes the type resolver with a lru node cache.
+        /// </summary>
+        public NodeCacheResolver(ISession session, TimeSpan cacheExpiry, int capacity)
+            : this(new LruNodeCache(session, cacheExpiry, capacity))
+        {
         }
 
         /// <summary>
         /// Initializes the type resolver with a session and lru cache to load the
         /// custom type information with the specified expiry and cache size.
         /// </summary>
-        public NodeCacheResolver(ISession session, TimeSpan cacheExpiry, int capacity)
+        public NodeCacheResolver(ILruNodeCache lruNodeCache)
+        {
+            m_session = lruNodeCache.Session;
+            m_lruNodeCache = lruNodeCache;
+        }
+#else
+        /// <summary>
+        /// Initializes the type resolver with a session to load the custom type information.
+        /// </summary>
+        public NodeCacheResolver(ISession session)
         {
             m_session = session;
-            m_lruNodeCache = new LruNodeCache(session, cacheExpiry, capacity);
-#endif
         }
+#endif
 
         #endregion Constructors
 
@@ -831,7 +845,7 @@ namespace Opc.Ua.Client.ComplexTypes
 
         #region Private Fields
 #if USE_LRU_CACHE
-        private readonly LruNodeCache m_lruNodeCache;
+        private readonly ILruNodeCache m_lruNodeCache;
 #endif
         private readonly ISession m_session;
         #endregion Private Fields

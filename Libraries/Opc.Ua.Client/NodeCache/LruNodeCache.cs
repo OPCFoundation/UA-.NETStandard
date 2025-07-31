@@ -90,6 +90,11 @@ namespace Opc.Ua.Client
         }
         #endregion
 
+        #region Public Properties
+        /// <inheritdoc/>
+        public ISession Session => m_session;
+        #endregion
+
         #region Public Methods
 
         /// <inheritdoc/>

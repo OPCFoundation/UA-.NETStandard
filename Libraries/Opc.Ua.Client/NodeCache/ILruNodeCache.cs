@@ -39,6 +39,11 @@ namespace Opc.Ua.Client
     public interface ILruNodeCache
     {
         /// <summary>
+        /// The session used by the node cache
+        /// </summary>
+        ISession Session { get; }
+
+        /// <summary>
         /// Get node from cache
         /// </summary>
         /// <param name="nodeId"></param>
