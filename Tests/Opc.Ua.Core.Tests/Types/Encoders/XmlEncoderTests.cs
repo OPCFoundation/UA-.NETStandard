@@ -52,9 +52,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// Validate the encoding and decoding of the float special values.
         /// </summary>
         [Test]
-        [TestCase(Single.PositiveInfinity, "INF")]
-        [TestCase(Single.NegativeInfinity, "-INF")]
-        [TestCase(Single.NaN, "NaN")]
+        [TestCase(float.PositiveInfinity, "INF")]
+        [TestCase(float.NegativeInfinity, "-INF")]
+        [TestCase(float.NaN, "NaN")]
         public void EncodeDecodeFloat(float binaryValue, string expectedXmlValue)
         {
             // Encode
@@ -85,19 +85,23 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             }
 
             // Check decode result against input value
-            if (Single.IsNaN(actualBinaryValue)) // NaN is not equal to anything!
-                Assert.True(Single.IsNaN(binaryValue));
+            if (float.IsNaN(actualBinaryValue)) // NaN is not equal to anything!
+            {
+                Assert.True(float.IsNaN(binaryValue));
+            }
             else
+            {
                 Assert.AreEqual(actualBinaryValue, binaryValue);
+            }
         }
 
         /// <summary>
         /// Validate the encoding and decoding of the double special values.
         /// </summary>
         [Test]
-        [TestCase(Double.PositiveInfinity, "INF")]
-        [TestCase(Double.NegativeInfinity, "-INF")]
-        [TestCase(Double.NaN, "NaN")]
+        [TestCase(double.PositiveInfinity, "INF")]
+        [TestCase(double.NegativeInfinity, "-INF")]
+        [TestCase(double.NaN, "NaN")]
         public void EncodeDecodeDouble(double binaryValue, string expectedXmlValue)
         {
             // Encode
@@ -128,10 +132,14 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             }
 
             // Check decode result against input value
-            if (Double.IsNaN(actualBinaryValue)) // NaN is not equal to anything!
-                Assert.True(Double.IsNaN(binaryValue));
+            if (double.IsNaN(actualBinaryValue)) // NaN is not equal to anything!
+            {
+                Assert.True(double.IsNaN(binaryValue));
+            }
             else
+            {
                 Assert.AreEqual(actualBinaryValue, binaryValue);
+            }
         }
 
         /// <summary>
@@ -177,11 +185,11 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             Assert.AreEqual(actualVariant, variant);
         }
 
-        // <summary>
+        /// <summary>
         /// Validate the encoding and decoding of the a variant that contains a null value
         /// </summary>
         [Test]
-        public void EncodeDecodeVariantNul()
+        public void EncodeDecodeVariantNil()
         {
             
             var variant = Variant.Null;
@@ -213,7 +221,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             }
 
             // Check decode result against input value
-            Assert.AreEqual(actualVariant, variant);
+            Assert.AreEqual(actualVariant, Variant.Null);
         }
         #endregion
     }

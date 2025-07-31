@@ -26,6 +26,7 @@
     <PackageVersion Include="MQTTnet" Version="5.0.1.1416" />
     <PackageVersion Include="Nerdbank.GitVersioning" Version="3.7.115" />
     <PackageVersion Include="Newtonsoft.Json" Version="13.0.3" />
+    <PackageVersion Include="Nito.AsyncEx" Version="5.1.2" />
     <PackageVersion Include="NUnit" Version="4.3.2" />
     <PackageVersion Include="NUnit.Console" Version="3.20.1" />
     <PackageVersion Include="NUnit3TestAdapter" Version="5.0.0" />

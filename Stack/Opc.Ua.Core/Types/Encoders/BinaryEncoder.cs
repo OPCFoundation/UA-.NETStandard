@@ -15,6 +15,7 @@ using System.Buffers;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Xml;
 using Opc.Ua.Bindings;
@@ -826,7 +827,7 @@ namespace Opc.Ua
             // calculate the encoding.
             byte encoding = 0;
 
-            if (value.Value != null)
+            if (!value.WrappedValue.IsNull)
             {
                 encoding |= (byte)DataValueEncodingBits.Value;
             }
@@ -839,21 +840,21 @@ namespace Opc.Ua
             if (value.SourceTimestamp != DateTime.MinValue)
             {
                 encoding |= (byte)DataValueEncodingBits.SourceTimestamp;
-            }
 
-            if (value.SourcePicoseconds != 0)
-            {
-                encoding |= (byte)DataValueEncodingBits.SourcePicoseconds;
+                if (value.SourcePicoseconds != 0)
+                {
+                    encoding |= (byte)DataValueEncodingBits.SourcePicoseconds;
+                }
             }
 
             if (value.ServerTimestamp != DateTime.MinValue)
             {
                 encoding |= (byte)DataValueEncodingBits.ServerTimestamp;
-            }
 
-            if (value.ServerPicoseconds != 0)
-            {
-                encoding |= (byte)DataValueEncodingBits.ServerPicoseconds;
+                if (value.ServerPicoseconds != 0)
+                {
+                    encoding |= (byte)DataValueEncodingBits.ServerPicoseconds;
+                }
             }
 
             // write the encoding.
@@ -873,21 +874,21 @@ namespace Opc.Ua
             if ((encoding & (byte)DataValueEncodingBits.SourceTimestamp) != 0)
             {
                 WriteDateTime(null, value.SourceTimestamp);
-            }
 
-            if ((encoding & (byte)DataValueEncodingBits.SourcePicoseconds) != 0)
-            {
-                WriteUInt16(null, value.SourcePicoseconds);
+                if ((encoding & (byte)DataValueEncodingBits.SourcePicoseconds) != 0)
+                {
+                    WriteUInt16(null, value.SourcePicoseconds);
+                }
             }
 
             if ((encoding & (byte)DataValueEncodingBits.ServerTimestamp) != 0)
             {
                 WriteDateTime(null, value.ServerTimestamp);
-            }
 
-            if ((encoding & (byte)DataValueEncodingBits.ServerPicoseconds) != 0)
-            {
-                WriteUInt16(null, value.ServerPicoseconds);
+                if ((encoding & (byte)DataValueEncodingBits.ServerPicoseconds) != 0)
+                {
+                    WriteUInt16(null, value.ServerPicoseconds);
+                }
             }
         }
 
@@ -900,7 +901,7 @@ namespace Opc.Ua
             if (value == null)
             {
                 WriteNodeId(null, NodeId.Null);
-                WriteByte(null, Convert.ToByte(ExtensionObjectEncoding.None, CultureInfo.InvariantCulture));
+                WriteByte(null, (byte)ExtensionObjectEncoding.None);
                 return;
             }
 
@@ -939,32 +940,29 @@ namespace Opc.Ua
 
             WriteNodeId(null, localTypeId);
 
-            // determine the encoding type.
-            byte encoding = Convert.ToByte(value.Encoding, CultureInfo.InvariantCulture);
-
-            if (value.Encoding == ExtensionObjectEncoding.EncodeableObject)
-            {
-                encoding = Convert.ToByte(ExtensionObjectEncoding.Binary, CultureInfo.InvariantCulture);
-            }
-
             object body = value.Body;
-
             if (body == null)
             {
-                encoding = Convert.ToByte(ExtensionObjectEncoding.None, CultureInfo.InvariantCulture);
+                // nothing more to do for null bodies.
+                WriteByte(null, (byte)ExtensionObjectEncoding.None);
+                return;
+            }
+
+            // determine the encoding type.
+            byte encoding;
+            if (value.Encoding == ExtensionObjectEncoding.EncodeableObject)
+            {
+                encoding = (byte)ExtensionObjectEncoding.Binary;
+            }
+            else
+            {
+                encoding = (byte)value.Encoding;
             }
 
             // write the encoding type.
             WriteByte(null, encoding);
 
-            // nothing more to do for null bodies.
-            if (body == null)
-            {
-                return;
-            }
-
             // write binary bodies.
-
             if (body is byte[] bytes)
             {
                 WriteByteString(null, bytes);
@@ -972,7 +970,6 @@ namespace Opc.Ua
             }
 
             // write XML bodies.
-
             if (body is XmlElement xml)
             {
                 WriteXmlElement(null, xml);
@@ -1528,7 +1525,7 @@ namespace Opc.Ua
         public void WriteEncodeableArray(string fieldName, IList<IEncodeable> values, System.Type systemType)
         {
             // write length.
-            if (WriteArrayLength((Array)values))
+            if (WriteArrayLength(values))
             {
                 return;
             }
@@ -1565,8 +1562,8 @@ namespace Opc.Ua
         {
             if (valueRank == ValueRanks.OneDimension)
             {
-                /* One dimensional Arrays are encoded as a sequence of elements preceeded 
-                 * by the number of elements encoded as an Int32 value. 
+                /* One dimensional Arrays are encoded as a sequence of elements preceeded
+                 * by the number of elements encoded as an Int32 value.
                  * If an Array is null, then its length is encoded as −1.*/
                 switch (builtInType)
                 {
@@ -1638,11 +1635,19 @@ namespace Opc.Ua
                         // try to write IEncodeable Array
                         if (array is IEncodeable[] encodeableArray)
                         {
-                            WriteEncodeableArray(fieldName, encodeableArray, array.GetType().GetElementType());
+                            WriteEncodeableArray(null, encodeableArray, array.GetType().GetElementType());
                             return;
                         }
-                        WriteVariantArray(null, (Variant[])array);
-                        break;
+
+                        if (array is Variant[] variantArray)
+                        {
+                            WriteVariantArray(null, variantArray);
+                            return;
+                        }
+
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadEncodingError,
+                            "Unexpected type encountered while encoding a Matrix.");
                     }
                     case BuiltInType.Enumeration:
                         int[] ints = array as int[];
@@ -1700,8 +1705,8 @@ namespace Opc.Ua
             }
             else if (valueRank > ValueRanks.OneDimension)
             {
-                /* Multi-dimensional Arrays are encoded as an Int32 Array containing the dimensions followed by 
-                 * a list of all the values in the Array. The total number of values is equal to the 
+                /* Multi-dimensional Arrays are encoded as an Int32 Array containing the dimensions followed by
+                 * a list of all the values in the Array. The total number of values is equal to the
                  * product of the dimensions.
                  * The number of values is 0 if one or more dimension is less than or equal to 0.*/
 
@@ -1971,17 +1976,6 @@ namespace Opc.Ua
                             break;
                         }
 
-                        // try to cast array to IEncodeable list
-                        if (matrix.Elements is Array arrayType &&
-                            (arrayType.Length == 0 || arrayType.GetType().GetElementType().IsInstanceOfType(arrayType.GetValue(0))))
-                        {
-                            for (int ii = 0; ii < arrayType.Length; ii++)
-                            {
-                                WriteEncodeable(null, (IEncodeable)arrayType.GetValue(ii), null);
-                            }
-                            break;
-                        }
-
                         throw ServiceResultException.Create(
                             StatusCodes.BadEncodingError,
                             "Unexpected type encountered while encoding a Matrix.");
@@ -2237,6 +2231,33 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Write the length of an array. Returns true if the array is empty.
+        /// </summary>
+        private bool WriteArrayLength<T>(ArraySegment<T> values)
+        {
+            // check for null.
+            if (values.Array == null)
+            {
+                WriteInt32(null, -1);
+                return true;
+            }
+
+            if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadEncodingLimitsExceeded,
+                    "MaxArrayLength {0} < {1} exceeded for array of type {2}",
+                    m_context.MaxArrayLength,
+                    values.Count,
+                    typeof(T).Name);
+            }
+
+            // write length.
+            WriteInt32(null, values.Count);
+            return values.Count == 0;
+        }
+
+        /// <summary>
         /// Returns the node id encoding byte for a node id value.
         /// </summary>
         private static byte GetNodeIdEncoding(IdType idType, object identifier, uint namespaceIndex)
@@ -2352,7 +2373,7 @@ namespace Opc.Ua
         private void WriteVariantValue(string fieldName, Variant value)
         {
             // check for null.
-            if (value.Value == null || value.TypeInfo == null || value.TypeInfo.BuiltInType == BuiltInType.Null)
+            if (value.IsNull || value.TypeInfo == null || value.TypeInfo.BuiltInType == BuiltInType.Null)
             {
                 WriteByte(null, 0);
                 return;
@@ -2412,7 +2433,7 @@ namespace Opc.Ua
 
                 encodingByte |= (byte)VariantArrayEncodingBits.Array;
 
-                if (value.TypeInfo.ValueRank > 1)
+                if (value.TypeInfo.ValueRank > ValueRanks.OneDimension)
                 {
                     encodingByte |= (byte)VariantArrayEncodingBits.ArrayDimensions;
                     matrix = (Matrix)valueToEncode;
@@ -2501,7 +2522,7 @@ namespace Opc.Ua
                 }
 
                 // write the dimensions.
-                if (value.TypeInfo.ValueRank > 1)
+                if (value.TypeInfo.ValueRank > ValueRanks.OneDimension)
                 {
                     WriteInt32Array(null, (int[])matrix.Dimensions);
                 }
@@ -2511,6 +2532,7 @@ namespace Opc.Ua
         /// <summary>
         /// Test and increment the nesting level.
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void CheckAndIncrementNestingLevel()
         {
             if (m_nestingLevel > m_context.MaxEncodingNestingLevels)

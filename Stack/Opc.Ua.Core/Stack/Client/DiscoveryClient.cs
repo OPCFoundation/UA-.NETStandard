@@ -169,7 +169,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="profileUris">The collection of profile URIs.</param>
         /// <param name="ct">The cancellation token.</param>
-        public async virtual Task<EndpointDescriptionCollection> GetEndpointsAsync(StringCollection profileUris, CancellationToken ct = default)
+        public virtual async Task<EndpointDescriptionCollection> GetEndpointsAsync(StringCollection profileUris, CancellationToken ct = default)
         {
             var response = await GetEndpointsAsync(null, this.Endpoint.EndpointUrl, null, profileUris, ct).ConfigureAwait(false);
             return PatchEndpointUrls(response.Endpoints);

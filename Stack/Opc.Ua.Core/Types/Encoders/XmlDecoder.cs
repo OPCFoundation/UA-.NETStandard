@@ -188,12 +188,7 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (m_namespaces.Peek() != m_reader.NamespaceURI)
-            {
-                return false;
-            }
-
-            return true;
+            return m_namespaces.Peek() == m_reader.NamespaceURI;
         }
 
         /// <summary>
@@ -280,176 +275,151 @@ namespace Opc.Ua
                         {
                             typeInfo = TypeInfo.Arrays.Boolean;
                             BooleanCollection collection = ReadBooleanArray(typeName);
-                            if (collection != null) return collection.ToArray();
-                            return null;
+                            return collection != null ? collection.ToArray() : (object)null;
                         }
                         case "SByte":
                         {
                             typeInfo = TypeInfo.Arrays.SByte;
                             SByteCollection collection = ReadSByteArray(typeName);
-                            if (collection != null) return collection.ToArray();
-                            return null;
+                            return collection != null ? collection.ToArray() : (object)null;
                         }
                         case "Byte":
                         {
                             typeInfo = TypeInfo.Arrays.Byte;
                             ByteCollection collection = ReadByteArray(typeName);
-                            if (collection != null) return collection.ToArray();
-                            return null;
+                            return collection != null ? collection.ToArray() : (object)null;
                         }
                         case "Int16":
                         {
                             typeInfo = TypeInfo.Arrays.Int16;
                             Int16Collection collection = ReadInt16Array(typeName);
-                            if (collection != null) return collection.ToArray();
-                            return null;
+                            return collection != null ? collection.ToArray() : (object)null;
                         }
                         case "UInt16":
                         {
                             typeInfo = TypeInfo.Arrays.UInt16;
                             UInt16Collection collection = ReadUInt16Array(typeName);
-                            if (collection != null) return collection.ToArray();
-                            return null;
+                            return collection != null ? collection.ToArray() : (object)null;
                         }
                         case "Int32":
                         {
                             typeInfo = TypeInfo.Arrays.Int32;
                             Int32Collection collection = ReadInt32Array(typeName);
-                            if (collection != null) return collection.ToArray();
-                            return null;
+                            return collection != null ? collection.ToArray() : (object)null;
                         }
                         case "UInt32":
                         {
                             typeInfo = TypeInfo.Arrays.UInt32;
                             UInt32Collection collection = ReadUInt32Array(typeName);
-                            if (collection != null) return collection.ToArray();
-                            return null;
+                            return collection != null ? collection.ToArray() : (object)null;
                         }
                         case "Int64":
                         {
                             typeInfo = TypeInfo.Arrays.Int64;
                             Int64Collection collection = ReadInt64Array(typeName);
-                            if (collection != null) return collection.ToArray();
-                            return null;
+                            return collection != null ? collection.ToArray() : (object)null;
                         }
                         case "UInt64":
                         {
                             typeInfo = TypeInfo.Arrays.UInt64;
                             UInt64Collection collection = ReadUInt64Array(typeName);
-                            if (collection != null) return collection.ToArray();
-                            return null;
+                            return collection != null ? collection.ToArray() : (object)null;
                         }
                         case "Float":
                         {
                             typeInfo = TypeInfo.Arrays.Float;
                             FloatCollection collection = ReadFloatArray(typeName);
-                            if (collection != null) return collection.ToArray();
-                            return null;
+                            return collection != null ? collection.ToArray() : (object)null;
                         }
                         case "Double":
                         {
                             typeInfo = TypeInfo.Arrays.Double;
                             DoubleCollection collection = ReadDoubleArray(typeName);
-                            if (collection != null) return collection.ToArray();
-                            return null;
+                            return collection != null ? collection.ToArray() : (object)null;
                         }
                         case "String":
                         {
                             typeInfo = TypeInfo.Arrays.String;
                             StringCollection collection = ReadStringArray(typeName);
-                            if (collection != null) return collection.ToArray();
-                            return null;
+                            return collection != null ? collection.ToArray() : (object)null;
                         }
                         case "DateTime":
                         {
                             typeInfo = TypeInfo.Arrays.DateTime;
                             DateTimeCollection collection = ReadDateTimeArray(typeName);
-                            if (collection != null) return collection.ToArray();
-                            return null;
+                            return collection != null ? collection.ToArray() : (object)null;
                         }
                         case "Guid":
                         {
                             typeInfo = TypeInfo.Arrays.Guid;
                             UuidCollection collection = ReadGuidArray(typeName);
-                            if (collection != null) return collection.ToArray();
-                            return null;
+                            return collection != null ? collection.ToArray() : (object)null;
                         }
                         case "ByteString":
                         {
                             typeInfo = TypeInfo.Arrays.ByteString;
                             ByteStringCollection collection = ReadByteStringArray(typeName);
-                            if (collection != null) return collection.ToArray();
-                            return null;
+                            return collection != null ? collection.ToArray() : (object)null;
                         }
                         case "XmlElement":
                         {
                             typeInfo = TypeInfo.Arrays.XmlElement;
                             XmlElementCollection collection = ReadXmlElementArray(typeName);
-                            if (collection != null) return collection.ToArray();
-                            return null;
+                            return collection != null ? collection.ToArray() : (object)null;
                         }
                         case "NodeId":
                         {
                             typeInfo = TypeInfo.Arrays.NodeId;
                             NodeIdCollection collection = ReadNodeIdArray(typeName);
-                            if (collection != null) return collection.ToArray();
-                            return null;
+                            return collection != null ? collection.ToArray() : (object)null;
                         }
                         case "ExpandedNodeId":
                         {
                             typeInfo = TypeInfo.Arrays.ExpandedNodeId;
                             ExpandedNodeIdCollection collection = ReadExpandedNodeIdArray(typeName);
-                            if (collection != null) return collection.ToArray();
-                            return null;
+                            return collection != null ? collection.ToArray() : (object)null;
                         }
                         case "StatusCode":
                         {
                             typeInfo = TypeInfo.Arrays.StatusCode;
                             StatusCodeCollection collection = ReadStatusCodeArray(typeName);
-                            if (collection != null) return collection.ToArray();
-                            return null;
+                            return collection != null ? collection.ToArray() : (object)null;
                         }
                         case "DiagnosticInfo":
                         {
                             typeInfo = TypeInfo.Arrays.DiagnosticInfo;
                             DiagnosticInfoCollection collection = ReadDiagnosticInfoArray(typeName);
-                            if (collection != null) return collection.ToArray();
-                            return null;
+                            return collection != null ? collection.ToArray() : (object)null;
                         }
                         case "QualifiedName":
                         {
                             typeInfo = TypeInfo.Arrays.QualifiedName;
                             QualifiedNameCollection collection = ReadQualifiedNameArray(typeName);
-                            if (collection != null) return collection.ToArray();
-                            return null;
+                            return collection != null ? collection.ToArray() : (object)null;
                         }
                         case "LocalizedText":
                         {
                             typeInfo = TypeInfo.Arrays.LocalizedText;
                             LocalizedTextCollection collection = ReadLocalizedTextArray(typeName);
-                            if (collection != null) return collection.ToArray();
-                            return null;
+                            return collection != null ? collection.ToArray() : (object)null;
                         }
                         case "ExtensionObject":
                         {
                             typeInfo = TypeInfo.Arrays.ExtensionObject;
                             ExtensionObjectCollection collection = ReadExtensionObjectArray(typeName);
-                            if (collection != null) return collection.ToArray();
-                            return null;
+                            return collection != null ? collection.ToArray() : (object)null;
                         }
                         case "DataValue":
                         {
                             typeInfo = TypeInfo.Arrays.DataValue;
                             DataValueCollection collection = ReadDataValueArray(typeName);
-                            if (collection != null) return collection.ToArray();
-                            return null;
+                            return collection != null ? collection.ToArray() : (object)null;
                         }
                         case "Variant":
                         {
                             typeInfo = TypeInfo.Arrays.Variant;
                             VariantCollection collection = ReadVariantArray(typeName);
-                            if (collection != null) return collection.ToArray();
-                            return null;
+                            return collection != null ? collection.ToArray() : (object)null;
                         }
                     }
                 }
@@ -498,7 +468,8 @@ namespace Opc.Ua
                         {
                             Matrix matrix = ReadMatrix(typeName);
                             typeInfo = matrix.TypeInfo;
-                            return matrix;
+                            // return Array for a one dimensional Matrix
+                            return typeInfo.ValueRank == ValueRanks.OneDimension ? matrix.Elements : matrix;
                         }
                     }
                 }
@@ -542,11 +513,19 @@ namespace Opc.Ua
                 return encodeable;
             }
 
+            string xmlString;
+            try
+            {
+                // return undecoded xml body.
+                xmlString = m_reader.ReadOuterXml();
+            }
+            catch (ArgumentException ae) {
+                throw ServiceResultException.Create(StatusCodes.BadDecodingError,
+                    "Failed to decode xml extension object body: {0}", ae.Message);
+            }
+
             // check for empty body.
             XmlDocument document = new XmlDocument();
-
-            // return undecoded xml body.
-            var xmlString = m_reader.ReadOuterXml();
 
             using (StringReader stream = new StringReader(xmlString))
             using (XmlReader reader = XmlReader.Create(stream, Utils.DefaultXmlReaderSettings()))
@@ -883,8 +862,7 @@ namespace Opc.Ua
         /// </summary>
         public string ReadString(string fieldName)
         {
-            bool isNil = false;
-
+            bool isNil;
             if (BeginField(fieldName, true, out isNil))
             {
                 string value = SafeReadString();
@@ -898,12 +876,7 @@ namespace Opc.Ua
                 return value;
             }
 
-            if (!isNil)
-            {
-                return string.Empty;
-            }
-
-            return null;
+            return !isNil ? string.Empty : null;
         }
 
         /// <summary>
@@ -974,15 +947,14 @@ namespace Opc.Ua
         {
             if (BeginField(fieldName, true, out bool isNil))
             {
-                byte[] value = null;
-
+                byte[] value;
                 try
                 {
                     string xml = m_reader.ReadContentAsString();
 
                     if (!string.IsNullOrEmpty(xml))
                     {
-                        value = Convert.FromBase64String(xml);
+                        value = SafeConvertFromBase64String(xml);
                     }
                     else
                     {
@@ -1008,12 +980,7 @@ namespace Opc.Ua
                 return value;
             }
 
-            if (!isNil)
-            {
-                return Array.Empty<byte>();
-            }
-
-            return null;
+            return !isNil ? Array.Empty<byte>() : null;
         }
 
         /// <summary>
@@ -1099,17 +1066,16 @@ namespace Opc.Ua
         /// </summary>
         public NodeId ReadNodeId(string fieldName)
         {
-            NodeId value = new NodeId();
-
             if (BeginField(fieldName, true))
             {
                 PushNamespace(Namespaces.OpcUaXsd);
                 string identifierText = ReadString("Identifier");
                 PopNamespace();
 
+                NodeId value;
                 try
                 {
-                    value.IdentifierText = identifierText;
+                    value = NodeId.Parse(identifierText);
                 }
                 catch (ServiceResultException sre) when (sre.StatusCode == StatusCodes.BadNodeIdInvalid)
                 {
@@ -1121,14 +1087,16 @@ namespace Opc.Ua
                 }
 
                 EndField(fieldName);
+
+	            if (m_namespaceMappings != null && m_namespaceMappings.Length > value.NamespaceIndex)
+	            {
+	                value.SetNamespaceIndex(m_namespaceMappings[value.NamespaceIndex]);
+	            }
+
+                return value;
             }
 
-            if (m_namespaceMappings != null && m_namespaceMappings.Length > value.NamespaceIndex)
-            {
-                value.SetNamespaceIndex(m_namespaceMappings[value.NamespaceIndex]);
-            }
-
-            return value;
+            return NodeId.Null;
         }
 
         /// <summary>
@@ -1136,17 +1104,16 @@ namespace Opc.Ua
         /// </summary>
         public ExpandedNodeId ReadExpandedNodeId(string fieldName)
         {
-            ExpandedNodeId value = new ExpandedNodeId();
-
             if (BeginField(fieldName, true))
             {
                 PushNamespace(Namespaces.OpcUaXsd);
                 string identifierText = ReadString("Identifier");
                 PopNamespace();
 
+                ExpandedNodeId value;
                 try
                 {
-                    value.IdentifierText = identifierText;
+                    value = ExpandedNodeId.Parse(identifierText);
                 }
                 catch (ServiceResultException sre) when (sre.StatusCode == StatusCodes.BadNodeIdInvalid)
                 {
@@ -1158,19 +1125,21 @@ namespace Opc.Ua
                 }
 
                 EndField(fieldName);
+
+	            if (m_namespaceMappings != null && m_namespaceMappings.Length > value.NamespaceIndex && !value.IsNull)
+	            {
+	                value.SetNamespaceIndex(m_namespaceMappings[value.NamespaceIndex]);
+	            }
+
+	            if (m_serverMappings != null && m_serverMappings.Length > value.ServerIndex && !value.IsNull)
+	            {
+	                value.SetServerIndex(m_serverMappings[value.ServerIndex]);
+	            }
+
+            	return value;
             }
 
-            if (m_namespaceMappings != null && m_namespaceMappings.Length > value.NamespaceIndex && !value.IsNull)
-            {
-                value.SetNamespaceIndex(m_namespaceMappings[value.NamespaceIndex]);
-            }
-
-            if (m_serverMappings != null && m_serverMappings.Length > value.ServerIndex && !value.IsNull)
-            {
-                value.SetServerIndex(m_serverMappings[value.ServerIndex]);
-            }
-
-            return value;
+            return ExpandedNodeId.Null;
         }
 
         /// <summary>
@@ -1229,10 +1198,9 @@ namespace Opc.Ua
                     EndField("NamespaceIndex");
                 }
 
-                bool isNil = false;
                 string name = null;
 
-                if (BeginField("Name", true, out isNil))
+                if (BeginField("Name", true, out bool isNil))
                 {
                     name = ReadString(null);
                     EndField("Name");
@@ -1264,12 +1232,10 @@ namespace Opc.Ua
             if (BeginField(fieldName, true))
             {
                 PushNamespace(Namespaces.OpcUaXsd);
-
-                bool isNil = false;
                 string text = null;
                 string locale = null;
 
-                if (BeginField("Locale", true, out isNil))
+                if (BeginField("Locale", true, out bool isNil))
                 {
                     locale = ReadString(null);
                     EndField("Locale");
@@ -1379,12 +1345,7 @@ namespace Opc.Ua
 
             if (!BeginField(fieldName, true, out isNil))
             {
-                if (isNil)
-                {
-                    return null;
-                }
-
-                return ExtensionObject.Null;
+                return isNil ? null : ExtensionObject.Null;
             }
 
             PushNamespace(Namespaces.OpcUaXsd);
@@ -1545,11 +1506,9 @@ namespace Opc.Ua
         /// </summary>
         public BooleanCollection ReadBooleanArray(string fieldName)
         {
-            bool isNil = false;
-
             BooleanCollection values = new BooleanCollection();
 
-            if (BeginField(fieldName, true, out isNil))
+            if (BeginField(fieldName, true, out bool isNil))
             {
                 PushNamespace(Namespaces.OpcUaXsd);
 
@@ -1570,12 +1529,7 @@ namespace Opc.Ua
                 return values;
             }
 
-            if (isNil)
-            {
-                return null;
-            }
-
-            return values;
+            return isNil ? null : values;
         }
 
         /// <summary>
@@ -1583,11 +1537,9 @@ namespace Opc.Ua
         /// </summary>
         public SByteCollection ReadSByteArray(string fieldName)
         {
-            bool isNil = false;
-
             SByteCollection values = new SByteCollection();
 
-            if (BeginField(fieldName, true, out isNil))
+            if (BeginField(fieldName, true, out bool isNil))
             {
                 PushNamespace(Namespaces.OpcUaXsd);
 
@@ -1608,12 +1560,7 @@ namespace Opc.Ua
                 return values;
             }
 
-            if (isNil)
-            {
-                return null;
-            }
-
-            return values;
+            return isNil ? null : values;
         }
 
         /// <summary>
@@ -1621,11 +1568,9 @@ namespace Opc.Ua
         /// </summary>
         public ByteCollection ReadByteArray(string fieldName)
         {
-            bool isNil = false;
-
             ByteCollection values = new ByteCollection();
 
-            if (BeginField(fieldName, true, out isNil))
+            if (BeginField(fieldName, true, out bool isNil))
             {
                 PushNamespace(Namespaces.OpcUaXsd);
 
@@ -1646,12 +1591,7 @@ namespace Opc.Ua
                 return values;
             }
 
-            if (isNil)
-            {
-                return null;
-            }
-
-            return values;
+            return isNil ? null : values;
         }
 
         /// <summary>
@@ -1659,11 +1599,9 @@ namespace Opc.Ua
         /// </summary>
         public Int16Collection ReadInt16Array(string fieldName)
         {
-            bool isNil = false;
-
             Int16Collection values = new Int16Collection();
 
-            if (BeginField(fieldName, true, out isNil))
+            if (BeginField(fieldName, true, out bool isNil))
             {
                 PushNamespace(Namespaces.OpcUaXsd);
 
@@ -1684,12 +1622,7 @@ namespace Opc.Ua
                 return values;
             }
 
-            if (isNil)
-            {
-                return null;
-            }
-
-            return values;
+            return isNil ? null : values;
         }
 
         /// <summary>
@@ -1697,11 +1630,9 @@ namespace Opc.Ua
         /// </summary>
         public UInt16Collection ReadUInt16Array(string fieldName)
         {
-            bool isNil = false;
-
             UInt16Collection values = new UInt16Collection();
 
-            if (BeginField(fieldName, true, out isNil))
+            if (BeginField(fieldName, true, out bool isNil))
             {
                 PushNamespace(Namespaces.OpcUaXsd);
 
@@ -1722,12 +1653,7 @@ namespace Opc.Ua
                 return values;
             }
 
-            if (isNil)
-            {
-                return null;
-            }
-
-            return values;
+            return isNil ? null : values;
         }
 
         /// <summary>
@@ -1735,11 +1661,9 @@ namespace Opc.Ua
         /// </summary>
         public Int32Collection ReadInt32Array(string fieldName)
         {
-            bool isNil = false;
-
             Int32Collection values = new Int32Collection();
 
-            if (BeginField(fieldName, true, out isNil))
+            if (BeginField(fieldName, true, out bool isNil))
             {
                 PushNamespace(Namespaces.OpcUaXsd);
 
@@ -1760,12 +1684,7 @@ namespace Opc.Ua
                 return values;
             }
 
-            if (isNil)
-            {
-                return null;
-            }
-
-            return values;
+            return isNil ? null : values;
         }
 
         /// <summary>
@@ -1773,11 +1692,9 @@ namespace Opc.Ua
         /// </summary>
         public UInt32Collection ReadUInt32Array(string fieldName)
         {
-            bool isNil = false;
-
             UInt32Collection values = new UInt32Collection();
 
-            if (BeginField(fieldName, true, out isNil))
+            if (BeginField(fieldName, true, out bool isNil))
             {
                 PushNamespace(Namespaces.OpcUaXsd);
 
@@ -1798,12 +1715,7 @@ namespace Opc.Ua
                 return values;
             }
 
-            if (isNil)
-            {
-                return null;
-            }
-
-            return values;
+            return isNil ? null : values;
         }
 
         /// <summary>
@@ -1811,11 +1723,9 @@ namespace Opc.Ua
         /// </summary>
         public Int64Collection ReadInt64Array(string fieldName)
         {
-            bool isNil = false;
-
             Int64Collection values = new Int64Collection();
 
-            if (BeginField(fieldName, true, out isNil))
+            if (BeginField(fieldName, true, out bool isNil))
             {
                 PushNamespace(Namespaces.OpcUaXsd);
 
@@ -1836,12 +1746,7 @@ namespace Opc.Ua
                 return values;
             }
 
-            if (isNil)
-            {
-                return null;
-            }
-
-            return values;
+            return isNil ? null : values;
         }
 
         /// <summary>
@@ -1849,11 +1754,9 @@ namespace Opc.Ua
         /// </summary>
         public UInt64Collection ReadUInt64Array(string fieldName)
         {
-            bool isNil = false;
-
             UInt64Collection values = new UInt64Collection();
 
-            if (BeginField(fieldName, true, out isNil))
+            if (BeginField(fieldName, true, out bool isNil))
             {
                 PushNamespace(Namespaces.OpcUaXsd);
 
@@ -1874,12 +1777,7 @@ namespace Opc.Ua
                 return values;
             }
 
-            if (isNil)
-            {
-                return null;
-            }
-
-            return values;
+            return isNil ? null : values;
         }
 
         /// <summary>
@@ -1887,11 +1785,9 @@ namespace Opc.Ua
         /// </summary>
         public FloatCollection ReadFloatArray(string fieldName)
         {
-            bool isNil = false;
-
             FloatCollection values = new FloatCollection();
 
-            if (BeginField(fieldName, true, out isNil))
+            if (BeginField(fieldName, true, out bool isNil))
             {
                 PushNamespace(Namespaces.OpcUaXsd);
 
@@ -1912,12 +1808,7 @@ namespace Opc.Ua
                 return values;
             }
 
-            if (isNil)
-            {
-                return null;
-            }
-
-            return values;
+            return isNil ? null : values;
         }
 
         /// <summary>
@@ -1925,11 +1816,9 @@ namespace Opc.Ua
         /// </summary>
         public DoubleCollection ReadDoubleArray(string fieldName)
         {
-            bool isNil = false;
-
             DoubleCollection values = new DoubleCollection();
 
-            if (BeginField(fieldName, true, out isNil))
+            if (BeginField(fieldName, true, out bool isNil))
             {
                 PushNamespace(Namespaces.OpcUaXsd);
 
@@ -1950,12 +1839,7 @@ namespace Opc.Ua
                 return values;
             }
 
-            if (isNil)
-            {
-                return null;
-            }
-
-            return values;
+            return isNil ? null : values;
         }
 
         /// <summary>
@@ -1963,11 +1847,9 @@ namespace Opc.Ua
         /// </summary>
         public StringCollection ReadStringArray(string fieldName)
         {
-            bool isNil = false;
-
             StringCollection values = new StringCollection();
 
-            if (BeginField(fieldName, true, out isNil))
+            if (BeginField(fieldName, true, out bool isNil))
             {
                 PushNamespace(Namespaces.OpcUaXsd);
 
@@ -1988,12 +1870,7 @@ namespace Opc.Ua
                 return values;
             }
 
-            if (isNil)
-            {
-                return null;
-            }
-
-            return values;
+            return isNil ? null : values;
         }
 
         /// <summary>
@@ -2001,11 +1878,9 @@ namespace Opc.Ua
         /// </summary>
         public DateTimeCollection ReadDateTimeArray(string fieldName)
         {
-            bool isNil = false;
-
             DateTimeCollection values = new DateTimeCollection();
 
-            if (BeginField(fieldName, true, out isNil))
+            if (BeginField(fieldName, true, out bool isNil))
             {
                 PushNamespace(Namespaces.OpcUaXsd);
 
@@ -2026,12 +1901,7 @@ namespace Opc.Ua
                 return values;
             }
 
-            if (isNil)
-            {
-                return null;
-            }
-
-            return values;
+            return isNil ? null : values;
         }
 
         /// <summary>
@@ -2039,11 +1909,9 @@ namespace Opc.Ua
         /// </summary>
         public UuidCollection ReadGuidArray(string fieldName)
         {
-            bool isNil = false;
-
             UuidCollection values = new UuidCollection();
 
-            if (BeginField(fieldName, true, out isNil))
+            if (BeginField(fieldName, true, out bool isNil))
             {
                 PushNamespace(Namespaces.OpcUaXsd);
 
@@ -2064,12 +1932,7 @@ namespace Opc.Ua
                 return values;
             }
 
-            if (isNil)
-            {
-                return null;
-            }
-
-            return values;
+            return isNil ? null : values;
         }
 
         /// <summary>
@@ -2077,11 +1940,9 @@ namespace Opc.Ua
         /// </summary>
         public ByteStringCollection ReadByteStringArray(string fieldName)
         {
-            bool isNil = false;
-
             ByteStringCollection values = new ByteStringCollection();
 
-            if (BeginField(fieldName, true, out isNil))
+            if (BeginField(fieldName, true, out bool isNil))
             {
                 PushNamespace(Namespaces.OpcUaXsd);
 
@@ -2102,12 +1963,7 @@ namespace Opc.Ua
                 return values;
             }
 
-            if (isNil)
-            {
-                return null;
-            }
-
-            return values;
+            return isNil ? null : values;
         }
 
         /// <summary>
@@ -2115,11 +1971,9 @@ namespace Opc.Ua
         /// </summary>
         public XmlElementCollection ReadXmlElementArray(string fieldName)
         {
-            bool isNil = false;
-
             XmlElementCollection values = new XmlElementCollection();
 
-            if (BeginField(fieldName, true, out isNil))
+            if (BeginField(fieldName, true, out bool isNil))
             {
                 PushNamespace(Namespaces.OpcUaXsd);
 
@@ -2140,12 +1994,7 @@ namespace Opc.Ua
                 return values;
             }
 
-            if (isNil)
-            {
-                return null;
-            }
-
-            return values;
+            return isNil ? null : values;
         }
 
         /// <summary>
@@ -2153,11 +2002,9 @@ namespace Opc.Ua
         /// </summary>
         public NodeIdCollection ReadNodeIdArray(string fieldName)
         {
-            bool isNil = false;
-
             NodeIdCollection values = new NodeIdCollection();
 
-            if (BeginField(fieldName, true, out isNil))
+            if (BeginField(fieldName, true, out bool isNil))
             {
                 PushNamespace(Namespaces.OpcUaXsd);
 
@@ -2178,12 +2025,7 @@ namespace Opc.Ua
                 return values;
             }
 
-            if (isNil)
-            {
-                return null;
-            }
-
-            return values;
+            return isNil ? null : values;
         }
 
         /// <summary>
@@ -2191,11 +2033,9 @@ namespace Opc.Ua
         /// </summary>
         public ExpandedNodeIdCollection ReadExpandedNodeIdArray(string fieldName)
         {
-            bool isNil = false;
-
             ExpandedNodeIdCollection values = new ExpandedNodeIdCollection();
 
-            if (BeginField(fieldName, true, out isNil))
+            if (BeginField(fieldName, true, out bool isNil))
             {
                 PushNamespace(Namespaces.OpcUaXsd);
 
@@ -2216,12 +2056,7 @@ namespace Opc.Ua
                 return values;
             }
 
-            if (isNil)
-            {
-                return null;
-            }
-
-            return values;
+            return isNil ? null : values;
         }
 
         /// <summary>
@@ -2229,11 +2064,9 @@ namespace Opc.Ua
         /// </summary>
         public StatusCodeCollection ReadStatusCodeArray(string fieldName)
         {
-            bool isNil = false;
-
             StatusCodeCollection values = new StatusCodeCollection();
 
-            if (BeginField(fieldName, true, out isNil))
+            if (BeginField(fieldName, true, out bool isNil))
             {
                 PushNamespace(Namespaces.OpcUaXsd);
 
@@ -2254,12 +2087,7 @@ namespace Opc.Ua
                 return values;
             }
 
-            if (isNil)
-            {
-                return null;
-            }
-
-            return values;
+            return isNil ? null : values;
         }
 
         /// <summary>
@@ -2267,11 +2095,9 @@ namespace Opc.Ua
         /// </summary>
         public DiagnosticInfoCollection ReadDiagnosticInfoArray(string fieldName)
         {
-            bool isNil = false;
-
             DiagnosticInfoCollection values = new DiagnosticInfoCollection();
 
-            if (BeginField(fieldName, true, out isNil))
+            if (BeginField(fieldName, true, out bool isNil))
             {
                 PushNamespace(Namespaces.OpcUaXsd);
 
@@ -2292,12 +2118,7 @@ namespace Opc.Ua
                 return values;
             }
 
-            if (isNil)
-            {
-                return null;
-            }
-
-            return values;
+            return isNil ? null : values;
         }
 
         /// <summary>
@@ -2305,11 +2126,9 @@ namespace Opc.Ua
         /// </summary>
         public QualifiedNameCollection ReadQualifiedNameArray(string fieldName)
         {
-            bool isNil = false;
-
             QualifiedNameCollection values = new QualifiedNameCollection();
 
-            if (BeginField(fieldName, true, out isNil))
+            if (BeginField(fieldName, true, out bool isNil))
             {
                 PushNamespace(Namespaces.OpcUaXsd);
 
@@ -2330,12 +2149,7 @@ namespace Opc.Ua
                 return values;
             }
 
-            if (isNil)
-            {
-                return null;
-            }
-
-            return values;
+            return isNil ? null : values;
         }
 
         /// <summary>
@@ -2343,11 +2157,9 @@ namespace Opc.Ua
         /// </summary>
         public LocalizedTextCollection ReadLocalizedTextArray(string fieldName)
         {
-            bool isNil = false;
-
             LocalizedTextCollection values = new LocalizedTextCollection();
 
-            if (BeginField(fieldName, true, out isNil))
+            if (BeginField(fieldName, true, out bool isNil))
             {
                 PushNamespace(Namespaces.OpcUaXsd);
 
@@ -2368,12 +2180,7 @@ namespace Opc.Ua
                 return values;
             }
 
-            if (isNil)
-            {
-                return null;
-            }
-
-            return values;
+            return isNil ? null : values;
         }
 
         /// <summary>
@@ -2381,11 +2188,9 @@ namespace Opc.Ua
         /// </summary>
         public VariantCollection ReadVariantArray(string fieldName)
         {
-            bool isNil = false;
-
             VariantCollection values = new VariantCollection();
 
-            if (BeginField(fieldName, true, out isNil))
+            if (BeginField(fieldName, true, out bool isNil))
             {
                 PushNamespace(Namespaces.OpcUaXsd);
 
@@ -2406,12 +2211,7 @@ namespace Opc.Ua
                 return values;
             }
 
-            if (isNil)
-            {
-                return null;
-            }
-
-            return values;
+            return isNil ? null : values;
         }
 
         /// <summary>
@@ -2419,11 +2219,9 @@ namespace Opc.Ua
         /// </summary>
         public DataValueCollection ReadDataValueArray(string fieldName)
         {
-            bool isNil = false;
-
             DataValueCollection values = new DataValueCollection();
 
-            if (BeginField(fieldName, true, out isNil))
+            if (BeginField(fieldName, true, out bool isNil))
             {
                 PushNamespace(Namespaces.OpcUaXsd);
 
@@ -2444,12 +2242,7 @@ namespace Opc.Ua
                 return values;
             }
 
-            if (isNil)
-            {
-                return null;
-            }
-
-            return values;
+            return isNil ? null : values;
         }
 
         /// <summary>
@@ -2457,11 +2250,9 @@ namespace Opc.Ua
         /// </summary>
         public ExtensionObjectCollection ReadExtensionObjectArray(string fieldName)
         {
-            bool isNil = false;
-
             ExtensionObjectCollection values = new ExtensionObjectCollection();
 
-            if (BeginField(fieldName, true, out isNil))
+            if (BeginField(fieldName, true, out bool isNil))
             {
                 PushNamespace(Namespaces.OpcUaXsd);
 
@@ -2482,12 +2273,7 @@ namespace Opc.Ua
                 return values;
             }
 
-            if (isNil)
-            {
-                return null;
-            }
-
-            return values;
+            return isNil ? null : values;
         }
 
         /// <summary>
@@ -2500,12 +2286,9 @@ namespace Opc.Ua
         public Array ReadEncodeableArray(string fieldName, Type systemType, ExpandedNodeId encodeableTypeId = null)
         {
             if (systemType == null) throw new ArgumentNullException(nameof(systemType));
-
-            bool isNil = false;
-
             IEncodeableCollection encodeables = new IEncodeableCollection();
 
-            if (BeginField(fieldName, true, out isNil))
+            if (BeginField(fieldName, true, out bool isNil))
             {
                 XmlQualifiedName xmlName = EncodeableFactory.GetXmlName(systemType);
                 PushNamespace(xmlName.Namespace);
@@ -2536,12 +2319,7 @@ namespace Opc.Ua
                 return values;
             }
 
-            if (isNil)
-            {
-                return null;
-            }
-
-            return Array.CreateInstance(systemType, 0);
+            return isNil ? null : Array.CreateInstance(systemType, 0);
         }
 
         /// <summary>
@@ -2550,12 +2328,10 @@ namespace Opc.Ua
         public Array ReadEnumeratedArray(string fieldName, Type enumType)
         {
             if (enumType == null) throw new ArgumentNullException(nameof(enumType));
-
-            bool isNil = false;
-
             List<Enum> enums = new List<Enum>();
 
-            if (BeginField(fieldName, true, out isNil))
+
+            if (BeginField(fieldName, true, out bool isNil))
             {
                 XmlQualifiedName xmlName = EncodeableFactory.GetXmlName(enumType);
                 PushNamespace(xmlName.Namespace);
@@ -2584,12 +2360,7 @@ namespace Opc.Ua
                 return values;
             }
 
-            if (isNil)
-            {
-                return null;
-            }
-
-            return Array.CreateInstance(enumType, 0);
+            return isNil ? null : Array.CreateInstance(enumType, 0);
         }
 
         /// <inheritdoc/>
@@ -2597,8 +2368,8 @@ namespace Opc.Ua
         {
             if (valueRank == ValueRanks.OneDimension)
             {
-                /*One dimensional Array parameters are always encoded by wrapping the elements in a container element 
-                 * and inserting the container into the structure. The name of the container element should be the name of the parameter. 
+                /*One dimensional Array parameters are always encoded by wrapping the elements in a container element
+                 * and inserting the container into the structure. The name of the container element should be the name of the parameter.
                  * The name of the element in the array shall be the type name.*/
                 return ReadArrayElements(fieldName, builtInType, systemType, encodeableTypeId);
             }
@@ -2756,7 +2527,7 @@ namespace Opc.Ua
 
                 if (elements == null)
                 {
-                    throw new ServiceResultException(StatusCodes.BadDecodingError, "The Matrix contains invalid elements");
+                    throw new ServiceResultException(StatusCodes.BadDecodingError, "The Matrix contains invalid elements.");
                 }
 
                 if (dimensions != null && dimensions.Count > 0)
@@ -2819,7 +2590,7 @@ namespace Opc.Ua
                 "ExtensionObject" => TypeInfo.Arrays.ExtensionObject,
                 "Variant" => TypeInfo.Arrays.Variant,
                 "DataValue" => TypeInfo.Arrays.DataValue,
-                "DiagnosticInfo" => TypeInfo.Arrays.DiagnosticInfo,                
+                "DiagnosticInfo" => TypeInfo.Arrays.DiagnosticInfo,
                 _ => throw new ServiceResultException(StatusCodes.BadDecodingError, $"Unsupported element type: {elementTypeName}")
             };
         }
@@ -2850,32 +2621,27 @@ namespace Opc.Ua
                     case BuiltInType.Boolean:
                     {
                         BooleanCollection collection = ReadBooleanArray(fieldName);
-                        if (collection != null) return collection.ToArray();
-                        return null;
+                        return collection != null ? collection.ToArray() : (Array)null;
                     }
                     case BuiltInType.SByte:
                     {
                         SByteCollection collection = ReadSByteArray(fieldName);
-                        if (collection != null) return collection.ToArray();
-                        return null;
+                        return collection != null ? collection.ToArray() : (Array)null;
                     }
                     case BuiltInType.Byte:
                     {
                         ByteCollection collection = ReadByteArray(fieldName);
-                        if (collection != null) return collection.ToArray();
-                        return null;
+                        return collection != null ? collection.ToArray() : (Array)null;
                     }
                     case BuiltInType.Int16:
                     {
                         Int16Collection collection = ReadInt16Array(fieldName);
-                        if (collection != null) return collection.ToArray();
-                        return null;
+                        return collection != null ? collection.ToArray() : (Array)null;
                     }
                     case BuiltInType.UInt16:
                     {
                         UInt16Collection collection = ReadUInt16Array(fieldName);
-                        if (collection != null) return collection.ToArray();
-                        return null;
+                        return collection != null ? collection.ToArray() : (Array)null;
                     }
                     case BuiltInType.Enumeration:
                     case BuiltInType.Int32:
@@ -2904,110 +2670,92 @@ namespace Opc.Ua
                     case BuiltInType.UInt32:
                     {
                         UInt32Collection collection = ReadUInt32Array(fieldName);
-                        if (collection != null) return collection.ToArray();
-                        return null;
+                        return collection != null ? collection.ToArray() : (Array)null;
                     }
                     case BuiltInType.Int64:
                     {
                         Int64Collection collection = ReadInt64Array(fieldName);
-                        if (collection != null) return collection.ToArray();
-                        return null;
+                        return collection != null ? collection.ToArray() : (Array)null;
                     }
                     case BuiltInType.UInt64:
                     {
                         UInt64Collection collection = ReadUInt64Array(fieldName);
-                        if (collection != null) return collection.ToArray();
-                        return null;
+                        return collection != null ? collection.ToArray() : (Array)null;
                     }
                     case BuiltInType.Float:
                     {
                         FloatCollection collection = ReadFloatArray(fieldName);
-                        if (collection != null) return collection.ToArray();
-                        return null;
+                        return collection != null ? collection.ToArray() : (Array)null;
                     }
                     case BuiltInType.Double:
                     {
                         DoubleCollection collection = ReadDoubleArray(fieldName);
-                        if (collection != null) return collection.ToArray();
-                        return null;
+                        return collection != null ? collection.ToArray() : (Array)null;
                     }
                     case BuiltInType.String:
                     {
                         StringCollection collection = ReadStringArray(fieldName);
-                        if (collection != null) return collection.ToArray();
-                        return null;
+                        return collection != null ? collection.ToArray() : (Array)null;
                     }
                     case BuiltInType.DateTime:
                     {
                         DateTimeCollection collection = ReadDateTimeArray(fieldName);
-                        if (collection != null) return collection.ToArray();
-                        return null;
+                        return collection != null ? collection.ToArray() : (Array)null;
                     }
                     case BuiltInType.Guid:
                     {
                         UuidCollection collection = ReadGuidArray(fieldName);
-                        if (collection != null) return collection.ToArray();
-                        return null;
+                        return collection != null ? collection.ToArray() : (Array)null;
                     }
                     case BuiltInType.ByteString:
                     {
                         ByteStringCollection collection = ReadByteStringArray(fieldName);
-                        if (collection != null) return collection.ToArray();
-                        return null;
+                        return collection != null ? collection.ToArray() : (Array)null;
                     }
                     case BuiltInType.XmlElement:
                     {
                         XmlElementCollection collection = ReadXmlElementArray(fieldName);
-                        if (collection != null) return collection.ToArray();
-                        return null;
+                        return collection != null ? collection.ToArray() : (Array)null;
                     }
                     case BuiltInType.NodeId:
                     {
                         NodeIdCollection collection = ReadNodeIdArray(fieldName);
-                        if (collection != null) return collection.ToArray();
-                        return null;
+                        return collection != null ? collection.ToArray() : (Array)null;
                     }
                     case BuiltInType.ExpandedNodeId:
                     {
                         ExpandedNodeIdCollection collection = ReadExpandedNodeIdArray(fieldName);
-                        if (collection != null) return collection.ToArray();
-                        return null;
+                        return collection != null ? collection.ToArray() : (Array)null;
                     }
                     case BuiltInType.StatusCode:
                     {
                         StatusCodeCollection collection = ReadStatusCodeArray(fieldName);
-                        if (collection != null) return collection.ToArray();
-                        return null;
+                        return collection != null ? collection.ToArray() : (Array)null;
                     }
                     case BuiltInType.DiagnosticInfo:
                     {
                         DiagnosticInfoCollection collection = ReadDiagnosticInfoArray(fieldName);
-                        if (collection != null) return collection.ToArray();
-                        return null;
+                        return collection != null ? collection.ToArray() : (Array)null;
                     }
                     case BuiltInType.QualifiedName:
                     {
                         QualifiedNameCollection collection = ReadQualifiedNameArray(fieldName);
-                        if (collection != null) return collection.ToArray();
-                        return null;
+                        return collection != null ? collection.ToArray() : (Array)null;
                     }
                     case BuiltInType.LocalizedText:
                     {
                         LocalizedTextCollection collection = ReadLocalizedTextArray(fieldName);
-                        if (collection != null) return collection.ToArray();
-                        return null;
+                        return collection != null ? collection.ToArray() : (Array)null;
                     }
                     case BuiltInType.ExtensionObject:
                     {
                         ExtensionObjectCollection collection = ReadExtensionObjectArray(fieldName);
-                        if (collection != null) return collection.ToArray();
-                        return null;
+                        return collection != null ? collection.ToArray() : (Array)null;
                     }
                     case BuiltInType.DataValue:
                     {
                         DataValueCollection collection = ReadDataValueArray(fieldName);
-                        if (collection != null) return collection.ToArray();
-                        return null;
+                        return collection != null ? collection.ToArray() : (Array)null;
                     }
                     case BuiltInType.Variant:
                     {
@@ -3017,8 +2765,7 @@ namespace Opc.Ua
                         }
 
                         VariantCollection collection = ReadVariantArray(fieldName);
-                        if (collection != null) return collection.ToArray();
-                        return null;
+                        return collection != null ? collection.ToArray() : (Array)null;
                     }
                     default:
                     {
@@ -3071,6 +2818,18 @@ namespace Opc.Ua
             }
             throw ServiceResultException.Create(StatusCodes.BadDecodingError,
                 "Unable to read string of {0}: {1}", functionName, message);
+        }
+
+        private byte[] SafeConvertFromBase64String(string s)
+        {
+            try
+            {
+                return Convert.FromBase64String(s);
+            }
+            catch (FormatException fe)
+            {
+                throw ServiceResultException.Create(StatusCodes.BadDecodingError, "Error decoding base64 string: {0}", fe.Message);
+            }
         }
 
         /// <summary>
