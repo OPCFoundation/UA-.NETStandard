@@ -138,7 +138,7 @@ namespace Opc.Ua.Client
                 if (m_publishTimer == null &&
                     m_messageWorkerCts == null &&
                     m_messageWorkerTask == null &&
-                    m_messageWorkerCts == null)
+                    m_messageWorkerEvent == null)
                 {
                     return;
                 }
