@@ -264,7 +264,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Whether the monitored item should report a value without checking if it was changed.
         /// </summary>
-        public bool AlwaysReportUpdates { get; set; }
+        bool AlwaysReportUpdates { get; set; }
 
         /// <summary>
         /// Sets a flag indicating that the semantics for the monitored node have changed.
