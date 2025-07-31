@@ -1976,17 +1976,6 @@ namespace Opc.Ua
                             break;
                         }
 
-                        // try to cast array to IEncodeable list
-                        if (matrix.Elements is Array arrayType &&
-                            (arrayType.Length == 0 || arrayType.GetType().GetElementType().IsInstanceOfType(arrayType.GetValue(0))))
-                        {
-                            for (int ii = 0; ii < arrayType.Length; ii++)
-                            {
-                                WriteEncodeable(null, (IEncodeable)arrayType.GetValue(ii), null);
-                            }
-                            break;
-                        }
-
                         throw ServiceResultException.Create(
                             StatusCodes.BadEncodingError,
                             "Unexpected type encountered while encoding a Matrix.");
