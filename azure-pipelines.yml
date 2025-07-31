@@ -143,7 +143,7 @@ stages:
   jobs:
   - template: .azurepipelines/test.yml
     parameters:
-      framework: net6.0
+      framework: net8.0
       configuration: Release
       jobnamesuffix: netstandard20
       agents: '@{ windows = "windows-2022"; linux="ubuntu-22.04"}'
@@ -155,7 +155,7 @@ stages:
   jobs:
   - template: .azurepipelines/test.yml
     parameters:
-      framework: net6.0
+      framework: net8.0
       configuration: Release
       jobnamesuffix: netstandard21
       customtestarget: netstandard2.1
