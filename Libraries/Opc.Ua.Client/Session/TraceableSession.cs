@@ -660,6 +660,15 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
+        public async Task<byte[]> ReadByteStringInChunksAsync(NodeId nodeId, CancellationToken ct)
+        {
+            using (Activity activity = ActivitySource.StartActivity())
+            {
+                return await m_session.ReadByteStringInChunksAsync(nodeId, ct).ConfigureAwait(false);
+            }
+        }
+
+        /// <inheritdoc/>
         public void ReadDisplayName(IList<NodeId> nodeIds, out IList<string> displayNames, out IList<ServiceResult> errors)
         {
             using (Activity activity = ActivitySource.StartActivity())
@@ -703,7 +712,6 @@ namespace Opc.Ua.Client
                 await m_session.OpenAsync(sessionName, sessionTimeout, identity, preferredLocales, checkDomain, closeChannel, ct).ConfigureAwait(false);
             }
         }
-
 
         /// <inheritdoc/>
         public async Task FetchNamespaceTablesAsync(CancellationToken ct = default)

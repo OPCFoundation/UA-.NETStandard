@@ -695,7 +695,7 @@ namespace Opc.Ua.Client
         /// </summary>
         /// <remarks>
         /// Set to true if the server does not respond for the KeepAliveInterval * 1 (KeepAliveIntervalFactor) + 1 Second (KeepAliveGuardBand) *
-        /// To change the sensitivity of the keep alive check, set the <see cref="m_keepAliveIntervalFactor"/> / <see cref="m_keepAliveGuardBand"/> fields. 
+        /// To change the sensitivity of the keep alive check, set the <see cref="m_keepAliveIntervalFactor"/> / <see cref="m_keepAliveGuardBand"/> fields.
         /// or if another error was reported.
         /// Set to false is communication is ok or recovered.
         /// </remarks>
@@ -2754,24 +2754,23 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public byte[] ReadByteStringInChunks(NodeId nodeId)
         {
+            int count = (int)ServerMaxByteStringLength;
 
-            int count = (int)ServerMaxByteStringLength; ;
-
-            int my_MaxByteStringLength = m_configuration.TransportQuotas.MaxByteStringLength;
-            if (my_MaxByteStringLength > 0)
+            int maxByteStringLength = m_configuration.TransportQuotas.MaxByteStringLength;
+            if (maxByteStringLength > 0)
             {
-                count = ServerMaxByteStringLength > my_MaxByteStringLength ?
-                    my_MaxByteStringLength : (int)ServerMaxByteStringLength;
+                count = ServerMaxByteStringLength > maxByteStringLength ?
+                    maxByteStringLength : (int)ServerMaxByteStringLength;
             }
 
             if (count <= 1)
             {
-                throw new ServiceResultException(StatusCodes.BadIndexRangeNoData, "The MaxByteStringLength is not known or too small for reading data in chunks.");
+                throw ServiceResultException.Create(StatusCodes.BadIndexRangeNoData,
+                    "The MaxByteStringLength is not known or too small for reading data in chunks.");
             }
 
             int offset = 0;
-            List<byte[]> bytes = new List<byte[]>();
-
+            using var bytes = new MemoryStream();
             while (true)
             {
                 ReadValueId valueToRead = new ReadValueId {
@@ -2820,7 +2819,7 @@ namespace Opc.Ua.Client
                     break;
                 }
 
-                bytes.Add(chunk);
+                bytes.Write(chunk, 0, chunk.Length);
 
                 if (chunk.Length < count)
                 {
@@ -2829,7 +2828,7 @@ namespace Opc.Ua.Client
                 offset += count;
             }
 
-            return bytes.SelectMany(a => a).ToArray();
+            return bytes.ToArray();
         }
 
         /// <inheritdoc/>

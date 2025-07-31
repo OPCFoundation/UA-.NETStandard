@@ -91,17 +91,14 @@ namespace Opc.Ua.Client.Tests
 
         public override async Task CreateReferenceServerFixture(bool enableTracing, bool disableActivityLogging, bool securityNone, TextWriter writer)
         {
-            {
-                // start Ref server
-                ServerFixture = new ServerFixture<ReferenceServer>(enableTracing, disableActivityLogging) {
-                    UriScheme = UriScheme,
-                    SecurityNone = securityNone,
-                    AutoAccept = true,
-                    AllNodeManagers = true,
-                    OperationLimits = true
-                };
-            }
-
+            // start Ref server
+            ServerFixture = new ServerFixture<ReferenceServer>(enableTracing, disableActivityLogging) {
+                UriScheme = UriScheme,
+                SecurityNone = securityNone,
+                AutoAccept = true,
+                AllNodeManagers = true,
+                OperationLimits = true
+            };
             if (writer != null)
             {
                 ServerFixture.TraceMasks = Utils.TraceMasks.Error | Utils.TraceMasks.Security;
@@ -156,7 +153,6 @@ namespace Opc.Ua.Client.Tests
         [Test, Order(200)]
         public void TestBoundaryCaseForReadingChunks()
         {
-
             Session theSession = ((Session)(((TraceableSession)Session).Session));
 
             int NamespaceIndex = theSession.NamespaceUris.GetIndex("http://opcfoundation.org/Quickstarts/ReferenceServer");
@@ -174,8 +170,8 @@ namespace Opc.Ua.Client.Tests
                 IndexRange = null
             };
             WriteValueCollection writeValues = new WriteValueCollection {
-                    WriteValue
-                };
+                WriteValue
+            };
             theSession.Write(null, writeValues, out StatusCodeCollection results, out DiagnosticInfoCollection diagnosticInfos);
 
             if (results[0] != StatusCodes.Good)
@@ -185,6 +181,41 @@ namespace Opc.Ua.Client.Tests
 
             byte[] readData = theSession.ReadByteStringInChunks(NodeId);
 
+            Assert.IsTrue(Utils.IsEqual(chunk, readData));
+        }
+
+        [Test, Order(210)]
+        public async Task TestBoundaryCaseForReadingChunksAsync()
+        {
+            Session theSession = ((Session)(((TraceableSession)Session).Session));
+
+            int NamespaceIndex = theSession.NamespaceUris.GetIndex("http://opcfoundation.org/Quickstarts/ReferenceServer");
+            NodeId NodeId = new NodeId($"ns={NamespaceIndex};s=Scalar_Static_ByteString");
+
+            Random random = new Random();
+
+            byte[] chunk = new byte[MaxByteStringLengthForTest];
+            random.NextBytes(chunk);
+
+            WriteValue WriteValue = new WriteValue {
+                NodeId = NodeId,
+                AttributeId = Attributes.Value,
+                Value = new DataValue() { WrappedValue = new Variant(chunk) },
+                IndexRange = null
+            };
+            WriteValueCollection writeValues = new WriteValueCollection {
+                WriteValue
+            };
+
+            var result = await theSession.WriteAsync(null, writeValues, default);
+            StatusCodeCollection results = result.Results;
+            DiagnosticInfoCollection diagnosticInfos = result.DiagnosticInfos;
+            if (results[0] != StatusCodes.Good)
+            {
+                Assert.Fail($"Write failed with status code {results[0]}");
+            }
+
+            byte[] readData = await theSession.ReadByteStringInChunksAsync(NodeId, default);
             Assert.IsTrue(Utils.IsEqual(chunk, readData));
         }
         #endregion // Test Methods

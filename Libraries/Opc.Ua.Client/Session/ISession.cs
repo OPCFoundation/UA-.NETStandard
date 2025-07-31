@@ -537,6 +537,15 @@ namespace Opc.Ua.Client
         void FetchReferences(IList<NodeId> nodeIds, out IList<ReferenceDescriptionCollection> referenceDescriptions, out IList<ServiceResult> errors);
 
 #if (CLIENT_ASYNC)
+
+        /// <summary>
+        /// Reads a byte string which is too large for the (server side) encoder to handle.
+        /// </summary>
+        /// <param name="nodeId">The node id of a byte string variable</param>
+        /// <param name="ct"></param>
+        /// <returns></returns>
+        Task<byte[]> ReadByteStringInChunksAsync(NodeId nodeId, CancellationToken ct);
+
         /// <summary>
         /// Fetches all references for the specified node.
         /// </summary>

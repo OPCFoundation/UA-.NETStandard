@@ -49,10 +49,9 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <summary>
         /// The default constructor.
         /// </summary>
-        public DataDictionary(ISession session)
+        internal DataDictionary()
         {
             Initialize();
-            m_session = session;
         }
 
         /// <summary>
@@ -60,7 +59,6 @@ namespace Opc.Ua.Client.ComplexTypes
         /// </summary>
         private void Initialize()
         {
-            m_session = null;
             DataTypes = new Dictionary<NodeId, QualifiedName>();
             m_validator = null;
             TypeSystemId = null;
@@ -74,82 +72,32 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <summary>
         /// The node id for the dictionary.
         /// </summary>
-        public NodeId DictionaryId { get; private set; }
+        public NodeId DictionaryId { get; internal set; }
 
         /// <summary>
         /// The display name for the dictionary.
         /// </summary>
-        public string Name { get; private set; }
+        public string Name { get; internal set; }
 
         /// <summary>
         /// The node id for the type system.
         /// </summary>
-        public NodeId TypeSystemId { get; private set; }
+        public NodeId TypeSystemId { get; internal set; }
 
         /// <summary>
         /// The display name for the type system.
         /// </summary>
-        public string TypeSystemName { get; private set; }
+        public string TypeSystemName { get; internal set; }
 
         /// <summary>
         /// The type dictionary.
         /// </summary>
-        public Schema.Binary.TypeDictionary TypeDictionary { get; private set; }
+        public Schema.Binary.TypeDictionary TypeDictionary { get; internal set; }
 
         /// <summary>
         /// The data type dictionary DataTypes
         /// </summary>
-        public Dictionary<NodeId, QualifiedName> DataTypes { get; private set; }
-
-        /// <summary>
-        /// Loads the dictionary identified by the node id.
-        /// </summary>
-        public void Load(INode dictionary)
-        {
-            if (dictionary == null)
-            {
-                throw new ArgumentNullException(nameof(dictionary));
-            }
-            NodeId dictionaryId = ExpandedNodeId.ToNodeId(dictionary.NodeId, m_session.NamespaceUris);
-            Load(dictionaryId, dictionary.ToString());
-        }
-
-        /// <summary>
-        /// Loads the dictionary identified by the node id.
-        /// </summary>
-        public void Load(NodeId dictionaryId, string name, byte[] schema = null, IDictionary<string, byte[]> imports = null)
-        {
-            if (dictionaryId == null)
-            {
-                throw new ArgumentNullException(nameof(dictionaryId));
-            }
-
-            GetTypeSystem(dictionaryId);
-
-            if (schema == null || schema.Length == 0)
-            {
-                schema = ReadDictionary(dictionaryId);
-            }
-
-            if (schema == null || schema.Length == 0)
-            {
-                throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "Cannot parse empty data dictionary.");
-            }
-
-            // Interoperability: some server may return a null terminated dictionary string, adjust length
-            int zeroTerminator = Array.IndexOf<byte>(schema, 0);
-            if (zeroTerminator >= 0)
-            {
-                Array.Resize(ref schema, zeroTerminator);
-            }
-
-            Validate(schema, imports);
-
-            ReadDataTypes(dictionaryId);
-
-            DictionaryId = dictionaryId;
-            Name = name;
-        }
+        public Dictionary<NodeId, QualifiedName> DataTypes { get; internal set; }
 
         /// <summary>
         /// Returns true if the dictionary contains the data type description.
@@ -179,178 +127,6 @@ namespace Opc.Ua.Client.ComplexTypes
         #endregion
 
         #region Private Members
-        /// <summary>
-        /// Retrieves the type system for the dictionary.
-        /// </summary>
-        private void GetTypeSystem(NodeId dictionaryId)
-        {
-            var references = m_session.NodeCache.FindReferences(dictionaryId, ReferenceTypeIds.HasComponent, true, false);
-            if (references.Count > 0)
-            {
-                TypeSystemId = ExpandedNodeId.ToNodeId(references[0].NodeId, m_session.NamespaceUris);
-                TypeSystemName = references[0].ToString();
-            }
-        }
-
-        /// <summary>
-        /// Retrieves the data types in the dictionary.
-        /// </summary>
-        /// <remarks>
-        /// In order to allow for fast Linq matching of dictionary
-        /// QNames with the data type nodes, the BrowseName of
-        /// the DataType node is replaced with Value string.
-        /// </remarks>
-        private void ReadDataTypes(NodeId dictionaryId)
-        {
-            IList<INode> references = m_session.NodeCache.FindReferences(dictionaryId, ReferenceTypeIds.HasComponent, false, false);
-            IList<NodeId> nodeIdCollection = references.Select(node => ExpandedNodeId.ToNodeId(node.NodeId, m_session.NamespaceUris)).ToList();
-
-            // read the value to get the names that are used in the dictionary
-            m_session.ReadValues(nodeIdCollection, out DataValueCollection values, out IList<ServiceResult> errors);
-
-            int ii = 0;
-            foreach (var reference in references)
-            {
-                NodeId datatypeId = ExpandedNodeId.ToNodeId(reference.NodeId, m_session.NamespaceUris);
-                if (datatypeId != null)
-                {
-                    if (ServiceResult.IsGood(errors[ii]))
-                    {
-                        var dictName = (String)values[ii].Value;
-                        DataTypes[datatypeId] = new QualifiedName(dictName, datatypeId.NamespaceIndex);
-                    }
-                    ii++;
-                }
-            }
-        }
-
-        /// <summary>
-        /// Reads the contents of multiple data dictionaries.
-        /// </summary>
-        public static async Task<IDictionary<NodeId, byte[]>> ReadDictionariesAsync(
-            ISessionClientMethods session,
-            IList<NodeId> dictionaryIds,
-            CancellationToken ct = default)
-        {
-            var result = new Dictionary<NodeId, byte[]>();
-            if (dictionaryIds.Count == 0)
-            {
-                return result;
-            }
-
-            ReadValueIdCollection itemsToRead = new ReadValueIdCollection();
-            foreach (var nodeId in dictionaryIds)
-            {
-                // create item to read.
-                ReadValueId itemToRead = new ReadValueId {
-                    NodeId = nodeId,
-                    AttributeId = Attributes.Value,
-                    IndexRange = null,
-                    DataEncoding = null
-                };
-                itemsToRead.Add(itemToRead);
-            }
-
-            // read values.
-            ReadResponse readResponse = await session.ReadAsync(
-                null,
-                0,
-                TimestampsToReturn.Neither,
-                itemsToRead,
-                ct).ConfigureAwait(false);
-
-            DataValueCollection values = readResponse.Results;
-            DiagnosticInfoCollection diagnosticInfos = readResponse.DiagnosticInfos;
-            ResponseHeader response = readResponse.ResponseHeader;
-            ClientBase.ValidateResponse(values, itemsToRead);
-            ClientBase.ValidateDiagnosticInfos(diagnosticInfos, itemsToRead);
-
-            int ii = 0;
-            foreach (var nodeId in dictionaryIds)
-            {
-                // check for error.
-                if (StatusCode.IsBad(values[ii].StatusCode))
-                {
-                    ServiceResult sr = ClientBase.GetResult(values[ii].StatusCode, 0, diagnosticInfos, response);
-                    throw new ServiceResultException(sr);
-                }
-
-                // return as a byte array.
-                result[nodeId] = values[ii].Value as byte[];
-                ii++;
-            }
-
-            return result;
-        }
-
-        /// <summary>
-        /// Reads the contents of a data dictionary.
-        /// </summary>
-        public byte[] ReadDictionary(NodeId dictionaryId)
-        {
-            // create item to read.
-            ReadValueId itemToRead = new ReadValueId {
-                NodeId = dictionaryId,
-                AttributeId = Attributes.Value,
-                IndexRange = null,
-                DataEncoding = null
-            };
-
-            ReadValueIdCollection itemsToRead = new ReadValueIdCollection {
-                itemToRead
-            };
-
-            // read value.
-            DataValueCollection values;
-            DiagnosticInfoCollection diagnosticInfos;
-            try
-            {
-                ResponseHeader responseHeader = m_session.Read(
-                    null,
-                    0,
-                    TimestampsToReturn.Neither,
-                    itemsToRead,
-                    out values,
-                    out diagnosticInfos);
-
-                ClientBase.ValidateResponse(values, itemsToRead);
-                ClientBase.ValidateDiagnosticInfos(diagnosticInfos, itemsToRead);
-
-                // check for error.
-                if (StatusCode.IsBad(values[0].StatusCode))
-                {
-                    ServiceResult result = ClientBase.GetResult(values[0].StatusCode, 0, diagnosticInfos, responseHeader);
-                    throw new ServiceResultException(result);
-                }
-
-                // return as a byte array.
-                return values[0].Value as byte[];
-
-            }
-            catch (ServiceResultException ex)
-            {
-                if (ex.StatusCode != StatusCodes.BadEncodingLimitsExceeded)
-                {
-                    throw;
-                }
-                else
-                {
-                    try
-                    {
-                        byte[] dictionary = m_session.ReadByteStringInChunks(dictionaryId);
-                        return dictionary;
-                    }
-                    catch
-                    {
-                        ExceptionDispatchInfo.Capture(ex).Throw();
-                        throw;
-                    }
-
-                }
-            }
-
-
-        }
 
         /// <summary>
         /// Validates the type dictionary.
@@ -412,10 +188,9 @@ namespace Opc.Ua.Client.ComplexTypes
                 TypeDictionary = validator.Dictionary;
             }
         }
-#endregion
+        #endregion
 
         #region Private Members
-        private ISession m_session;
         private SchemaValidator m_validator;
         #endregion
     }
