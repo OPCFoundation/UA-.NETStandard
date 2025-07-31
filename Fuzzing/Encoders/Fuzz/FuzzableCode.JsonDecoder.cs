@@ -49,25 +49,7 @@ public static partial class FuzzableCode
     /// </summary>
     public static void AflfuzzJsonEncoder(string input)
     {
-        IEncodeable encodeable = null;
-        try
-        {
-            encodeable = FuzzJsonDecoderCore(input);
-        }
-        catch
-        {
-            return;
-        }
-
-        // encode the fuzzed object and see if it crashes
-        if (encodeable != null)
-        {
-            using (var encoder = new JsonEncoder(messageContext, true))
-            {
-                encoder.EncodeMessage(encodeable);
-                encoder.Close();
-            }
-        }
+        FuzzJsonEncoderCore(input, JsonEncodingType.Compact);
     }
 
     /// <summary>
@@ -88,30 +70,7 @@ public static partial class FuzzableCode
     /// </summary>
     public static void LibfuzzJsonEncoder(ReadOnlySpan<byte> input)
     {
-        IEncodeable encodeable = null;
-#if NETFRAMEWORK
-        string json = Encoding.UTF8.GetString(input.ToArray());
-#else
-        string json = Encoding.UTF8.GetString(input);
-#endif
-        try
-        {
-            encodeable = FuzzJsonDecoderCore(json);
-        }
-        catch
-        {
-            return;
-        }
-
-        // encode the fuzzed object and see if it crashes
-        if (encodeable != null)
-        {
-            using (var encoder = new JsonEncoder(messageContext, true))
-            {
-                encoder.EncodeMessage(encodeable);
-                encoder.Close();
-            }
-        }
+        FuzzJsonEncoderCore(input, JsonEncodingType.Compact);
     }
 
     /// <summary>
@@ -141,6 +100,56 @@ public static partial class FuzzableCode
             }
 
             throw;
+        }
+    }
+
+    /// <summary>
+    /// The fuzz target for the Json encoder core.
+    /// </summary>
+    internal static void FuzzJsonEncoderCore(ReadOnlySpan<byte> input, JsonEncodingType jsonEncodingType)
+    {
+#if NETFRAMEWORK
+        string json = Encoding.UTF8.GetString(input.ToArray());
+#else
+        string json = Encoding.UTF8.GetString(input);
+#endif
+
+        FuzzJsonEncoderCore(json, jsonEncodingType);
+    }
+
+    /// <summary>
+    /// The fuzz target for the Json encoder core.
+    /// </summary>
+    internal static void FuzzJsonEncoderCore(string json, JsonEncodingType jsonEncodingType)
+    {
+        IEncodeable deserialized;
+        try
+        {
+            deserialized = FuzzJsonDecoderCore(json);
+        }
+        catch
+        {
+            return;
+        }
+
+        if (deserialized != null)
+        {
+            // see if this throws
+            using (var encoder = new JsonEncoder(messageContext, jsonEncodingType))
+            {
+                switch (jsonEncodingType)
+                {
+                    case JsonEncodingType.NonReversible:
+                        encoder.EncodeNodeIdAsString = true;
+                        encoder.ForceNamespaceUriForIndex1 = true;
+                        break;
+                }
+
+                encoder.EncodeMessage(deserialized);
+                json = encoder.CloseAndReturnText();
+            }
+
+            _ = FuzzableCode.FuzzJsonDecoderCore(json);
         }
     }
 }

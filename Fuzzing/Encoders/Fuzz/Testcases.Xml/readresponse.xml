@@ -1,6 +1,6 @@
 <ReadResponse xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
   <ResponseHeader>
-    <Timestamp>2024-05-03T13:00:39.3472074Z</Timestamp>
+    <Timestamp>2025-02-06T05:50:43.7080229Z</Timestamp>
     <RequestHandle>42</RequestHandle>
     <ServiceResult>
       <Code>0</Code>
@@ -12,7 +12,7 @@
       <LocalizedText>-1</LocalizedText>
       <AdditionalInfo>NodeId not found</AdditionalInfo>
       <InnerStatusCode>
-        <Code>2153644032</Code>
+        <Code>2161770496</Code>
       </InnerStatusCode>
       <InnerDiagnosticInfo>
         <SymbolicId>-1</SymbolicId>
@@ -21,7 +21,7 @@
         <LocalizedText>-1</LocalizedText>
         <AdditionalInfo>Hello World</AdditionalInfo>
         <InnerStatusCode>
-          <Code>2150891520</Code>
+          <Code>2151022592</Code>
         </InnerStatusCode>
         <InnerDiagnosticInfo>
           <SymbolicId>-1</SymbolicId>
@@ -30,7 +30,7 @@
           <LocalizedText>-1</LocalizedText>
           <AdditionalInfo>Hello World</AdditionalInfo>
           <InnerStatusCode>
-            <Code>2150891520</Code>
+            <Code>2149711872</Code>
           </InnerStatusCode>
           <InnerDiagnosticInfo>
             <SymbolicId>-1</SymbolicId>
@@ -39,7 +39,7 @@
             <LocalizedText>-1</LocalizedText>
             <AdditionalInfo>Hello World</AdditionalInfo>
             <InnerStatusCode>
-              <Code>2150891520</Code>
+              <Code>2165637120</Code>
             </InnerStatusCode>
           </InnerDiagnosticInfo>
         </InnerDiagnosticInfo>
@@ -57,9 +57,9 @@
       <StatusCode>
         <Code>0</Code>
       </StatusCode>
-      <SourceTimestamp>2024-05-03T13:01:39.3471774Z</SourceTimestamp>
+      <SourceTimestamp>2025-02-06T05:51:43.7079679Z</SourceTimestamp>
       <SourcePicoseconds>10</SourcePicoseconds>
-      <ServerTimestamp>2024-05-03T13:00:39.3471774Z</ServerTimestamp>
+      <ServerTimestamp>2025-02-06T05:50:43.7079679Z</ServerTimestamp>
       <ServerPicoseconds>100</ServerPicoseconds>
     </DataValue>
     <DataValue>
@@ -71,9 +71,9 @@
       <StatusCode>
         <Code>2157772800</Code>
       </StatusCode>
-      <SourceTimestamp>2024-05-03T13:01:39.3471774Z</SourceTimestamp>
+      <SourceTimestamp>2025-02-06T05:51:43.7079679Z</SourceTimestamp>
       <SourcePicoseconds>0</SourcePicoseconds>
-      <ServerTimestamp>2024-05-03T13:00:39.3471774Z</ServerTimestamp>
+      <ServerTimestamp>2025-02-06T05:50:43.7079679Z</ServerTimestamp>
       <ServerPicoseconds>0</ServerPicoseconds>
     </DataValue>
     <DataValue>
@@ -85,9 +85,9 @@
       <StatusCode>
         <Code>0</Code>
       </StatusCode>
-      <SourceTimestamp>2024-05-03T13:01:39.3471774Z</SourceTimestamp>
+      <SourceTimestamp>2025-02-06T05:51:43.7079679Z</SourceTimestamp>
       <SourcePicoseconds>0</SourcePicoseconds>
-      <ServerTimestamp>2024-05-03T13:00:39.3471774Z</ServerTimestamp>
+      <ServerTimestamp>2025-02-06T05:50:43.7079679Z</ServerTimestamp>
       <ServerPicoseconds>0</ServerPicoseconds>
     </DataValue>
     <DataValue>
@@ -99,9 +99,41 @@
       <StatusCode>
         <Code>0</Code>
       </StatusCode>
-      <SourceTimestamp>2024-05-03T13:00:39.3471774Z</SourceTimestamp>
+      <SourceTimestamp>2025-02-06T05:50:43.7079679Z</SourceTimestamp>
       <SourcePicoseconds>0</SourcePicoseconds>
       <ServerTimestamp>0001-01-01T00:00:00</ServerTimestamp>
+      <ServerPicoseconds>0</ServerPicoseconds>
+    </DataValue>
+    <DataValue>
+      <Value>
+        <Value>
+          <Matrix>
+            <Elements>
+              <ListOfByte>
+                <Byte>1</Byte>
+                <Byte>2</Byte>
+                <Byte>3</Byte>
+                <Byte>4</Byte>
+                <Byte>11</Byte>
+                <Byte>22</Byte>
+                <Byte>33</Byte>
+                <Byte>44</Byte>
+              </ListOfByte>
+            </Elements>
+            <Dimensions>
+              <Int32>2</Int32>
+              <Int32>2</Int32>
+              <Int32>2</Int32>
+            </Dimensions>
+          </Matrix>
+        </Value>
+      </Value>
+      <StatusCode>
+        <Code>0</Code>
+      </StatusCode>
+      <SourceTimestamp>0001-01-01T00:00:00</SourceTimestamp>
+      <SourcePicoseconds>0</SourcePicoseconds>
+      <ServerTimestamp>2025-02-06T05:50:43.7079679Z</ServerTimestamp>
       <ServerPicoseconds>0</ServerPicoseconds>
     </DataValue>
   </Results>

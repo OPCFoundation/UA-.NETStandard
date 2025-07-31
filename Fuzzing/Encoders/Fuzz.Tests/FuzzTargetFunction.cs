@@ -28,48 +28,26 @@
  * ======================================================================*/
 
 using System;
-using System.IO;
-using Opc.Ua;
-using Opc.Ua.Bindings;
+using System.Reflection;
 
-public static partial class FuzzableCode
+namespace Opc.Ua.Fuzzing
 {
-    private static ServiceMessageContext messageContext = ServiceMessageContext.GlobalContext;
-    private static BufferManager bufferManager = new BufferManager(nameof(FuzzableCode), 65535);
-    private static ChannelQuotas channelQuotas = new ChannelQuotas();
-
     /// <summary>
-    /// Print information about the fuzzer target.
+    /// A Testcase as test asset.
     /// </summary>
-    public static void FuzzInfo()
+    public class FuzzTargetFunction : IFormattable
     {
-        Console.WriteLine("OPC UA Core Encoder Fuzzer for afl-fuzz and libfuzzer.");
-        Console.WriteLine("Fuzzing targets for various aspects of the OPC UA Binary, Json and Xml encoders.");
-    }
-
-    /// <summary>
-    /// Prepare a seekable memory stream from the input stream.
-    /// </summary>
-    private static MemoryStream PrepareArraySegmentStream(Stream stream)
-    {
-        const int segmentSize = 0x40;
-
-        // afl-fuzz uses a non seekable stream, causing false positives
-        // use ArraySegmentStream in combination with fuzz target...
-        MemoryStream memoryStream;
-        using (var binaryStream = new BinaryReader(stream))
+        public FuzzTargetFunction(MethodInfo methodInfo)
         {
-            var bufferCollection = new BufferCollection();
-            byte[] buffer;
-            do
-            {
-                buffer = binaryStream.ReadBytes(segmentSize);
-                bufferCollection.Add(new ArraySegment<byte>(buffer));
-            } while (buffer.Length == segmentSize);
-            memoryStream = new ArraySegmentStream(bufferCollection);
+            MethodInfo = methodInfo;
         }
 
-        return memoryStream;
+        public MethodInfo MethodInfo { get; private set; }
+
+        public string ToString(string format, IFormatProvider formatProvider)
+        {
+            var name = MethodInfo.Name;
+            return $"{name}";
+        }
     }
 }
-

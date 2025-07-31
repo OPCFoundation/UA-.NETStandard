@@ -27,20 +27,19 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.IO;
+using System.Linq;
+using System.Reflection;
 using System.Text;
 using NUnit.Framework;
-using System.Linq;
-using System;
 using Opc.Ua.Tests;
-using System.Reflection;
 
 namespace Opc.Ua.Fuzzing
 {
-
     [TestFixture]
     [Category("Fuzzing")]
-    public class EncoderTests
+    public partial class EncoderTests
     {
         #region DataPointSources
         public static readonly TestcaseAsset[] GoodTestcases = new AssetCollection<TestcaseAsset>(TestUtils.EnumerateTestAssets("Testcases", "*.*")).ToArray();
@@ -57,22 +56,24 @@ namespace Opc.Ua.Fuzzing
             .Select(f => new FuzzTargetFunction(f)).ToArray();
         #endregion
 
-        [Theory]
+        [Test]
         public void FuzzGoodTestcases(
-            FuzzTargetFunction fuzzableCode,
+            [ValueSource(nameof(FuzzableFunctions))] FuzzTargetFunction fuzzableCode,
             [ValueSource(nameof(GoodTestcases))] TestcaseAsset messageEncoder)
         {
             FuzzTarget(fuzzableCode, messageEncoder.Testcase);
         }
 
-        [Theory]
-        public void FuzzEmptyByteArray(FuzzTargetFunction fuzzableCode)
+        [Test]
+        public void FuzzEmptyByteArray(
+            [ValueSource(nameof(FuzzableFunctions))] FuzzTargetFunction fuzzableCode)
         {
             FuzzTarget(fuzzableCode, Array.Empty<byte>());
         }
 
-        [Theory]
-        public void FuzzCrashAssets(FuzzTargetFunction fuzzableCode)
+        [Test]
+        public void FuzzCrashAssets(
+            [ValueSource(nameof(FuzzableFunctions))] FuzzTargetFunction fuzzableCode)
         {
             // note: too many crash files can take forever to create
             // all permutations with nunit, so just run all in one batch
@@ -82,19 +83,19 @@ namespace Opc.Ua.Fuzzing
             }
         }
 
-        [Theory]
+        [Test]
         [CancelAfter(1000)]
         public void FuzzTimeoutAssets(
-            FuzzTargetFunction fuzzableCode,
+            [ValueSource(nameof(FuzzableFunctions))] FuzzTargetFunction fuzzableCode,
             [ValueSource(nameof(TimeoutAssets))] TestcaseAsset messageEncoder)
         {
             FuzzTarget(fuzzableCode, messageEncoder.Testcase);
         }
 
-        [Theory]
+        [Test]
         [CancelAfter(1000)]
         public void FuzzSlowAssets(
-            FuzzTargetFunction fuzzableCode,
+            [ValueSource(nameof(FuzzableFunctions))] FuzzTargetFunction fuzzableCode,
             [ValueSource(nameof(SlowAssets))] TestcaseAsset messageEncoder)
         {
             FuzzTarget(fuzzableCode, messageEncoder.Testcase);
@@ -127,48 +128,6 @@ namespace Opc.Ua.Fuzzing
                 LibFuzzTemplate fuzzFunction = (LibFuzzTemplate)fuzzableCode.MethodInfo.CreateDelegate(typeof(LibFuzzTemplate));
                 fuzzFunction(span);
             }
-        }
-    }
-
-    /// <summary>
-    /// A Testcase as test asset.
-    /// </summary>
-    public class TestcaseAsset : IAsset, IFormattable
-    {
-        public TestcaseAsset() { }
-
-        public string Path { get; private set; }
-        public byte[] Testcase { get; private set; }
-
-        public void Initialize(byte[] blob, string path)
-        {
-            Path = path;
-            Testcase = blob;
-        }
-
-        public string ToString(string format, IFormatProvider formatProvider)
-        {
-            var file = System.IO.Path.GetFileName(Path);
-            return $"{file}";
-        }
-    }
-
-    /// <summary>
-    /// A Testcase as test asset.
-    /// </summary>
-    public class FuzzTargetFunction : IFormattable
-    {
-        public FuzzTargetFunction(MethodInfo methodInfo)
-        {
-            MethodInfo = methodInfo;
-        }
-
-        public MethodInfo MethodInfo { get; private set; }
-
-        public string ToString(string format, IFormatProvider formatProvider)
-        {
-            var name = MethodInfo.Name;
-            return $"{name}";
         }
     }
 }

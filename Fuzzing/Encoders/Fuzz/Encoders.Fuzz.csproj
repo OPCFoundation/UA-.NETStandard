@@ -17,12 +17,17 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="SharpFuzz"/>
+    <PackageReference Include="SharpFuzz" Version="2.2.0" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\..\Stack\Opc.Ua.Core\Opc.Ua.Core.csproj" />
     <ProjectReference Include="..\..\..\Libraries\Opc.Ua.Security.Certificates\Opc.Ua.Security.Certificates.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Testcases.CRLs\" />
+    <Folder Include="Testcases.Certificates\" />
   </ItemGroup>
 
 </Project>
