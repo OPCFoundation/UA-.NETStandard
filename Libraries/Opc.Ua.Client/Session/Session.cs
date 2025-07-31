@@ -4944,7 +4944,7 @@ namespace Opc.Ua.Client
 
                 default:
                     // build complete list of attributes.
-                    attributes = new Dictionary<uint, DataValue>(maxAttributes) {
+                    attributes = new Dictionary<uint, DataValue>(Attributes.MaxAttributes) {
                         { Attributes.NodeId, null },
                         { Attributes.NodeClass, null },
                         { Attributes.BrowseName, null },
