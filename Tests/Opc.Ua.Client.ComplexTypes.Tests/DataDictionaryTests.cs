@@ -48,7 +48,7 @@ using Quickstarts.ReferenceServer;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 using Opc.Ua.Client.ComplexTypes;
 
-namespace Opc.Ua.Client.ComlexTypes.Tests
+namespace Opc.Ua.Client.ComplexTypes.Tests
 {
     /// <summary>
     /// Data dictionary load tests
