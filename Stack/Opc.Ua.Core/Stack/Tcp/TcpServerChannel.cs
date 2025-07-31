@@ -1047,6 +1047,12 @@ namespace Opc.Ua.Bindings
                     return;
                 }
 
+                // if the channel is closed no response can be sent, throw exception to end processing in this specific channel.
+                if (State == TcpChannelState.Closed)
+                {
+                    throw new ServiceResultException(StatusCodes.BadSecureChannelClosed, "Cannot send response over a closed channel.");
+                }
+
                 Utils.EventLog.SendResponse((int)ChannelId, (int)requestId);
 
                 BufferCollection buffers = null;
