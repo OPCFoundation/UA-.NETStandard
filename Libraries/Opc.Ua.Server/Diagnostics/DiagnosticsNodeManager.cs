@@ -64,7 +64,7 @@ namespace Opc.Ua.Server
             m_subscriptions = new List<SubscriptionDiagnosticsData>();
             m_diagnosticsEnabled = true;
             m_doScanBusy = false;
-            m_sampledItems = new List<MonitoredItem>();
+            m_sampledItems = new List<ISampledDataChangeMonitoredItem>();
             m_minimumSamplingInterval = 100;
             m_durableSubscriptionsEnabled = configuration.ServerConfiguration?.DurableSubscriptionsEnabled ?? false;
         }
@@ -1716,7 +1716,7 @@ namespace Opc.Ua.Server
         protected override void OnMonitoredItemCreated(
             ServerSystemContext context,
             NodeHandle handle,
-            MonitoredItem monitoredItem)
+            ISampledDataChangeMonitoredItem monitoredItem)
         {
             // check if the variable needs to be sampled.
             if (monitoredItem.AttributeId == Attributes.Value)
@@ -1757,7 +1757,7 @@ namespace Opc.Ua.Server
         protected override void OnMonitoredItemDeleted(
             ServerSystemContext context,
             NodeHandle handle,
-            MonitoredItem monitoredItem)
+            ISampledDataChangeMonitoredItem monitoredItem)
         {
             // check if diagnostics collection needs to be turned off.
             if (IsDiagnosticsNode(handle.Node))
@@ -1802,7 +1802,7 @@ namespace Opc.Ua.Server
         protected override void OnMonitoringModeChanged(
             ServerSystemContext context,
             NodeHandle handle,
-            MonitoredItem monitoredItem,
+            ISampledDataChangeMonitoredItem monitoredItem,
             MonitoringMode previousMode,
             MonitoringMode monitoringMode)
         {
@@ -2027,7 +2027,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Creates a new sampled item.
         /// </summary>
-        private void CreateSampledItem(double samplingInterval, MonitoredItem monitoredItem)
+        private void CreateSampledItem(double samplingInterval, ISampledDataChangeMonitoredItem monitoredItem)
         {
             m_sampledItems.Add(monitoredItem);
 
@@ -2040,7 +2040,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Deletes a sampled item.
         /// </summary>
-        private void DeleteSampledItem(MonitoredItem monitoredItem)
+        private void DeleteSampledItem(ISampledDataChangeMonitoredItem monitoredItem)
         {
             for (int ii = 0; ii < m_sampledItems.Count; ii++)
             {
@@ -2072,7 +2072,7 @@ namespace Opc.Ua.Server
                 {
                     for (int ii = 0; ii < m_sampledItems.Count; ii++)
                     {
-                        MonitoredItem monitoredItem = m_sampledItems[ii];
+                        ISampledDataChangeMonitoredItem monitoredItem = m_sampledItems[ii];
 
                         // get the handle.
                         NodeHandle handle = monitoredItem.ManagerHandle as NodeHandle;
@@ -2132,7 +2132,7 @@ namespace Opc.Ua.Server
         private List<SubscriptionDiagnosticsData> m_subscriptions;
         private NodeId m_serverLockHolder;
         private Timer m_samplingTimer;
-        private List<MonitoredItem> m_sampledItems;
+        private List<ISampledDataChangeMonitoredItem> m_sampledItems;
         private double m_minimumSamplingInterval;
         private HistoryServerCapabilitiesState m_historyCapabilities;
         #endregion

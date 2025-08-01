@@ -167,24 +167,6 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Returns the locales supported by the resource manager.
-        /// </summary>
-        [Obsolete("preferredLocales argument is ignored.")]
-        public string[] GetAvailableLocales(IEnumerable<string> preferredLocales)
-        {
-            return GetAvailableLocales();
-        }
-
-        /// <summary>
-        /// Returns the localized form of the text that best matches the preferred locales.
-        /// </summary>
-        [Obsolete("Replaced by the overrideable ITranslationManager methods.")]
-        public LocalizedText GetText(IList<string> preferredLocales, string textId, string defaultText, params object[] args)
-        {
-            return Translate(preferredLocales, textId, defaultText, args);
-        }
-
-        /// <summary>
         /// Adds a translation to the resource manager.
         /// </summary>
         public void Add(string key, string locale, string text)
@@ -302,15 +284,6 @@ namespace Opc.Ua.Server
         #endregion
 
         #region Protected Methods
-        /// <summary>
-        /// Returns the text for the specified locale (null if the locale is not supported).
-        /// </summary>
-        [Obsolete("Replaced by the overrideable methods on Translate(IList<string>, LocalizedText, TranslationInfo)")]
-        protected virtual string GetTextForLocale(string locale, string textId, string defaultText, params object[] args)
-        {
-            return null;
-        }
-
         /// <summary>
         /// Translates the text provided.
         /// </summary>

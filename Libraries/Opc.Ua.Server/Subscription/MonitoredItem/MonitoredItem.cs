@@ -43,36 +43,6 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Initializes the object with its node type.
         /// </summary>
-        [Obsolete("Use MonitoredItem constructor without the session parameter.")]
-        public MonitoredItem(
-            IServerInternal server,
-            INodeManager nodeManager,
-            object managerHandle,
-            uint subscriptionId,
-            uint id,
-            Session session,
-            ReadValueId itemToMonitor,
-            DiagnosticsMasks diagnosticsMasks,
-            TimestampsToReturn timestampsToReturn,
-            MonitoringMode monitoringMode,
-            uint clientHandle,
-            MonitoringFilter originalFilter,
-            MonitoringFilter filterToUse,
-            Range range,
-            double samplingInterval,
-            uint queueSize,
-            bool discardOldest,
-            double sourceSamplingInterval)
-         : this(server, nodeManager, managerHandle, subscriptionId,
-            id, itemToMonitor, diagnosticsMasks, timestampsToReturn, monitoringMode,
-            clientHandle, originalFilter, filterToUse, range, samplingInterval,
-            queueSize, discardOldest, sourceSamplingInterval)
-        {
-        }
-
-        /// <summary>
-        /// Initializes the object with its node type.
-        /// </summary>
         public MonitoredItem(
             IServerInternal server,
             INodeManager nodeManager,
@@ -211,7 +181,6 @@ namespace Opc.Ua.Server
             m_sourceSamplingInterval = storedMonitoredItem.SourceSamplingInterval;
             m_calculator = null;
             m_nextSamplingTime = HiResClock.TickCount64;
-            m_alwaysReportUpdates = false;
             m_monitoredItemQueueFactory = m_server.MonitoredItemQueueFactory;
             m_subscriptionStore = m_server.SubscriptionStore;
             m_isDurable = storedMonitoredItem.IsDurable;
@@ -786,22 +755,6 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Changes the monitoring mode for the item.
         /// </summary>
-        void ISampledDataChangeMonitoredItem.SetMonitoringMode(MonitoringMode monitoringMode)
-        {
-            SetMonitoringMode(monitoringMode);
-        }
-
-        /// <summary>
-        /// Changes the monitoring mode for the item.
-        /// </summary>
-        void IEventMonitoredItem.SetMonitoringMode(MonitoringMode monitoringMode)
-        {
-            SetMonitoringMode(monitoringMode);
-        }
-
-        /// <summary>
-        /// Changes the monitoring mode for the item.
-        /// </summary>
         public MonitoringMode SetMonitoringMode(MonitoringMode monitoringMode)
         {
             lock (m_lock)
@@ -1174,28 +1127,6 @@ namespace Opc.Ua.Server
             }
 
             return m_filteredRetainConditionIds;
-        }
-
-
-        /// <summary>
-        /// Whether the item has notifications that are ready to publish.
-        /// </summary>
-        [Obsolete("Not used - Use IsReadyToPublish")]
-        public virtual bool ReadyToPublish
-        {
-            get
-            {
-                lock (m_lock)
-                {
-                    // only publish if reporting.
-                    if (m_monitoringMode != MonitoringMode.Reporting)
-                    {
-                        return false;
-                    }
-
-                    return m_readyToPublish;
-                }
-            }
         }
 
         /// <summary>
