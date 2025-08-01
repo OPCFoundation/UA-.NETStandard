@@ -2331,7 +2331,7 @@ namespace Opc.Ua.Server
         /// Returns the current status of the server.
         /// </summary>
         /// <returns>Returns a ServerStatusDataType object</returns>
-        [Obsolete("No longer thread safe, to read the value use CurrentState instead to write use CurrentInstance.UpdateServerStatus.")]
+        [Obsolete("No longer thread safe. To read the value use CurrentState, to write use CurrentInstance.UpdateServerStatus.")]
         public ServerStatusDataType GetStatus()
         {
             lock (m_lock)

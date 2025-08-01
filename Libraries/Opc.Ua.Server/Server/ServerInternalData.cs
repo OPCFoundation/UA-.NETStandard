@@ -399,7 +399,7 @@ namespace Opc.Ua.Server
         /// Returns the status object for the server.
         /// </summary>
         /// <value>The status.</value>
-        [Obsolete("No longer thread safe, to read the value use CurrentState instead to write use UpdateServerStatus.")]
+        [Obsolete("No longer thread safe. To read the value use CurrentState, to write use UpdateServerStatus.")]
         public ServerStatusValue Status
         {
             get { return m_serverStatus; }
