@@ -2532,11 +2532,6 @@ namespace Opc.Ua
 
                 if (dimensions != null && dimensions.Count > 0)
                 {
-                    if (dimensions.Count < 2)
-                    {
-                        throw ServiceResultException.Create(StatusCodes.BadDecodingError,
-                            "Matrix encoding requires at least 2 dimensions in ArrayDimensions.");
-                    }
                     int length = elements.Length;
                     var dimensionsArray = dimensions.ToArray();
                     (bool valid, int matrixLength) = Matrix.ValidateDimensions(dimensionsArray, length, Context.MaxArrayLength);

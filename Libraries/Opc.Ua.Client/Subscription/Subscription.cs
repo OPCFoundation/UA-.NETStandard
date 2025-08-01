@@ -2393,8 +2393,7 @@ namespace Opc.Ua.Client
                 {
                     foreach (IncomingMessage message in keepAliveToProcess)
                     {
-                        var keepAlive = new NotificationData
-                        {
+                        var keepAlive = new NotificationData {
                             PublishTime = message.Timestamp,
                             SequenceNumber = message.SequenceNumber
                         };
