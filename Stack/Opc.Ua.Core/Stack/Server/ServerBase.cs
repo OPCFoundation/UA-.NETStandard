@@ -31,7 +31,7 @@ namespace Opc.Ua
     /// <summary>
     /// A base class for a UA server implementation.
     /// </summary>
-    public partial class ServerBase : IServerBase, IDisposable
+    public partial class ServerBase : IServerBase
     {
         #region Constructors
         /// <summary>
