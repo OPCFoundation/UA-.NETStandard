@@ -51,11 +51,16 @@ namespace Opc.Ua.Client.ComplexTypes
         IEncodeableFactory Factory { get; }
 
         /// <summary>
+        /// The loaded data type dictionaries
+        /// </summary>
+        NodeIdDictionary<DataDictionary> DataTypeSystem { get; }
+
+        /// <summary>
         /// Loads all dictionaries of the OPC binary or Xml schema type system.
         /// </summary>
         /// <param name="dataTypeSystem">The type system. Defaults to OPC Binary schema.</param>
         /// <param name="ct"></param>
-        Task<Dictionary<NodeId, DataDictionary>> LoadDataTypeSystem(
+        Task<IReadOnlyDictionary<NodeId, DataDictionary>> LoadDataTypeSystem(
             NodeId dataTypeSystem = null,
             CancellationToken ct = default);
 

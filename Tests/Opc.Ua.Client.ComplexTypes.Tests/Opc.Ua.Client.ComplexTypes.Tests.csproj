@@ -38,7 +38,4 @@
     <ProjectReference Include="..\..\Libraries\Opc.Ua.Client.ComplexTypes\Opc.Ua.Client.ComplexTypes.csproj" />
     <ProjectReference Include="..\Opc.Ua.Server.Tests\Opc.Ua.Server.Tests.csproj" />
   </ItemGroup>
-  <ItemGroup>
-    <Folder Include="Links\" />
-  </ItemGroup>
 </Project>

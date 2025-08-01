@@ -56,6 +56,11 @@ namespace Opc.Ua.Client.ComplexTypes
         // datatype loader mechanism to loop forever
         private const int MaxLoopCount = 100;
 
+        /// <summary>
+        /// The data type systems that were loaded
+        /// </summary>
+        public NodeIdDictionary<DataDictionary> DataTypeSystem => m_complexTypeResolver.DataTypeSystem;
+
         #region Constructors
         /// <summary>
         /// Initializes the type system with a session to load the custom types.
@@ -363,7 +368,7 @@ namespace Opc.Ua.Client.ComplexTypes
             serverEnumTypes = RemoveKnownTypes(allEnumTypes);
 
             // load the binary schema dictionaries from the server
-            Dictionary<NodeId, DataDictionary> typeSystem = await m_complexTypeResolver.LoadDataTypeSystem(ct: ct).ConfigureAwait(false);
+            IReadOnlyDictionary<NodeId, DataDictionary> typeSystem = await m_complexTypeResolver.LoadDataTypeSystem(ct: ct).ConfigureAwait(false);
 
             // sort dictionaries with import dependencies to the end of the list
             var sortedTypeSystem = typeSystem.OrderBy(t => t.Value.TypeDictionary?.Import?.Length).ToList();
