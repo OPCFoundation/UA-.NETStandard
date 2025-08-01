@@ -258,7 +258,7 @@ namespace Opc.Ua.Server
             uint[] serverHandles = null;
             uint[] clientHandles = null;
 
-            foreach (Subscription subscription in Server.SubscriptionManager.GetSubscriptions())
+            foreach (ISubscription subscription in Server.SubscriptionManager.GetSubscriptions())
             {
                 if (subscription.Id == subscriptionId)
                 {
@@ -301,7 +301,7 @@ namespace Opc.Ua.Server
                 return StatusCodes.BadInvalidArgument;
             }
 
-            foreach (Subscription subscription in Server.SubscriptionManager.GetSubscriptions())
+            foreach (ISubscription subscription in Server.SubscriptionManager.GetSubscriptions())
             {
                 if (subscription.Id == subscriptionId)
                 {
