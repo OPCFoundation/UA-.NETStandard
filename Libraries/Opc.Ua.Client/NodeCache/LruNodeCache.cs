@@ -60,37 +60,59 @@ namespace Opc.Ua.Client
         /// <param name="session"></param>
         /// <param name="cacheExpiry"></param>
         /// <param name="capacity"></param>
+        /// <param name="withMetrics"></param>
         public LruNodeCache(ISession session, TimeSpan? cacheExpiry = null,
-            int capacity = 4096)
+            int capacity = 4096, bool withMetrics = false)
         {
             cacheExpiry ??= TimeSpan.FromMinutes(5);
 
             m_session = session;
-            m_nodes = new ConcurrentLruBuilder<NodeId, INode>()
+            var nodesBuilder = new ConcurrentLruBuilder<NodeId, INode>()
                    .WithAtomicGetOrAdd()
                    .AsAsyncCache()
                    .WithCapacity(capacity)
                    .WithKeyComparer(Comparers.Instance)
-                   .WithExpireAfterAccess(cacheExpiry.Value)
-                   .Build();
-            m_refs = new ConcurrentLruBuilder<NodeId, List<ReferenceDescription>>()
+                   .WithExpireAfterAccess(cacheExpiry.Value);
+            var refsBuilder = new ConcurrentLruBuilder<NodeId, List<ReferenceDescription>>()
                    .WithAtomicGetOrAdd()
                    .AsAsyncCache()
                    .WithCapacity(capacity)
                    .WithKeyComparer(Comparers.Instance)
-                   .WithExpireAfterAccess(cacheExpiry.Value)
-                   .Build();
-            m_values = new ConcurrentLruBuilder<NodeId, DataValue>()
+                   .WithExpireAfterAccess(cacheExpiry.Value);
+            var valuesBuilder = new ConcurrentLruBuilder<NodeId, DataValue>()
                    .WithAtomicGetOrAdd()
                    .AsAsyncCache()
                    .WithCapacity(capacity)
                    .WithKeyComparer(Comparers.Instance)
-                   .WithExpireAfterAccess(cacheExpiry.Value)
-                   .Build();
+                   .WithExpireAfterAccess(cacheExpiry.Value);
+            if (withMetrics)
+            {
+                nodesBuilder = nodesBuilder.WithMetrics();
+                valuesBuilder = valuesBuilder.WithMetrics();
+                refsBuilder = refsBuilder.WithMetrics();
+            }
+            m_nodes = nodesBuilder.Build();
+            m_values = valuesBuilder.Build();
+            m_refs = refsBuilder.Build();
         }
         #endregion
 
         #region Public Properties
+        /// <summary>
+        /// Node metrics
+        /// </summary>
+        public ICacheMetrics? NodesMetrics => m_nodes.Metrics.Value;
+
+        /// <summary>
+        /// Value metrics
+        /// </summary>
+        public ICacheMetrics? ValuesMetrics => m_values.Metrics.Value;
+
+        /// <summary>
+        /// References metrics
+        /// </summary>
+        public ICacheMetrics? ReferencesMetrics => m_refs.Metrics.Value;
+
         /// <inheritdoc/>
         public ISession Session => m_session;
         #endregion
