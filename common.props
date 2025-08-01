@@ -15,7 +15,7 @@
     <PlatformTarget>AnyCPU</PlatformTarget>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <!-- Highest language version supported by Visual Studio 2019 -->
-    <LangVersion>9</LangVersion>
+    <LangVersion>12</LangVersion>
     <EnablePackageValidation>true</EnablePackageValidation>
     <!-- to check the package validation on a release build, uncomment here -->
     <!--<PackageValidationBaselineVersion>1.5.374.27</PackageValidationBaselineVersion>-->
@@ -63,7 +63,7 @@
   </ItemGroup>
 
   <ItemGroup Condition="'$(NBGV_PublicRelease)' != ''">
-    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0" PrivateAssets="All"/>
+    <PackageReference Include="Microsoft.SourceLink.GitHub" PrivateAssets="All"/>
   </ItemGroup>
 
   <!-- Deterministic build is currently not supported for code coverage tests. -->

@@ -21,11 +21,8 @@ namespace Opc.Ua
     /// <summary>
     /// Extends a node id by adding a complete namespace URI.
     /// </summary>
-    /// <remarks>
-    /// Extends a node id by adding a complete namespace URI.
-    /// </remarks>
     [DataContract(Namespace = Namespaces.OpcUaXsd)]
-    public class ExpandedNodeId : ICloneable, IComparable, IEquatable<ExpandedNodeId>, IFormattable
+    public sealed class ExpandedNodeId : ICloneable, IComparable, IEquatable<ExpandedNodeId>, IFormattable
     {
         #region Constructors
         /// <summary>
@@ -336,10 +333,7 @@ namespace Opc.Ua
         /// <summary>
         /// The index of the namespace URI in the server's namespace array.
         /// </summary>
-        /// <remarks>
-        /// The index of the namespace URI in the server's namespace array.
-        /// </remarks>
-        public virtual ushort NamespaceIndex
+        public ushort NamespaceIndex
         {
             get
             {
@@ -355,9 +349,6 @@ namespace Opc.Ua
         /// <summary>
         /// The type of node identifier used.
         /// </summary>
-        /// <remarks>
-        /// The type of node identifier used.
-        /// </remarks>
         public IdType IdType
         {
             get
@@ -465,10 +456,7 @@ namespace Opc.Ua
         /// <summary>
         /// The node identifier formatted as a URI.
         /// </summary>
-        /// <remarks>
-        /// The node identifier formatted as a URI.
-        /// </remarks>
-        [DataMember(Name = "Identifier", Order = 1)]
+        [DataMember(Name = "Identifier", Order = 1, IsRequired = true)]
         internal string IdentifierText
         {
             get
@@ -936,7 +924,7 @@ namespace Opc.Ua
 
         #region ICloneable Members
         /// <inheritdoc/>
-        public virtual object Clone()
+        public object Clone()
         {
             return this.MemberwiseClone();
         }
@@ -1436,9 +1424,6 @@ namespace Opc.Ua
         /// <summary>
         /// Creates a deep copy of the collection.
         /// </summary>
-        /// <remarks>
-        /// Creates a deep copy of the collection.
-        /// </remarks>
         public new object MemberwiseClone()
         {
             ExpandedNodeIdCollection clone = new ExpandedNodeIdCollection(this.Count);

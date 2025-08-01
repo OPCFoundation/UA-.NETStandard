@@ -1,7 +1,7 @@
 /* ========================================================================
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
- * OPC Foundation MIT License 1.00 
+ * OPC Foundation MIT License 1.00
  *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
@@ -58,7 +58,6 @@ namespace Opc.Ua.Client
         private const int kMinPublishRequestCountMax = 100;
         private const int kMaxPublishRequestCountMax = ushort.MaxValue;
         private const int kDefaultPublishRequestCount = 1;
-        private const int kKeepAliveGuardBand = 1000;
         private const int kPublishRequestSequenceNumberOutOfOrderThreshold = 10;
         private const int kPublishRequestSequenceNumberOutdatedThreshold = 100;
 
@@ -705,7 +704,8 @@ namespace Opc.Ua.Client
         /// Returns true if the session is not receiving keep alives.
         /// </summary>
         /// <remarks>
-        /// Set to true if the server does not respond for 2 times the KeepAliveInterval
+        /// Set to true if the server does not respond for the KeepAliveInterval * 1 (KeepAliveIntervalFactor) + 1 Second (KeepAliveGuardBand) *
+        /// To change the sensitivity of the keep alive check, set the <see cref="m_keepAliveIntervalFactor"/> / <see cref="m_keepAliveGuardBand"/> fields.
         /// or if another error was reported.
         /// Set to false is communication is ok or recovered.
         /// </remarks>
@@ -719,7 +719,7 @@ namespace Opc.Ua.Client
                     int delta = HiResClock.TickCount - m_lastKeepAliveTickCount;
 
                     // add a guard band to allow for network lag.
-                    return (m_keepAliveInterval + kKeepAliveGuardBand) <= delta;
+                    return (m_keepAliveInterval * m_keepAliveIntervalFactor + m_keepAliveGuardBand) <= delta;
                 }
 
                 // another error was reported which caused keep alive to stop.
@@ -1413,7 +1413,7 @@ namespace Opc.Ua.Client
         {
 
             Nonce serverNonce = Nonce.CreateNonce(m_endpoint.Description?.SecurityPolicyUri, m_serverNonce);
-           
+
             var sessionConfiguration = new SessionConfiguration(this, serverNonce, m_userTokenSecurityPolicyUri, m_eccServerEphemeralKey, AuthenticationToken);
 
             if (stream != null)
@@ -1862,7 +1862,7 @@ namespace Opc.Ua.Client
             }
 
             // find the dictionary for the description.
-            IList<INode> references = await this.NodeCache.FindReferencesAsync(dataTypeSystem, ReferenceTypeIds.HasComponent, false, false).ConfigureAwait(false);
+            IList<INode> references = await this.NodeCache.FindReferencesAsync(dataTypeSystem, ReferenceTypeIds.HasComponent, false, false, ct).ConfigureAwait(false);
 
             if (references.Count == 0)
             {
@@ -1873,7 +1873,7 @@ namespace Opc.Ua.Client
             var referenceNodeIds = references.Select(r => r.NodeId).ToList();
 
             // find namespace properties
-            var namespaceReferences = await this.NodeCache.FindReferencesAsync(referenceNodeIds, new NodeIdCollection { ReferenceTypeIds.HasProperty }, false, false).ConfigureAwait(false);
+            var namespaceReferences = await this.NodeCache.FindReferencesAsync(referenceNodeIds, new NodeIdCollection { ReferenceTypeIds.HasProperty }, false, false, ct).ConfigureAwait(false);
             var namespaceNodes = namespaceReferences.Where(n => n.BrowseName == BrowseNames.NamespaceUri).ToList();
             var namespaceNodeIds = namespaceNodes.Select(n => ExpandedNodeId.ToNodeId(n.NodeId, this.NamespaceUris)).ToList();
 
@@ -4886,7 +4886,7 @@ namespace Opc.Ua.Client
         private Dictionary<uint, DataValue> CreateAttributes(NodeClass nodeclass = NodeClass.Unspecified, bool optionalAttributes = true)
         {
             // Attributes to read for all types of nodes
-            var attributes = new Dictionary<uint, DataValue>() {
+            var attributes = new Dictionary<uint, DataValue>(Attributes.MaxAttributes) {
                 { Attributes.NodeId, null },
                 { Attributes.NodeClass, null },
                 { Attributes.BrowseName, null },
@@ -4944,7 +4944,7 @@ namespace Opc.Ua.Client
 
                 default:
                     // build complete list of attributes.
-                    attributes = new Dictionary<uint, DataValue> {
+                    attributes = new Dictionary<uint, DataValue>(Attributes.MaxAttributes) {
                         { Attributes.NodeId, null },
                         { Attributes.NodeClass, null },
                         { Attributes.BrowseName, null },
@@ -6648,6 +6648,16 @@ namespace Opc.Ua.Client
         /// The user identity currently used for the session.
         /// </summary>
         protected IUserIdentity m_identity;
+
+        /// <summary>
+        /// Factor applied to the <see cref="m_keepAliveInterval"/> before <see cref="KeepAliveStopped"/> is set to true
+        /// </summary>
+        protected int m_keepAliveIntervalFactor = 1;
+
+        /// <summary>
+        /// Time in milliseconds added to <see cref="m_keepAliveInterval"/> before <see cref="KeepAliveStopped"/> is set to true
+        /// </summary>
+        protected int m_keepAliveGuardBand = 1000;
         #endregion
 
         #region Private Fields

@@ -1,5 +1,4 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
-
   <PropertyGroup>
     <DefineConstants>$(DefineConstants);NET_STANDARD;NET_STANDARD_ASYNC</DefineConstants>
     <TargetFrameworks>$(LibCoreTargetFrameworks)</TargetFrameworks>
@@ -11,7 +10,6 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
-
   <!-- select ECC support -->
   <Choose>
     <When Condition="'$(TargetFramework)' == 'net462' OR '$(TargetFramework)' == 'netstandard2.0'">
@@ -22,15 +20,12 @@
       </PropertyGroup>
     </Otherwise>
   </Choose>
-
   <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
     <PackageId>$(PackageId).Debug</PackageId>
   </PropertyGroup>
-
   <PropertyGroup Condition="'$(SignAssembly)' == 'true'">
     <DefineConstants>$(DefineConstants);SIGNASSEMBLY</DefineConstants>
   </PropertyGroup>
-
   <ItemGroup>
     <None Remove="Schema\Opc.Ua.NodeSet2.xml.zip" />
     <None Remove="Schema\Opc.Ua.Types.bsd" />
@@ -39,7 +34,6 @@
     <None Remove="Types\Schemas\BuiltInTypes.bsd" />
     <None Remove="Types\Schemas\StandardTypes.bsd" />
   </ItemGroup>
-
   <ItemGroup>
     <EmbeddedResource Include="Schema\Opc.Ua.Types.bsd" />
     <EmbeddedResource Include="Schema\Opc.Ua.Types.xsd" />
@@ -50,74 +44,59 @@
     <EmbeddedResource Include="Types\Schemas\BuiltInTypes.bsd" />
     <EmbeddedResource Include="Types\Schemas\StandardTypes.bsd" />
   </ItemGroup>
-
   <Choose>
     <!-- Note: Due to incompatibilities of Microsoft.Extensions Nuget packages between versions 3.x and 7.0,
          use latest versions only on .NET 5/6/7/8, otherwise 3.1.x -->
     <When Condition="'$(TargetFramework)' == 'netstandard2.0' OR '$(TargetFramework)' == 'netstandard2.1'">
       <ItemGroup>
-        <PackageReference Include="System.Diagnostics.DiagnosticSource" Version="9.0.6" />
-        <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="9.0.6" />
-      </ItemGroup>
-    </When>
-    <When Condition="'$(TargetFramework)' == 'net5.0' OR '$(TargetFramework)' == 'net6.0'">
-      <ItemGroup>
-        <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="6.0.4" />
+        <PackageReference Include="System.Diagnostics.DiagnosticSource" />
+        <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
       </ItemGroup>
     </When>
     <When Condition="'$(TargetFramework)' == 'net8.0'">
       <ItemGroup>
-        <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.2" />
+        <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" VersionOverride="8.0.2" />
       </ItemGroup>
     </When>
     <When Condition="'$(TargetFramework)' == 'net462' OR '$(TargetFramework)' == 'net472' OR '$(TargetFramework)' == 'net48'">
       <ItemGroup>
-        <PackageReference Include="System.Diagnostics.DiagnosticSource" Version="9.0.6" />
-        <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="9.0.6" />
+        <PackageReference Include="System.Diagnostics.DiagnosticSource" />
+        <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
       </ItemGroup>
     </When>
     <Otherwise>
       <ItemGroup>
-        <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="9.0.6" />
-        <PackageReference Include="System.Diagnostics.DiagnosticSource" Version="9.0.6" />
+        <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+        <PackageReference Include="System.Diagnostics.DiagnosticSource" />
       </ItemGroup>
     </Otherwise>
   </Choose>
-
   <ItemGroup>
-    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+    <PackageReference Include="Newtonsoft.Json" />
   </ItemGroup>
-
   <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.0' OR '$(TargetFramework)' == 'net462' OR '$(TargetFramework)' == 'net472' OR '$(TargetFramework)' == 'net48'">
-    <PackageReference Include="Microsoft.Bcl.HashCode" Version="6.0.0" />
+    <PackageReference Include="Microsoft.Bcl.HashCode" />
   </ItemGroup>
-
   <ItemGroup Condition="'$(TargetFramework)' == 'net48' OR '$(TargetFramework)' == 'net472' OR '$(TargetFramework)' == 'net462'">
     <Reference Include="System.Net.Http" />
   </ItemGroup>
-
   <ItemGroup>
     <Folder Include="Properties\" />
   </ItemGroup>
-
   <ItemGroup>
     <ProjectReference Include="..\..\Libraries\Opc.Ua.Security.Certificates\Opc.Ua.Security.Certificates.csproj" />
   </ItemGroup>
-
   <Target Name="GetPackagingOutputs" />
-
   <!-- Produces a zipped version of the Nodeset 2 to reduce assembly size! -->
   <PropertyGroup>
     <ZipTmp>$(BaseIntermediateOutputPath)$(Configuration)/$(TargetFramework)/zipnodeset2</ZipTmp>
     <NodeSet2XML>Schema/Opc.Ua.NodeSet2.xml</NodeSet2XML>
     <ZipNodeSet2XML>$(BaseIntermediateOutputPath)$(Configuration)/$(TargetFramework)/Opc.Ua.NodeSet2.xml.zip</ZipNodeSet2XML>
   </PropertyGroup>
-
   <!-- Embed the zipped Nodeset2 file -->
   <ItemGroup>
     <EmbeddedResource Include="$(ZipNodeSet2XML)" Link="$(NodeSet2XML).zip" />
   </ItemGroup>
-
   <!-- Zip the NodeSet2 file -->
   <Target Name="ZipNodeSet2" BeforeTargets="PrepareForBuild" Inputs="$(NodeSet2XML)" Outputs="$(ZipNodeSet2XML)">
     <Message Text="Zip $(NodeSet2XML) in $(ZipNodeSet2XML)." Importance="high" />
@@ -126,11 +105,11 @@
     <RemoveDir Directories="$(ZipTmp)" />
     <Message Text="Zip NodeSet2 completed, $(ZipTmp) removed." Importance="high" />
   </Target>
-  
   <!-- Clean up the zip file -->
   <Target Name="RemoveZipNodeset2" AfterTargets="Clean" Condition="Exists('$(ZipNodeSet2XML)')">
-    <Message Text="Delete Zip $(ZipNodeSet2XML)" Importance="high"></Message>
-    <Delete Files="$(ZipNodeSet2XML)"></Delete>
+    <Message Text="Delete Zip $(ZipNodeSet2XML)" Importance="high">
+    </Message>
+    <Delete Files="$(ZipNodeSet2XML)">
+    </Delete>
   </Target>
-  
 </Project>

@@ -69,6 +69,15 @@ namespace Opc.Ua
         /// information for a UA application.
         /// </param>
         void Start(ApplicationConfiguration configuration);
+
+        /// Trys to get the secure channel id for an AuthenticationToken.
+        /// The ChannelId is known to the sessions of the Server.
+        /// Each session has an AuthenticationToken which can be used to identify the session.
+        /// </summary>
+        /// <param name="authenticationToken">The AuthenticationToken from the RequestHeader</param>
+        /// <param name="channelId">The Channel id</param>
+        /// <returns>returns true if a channelId was found for the provided AuthenticationToken</returns>
+        bool TryGetSecureChannelIdForAuthenticationToken(NodeId authenticationToken, out uint channelId);
     }
 
     /// <summary>

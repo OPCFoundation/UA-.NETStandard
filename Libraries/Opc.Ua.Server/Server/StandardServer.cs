@@ -3233,6 +3233,27 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Trys to get the secure channel id for an AuthenticationToken.
+        /// The ChannelId is known to the sessions of the Server.
+        /// Each session has an AuthenticationToken which can be used to identify the session.
+        /// </summary>
+        /// <param name="authenticationToken">The AuthenticationToken from the RequestHeader</param>
+        /// <param name="channelId">The Channel id</param>
+        /// <returns>returns true if a channelId was found for the provided AuthenticationToken</returns>
+        public override bool TryGetSecureChannelIdForAuthenticationToken(NodeId authenticationToken, out uint channelId)
+        {
+            Session session = ServerInternal.SessionManager.GetSession(authenticationToken);
+
+            if (session == null)
+            {
+                channelId = 0;
+                return false;
+            }
+
+            return uint.TryParse(session.SecureChannelId, out channelId);
+        }
+
+        /// <summary>
         /// Implements the server shutdown delay if session are connected.
         /// </summary>
         protected void ShutDownDelay()

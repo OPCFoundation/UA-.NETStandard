@@ -18,7 +18,7 @@
   <Choose>
     <When Condition="'$(TargetFramework)' == 'net462' Or '$(TargetFramework)' == 'netstandard2.0'">
       <ItemGroup>
-        <PackageReference Include="BouncyCastle.Cryptography" Version="2.6.1" />
+        <PackageReference Include="BouncyCastle.Cryptography" />
       </ItemGroup>
     </When>
     <Otherwise>
@@ -40,24 +40,15 @@
   <Choose>
     <When Condition="'$(TargetFramework)' == 'net472' OR '$(TargetFramework)' == 'net48'">
       <ItemGroup>
-        <PackageReference Include="BouncyCastle.Cryptography" Version="2.6.1" />
-        <!--- Keep as long as net60 is target, otherwise transient warnings occur-->
-        <PackageReference Include="System.Formats.Asn1" Version="8.0.1" />
+        <PackageReference Include="BouncyCastle.Cryptography" />
       </ItemGroup>
     </When>
-    <When Condition="'$(TargetFramework)' == 'net9.0'">
-      <ItemGroup>
-        <PackageReference Include="System.Formats.Asn1" Version="9.0.6" />
-      </ItemGroup>
-    </When>
-    <Otherwise>
-      <ItemGroup>
-        <!--- Keep as long as net60 is target, otherwise transient warnings occur-->
-        <PackageReference Include="System.Formats.Asn1" Version="8.0.1" />
-      </ItemGroup>
-    </Otherwise>
   </Choose>
-
+  
+  <ItemGroup>
+    <PackageReference Include="System.Formats.Asn1" />
+  </ItemGroup>
+  
   <Target Name="GetPackagingOutputs" />
 
 </Project>

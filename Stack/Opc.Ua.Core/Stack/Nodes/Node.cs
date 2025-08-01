@@ -277,7 +277,7 @@ namespace Opc.Ua
                 return StatusCodes.BadAttributeIdInvalid;
             }
 
-            value.Value = Read(attributeId);
+            value.WrappedValue = new Variant(Read(attributeId));
             value.StatusCode = StatusCodes.Good;
 
             if (attributeId == Attributes.Value)
@@ -766,7 +766,7 @@ namespace Opc.Ua
 
             set
             {
-                m_value.Value = value;
+                m_value = new Variant(value);
             }
         }
 
@@ -888,7 +888,7 @@ namespace Opc.Ua
                 // values are copied when the are written so then can be safely returned on read.
                 case Attributes.Value:
                 {
-                    m_value.Value = Utils.Clone(value);
+                    m_value = new Variant(Utils.Clone(value));
                     return ServiceResult.Good;
                 }
 
@@ -899,7 +899,7 @@ namespace Opc.Ua
                     // must ensure the value is of the correct datatype.
                     if (dataType != m_dataType)
                     {
-                        m_value.Value = TypeInfo.GetDefaultValue(dataType, m_valueRank);
+                        m_value = new Variant(TypeInfo.GetDefaultValue(dataType, m_valueRank));
                     }
 
                     m_dataType = dataType;
@@ -912,7 +912,7 @@ namespace Opc.Ua
 
                     if (valueRank != m_valueRank)
                     {
-                        m_value.Value = TypeInfo.GetDefaultValue(m_dataType, valueRank);
+                        m_value = new Variant(TypeInfo.GetDefaultValue(m_dataType, valueRank));
                     }
 
                     m_valueRank = valueRank;
@@ -930,7 +930,7 @@ namespace Opc.Ua
                         if (m_arrayDimensions.Count != m_valueRank)
                         {
                             m_valueRank = m_arrayDimensions.Count;
-                            m_value.Value = TypeInfo.GetDefaultValue(m_dataType, m_valueRank);
+                            m_value = new Variant(TypeInfo.GetDefaultValue(m_dataType, m_valueRank));
                         }
                     }
 
@@ -1141,7 +1141,7 @@ namespace Opc.Ua
 
             set
             {
-                m_value.Value = value;
+                m_value = new Variant(value);
             }
         }
 
@@ -1251,7 +1251,7 @@ namespace Opc.Ua
                 // values are copied when the are written so then can be safely returned on read.
                 case Attributes.Value:
                 {
-                    m_value.Value = Utils.Clone(value);
+                    m_value = new Variant(Utils.Clone(value));
                     return ServiceResult.Good;
                 }
 
@@ -1262,7 +1262,7 @@ namespace Opc.Ua
                     // must ensure the value is of the correct datatype.
                     if (dataType != m_dataType)
                     {
-                        m_value.Value = null;
+                        m_value = Variant.Null;
                     }
 
                     m_dataType = dataType;
@@ -1275,7 +1275,7 @@ namespace Opc.Ua
 
                     if (valueRank != m_valueRank)
                     {
-                        m_value.Value = null;
+                        m_value = Variant.Null;
                     }
 
                     m_valueRank = valueRank;
@@ -1293,7 +1293,7 @@ namespace Opc.Ua
                         if (m_valueRank != m_arrayDimensions.Count)
                         {
                             m_valueRank = m_arrayDimensions.Count;
-                            m_value.Value = null;
+                            m_value = Variant.Null;
                         }
                     }
 

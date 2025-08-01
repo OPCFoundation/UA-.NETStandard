@@ -131,7 +131,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 // cache the server type system
                 _ = await m_complexTypeResolver.LoadDataTypesAsync(DataTypeIds.BaseDataType, true, ct: ct).ConfigureAwait(false);
                 IList<INode> subTypeNodes = await m_complexTypeResolver.LoadDataTypesAsync(nodeId, subTypes, true, ct: ct).ConfigureAwait(false);
-                IList<INode> subTypeNodesWithoutKnownTypes = RemoveKnownTypes(subTypeNodes);
+                List<INode> subTypeNodesWithoutKnownTypes = RemoveKnownTypes(subTypeNodes);
 
                 if (subTypeNodesWithoutKnownTypes.Count > 0)
                 {
@@ -853,7 +853,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <summary>
         /// Remove all known types in the type factory from a list of DataType nodes.
         /// </summary>
-        private IList<INode> RemoveKnownTypes(IList<INode> nodeList)
+        private List<INode> RemoveKnownTypes(IList<INode> nodeList)
         {
             return nodeList.Where(
                 node => GetSystemType(node.NodeId) == null).Distinct().ToList();
@@ -899,7 +899,7 @@ namespace Opc.Ua.Client.ComplexTypes
                     if (item is Schema.Binary.EnumeratedType enumeratedObject)
                     {
                         // 1. use Dictionary entry
-                        var enumDefinition = enumeratedObject.ToEnumDefinition();
+                        var enumDefinition = enumeratedObject.ToEnumDefinition(enumeratedObject.Name);
 
                         // Add EnumDefinition to cache
                         m_dataTypeDefinitionCache[enumType.NodeId] = enumDefinition;
@@ -971,12 +971,12 @@ namespace Opc.Ua.Client.ComplexTypes
                     if (enumTypeArray is ExtensionObject[] extensionObject)
                     {
                         // 2. use EnumValues
-                        enumDefinition = extensionObject.ToEnumDefinition();
+                        enumDefinition = extensionObject.ToEnumDefinition(name.Name);
                     }
                     else if (enumTypeArray is LocalizedText[] localizedText)
                     {
                         // 3. use EnumStrings
-                        enumDefinition = localizedText.ToEnumDefinition();
+                        enumDefinition = localizedText.ToEnumDefinition(name.Name);
                     }
                     else
                     {

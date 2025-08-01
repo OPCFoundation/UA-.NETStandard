@@ -401,7 +401,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test, Order(204)]
-        public async Task ConnectAndCloseAsyncReadAfterCloseSessionReconnect()
+        public async Task ConnectAndCloseAsyncReadAfterCloseSessionReconnectAsync()
         {
             var securityPolicy = SecurityPolicies.Basic256Sha256;
             using (var session = await ClientFixture.ConnectAsync(ServerUrl, securityPolicy, Endpoints).ConfigureAwait(false))
@@ -1664,6 +1664,7 @@ namespace Opc.Ua.Client.Tests
             Assert.AreEqual(nodes.Count, errors2.Count);
 
             IList<VariableNode> variableNodes = nodeCollection.Cast<VariableNode>().ToList();
+            Assert.NotNull(variableNodes);
 
             // test build info contains the equal values as the properties
             var buildInfo = (values[0].Value as ExtensionObject)?.Body as BuildInfo;
