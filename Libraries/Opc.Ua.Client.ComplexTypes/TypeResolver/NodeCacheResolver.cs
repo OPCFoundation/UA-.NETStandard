@@ -690,22 +690,16 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <summary>
         /// Get the node identified by the expanded node id.
         /// </summary>
-        private ValueTask<INode> GetNodeAsync(
-            ExpandedNodeId expandedNodeId,
-            CancellationToken ct)
+        private ValueTask<INode> GetNodeAsync(ExpandedNodeId nodeId, CancellationToken ct)
         {
-            var nodeId = ExpandedNodeId.ToNodeId(expandedNodeId, NamespaceUris);
             return m_lruNodeCache.GetNodeAsync(nodeId, ct);
         }
 
         /// <summary>
         /// Reads the value of a node identified by the expanded node id.
         /// </summary>
-        private async Task<DataValue> GetValueAsync(
-            ExpandedNodeId expandedNodeId,
-            CancellationToken ct)
+        private async Task<DataValue> GetValueAsync(ExpandedNodeId nodeId, CancellationToken ct)
         {
-            var nodeId = ExpandedNodeId.ToNodeId(expandedNodeId, NamespaceUris);
             return await m_lruNodeCache.GetValueAsync(nodeId, ct).ConfigureAwait(false);
         }
 
@@ -714,27 +708,23 @@ namespace Opc.Ua.Client.ComplexTypes
         /// </summary>
         /// <returns></returns>
         private ValueTask<IReadOnlyList<DataValue>> GetValuesAsync(
-            IEnumerable<ExpandedNodeId> expandedNodeIds,
+            IEnumerable<ExpandedNodeId> nodeIds,
             CancellationToken ct)
         {
-            var nodeIds = expandedNodeIds
-                .Select(n => ExpandedNodeId.ToNodeId(n, NamespaceUris))
-                .ToList();
-            return m_lruNodeCache.GetValuesAsync(nodeIds, ct);
+            return m_lruNodeCache.GetValuesAsync(nodeIds.ToList(), ct);
         }
 
         /// <summary>
         /// Returns the references of the specified node that meet the criteria specified.
         /// </summary>
         private ValueTask<IReadOnlyList<INode>> FindReferencesAsync(
-            ExpandedNodeId expandedNodeId,
+            ExpandedNodeId nodeIds,
             NodeId referenceTypeId,
             bool isInverse,
             CancellationToken ct)
         {
-            var nodeId = ExpandedNodeId.ToNodeId(expandedNodeId, NamespaceUris);
             return m_lruNodeCache.GetReferencesAsync(
-                nodeId,
+                nodeIds,
                 referenceTypeId,
                 isInverse,
                 false,
@@ -745,14 +735,11 @@ namespace Opc.Ua.Client.ComplexTypes
         /// Returns the references of the specified nodes that meet the criteria specified.
         /// </summary>
         private ValueTask<IReadOnlyList<INode>> FindReferencesAsync(
-            IEnumerable<ExpandedNodeId> expandedNodeIds,
+            IEnumerable<ExpandedNodeId> nodeIds,
             NodeId referenceTypeId,
             bool isInverse,
             CancellationToken ct)
         {
-            var nodeIds = expandedNodeIds
-                .Select(n => ExpandedNodeId.ToNodeId(n, NamespaceUris))
-                .ToList();
             return m_lruNodeCache.GetReferencesAsync(
                 nodeIds.ToList(),
                 [referenceTypeId],
