@@ -703,25 +703,6 @@ namespace Opc.Ua
 
             return new ApplicationDescriptionCollection(servers.Values);
         }
-
-        /// <summary>
-        /// Copies the endpoints.
-        /// </summary>
-        /// <param name="serverUri">The server URI.</param>
-        /// <returns></returns>
-        [Obsolete("Non-functional - replaced with GetEndpoints()")]
-        public List<ConfiguredEndpoint> CopyEndpoints(string serverUri)
-        {
-            return null;
-        }
-
-        /// <summary>
-        /// Updates an endpoint with information from the server's discovery endpoint.
-        /// </summary>
-        [Obsolete("Non-functional - method not used - updates should be done with ConfiguredEndpoint.UpdateFromServer()")]
-        public void UpdateEndpointsForServer(string serverUri)
-        {
-        }
         #endregion
 
         #region Public Properties

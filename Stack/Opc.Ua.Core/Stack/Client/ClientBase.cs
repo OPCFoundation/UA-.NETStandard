@@ -360,16 +360,6 @@ namespace Opc.Ua
         /// Updates the header of a service request.
         /// </summary>
         /// <param name="request">The request.</param>
-        [Obsolete("Must override the version with useDefault parameter.")]
-        protected virtual void UpdateRequestHeader(IServiceRequest request)
-        {
-            UpdateRequestHeader(request, request == null);
-        }
-
-        /// <summary>
-        /// Updates the header of a service request.
-        /// </summary>
-        /// <param name="request">The request.</param>
         /// <param name="useDefaults">if set to <c>true</c> use defaults].</param>
         protected virtual void UpdateRequestHeader(IServiceRequest request, bool useDefaults)
         {

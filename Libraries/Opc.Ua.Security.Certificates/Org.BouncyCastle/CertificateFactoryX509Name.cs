@@ -55,33 +55,6 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
             base((Asn1Sequence)Asn1Object.FromByteArray(distinguishedName.RawData))
         {
         }
-
-        /// <summary>
-        /// Create the X509Name from a distinguished name.
-        /// </summary>
-        /// <param name="distinguishedName">The distinguished name.</param>
-        [Obsolete("Use constructor with X500DistinguishedName instead.")]
-        public CertificateFactoryX509Name(string distinguishedName) :
-            base(true, ConvertToX509Name(distinguishedName))
-        {
-        }
-
-        /// <summary>
-        /// Create the X509Name from a distinguished name.
-        /// </summary>
-        /// <param name="reverse">Reverse the order of the names.</param>
-        /// <param name="distinguishedName">The distinguished name.</param>
-        [Obsolete("Use constructor with X500DistinguishedName instead.")]
-        public CertificateFactoryX509Name(bool reverse, string distinguishedName) :
-            base(reverse, ConvertToX509Name(distinguishedName))
-        {
-        }
-
-        private static string ConvertToX509Name(string distinguishedName)
-        {
-            // convert from X509Certificate to bouncy castle DN entries
-            return distinguishedName.Replace("S=", "ST=");
-        }
     }
 }
 #endif

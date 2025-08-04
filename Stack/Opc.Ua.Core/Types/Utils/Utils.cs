@@ -2937,57 +2937,6 @@ namespace Opc.Ua
 
             return blobData;
         }
-        /// <summary>
-        /// Compare Nonce for equality.
-        /// </summary>
-        [Obsolete("Use equivalent methods from the Opc.Ua.Nonce class")]
-        public static bool CompareNonce(byte[] a, byte[] b)
-        {
-            return NewNonceImplementation.CompareNonce(a, b);
-        }
-
-        /// <summary>
-        /// Cryptographic Nonce helper functions.
-        /// </summary>
-        [Obsolete("Use equivalent methods from the Opc.Ua.Nonce class")]
-        public static class Nonce
-        {
-            /// <summary>
-            /// Generates a Nonce for cryptographic functions.
-            /// </summary>
-            [Obsolete("Use equivalent CreateRandomNonceData method from the Opc.Ua.Nonce class")]
-            public static byte[] CreateNonce(uint length)
-            {
-                return NewNonceImplementation.CreateRandomNonceData(length);
-            }
-
-            /// <summary>
-            /// Returns the length of the symmetric encryption key for a security policy.
-            /// </summary>
-            [Obsolete("Use equivalent method from the Opc.Ua.Nonce class")]
-            public static uint GetNonceLength(string securityPolicyUri)
-            {
-                return NewNonceImplementation.GetNonceLength(securityPolicyUri);
-            }
-
-            /// <summary>
-            /// Validates the nonce for a message security mode and security policy.
-            /// </summary>
-            [Obsolete("Use equivalent method from the Opc.Ua.Nonce class")]
-            public static bool ValidateNonce(byte[] nonce, MessageSecurityMode securityMode, string securityPolicyUri)
-            {
-                return NewNonceImplementation.ValidateNonce(nonce, securityMode, GetNonceLength(securityPolicyUri));
-            }
-
-            /// <summary>
-            /// Validates the nonce for a message security mode and a minimum length.
-            /// </summary>
-            [Obsolete("Use equivalent method from the Opc.Ua.Nonce class")]
-            public static bool ValidateNonce(byte[] nonce, MessageSecurityMode securityMode, uint minNonceLength)
-            {
-                return NewNonceImplementation.ValidateNonce(nonce, securityMode, minNonceLength);
-            }
-        }
 
         /// <summary>
         /// Generates a Pseudo random sequence of bits using the P_SHA1 alhorithm.
