@@ -70,6 +70,7 @@ namespace Opc.Ua
         /// </param>
         void Start(ApplicationConfiguration configuration);
 
+        /// <summary>
         /// Trys to get the secure channel id for an AuthenticationToken.
         /// The ChannelId is known to the sessions of the Server.
         /// Each session has an AuthenticationToken which can be used to identify the session.
