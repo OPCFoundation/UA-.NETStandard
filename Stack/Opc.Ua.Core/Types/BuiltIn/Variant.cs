@@ -1570,6 +1570,17 @@ namespace Opc.Ua
         /// An constant containing a null Variant structure.
         /// </remarks>
         public static readonly Variant Null = new Variant();
+
+        /// <summary>
+        /// Returns if the Variant is a Null value.
+        /// </summary>
+        public bool IsNull
+        {
+            get
+            {
+                return this.m_value == null;
+            }
+        }
         #endregion
 
         #region Overridden Methods
@@ -2616,9 +2627,6 @@ namespace Opc.Ua
         /// <summary>
         /// Creates a deep copy of the collection.
         /// </summary>
-        /// <remarks>
-        /// Creates a deep copy of the collection.
-        /// </remarks>
         public new object MemberwiseClone()
         {
             VariantCollection clone = new VariantCollection(this.Count);

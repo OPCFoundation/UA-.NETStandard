@@ -100,13 +100,10 @@ namespace Opc.Ua.Client
                 return;
             }
 
+            await ResetPublishTimerAndWorkerStateAsync().ConfigureAwait(false);
+
             try
             {
-                lock (m_cache)
-                {
-                    ResetPublishTimerAndWorkerState();
-                }
-
                 // delete the subscription.
                 UInt32Collection subscriptionIds = new uint[] { m_id };
 

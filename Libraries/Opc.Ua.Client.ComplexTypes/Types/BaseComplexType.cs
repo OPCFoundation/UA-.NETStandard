@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2022 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -612,15 +612,13 @@ namespace Opc.Ua.Client.ComplexTypes
         /// </summary>
         protected virtual void InitializePropertyAttributes()
         {
-            var definitionAttribute = (StructureDefinitionAttribute)
-                GetType().GetCustomAttribute(typeof(StructureDefinitionAttribute));
+            var definitionAttribute = GetType().GetCustomAttribute<StructureDefinitionAttribute>();
             if (definitionAttribute != null)
             {
                 m_structureBaseType = definitionAttribute.BaseDataType;
             }
 
-            var typeAttribute = (StructureTypeIdAttribute)
-                GetType().GetCustomAttribute(typeof(StructureTypeIdAttribute));
+            var typeAttribute = GetType().GetCustomAttribute<StructureTypeIdAttribute>();
             if (typeAttribute != null)
             {
                 TypeId = ExpandedNodeId.Parse(typeAttribute.ComplexTypeId);
@@ -632,16 +630,14 @@ namespace Opc.Ua.Client.ComplexTypes
             var properties = GetType().GetProperties();
             foreach (var property in properties)
             {
-                StructureFieldAttribute fieldAttribute = (StructureFieldAttribute)
-                    property.GetCustomAttribute(typeof(StructureFieldAttribute));
+                StructureFieldAttribute fieldAttribute = property.GetCustomAttribute<StructureFieldAttribute>();
 
                 if (fieldAttribute == null)
                 {
                     continue;
                 }
 
-                DataMemberAttribute dataAttribute = (DataMemberAttribute)
-                    property.GetCustomAttribute(typeof(DataMemberAttribute));
+                DataMemberAttribute dataAttribute = property.GetCustomAttribute<DataMemberAttribute>();
 
                 var newProperty = new ComplexTypePropertyInfo(property, fieldAttribute, dataAttribute);
 

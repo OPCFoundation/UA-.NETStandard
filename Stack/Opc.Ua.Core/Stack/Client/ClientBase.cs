@@ -220,7 +220,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public async virtual Task<StatusCode> CloseAsync(CancellationToken ct = default)
+        public virtual async Task<StatusCode> CloseAsync(CancellationToken ct = default)
         {
             ITransportChannel channel = Interlocked.Exchange(ref m_channel, null);
             if (channel != null)
