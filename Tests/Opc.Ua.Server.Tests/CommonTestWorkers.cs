@@ -468,6 +468,13 @@ namespace Opc.Ua.Server.Tests
             ServerFixtureUtils.ValidateResponse(response, statuses, subscriptions);
             ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, subscriptions, response.StringTable);
 
+            // set monitoring mode to disabled
+            var itemIds = itemCreateResults.Select(item => item.MonitoredItemId).ToArray();
+            response = services.SetMonitoringMode(requestHeader, id, MonitoringMode.Disabled, itemIds,
+                        out statuses, out diagnosticInfos);
+            ServerFixtureUtils.ValidateResponse(response, modifyResults, itemIds);
+            ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, itemIds, response.StringTable);
+
             // delete subscription
             response = services.DeleteSubscriptions(requestHeader, subscriptions, out statuses, out diagnosticInfos);
             ServerFixtureUtils.ValidateResponse(response, statuses, subscriptions);

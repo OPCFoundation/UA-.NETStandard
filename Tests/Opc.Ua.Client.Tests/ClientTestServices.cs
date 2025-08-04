@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using Microsoft.AspNetCore.Hosting.Server;
 using Opc.Ua.Server.Tests;
 
 namespace Opc.Ua.Client.Tests
@@ -148,6 +149,17 @@ namespace Opc.Ua.Client.Tests
             out DiagnosticInfoCollection diagnosticInfos)
         {
             return m_session.SetPublishingMode(requestHeader, publishingEnabled, subscriptionIds, out results, out diagnosticInfos);
+        }
+
+        public ResponseHeader SetMonitoringMode(
+            RequestHeader requestHeader,
+            uint subscriptionId,
+            MonitoringMode monitoringMode,
+            UInt32Collection monitoredItemIds,
+            out StatusCodeCollection results,
+            out DiagnosticInfoCollection diagnosticInfos)
+        {
+            return m_session.SetMonitoringMode(requestHeader, subscriptionId, monitoringMode, monitoredItemIds, out results, out diagnosticInfos);
         }
 
         public ResponseHeader Republish(
