@@ -12,8 +12,8 @@
   </PropertyGroup>
  
   <ItemGroup>
-    <PackageReference Include="Mono.Options" Version="6.12.0.148" />
-    <PackageReference Include="System.Private.Uri" Version="4.3.2" />
+    <PackageReference Include="Mono.Options"/>
+    <PackageReference Include="System.Private.Uri"/>
   </ItemGroup>
 
   <ItemGroup>

@@ -241,7 +241,7 @@ namespace Opc.Ua.Client
         /// Returns true if the session is not receiving keep alives.
         /// </summary>
         /// <remarks>
-        /// Set to true if the server does not respond for 2 times the KeepAliveInterval.
+        /// Set to true if the server does not respond for the KeepAliveInterval times a configurable factor + a configurable guard band.
         /// Set to false is communication recovers.
         /// </remarks>
         bool KeepAliveStopped { get; }
@@ -346,6 +346,11 @@ namespace Opc.Ua.Client
         /// Reconnects to the server using a new channel.
         /// </summary>
         Task ReconnectAsync(ITransportChannel channel, CancellationToken ct = default);
+
+        /// <summary>
+        ///Reload the own certificate used by the session and the issuer chain when available.
+        /// </summary>
+        Task ReloadInstanceCertificateAsync(CancellationToken ct = default);
 #endif
 
         /// <summary>

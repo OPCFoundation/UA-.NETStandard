@@ -138,15 +138,13 @@ namespace Opc.Ua.Bindings
 
             m_activeClients.AddOrUpdate(ipAddress,
                 // If client is new , create a new entry
-                key => new ActiveClient
-                {
+                key => new ActiveClient {
                     LastActionTicks = currentTicks,
                     ActiveActionCount = 1,
                     BlockedUntilTicks = 0
                 },
                 // If the client exists, update its entry
-                (key, existingEntry) =>
-                {
+                (key, existingEntry) => {
                     // If IP currently blocked simply do nothing
                     if (IsBlockedTicks(existingEntry.BlockedUntilTicks, currentTicks))
                     {
@@ -362,8 +360,7 @@ namespace Opc.Ua.Bindings
 
             // initialize the quotas.
             m_quotas = new ChannelQuotas();
-            var messageContext = new ServiceMessageContext()
-            {
+            var messageContext = new ServiceMessageContext() {
                 NamespaceUris = settings.NamespaceUris,
                 ServerUris = new StringTable(),
                 Factory = settings.Factory
@@ -1044,7 +1041,39 @@ namespace Opc.Ua.Bindings
                 {
                     TcpServerChannel channel = (TcpServerChannel)args[0];
                     IServiceResponse response = m_callback.EndProcessRequest(result);
-                    channel.SendResponse((uint)args[1], response);
+
+                    try
+                    {
+                        channel.SendResponse((uint)args[1], response);
+                    }
+                    catch (ServiceResultException sre)
+                    {
+                        //handle only the case where the secure channel was closed
+                        if (sre.StatusCode != StatusCodes.BadSecureChannelClosed)
+                        {
+                            throw;
+                        }
+                        //try to find the new channel id for the authentication token to send response over new channel
+                        IServiceRequest request = (IServiceRequest)args[2];
+                        NodeId AuthenticationToken = request.RequestHeader.AuthenticationToken;
+
+                        if (m_callback?.TryGetSecureChannelIdForAuthenticationToken(AuthenticationToken, out uint channelId) == true)
+                        {
+                            if (m_channels.TryGetValue(channelId, out TcpListenerChannel newChannel))
+                            {
+                                var serverChannel = (TcpServerChannel)newChannel;
+
+                                // if the channel is not the same as the one we started with, send the response over the new channel
+                                if (serverChannel != channel)
+                                {
+                                    serverChannel.SendResponse((uint)args[1], response);
+                                    return;
+                                }
+                            }
+                        }
+                        // if we could not find a new channel, just log the error
+                        throw;
+                    }
                 }
             }
             catch (Exception e)

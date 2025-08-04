@@ -2556,9 +2556,9 @@ namespace Opc.Ua.Server
                 Utils.LogError(e, "Unexpected exception handling registration timer.");
             }
         }
-#endregion
+        #endregion
 
-#region Protected Members used for Request Processing
+        #region Protected Members used for Request Processing
         /// <summary>
         /// The synchronization object.
         /// </summary>
@@ -2814,9 +2814,9 @@ namespace Opc.Ua.Server
                 m_serverInternal.RequestManager.RequestCompleted(context);
             }
         }
-#endregion
+        #endregion
 
-#region Protected Members used for Initialization
+        #region Protected Members used for Initialization
         /// <summary>
         /// Raised when the configuration changes.
         /// </summary>
@@ -3230,6 +3230,27 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Trys to get the secure channel id for an AuthenticationToken.
+        /// The ChannelId is known to the sessions of the Server.
+        /// Each session has an AuthenticationToken which can be used to identify the session.
+        /// </summary>
+        /// <param name="authenticationToken">The AuthenticationToken from the RequestHeader</param>
+        /// <param name="channelId">The Channel id</param>
+        /// <returns>returns true if a channelId was found for the provided AuthenticationToken</returns>
+        public override bool TryGetSecureChannelIdForAuthenticationToken(NodeId authenticationToken, out uint channelId)
+        {
+            Session session = ServerInternal.SessionManager.GetSession(authenticationToken);
+
+            if (session == null)
+            {
+                channelId = 0;
+                return false;
+            }
+
+            return uint.TryParse(session.SecureChannelId, out channelId);
+        }
+
+        /// <summary>
         /// Implements the server shutdown delay if session are connected.
         /// </summary>
         protected void ShutDownDelay()
@@ -3425,7 +3446,7 @@ namespace Opc.Ua.Server
         /// <returns>Returns a (durable) monitored item queue factory for a server, the return type is <seealso cref="IMonitoredItemQueueFactory"/>.</returns>
         protected virtual IMonitoredItemQueueFactory CreateMonitoredItemQueueFactory(IServerInternal server, ApplicationConfiguration configuration)
         {
-           return new MonitoredItemQueueFactory();
+            return new MonitoredItemQueueFactory();
         }
 
         /// <summary>
@@ -3482,7 +3503,7 @@ namespace Opc.Ua.Server
         {
             m_nodeManagerFactories.Remove(nodeManagerFactory);
         }
-#endregion
+        #endregion
 
         #region Private Methods
         /// <summary>
@@ -3504,9 +3525,9 @@ namespace Opc.Ua.Server
 
         #region Private Properties
         private OperationLimitsState OperationLimits => ServerInternal.ServerObject.ServerCapabilities.OperationLimits;
-#endregion
+        #endregion
 
-#region Private Fields
+        #region Private Fields
         private readonly object m_lock = new object();
         private readonly object m_registrationLock = new object();
         private ServerInternalData m_serverInternal;

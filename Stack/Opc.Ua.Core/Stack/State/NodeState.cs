@@ -3089,9 +3089,7 @@ namespace Opc.Ua
                         }
 
                         // look up new node id.
-                        NodeId newId = null;
-
-                        if (mappingTable.TryGetValue(oldId, out newId))
+                        if (mappingTable.TryGetValue(oldId, out NodeId newId))
                         {
                             referencesToRemove.Add(reference);
                             referencesToAdd.Add(new NodeStateReference(reference.ReferenceTypeId, reference.IsInverse, newId));
@@ -3435,11 +3433,11 @@ namespace Opc.Ua
             // update value.
             if (StatusCode.IsBad(value.StatusCode))
             {
-                value.Value = null;
+                value.WrappedValue = Variant.Null;
             }
             else
             {
-                value.Value = valueToRead;
+                value.WrappedValue = new Variant(valueToRead);
             }
 
             // return result.
@@ -4311,7 +4309,7 @@ namespace Opc.Ua
         {
             PropertyState property = new PropertyState<T>(this);
 
-            property.ReferenceTypeId = ReferenceTypes.HasProperty;
+            property.ReferenceTypeId = ReferenceTypeIds.HasProperty;
             property.ModellingRuleId = null;
             property.TypeDefinitionId = VariableTypeIds.PropertyType;
             property.SymbolicName = propertyName;
