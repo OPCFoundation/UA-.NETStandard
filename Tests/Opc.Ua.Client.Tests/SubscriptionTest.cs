@@ -762,6 +762,8 @@ namespace Opc.Ua.Client.Tests
             const int subscriptions = 50;
             const int maxServerPublishRequest = 20;
 
+            Session.DeleteSubscriptionsOnClose = false;
+
             for (int i = 0; i < subscriptions; i++)
             {
                 var subscription = new TestableSubscription(Session.DefaultSubscription) {
@@ -794,6 +796,8 @@ namespace Opc.Ua.Client.Tests
                 Assert.True(result);
                 await subscription.CreateAsync().ConfigureAwait(false);
                 var publishInterval = (int)subscription.CurrentPublishingInterval;
+
+                Session.DeleteSubscriptionsOnClose = true;
 
                 TestContext.Out.WriteLine($"Id: {subscription.Id} CurrentPublishingInterval: {publishInterval}");
 
