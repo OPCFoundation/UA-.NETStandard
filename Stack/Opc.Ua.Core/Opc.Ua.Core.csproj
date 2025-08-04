@@ -95,6 +95,7 @@
   </PropertyGroup>
   <!-- Embed the zipped Nodeset2 file -->
   <ItemGroup>
+    <PackageReference Include="BouncyCastle.Cryptography" />
     <EmbeddedResource Include="$(ZipNodeSet2XML)" Link="$(NodeSet2XML).zip" />
   </ItemGroup>
   <!-- Zip the NodeSet2 file -->
