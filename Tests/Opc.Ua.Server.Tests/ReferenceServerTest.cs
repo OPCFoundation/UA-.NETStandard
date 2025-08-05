@@ -449,7 +449,7 @@ namespace Opc.Ua.Server.Tests
         [TestCase(false, kQueueSize)]
         [TestCase(true, 0U)]
         [TestCase(false, 0U)]
-        public void ResendData(bool updateValues, uint queueSize)
+        public async Task ResendData(bool updateValues, uint queueSize)
         {
             var serverTestServices = new ServerTestServices(m_server);
             // save old security context, test fixture can only work with one session
@@ -546,7 +546,7 @@ namespace Opc.Ua.Server.Tests
                         //If sampling groups are used, samplingInterval needs to be waited before values are queued
                         if (m_fixture.UseSamplingGroupsInReferenceNodeManager)
                         {
-                            Thread.Sleep((int)(100.0 * 1.1));
+                            await Task.Delay((int)(100.0 * 1.1));
                         }
                         UpdateValues(testSet);
                     }
