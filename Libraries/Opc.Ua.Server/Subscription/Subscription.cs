@@ -36,45 +36,9 @@ using System.Linq;
 namespace Opc.Ua.Server
 {
     /// <summary>
-    /// An interface used by the monitored items to signal the subscription.
-    /// </summary>
-    public interface ISubscription
-    {
-        /// <summary>
-        /// The session that owns the monitored item.
-        /// </summary>
-        ISession Session { get; }
-
-        /// <summary>
-        /// The subscriptions owner identity.
-        /// </summary>
-        IUserIdentity EffectiveIdentity { get; }
-
-        /// <summary>
-        /// The identifier for the item that is unique within the server.
-        /// </summary>
-        uint Id { get; }
-
-        /// <summary>
-        /// Called when a monitored item is ready to publish.
-        /// </summary>
-        void ItemReadyToPublish(IMonitoredItem monitoredItem);
-
-        /// <summary>
-        /// Called when a monitored item is ready to publish.
-        /// </summary>
-        void ItemNotificationsAvailable(IMonitoredItem monitoredItem);
-
-        /// <summary>
-        /// Called when a value of monitored item is discarded in the monitoring queue.
-        /// </summary>
-        void QueueOverflowHandler();
-    }
-
-    /// <summary>
     /// Manages a subscription created by a client.
     /// </summary>
-    public class Subscription : ISubscription, IDisposable
+    public class Subscription : ISubscription
     {
         #region Constructors
         /// <summary>
