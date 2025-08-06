@@ -50,8 +50,8 @@ namespace Quickstarts.ReferenceServer
         /// <summary>
         /// Initializes the node manager.
         /// </summary>
-        public ReferenceNodeManager(IServerInternal server, ApplicationConfiguration configuration)
-            : base(server, configuration, Namespaces.ReferenceServer)
+        public ReferenceNodeManager(IServerInternal server, ApplicationConfiguration configuration, bool useSamplingGroups = false)
+            : base(server, configuration, useSamplingGroups, Namespaces.ReferenceServer)
         {
             SystemContext.NodeIdFactory = this;
 
