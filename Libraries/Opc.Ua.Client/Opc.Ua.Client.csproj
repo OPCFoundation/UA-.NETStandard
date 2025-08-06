@@ -43,6 +43,7 @@
 
   <ItemGroup>
     <PackageReference Include="Nito.AsyncEx" />
+    <PackageReference Include="BitFaster.Caching" />
   </ItemGroup>
 
   <ItemGroup>
