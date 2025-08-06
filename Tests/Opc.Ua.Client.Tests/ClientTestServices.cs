@@ -150,6 +150,17 @@ namespace Opc.Ua.Client.Tests
             return m_session.SetPublishingMode(requestHeader, publishingEnabled, subscriptionIds, out results, out diagnosticInfos);
         }
 
+        public ResponseHeader SetMonitoringMode(
+           RequestHeader requestHeader,
+           uint subscriptionId,
+           MonitoringMode monitoringMode,
+           UInt32Collection monitoredItemIds,
+           out StatusCodeCollection results,
+           out DiagnosticInfoCollection diagnosticInfos)
+        {
+            return m_session.SetMonitoringMode(requestHeader, subscriptionId, monitoringMode, monitoredItemIds, out results, out diagnosticInfos);
+        }
+
         public ResponseHeader Republish(
             RequestHeader requestHeader,
             uint subscriptionId,

@@ -89,7 +89,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <inheritdoc/>
         public virtual object Clone()
         {
-            return this.MemberwiseClone();
+            return MemberwiseClone();
         }
 
         /// <summary>
@@ -100,15 +100,15 @@ namespace Opc.Ua.Client.ComplexTypes
         /// </returns>
         public new object MemberwiseClone()
         {
-            Type thisType = this.GetType();
-            BaseComplexType clone = Activator.CreateInstance(thisType) as BaseComplexType;
+            Type thisType = GetType();
+            var clone = Activator.CreateInstance(thisType) as BaseComplexType;
 
             clone.TypeId = TypeId;
             clone.BinaryEncodingId = BinaryEncodingId;
             clone.XmlEncodingId = XmlEncodingId;
 
             // clone all properties of derived class
-            foreach (var property in GetPropertyEnumerator())
+            foreach (ComplexTypePropertyInfo property in GetPropertyEnumerator())
             {
                 property.SetValue(clone, Utils.Clone(property.GetValue(this)));
             }
@@ -159,23 +159,23 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
-            if (Object.ReferenceEquals(this, encodeable))
+            if (ReferenceEquals(this, encodeable))
             {
                 return true;
             }
 
-            if (!(encodeable is BaseComplexType valueBaseType))
+            if (encodeable is not BaseComplexType valueBaseType)
             {
                 return false;
             }
 
-            var valueType = valueBaseType.GetType();
-            if (this.GetType() != valueType)
+            Type valueType = valueBaseType.GetType();
+            if (GetType() != valueType)
             {
                 return false;
             }
 
-            foreach (var property in GetPropertyEnumerator())
+            foreach (ComplexTypePropertyInfo property in GetPropertyEnumerator())
             {
                 if (!Utils.IsEqual(property.GetValue(this), property.GetValue(valueBaseType)))
                 {
@@ -200,16 +200,16 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <param name="format">(Unused). Leave this as null</param>
         /// <param name="formatProvider">The provider of a mechanism for retrieving an object to control formatting.</param>
         /// <returns>
-        /// A <see cref="System.String"/> containing the value of the current embedded instance in the specified format.
+        /// A <see cref="string"/> containing the value of the current embedded instance in the specified format.
         /// </returns>
         /// <exception cref="FormatException">Thrown if the <i>format</i> parameter is not null</exception>
         public virtual string ToString(string format, IFormatProvider formatProvider)
         {
             if (format == null)
             {
-                StringBuilder body = new StringBuilder();
+                var body = new StringBuilder();
 
-                foreach (var property in GetPropertyEnumerator())
+                foreach (ComplexTypePropertyInfo property in GetPropertyEnumerator())
                 {
                     AppendPropertyValue(formatProvider, body, property.GetValue(this), property.ValueRank);
                 }
@@ -219,9 +219,9 @@ namespace Opc.Ua.Client.ComplexTypes
                     return body.Append('}').ToString();
                 }
 
-                if (!NodeId.IsNull(this.TypeId))
+                if (!NodeId.IsNull(TypeId))
                 {
-                    return string.Format(formatProvider, "{{{0}}}", this.TypeId);
+                    return string.Format(formatProvider, "{{{0}}}", TypeId);
                 }
 
                 return "(null)";
@@ -241,13 +241,13 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <inheritdoc/>
         public virtual IList<string> GetPropertyNames()
         {
-            return m_propertyList.Select(p => p.Name).ToList();
+            return [.. m_propertyList.Select(p => p.Name)];
         }
 
         /// <inheritdoc/>
         public virtual IList<Type> GetPropertyTypes()
         {
-            return m_propertyList.Select(p => p.PropertyType).ToList();
+            return [.. m_propertyList.Select(p => p.PropertyType)];
         }
 
         /// <inheritdoc/>
@@ -275,16 +275,13 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <summary>
         /// Formatting helper.
         /// </summary>
-        private void AddSeparator(StringBuilder body)
+        private static StringBuilder AddSeparator(StringBuilder body)
         {
             if (body.Length == 0)
             {
-                body.Append('{');
+                return body.Append('{');
             }
-            else
-            {
-                body.Append('|');
-            }
+            return body.Append('|');
         }
 
         /// <summary>
@@ -297,12 +294,12 @@ namespace Opc.Ua.Client.ComplexTypes
             object value,
             int valueRank)
         {
-            AddSeparator(body);
+            _ = AddSeparator(body);
             if (valueRank >= 0 && value is Array array)
             {
-                var rank = array.Rank;
-                var dimensions = new int[rank];
-                var mods = new int[rank];
+                int rank = array.Rank;
+                int[] dimensions = new int[rank];
+                int[] mods = new int[rank];
                 for (int ii = 0; ii < rank; ii++)
                 {
                     dimensions[ii] = array.GetLength(ii);
@@ -318,20 +315,20 @@ namespace Opc.Ua.Client.ComplexTypes
                 }
 
                 int count = 0;
-                foreach (var item in array)
+                foreach (object item in array)
                 {
                     bool needSeparator = true;
                     for (int dc = 0; dc < rank; dc++)
                     {
                         if ((count % mods[dc]) == 0)
                         {
-                            body.Append('[');
+                            _ = body.Append('[');
                             needSeparator = false;
                         }
                     }
                     if (needSeparator)
                     {
-                        body.Append(',');
+                        _ = body.Append(',');
                     }
                     AppendPropertyValue(formatProvider, body, item);
                     count++;
@@ -340,30 +337,30 @@ namespace Opc.Ua.Client.ComplexTypes
                     {
                         if ((count % mods[dc]) == 0)
                         {
-                            body.Append(']');
+                            _ = body.Append(']');
                             needSeparator = true;
                         }
                     }
                     if (needSeparator && count < array.Length)
                     {
-                        body.Append(',');
+                        _ = body.Append(',');
                     }
                 }
             }
             else if (valueRank >= 0 && value is IEnumerable enumerable)
             {
                 bool first = true;
-                body.Append('[');
-                foreach (var item in enumerable)
+                _ = body.Append('[');
+                foreach (object item in enumerable)
                 {
                     if (!first)
                     {
-                        body.Append(',');
+                        _ = body.Append(',');
                     }
                     AppendPropertyValue(formatProvider, body, item);
                     first = false;
                 }
-                body.Append(']');
+                _ = body.Append(']');
             }
             else
             {
@@ -374,24 +371,24 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <summary>
         /// Append a property to the value string.
         /// </summary>
-        private void AppendPropertyValue(
+        private static void AppendPropertyValue(
             IFormatProvider formatProvider,
             StringBuilder body,
             object value)
         {
             if (value is byte[] x)
             {
-                body.AppendFormat(formatProvider, "Byte[{0}]", x.Length);
+                _ = body.AppendFormat(formatProvider, "Byte[{0}]", x.Length);
                 return;
             }
 
             if (value is XmlElement xmlElements)
             {
-                body.AppendFormat(formatProvider, "<{0}>", xmlElements.Name);
+                _ = body.AppendFormat(formatProvider, "<{0}>", xmlElements.Name);
                 return;
             }
 
-            body.AppendFormat(formatProvider, "{0}", value);
+            _ = body.AppendFormat(formatProvider, "{0}", value);
         }
 
         /// <summary>
@@ -435,28 +432,28 @@ namespace Opc.Ua.Client.ComplexTypes
         /// </summary>
         private void EncodeProperty(IEncoder encoder, string name, PropertyInfo property, BuiltInType builtInType)
         {
-            var propertyType = property.PropertyType;
+            Type propertyType = property.PropertyType;
             if (propertyType.IsEnum)
             {
                 builtInType = BuiltInType.Enumeration;
             }
             switch (builtInType)
             {
-                case BuiltInType.Boolean: encoder.WriteBoolean(name, (Boolean)property.GetValue(this)); break;
-                case BuiltInType.SByte: encoder.WriteSByte(name, (SByte)property.GetValue(this)); break;
-                case BuiltInType.Byte: encoder.WriteByte(name, (Byte)property.GetValue(this)); break;
-                case BuiltInType.Int16: encoder.WriteInt16(name, (Int16)property.GetValue(this)); break;
-                case BuiltInType.UInt16: encoder.WriteUInt16(name, (UInt16)property.GetValue(this)); break;
-                case BuiltInType.Int32: encoder.WriteInt32(name, (Int32)property.GetValue(this)); break;
-                case BuiltInType.UInt32: encoder.WriteUInt32(name, (UInt32)property.GetValue(this)); break;
-                case BuiltInType.Int64: encoder.WriteInt64(name, (Int64)property.GetValue(this)); break;
-                case BuiltInType.UInt64: encoder.WriteUInt64(name, (UInt64)property.GetValue(this)); break;
-                case BuiltInType.Float: encoder.WriteFloat(name, (Single)property.GetValue(this)); break;
-                case BuiltInType.Double: encoder.WriteDouble(name, (Double)property.GetValue(this)); break;
-                case BuiltInType.String: encoder.WriteString(name, (String)property.GetValue(this)); break;
+                case BuiltInType.Boolean: encoder.WriteBoolean(name, (bool)property.GetValue(this)); break;
+                case BuiltInType.SByte: encoder.WriteSByte(name, (sbyte)property.GetValue(this)); break;
+                case BuiltInType.Byte: encoder.WriteByte(name, (byte)property.GetValue(this)); break;
+                case BuiltInType.Int16: encoder.WriteInt16(name, (short)property.GetValue(this)); break;
+                case BuiltInType.UInt16: encoder.WriteUInt16(name, (ushort)property.GetValue(this)); break;
+                case BuiltInType.Int32: encoder.WriteInt32(name, (int)property.GetValue(this)); break;
+                case BuiltInType.UInt32: encoder.WriteUInt32(name, (uint)property.GetValue(this)); break;
+                case BuiltInType.Int64: encoder.WriteInt64(name, (long)property.GetValue(this)); break;
+                case BuiltInType.UInt64: encoder.WriteUInt64(name, (ulong)property.GetValue(this)); break;
+                case BuiltInType.Float: encoder.WriteFloat(name, (float)property.GetValue(this)); break;
+                case BuiltInType.Double: encoder.WriteDouble(name, (double)property.GetValue(this)); break;
+                case BuiltInType.String: encoder.WriteString(name, (string)property.GetValue(this)); break;
                 case BuiltInType.DateTime: encoder.WriteDateTime(name, (DateTime)property.GetValue(this)); break;
                 case BuiltInType.Guid: encoder.WriteGuid(name, (Uuid)property.GetValue(this)); break;
-                case BuiltInType.ByteString: encoder.WriteByteString(name, (Byte[])property.GetValue(this)); break;
+                case BuiltInType.ByteString: encoder.WriteByteString(name, (byte[])property.GetValue(this)); break;
                 case BuiltInType.XmlElement: encoder.WriteXmlElement(name, (XmlElement)property.GetValue(this)); break;
                 case BuiltInType.NodeId: encoder.WriteNodeId(name, (NodeId)property.GetValue(this)); break;
                 case BuiltInType.ExpandedNodeId: encoder.WriteExpandedNodeId(name, (ExpandedNodeId)property.GetValue(this)); break;
@@ -474,6 +471,10 @@ namespace Opc.Ua.Client.ComplexTypes
                         break;
                     }
                     goto case BuiltInType.Int32;
+                case BuiltInType.Null:
+                case BuiltInType.Number:
+                case BuiltInType.Integer:
+                case BuiltInType.UInteger:
                 default:
                     if (typeof(IEncodeable).IsAssignableFrom(propertyType))
                     {
@@ -537,7 +538,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// </summary>
         private void DecodeProperty(IDecoder decoder, string name, PropertyInfo property, BuiltInType builtInType)
         {
-            var propertyType = property.PropertyType;
+            Type propertyType = property.PropertyType;
             if (propertyType.IsEnum)
             {
                 builtInType = BuiltInType.Enumeration;
@@ -582,6 +583,10 @@ namespace Opc.Ua.Client.ComplexTypes
                         property.SetValue(this, decoder.ReadEnumerated(name, propertyType)); break;
                     }
                     goto case BuiltInType.Int32;
+                case BuiltInType.Null:
+                case BuiltInType.Number:
+                case BuiltInType.Integer:
+                case BuiltInType.UInteger:
                 default:
                     if (typeof(IEncodeable).IsAssignableFrom(propertyType))
                     {
@@ -612,13 +617,13 @@ namespace Opc.Ua.Client.ComplexTypes
         /// </summary>
         protected virtual void InitializePropertyAttributes()
         {
-            var definitionAttribute = GetType().GetCustomAttribute<StructureDefinitionAttribute>();
+            StructureDefinitionAttribute definitionAttribute = GetType().GetCustomAttribute<StructureDefinitionAttribute>();
             if (definitionAttribute != null)
             {
                 m_structureBaseType = definitionAttribute.BaseDataType;
             }
 
-            var typeAttribute = GetType().GetCustomAttribute<StructureTypeIdAttribute>();
+            StructureTypeIdAttribute typeAttribute = GetType().GetCustomAttribute<StructureTypeIdAttribute>();
             if (typeAttribute != null)
             {
                 TypeId = ExpandedNodeId.Parse(typeAttribute.ComplexTypeId);
@@ -626,9 +631,9 @@ namespace Opc.Ua.Client.ComplexTypes
                 XmlEncodingId = ExpandedNodeId.Parse(typeAttribute.XmlEncodingId);
             }
 
-            m_propertyList = new List<ComplexTypePropertyInfo>();
-            var properties = GetType().GetProperties();
-            foreach (var property in properties)
+            m_propertyList = [];
+            PropertyInfo[] properties = GetType().GetProperties();
+            foreach (PropertyInfo property in properties)
             {
                 StructureFieldAttribute fieldAttribute = property.GetCustomAttribute<StructureFieldAttribute>();
 
@@ -643,7 +648,7 @@ namespace Opc.Ua.Client.ComplexTypes
 
                 m_propertyList.Add(newProperty);
             }
-            m_propertyList = m_propertyList.OrderBy(p => p.Order).ToList();
+            m_propertyList = [.. m_propertyList.OrderBy(p => p.Order)];
             m_propertyDict = m_propertyList.ToDictionary(p => p.Name, p => p);
         }
         #endregion Private Members

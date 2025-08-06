@@ -28,6 +28,13 @@ max_line_length          = 120
 indent_size = 2
 
 # Xml config files
+
+# IDE0046: Convert to conditional expression
+dotnet_diagnostic.IDE0046.severity = silent
+
+# IDE0130: Namespace does not match folder structure
+dotnet_style_namespace_match_folder = false
+
 [*.{xml,props,targets,ruleset,config,nuspec,resx,vsixmanifest,vsct}]
 indent_size = 2
 
@@ -168,7 +175,7 @@ dotnet_style_prefer_inferred_tuple_names                                      = 
 dotnet_style_prefer_inferred_anonymous_type_member_names                      = true : suggestion
 dotnet_style_prefer_auto_properties                                           = true : silent
 dotnet_style_prefer_conditional_expression_over_assignment                    = true : suggestion
-dotnet_style_prefer_conditional_expression_over_return                        = true : suggestion
+dotnet_style_prefer_conditional_expression_over_return                        = false 
 
 # 'using' directive preferences
 csharp_using_directive_placement                                              = outside_namespace : suggestion
@@ -347,6 +354,10 @@ dotnet_diagnostic.CA1721.severity                                             = 
 dotnet_diagnostic.CA2014.severity                                             = error
 
 # exclude generated code
+
+# IDE0290: Use primary constructor
+csharp_style_prefer_primary_constructors = false
+
 [**/Generated/*.cs]
 generated_code = true
 dotnet_diagnostic.severity = none

@@ -34,6 +34,7 @@ using System.Linq;
 using System.Reflection;
 using Opc.Ua;
 using Opc.Ua.Server;
+using Quickstarts.ReferenceServer;
 
 namespace Quickstarts.Servers
 {
@@ -95,6 +96,14 @@ namespace Quickstarts.Servers
             {
                 server.AddNodeManager(nodeManagerFactory);
             }
+        }
+
+        /// <summary>
+        /// Add all available node manager factories to the server.
+        /// </summary>
+        public static void UseSamplingGroupsInReferenceNodeManager(ReferenceServer.ReferenceServer server)
+        {
+            server.UseSamplingGroupsInReferenceNodeManager = true;
         }
 
         /// <summary>
