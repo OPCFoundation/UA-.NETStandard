@@ -4,6 +4,7 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageVersion Include="BenchmarkDotNet" Version="0.15.2" />
+    <PackageVersion Include="BitFaster.Caching" Version="2.5.4" />
     <PackageVersion Include="BouncyCastle.Cryptography" Version="2.6.1" />
     <PackageVersion Include="coverlet.collector" Version="6.0.4" />
     <PackageVersion Include="EmbedIO" Version="3.5.2" />

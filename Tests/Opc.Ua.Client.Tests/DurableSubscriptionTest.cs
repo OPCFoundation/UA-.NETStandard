@@ -226,7 +226,7 @@ namespace Opc.Ua.Client.Tests
             uint expectedModifiedQueueSize,
             bool useEventMI)
         {
-            var subscription = await CreateDurableSubscriptionAsync();
+            var subscription = await CreateDurableSubscriptionAsync().ConfigureAwait(false);
 
             MonitoredItem mi;
             if (useEventMI)
@@ -250,20 +250,20 @@ namespace Opc.Ua.Client.Tests
 
             subscription.AddItem(mi);
 
-            var result = await subscription.CreateItemsAsync();
+            var result = await subscription.CreateItemsAsync().ConfigureAwait(false);
             Assert.That(ServiceResult.IsGood(result.First().Status.Error), Is.True);
             Assert.That(result.First().Status.QueueSize, Is.EqualTo(expectedRevisedQueueSize));
 
             mi.QueueSize = queueSize + 1;
 
-            var resultModify = await subscription.ModifyItemsAsync();
+            var resultModify = await subscription.ModifyItemsAsync().ConfigureAwait(false);
             Assert.That(ServiceResult.IsGood(resultModify.First().Status.Error), Is.True);
             Assert.That(resultModify.First().Status.QueueSize, Is.EqualTo(expectedModifiedQueueSize));
 
 
             Assert.True(subscription.GetMonitoredItems(out _, out _));
 
-            Assert.True(await Session.RemoveSubscriptionAsync(subscription));
+            Assert.True(await Session.RemoveSubscriptionAsync(subscription).ConfigureAwait(false));
         }
 
         [Test, Order(160)]
@@ -439,7 +439,7 @@ namespace Opc.Ua.Client.Tests
                 SecurityPolicies.Basic256Sha256, null,
                 new UserIdentity("sysadmin", "demo")).ConfigureAwait(false);
 
-            var result = await transferSession.TransferSubscriptionsAsync(subscriptions, true);
+            var result = await transferSession.TransferSubscriptionsAsync(subscriptions, true).ConfigureAwait(false);
 
             Assert.AreEqual(setSubscriptionDurable, result,
                 "SetSubscriptionDurable = " + setSubscriptionDurable.ToString() +
@@ -492,7 +492,7 @@ namespace Opc.Ua.Client.Tests
             }
             else if (setSubscriptionDurable)
             {
-                Assert.True(await transferSession.RemoveSubscriptionAsync(subscription));
+                Assert.True(await transferSession.RemoveSubscriptionAsync(subscription).ConfigureAwait(false));
             }
         }
 
@@ -542,7 +542,7 @@ namespace Opc.Ua.Client.Tests
             Assert.True(Session.AddSubscription(subscription));
             subscription.Create();
 
-            (bool success, _) = await subscription.SetSubscriptionDurableAsync(1);
+            (bool success, _) = await subscription.SetSubscriptionDurableAsync(1).ConfigureAwait(false);
             Assert.True(success);
 
             return subscription;

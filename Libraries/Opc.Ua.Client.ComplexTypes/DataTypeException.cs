@@ -48,7 +48,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <param name="nodeIds">The collection of nodeId of the data types not found.</param>
         public DataTypeNotFoundException(ExpandedNodeIdCollection nodeIds)
         {
-            this.NodeIds = nodeIds;
+            NodeIds = nodeIds;
         }
 
         /// <summary>
@@ -59,7 +59,7 @@ namespace Opc.Ua.Client.ComplexTypes
         public DataTypeNotFoundException(ExpandedNodeIdCollection nodeIds, string message)
             : base(message)
         {
-            this.NodeIds = nodeIds;
+            NodeIds = nodeIds;
         }
 
         /// <summary>
@@ -71,7 +71,7 @@ namespace Opc.Ua.Client.ComplexTypes
         public DataTypeNotFoundException(ExpandedNodeIdCollection nodeIds, string message, Exception inner)
             : base(message, inner)
         {
-            this.NodeIds = nodeIds;
+            NodeIds = nodeIds;
         }
     }
 
@@ -97,7 +97,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <param name="nodeId">The nodeId of the data type.</param>
         public DataTypeNotSupportedException(ExpandedNodeId nodeId)
         {
-            this.NodeId = nodeId;
+            NodeId = nodeId;
         }
 
         /// <summary>
@@ -108,8 +108,8 @@ namespace Opc.Ua.Client.ComplexTypes
         public DataTypeNotSupportedException(string typeName, string message)
             : base(message)
         {
-            this.NodeId = Ua.NodeId.Null;
-            this.TypeName = typeName;
+            NodeId = Ua.NodeId.Null;
+            TypeName = typeName;
         }
 
         /// <summary>
@@ -120,7 +120,7 @@ namespace Opc.Ua.Client.ComplexTypes
         public DataTypeNotSupportedException(ExpandedNodeId nodeId, string message)
             : base(message)
         {
-            this.NodeId = nodeId;
+            NodeId = nodeId;
         }
 
         /// <summary>
@@ -132,7 +132,7 @@ namespace Opc.Ua.Client.ComplexTypes
         public DataTypeNotSupportedException(ExpandedNodeId nodeId, string message, Exception inner)
             : base(message, inner)
         {
-            this.NodeId = nodeId;
+            NodeId = nodeId;
         }
     }
 }//namespace
