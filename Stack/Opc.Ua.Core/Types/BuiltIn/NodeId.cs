@@ -170,9 +170,9 @@ namespace Opc.Ua
         /// Initializes an opaque node identifier.
         /// </summary>
         /// <remarks>
-        /// Creates a new node whose Id will be a series of <see cref="Byte"/>.
+        /// Creates a new node whose Id will be a series of <see cref="byte"/>.
         /// </remarks>
-        /// <param name="value">An array of <see cref="Byte"/> that will become this Node's ID</param>
+        /// <param name="value">An array of <see cref="byte"/> that will become this Node's ID</param>
         public NodeId(byte[] value)
         {
             m_namespaceIndex = 0;
@@ -191,10 +191,10 @@ namespace Opc.Ua
         /// Initializes an opaque node identifier with a namespace index.
         /// </summary>
         /// <remarks>
-        /// Creates a new node whose Id will be a series of <see cref="Byte"/>, while specifying
+        /// Creates a new node whose Id will be a series of <see cref="byte"/>, while specifying
         /// the index of the namespace that this node belongs to.
         /// </remarks>
-        /// <param name="value">An array of <see cref="Byte"/> that will become this Node's ID</param>
+        /// <param name="value">An array of <see cref="byte"/> that will become this Node's ID</param>
         /// <param name="namespaceIndex">The index of the namespace that this node belongs to</param>
         public NodeId(byte[] value, ushort namespaceIndex)
         {
@@ -302,7 +302,7 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException">Thrown if the namespace URI is not in the namespace table.</exception>
         public static NodeId Parse(IServiceMessageContext context, string text, NodeIdParsingOptions options = null)
         {
-            if (String.IsNullOrEmpty(text))
+            if (string.IsNullOrEmpty(text))
             {
                 return Null;
             }
@@ -339,7 +339,7 @@ namespace Opc.Ua
                     throw ServiceResultException.Create(StatusCodes.BadNodeIdInvalid, "Invalid ExpandedNodeId ({0}).", originalText);
                 }
 
-                if (UInt16.TryParse(text.Substring(3, index - 3), out ushort ns))
+                if (ushort.TryParse(text.Substring(3, index - 3), out ushort ns))
                 {
                     namespaceIndex = ns;
 
@@ -361,7 +361,7 @@ namespace Opc.Ua
                 {
                     case 'i':
                     {
-                        if (UInt32.TryParse(text, out uint number))
+                        if (uint.TryParse(text, out uint number))
                         {
                             return new NodeId(number, (ushort)namespaceIndex);
                         }
@@ -371,7 +371,7 @@ namespace Opc.Ua
 
                     case 's':
                     {
-                        if (!String.IsNullOrWhiteSpace(text))
+                        if (!string.IsNullOrWhiteSpace(text))
                         {
                             return new NodeId(text, (ushort)namespaceIndex);
                         }
@@ -430,7 +430,7 @@ namespace Opc.Ua
                 {
                     var namespaceUri = context.NamespaceUris.GetString(m_namespaceIndex);
 
-                    if (!String.IsNullOrEmpty(namespaceUri))
+                    if (!string.IsNullOrEmpty(namespaceUri))
                     {
                         buffer.Append("nsu=");
                         buffer.Append(Utils.EscapeUri(namespaceUri));
@@ -679,7 +679,7 @@ namespace Opc.Ua
         ///     Comparing ABCDE to abcde = [ ==   ] False
         /// <br/></para>
         /// </example>
-        /// <param name="value">The <see cref="Byte"/>[] array to compare this node to</param>
+        /// <param name="value">The <see cref="byte"/>[] array to compare this node to</param>
         public static implicit operator NodeId(byte[] value)
         {
             return new NodeId(value);
@@ -723,7 +723,7 @@ namespace Opc.Ua
         /// 
         /// </code>
         /// </example>
-        /// <param name="text">The <see cref="String"/> to compare this node to.</param>
+        /// <param name="text">The <see cref="string"/> to compare this node to.</param>
         public static implicit operator NodeId(string text)
         {
             return NodeId.Parse(text);
@@ -792,7 +792,7 @@ namespace Opc.Ua
             ArgumentException argumentException = null;
             try
             {
-                if (String.IsNullOrEmpty(text))
+                if (string.IsNullOrEmpty(text))
                 {
                     return NodeId.Null;
                 }
@@ -802,7 +802,7 @@ namespace Opc.Ua
                 // parse the namespace index if present.
                 if (text.StartsWith("ns=", StringComparison.Ordinal))
                 {
-                    int index = text.IndexOf(';');
+                    int index = text.IndexOf(';', StringComparison.Ordinal);
 
                     if (index == -1)
                     {
@@ -1096,8 +1096,8 @@ namespace Opc.Ua
             }
             else
             {
-                UInt32? uid = obj as UInt32?;
-                Int32? iid = obj as Int32?;
+                uint? uid = obj as uint?;
+                int? iid = obj as int?;
 
                 // check for numeric constants.
                 if (uid != null || iid != null)
@@ -1121,7 +1121,7 @@ namespace Opc.Ua
                         id2 = uid.Value;
                     }
 
-                    uint id1 = (uint)((m_identifier as uint?) ?? 0U);
+                    uint id1 = (m_identifier as uint?) ?? 0U;
 
                     if (id1 == id2)
                     {
@@ -1595,7 +1595,7 @@ namespace Opc.Ua
 
                         case IdType.String:
                         {
-                            if (!String.IsNullOrEmpty((string)m_identifier))
+                            if (!string.IsNullOrEmpty((string)m_identifier))
                             {
                                 return false;
                             }
@@ -1768,7 +1768,7 @@ namespace Opc.Ua
                 {
                     string id1 = (string)m_identifier;
                     string id2 = (string)id;
-                    return String.CompareOrdinal(id1, id2);
+                    return string.CompareOrdinal(id1, id2);
                 }
 
                 case IdType.Guid:

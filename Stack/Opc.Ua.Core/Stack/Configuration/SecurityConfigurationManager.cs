@@ -101,7 +101,7 @@ namespace Opc.Ua.Security
                     }
 
                     // find the SecuredApplication element in the file.
-                    if (data.ToString().Contains("SecuredApplication"))
+                    if (data.ToString().Contains("SecuredApplication", StringComparison.Ordinal))
                     {
                         DataContractSerializer serializer = new DataContractSerializer(typeof(SecuredApplication));
                         application = serializer.ReadObject(reader) as SecuredApplication;
@@ -154,7 +154,7 @@ namespace Opc.Ua.Security
             // copy the security settings.
             if (applicationConfiguration.SecurityConfiguration != null)
             {
-                
+
                 if (applicationConfiguration.SecurityConfiguration.IsDeprecatedConfiguration)
                 {
 #pragma warning disable CS0618 // Type or member is obsolete
@@ -251,7 +251,7 @@ namespace Opc.Ua.Security
             if (configuration == null) throw new ArgumentNullException(nameof(configuration));
 
             // check for valid file.
-            if (String.IsNullOrEmpty(filePath) || !File.Exists(filePath))
+            if (string.IsNullOrEmpty(filePath) || !File.Exists(filePath))
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadNotReadable,

@@ -102,7 +102,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 return Escape(sid);
             }
 
-            return (element != null) ? element.ToString() : String.Empty;
+            return (element != null) ? element.ToString() : string.Empty;
         }
 
         private T Get<T>(IList<T> input, int index)

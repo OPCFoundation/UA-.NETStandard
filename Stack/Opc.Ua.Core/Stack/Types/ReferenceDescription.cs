@@ -32,7 +32,7 @@ namespace Opc.Ua
         {
             if (format == null)
             {
-                if (m_displayName != null && !String.IsNullOrEmpty(m_displayName.Text))
+                if (m_displayName != null && !string.IsNullOrEmpty(m_displayName.Text))
                 {
                     return m_displayName.Text;
                 }
@@ -42,7 +42,7 @@ namespace Opc.Ua
                     return m_browseName.Name;
                 }
 
-                return Utils.Format("(unknown {0})", ((NodeClass)m_nodeClass).ToString().ToLower(CultureInfo.InvariantCulture));
+                return Utils.Format("(unknown {0})", m_nodeClass.ToString().ToLower(CultureInfo.InvariantCulture));
             }
 
             throw new FormatException(Utils.Format("Invalid format string: '{0}'.", format));

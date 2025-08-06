@@ -83,7 +83,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             // Specify the local Network interface name to be used
             // e.g. address.NetworkInterface = "Ethernet";
             // Leave empty to publish on all available local interfaces.
-            address.NetworkInterface = String.Empty;
+            address.NetworkInterface = string.Empty;
             address.Url = addressUrl;
             pubSubConnection.Address = new ExtensionObject(address);
 
@@ -151,7 +151,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         /// </summary>
         /// <param name="connection"></param>
         /// <returns></returns>
-        public static WriterGroupDataType GetWriterGroup(PubSubConnectionDataType connection, UInt16 writerGroupId)
+        public static WriterGroupDataType GetWriterGroup(PubSubConnectionDataType connection, ushort writerGroupId)
         {
             if (connection != null)
             {
@@ -176,8 +176,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         private static PubSubConfigurationDataType CreatePublisherConfiguration(
             string transportProfileUri, string addressUrl,
             object publisherId, ushort writerGroupId,
-            UInt32 networkMessageContentMask,
-            UInt32 dataSetMessageContentMask,
+            uint networkMessageContentMask,
+            uint dataSetMessageContentMask,
             DataSetFieldContentMask dataSetFieldContentMask,
             DataSetMetaDataType[] dataSetMetaDataArray, ushort nameSpaceIndexForData,
             double metaDataUpdateTime = 0, uint keyFrameCount = 1)
@@ -205,7 +205,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     messageSettings = new UadpWriterGroupMessageDataType() {
                         DataSetOrdering = DataSetOrderingType.AscendingWriterId,
                         GroupVersion = 0,
-                        NetworkMessageContentMask = (uint)networkMessageContentMask
+                        NetworkMessageContentMask = networkMessageContentMask
                     };
                     transportSettings = new DatagramWriterGroupTransportDataType();
                     break;
@@ -213,7 +213,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     messageSettings = new UadpWriterGroupMessageDataType() {
                         DataSetOrdering = DataSetOrderingType.AscendingWriterId,
                         GroupVersion = 0,
-                        NetworkMessageContentMask = (uint)networkMessageContentMask
+                        NetworkMessageContentMask = networkMessageContentMask
                     };
                     transportSettings = new BrokerWriterGroupTransportDataType() {
                         QueueName = writerGroup1.Name,
@@ -221,7 +221,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     break;
                 case Profiles.PubSubMqttJsonTransport:
                     messageSettings = new JsonWriterGroupMessageDataType() {
-                        NetworkMessageContentMask = (uint)networkMessageContentMask
+                        NetworkMessageContentMask = networkMessageContentMask
                     };
                     transportSettings = new BrokerWriterGroupTransportDataType() {
                         QueueName = writerGroup1.Name,
@@ -347,8 +347,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             return CreatePublisherConfiguration(
                 transportProfileUri, addressUrl,
                 publisherId, writerGroupId,
-                (UInt32)jsonNetworkMessageContentMask,
-                (UInt32)jsonDataSetMessageContentMask,
+                (uint)jsonNetworkMessageContentMask,
+                (uint)jsonDataSetMessageContentMask,
                 dataSetFieldContentMask,
                 dataSetMetaDataArray, nameSpaceIndexForData, metaDataUpdateTime, keyFrameCount);
         }
@@ -428,8 +428,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             PubSubConfigurationDataType pubSubConfiguration = CreatePublisherConfiguration(
                 transportProfileUri, addressUrl,
                 publisherId, writerGroupId,
-                (UInt32)jsonNetworkMessageContentMask,
-                (UInt32)jsonDataSetMessageContentMask,
+                (uint)jsonNetworkMessageContentMask,
+                (uint)jsonDataSetMessageContentMask,
                 dataSetFieldContentMask,
                 dataSetMetaDataArray, nameSpaceIndexForData);
 
@@ -474,8 +474,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             return CreatePublisherConfiguration(
                 transportProfileUri, addressUrl,
                 publisherId, writerGroupId,
-                (UInt32)uadpNetworkMessageContentMask,
-                (UInt32)uadpDataSetMessageContentMask,
+                (uint)uadpNetworkMessageContentMask,
+                (uint)uadpDataSetMessageContentMask,
                 dataSetFieldContentMask,
                 dataSetMetaDataArray, nameSpaceIndexForData, metaDataUpdateTime, keyFrameCount);
         }
@@ -494,8 +494,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         public static PubSubConfigurationDataType ConfigureDataSetMessages(string transportProfileUri,
             string addressUrl,
             ushort writerGroupId,
-            UInt32 networkMessageContentMask,
-            UInt32 dataSetMessageContentMask,
+            uint networkMessageContentMask,
+            uint dataSetMessageContentMask,
             DataSetFieldContentMask dataSetFieldContentMask,
             DataSetMetaDataType[] dataSetMetaDataArray,
             ushort nameSpaceIndexForData,
@@ -513,7 +513,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     messageSettings = new UadpWriterGroupMessageDataType() {
                         DataSetOrdering = DataSetOrderingType.AscendingWriterId,
                         GroupVersion = 0,
-                        NetworkMessageContentMask = (uint)networkMessageContentMask
+                        NetworkMessageContentMask = networkMessageContentMask
                     };
                     transportSettings = new DatagramWriterGroupTransportDataType();
                     break;
@@ -521,7 +521,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     messageSettings = new UadpWriterGroupMessageDataType() {
                         DataSetOrdering = DataSetOrderingType.AscendingWriterId,
                         GroupVersion = 0,
-                        NetworkMessageContentMask = (uint)networkMessageContentMask
+                        NetworkMessageContentMask = networkMessageContentMask
                     };
                     transportSettings = new BrokerWriterGroupTransportDataType() {
                         QueueName = writerGroupName,
@@ -529,7 +529,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     break;
                 case Profiles.PubSubMqttJsonTransport:
                     messageSettings = new JsonWriterGroupMessageDataType() {
-                        NetworkMessageContentMask = (uint)networkMessageContentMask
+                        NetworkMessageContentMask = networkMessageContentMask
                     };
                     transportSettings = new BrokerWriterGroupTransportDataType() {
                         QueueName = writerGroupName,
@@ -651,8 +651,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             return ConfigureDataSetMessages(transportProfileUri,
                 addressUrl,
                 writerGroupId,
-                (UInt32)networkMessageContentMask,
-                (UInt32)dataSetMessageContentMask,
+                (uint)networkMessageContentMask,
+                (uint)dataSetMessageContentMask,
                 dataSetFieldContentMask,
                 dataSetMetaDataArray,
                 nameSpaceIndexForData);
@@ -680,8 +680,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             return ConfigureDataSetMessages(transportProfileUri,
                 addressUrl,
                 writerGroupId,
-                (UInt32)networkMessageContentMask,
-                (UInt32)dataSetMessageContentMask,
+                (uint)networkMessageContentMask,
+                (uint)dataSetMessageContentMask,
                 dataSetFieldContentMask,
                 dataSetMetaDataArray,
                 nameSpaceIndexForData);
@@ -778,7 +778,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         /// </summary>
         /// <param name="connection"></param>
         /// <returns></returns>
-        public static ReaderGroupDataType GetReaderGroup(PubSubConnectionDataType connection, UInt16 writerGroupId)
+        public static ReaderGroupDataType GetReaderGroup(PubSubConnectionDataType connection, ushort writerGroupId)
         {
             if (connection != null)
             {
@@ -796,9 +796,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         /// <param name="messageSettings"></param>
         /// <returns></returns>
         public static DataSetReaderDataType CreateDataSetReader(
-            UInt16 publisherId,
-            UInt16 writerGroupId,
-            UInt16 dataSetWriterId,
+            ushort publisherId,
+            ushort writerGroupId,
+            ushort dataSetWriterId,
             DataSetMetaDataType dataSetMetaData,
             DataSetFieldContentMask dataSetFieldContentMask,
             DataSetReaderMessageDataType messageSettings,
@@ -847,8 +847,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             return CreateSubscriberConfiguration(
                 transportProfileUri, addressUrl,
                 publisherId, writerGroupId, setDataSetWriterId,
-                (UInt32)jsonNetworkMessageContentMask,
-                (UInt32)jsonDataSetMessageContentMask,
+                (uint)jsonNetworkMessageContentMask,
+                (uint)jsonDataSetMessageContentMask,
                 dataSetFieldContentMask,
                 dataSetMetaDataArray, nameSpaceIndexForData, keyFrameCount);
         }
@@ -870,8 +870,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         private static PubSubConfigurationDataType CreateSubscriberConfiguration(
             string transportProfileUri, string addressUrl,
             object publisherId, ushort writerGroupId, bool setDataSetWriterId,
-            UInt32 networkMessageContentMask,
-            UInt32 dataSetMessageContentMask,
+            uint networkMessageContentMask,
+            uint dataSetMessageContentMask,
             DataSetFieldContentMask dataSetFieldContentMask,
             DataSetMetaDataType[] dataSetMetaDataArray, ushort nameSpaceIndexForData, uint keyFrameCount = 1)
         {
@@ -914,14 +914,14 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 {
                     case Profiles.PubSubUdpUadpTransport:
                         dataSetReaderMessageSettings = new UadpDataSetReaderMessageDataType() {
-                            NetworkMessageContentMask = (uint)networkMessageContentMask,
-                            DataSetMessageContentMask = (uint)dataSetMessageContentMask,
+                            NetworkMessageContentMask = networkMessageContentMask,
+                            DataSetMessageContentMask = dataSetMessageContentMask,
                         };
                         break;
                     case Profiles.PubSubMqttUadpTransport:
                         dataSetReaderMessageSettings = new UadpDataSetReaderMessageDataType() {
-                            NetworkMessageContentMask = (uint)networkMessageContentMask,
-                            DataSetMessageContentMask = (uint)dataSetMessageContentMask,
+                            NetworkMessageContentMask = networkMessageContentMask,
+                            DataSetMessageContentMask = dataSetMessageContentMask,
                         };
                         dataSetReaderTransportSettings = new BrokerDataSetReaderTransportDataType() {
                             QueueName = brokerQueueName,
@@ -930,8 +930,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                         break;
                     case Profiles.PubSubMqttJsonTransport:
                         dataSetReaderMessageSettings = new JsonDataSetReaderMessageDataType() {
-                            NetworkMessageContentMask = (uint)networkMessageContentMask,
-                            DataSetMessageContentMask = (uint)dataSetMessageContentMask,
+                            NetworkMessageContentMask = networkMessageContentMask,
+                            DataSetMessageContentMask = dataSetMessageContentMask,
                         };
                         dataSetReaderTransportSettings = new BrokerDataSetReaderTransportDataType() {
                             QueueName = brokerQueueName,
@@ -952,7 +952,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                         TargetNodeId = new NodeId(fieldMetaData.Name, nameSpaceIndexForData),
                         AttributeId = Attributes.Value,
                         OverrideValueHandling = OverrideValueHandling.OverrideValue,
-                        OverrideValue = new Variant(TypeInfo.GetDefaultValue(fieldMetaData.DataType, (int)ValueRanks.Scalar))
+                        OverrideValue = new Variant(TypeInfo.GetDefaultValue(fieldMetaData.DataType, ValueRanks.Scalar))
                     });
                 }
 
@@ -999,8 +999,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             return CreateSubscriberConfiguration(
                 transportProfileUri, addressUrl,
                 publisherId, writerGroupId, setDataSetWriterId,
-                (UInt32)uadpNetworkMessageContentMask,
-                (UInt32)uadpDataSetMessageContentMask,
+                (uint)uadpNetworkMessageContentMask,
+                (uint)uadpDataSetMessageContentMask,
                 dataSetFieldContentMask,
                 dataSetMetaDataArray, nameSpaceIndexForData, keyFrameCount);
         }
@@ -1084,8 +1084,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             PubSubConfigurationDataType pubSubConfiguration = CreateSubscriberConfiguration(
                 transportProfileUri, addressUrl,
                 publisherId, writerGroupId, setDataSetWriterId,
-                (UInt32)jsonNetworkMessageContentMask,
-                (UInt32)jsonDataSetMessageContentMask,
+                (uint)jsonNetworkMessageContentMask,
+                (uint)jsonDataSetMessageContentMask,
                 dataSetFieldContentMask,
                 dataSetMetaDataArray, nameSpaceIndexForData);
 
@@ -2544,7 +2544,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         /// Load initial publishing data
         /// </summary>
         /// <param name="pubSubApplication"></param>
-        public static void LoadData(UaPubSubApplication pubSubApplication, UInt16 namespaceIndexAllTypes)
+        public static void LoadData(UaPubSubApplication pubSubApplication, ushort namespaceIndexAllTypes)
         {
             #region DataSet data
             // DataSet fill with primitive data
@@ -2554,9 +2554,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("Byte", namespaceIndexAllTypes), Attributes.Value, byteValue);
             DataValue int16Value = new DataValue(new Variant((short)100));
             pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("Int16", namespaceIndexAllTypes), Attributes.Value, int16Value);
-            DataValue int32Value = new DataValue(new Variant((int)1000));
+            DataValue int32Value = new DataValue(new Variant(1000));
             pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("Int32", namespaceIndexAllTypes), Attributes.Value, int32Value);
-            DataValue int64Value = new DataValue(new Variant((Int64)10000));
+            DataValue int64Value = new DataValue(new Variant((long)10000));
             pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("Int64", namespaceIndexAllTypes), Attributes.Value, int64Value);
             DataValue sByteValue = new DataValue(new Variant((sbyte)11));
             pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("SByte", namespaceIndexAllTypes), Attributes.Value, sByteValue);
@@ -2564,7 +2564,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("UInt16", namespaceIndexAllTypes), Attributes.Value, uInt16Value);
             DataValue uInt32Value = new DataValue(new Variant((uint)1100));
             pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("UInt32", namespaceIndexAllTypes), Attributes.Value, uInt32Value);
-            DataValue uInt64Value = new DataValue(new Variant((UInt64)11100));
+            DataValue uInt64Value = new DataValue(new Variant((ulong)11100));
             pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("UInt64", namespaceIndexAllTypes), Attributes.Value, uInt64Value);
             DataValue floatValue = new DataValue(new Variant((float)1100.5));
             pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("Float", namespaceIndexAllTypes), Attributes.Value, floatValue);
@@ -2687,25 +2687,25 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("BoolToggleMatrix", namespaceIndexAllTypes), Attributes.Value, boolToggleMatrix);
             DataValue byteValueMatrix = new DataValue(new Variant(new Matrix(new byte[] { 127, 128, 101, 102 }, BuiltInType.Byte, 2, 2, 1)));
             pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("ByteMatrix", namespaceIndexAllTypes), Attributes.Value, byteValueMatrix);
-            DataValue int16ValueMatrix = new DataValue(new Variant(new Matrix(new Int16[] { -100, -101, -200, -201, -100, -101, -200, -201 }, BuiltInType.Int16, 2, 2, 2)));
+            DataValue int16ValueMatrix = new DataValue(new Variant(new Matrix(new short[] { -100, -101, -200, -201, -100, -101, -200, -201 }, BuiltInType.Int16, 2, 2, 2)));
             pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("Int16Matrix", namespaceIndexAllTypes), Attributes.Value, int16ValueMatrix);
-            DataValue int32ValueMatrix = new DataValue(new Variant(new Matrix(new Int32[] { -1000, -1001, -2000, -2001 }, BuiltInType.Int32, 2, 2)));
+            DataValue int32ValueMatrix = new DataValue(new Variant(new Matrix(new int[] { -1000, -1001, -2000, -2001 }, BuiltInType.Int32, 2, 2)));
             pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("Int32Matrix", namespaceIndexAllTypes), Attributes.Value, int32ValueMatrix);
-            DataValue int64ValueMatrix = new DataValue(new Variant(new Matrix(new Int64[] { -10000, -10001, -20000, -20001 }, BuiltInType.Int64, 2, 2)));
+            DataValue int64ValueMatrix = new DataValue(new Variant(new Matrix(new long[] { -10000, -10001, -20000, -20001 }, BuiltInType.Int64, 2, 2)));
             pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("Int64Matrix", namespaceIndexAllTypes), Attributes.Value, int64ValueMatrix);
-            DataValue sByteValueMatrix = new DataValue(new Variant(new Matrix(new SByte[] { 1, 2, -2, -3 }, BuiltInType.SByte, 2, 2)));
+            DataValue sByteValueMatrix = new DataValue(new Variant(new Matrix(new sbyte[] { 1, 2, -2, -3 }, BuiltInType.SByte, 2, 2)));
             pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("SByteMatrix", namespaceIndexAllTypes), Attributes.Value, sByteValueMatrix);
-            DataValue uInt16ValueMatrix = new DataValue(new Variant(new Matrix(new UInt16[] { 110, 120, 130, 140 }, BuiltInType.UInt16, 2, 2)));
+            DataValue uInt16ValueMatrix = new DataValue(new Variant(new Matrix(new ushort[] { 110, 120, 130, 140 }, BuiltInType.UInt16, 2, 2)));
             pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("UInt16Matrix", namespaceIndexAllTypes), Attributes.Value, uInt16ValueMatrix);
-            DataValue uInt32ValueMatrix = new DataValue(new Variant(new Matrix(new UInt32[] { 1100, 1200, 1300, 1400 }, BuiltInType.UInt32, 2, 2)));
+            DataValue uInt32ValueMatrix = new DataValue(new Variant(new Matrix(new uint[] { 1100, 1200, 1300, 1400 }, BuiltInType.UInt32, 2, 2)));
             pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("UInt32Matrix", namespaceIndexAllTypes), Attributes.Value, uInt32ValueMatrix);
-            DataValue uInt64ValueMatrix = new DataValue(new Variant(new Matrix(new UInt64[] { 11100, 11200, 11300, 11400 }, BuiltInType.UInt64, 2, 2)));
+            DataValue uInt64ValueMatrix = new DataValue(new Variant(new Matrix(new ulong[] { 11100, 11200, 11300, 11400 }, BuiltInType.UInt64, 2, 2)));
             pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("UInt64Matrix", namespaceIndexAllTypes), Attributes.Value, uInt64ValueMatrix);
             DataValue floatValueMatrix = new DataValue(new Variant(new Matrix(new float[] { 1100, 5, 1200, 7 }, BuiltInType.Float, 2, 2)));
             pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("FloatMatrix", namespaceIndexAllTypes), Attributes.Value, floatValueMatrix);
-            DataValue doubleValueMatrix = new DataValue(new Variant(new Matrix(new Double[] { 11000.5, 12000.6, 13000.7, 14000.8 }, BuiltInType.Double, 2, 2)));
+            DataValue doubleValueMatrix = new DataValue(new Variant(new Matrix(new double[] { 11000.5, 12000.6, 13000.7, 14000.8 }, BuiltInType.Double, 2, 2)));
             pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("DoubleMatrix", namespaceIndexAllTypes), Attributes.Value, doubleValueMatrix);
-            DataValue stringValueMatrix = new DataValue(new Variant(new Matrix(new String[] { "1a", "2b", "3c", "4d" }, BuiltInType.String, 2, 2)));
+            DataValue stringValueMatrix = new DataValue(new Variant(new Matrix(new string[] { "1a", "2b", "3c", "4d" }, BuiltInType.String, 2, 2)));
             pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("StringMatrix", namespaceIndexAllTypes), Attributes.Value, stringValueMatrix);
             DataValue dateTimeValMatrix = new DataValue(new Variant(new Matrix(new DateTime[]
             { new DateTime(2020, 3, 11).ToUniversalTime(), new DateTime(2021, 2, 17).ToUniversalTime(),
@@ -2763,7 +2763,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         /// <param name="uaDataNetworkMessage"></param>
         /// <param name="namespaceIndexAllTypes"></param>
         /// <returns></returns>
-        public static Dictionary<NodeId, DataValue> GetDataStoreData(UaPubSubApplication pubSubApplication, UaNetworkMessage uaDataNetworkMessage, UInt16 namespaceIndexAllTypes)
+        public static Dictionary<NodeId, DataValue> GetDataStoreData(UaPubSubApplication pubSubApplication, UaNetworkMessage uaDataNetworkMessage, ushort namespaceIndexAllTypes)
         {
             Dictionary<NodeId, DataValue> dataSetsData = new Dictionary<NodeId, DataValue>();
 
@@ -2792,7 +2792,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         /// <param name="pubSubApplication"></param>
         /// <param name="namespaceIndexAllTypes"></param>
         /// <returns></returns>
-        public static Dictionary<NodeId, DataValue> GetSnapshotData(UaPubSubApplication pubSubApplication, UInt16 namespaceIndexAllTypes)
+        public static Dictionary<NodeId, DataValue> GetSnapshotData(UaPubSubApplication pubSubApplication, ushort namespaceIndexAllTypes)
         {
             Dictionary<NodeId,DataValue> snapshotData = new Dictionary<NodeId, DataValue>();
 
@@ -2829,7 +2829,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         /// </summary>
         /// <param name="pubSubApplication"></param>
         /// <param name="namespaceIndexAllTypes"></param>
-        public static void UpdateSnapshotData(UaPubSubApplication pubSubApplication, UInt16 namespaceIndexAllTypes)
+        public static void UpdateSnapshotData(UaPubSubApplication pubSubApplication, ushort namespaceIndexAllTypes)
         {
             #region Update DataSet values
             // DataSet update with primitive data
@@ -2848,39 +2848,39 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("Byte", namespaceIndexAllTypes), Attributes.Value, byteValue);
             }
             DataValue int16Value = pubSubApplication.DataStore.ReadPublishedDataItem(new NodeId("Int16", namespaceIndexAllTypes), Attributes.Value);
-            if (int16Value.Value is Int16)
+            if (int16Value.Value is short)
             {
-                Int16 int16Val = Convert.ToInt16(int16Value.Value, CultureInfo.InvariantCulture);
+                short int16Val = Convert.ToInt16(int16Value.Value, CultureInfo.InvariantCulture);
                 int intIdentifier = int16Val;
-                Interlocked.CompareExchange(ref intIdentifier, 0, Int16.MaxValue);
-                int16Value.Value = (Int16)Interlocked.Increment(ref intIdentifier);
+                Interlocked.CompareExchange(ref intIdentifier, 0, short.MaxValue);
+                int16Value.Value = (short)Interlocked.Increment(ref intIdentifier);
                 pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("Int16", namespaceIndexAllTypes), Attributes.Value, int16Value);
             }
             DataValue int32Value = pubSubApplication.DataStore.ReadPublishedDataItem(new NodeId("Int32", namespaceIndexAllTypes), Attributes.Value);
-            if (int32Value.Value is Int32)
+            if (int32Value.Value is int)
             {
-                Int32 int32Val = Convert.ToInt32(int16Value.Value, CultureInfo.InvariantCulture);
+                int int32Val = Convert.ToInt32(int16Value.Value, CultureInfo.InvariantCulture);
                 int intIdentifier = int32Val;
-                Interlocked.CompareExchange(ref intIdentifier, 0, Int32.MaxValue);
-                int32Value.Value = (Int32)Interlocked.Increment(ref intIdentifier);
+                Interlocked.CompareExchange(ref intIdentifier, 0, int.MaxValue);
+                int32Value.Value = Interlocked.Increment(ref intIdentifier);
                 pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("Int32", namespaceIndexAllTypes), Attributes.Value, int32Value);
             }
             DataValue uInt16Value = pubSubApplication.DataStore.ReadPublishedDataItem(new NodeId("UInt16", namespaceIndexAllTypes), Attributes.Value);
-            if (uInt16Value.Value is UInt16)
+            if (uInt16Value.Value is ushort)
             {
-                UInt16 uInt16Val = Convert.ToUInt16(uInt16Value.Value, CultureInfo.InvariantCulture);
+                ushort uInt16Val = Convert.ToUInt16(uInt16Value.Value, CultureInfo.InvariantCulture);
                 int intIdentifier = uInt16Val;
-                Interlocked.CompareExchange(ref intIdentifier, 0, UInt16.MaxValue);
-                uInt16Value.Value = (UInt16)Interlocked.Increment(ref intIdentifier);
+                Interlocked.CompareExchange(ref intIdentifier, 0, ushort.MaxValue);
+                uInt16Value.Value = (ushort)Interlocked.Increment(ref intIdentifier);
                 pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("UInt16", namespaceIndexAllTypes), Attributes.Value, uInt16Value);
             }
             DataValue uInt32Value = pubSubApplication.DataStore.ReadPublishedDataItem(new NodeId("UInt32", namespaceIndexAllTypes), Attributes.Value);
-            if (uInt32Value.Value is UInt32)
+            if (uInt32Value.Value is uint)
             {
-                UInt32 uInt32Val = Convert.ToUInt32(uInt32Value.Value, CultureInfo.InvariantCulture);
+                uint uInt32Val = Convert.ToUInt32(uInt32Value.Value, CultureInfo.InvariantCulture);
                 long longIdentifier = uInt32Val;
-                Interlocked.CompareExchange(ref longIdentifier, 0, UInt32.MaxValue);
-                uInt32Value.Value = (UInt32)Interlocked.Increment(ref longIdentifier);
+                Interlocked.CompareExchange(ref longIdentifier, 0, uint.MaxValue);
+                uInt32Value.Value = (uint)Interlocked.Increment(ref longIdentifier);
                 pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("UInt32", namespaceIndexAllTypes), Attributes.Value, uInt32Value);
             }
             DataValue doubleValue = pubSubApplication.DataStore.ReadPublishedDataItem(new NodeId("Double", namespaceIndexAllTypes), Attributes.Value);

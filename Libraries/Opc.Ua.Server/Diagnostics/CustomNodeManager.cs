@@ -57,7 +57,7 @@ namespace Opc.Ua.Server
             IServerInternal server,
             params string[] namespaceUris)
         :
-            this(server, (ApplicationConfiguration)null, namespaceUris)
+            this(server, null, namespaceUris)
         {
         }
 
@@ -1372,7 +1372,7 @@ namespace Opc.Ua.Server
             // check for internal reference.
             if (target == null)
             {
-                NodeHandle handle = GetManagerHandle(context, (NodeId)reference.TargetId, null) as NodeHandle;
+                NodeHandle handle = GetManagerHandle(context, (NodeId)reference.TargetId, null);
 
                 if (handle != null)
                 {
@@ -1664,7 +1664,7 @@ namespace Opc.Ua.Server
                 }
 
                 // lookup root in local cache for request.
-                if (!String.IsNullOrEmpty(handle.ComponentPath))
+                if (!string.IsNullOrEmpty(handle.ComponentPath))
                 {
                     if (cache.TryGetValue(rootId, out target))
                     {
@@ -1816,7 +1816,7 @@ namespace Opc.Ua.Server
                     // index range is not supported.
                     if (nodeToWrite.AttributeId != Attributes.Value)
                     {
-                        if (!String.IsNullOrEmpty(nodeToWrite.IndexRange))
+                        if (!string.IsNullOrEmpty(nodeToWrite.IndexRange))
                         {
                             errors[ii] = StatusCodes.BadWriteNotSupported;
                             continue;
@@ -3723,7 +3723,7 @@ namespace Opc.Ua.Server
             }
 
             // put a large upper limit on sampling.
-            if (samplingInterval == Double.MaxValue)
+            if (samplingInterval == double.MaxValue)
             {
                 samplingInterval = 365 * 24 * 3600 * 1000.0;
             }
@@ -4204,7 +4204,7 @@ namespace Opc.Ua.Server
             }
 
             // put a large upper limit on sampling.
-            if (samplingInterval == Double.MaxValue)
+            if (samplingInterval == double.MaxValue)
             {
                 samplingInterval = 365 * 24 * 3600 * 1000.0;
             }
@@ -4770,7 +4770,7 @@ namespace Opc.Ua.Server
 
                 CacheEntry entry = null;
 
-                if (!String.IsNullOrEmpty(handle.ComponentPath))
+                if (!string.IsNullOrEmpty(handle.ComponentPath))
                 {
                     if (m_componentCache.TryGetValue(handle.RootId, out entry))
                     {
@@ -4805,7 +4805,7 @@ namespace Opc.Ua.Server
                 {
                     NodeId nodeId = handle.NodeId;
 
-                    if (!String.IsNullOrEmpty(handle.ComponentPath))
+                    if (!string.IsNullOrEmpty(handle.ComponentPath))
                     {
                         nodeId = handle.RootId;
                     }
@@ -4843,7 +4843,7 @@ namespace Opc.Ua.Server
                 }
 
                 // check if a component is actually specified.
-                if (!String.IsNullOrEmpty(handle.ComponentPath))
+                if (!string.IsNullOrEmpty(handle.ComponentPath))
                 {
                     CacheEntry entry = null;
 
@@ -4851,7 +4851,7 @@ namespace Opc.Ua.Server
                     {
                         entry.RefCount++;
 
-                        if (!String.IsNullOrEmpty(handle.ComponentPath))
+                        if (!string.IsNullOrEmpty(handle.ComponentPath))
                         {
                             return entry.Entry.FindChildBySymbolicName(context, handle.ComponentPath);
                         }

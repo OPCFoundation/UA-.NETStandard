@@ -148,7 +148,7 @@ namespace Opc.Ua.Security.Certificates
             }
 
             return EncodeAsPEM(exportedPkcs8PrivateKey,
-                String.IsNullOrEmpty(password) ? "PRIVATE KEY" : "ENCRYPTED PRIVATE KEY");
+                string.IsNullOrEmpty(password) ? "PRIVATE KEY" : "ENCRYPTED PRIVATE KEY");
         }
 
         /// <summary>

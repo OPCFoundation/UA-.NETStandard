@@ -355,7 +355,7 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(result, Is.Not.Null);
             Assert.That(result.GetType().Name, Is.EqualTo("Boolean"));
-            Assert.That((Boolean)result, Is.EqualTo(expected));
+            Assert.That((bool)result, Is.EqualTo(expected));
         }
 
         private ExclusiveLevelAlarmState GetExclusiveLevelAlarm(

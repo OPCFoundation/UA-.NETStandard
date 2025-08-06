@@ -559,9 +559,9 @@ namespace Opc.Ua.Configuration
                 }
 
                 // check for missing thumbprint.
-                if (!String.IsNullOrEmpty(id.Thumbprint))
+                if (!string.IsNullOrEmpty(id.Thumbprint))
                 {
-                    if (!String.IsNullOrEmpty(id.SubjectName))
+                    if (!string.IsNullOrEmpty(id.SubjectName))
                     {
                         CertificateIdentifier id2 = new CertificateIdentifier {
                             StoreType = id.StoreType,
@@ -742,7 +742,7 @@ namespace Opc.Ua.Configuration
             // check uri.
             string applicationUri = X509Utils.GetApplicationUriFromCertificate(certificate);
 
-            if (String.IsNullOrEmpty(applicationUri))
+            if (string.IsNullOrEmpty(applicationUri))
             {
                 string message = "The Application URI could not be read from the certificate. Use certificate anyway?";
                 if (!await ApplicationInstance.ApproveMessageAsync(message, silent).ConfigureAwait(false))
@@ -804,7 +804,7 @@ namespace Opc.Ua.Configuration
                     continue;
                 }
 
-                if (String.Equals(serverDomainNames[ii], "localhost", StringComparison.OrdinalIgnoreCase))
+                if (string.Equals(serverDomainNames[ii], "localhost", StringComparison.OrdinalIgnoreCase))
                 {
                     if (Utils.FindStringIgnoreCase(certificateDomainNames, computerName))
                     {
@@ -1036,7 +1036,7 @@ namespace Opc.Ua.Configuration
                 storePath = configuration.SecurityConfiguration.TrustedPeerCertificates.StorePath;
             }
 
-            if (String.IsNullOrEmpty(storePath))
+            if (string.IsNullOrEmpty(storePath))
             {
                 Utils.LogWarning("WARNING: Trusted peer store not specified.");
                 return;
@@ -1081,7 +1081,7 @@ namespace Opc.Ua.Configuration
                             bool deleteCert = false;
                             if (X509Utils.IsECDsaSignature(certificates[ii]) && X509Utils.IsECDsaSignature(certificate))
                             {
-                                if (X509Utils.GetECDsaQualifier(certificates[ii]).Equals(X509Utils.GetECDsaQualifier(certificate)))
+                                if (X509Utils.GetECDsaQualifier(certificates[ii]).Equals(X509Utils.GetECDsaQualifier(certificate), StringComparison.Ordinal))
                                 {
                                     deleteCert = true;
                                 }

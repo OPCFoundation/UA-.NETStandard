@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -75,7 +75,7 @@ namespace Opc.Ua.Gds.Server.Database
                 throw new ArgumentException("At least one ApplicationName must be provided.", "ApplicationNames");
             }
 
-            if (String.IsNullOrEmpty(application.ProductUri))
+            if (string.IsNullOrEmpty(application.ProductUri))
             {
                 throw new ArgumentException("A ProductUri must be provided.", "ProductUri");
             }
@@ -89,7 +89,7 @@ namespace Opc.Ua.Gds.Server.Database
             {
                 foreach (var discoveryUrl in application.DiscoveryUrls)
                 {
-                    if (String.IsNullOrEmpty(discoveryUrl))
+                    if (string.IsNullOrEmpty(discoveryUrl))
                     {
                         continue;
                     }
@@ -231,7 +231,7 @@ namespace Opc.Ua.Gds.Server.Database
         #endregion
         #region Public Menbers
         /// <summary>
-        /// Returns true if the target string matches the UA pattern string. 
+        /// Returns true if the target string matches the UA pattern string.
         /// The pattern string may include UA wildcards %_\[]!
         /// </summary>
         /// <param name="target">String to check for a pattern match.</param>
@@ -239,12 +239,12 @@ namespace Opc.Ua.Gds.Server.Database
         /// <returns>true if the target string matches the pattern, otherwise false.</returns>
         public static bool Match(string target, string pattern)
         {
-            if (String.IsNullOrEmpty(target))
+            if (string.IsNullOrEmpty(target))
             {
                 return false;
             }
 
-            if (String.IsNullOrEmpty(pattern))
+            if (string.IsNullOrEmpty(pattern))
             {
                 return true;
             }
@@ -272,21 +272,21 @@ namespace Opc.Ua.Gds.Server.Database
         }
 
         /// <summary>
-        /// Returns true if the pattern string contains a UA pattern. 
+        /// Returns true if the pattern string contains a UA pattern.
         /// The pattern string may include UA wildcards %_\[]!
         /// </summary>
 
         public static bool IsMatchPattern(string pattern)
         {
             var patternChars = new char[] { '%', '_', '\\', '[', ']', '!' };
-            if (String.IsNullOrEmpty(pattern))
+            if (string.IsNullOrEmpty(pattern))
             {
                 return false;
             }
 
             foreach (var patternChar in patternChars)
             {
-                if (pattern.Contains(patternChar))
+                if (pattern.Contains(patternChar, StringComparison.Ordinal))
                 {
                     return true;
                 }
@@ -310,7 +310,7 @@ namespace Opc.Ua.Gds.Server.Database
                 application.ServerCapabilities.Sort();
                 foreach (var capability in application.ServerCapabilities)
                 {
-                    if (String.IsNullOrEmpty(capability))
+                    if (string.IsNullOrEmpty(capability))
                     {
                         continue;
                     }

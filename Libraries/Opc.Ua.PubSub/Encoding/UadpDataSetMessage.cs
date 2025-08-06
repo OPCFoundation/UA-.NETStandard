@@ -101,12 +101,12 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Get and Set Pico seconds
         /// </summary>
-        public UInt16 PicoSeconds { get; set; }
+        public ushort PicoSeconds { get; set; }
 
         /// <summary>
         /// Get and Set Decoded payload size (hold it here for now)
         /// </summary>
-        public UInt16 PayloadSizeInStream { get; set; }
+        public ushort PayloadSizeInStream { get; set; }
 
         /// <summary>
         /// Get and Set the startPosition in decoder
@@ -241,7 +241,7 @@ namespace Opc.Ua.PubSub.Encoding
                 EncodeMessageDataKeyFrame(binaryEncoder);
             }
 
-            PayloadSizeInStream = (UInt16)(binaryEncoder.Position - StartPositionInStream);
+            PayloadSizeInStream = (ushort)(binaryEncoder.Position - StartPositionInStream);
 
             if (ConfiguredSize > 0 && PayloadSizeInStream < ConfiguredSize)
             {
@@ -321,7 +321,7 @@ namespace Opc.Ua.PubSub.Encoding
 
             if ((DataSetFlags1 & DataSetFlags1EncodingMask.SequenceNumber) != 0)
             {
-                encoder.WriteUInt16("SequenceNumber", (UInt16)SequenceNumber);
+                encoder.WriteUInt16("SequenceNumber", (ushort)SequenceNumber);
             }
 
             if ((DataSetFlags2 & DataSetFlags2EncodingMask.Timestamp) != 0)
@@ -338,7 +338,7 @@ namespace Opc.Ua.PubSub.Encoding
             {
                 // This is the high order 16 bits of the StatusCode DataType representing
                 // the numeric value of the Severity and SubCode of the StatusCode DataType.
-                encoder.WriteUInt16("Status", (UInt16)(Status.Code >> 16));
+                encoder.WriteUInt16("Status", (ushort)(Status.Code >> 16));
             }
 
             if ((DataSetFlags1 & DataSetFlags1EncodingMask.ConfigurationVersionMajorVersion) != 0)
@@ -362,7 +362,7 @@ namespace Opc.Ua.PubSub.Encoding
             switch (fieldType)
             {
                 case FieldTypeEncodingMask.Variant:
-                    binaryEncoder.WriteUInt16("DataSetFieldCount", (UInt16)DataSet.Fields.Length);
+                    binaryEncoder.WriteUInt16("DataSetFieldCount", (ushort)DataSet.Fields.Length);
                     foreach (Field field in DataSet.Fields)
                     {
                         // 00 Variant type
@@ -370,7 +370,7 @@ namespace Opc.Ua.PubSub.Encoding
                     }
                     break;
                 case FieldTypeEncodingMask.DataValue:
-                    binaryEncoder.WriteUInt16("DataSetFieldCount", (UInt16)DataSet.Fields.Length);
+                    binaryEncoder.WriteUInt16("DataSetFieldCount", (ushort)DataSet.Fields.Length);
                     foreach (Field field in DataSet.Fields)
                     {
                         // 10 DataValue type 
@@ -400,7 +400,7 @@ namespace Opc.Ua.PubSub.Encoding
             int fieldCount = DataSet.Fields.Count(f => f != null);
 
             // The field count is written for RadData encoding too unlike for KeyFrame message
-            binaryEncoder.WriteUInt16("FieldCount", (UInt16)fieldCount);
+            binaryEncoder.WriteUInt16("FieldCount", (ushort)fieldCount);
 
             FieldTypeEncodingMask fieldType = (FieldTypeEncodingMask)(((byte)DataSetFlags1 & kFieldTypeUsedBits) >> 1);
 
@@ -410,7 +410,7 @@ namespace Opc.Ua.PubSub.Encoding
                 if (field == null) continue; // ignore null fields
 
                 // write field index
-                binaryEncoder.WriteUInt16("FieldIndex", (UInt16)i);
+                binaryEncoder.WriteUInt16("FieldIndex", (ushort)i);
 
                 switch (fieldType)
                 {
@@ -471,7 +471,7 @@ namespace Opc.Ua.PubSub.Encoding
             {
                 // This is the high order 16 bits of the StatusCode DataType representing
                 // the numeric value of the Severity and SubCode of the StatusCode DataType.
-                UInt16 code = decoder.ReadUInt16("Status");
+                ushort code = decoder.ReadUInt16("Status");
 
                 Status = ((uint)code) << 16;
             }

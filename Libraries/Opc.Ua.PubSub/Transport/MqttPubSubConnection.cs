@@ -296,7 +296,7 @@ namespace Opc.Ua.PubSub.Transport
                                 }
                             }
 
-                            if (!String.IsNullOrEmpty(queueName))
+                            if (!string.IsNullOrEmpty(queueName))
                             {
                                 var message = new MqttApplicationMessage {
                                     Topic = queueName,
@@ -367,7 +367,7 @@ namespace Opc.Ua.PubSub.Transport
                 {
                     if ((connectionUri.Scheme == Utils.UriSchemeMqtt) || (connectionUri.Scheme == Utils.UriSchemeMqtts))
                     {
-                        if (!String.IsNullOrEmpty(connectionUri.Host))
+                        if (!string.IsNullOrEmpty(connectionUri.Host))
                         {
                             m_brokerHostName = connectionUri.Host;
                             m_brokerPort = (connectionUri.Port > 0) ? connectionUri.Port : ((connectionUri.Scheme == Utils.UriSchemeMqtt) ? 1883 : 8883);
@@ -550,7 +550,7 @@ namespace Opc.Ua.PubSub.Transport
 
         private static bool MatchTopic(string pattern, string topic)
         {
-            if (String.IsNullOrEmpty(pattern) || pattern == "#")
+            if (string.IsNullOrEmpty(pattern) || pattern == "#")
             {
                 return true;
             }
@@ -602,7 +602,7 @@ namespace Opc.Ua.PubSub.Transport
 
                 if (!MatchTopic(queueName, topic))
                 {
-                    if (String.IsNullOrEmpty(metadataQueueName))
+                    if (string.IsNullOrEmpty(metadataQueueName))
                     {
                         continue;
                     }
@@ -733,7 +733,7 @@ namespace Opc.Ua.PubSub.Transport
             // Setup data needed also in mqttClientOptionsBuilder
             if ((connectionUri.Scheme == Utils.UriSchemeMqtt) || (connectionUri.Scheme == Utils.UriSchemeMqtts))
             {
-                if (!String.IsNullOrEmpty(connectionUri.Host))
+                if (!string.IsNullOrEmpty(connectionUri.Host))
                 {
                     m_brokerHostName = connectionUri.Host;
                     m_brokerPort = (connectionUri.Port > 0) ? connectionUri.Port : ((connectionUri.Scheme == Utils.UriSchemeMqtt) ? 1883 : 8883);
@@ -961,7 +961,7 @@ namespace Opc.Ua.PubSub.Transport
             /// <summary> 
             /// Create and return the Json DataSetMetaData message for a DataSetWriter
             /// </summary>
-            public abstract UaNetworkMessage CreateDataSetMetaDataNetworkMessage(WriterGroupDataType writerGroup, UInt16 dataSetWriterId,
+            public abstract UaNetworkMessage CreateDataSetMetaDataNetworkMessage(WriterGroupDataType writerGroup, ushort dataSetWriterId,
                 DataSetMetaDataType dataSetMetaData);
         }
 
@@ -1086,7 +1086,7 @@ namespace Opc.Ua.PubSub.Transport
             /// <summary> 
             /// Create and return the Json DataSetMetaData message for a DataSetWriter
             /// </summary>
-            public override UaNetworkMessage CreateDataSetMetaDataNetworkMessage(WriterGroupDataType writerGroup, UInt16 dataSetWriterId, DataSetMetaDataType dataSetMetaData)
+            public override UaNetworkMessage CreateDataSetMetaDataNetworkMessage(WriterGroupDataType writerGroup, ushort dataSetWriterId, DataSetMetaDataType dataSetMetaData)
             {
                 // return UADP metadata network message
                 return new Encoding.JsonNetworkMessage(writerGroup, dataSetMetaData) {
@@ -1206,7 +1206,7 @@ namespace Opc.Ua.PubSub.Transport
             /// <summary> 
             /// Create and return the Uadp DataSetMetaData message for a DataSetWriter
             /// </summary>
-            public override UaNetworkMessage CreateDataSetMetaDataNetworkMessage(WriterGroupDataType writerGroup, UInt16 dataSetWriterId, DataSetMetaDataType dataSetMetaData)
+            public override UaNetworkMessage CreateDataSetMetaDataNetworkMessage(WriterGroupDataType writerGroup, ushort dataSetWriterId, DataSetMetaDataType dataSetMetaData)
             {
                 // return UADP metadata network message
                 return new UadpNetworkMessage(writerGroup, dataSetMetaData) {

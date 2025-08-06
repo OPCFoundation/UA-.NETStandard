@@ -569,7 +569,7 @@ namespace Opc.Ua.Bindings
                 // ensure a valid port.
                 int port = m_uri.Port;
 
-                if (port <= 0 || port > UInt16.MaxValue)
+                if (port <= 0 || port > ushort.MaxValue)
                 {
                     port = Utils.UaTcpDefaultPort;
                 }
@@ -1104,7 +1104,7 @@ namespace Opc.Ua.Bindings
                 throw new ArgumentException("Base address must be an absolute URI.", nameof(baseAddress));
             }
 
-            if (!String.Equals(baseAddress.Scheme, Utils.UriSchemeOpcTcp, StringComparison.OrdinalIgnoreCase))
+            if (!string.Equals(baseAddress.Scheme, Utils.UriSchemeOpcTcp, StringComparison.OrdinalIgnoreCase))
             {
                 throw new ArgumentException($"Invalid URI scheme: {baseAddress.Scheme}.", nameof(baseAddress));
             }
@@ -1112,7 +1112,7 @@ namespace Opc.Ua.Bindings
             m_uri = baseAddress;
 
             // append the relative path to the base address.
-            if (!String.IsNullOrEmpty(relativeAddress))
+            if (!string.IsNullOrEmpty(relativeAddress))
             {
                 if (!baseAddress.AbsolutePath.EndsWith("/", StringComparison.Ordinal))
                 {

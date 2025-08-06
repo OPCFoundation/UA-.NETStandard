@@ -170,7 +170,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 Description = new LocalizedText("The make"),
                 DataType = DataTypeIds.String,
                 ValueRank = ValueRanks.Scalar,
-                ArrayDimensions = Array.Empty<UInt32>(),
+                ArrayDimensions = Array.Empty<uint>(),
                 MaxStringLength = 0,
                 IsOptional = false
             };
@@ -180,7 +180,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 Description = new LocalizedText("The model"),
                 DataType = DataTypeIds.String,
                 ValueRank = ValueRanks.Scalar,
-                ArrayDimensions = Array.Empty<UInt32>(),
+                ArrayDimensions = Array.Empty<uint>(),
                 MaxStringLength = 0,
                 IsOptional = false
             };
@@ -190,7 +190,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 Description = new LocalizedText("The engine"),
                 DataType = DataTypeIds.String,
                 ValueRank = ValueRanks.Scalar,
-                ArrayDimensions = Array.Empty<UInt32>(),
+                ArrayDimensions = Array.Empty<uint>(),
                 MaxStringLength = 0,
                 IsOptional = false
             };
@@ -200,7 +200,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 Description = new LocalizedText("The number of passengers"),
                 DataType = DataTypeIds.UInt32,
                 ValueRank = ValueRanks.Scalar,
-                ArrayDimensions = Array.Empty<UInt32>(),
+                ArrayDimensions = Array.Empty<uint>(),
                 MaxStringLength = 0,
                 IsOptional = false
             };
@@ -252,7 +252,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             car["Make"] = "Toyota";
             car["Model"] = "Land Cruiser";
             car["Engine"] = "Diesel";
-            car["NoOfPassengers"] = (UInt32)5;
+            car["NoOfPassengers"] = (uint)5;
 
             TestContext.Out.WriteLine(car.ToString());
 
@@ -311,7 +311,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 Description = new LocalizedText("Array of Integer"),
                 DataType = DataTypeIds.Int32,
                 ValueRank = ValueRanks.OneDimension,
-                ArrayDimensions = Array.Empty<UInt32>(),
+                ArrayDimensions = Array.Empty<uint>(),
                 MaxStringLength = 0,
                 IsOptional = false
             };
@@ -322,7 +322,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 Description = new LocalizedText("2D Array of Integer"),
                 DataType = DataTypeIds.Int32,
                 ValueRank = ValueRanks.TwoDimensions,
-                ArrayDimensions = Array.Empty<UInt32>(),
+                ArrayDimensions = Array.Empty<uint>(),
                 MaxStringLength = 0,
                 IsOptional = false
             };
@@ -333,7 +333,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 Description = new LocalizedText("3D Array of Integer"),
                 DataType = DataTypeIds.Int32,
                 ValueRank = 3,
-                ArrayDimensions = Array.Empty<UInt32>(),
+                ArrayDimensions = Array.Empty<uint>(),
                 MaxStringLength = 0,
                 IsOptional = false
             };
@@ -344,7 +344,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 Description = new LocalizedText("Array of NamingRuleType"),
                 DataType = DataTypeIds.NamingRuleType,
                 ValueRank = ValueRanks.OneDimension,
-                ArrayDimensions = Array.Empty<UInt32>(),
+                ArrayDimensions = Array.Empty<uint>(),
                 MaxStringLength = 0,
                 IsOptional = false
             };
@@ -355,7 +355,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 Description = new LocalizedText("Array 2D of NamingRuleType"),
                 DataType = DataTypeIds.NamingRuleType,
                 ValueRank = ValueRanks.TwoDimensions,
-                ArrayDimensions = Array.Empty<UInt32>(),
+                ArrayDimensions = Array.Empty<uint>(),
                 MaxStringLength = 0,
                 IsOptional = false
             };
@@ -366,7 +366,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 Description = new LocalizedText("Array 3D of NamingRuleType"),
                 DataType = DataTypeIds.NamingRuleType,
                 ValueRank = 3,
-                ArrayDimensions = Array.Empty<UInt32>(),
+                ArrayDimensions = Array.Empty<uint>(),
                 MaxStringLength = 0,
                 IsOptional = false
             };
@@ -415,10 +415,10 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 
             TestContext.Out.WriteLine(arrays.ToString());
 
-            arrays["ArrayOfInteger"] = new Int32[] { 1, 4, 8, 12, 22 };
-            arrays["Array2DOfInteger"] = new Int32[,] {
+            arrays["ArrayOfInteger"] = new int[] { 1, 4, 8, 12, 22 };
+            arrays["Array2DOfInteger"] = new int[,] {
                 { 11, 12, 13, 14, 15 }, { 21, 22, 23, 24, 25 }, { 31, 32, 33, 34, 35 } };
-            arrays["Array3DOfInteger"] = new Int32[,,] {
+            arrays["Array3DOfInteger"] = new int[,,] {
                 { { 11, 12, 13, 14, 15 }, { 21, 22, 23, 24, 25 }, { 31, 32, 33, 34, 35 } },
                 { { 41, 42, 43, 44, 45 }, { 51, 52, 53, 54, 55 }, { 61, 62, 63, 64, 65 } } };
             arrays["ArrayOfNamingRuleType"] = new NamingRuleType[] { NamingRuleType.Mandatory, NamingRuleType.Optional, NamingRuleType.Constraint };
@@ -497,8 +497,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 Name = arrayPrefix + seperator + typeName,
                 Description = new LocalizedText(arrayPrefix + " " + seperator + " " + typeName),
                 DataType = typeDescription.TypeId,
-                ValueRank = (int)valueRank,
-                ArrayDimensions = Array.Empty<UInt32>(),
+                ValueRank = valueRank,
+                ArrayDimensions = Array.Empty<uint>(),
                 MaxStringLength = 0,
                 IsOptional = false
             };
@@ -585,7 +585,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                     {
                         for (int ii = 0; ii < dimensions.Length; ii++)
                         {
-                            dimensions[ii] = (DataGenerator.GetRandom<Int32>(false) & 3) + 1;
+                            dimensions[ii] = (DataGenerator.GetRandom<int>(false) & 3) + 1;
                         }
                         Array array = TypeInfo.CreateArray(builtInType, dimensions);
                         int[] indices = new int[valueRank];
@@ -747,31 +747,31 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 
         [DataMember(Order = 0)]
         [StructureField(BuiltInType = (int)BuiltInType.SByte)]
-        public SByte PropertyInt8 { get; set; }
+        public sbyte PropertyInt8 { get; set; }
 
         [DataMember(Order = 1)]
         [StructureField(BuiltInType = (int)BuiltInType.Int16)]
-        public Int16 PropertyInt16 { get; set; }
+        public short PropertyInt16 { get; set; }
 
         [DataMember(Order = 2)]
         [StructureField(BuiltInType = (int)BuiltInType.Int32)]
-        public Int32 PropertyInt32 { get; set; }
+        public int PropertyInt32 { get; set; }
 
         [DataMember(Order = 3)]
         [StructureField(BuiltInType = (int)BuiltInType.Int64)]
-        public Int64 PropertyInt64 { get; set; }
+        public long PropertyInt64 { get; set; }
 
         [DataMember(Order = 4)]
         [StructureField(BuiltInType = (int)BuiltInType.Int32, ValueRank = 1, IsOptional = false)]
-        public Int32[] PropertyInt32Array { get; set; }
+        public int[] PropertyInt32Array { get; set; }
 
         [DataMember(Order = 5)]
         [StructureField(BuiltInType = (int)BuiltInType.Int32, ValueRank = 2, IsOptional = false)]
-        public Int32[,] PropertyInt322DArray { get; set; }
+        public int[,] PropertyInt322DArray { get; set; }
 
         [DataMember(Order = 6)]
         [StructureField(BuiltInType = (int)BuiltInType.Int32, ValueRank = 5, IsOptional = false)]
-        public Int32[,,,,] PropertyInt325DArray { get; set; }
+        public int[,,,,] PropertyInt325DArray { get; set; }
     }
     #endregion
 }

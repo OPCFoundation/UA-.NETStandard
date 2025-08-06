@@ -226,7 +226,7 @@ namespace Opc.Ua.Test
         {
             if (value1 != value2)
             {
-                if (Single.IsNaN(value1) && Single.IsNaN(value2))
+                if (float.IsNaN(value1) && float.IsNaN(value2))
                 {
                     return true;
                 }
@@ -250,7 +250,7 @@ namespace Opc.Ua.Test
         {
             if (value1 != value2)
             {
-                if (Double.IsNaN(value1) && Double.IsNaN(value2))
+                if (double.IsNaN(value1) && double.IsNaN(value2))
                 {
                     return true;
                 }
@@ -421,7 +421,7 @@ namespace Opc.Ua.Test
                         return ReportError(attribute1, attribute2);
                     }
 
-                    string prefix = (attribute1.Name.Length > 5) ? attribute1.Name.Substring(6) : String.Empty;
+                    string prefix = (attribute1.Name.Length > 5) ? attribute1.Name.Substring(6) : string.Empty;
 
                     if (attribute1.Value != value2.GetNamespaceOfPrefix(prefix))
                     {

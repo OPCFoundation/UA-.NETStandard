@@ -760,7 +760,7 @@ namespace Opc.Ua
 
             if (nodeId.ServerIndex > 0)
             {
-                if (String.IsNullOrEmpty(namespaceUri))
+                if (string.IsNullOrEmpty(namespaceUri))
                 {
                     namespaceUri = sourceNamespaceUris.GetString(nodeId.NamespaceIndex);
                 }
@@ -779,7 +779,7 @@ namespace Opc.Ua
 
             ushort namespaceIndex = 0;
 
-            if (!String.IsNullOrEmpty(namespaceUri))
+            if (!string.IsNullOrEmpty(namespaceUri))
             {
                 int index = targetNamespaceUris.GetIndex(namespaceUri);
 

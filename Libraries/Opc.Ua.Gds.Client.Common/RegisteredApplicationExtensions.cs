@@ -67,7 +67,7 @@ namespace Opc.Ua.Gds.Client
 
             if (RegistrationType != RegistrationType.ServerPush)
             {
-                if (!String.IsNullOrEmpty(CertificatePrivateKeyPath))
+                if (!string.IsNullOrEmpty(CertificatePrivateKeyPath))
                 {
                     if (CertificatePrivateKeyPath.EndsWith("PEM", StringComparison.OrdinalIgnoreCase))
                     {
@@ -90,7 +90,7 @@ namespace Opc.Ua.Gds.Client
         {
             List<string> domainNames = new List<string>();
 
-            if (!String.IsNullOrEmpty(Domains))
+            if (!string.IsNullOrEmpty(Domains))
             {
                 var domains = Domains.Split(',');
 
@@ -130,7 +130,7 @@ namespace Opc.Ua.Gds.Client
                         //domainNames.Any(n => String.Compare(n, name, StringComparison.OrdinalIgnoreCase) == 0);
                         foreach (var domainName in domainNames)
                         {
-                            if (String.Equals(domainName, name, StringComparison.OrdinalIgnoreCase))
+                            if (string.Equals(domainName, name, StringComparison.OrdinalIgnoreCase))
                             {
                                 found = true;
                                 break;

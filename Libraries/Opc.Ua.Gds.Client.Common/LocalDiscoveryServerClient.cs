@@ -399,7 +399,7 @@ namespace Opc.Ua.Gds.Client
             string endpointUrl,
             string endpointTransportProfileUri)
         {
-            if (String.IsNullOrEmpty(endpointUrl))
+            if (string.IsNullOrEmpty(endpointUrl))
             {
                 endpointUrl = kDefaultUrl;
             }

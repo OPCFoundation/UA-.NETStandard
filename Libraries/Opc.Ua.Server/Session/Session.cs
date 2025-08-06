@@ -978,7 +978,7 @@ namespace Opc.Ua.Server
             // determine the security policy uri.
             string securityPolicyUri = policy.SecurityPolicyUri;
 
-            if (String.IsNullOrEmpty(securityPolicyUri))
+            if (string.IsNullOrEmpty(securityPolicyUri))
             {
                 securityPolicyUri = m_endpoint.SecurityPolicyUri;
             }

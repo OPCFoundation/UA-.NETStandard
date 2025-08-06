@@ -162,7 +162,7 @@ namespace Opc.Ua
             }
 
             // handle no encryption.
-            if (String.IsNullOrEmpty(securityPolicyUri) || securityPolicyUri == SecurityPolicies.None)
+            if (string.IsNullOrEmpty(securityPolicyUri) || securityPolicyUri == SecurityPolicies.None)
             {
                 m_password = m_decryptedPassword;
                 m_encryptionAlgorithm = null;
@@ -242,7 +242,7 @@ namespace Opc.Ua
             }
 
             // handle no encryption.
-            if (String.IsNullOrEmpty(securityPolicyUri) || securityPolicyUri == SecurityPolicies.None)
+            if (string.IsNullOrEmpty(securityPolicyUri) || securityPolicyUri == SecurityPolicies.None)
             {
                 m_decryptedPassword = m_password;
                 return;
@@ -477,10 +477,10 @@ namespace Opc.Ua
             bool doNotEncodeSenderCertificate = false)
         {
             // handle no encryption.
-            if (String.IsNullOrEmpty(securityPolicyUri) || securityPolicyUri == SecurityPolicies.None)
+            if (string.IsNullOrEmpty(securityPolicyUri) || securityPolicyUri == SecurityPolicies.None)
             {
                 m_tokenData = m_decryptedTokenData;
-                m_encryptionAlgorithm = String.Empty;
+                m_encryptionAlgorithm = string.Empty;
                 return;
             }
 
@@ -508,7 +508,7 @@ namespace Opc.Ua
             CertificateValidator validator = null)
         {
             // handle no encryption.
-            if (String.IsNullOrEmpty(securityPolicyUri) || securityPolicyUri == SecurityPolicies.None)
+            if (string.IsNullOrEmpty(securityPolicyUri) || securityPolicyUri == SecurityPolicies.None)
             {
                 m_decryptedTokenData = m_tokenData;
                 return;

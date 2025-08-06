@@ -464,7 +464,7 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException">Thrown if any errors occur during parsing</exception>
         public static RelativePathFormatter Parse(string textToParse)
         {
-            if (String.IsNullOrEmpty(textToParse))
+            if (string.IsNullOrEmpty(textToParse))
             {
                 return new RelativePathFormatter();
             }
@@ -631,7 +631,7 @@ namespace Opc.Ua
                         case ElementType.ForwardReference:
                         case ElementType.InverseReference:
                         {
-                            if (m_referenceTypeName != null && !String.IsNullOrEmpty(m_referenceTypeName.Name))
+                            if (m_referenceTypeName != null && !string.IsNullOrEmpty(m_referenceTypeName.Name))
                             {
                                 path.Append('<');
 
@@ -659,7 +659,7 @@ namespace Opc.Ua
                     }
 
                     // write the target browse name component.
-                    if (m_targetName != null && !String.IsNullOrEmpty(m_targetName.Name))
+                    if (m_targetName != null && !string.IsNullOrEmpty(m_targetName.Name))
                     {
                         if (m_targetName.NamespaceIndex != 0)
                         {
@@ -754,7 +754,7 @@ namespace Opc.Ua
 
                 for (int next = last; next != -1; next = reader.Peek(), last = next)
                 {
-                    if (!Char.IsDigit((char)next))
+                    if (!char.IsDigit((char)next))
                     {
                         if (next == ':')
                         {

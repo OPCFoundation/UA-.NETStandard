@@ -220,7 +220,7 @@ namespace Opc.Ua
                 string symbolicId = result.SymbolicId;
                 string namespaceUri = result.NamespaceUri;
 
-                if (!String.IsNullOrEmpty(symbolicId))
+                if (!string.IsNullOrEmpty(symbolicId))
                 {
                     m_symbolicId = stringTable.GetIndex(result.SymbolicId);
 
@@ -230,7 +230,7 @@ namespace Opc.Ua
                         stringTable.Append(symbolicId);
                     }
 
-                    if (!String.IsNullOrEmpty(namespaceUri))
+                    if (!string.IsNullOrEmpty(namespaceUri))
                     {
                         m_namespaceUri = stringTable.GetIndex(namespaceUri);
 
@@ -247,7 +247,7 @@ namespace Opc.Ua
             {
                 if (!Opc.Ua.LocalizedText.IsNullOrEmpty(result.LocalizedText))
                 {
-                    if (!String.IsNullOrEmpty(result.LocalizedText.Locale))
+                    if (!string.IsNullOrEmpty(result.LocalizedText.Locale))
                     {
                         m_locale = stringTable.GetIndex(result.LocalizedText.Locale);
 

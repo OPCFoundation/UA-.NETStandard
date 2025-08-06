@@ -236,7 +236,7 @@ namespace Opc.Ua.PubSub.Transport
                             uadpDataSetMessage.DataSetWriterId = dataSetWriter.DataSetWriterId;
                             uadpDataSetMessage.SetMessageContentMask((UadpDataSetMessageContentMask)dataSetMessageSettings.DataSetMessageContentMask);
                             uadpDataSetMessage.SetFieldContentMask((DataSetFieldContentMask)dataSetWriter.DataSetFieldContentMask);
-                            uadpDataSetMessage.SequenceNumber = (ushort)(Utils.IncrementIdentifier(ref s_dataSetSequenceNumber) % UInt16.MaxValue);
+                            uadpDataSetMessage.SequenceNumber = (ushort)(Utils.IncrementIdentifier(ref s_dataSetSequenceNumber) % ushort.MaxValue);
                             uadpDataSetMessage.ConfiguredSize = dataSetMessageSettings.ConfiguredSize;
                             uadpDataSetMessage.DataSetOffset = dataSetMessageSettings.DataSetOffset;
                             uadpDataSetMessage.Timestamp = DateTime.UtcNow;
@@ -260,7 +260,7 @@ namespace Opc.Ua.PubSub.Transport
             uadpNetworkMessage.WriterGroupId = writerGroupConfiguration.WriterGroupId;
             // Network message header
             uadpNetworkMessage.PublisherId = PubSubConnectionConfiguration.PublisherId.Value;
-            uadpNetworkMessage.SequenceNumber = (ushort)(Utils.IncrementIdentifier(ref s_sequenceNumber) % UInt16.MaxValue);
+            uadpNetworkMessage.SequenceNumber = (ushort)(Utils.IncrementIdentifier(ref s_sequenceNumber) % ushort.MaxValue);
 
             // Writer group header
             uadpNetworkMessage.GroupVersion = messageSettings.GroupVersion;
@@ -277,12 +277,12 @@ namespace Opc.Ua.PubSub.Transport
         /// </summary>
         /// <param name="dataSetWriterIds"></param>
         /// <returns></returns>
-        public IList<UaNetworkMessage> CreateDataSetMetaDataNetworkMessages(UInt16[] dataSetWriterIds)
+        public IList<UaNetworkMessage> CreateDataSetMetaDataNetworkMessages(ushort[] dataSetWriterIds)
         {
             List<UaNetworkMessage> networkMessages = new List<UaNetworkMessage>();
             var writers = GetWriterGroupsDataType();
 
-            foreach (UInt16 dataSetWriterId in dataSetWriterIds)
+            foreach (ushort dataSetWriterId in dataSetWriterIds)
             {
                 DataSetWriterDataType writer = writers.Where(w => w.DataSetWriterId == dataSetWriterId).FirstOrDefault();
                 if (writer != null)
@@ -311,7 +311,7 @@ namespace Opc.Ua.PubSub.Transport
         /// </summary>
         /// <param name="dataSetWriterIds">DatasetWriter ids</param>
         /// <returns></returns>
-        public IList<UaNetworkMessage> CreateDataSetWriterCofigurationMessage(UInt16[] dataSetWriterIds)
+        public IList<UaNetworkMessage> CreateDataSetWriterCofigurationMessage(ushort[] dataSetWriterIds)
         {
             List<UaNetworkMessage> networkMessages = new List<UaNetworkMessage>();
 

@@ -154,7 +154,7 @@ namespace Opc.Ua.Server
 
             // find start value.
             DataValue start = null;
-            double startValue = Double.NaN;
+            double startValue = double.NaN;
             TypeInfo originalType = null;
             bool badDataSkipped = false;
 
@@ -172,7 +172,7 @@ namespace Opc.Ua.Server
                     }
                     catch (Exception)
                     {
-                        startValue = Double.NaN;
+                        startValue = double.NaN;
                     }
                 }
 
@@ -182,7 +182,7 @@ namespace Opc.Ua.Server
 
             // find end value.
             DataValue end = null;
-            double endValue = Double.NaN;
+            double endValue = double.NaN;
 
             for (int ii = values.Count - 1; ii >= 0; ii--)
             {
@@ -197,7 +197,7 @@ namespace Opc.Ua.Server
                     }
                     catch (Exception)
                     {
-                        endValue = Double.NaN;
+                        endValue = double.NaN;
                     }
 
                     break;
@@ -208,7 +208,7 @@ namespace Opc.Ua.Server
             }
 
             // check if no good data.
-            if (Double.IsNaN(startValue) || Double.IsNaN(endValue))
+            if (double.IsNaN(startValue) || double.IsNaN(endValue))
             {
                 return GetNoDataValue(slice);
             }
@@ -323,7 +323,7 @@ namespace Opc.Ua.Server
             }
             catch (Exception)
             {
-                startValue = Double.NaN;
+                startValue = double.NaN;
             }
 
             double endValue = 0;
@@ -334,11 +334,11 @@ namespace Opc.Ua.Server
             }
             catch (Exception)
             {
-                endValue = Double.NaN;
+                endValue = double.NaN;
             }
 
             // check for bad bounds.
-            if (Double.IsNaN(startValue) || Double.IsNaN(endValue))
+            if (double.IsNaN(startValue) || double.IsNaN(endValue))
             {
                 return GetNoDataValue(slice);
             }

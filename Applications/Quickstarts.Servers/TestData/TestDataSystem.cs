@@ -61,7 +61,7 @@ namespace TestData
         public TestDataSystem(ITestDataSystemCallback callback, NamespaceTable namespaceUris, StringTable serverUris)
         {
             m_callback = callback;
-            m_minimumSamplingInterval = Int32.MaxValue;
+            m_minimumSamplingInterval = int.MaxValue;
             m_monitoredNodes = new Dictionary<uint, BaseVariableState>();
             m_samplingNodes = null;
             m_generator = new Opc.Ua.Test.DataGenerator(null);
@@ -208,7 +208,7 @@ namespace TestData
                     case TestData.Variables.AnalogScalarValueObjectType_Int32Value:
                     case TestData.Variables.AnalogScalarValueObjectType_IntegerValue:
                     {
-                        return (int)(((int)(m_generator.GetRandom<uint>(false) % 201)) - 100);
+                        return ((int)(m_generator.GetRandom<uint>(false) % 201)) - 100;
                     }
 
                     case TestData.Variables.ScalarValueObjectType_UInt32Value:
@@ -220,7 +220,7 @@ namespace TestData
                     case TestData.Variables.AnalogScalarValueObjectType_UInt32Value:
                     case TestData.Variables.AnalogScalarValueObjectType_UIntegerValue:
                     {
-                        return (uint)((m_generator.GetRandom<uint>(false) % 201) + 50);
+                        return (m_generator.GetRandom<uint>(false) % 201) + 50;
                     }
 
                     case TestData.Variables.ScalarValueObjectType_Int64Value:
@@ -499,7 +499,7 @@ namespace TestData
 
                         for (int ii = 0; ii < values.Length; ii++)
                         {
-                            values[ii] = (int)(((int)(m_generator.GetRandom<uint>(false) % 201)) - 100);
+                            values[ii] = ((int)(m_generator.GetRandom<uint>(false) % 201)) - 100;
                         }
 
                         return values;
@@ -518,7 +518,7 @@ namespace TestData
 
                         for (int ii = 0; ii < values.Length; ii++)
                         {
-                            values[ii] = (uint)((m_generator.GetRandom<uint>(false) % 201) + 50);
+                            values[ii] = (m_generator.GetRandom<uint>(false) % 201) + 50;
                         }
 
                         return values;
@@ -536,7 +536,7 @@ namespace TestData
 
                         for (int ii = 0; ii < values.Length; ii++)
                         {
-                            values[ii] = (long)(((int)(m_generator.GetRandom<uint>(false) % 201)) - 100);
+                            values[ii] = ((int)(m_generator.GetRandom<uint>(false) % 201)) - 100;
                         }
 
                         return values;
@@ -554,7 +554,7 @@ namespace TestData
 
                         for (int ii = 0; ii < values.Length; ii++)
                         {
-                            values[ii] = (ulong)((m_generator.GetRandom<uint>(false) % 201) + 50);
+                            values[ii] = (m_generator.GetRandom<uint>(false) % 201) + 50;
                         }
 
                         return values;
@@ -572,7 +572,7 @@ namespace TestData
 
                         for (int ii = 0; ii < values.Length; ii++)
                         {
-                            values[ii] = (float)(((int)(m_generator.GetRandom<uint>(false) % 201)) - 100);
+                            values[ii] = ((int)(m_generator.GetRandom<uint>(false) % 201)) - 100;
                         }
 
                         return values;
@@ -591,7 +591,7 @@ namespace TestData
 
                         for (int ii = 0; ii < values.Length; ii++)
                         {
-                            values[ii] = (double)(((int)(m_generator.GetRandom<uint>(false) % 201)) - 100);
+                            values[ii] = ((int)(m_generator.GetRandom<uint>(false) % 201)) - 100;
                         }
 
                         return values;
@@ -986,7 +986,7 @@ namespace TestData
                 if (samplingInterval < 0)
                 {
                     // m_samplingEvent.Set();
-                    m_minimumSamplingInterval = Int32.MaxValue;
+                    m_minimumSamplingInterval = int.MaxValue;
 
                     if (m_timer != null)
                     {

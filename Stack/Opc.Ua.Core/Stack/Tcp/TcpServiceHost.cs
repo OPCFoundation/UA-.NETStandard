@@ -71,7 +71,7 @@ namespace Opc.Ua.Bindings
 
                 UriBuilder uri = new UriBuilder(baseAddresses[ii]);
 
-                if (String.Equals(uri.Host, "localhost", StringComparison.OrdinalIgnoreCase))
+                if (string.Equals(uri.Host, "localhost", StringComparison.OrdinalIgnoreCase))
                 {
                     uri.Host = computerName;
                 }

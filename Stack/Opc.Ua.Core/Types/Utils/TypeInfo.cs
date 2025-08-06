@@ -569,21 +569,21 @@ namespace Opc.Ua
 
             switch ((uint)datatypeId.Identifier)
             {
-                case DataTypes.Boolean: { return typeof(Boolean); }
-                case DataTypes.SByte: { return typeof(SByte); }
-                case DataTypes.Byte: { return typeof(Byte); }
-                case DataTypes.Int16: { return typeof(Int16); }
-                case DataTypes.UInt16: { return typeof(UInt16); }
-                case DataTypes.Int32: { return typeof(Int32); }
-                case DataTypes.UInt32: { return typeof(UInt32); }
-                case DataTypes.Int64: { return typeof(Int64); }
-                case DataTypes.UInt64: { return typeof(UInt64); }
-                case DataTypes.Float: { return typeof(Single); }
-                case DataTypes.Double: { return typeof(Double); }
-                case DataTypes.String: { return typeof(String); }
+                case DataTypes.Boolean: { return typeof(bool); }
+                case DataTypes.SByte: { return typeof(sbyte); }
+                case DataTypes.Byte: { return typeof(byte); }
+                case DataTypes.Int16: { return typeof(short); }
+                case DataTypes.UInt16: { return typeof(ushort); }
+                case DataTypes.Int32: { return typeof(int); }
+                case DataTypes.UInt32: { return typeof(uint); }
+                case DataTypes.Int64: { return typeof(long); }
+                case DataTypes.UInt64: { return typeof(ulong); }
+                case DataTypes.Float: { return typeof(float); }
+                case DataTypes.Double: { return typeof(double); }
+                case DataTypes.String: { return typeof(string); }
                 case DataTypes.DateTime: { return typeof(DateTime); }
                 case DataTypes.Guid: { return typeof(Uuid); }
-                case DataTypes.ByteString: { return typeof(Byte[]); }
+                case DataTypes.ByteString: { return typeof(byte[]); }
                 case DataTypes.XmlElement: { return typeof(XmlElement); }
                 case DataTypes.NodeId: { return typeof(NodeId); }
                 case DataTypes.ExpandedNodeId: { return typeof(ExpandedNodeId); }
@@ -597,7 +597,7 @@ namespace Opc.Ua
                 case DataTypes.Number: { return typeof(Variant); }
                 case DataTypes.Integer: { return typeof(Variant); }
                 case DataTypes.UInteger: { return typeof(Variant); }
-                case DataTypes.Enumeration: { return typeof(Int32); }
+                case DataTypes.Enumeration: { return typeof(int); }
 
                 // subtype of DateTime
                 case DataTypes.UtcTime: goto case DataTypes.DateTime;
@@ -1203,7 +1203,7 @@ namespace Opc.Ua
 
             if (name[name.Length - 1] == ']')
             {
-                int index = name.IndexOf('[');
+                int index = name.IndexOf('[', StringComparison.Ordinal);
 
                 if (index != -1)
                 {
@@ -1360,7 +1360,7 @@ namespace Opc.Ua
                 case BuiltInType.Byte: { return (byte)0; }
                 case BuiltInType.Int16: { return (short)0; }
                 case BuiltInType.UInt16: { return (ushort)0; }
-                case BuiltInType.Int32: { return (int)0; }
+                case BuiltInType.Int32: { return 0; }
                 case BuiltInType.UInt32: { return (uint)0; }
                 case BuiltInType.Int64: { return (long)0; }
                 case BuiltInType.UInt64: { return (ulong)0; }
@@ -1378,7 +1378,7 @@ namespace Opc.Ua
                 case BuiltInType.LocalizedText: { return LocalizedText.Null; }
                 case BuiltInType.Variant: { return Variant.Null; }
                 case BuiltInType.DataValue: { return null; }
-                case BuiltInType.Enumeration: { return (int)0; }
+                case BuiltInType.Enumeration: { return 0; }
                 case BuiltInType.Number: { return (double)0; }
                 case BuiltInType.Integer: { return (long)0; }
                 case BuiltInType.UInteger: { return (ulong)0; }
@@ -1435,7 +1435,7 @@ namespace Opc.Ua
                     case DataTypes.Integer: { return (long)0; }
                     case DataTypes.IdType: { return (int)IdType.Numeric; }
                     case DataTypes.NodeClass: { return (int)NodeClass.Unspecified; }
-                    case DataTypes.Enumeration: { return (int)0; }
+                    case DataTypes.Enumeration: { return 0; }
                 }
             }
 
@@ -2407,17 +2407,17 @@ namespace Opc.Ua
 
                         for (int ii = 0; ii < text.Length; ii++)
                         {
-                            if (!Char.IsWhiteSpace(text, ii) && !Char.IsLetterOrDigit(text, ii))
+                            if (!char.IsWhiteSpace(text, ii) && !char.IsLetterOrDigit(text, ii))
                             {
                                 throw new FormatException("Invalid character in ByteString. " + text[ii]);
                             }
 
-                            if (Char.IsWhiteSpace(text, ii))
+                            if (char.IsWhiteSpace(text, ii))
                             {
                                 continue;
                             }
 
-                            int index = digits.IndexOf(Char.ToUpper(text[ii]));
+                            int index = digits.IndexOf(char.ToUpper(text[ii]));
 
                             if (index < 0)
                             {

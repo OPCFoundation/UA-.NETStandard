@@ -248,7 +248,7 @@ namespace Opc.Ua.Client
                         // set the queue size to the default for events.
                         if (QueueSize <= 1)
                         {
-                            QueueSize = Int32.MaxValue;
+                            QueueSize = int.MaxValue;
                         }
 
                         m_attributeId = Attributes.EventNotifier;
@@ -262,7 +262,7 @@ namespace Opc.Ua.Client
                         }
 
                         // set the queue size to the default for data changes.
-                        if (QueueSize == Int32.MaxValue)
+                        if (QueueSize == int.MaxValue)
                         {
                             QueueSize = 1;
                         }
@@ -441,7 +441,7 @@ namespace Opc.Ua.Client
             get
             {
                 // just return the start id if relative path is empty.
-                if (String.IsNullOrEmpty(m_relativePath))
+                if (string.IsNullOrEmpty(m_relativePath))
                 {
                     return m_startNodeId;
                 }

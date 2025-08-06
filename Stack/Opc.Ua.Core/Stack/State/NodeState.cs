@@ -191,7 +191,7 @@ namespace Opc.Ua
         /// Returns a string representation of the node.
         /// </summary>
         /// <returns>
-        /// A <see cref="System.String"/> that represents the current <see cref="System.Object"/>.
+        /// A <see cref="string"/> that represents the current <see cref="object"/>.
         /// </returns>
         public override string ToString()
         {
@@ -201,14 +201,14 @@ namespace Opc.Ua
         /// <summary>
         /// Returns a string representation of the node.
         /// </summary>
-        /// <param name="format">The <see cref="System.String"/> specifying the format to use.
+        /// <param name="format">The <see cref="string"/> specifying the format to use.
         /// -or-
         /// null to use the default format defined for the type of the <see cref="System.IFormattable"/> implementation.</param>
         /// <param name="formatProvider">The <see cref="System.IFormatProvider"/> to use to format the value.
         /// -or-
         /// null to obtain the numeric format information from the current locale setting of the operating system.</param>
         /// <returns>
-        /// A <see cref="System.String"/> containing the value of the current instance in the specified format.
+        /// A <see cref="string"/> containing the value of the current instance in the specified format.
         /// </returns>
         public string ToString(string format, IFormatProvider formatProvider)
         {
@@ -857,7 +857,7 @@ namespace Opc.Ua
         {
             AttributesToSave attributesToSave = AttributesToSave.None;
 
-            if (!String.IsNullOrEmpty(m_symbolicName))
+            if (!string.IsNullOrEmpty(m_symbolicName))
             {
                 if (m_browseName == null || m_symbolicName != m_browseName.Name)
                 {
@@ -879,7 +879,7 @@ namespace Opc.Ua
 
             if (!LocalizedText.IsNullOrEmpty(m_displayName))
             {
-                if (m_browseName == null || !String.IsNullOrEmpty(m_displayName.Locale) || m_displayName.Text != m_browseName.Name)
+                if (m_browseName == null || !string.IsNullOrEmpty(m_displayName.Locale) || m_displayName.Text != m_browseName.Name)
                 {
                     attributesToSave |= AttributesToSave.DisplayName;
                 }
@@ -972,7 +972,7 @@ namespace Opc.Ua
                 m_browseName = decoder.ReadQualifiedName(null);
             }
 
-            if (String.IsNullOrEmpty(m_symbolicName) && m_browseName != null)
+            if (string.IsNullOrEmpty(m_symbolicName) && m_browseName != null)
             {
                 m_symbolicName = m_browseName.Name;
             }
@@ -1088,7 +1088,7 @@ namespace Opc.Ua
                 attributesToLoad &= ~AttributesToSave.BrowseName;
             }
 
-            if (String.IsNullOrEmpty(symbolicName) && browseName != null)
+            if (string.IsNullOrEmpty(symbolicName) && browseName != null)
             {
                 symbolicName = browseName.Name;
             }
@@ -1158,7 +1158,7 @@ namespace Opc.Ua
                 attributesToLoad &= ~AttributesToSave.BrowseName;
             }
 
-            if (String.IsNullOrEmpty(symbolicName) && browseName != null)
+            if (string.IsNullOrEmpty(symbolicName) && browseName != null)
             {
                 symbolicName = browseName.Name;
             }
@@ -1386,7 +1386,7 @@ namespace Opc.Ua
 
             if (!LocalizedText.IsNullOrEmpty(m_displayName))
             {
-                if (m_browseName == null || !String.IsNullOrEmpty(m_displayName.Locale) || m_browseName.Name != m_displayName.Text)
+                if (m_browseName == null || !string.IsNullOrEmpty(m_displayName.Locale) || m_browseName.Name != m_displayName.Text)
                 {
                     encoder.WriteLocalizedText("DisplayName", m_displayName);
                 }
@@ -4130,7 +4130,7 @@ namespace Opc.Ua
             string symbolicPath)
         {
             // check for null.
-            if (String.IsNullOrEmpty(symbolicPath))
+            if (string.IsNullOrEmpty(symbolicPath))
             {
                 return null;
             }
@@ -4223,7 +4223,7 @@ namespace Opc.Ua
             IList<QualifiedName> browsePath,
             int index)
         {
-            if (index < 0 || index >= Int32.MaxValue) throw new ArgumentOutOfRangeException(nameof(index));
+            if (index < 0 || index >= int.MaxValue) throw new ArgumentOutOfRangeException(nameof(index));
 
             BaseInstanceState instance = FindChild(context, browsePath[index], false, null);
 

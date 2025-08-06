@@ -42,11 +42,11 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// Default value for Configured MetaDataVersion.MajorVersion
         /// </summary>
-        protected const UInt32 kDefaultConfigMajorVersion = 0;
+        protected const uint kDefaultConfigMajorVersion = 0;
         /// <summary>
         /// Default value for Configured MetaDataVersion.MinorVersion
         /// </summary>
-        protected const UInt32 kDefaultConfigMinorVersion = 0;
+        protected const uint kDefaultConfigMinorVersion = 0;
         #endregion
 
         #region Constructor

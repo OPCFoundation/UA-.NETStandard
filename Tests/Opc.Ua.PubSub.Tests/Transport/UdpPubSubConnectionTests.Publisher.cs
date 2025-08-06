@@ -312,7 +312,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
 
             // prepare a network message
             WriterGroupDataType writerGroup0 = publisherConnection.PubSubConnectionConfiguration.WriterGroups.First();
-            List<UInt16> dataSetWriterIds = new List<UInt16>();
+            List<ushort> dataSetWriterIds = new List<ushort>();
             foreach (DataSetWriterDataType dataSetWriterDataType in writerGroup0.DataSetWriters)
             {
                 dataSetWriterIds.Add(dataSetWriterDataType.DataSetWriterId);
@@ -394,7 +394,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
 
             // prepare a network message
             WriterGroupDataType writerGroup0 = publisherConnection.PubSubConnectionConfiguration.WriterGroups.First();
-            List<UInt16> dataSetWriterIds = new List<UInt16>();
+            List<ushort> dataSetWriterIds = new List<ushort>();
             foreach (DataSetWriterDataType dataSetWriterDataType in writerGroup0.DataSetWriters)
             {
                 dataSetWriterIds.Add(dataSetWriterDataType.DataSetWriterId);

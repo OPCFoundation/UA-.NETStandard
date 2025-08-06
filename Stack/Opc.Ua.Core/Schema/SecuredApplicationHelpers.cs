@@ -103,7 +103,7 @@ namespace Opc.Ua.Security
         /// </summary>
         public static CertificateIdentifier ToCertificateIdentifier(Opc.Ua.CertificateIdentifier input)
         {
-            if (input != null && !String.IsNullOrEmpty(input.StoreType) && !String.IsNullOrEmpty(input.StorePath))
+            if (input != null && !string.IsNullOrEmpty(input.StoreType) && !string.IsNullOrEmpty(input.StorePath))
             {
                 CertificateIdentifier output = new CertificateIdentifier();
 
@@ -145,7 +145,7 @@ namespace Opc.Ua.Security
         /// </summary>
         public static CertificateStoreIdentifier ToCertificateStoreIdentifier(Opc.Ua.CertificateStoreIdentifier input)
         {
-            if (input != null && !String.IsNullOrEmpty(input.StoreType) && !String.IsNullOrEmpty(input.StorePath))
+            if (input != null && !string.IsNullOrEmpty(input.StoreType) && !string.IsNullOrEmpty(input.StorePath))
             {
                 CertificateStoreIdentifier output = new CertificateStoreIdentifier();
 
@@ -219,7 +219,7 @@ namespace Opc.Ua.Security
 
             if (input != null)
             {
-                output.ValidationOptions = (int)0;
+                output.ValidationOptions = 0;
                 output.Certificates = new ListOfCertificateIdentifier();
 
                 for (int ii = 0; ii < input.Count; ii++)

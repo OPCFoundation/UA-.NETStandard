@@ -77,7 +77,7 @@ namespace Opc.Ua
 
                     for (int jj = 0; jj < dnsNames.Count; jj++)
                     {
-                        if (String.Equals(dnsNames[jj], hostname, StringComparison.OrdinalIgnoreCase))
+                        if (string.Equals(dnsNames[jj], hostname, StringComparison.OrdinalIgnoreCase))
                         {
                             found = true;
                             break;
@@ -208,7 +208,7 @@ namespace Opc.Ua
 
             for (int jj = 0; jj < domainNames.Count; jj++)
             {
-                if (String.Equals(domainNames[jj], endpointUrl.DnsSafeHost, StringComparison.OrdinalIgnoreCase))
+                if (string.Equals(domainNames[jj], endpointUrl.DnsSafeHost, StringComparison.OrdinalIgnoreCase))
                 {
                     return true;
                 }
@@ -287,7 +287,7 @@ namespace Opc.Ua
         public static bool CompareDistinguishedName(string name1, string name2)
         {
             // check for simple equality.
-            if (String.Equals(name1, name2, StringComparison.Ordinal))
+            if (string.Equals(name1, name2, StringComparison.Ordinal))
             {
                 return true;
             }
@@ -319,7 +319,7 @@ namespace Opc.Ua
                     // DC hostnames may have different case
                     comparison = StringComparison.OrdinalIgnoreCase;
                 }
-                if (!String.Equals(fields1[ii], fields2[ii], comparison))
+                if (!string.Equals(fields1[ii], fields2[ii], comparison))
                 {
                     return false;
                 }
@@ -359,7 +359,7 @@ namespace Opc.Ua
         {
             List<string> fields = new List<string>();
 
-            if (String.IsNullOrEmpty(name))
+            if (string.IsNullOrEmpty(name))
             {
                 return fields;
             }
@@ -383,9 +383,9 @@ namespace Opc.Ua
                 {
                     ii--;
 
-                    while (ii >= 0 && Char.IsWhiteSpace(name[ii])) ii--;
-                    while (ii >= 0 && (Char.IsLetterOrDigit(name[ii]) || name[ii] == '.')) ii--;
-                    while (ii >= 0 && Char.IsWhiteSpace(name[ii])) ii--;
+                    while (ii >= 0 && char.IsWhiteSpace(name[ii])) ii--;
+                    while (ii >= 0 && (char.IsLetterOrDigit(name[ii]) || name[ii] == '.')) ii--;
+                    while (ii >= 0 && char.IsWhiteSpace(name[ii])) ii--;
 
                     if (ii >= 0)
                     {
@@ -404,7 +404,7 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < name.Length; ii++)
             {
-                while (ii < name.Length && Char.IsWhiteSpace(name[ii])) ii++;
+                while (ii < name.Length && char.IsWhiteSpace(name[ii])) ii++;
 
                 if (ii >= name.Length)
                 {
@@ -642,7 +642,7 @@ namespace Opc.Ua
             string password = null)
         {
             // add cert to the store.
-            if (!String.IsNullOrEmpty(storePath) && !String.IsNullOrEmpty(storeType))
+            if (!string.IsNullOrEmpty(storePath) && !string.IsNullOrEmpty(storeType))
             {
                 var certificateStoreIdentifier = new CertificateStoreIdentifier(storePath, storeType, false);
                 using (ICertificateStore store = certificateStoreIdentifier.OpenStore())
@@ -717,7 +717,7 @@ namespace Opc.Ua
             CancellationToken ct = default)
         {
             // add cert to the store.
-            if (!String.IsNullOrEmpty(storePath) && !String.IsNullOrEmpty(storeType))
+            if (!string.IsNullOrEmpty(storePath) && !string.IsNullOrEmpty(storeType))
             {
                 var certificateStoreIdentifier = new CertificateStoreIdentifier(storePath, storeType, false);
                 using (ICertificateStore store = certificateStoreIdentifier.OpenStore())

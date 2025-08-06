@@ -40,7 +40,7 @@ namespace Opc.Ua
                 }
             }
 
-            return System.String.Empty;
+            return string.Empty;
         }
 
         /// <summary>

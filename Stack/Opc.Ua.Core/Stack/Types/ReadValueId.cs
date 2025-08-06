@@ -77,7 +77,7 @@ namespace Opc.Ua
             // data encoding and index range is only valid for value attributes. 
             if (valueId.AttributeId != Attributes.Value)
             {
-                if (!String.IsNullOrEmpty(valueId.IndexRange))
+                if (!string.IsNullOrEmpty(valueId.IndexRange))
                 {
                     return StatusCodes.BadIndexRangeNoData;
                 }
@@ -92,7 +92,7 @@ namespace Opc.Ua
             valueId.ParsedIndexRange = NumericRange.Empty;
 
             // parse the index range if specified.
-            if (!String.IsNullOrEmpty(valueId.IndexRange))
+            if (!string.IsNullOrEmpty(valueId.IndexRange))
             {
                 try
                 {
@@ -100,7 +100,7 @@ namespace Opc.Ua
                 }
                 catch (Exception e)
                 {
-                    return ServiceResult.Create(e, StatusCodes.BadIndexRangeInvalid, String.Empty);
+                    return ServiceResult.Create(e, StatusCodes.BadIndexRangeInvalid, string.Empty);
                 }
             }
             else

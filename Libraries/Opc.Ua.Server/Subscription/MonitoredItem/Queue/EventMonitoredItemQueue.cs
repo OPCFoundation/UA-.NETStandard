@@ -38,7 +38,7 @@ namespace Opc.Ua.Server
     /// </summary>
     public class EventMonitoredItemQueue : IEventMonitoredItemQueue
     {
-        private const UInt32 kMaxNoOfEntriesCheckedForDuplicateEvents = 1000;
+        private const uint kMaxNoOfEntriesCheckedForDuplicateEvents = 1000;
 
         /// <summary>
         /// Creates an empty queue.

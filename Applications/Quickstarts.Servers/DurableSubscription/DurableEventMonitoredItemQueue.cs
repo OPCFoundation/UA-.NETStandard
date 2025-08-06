@@ -39,7 +39,7 @@ namespace Quickstarts.Servers
 {
     public class DurableEventMonitoredItemQueue : IEventMonitoredItemQueue
     {
-        private const UInt32 kMaxNoOfEntriesCheckedForDuplicateEvents = 1000;
+        private const uint kMaxNoOfEntriesCheckedForDuplicateEvents = 1000;
         private const uint kBatchSize = 1000;
 
         /// <summary>

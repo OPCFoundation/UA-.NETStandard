@@ -208,7 +208,7 @@ namespace Alarms
             Utils.LogError("AlarmHolder.SetValue() - Should not be called");
         }
 
-        public void Start(UInt32 seconds)
+        public void Start(uint seconds)
         {
             ClearBranches();
             m_alarmController.Start(seconds);
@@ -341,7 +341,7 @@ namespace Alarms
             return m_alarmNodeManager;
         }
 
-        protected string GetAlarmTypeName(UInt32 alarmTypeIdentifier)
+        protected string GetAlarmTypeName(uint alarmTypeIdentifier)
         {
             string alarmTypeName = "";
 
@@ -456,7 +456,7 @@ namespace Alarms
         /// </summary>
         /// <param name="alarmTypeIdentifier"></param>
         /// <returns>ushort namespaceindex</returns>
-        protected ushort GetNameSpaceIndex(UInt32 alarmTypeIdentifier)
+        protected ushort GetNameSpaceIndex(uint alarmTypeIdentifier)
         {
             ushort nameSpaceIndex = 0;
 

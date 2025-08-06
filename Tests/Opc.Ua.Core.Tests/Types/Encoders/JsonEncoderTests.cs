@@ -55,7 +55,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         #region DataSource
         static TestEnumType[] s_testEnumArray = new TestEnumType[]
             { TestEnumType.One, TestEnumType.Two, TestEnumType.Hundred };
-        static readonly Int32[] s_testInt32Array = new Int32[]
+        static readonly int[] s_testInt32Array = new int[]
             { 2, 3, 10 };
         static ExtensionObject s_testEncodeable = new ExtensionObject(new FooBarEncodeable(999));
 
@@ -72,11 +72,11 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         const string kLocalizedText = "theText";
         const string kLocale = "en-us";
         const int kNodeIdInt = 2345;
-        const Int64 kInt64Value = -123456789123456;
-        const UInt64 kUInt64Value = 123456789123456;
+        const long kInt64Value = -123456789123456;
+        const ulong kUInt64Value = 123456789123456;
         static Guid s_nodeIdGuid = new Guid("AABA0CFA-674F-40C7-B7FA-339D8EECB61D");
         static byte[] s_byteString = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8, 9 };
-        static string s_byteString64 = Convert.ToBase64String((byte[])s_byteString);
+        static string s_byteString64 = Convert.ToBase64String(s_byteString);
 
         /// <summary>
         /// An array of spec compliant Json encoding test data sets which
@@ -88,80 +88,80 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             {   BuiltInType.Boolean, false, null, null, null, "false" },
             {   BuiltInType.Boolean, false, "false", null, null, "false", true },
 
-            {   BuiltInType.Byte, (Byte)0, null, null, null, "0"},
-            {   BuiltInType.Byte, (Byte)0, "0", null, null, "0", true },
-            {   BuiltInType.Byte, (Byte)88, "88", null },
-            {   BuiltInType.Byte, (Byte)188, "188", null },
-            {   BuiltInType.Byte, Byte.MinValue, Byte.MinValue.ToString(CultureInfo.InvariantCulture), null, null, Byte.MinValue.ToString(CultureInfo.InvariantCulture), true},
-            {   BuiltInType.Byte, Byte.MaxValue, Byte.MaxValue.ToString(CultureInfo.InvariantCulture), null },
+            {   BuiltInType.Byte, (byte)0, null, null, null, "0"},
+            {   BuiltInType.Byte, (byte)0, "0", null, null, "0", true },
+            {   BuiltInType.Byte, (byte)88, "88", null },
+            {   BuiltInType.Byte, (byte)188, "188", null },
+            {   BuiltInType.Byte, byte.MinValue, byte.MinValue.ToString(CultureInfo.InvariantCulture), null, null, byte.MinValue.ToString(CultureInfo.InvariantCulture), true},
+            {   BuiltInType.Byte, byte.MaxValue, byte.MaxValue.ToString(CultureInfo.InvariantCulture), null },
 
-            {   BuiltInType.SByte, (SByte)0, null, null, null, "0" },
-            {   BuiltInType.SByte, (SByte)0, "0", null, null, "0", true },
-            {   BuiltInType.SByte, (SByte)(-77), "-77", null },
-            {   BuiltInType.SByte, (SByte)(77), "77", null },
-            {   BuiltInType.SByte, SByte.MaxValue, SByte.MaxValue.ToString(CultureInfo.InvariantCulture), null },
-            {   BuiltInType.SByte, SByte.MinValue, SByte.MinValue.ToString(CultureInfo.InvariantCulture), null },
+            {   BuiltInType.SByte, (sbyte)0, null, null, null, "0" },
+            {   BuiltInType.SByte, (sbyte)0, "0", null, null, "0", true },
+            {   BuiltInType.SByte, (sbyte)(-77), "-77", null },
+            {   BuiltInType.SByte, (sbyte)(77), "77", null },
+            {   BuiltInType.SByte, sbyte.MaxValue, sbyte.MaxValue.ToString(CultureInfo.InvariantCulture), null },
+            {   BuiltInType.SByte, sbyte.MinValue, sbyte.MinValue.ToString(CultureInfo.InvariantCulture), null },
 
-            {   BuiltInType.UInt16, (UInt16)0, null, null, null, "0"},
-            {   BuiltInType.UInt16, (UInt16)0, "0", null, null, "0", true },
-            {   BuiltInType.UInt16, (UInt16)12345, "12345", null },
-            {   BuiltInType.UInt16, (UInt16)44444, "44444", null },
-            {   BuiltInType.UInt16, UInt16.MinValue, UInt16.MinValue.ToString(CultureInfo.InvariantCulture), null, null, UInt16.MinValue.ToString(CultureInfo.InvariantCulture), true },
-            {   BuiltInType.UInt16, UInt16.MaxValue, UInt16.MaxValue.ToString(CultureInfo.InvariantCulture), null },
+            {   BuiltInType.UInt16, (ushort)0, null, null, null, "0"},
+            {   BuiltInType.UInt16, (ushort)0, "0", null, null, "0", true },
+            {   BuiltInType.UInt16, (ushort)12345, "12345", null },
+            {   BuiltInType.UInt16, (ushort)44444, "44444", null },
+            {   BuiltInType.UInt16, ushort.MinValue, ushort.MinValue.ToString(CultureInfo.InvariantCulture), null, null, ushort.MinValue.ToString(CultureInfo.InvariantCulture), true },
+            {   BuiltInType.UInt16, ushort.MaxValue, ushort.MaxValue.ToString(CultureInfo.InvariantCulture), null },
 
-            {   BuiltInType.Int16, (Int16)0, null, null,null, "0" },
-            {   BuiltInType.Int16, (Int16)0, "0", null, null, "0", true },
-            {   BuiltInType.Int16, (Int16)(-12345), "-12345", null },
-            {   BuiltInType.Int16, (Int16)12345, "12345", null },
-            {   BuiltInType.Int16, Int16.MaxValue, Int16.MaxValue.ToString(CultureInfo.InvariantCulture), null },
-            {   BuiltInType.Int16, Int16.MinValue, Int16.MinValue.ToString(CultureInfo.InvariantCulture), null },
+            {   BuiltInType.Int16, (short)0, null, null,null, "0" },
+            {   BuiltInType.Int16, (short)0, "0", null, null, "0", true },
+            {   BuiltInType.Int16, (short)(-12345), "-12345", null },
+            {   BuiltInType.Int16, (short)12345, "12345", null },
+            {   BuiltInType.Int16, short.MaxValue, short.MaxValue.ToString(CultureInfo.InvariantCulture), null },
+            {   BuiltInType.Int16, short.MinValue, short.MinValue.ToString(CultureInfo.InvariantCulture), null },
 
-            {   BuiltInType.UInt32, (UInt32)0, null, null,null, "0" },
-            {   BuiltInType.UInt32, (UInt32)0, "0", null, null, "0", true },
-            {   BuiltInType.UInt32, (UInt32)1234567, "1234567", null },
-            {   BuiltInType.UInt32, (UInt32)4444444, "4444444", null },
-            {   BuiltInType.UInt32, UInt32.MinValue, UInt32.MinValue.ToString(CultureInfo.InvariantCulture), null, null, UInt32.MinValue.ToString(CultureInfo.InvariantCulture), true },
-            {   BuiltInType.UInt32, UInt32.MaxValue, UInt32.MaxValue.ToString(CultureInfo.InvariantCulture), null },
+            {   BuiltInType.UInt32, (uint)0, null, null,null, "0" },
+            {   BuiltInType.UInt32, (uint)0, "0", null, null, "0", true },
+            {   BuiltInType.UInt32, (uint)1234567, "1234567", null },
+            {   BuiltInType.UInt32, (uint)4444444, "4444444", null },
+            {   BuiltInType.UInt32, uint.MinValue, uint.MinValue.ToString(CultureInfo.InvariantCulture), null, null, uint.MinValue.ToString(CultureInfo.InvariantCulture), true },
+            {   BuiltInType.UInt32, uint.MaxValue, uint.MaxValue.ToString(CultureInfo.InvariantCulture), null },
 
             {   BuiltInType.Int32, 0, null, null,null, "0" },
             {   BuiltInType.Int32, 0, "0", null, null, "0", true },
             {   BuiltInType.Int32, -12345678, "-12345678", null },
             {   BuiltInType.Int32, 12345678, "12345678", null },
-            {   BuiltInType.Int32, Int32.MaxValue, Int32.MaxValue.ToString(CultureInfo.InvariantCulture), null },
-            {   BuiltInType.Int32, Int32.MinValue, Int32.MinValue.ToString(CultureInfo.InvariantCulture), null },
+            {   BuiltInType.Int32, int.MaxValue, int.MaxValue.ToString(CultureInfo.InvariantCulture), null },
+            {   BuiltInType.Int32, int.MinValue, int.MinValue.ToString(CultureInfo.InvariantCulture), null },
 
-            {   BuiltInType.Int64, (Int64)0, null, null,null, Quotes("0") },
-            {   BuiltInType.Int64, (Int64)0, Quotes("0"), null, null, Quotes("0"), true },
+            {   BuiltInType.Int64, (long)0, null, null,null, Quotes("0") },
+            {   BuiltInType.Int64, (long)0, Quotes("0"), null, null, Quotes("0"), true },
             {   BuiltInType.Int64, kInt64Value, Quotes(kInt64Value.ToString(CultureInfo.InvariantCulture)), null },
-            {   BuiltInType.Int64, (Int64)kUInt64Value, Quotes(kUInt64Value.ToString(CultureInfo.InvariantCulture)), null },
-            {   BuiltInType.Int64, Int64.MinValue, Quotes(Int64.MinValue.ToString(CultureInfo.InvariantCulture)), null },
-            {   BuiltInType.Int64, Int64.MaxValue, Quotes(Int64.MaxValue.ToString(CultureInfo.InvariantCulture)), null },
+            {   BuiltInType.Int64, (long)kUInt64Value, Quotes(kUInt64Value.ToString(CultureInfo.InvariantCulture)), null },
+            {   BuiltInType.Int64, long.MinValue, Quotes(long.MinValue.ToString(CultureInfo.InvariantCulture)), null },
+            {   BuiltInType.Int64, long.MaxValue, Quotes(long.MaxValue.ToString(CultureInfo.InvariantCulture)), null },
 
-            {   BuiltInType.UInt64, (UInt64)0, null, null,null, Quotes("0") },
-            {   BuiltInType.UInt64, (UInt64)0, Quotes("0"), null, null, Quotes("0"), true },
-            {   BuiltInType.UInt64, (UInt64)kUInt64Value, Quotes(kUInt64Value.ToString(CultureInfo.InvariantCulture)), null },
-            {   BuiltInType.UInt64, UInt64.MinValue, Quotes(UInt64.MinValue.ToString(CultureInfo.InvariantCulture)), null, null, Quotes(UInt64.MinValue.ToString(CultureInfo.InvariantCulture)), true },
-            {   BuiltInType.UInt64, UInt64.MaxValue, Quotes(UInt64.MaxValue.ToString(CultureInfo.InvariantCulture)), null },
+            {   BuiltInType.UInt64, (ulong)0, null, null,null, Quotes("0") },
+            {   BuiltInType.UInt64, (ulong)0, Quotes("0"), null, null, Quotes("0"), true },
+            {   BuiltInType.UInt64, kUInt64Value, Quotes(kUInt64Value.ToString(CultureInfo.InvariantCulture)), null },
+            {   BuiltInType.UInt64, ulong.MinValue, Quotes(ulong.MinValue.ToString(CultureInfo.InvariantCulture)), null, null, Quotes(ulong.MinValue.ToString(CultureInfo.InvariantCulture)), true },
+            {   BuiltInType.UInt64, ulong.MaxValue, Quotes(ulong.MaxValue.ToString(CultureInfo.InvariantCulture)), null },
 
-            {   BuiltInType.Float, (Single)0, null, null,null, "0"},
-            {   BuiltInType.Float, (Single)0, "0", null, null, "0", true},
-            {   BuiltInType.Float, (Single)(-12345678.1234), Convert.ToSingle("-12345678.1234", CultureInfo.InvariantCulture).ToString("R",CultureInfo.InvariantCulture), null },
-            {   BuiltInType.Float, (Single)12345678.1234, Convert.ToSingle("12345678.1234", CultureInfo.InvariantCulture).ToString("R",CultureInfo.InvariantCulture), null },
-            {   BuiltInType.Float, Single.MaxValue, Single.MaxValue.ToString("R",CultureInfo.InvariantCulture), null },
-            {   BuiltInType.Float, Single.MinValue, Single.MinValue.ToString("R",CultureInfo.InvariantCulture), null },
-            {   BuiltInType.Float, Single.NegativeInfinity, Quotes("-Infinity"), null },
-            {   BuiltInType.Float, Single.PositiveInfinity, Quotes("Infinity"), null },
-            {   BuiltInType.Float, Single.NaN, Quotes("NaN"), null },
+            {   BuiltInType.Float, (float)0, null, null,null, "0"},
+            {   BuiltInType.Float, (float)0, "0", null, null, "0", true},
+            {   BuiltInType.Float, (float)(-12345678.1234), Convert.ToSingle("-12345678.1234", CultureInfo.InvariantCulture).ToString("R",CultureInfo.InvariantCulture), null },
+            {   BuiltInType.Float, (float)12345678.1234, Convert.ToSingle("12345678.1234", CultureInfo.InvariantCulture).ToString("R",CultureInfo.InvariantCulture), null },
+            {   BuiltInType.Float, float.MaxValue, float.MaxValue.ToString("R",CultureInfo.InvariantCulture), null },
+            {   BuiltInType.Float, float.MinValue, float.MinValue.ToString("R",CultureInfo.InvariantCulture), null },
+            {   BuiltInType.Float, float.NegativeInfinity, Quotes("-Infinity"), null },
+            {   BuiltInType.Float, float.PositiveInfinity, Quotes("Infinity"), null },
+            {   BuiltInType.Float, float.NaN, Quotes("NaN"), null },
 
-            {   BuiltInType.Double, (Double)0, null, null,null, "0"},
-            {   BuiltInType.Double, (Double)0, "0", null, null, "0", true},
-            {   BuiltInType.Double, (Double)(-12345678.1234), Convert.ToDouble("-12345678.1234", CultureInfo.InvariantCulture).ToString("R",CultureInfo.InvariantCulture), null },
-            {   BuiltInType.Double, (Double)12345678.1234, Convert.ToDouble("12345678.1234", CultureInfo.InvariantCulture).ToString("R",CultureInfo.InvariantCulture), null },
-            {   BuiltInType.Double, Double.MaxValue, Double.MaxValue.ToString("R",CultureInfo.InvariantCulture), null },
-            {   BuiltInType.Double, Double.MinValue, Double.MinValue.ToString("R",CultureInfo.InvariantCulture), null },
-            {   BuiltInType.Double, Double.NegativeInfinity, Quotes("-Infinity"), null },
-            {   BuiltInType.Double, Double.PositiveInfinity, Quotes("Infinity"), null },
-            {   BuiltInType.Double, Double.NaN, Quotes("NaN"), null },
+            {   BuiltInType.Double, (double)0, null, null,null, "0"},
+            {   BuiltInType.Double, (double)0, "0", null, null, "0", true},
+            {   BuiltInType.Double, -12345678.1234, Convert.ToDouble("-12345678.1234", CultureInfo.InvariantCulture).ToString("R",CultureInfo.InvariantCulture), null },
+            {   BuiltInType.Double, 12345678.1234, Convert.ToDouble("12345678.1234", CultureInfo.InvariantCulture).ToString("R",CultureInfo.InvariantCulture), null },
+            {   BuiltInType.Double, double.MaxValue, double.MaxValue.ToString("R",CultureInfo.InvariantCulture), null },
+            {   BuiltInType.Double, double.MinValue, double.MinValue.ToString("R",CultureInfo.InvariantCulture), null },
+            {   BuiltInType.Double, double.NegativeInfinity, Quotes("-Infinity"), null },
+            {   BuiltInType.Double, double.PositiveInfinity, Quotes("Infinity"), null },
+            {   BuiltInType.Double, double.NaN, Quotes("NaN"), null },
 
             {   BuiltInType.DateTime, Utils.TimeBase,  Quotes("1601-01-01T00:00:00Z"), null , true},
             {   BuiltInType.DateTime, Utils.TimeBase.ToUniversalTime(),  Quotes("1601-01-01T00:00:00Z"), null },
@@ -336,31 +336,31 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             {   BuiltInType.Variant, Variant.Null, "", null, "", "{}"},
             {
                 BuiltInType.Variant,
-                new Variant((SByte)123),
+                new Variant((sbyte)123),
                 $"{{\"Type\":{BuiltInType.SByte.ToString("d")}, \"Body\":123}}",
                 "123",
                 $"{{\"UaType\":{BuiltInType.SByte.ToString("d")}, \"Value\":123}}",
                 null
             },
-            {   BuiltInType.Variant, new Variant((Int16)12345),
+            {   BuiltInType.Variant, new Variant((short)12345),
                     $"{{\"Type\":{BuiltInType.Int16.ToString("d")}, \"Body\":12345}}", "12345",
                     $"{{\"UaType\":{BuiltInType.Int16.ToString("d")}, \"Value\":12345}}", null},
             {   BuiltInType.Variant, new Variant(1234567),
                     $"{{\"Type\":{BuiltInType.Int32.ToString("d")}, \"Body\":1234567}}", "1234567",
                     $"{{\"UaType\":{BuiltInType.Int32.ToString("d")}, \"Value\":1234567}}", null},
-            {   BuiltInType.Variant, new Variant((Int64)123456789),
+            {   BuiltInType.Variant, new Variant((long)123456789),
                     $"{{\"Type\":{BuiltInType.Int64.ToString("d")}, \"Body\":\"123456789\"}}", "\"123456789\"",
                     $"{{\"UaType\":{BuiltInType.Int64.ToString("d")}, \"Value\":\"123456789\"}}", null},
-            {   BuiltInType.Variant, new Variant((Byte)123),
+            {   BuiltInType.Variant, new Variant((byte)123),
                     $"{{\"Type\":{BuiltInType.Byte.ToString("d")}, \"Body\":123}}", "123",
                     $"{{\"UaType\":{BuiltInType.Byte.ToString("d")}, \"Value\":123}}", null},
-            {   BuiltInType.Variant, new Variant((UInt16)12345),
+            {   BuiltInType.Variant, new Variant((ushort)12345),
                     $"{{\"Type\":{BuiltInType.UInt16.ToString("d")}, \"Body\":12345}}", "12345",
                     $"{{\"UaType\":{BuiltInType.UInt16.ToString("d")}, \"Value\":12345}}", null},
-            {   BuiltInType.Variant, new Variant((UInt32)1234567),
+            {   BuiltInType.Variant, new Variant((uint)1234567),
                     $"{{\"Type\":{BuiltInType.UInt32.ToString("d")}, \"Body\":1234567}}", "1234567",
                     $"{{\"UaType\":{BuiltInType.UInt32.ToString("d")}, \"Value\":1234567}}", null},
-            {   BuiltInType.Variant, new Variant((UInt64)123456789),
+            {   BuiltInType.Variant, new Variant((ulong)123456789),
                     $"{{\"Type\":{BuiltInType.UInt64.ToString("d")}, \"Body\":\"123456789\"}}", "\"123456789\"",
                     $"{{\"UaType\":{BuiltInType.UInt64.ToString("d")}, \"Value\":\"123456789\"}}", null},
 
@@ -380,8 +380,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             {   BuiltInType.Enumeration, (TestEnumType) 11, "11", "\"11\""},
 
             {   BuiltInType.Enumeration,  1, "1", "\"1\""},
-            {   BuiltInType.Enumeration, (Int32)TestEnumType.Two, TestEnumType.Two.ToString("d"), $"\"{TestEnumType.Two.ToString("d")}\""},
-            {   BuiltInType.Enumeration, (Int32)TestEnumType.Hundred, $"{TestEnumType.Hundred.ToString("d")}", $"\"{TestEnumType.Hundred.ToString("d")}\""},
+            {   BuiltInType.Enumeration, (int)TestEnumType.Two, TestEnumType.Two.ToString("d"), $"\"{TestEnumType.Two.ToString("d")}\""},
+            {   BuiltInType.Enumeration, (int)TestEnumType.Hundred, $"{TestEnumType.Hundred.ToString("d")}", $"\"{TestEnumType.Hundred.ToString("d")}\""},
             {   BuiltInType.Enumeration,  22, "22", "\"22\""},
 
             // arrays
@@ -1201,7 +1201,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         {
             string namespaceUri = "KEPServerEX";
             string nodeName = "Data Type Examples.16 Bit Device.K Registers.Double3";
-            String expectedNodeIdString = $"nsu={namespaceUri};s={nodeName}";
+            string expectedNodeIdString = $"nsu={namespaceUri};s={nodeName}";
             ExpandedNodeId expandedNodeId = new ExpandedNodeId(expectedNodeIdString);
 
             string stringifiedExpandedNodeId = expandedNodeId.ToString();
@@ -1329,7 +1329,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 encoder.WriteUInt64("UInt64", 1234566890);
                 encoder.WriteString("String", "The quick brown fox...");
                 encoder.WriteNodeId("NodeId", new NodeId(1234, 3));
-                encoder.WriteInt32Array("Array", new List<Int32>() { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 });
+                encoder.WriteInt32Array("Array", new List<int>() { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 });
             }
         }
 

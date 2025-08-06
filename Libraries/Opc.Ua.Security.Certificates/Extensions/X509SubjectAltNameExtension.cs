@@ -299,7 +299,7 @@ namespace Opc.Ua.Security.Certificates
             foreach (string generalName in generalNames)
             {
                 IPAddress ipAddr;
-                if (String.IsNullOrWhiteSpace(generalName))
+                if (string.IsNullOrWhiteSpace(generalName))
                 {
                     continue;
                 }

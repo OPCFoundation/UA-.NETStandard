@@ -223,7 +223,7 @@ namespace Opc.Ua.Sample
                 {
                     if (m_monitoringMode == MonitoringMode.Disabled)
                     {
-                        return Int32.MaxValue;
+                        return int.MaxValue;
                     }
 
                     DateTime now = DateTime.UtcNow;

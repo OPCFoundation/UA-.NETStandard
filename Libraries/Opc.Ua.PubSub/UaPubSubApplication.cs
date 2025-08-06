@@ -112,7 +112,7 @@ namespace Opc.Ua.PubSub
                 m_dataStore = new UaPubSubDataStore();
             }
 
-            if (!String.IsNullOrEmpty(applicationId))
+            if (!string.IsNullOrEmpty(applicationId))
             {
                 ApplicationId = applicationId;
             }

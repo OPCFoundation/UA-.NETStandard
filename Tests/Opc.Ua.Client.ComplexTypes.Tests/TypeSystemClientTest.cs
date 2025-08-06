@@ -382,9 +382,9 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
 
             complexType["ByteValue"] = (byte)0;
             complexType["StringValue"] = "badbeef";
-            complexType["NumberValue"] = new Variant((UInt32)3210);
-            complexType["IntegerValue"] = new Variant((Int64)54321);
-            complexType["UIntegerValue"] = new Variant((UInt64)12345);
+            complexType["NumberValue"] = new Variant((uint)3210);
+            complexType["IntegerValue"] = new Variant((long)54321);
+            complexType["UIntegerValue"] = new Variant((ulong)12345);
 
             var dataWriteValue = new DataValue(dataValue.WrappedValue);
             dataWriteValue.SourceTimestamp = DateTime.UtcNow;
@@ -428,9 +428,9 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
 
             Assert.AreEqual(complexType["ByteValue"], (byte)0);
             Assert.AreEqual(complexType["StringValue"], "badbeef");
-            Assert.AreEqual(complexType["NumberValue"], new Variant((UInt32)3210));
-            Assert.AreEqual(complexType["IntegerValue"], new Variant((Int64)54321));
-            Assert.AreEqual(complexType["UIntegerValue"], new Variant((UInt64)12345));
+            Assert.AreEqual(complexType["NumberValue"], new Variant((uint)3210));
+            Assert.AreEqual(complexType["IntegerValue"], new Variant((long)54321));
+            Assert.AreEqual(complexType["UIntegerValue"], new Variant((ulong)12345));
 
         }
         #endregion

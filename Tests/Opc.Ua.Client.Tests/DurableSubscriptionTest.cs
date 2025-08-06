@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -31,6 +31,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -208,7 +209,7 @@ namespace Opc.Ua.Client.Tests
             Assert.IsNotNull(maxLifetimeCountValue);
             Assert.IsNotNull(maxLifetimeCountValue.Value);
             Assert.AreEqual(expectedLifetime,
-                Convert.ToUInt32(maxLifetimeCountValue.Value));
+                Convert.ToUInt32(maxLifetimeCountValue.Value, CultureInfo.InvariantCulture));
 
             Assert.True(Session.RemoveSubscription(subscription));
         }
@@ -461,7 +462,7 @@ namespace Opc.Ua.Client.Tests
                 TestContext.Out.WriteLine("Restart at {0}", DateTimeMs(restartTime));
                 TestContext.Out.WriteLine("Completion at {0}", DateTimeMs(completionTime));
 
-                // Validate 
+                // Validate
                 foreach (KeyValuePair<NodeId, List<DateTime>> pair in valueTimeStamps)
                 {
                     DateTime previous = startTime;
@@ -471,7 +472,7 @@ namespace Opc.Ua.Client.Tests
                         DateTime timestamp = pair.Value[index];
 
                         TimeSpan timeSpan = timestamp - previous;
-                        TestContext.Out.WriteLine($"Node: {pair.Key} Index: {index} Time: {DateTimeMs(timestamp)} Previous: {DateTimeMs(previous)} Timespan {timeSpan.TotalMilliseconds.ToString("000.")}");
+                        TestContext.Out.WriteLine($"Node: {pair.Key} Index: {index} Time: {DateTimeMs(timestamp)} Previous: {DateTimeMs(previous)} Timespan {timeSpan.TotalMilliseconds.ToString("000.", CultureInfo.InvariantCulture)}");
 
                         Assert.Less(Math.Abs(timeSpan.TotalMilliseconds), tolerance,
                             $"Node: {pair.Key} Index: {index} Timespan {timeSpan.TotalMilliseconds} ");
@@ -497,14 +498,14 @@ namespace Opc.Ua.Client.Tests
         }
 
         private Dictionary<string, object> ValidateDataValue(Dictionary<string, NodeId> nodeIds,
-            string desiredValue, UInt32 expectedValue)
+            string desiredValue, uint expectedValue)
         {
             Dictionary<string, object> modifiedValues = GetValues(nodeIds);
 
             DataValue dataValue = modifiedValues[desiredValue] as DataValue;
             Assert.IsNotNull(dataValue);
             Assert.IsNotNull(dataValue.Value);
-            Assert.AreEqual(expectedValue, Convert.ToUInt32(dataValue.Value));
+            Assert.AreEqual(expectedValue, Convert.ToUInt32(dataValue.Value, CultureInfo.InvariantCulture));
 
             return modifiedValues;
         }
@@ -580,7 +581,7 @@ namespace Opc.Ua.Client.Tests
             {
                 TestContext.Out.WriteLine("Initial Browse Reference {0}", reference.BrowseName.Name);
 
-                if (reference.BrowseName.Name == subscriptionId.ToString())
+                if (reference.BrowseName.Name == subscriptionId.ToString(CultureInfo.InvariantCulture))
                 {
                     ReferenceDescriptionCollection desiredReferences;
 
@@ -734,7 +735,7 @@ namespace Opc.Ua.Client.Tests
         private string DateTimeMs(DateTime dateTime)
         {
             string readable = dateTime.ToLongTimeString() + "." +
-                dateTime.Millisecond.ToString("D3");
+                dateTime.Millisecond.ToString("D3", CultureInfo.InvariantCulture);
 
             return readable;
         }

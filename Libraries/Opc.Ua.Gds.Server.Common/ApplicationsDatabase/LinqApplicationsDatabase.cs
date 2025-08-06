@@ -313,7 +313,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
                 }
 
                 var capabilities = new StringCollection();
-                if (!String.IsNullOrWhiteSpace(result.ServerCapabilities))
+                if (!string.IsNullOrWhiteSpace(result.ServerCapabilities))
                 {
                     capabilities.AddRange(result.ServerCapabilities.Split(','));
                 }
@@ -418,7 +418,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
                 foreach (var result in results)
                 {
 
-                    if (!String.IsNullOrEmpty(applicationName))
+                    if (!string.IsNullOrEmpty(applicationName))
                     {
                         if (!Match(result.ApplicationName, applicationName))
                         {
@@ -426,7 +426,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
                         }
                     }
 
-                    if (!String.IsNullOrEmpty(applicationUri))
+                    if (!string.IsNullOrEmpty(applicationUri))
                     {
                         if (!Match(result.ApplicationUri, applicationUri))
                         {
@@ -434,7 +434,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
                         }
                     }
 
-                    if (!String.IsNullOrEmpty(productUri))
+                    if (!string.IsNullOrEmpty(productUri))
                     {
                         if (!Match(result.ProductUri, productUri))
                         {
@@ -443,7 +443,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
                     }
 
                     string[] capabilities = null;
-                    if (!String.IsNullOrEmpty(result.ServerCapabilities))
+                    if (!string.IsNullOrEmpty(result.ServerCapabilities))
                     {
                         capabilities = result.ServerCapabilities.Split(',');
                     }
@@ -521,7 +521,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
                         DiscoveryProfileUri = null,
                         DiscoveryUrls = discoveryUrls
                     });
-                    nextRecordId = (uint)lastID + 1;
+                    nextRecordId = lastID + 1;
 
                 }
                 return records.ToArray();
@@ -560,7 +560,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
 
                 foreach (var result in results)
                 {
-                    if (!String.IsNullOrEmpty(applicationName))
+                    if (!string.IsNullOrEmpty(applicationName))
                     {
                         if (!Match(result.ApplicationName, applicationName))
                         {
@@ -568,7 +568,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
                         }
                     }
 
-                    if (!String.IsNullOrEmpty(applicationUri))
+                    if (!string.IsNullOrEmpty(applicationUri))
                     {
                         if (!Match(result.ApplicationUri, applicationUri))
                         {
@@ -576,7 +576,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
                         }
                     }
 
-                    if (!String.IsNullOrEmpty(productUri))
+                    if (!string.IsNullOrEmpty(productUri))
                     {
                         if (!Match(result.ProductUri, productUri))
                         {
@@ -585,7 +585,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
                     }
 
                     string[] capabilities = null;
-                    if (!String.IsNullOrEmpty(result.ServerCapabilities))
+                    if (!string.IsNullOrEmpty(result.ServerCapabilities))
                     {
                         capabilities = result.ServerCapabilities.Split(',');
                     }

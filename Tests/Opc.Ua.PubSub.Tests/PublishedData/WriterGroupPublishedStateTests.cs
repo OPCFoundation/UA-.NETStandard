@@ -51,7 +51,7 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
             Json
         }
 
-        private const UInt16 NamespaceIndexAllTypes = 3;
+        private const ushort NamespaceIndexAllTypes = 3;
 
         private const string UdpUrlFormat = "{0}://{1}:4840";
         private const string MqttUrlFormat = "{0}://{1}:1883";
@@ -61,11 +61,11 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
         public void PublishDataSetMessages(
             [Values(PubSubMessageType.Uadp, PubSubMessageType.Json)]
                 PubSubMessageType pubSubMessageType,
-            [Values(1, 2, 3, 4)] Int32 keyFrameCount)
+            [Values(1, 2, 3, 4)] int keyFrameCount)
         {
             //Arrange
             object publisherId = 1;
-            UInt16 writerGroupId = 1;
+            ushort writerGroupId = 1;
 
             string addressUrl = "http://localhost:1883";
 
@@ -212,7 +212,7 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
         /// <param name="uaDataNetworkMessage"></param>
         /// <param name="keyFrameCount"></param>
         private void ValidateDataSetMessageData(UaNetworkMessage uaDataNetworkMessage, Dictionary<NodeId, DataValue> dataStoreData,
-            Int32 keyFrameCount = 1, WriterGroupPublishState writerGroupPublishState = null)
+            int keyFrameCount = 1, WriterGroupPublishState writerGroupPublishState = null)
         {
             IEnumerable<object> writerGroupDataSetStates = null;
             if (writerGroupPublishState != null)

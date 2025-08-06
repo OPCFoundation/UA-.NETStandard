@@ -96,7 +96,7 @@ namespace Opc.Ua.Server
 
             string identifier = nodeId.Identifier as string;
 
-            if (String.IsNullOrEmpty(identifier))
+            if (string.IsNullOrEmpty(identifier))
             {
                 return null;
             }
@@ -111,7 +111,7 @@ namespace Opc.Ua.Server
 
             for (int ii = 0; ii < identifier.Length; ii++)
             {
-                if (!Char.IsDigit(identifier[ii]))
+                if (!char.IsDigit(identifier[ii]))
                 {
                     start = ii;
                     break;
@@ -238,16 +238,16 @@ namespace Opc.Ua.Server
             }
 
             // add the component path.
-            if (!String.IsNullOrEmpty(this.ComponentPath))
+            if (!string.IsNullOrEmpty(this.ComponentPath))
             {
                 buffer.Append('?');
                 buffer.Append(this.ComponentPath);
             }
 
             // add the component name.
-            if (!String.IsNullOrEmpty(componentName))
+            if (!string.IsNullOrEmpty(componentName))
             {
-                if (String.IsNullOrEmpty(this.ComponentPath))
+                if (string.IsNullOrEmpty(this.ComponentPath))
                 {
                     buffer.Append('?');
                 }

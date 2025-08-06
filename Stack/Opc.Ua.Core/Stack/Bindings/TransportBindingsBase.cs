@@ -143,7 +143,7 @@ namespace Opc.Ua.Bindings
             if (Utils.DefaultBindings.TryGetValue(scheme, out assemblyName))
             {
                 Assembly assembly = null;
-                string fullName = Utils.DefaultOpcUaCoreAssemblyFullName.Replace(Utils.DefaultOpcUaCoreAssemblyName, assemblyName);
+                string fullName = Utils.DefaultOpcUaCoreAssemblyFullName.Replace(Utils.DefaultOpcUaCoreAssemblyName, assemblyName, StringComparison.Ordinal);
                 try
                 {
                     assembly = Assembly.Load(fullName);

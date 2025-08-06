@@ -1060,11 +1060,11 @@ namespace Opc.Ua
 
             if (value is Array array)
             {
-                String[] output = new String[array.Length];
+                string[] output = new string[array.Length];
 
                 for (int ii = 0; ii < array.Length; ii++)
                 {
-                    output[ii] = (String)Cast(array.GetValue(ii), BuiltInType.String);
+                    output[ii] = (string)Cast(array.GetValue(ii), BuiltInType.String);
                 }
 
                 return output;
@@ -1889,7 +1889,7 @@ namespace Opc.Ua
                 return false;
             }
 
-            return Match((string)lhs, (string)rhs);
+            return Match(lhs, rhs);
         }
 
         /// <summary>

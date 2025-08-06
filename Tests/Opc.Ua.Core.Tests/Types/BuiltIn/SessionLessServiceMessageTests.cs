@@ -18,7 +18,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
         public void WhenServerUrisAreLessThanNamespacesShouldNotThrowAndMustReturnCorrectServerUris()
         {
             //arrange
-            UInt32 uriVersion = 1234;
+            uint uriVersion = 1234;
             var namespaceTable = new NamespaceTable(new List<string> { Namespaces.OpcUa, "http://bar", "http://foo" });
             var expectedServerUri = "http://foobar";
             var serverUris = new StringTable(new[] { Namespaces.OpcUa, expectedServerUri });
@@ -43,7 +43,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
 
             var jObject = JObject.Parse(result);
             Assert.IsNotNull(jObject);
-            UInt32 version = jObject["UriVersion"].ToObject<UInt32>();
+            uint version = jObject["UriVersion"].ToObject<uint>();
             Assert.AreEqual(uriVersion, version);
             var serverUrisToken = jObject["ServerUris"];
             Assert.IsNotNull(serverUrisToken);

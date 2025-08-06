@@ -62,7 +62,7 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
         /// <summary>
         /// helper to build alternate name domains list for certs.
         /// </summary>
-        public static List<GeneralName> CreateSubjectAlternateNameDomains(IList<String> domainNames)
+        public static List<GeneralName> CreateSubjectAlternateNameDomains(IList<string> domainNames)
         {
             // subject alternate name
             var generalNames = new List<GeneralName>();

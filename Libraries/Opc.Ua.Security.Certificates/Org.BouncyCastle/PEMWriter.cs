@@ -58,7 +58,7 @@ namespace Opc.Ua.Security.Certificates
             // check if certificate is valid for use as app/sw or user cert
             if (!isECDsaSignature)
             {
-                if (!String.IsNullOrEmpty(password)) throw new ArgumentException("Export with password not supported on this platform.", nameof(password));
+                if (!string.IsNullOrEmpty(password)) throw new ArgumentException("Export with password not supported on this platform.", nameof(password));
                 RsaPrivateCrtKeyParameters privateKeyParameter = X509Utils.GetRsaPrivateKeyParameter(certificate);
                 // write private key as PKCS#8
                 PrivateKeyInfo privateKeyInfo = PrivateKeyInfoFactory.CreatePrivateKeyInfo(privateKeyParameter);
@@ -68,7 +68,7 @@ namespace Opc.Ua.Security.Certificates
 #if ECC_SUPPORT
             else
             {
-                if (!String.IsNullOrEmpty(password)) throw new ArgumentException("Export with password not supported on this platform.", nameof(password));
+                if (!string.IsNullOrEmpty(password)) throw new ArgumentException("Export with password not supported on this platform.", nameof(password));
                 ECPrivateKeyParameters privateKeyParameter = X509Utils.GetECDsaPrivateKeyParameter(certificate.GetECDsaPrivateKey());
                 // write private key as PKCS#8
                 PrivateKeyInfo privateKeyInfo = PrivateKeyInfoFactory.CreatePrivateKeyInfo(privateKeyParameter);

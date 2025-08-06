@@ -183,7 +183,7 @@ namespace Opc.Ua.Server
             {
                 if (revisedQueueSize == 0)
                 {
-                    revisedQueueSize = Int32.MaxValue;
+                    revisedQueueSize = int.MaxValue;
                 }
 
                 samplingInterval = 0;

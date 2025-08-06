@@ -1,8 +1,8 @@
 /* ========================================================================
- * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2024 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -28,27 +28,47 @@
  * ======================================================================*/
 
 using System;
-using System.Threading.Tasks;
+using System.Linq;
 
-namespace Opc.Ua.Configuration
+namespace System
 {
-
     /// <summary>
-    /// Interface to create application callbacks.
+    /// Polyfills for System.String methods that are not available in .NET Standard 2.0 or .NET Framework.
     /// </summary>
-    public abstract class IApplicationMessageDlg
+    public static class SystemPolyfills
     {
+#if NETSTANDARD2_0 || NETFRAMEWORK
         /// <summary>
-        /// The application message.
+        /// Contains a character in a string using a specified comparison type.
         /// </summary>
-        /// <param name="text">The text of the message.</param>
-        /// <param name="ask">If the application should ask the user.</param>
-        public abstract void Message(string text, bool ask = false);
+        public static bool Contains(this string target, char value, StringComparison comparisonType)
+        {
+            return target.Contains(value);
+        }
 
         /// <summary>
-        /// Show the message and return result.
+        /// Contains a character in a string using a specified comparison type.
         /// </summary>
-        public abstract Task<bool> ShowAsync();
+        public static bool Contains(this string target, string value, StringComparison comparisonType)
+        {
+            return target.Contains(value);
+        }
+
+        /// <summary>
+        /// Index of a character in a string using a specified comparison type.
+        /// </summary>
+        public static int IndexOf(this string target, char value, StringComparison comparisonType)
+        {
+            return target.IndexOf(value);
+        }
+
+        /// <summary>
+        /// Replace a string in a string using a specified comparison type.
+        /// </summary>
+        public static string Replace(this string target, string oldValue, string newValue, StringComparison comparisonType)
+        {
+            return target.Replace(oldValue, newValue);
+        }
+#endif
     }
 }
-

@@ -117,7 +117,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.SourceTimestamp| DataSetFieldContentMask.StatusCode
             )]
             DataSetFieldContentMask dataSetFieldContentMask,
-           [Values((byte)10, (UInt16)10, (UInt32)10, (UInt64)10, "abc", "Test$!#$%^&*87", "Begrüßung")] object publisherId)
+           [Values((byte)10, (ushort)10, (uint)10, (ulong)10, "abc", "Test$!#$%^&*87", "Begrüßung")] object publisherId)
         {
             // Arrange
             UadpNetworkMessage uaNetworkMessage = CreateNetworkMessage(dataSetFieldContentMask);
@@ -187,7 +187,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             // GroupFlags are changed internally by the group header options (WriterGroupId, GroupVersion, NetworkMessageNumber, SequenceNumber)
             uaNetworkMessage.SetNetworkMessageContentMask(UadpNetworkMessageContentMask.GroupHeader |
                                                           UadpNetworkMessageContentMask.PublisherId);
-            uaNetworkMessage.PublisherId = (UInt16)10;
+            uaNetworkMessage.PublisherId = (ushort)10;
 
             // Assert
             CompareEncodeDecode(uaNetworkMessage);
@@ -220,7 +220,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             uaNetworkMessage.SetNetworkMessageContentMask(UadpNetworkMessageContentMask.WriterGroupId |
                                                           UadpNetworkMessageContentMask.PublisherId |
                                                           UadpNetworkMessageContentMask.PayloadHeader);
-            uaNetworkMessage.PublisherId = (UInt16)10;
+            uaNetworkMessage.PublisherId = (ushort)10;
             uaNetworkMessage.WriterGroupId = 1;
 
             // Assert
@@ -252,7 +252,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             uaNetworkMessage.SetNetworkMessageContentMask(UadpNetworkMessageContentMask.GroupVersion |
                                                           UadpNetworkMessageContentMask.PublisherId |
                                                           UadpNetworkMessageContentMask.PayloadHeader);
-            uaNetworkMessage.PublisherId = (UInt16)10;
+            uaNetworkMessage.PublisherId = (ushort)10;
             uaNetworkMessage.GroupVersion = 1;
 
             // Assert
@@ -284,7 +284,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             uaNetworkMessage.SetNetworkMessageContentMask(UadpNetworkMessageContentMask.NetworkMessageNumber |
                                                           UadpNetworkMessageContentMask.PublisherId |
                                                           UadpNetworkMessageContentMask.PayloadHeader);
-            uaNetworkMessage.PublisherId = (UInt16)10;
+            uaNetworkMessage.PublisherId = (ushort)10;
             uaNetworkMessage.NetworkMessageNumber = 1;
 
             // Assert
@@ -316,7 +316,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             uaNetworkMessage.SetNetworkMessageContentMask(UadpNetworkMessageContentMask.SequenceNumber |
                                                           UadpNetworkMessageContentMask.PublisherId |
                                                           UadpNetworkMessageContentMask.PayloadHeader);
-            uaNetworkMessage.PublisherId = (UInt16)10;
+            uaNetworkMessage.PublisherId = (ushort)10;
             uaNetworkMessage.SequenceNumber = 1;
 
             // Assert
@@ -347,7 +347,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             // Act  
             uaNetworkMessage.SetNetworkMessageContentMask(UadpNetworkMessageContentMask.PayloadHeader |
                                                           UadpNetworkMessageContentMask.PublisherId);
-            uaNetworkMessage.PublisherId = (UInt16)10;
+            uaNetworkMessage.PublisherId = (ushort)10;
 
             // Assert
             CompareEncodeDecode(uaNetworkMessage);
@@ -378,7 +378,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             uaNetworkMessage.SetNetworkMessageContentMask(UadpNetworkMessageContentMask.Timestamp |
                                                           UadpNetworkMessageContentMask.PublisherId |
                                                           UadpNetworkMessageContentMask.PayloadHeader);
-            uaNetworkMessage.PublisherId = (UInt16)10;
+            uaNetworkMessage.PublisherId = (ushort)10;
             uaNetworkMessage.Timestamp = DateTime.UtcNow;
 
             // Assert
@@ -410,7 +410,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             uaNetworkMessage.SetNetworkMessageContentMask(UadpNetworkMessageContentMask.PicoSeconds |
                                                           UadpNetworkMessageContentMask.PublisherId |
                                                           UadpNetworkMessageContentMask.PayloadHeader);
-            uaNetworkMessage.PublisherId = (UInt16)10;
+            uaNetworkMessage.PublisherId = (ushort)10;
             uaNetworkMessage.PicoSeconds = 10;
 
             // Assert
@@ -475,7 +475,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             m_publisherApplication.DataStore.WritePublishedDataItem(new NodeId("Byte", NamespaceIndexAllTypes), Attributes.Value, byteValue);
             DataValue int16Value = new DataValue(new Variant((short)100));
             m_publisherApplication.DataStore.WritePublishedDataItem(new NodeId("Int16", NamespaceIndexAllTypes), Attributes.Value, int16Value);
-            DataValue int32Value = new DataValue(new Variant((int)1000));
+            DataValue int32Value = new DataValue(new Variant(1000));
             m_publisherApplication.DataStore.WritePublishedDataItem(new NodeId("Int32", NamespaceIndexAllTypes), Attributes.Value, int32Value);
             DataValue sByteValue = new DataValue(new Variant((sbyte)11));
             m_publisherApplication.DataStore.WritePublishedDataItem(new NodeId("SByte", NamespaceIndexAllTypes), Attributes.Value, sByteValue);

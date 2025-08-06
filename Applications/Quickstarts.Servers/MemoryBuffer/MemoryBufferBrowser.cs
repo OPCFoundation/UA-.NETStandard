@@ -140,7 +140,7 @@ namespace MemoryBuffer
             if (!QualifiedName.IsNull(base.BrowseName))
             {
                 // check if match found previously.
-                if (m_position == UInt32.MaxValue)
+                if (m_position == uint.MaxValue)
                 {
                     return null;
                 }
@@ -170,7 +170,7 @@ namespace MemoryBuffer
                 }
 
                 tag = new MemoryTagState(m_buffer, m_position);
-                m_position = UInt32.MaxValue;
+                m_position = uint.MaxValue;
             }
 
             // return the child at the next position.

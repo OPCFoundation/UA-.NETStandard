@@ -45,7 +45,7 @@ namespace Opc.Ua.PubSub.Transport
         private const int kInitialRequestInterval = 5000;
 
         // The list that will store the WriterIds that shall be included in a DataSetMetaData Request message
-        private readonly List<UInt16> m_metadataWriterIdsToSend;
+        private readonly List<ushort> m_metadataWriterIdsToSend;
 
         // the component that triggers the publish request messages
         private readonly IntervalRunner m_intervalRunner;
@@ -97,7 +97,7 @@ namespace Opc.Ua.PubSub.Transport
         /// Enqueue the specified DataSetWriterId for DataSetInformation to be requested 
         /// </summary>
         /// <param name="writerId"></param>
-        public void AddWriterIdForDataSetMetadata(UInt16 writerId)
+        public void AddWriterIdForDataSetMetadata(ushort writerId)
         {
             lock (m_lock)
             {
@@ -112,7 +112,7 @@ namespace Opc.Ua.PubSub.Transport
         /// Removes the specified DataSetWriterId for DataSetInformation to be requested 
         /// </summary>
         /// <param name="writerId"></param>
-        public void RemoveWriterIdForDataSetMetadata(UInt16 writerId)
+        public void RemoveWriterIdForDataSetMetadata(ushort writerId)
         {
             lock (m_lock)
             {
@@ -208,7 +208,7 @@ namespace Opc.Ua.PubSub.Transport
         /// </summary>
         public void SendDiscoveryRequestDataSetMetaData()
         {
-            UInt16[] dataSetWriterIds = null;
+            ushort[] dataSetWriterIds = null;
             lock (m_lock)
             {
                 dataSetWriterIds = m_metadataWriterIdsToSend.ToArray();
@@ -234,7 +234,7 @@ namespace Opc.Ua.PubSub.Transport
                 try
                 {
                     Utils.Trace("UdpDiscoverySubscriber.SendDiscoveryRequestDataSetMetaData Before sending message for DataSetWriterIds:{0}",
-                        String.Join(", ", dataSetWriterIds));
+                        string.Join(", ", dataSetWriterIds));
 
                     udpClient.Send(bytes, bytes.Length, DiscoveryNetworkAddressEndPoint);
                 }

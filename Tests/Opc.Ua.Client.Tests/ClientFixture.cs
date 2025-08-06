@@ -174,7 +174,7 @@ namespace Opc.Ua.Client.Tests
         /// <param name="endpointUrl">The endpoint URL.</param>
         public async Task<ISession> Connect(string endpointUrl)
         {
-            if (String.IsNullOrEmpty(endpointUrl))
+            if (string.IsNullOrEmpty(endpointUrl))
             {
                 throw new ArgumentNullException(nameof(endpointUrl));
             }

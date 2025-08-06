@@ -73,7 +73,7 @@ namespace Opc.Ua
 
             set
             {
-                if (String.IsNullOrEmpty(value))
+                if (string.IsNullOrEmpty(value))
                 {
                     m_guid = Guid.Empty;
                 }

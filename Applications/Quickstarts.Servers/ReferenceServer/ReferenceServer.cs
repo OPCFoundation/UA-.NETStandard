@@ -311,14 +311,14 @@ namespace Quickstarts.ReferenceServer
         {
             var userName = userNameToken.UserName;
             var password = userNameToken.DecryptedPassword;
-            if (String.IsNullOrEmpty(userName))
+            if (string.IsNullOrEmpty(userName))
             {
                 // an empty username is not accepted.
                 throw ServiceResultException.Create(StatusCodes.BadIdentityTokenInvalid,
                     "Security token is not a valid username token. An empty username is not accepted.");
             }
 
-            if (String.IsNullOrEmpty(password))
+            if (string.IsNullOrEmpty(password))
             {
                 // an empty password is not accepted.
                 throw ServiceResultException.Create(StatusCodes.BadIdentityTokenRejected,

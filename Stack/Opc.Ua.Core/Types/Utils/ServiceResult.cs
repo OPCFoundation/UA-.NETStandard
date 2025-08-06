@@ -100,7 +100,7 @@ namespace Opc.Ua
             string namespaceUri,
             LocalizedText localizedText)
         :
-            this(code, symbolicId, namespaceUri, localizedText, (string)null, (ServiceResult)null)
+            this(code, symbolicId, namespaceUri, localizedText, null, (ServiceResult)null)
         {
         }
 
@@ -112,7 +112,7 @@ namespace Opc.Ua
             string symbolicId,
             string namespaceUri)
         :
-            this(code, symbolicId, namespaceUri, (string)null, (string)null, (ServiceResult)null)
+            this(code, symbolicId, namespaceUri, (string)null, null, (ServiceResult)null)
         {
         }
 
@@ -124,7 +124,7 @@ namespace Opc.Ua
             XmlQualifiedName symbolicId,
             LocalizedText localizedText)
         :
-            this(code, (symbolicId != null) ? symbolicId.Name : null, (symbolicId != null) ? symbolicId.Namespace : null, localizedText, (string)null, (ServiceResult)null)
+            this(code, (symbolicId != null) ? symbolicId.Name : null, (symbolicId != null) ? symbolicId.Namespace : null, localizedText, null, (ServiceResult)null)
         {
         }
 
@@ -135,7 +135,7 @@ namespace Opc.Ua
             StatusCode code,
             LocalizedText localizedText)
         :
-            this(code, (string)null, (string)null, localizedText, (string)null, (ServiceResult)null)
+            this(code, null, null, localizedText, null, (ServiceResult)null)
         {
         }
 
@@ -630,7 +630,7 @@ namespace Opc.Ua
 
                 buffer.AppendFormat(CultureInfo.InvariantCulture, ">>> {0}", exception.Message);
 
-                if (!String.IsNullOrEmpty(exception.StackTrace))
+                if (!string.IsNullOrEmpty(exception.StackTrace))
                 {
                     string[] trace = exception.StackTrace.Split(Environment.NewLine.ToCharArray());
                     for (int ii = 0; ii < trace.Length; ii++)
@@ -731,9 +731,9 @@ namespace Opc.Ua
 
             buffer.Append(LookupSymbolicId(m_code));
 
-            if (!String.IsNullOrEmpty(m_symbolicId))
+            if (!string.IsNullOrEmpty(m_symbolicId))
             {
-                if (!String.IsNullOrEmpty(m_namespaceUri))
+                if (!string.IsNullOrEmpty(m_namespaceUri))
                 {
                     buffer.AppendFormat(CultureInfo.InvariantCulture, " ({0}:{1})", m_namespaceUri, m_symbolicId);
                 }
@@ -766,7 +766,7 @@ namespace Opc.Ua
             buffer.Append("Id: ");
             buffer.Append(StatusCodes.GetBrowseName(m_code));
 
-            if (!String.IsNullOrEmpty(m_symbolicId))
+            if (!string.IsNullOrEmpty(m_symbolicId))
             {
                 buffer.AppendLine();
                 buffer.Append("SymbolicId: ");
@@ -830,7 +830,7 @@ namespace Opc.Ua
                 return Utils.Format("[{0}] {1}", exception.GetType().Name, exception.Message);
             }
 
-            return String.Empty;
+            return string.Empty;
         }
         #endregion
 

@@ -86,7 +86,7 @@ namespace Opc.Ua.Bindings
                     uri.Path += "/";
                 }
 
-                if (String.Equals(uri.Host, "localhost", StringComparison.OrdinalIgnoreCase))
+                if (string.Equals(uri.Host, "localhost", StringComparison.OrdinalIgnoreCase))
                 {
                     uri.Host = computerName;
                 }

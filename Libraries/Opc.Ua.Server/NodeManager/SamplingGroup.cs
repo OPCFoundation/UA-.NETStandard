@@ -68,7 +68,7 @@ namespace Opc.Ua.Server
                 }
                 m_effectiveIdentity = savedOwnerIdentity;
             }
-            m_diagnosticsMask = (DiagnosticsMasks)context.DiagnosticsMask & DiagnosticsMasks.OperationAll;
+            m_diagnosticsMask = context.DiagnosticsMask & DiagnosticsMasks.OperationAll;
             m_samplingInterval = AdjustSamplingInterval(samplingInterval);
 
             m_itemsToAdd = new List<ISampledDataChangeMonitoredItem>();

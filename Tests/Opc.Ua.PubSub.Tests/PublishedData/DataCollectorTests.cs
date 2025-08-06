@@ -171,8 +171,8 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
 
             // validate collected values
             Assert.AreEqual(collectedDataSet.Fields[0].Value.Value, false, "collectedDataSet.Fields[0].Value.Value does not match.");
-            Assert.AreEqual(collectedDataSet.Fields[1].Value.Value, (int)1, "collectedDataSet.Fields[1].Value.Value does not match.");
-            Assert.AreEqual(collectedDataSet.Fields[2].Value.Value, (int)2, "collectedDataSet.Fields[2].Value.Value does not match.");
+            Assert.AreEqual(collectedDataSet.Fields[1].Value.Value, 1, "collectedDataSet.Fields[1].Value.Value does not match.");
+            Assert.AreEqual(collectedDataSet.Fields[2].Value.Value, 2, "collectedDataSet.Fields[2].Value.Value does not match.");
             Assert.AreEqual(collectedDataSet.Fields[3].Value.Value, DateTime.MaxValue, "collectedDataSet.Fields[3].Value.Value does not match.");
         }
 
@@ -233,12 +233,12 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
                      new Opc.Ua.KeyValuePair()
                     {
                         Key =  new QualifiedName("Int32"),
-                        Value = (int)100
+                        Value = 100
                     },
                      new Opc.Ua.KeyValuePair()
                     {
                         Key =  new QualifiedName("Int32Fast"),
-                        Value = (int)50
+                        Value = 50
                     },
                     new Opc.Ua.KeyValuePair()
                     {
@@ -271,8 +271,8 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
             Assert.AreEqual(collectedDataSet.Fields.Length, publishedDataItems.PublishedData.Count, "collectedDataSet and published data fields count do not match.");
             // validate collected values
             Assert.AreEqual(collectedDataSet.Fields[0].Value.Value, true, "collectedDataSet.Fields[0].Value.Value does not match.");
-            Assert.AreEqual(collectedDataSet.Fields[1].Value.Value, (int)100, "collectedDataSet.Fields[1].Value.Value does not match.");
-            Assert.AreEqual(collectedDataSet.Fields[2].Value.Value, (int)50, "collectedDataSet.Fields[2].Value.Value does not match.");
+            Assert.AreEqual(collectedDataSet.Fields[1].Value.Value, 100, "collectedDataSet.Fields[1].Value.Value does not match.");
+            Assert.AreEqual(collectedDataSet.Fields[2].Value.Value, 50, "collectedDataSet.Fields[2].Value.Value does not match.");
             Assert.AreEqual(collectedDataSet.Fields[3].Value.Value, DateTime.Today, "collectedDataSet.Fields[3].Value.Value does not match.");
         }
 

@@ -187,7 +187,7 @@ namespace Opc.Ua
         public StatusCode SetFlagBits(uint bits)
         {
             m_code &= 0xFFFF0000;
-            m_code |= ((uint)bits & 0x0000FFFF);
+            m_code |= (bits & 0x0000FFFF);
 
             return this;
         }
@@ -478,7 +478,7 @@ namespace Opc.Ua
             {
                 string text = StatusCodes.GetBrowseName(m_code & 0xFFFF0000);
 
-                if (!String.IsNullOrEmpty(text))
+                if (!string.IsNullOrEmpty(text))
                 {
                     return string.Format(formatProvider, "{0}", text);
                 }

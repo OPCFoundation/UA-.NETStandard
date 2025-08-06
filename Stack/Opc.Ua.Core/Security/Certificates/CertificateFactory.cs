@@ -78,8 +78,8 @@ namespace Opc.Ua
         /// <param name="ensurePrivateKeyAccessible">If true a key container is created for a certificate that must be deleted by calling Cleanup.</param>
         /// <returns>The cached certificate.</returns>
         /// <remarks>
-        /// This function is necessary because all private keys used for cryptography 
-        /// operations must be in a key container. 
+        /// This function is necessary because all private keys used for cryptography
+        /// operations must be in a key container.
         /// Private keys stored in a PFX file have no key container by default.
         /// </remarks>
         public static X509Certificate2 Load(X509Certificate2 certificate, bool ensurePrivateKeyAccessible)
@@ -197,7 +197,7 @@ namespace Opc.Ua
             string applicationUri,
             string applicationName,
             string subjectName,
-            IList<String> domainNames,
+            IList<string> domainNames,
             ushort keySize,
             DateTime startTime,
             ushort lifetimeInMonths,
@@ -229,7 +229,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Revoke the certificates. 
+        /// Revoke the certificates.
         /// </summary>
         /// <remarks>
         /// Merge all existing revoked certificates from CRL list.
@@ -314,7 +314,7 @@ namespace Opc.Ua
         public static byte[] CreateSigningRequest(
             X509Certificate2 certificate,
             // TODO: provide CertificateType to return CSR per certificate type
-            IList<String> domainNames = null
+            IList<string> domainNames = null
             )
         {
             if (!certificate.HasPrivateKey)
@@ -337,7 +337,7 @@ namespace Opc.Ua
                 request = new CertificateRequest(certificate.SubjectName, eCDsaPublicKey, Oids.GetHashAlgorithmName(certificate.SignatureAlgorithm.Value));
             }
             var alternateName = X509Extensions.FindExtension<X509SubjectAltNameExtension>(certificate);
-            domainNames = domainNames ?? new List<String>();
+            domainNames = domainNames ?? new List<string>();
             if (alternateName != null)
             {
                 foreach (var name in alternateName.DomainNames)
@@ -418,7 +418,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Create a X509Certificate2 with a private key by combining 
+        /// Create a X509Certificate2 with a private key by combining
         /// the certificate with a private key from a PEM stream
         /// </summary>
         public static X509Certificate2 CreateCertificateWithPEMPrivateKey(
@@ -447,7 +447,7 @@ namespace Opc.Ua
         /// </summary>
         public static byte[] CreateSigningRequest(
             X509Certificate2 certificate,
-            IList<String> domainNames = null
+            IList<string> domainNames = null
             )
         {
             return CertificateBuilder.CreateSigningRequest(
@@ -456,7 +456,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Create a X509Certificate2 with a private key by combining 
+        /// Create a X509Certificate2 with a private key by combining
         /// the new certificate with a private key from an existing certificate
         /// </summary>
         public static X509Certificate2 CreateCertificateWithPrivateKey(
@@ -483,7 +483,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Create a X509Certificate2 with a private key by combining 
+        /// Create a X509Certificate2 with a private key by combining
         /// the certificate with a private key from a PEM stream
         /// </summary>
         public static X509Certificate2 CreateCertificateWithPEMPrivateKey(
@@ -549,7 +549,7 @@ namespace Opc.Ua
         string applicationUri,
         string applicationName,
         string subjectName,
-        IList<String> domainNames,
+        IList<string> domainNames,
         ushort keySize,
         DateTime startTime,
         ushort lifetimeInMonths,
@@ -608,18 +608,18 @@ namespace Opc.Ua
             ref string applicationUri,
             ref string applicationName,
             ref string subjectName,
-            ref IList<String> domainNames)
+            ref IList<string> domainNames)
         {
             // parse the subject name if specified.
             List<string> subjectNameEntries = null;
 
-            if (!String.IsNullOrEmpty(subjectName))
+            if (!string.IsNullOrEmpty(subjectName))
             {
                 subjectNameEntries = X509Utils.ParseDistinguishedName(subjectName);
             }
 
             // check the application name.
-            if (String.IsNullOrEmpty(applicationName))
+            if (string.IsNullOrEmpty(applicationName))
             {
                 if (subjectNameEntries == null)
                 {
@@ -637,7 +637,7 @@ namespace Opc.Ua
                 }
             }
 
-            if (String.IsNullOrEmpty(applicationName))
+            if (string.IsNullOrEmpty(applicationName))
             {
                 throw new ArgumentNullException(nameof(applicationName), "Must specify a applicationName or a subjectName.");
             }
@@ -649,7 +649,7 @@ namespace Opc.Ua
             {
                 char ch = applicationName[ii];
 
-                if (Char.IsControl(ch) || ch == '/' || ch == ',' || ch == ';')
+                if (char.IsControl(ch) || ch == '/' || ch == ',' || ch == ';')
                 {
                     ch = '+';
                 }
@@ -667,7 +667,7 @@ namespace Opc.Ua
             }
 
             // create the application uri.
-            if (String.IsNullOrEmpty(applicationUri))
+            if (string.IsNullOrEmpty(applicationUri))
             {
                 StringBuilder builder = new StringBuilder();
 
@@ -687,19 +687,19 @@ namespace Opc.Ua
             }
 
             // create the subject name,
-            if (String.IsNullOrEmpty(subjectName))
+            if (string.IsNullOrEmpty(subjectName))
             {
                 subjectName = Utils.Format("CN={0}", applicationName);
             }
 
-            if (!subjectName.Contains("CN="))
+            if (!subjectName.Contains("CN=", StringComparison.Ordinal))
             {
                 subjectName = Utils.Format("CN={0}", subjectName);
             }
 
             if (domainNames != null && domainNames.Count > 0)
             {
-                if (!subjectName.Contains("DC=") && !subjectName.Contains('='))
+                if (!subjectName.Contains("DC=", StringComparison.Ordinal) && !subjectName.Contains('=', StringComparison.Ordinal))
                 {
                     subjectName += Utils.Format(", DC={0}", domainNames[0]);
                 }

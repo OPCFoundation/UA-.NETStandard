@@ -556,7 +556,7 @@ namespace Opc.Ua.Server
                         auditCertificateEventState.SetChildValue(systemContext, BrowseNames.SourceName, "Security/Certificate", false);
 
                         // set AuditSecurityEventType fields
-                        auditCertificateEventState.SetChildValue(systemContext, BrowseNames.StatusCodeId, (StatusCode)sre.InnerResult.StatusCode, false);
+                        auditCertificateEventState.SetChildValue(systemContext, BrowseNames.StatusCodeId, sre.InnerResult.StatusCode, false);
 
                         // set AuditCertificateEventType fields
                         auditCertificateEventState.SetChildValue(systemContext, BrowseNames.Certificate, clientCertificate?.RawData, false);

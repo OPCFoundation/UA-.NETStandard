@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2023 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -89,7 +89,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         [Benchmark]
         public bool UtilsIsEqualObjectCompare()
         {
-            return Utils.IsEqual((object)m_bufferA, (object)m_bufferB);
+            return Utils.IsEqual(m_bufferA, (object)m_bufferB);
         }
 
         /// <summary>
@@ -98,7 +98,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         [Benchmark]
         public bool UtilsIsEqualIEnumerableCompare()
         {
-            return Utils.IsEqual((IEnumerable<byte>)m_bufferA, (IEnumerable<byte>)m_bufferB);
+            return Utils.IsEqual(m_bufferA, (IEnumerable<byte>)m_bufferB);
         }
 
         /// <summary>
@@ -137,7 +137,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             if (m_windows)
             {
                 // Validate buffers are the same length.
-                // This also ensures that the count does not exceed the length of either buffer.  
+                // This also ensures that the count does not exceed the length of either buffer.
                 return m_bufferA.Length == m_bufferB.Length && memcmp(m_bufferA, m_bufferB, m_bufferA.Length) == 0;
             }
             else
@@ -173,21 +173,27 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         public void UtilsIsEqualArrayEqualsByteArrayTest()
         {
             // byte arrays and null
-            Assert.AreEqual(Utils.IsEqual((object)m_bufferA, (object)m_bufferB), Utils.IsEqual(m_bufferA, m_bufferB));
-            Assert.AreEqual(Utils.IsEqual((object)null, (object)m_bufferB), Utils.IsEqual(null, m_bufferB));
-            Assert.AreEqual(Utils.IsEqual((object)m_bufferA, (object)null), Utils.IsEqual(m_bufferA, null));
-            Assert.AreEqual(Utils.IsEqual((object)null, (object)null), Utils.IsEqual((byte[])null, (byte[])null));
 
-            Assert.AreEqual(Utils.IsEqual((object)m_bufferA, (object)m_bufferB), Utils.IsEqual((IEnumerable)m_bufferA, (IEnumerable)m_bufferB));
-            Assert.AreEqual(Utils.IsEqual((object)null, (object)m_bufferB), Utils.IsEqual((IEnumerable)null, (IEnumerable)m_bufferB));
-            Assert.AreEqual(Utils.IsEqual((object)m_bufferA, (object)null), Utils.IsEqual((IEnumerable)m_bufferA, (IEnumerable)null));
+            Assert.AreEqual(Utils.IsEqual(m_bufferA, (object)m_bufferB), Utils.IsEqual(m_bufferA, m_bufferB));
+            Assert.AreEqual(Utils.IsEqual(null, (object)m_bufferB), Utils.IsEqual(null, m_bufferB));
+            Assert.AreEqual(Utils.IsEqual(m_bufferA, (object)null), Utils.IsEqual(m_bufferA, null));
+            Assert.AreEqual(Utils.IsEqual(null, null), Utils.IsEqual(null, (byte[])null));
 
-            Assert.AreEqual(Utils.IsEqual((object)m_bufferA, (object)m_bufferB), Utils.IsEqual((Array)m_bufferA, (Array)m_bufferB));
-            Assert.AreEqual(Utils.IsEqual((object)null, (object)m_bufferB), Utils.IsEqual((Array)null, (Array)m_bufferB));
-            Assert.AreEqual(Utils.IsEqual((object)m_bufferA, (object)null), Utils.IsEqual((Array)m_bufferA, (Array)null));
+            Assert.AreEqual(Utils.IsEqual(m_bufferA, (object)m_bufferB), Utils.IsEqual(m_bufferA, m_bufferB));
+            Assert.AreEqual(Utils.IsEqual(null, (object)m_bufferB), Utils.IsEqual(null, m_bufferB));
+            Assert.AreEqual(Utils.IsEqual(m_bufferA, (object)null), Utils.IsEqual(m_bufferA, null));
+            Assert.AreEqual(Utils.IsEqual(null, (object)null), Utils.IsEqual(null, null));
+
+            Assert.AreEqual(Utils.IsEqual(m_bufferA, (object)m_bufferB), Utils.IsEqual(m_bufferA, (IEnumerable)m_bufferB));
+            Assert.AreEqual(Utils.IsEqual(null, (object)m_bufferB), Utils.IsEqual(null, (IEnumerable)m_bufferB));
+            Assert.AreEqual(Utils.IsEqual(m_bufferA, (object)null), Utils.IsEqual(m_bufferA, (IEnumerable)null));
+
+            Assert.AreEqual(Utils.IsEqual(m_bufferA, (object)m_bufferB), Utils.IsEqual(m_bufferA, (Array)m_bufferB));
+            Assert.AreEqual(Utils.IsEqual(null, (object)m_bufferB), Utils.IsEqual(null, (Array)m_bufferB));
+            Assert.AreEqual(Utils.IsEqual(m_bufferA, (object)null), Utils.IsEqual(m_bufferA, (Array)null));
 
             int i = 1;
-            Assert.AreEqual(Utils.IsEqual((object)i, (object)m_bufferB), Utils.IsEqual(i, m_bufferB));
+            Assert.AreEqual(Utils.IsEqual(i, m_bufferB), Utils.IsEqual(i, m_bufferB));
         }
 
         #region Test Setup
@@ -393,7 +399,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
 
                 while (enumerator1.MoveNext())
                 {
-                    // enumerable2 must be shorter. 
+                    // enumerable2 must be shorter.
                     if (!enumerator2.MoveNext())
                     {
                         return false;

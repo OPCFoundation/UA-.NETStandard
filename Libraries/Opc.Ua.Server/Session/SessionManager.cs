@@ -185,7 +185,7 @@ namespace Opc.Ua.Server
 
                 // can assign a simple identifier if secured.
                 authenticationToken = null;
-                if (!String.IsNullOrEmpty(context.ChannelContext.SecureChannelId))
+                if (!string.IsNullOrEmpty(context.ChannelContext.SecureChannelId))
                 {
                     if (context.ChannelContext.EndpointDescription.SecurityMode != MessageSecurityMode.None)
                     {
@@ -216,7 +216,7 @@ namespace Opc.Ua.Server
 
 
                 // assign client name.
-                if (String.IsNullOrEmpty(sessionName))
+                if (string.IsNullOrEmpty(sessionName))
                 {
                     sessionName = Utils.Format("Session {0}", sessionId);
                 }

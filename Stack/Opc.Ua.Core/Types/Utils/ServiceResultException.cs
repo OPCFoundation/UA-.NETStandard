@@ -46,7 +46,7 @@ namespace Opc.Ua
         /// </summary>
         public ServiceResultException(Exception e, uint defaultCode) : base(e.Message, e)
         {
-            m_status = ServiceResult.Create(e, defaultCode, String.Empty);
+            m_status = ServiceResult.Create(e, defaultCode, string.Empty);
         }
 
         /// <summary>

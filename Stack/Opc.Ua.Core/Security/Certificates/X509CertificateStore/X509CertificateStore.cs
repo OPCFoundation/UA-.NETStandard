@@ -77,7 +77,7 @@ namespace Opc.Ua
             }
 
             // extract store name.
-            int index = location.IndexOf('\\');
+            int index = location.IndexOf('\\', StringComparison.Ordinal);
             if (index == -1)
             {
                 throw ServiceResultException.Create(

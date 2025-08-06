@@ -154,7 +154,7 @@ namespace Opc.Ua
         /// Returns a string representation of the ReferenceCollection.
         /// </summary>
         /// <returns>
-        /// A <see cref="System.String"/> that represents the current <see cref="System.Object"/>.
+        /// A <see cref="string"/> that represents the current <see cref="object"/>.
         /// </returns>
         public override string ToString()
         {
@@ -164,14 +164,14 @@ namespace Opc.Ua
         /// <summary>
         /// Returns a string representation of the ReferenceCollection.
         /// </summary>
-        /// <param name="format">The <see cref="System.String"/> specifying the format to use.
+        /// <param name="format">The <see cref="string"/> specifying the format to use.
         /// -or-
         /// null to use the default format defined for the type of the <see cref="System.IFormattable"/> implementation.</param>
         /// <param name="formatProvider">The <see cref="System.IFormatProvider"/> to use to format the value.
         /// -or-
         /// null to obtain the numeric format information from the current locale setting of the operating system.</param>
         /// <returns>
-        /// A <see cref="System.String"/> containing the value of the current instance in the specified format.
+        /// A <see cref="string"/> containing the value of the current instance in the specified format.
         /// </returns>
         public string ToString(string format, IFormatProvider formatProvider)
         {

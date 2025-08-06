@@ -839,7 +839,7 @@ namespace Opc.Ua
         /// The value stored in the object.
         /// </summary>
         /// <remarks>
-        /// The value stored -as <see cref="Object"/>- within the Variant object.
+        /// The value stored -as <see cref="object"/>- within the Variant object.
         /// </remarks>
         public object Value
         {
@@ -1551,7 +1551,7 @@ namespace Opc.Ua
         /// </summary>
         public bool Equals(Variant other)
         {
-            Variant? variant = other as Variant?;
+            Variant? variant = other;
 
             if (variant != null)
             {

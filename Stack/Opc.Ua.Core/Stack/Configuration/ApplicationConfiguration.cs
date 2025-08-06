@@ -427,7 +427,7 @@ namespace Opc.Ua
         /// <param name="applicationType">Type of the application.</param>
         public virtual async Task Validate(ApplicationType applicationType)
         {
-            if (String.IsNullOrEmpty(ApplicationName))
+            if (string.IsNullOrEmpty(ApplicationName))
             {
                 throw ServiceResultException.Create(StatusCodes.BadConfigurationError, "ApplicationName must be specified.");
             }
@@ -454,7 +454,7 @@ namespace Opc.Ua
                 return sb.ToString();
             };
 
-            if (String.IsNullOrEmpty(ApplicationUri)) m_applicationUri = generateDefaultUri();
+            if (string.IsNullOrEmpty(ApplicationUri)) m_applicationUri = generateDefaultUri();
 
             if (applicationType == ApplicationType.Client || applicationType == ApplicationType.ClientAndServer)
             {

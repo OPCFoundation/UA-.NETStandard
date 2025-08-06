@@ -117,7 +117,7 @@ namespace Opc.Ua
                 }
 
                 // set a default for application uri.
-                if (String.IsNullOrEmpty(endpoint.Description.Server.ApplicationUri))
+                if (string.IsNullOrEmpty(endpoint.Description.Server.ApplicationUri))
                 {
                     endpoint.Description.Server.ApplicationUri = endpoint.Description.EndpointUrl;
                 }
@@ -504,7 +504,7 @@ namespace Opc.Ua
         {
             if (server == null) throw new ArgumentNullException(nameof(server));
 
-            if (String.IsNullOrEmpty(server.ApplicationUri))
+            if (string.IsNullOrEmpty(server.ApplicationUri))
             {
                 throw new ArgumentException("A ServerUri must provided.", nameof(server));
             }
@@ -523,7 +523,7 @@ namespace Opc.Ua
 
                 for (int ii = 0; ii < server.DiscoveryUrls.Count; ii++)
                 {
-                    if (!String.IsNullOrEmpty(server.DiscoveryUrls[ii]))
+                    if (!string.IsNullOrEmpty(server.DiscoveryUrls[ii]))
                     {
                         endpointUrl = server.DiscoveryUrls[ii];
                         break;
@@ -578,7 +578,7 @@ namespace Opc.Ua
             string securityPolicyUri = SecurityPolicies.Basic256Sha256;
             bool useBinaryEncoding = true;
 
-            if (!String.IsNullOrEmpty(parameters))
+            if (!string.IsNullOrEmpty(parameters))
             {
                 string[] fields = parameters.Split(new char[] { '-', '[', ':', ']' }, StringSplitOptions.RemoveEmptyEntries);
 
@@ -696,7 +696,7 @@ namespace Opc.Ua
             {
                 ApplicationDescription server = endpoint.Description.Server;
 
-                if (!String.IsNullOrEmpty(server.ApplicationUri))
+                if (!string.IsNullOrEmpty(server.ApplicationUri))
                 {
 #if NET6_0_OR_GREATER
                     servers.TryAdd(server.ApplicationUri, server);
@@ -773,7 +773,7 @@ namespace Opc.Ua
                 throw new ArgumentException("Endpoint must not be null.");
             }
 
-            if (String.IsNullOrEmpty(endpoint.EndpointUrl))
+            if (string.IsNullOrEmpty(endpoint.EndpointUrl))
             {
                 throw new ArgumentException("Endpoint must have a valid URL.");
             }
@@ -784,7 +784,7 @@ namespace Opc.Ua
                 endpoint.Server.ApplicationType = ApplicationType.Server;
             }
 
-            if (String.IsNullOrEmpty(endpoint.Server.ApplicationUri))
+            if (string.IsNullOrEmpty(endpoint.Server.ApplicationUri))
             {
                 endpoint.Server.ApplicationUri = endpoint.EndpointUrl;
             }
@@ -1288,7 +1288,7 @@ namespace Opc.Ua
         {
             get
             {
-                if (String.IsNullOrEmpty(m_description.EndpointUrl))
+                if (string.IsNullOrEmpty(m_description.EndpointUrl))
                 {
                     return null;
                 }
@@ -1369,7 +1369,7 @@ namespace Opc.Ua
             foreach (EndpointDescription description in collection)
             {
                 // check for match on security policy.
-                if (!String.IsNullOrEmpty(securityPolicyUri))
+                if (!string.IsNullOrEmpty(securityPolicyUri))
                 {
                     if (securityPolicyUri != description.SecurityPolicyUri)
                     {
@@ -1475,7 +1475,7 @@ namespace Opc.Ua
             if (discoveryUrl != null)
             {
                 Uri matchUrl = Utils.ParseUri(match.EndpointUrl);
-                if (matchUrl == null || !String.Equals(discoveryUrl.DnsSafeHost, matchUrl.DnsSafeHost, StringComparison.OrdinalIgnoreCase))
+                if (matchUrl == null || !string.Equals(discoveryUrl.DnsSafeHost, matchUrl.DnsSafeHost, StringComparison.OrdinalIgnoreCase))
                 {
                     UriBuilder uri = new UriBuilder(matchUrl);
                     uri.Host = discoveryUrl.DnsSafeHost;

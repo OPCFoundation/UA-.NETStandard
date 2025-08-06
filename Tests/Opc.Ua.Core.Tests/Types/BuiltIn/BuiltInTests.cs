@@ -370,7 +370,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             id = new NodeId((object)guid, 123);
             Assert.AreEqual(123, id.NamespaceIndex);
             Assert.AreEqual(guid, id.Identifier);
-            Assert.Throws<ArgumentException>(() => _ = new NodeId((object)(long)7777777, 123));
+            Assert.Throws<ArgumentException>(() => _ = new NodeId((long)7777777, 123));
 
             var sre = Assert.Throws<ServiceResultException>(() => _ = NodeId.Create(123, "urn:xyz", new NamespaceTable()));
             Assert.AreEqual((StatusCode)StatusCodes.BadNodeIdInvalid, (StatusCode)sre.StatusCode);
@@ -401,7 +401,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
 
             id.SetIdentifier("Test", IdType.Opaque);
 
-            Assert.Throws<ArgumentException>(() => _ = new NodeId((object)(int)123, 123));
+            Assert.Throws<ArgumentException>(() => _ = new NodeId((object)123, 123));
             Assert.Throws<ServiceResultException>(() => _ = NodeId.Create((uint)123, "urn:xyz", null));
             Assert.Throws<ServiceResultException>(() => _ = NodeId.Parse("ns="));
             Assert.Throws<ArgumentException>(() => _ = NodeId.Parse("nsu="));
@@ -482,7 +482,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             Assert.False(nodeIdText == nodeId2);
             Assert.False(nodeIdText > nodeId2);
 
-            _ = new ExpandedNodeId((uint)123, 123);
+            _ = new ExpandedNodeId(123, 123);
             _ = new ExpandedNodeId("Test", 123);
             _ = new ExpandedNodeId(byteid2, 123);
             _ = new ExpandedNodeId(0, 123);
@@ -506,17 +506,17 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
 
             string namespaceUri = "http://opcfoundation.org/Namespace";
 
-            id = new ExpandedNodeId((object)(uint)123, 321, namespaceUri, 2);
+            id = new ExpandedNodeId((uint)123, 321, namespaceUri, 2);
             Assert.AreEqual(2, id.ServerIndex);
             Assert.AreEqual(123, (uint)id.Identifier);
             Assert.AreEqual(321, id.NamespaceIndex);
             Assert.AreEqual(namespaceUri, id.NamespaceUri);
             Assert.AreEqual($"svr=2;nsu={namespaceUri};ns=321;i=123", id.ToString());
 
-            id = new ExpandedNodeId((object)"Test", 123, namespaceUri, 1);
-            nodeId = new ExpandedNodeId((object)byteid2, 123, namespaceUri, 0);
-            _ = new ExpandedNodeId((object)null, 123, namespaceUri, 1);
-            nodeId2 = new ExpandedNodeId((object)guid1, 123, namespaceUri, 1);
+            id = new ExpandedNodeId("Test", 123, namespaceUri, 1);
+            nodeId = new ExpandedNodeId(byteid2, 123, namespaceUri, 0);
+            _ = new ExpandedNodeId(null, 123, namespaceUri, 1);
+            nodeId2 = new ExpandedNodeId(guid1, 123, namespaceUri, 1);
             Assert.AreNotEqual(nodeId, nodeId2);
             Assert.AreNotEqual(nodeId.GetHashCode(), nodeId2.GetHashCode());
 
@@ -526,7 +526,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             Assert.AreEqual(nodeId, nodeId2);
             Assert.AreEqual(teststring, nodeId2.ToString());
 
-            Assert.Throws<ArgumentException>(() => _ = new ExpandedNodeId((object)(int)123, 123, namespaceUri, 1));
+            Assert.Throws<ArgumentException>(() => _ = new ExpandedNodeId(123, 123, namespaceUri, 1));
             Assert.Throws<ServiceResultException>(() => _ = ExpandedNodeId.Parse("ns="));
             Assert.Throws<ServiceResultException>(() => _ = ExpandedNodeId.Parse("nsu="));
             Assert.Throws<ArgumentException>(() => id = "Test");

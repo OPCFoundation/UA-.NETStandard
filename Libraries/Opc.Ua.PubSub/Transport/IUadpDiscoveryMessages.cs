@@ -64,14 +64,14 @@ namespace Opc.Ua.PubSub
         /// </summary>
         /// <param name="dataSetWriterIds"></param>
         /// <returns></returns>
-        IList<UaNetworkMessage> CreateDataSetMetaDataNetworkMessages(UInt16[] dataSetWriterIds);
+        IList<UaNetworkMessage> CreateDataSetMetaDataNetworkMessages(ushort[] dataSetWriterIds);
 
         /// <summary>
         /// Create and return the list of DataSetWriterConfiguration response message
         /// </summary>
         /// <param name="dataSetWriterIds">DataSetWriter ids</param>
         /// <returns></returns>
-        IList<UaNetworkMessage> CreateDataSetWriterCofigurationMessage(UInt16[] dataSetWriterIds);
+        IList<UaNetworkMessage> CreateDataSetWriterCofigurationMessage(ushort[] dataSetWriterIds);
 
         /// <summary>
         /// Request UADP Discovery DataSetWriterConfiguration messages
@@ -99,5 +99,5 @@ namespace Opc.Ua.PubSub
     /// Get DataSetWriterConfiguration ids event handler
     /// </summary>
     /// <returns></returns>
-    public delegate IList<UInt16> GetDataSetWriterIdsEventHandler(UaPubSubApplication uaPubSubApplication);
+    public delegate IList<ushort> GetDataSetWriterIdsEventHandler(UaPubSubApplication uaPubSubApplication);
 }

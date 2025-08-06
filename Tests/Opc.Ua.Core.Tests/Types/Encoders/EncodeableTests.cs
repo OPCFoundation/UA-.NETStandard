@@ -129,7 +129,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                     break;
                 case EncodingType.Xml:
                     var xml = Encoding.UTF8.GetString(buffer);
-                    Assert.IsTrue(xml.Contains("<Array xmlns=\"urn:This:is:another:namespace\">"));
+                    Assert.IsTrue(xml.Contains("<Array xmlns=\"urn:This:is:another:namespace\">", StringComparison.Ordinal));
                     break;
             }
 

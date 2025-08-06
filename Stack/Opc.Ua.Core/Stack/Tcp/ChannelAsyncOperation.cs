@@ -33,7 +33,7 @@ namespace Opc.Ua.Bindings
             m_synchronous = false;
             m_completed = false;
 
-            if (timeout > 0 && timeout != Int32.MaxValue)
+            if (timeout > 0 && timeout != int.MaxValue)
             {
                 m_timer = new Timer(new TimerCallback(OnTimeout), null, timeout, Timeout.Infinite);
             }
@@ -227,7 +227,7 @@ namespace Opc.Ua.Bindings
                 {
                     Task<bool> awaitableTask = m_tcs.Task;
 #if NET6_0_OR_GREATER
-                    if (timeout != Int32.MaxValue)
+                    if (timeout != int.MaxValue)
                     {
                         awaitableTask = m_tcs.Task.WaitAsync(TimeSpan.FromMilliseconds(timeout), ct);
                     }
@@ -236,7 +236,7 @@ namespace Opc.Ua.Bindings
                         awaitableTask = m_tcs.Task.WaitAsync(ct);
                     }
 #else
-                    if (timeout != Int32.MaxValue || ct != default)
+                    if (timeout != int.MaxValue || ct != default)
                     {
                         Task completedTask = await Task.WhenAny(m_tcs.Task, Task.Delay(timeout, ct)).ConfigureAwait(false);
                         if (m_tcs.Task == completedTask)

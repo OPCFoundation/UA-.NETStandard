@@ -171,7 +171,7 @@ namespace Opc.Ua.Security.Certificates
                         switch (count)
                         {
                             case 1:
-                                if (String.IsNullOrEmpty(password))
+                                if (string.IsNullOrEmpty(password))
                                 {
                                     throw new ArgumentException("Need password for encrypted private key.");
                                 }

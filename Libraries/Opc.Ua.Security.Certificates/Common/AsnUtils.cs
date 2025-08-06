@@ -47,7 +47,7 @@ namespace Opc.Ua.Security.Certificates
         {
             if (buffer == null || buffer.Length == 0)
             {
-                return String.Empty;
+                return string.Empty;
             }
 
 #if NET6_0_OR_GREATER

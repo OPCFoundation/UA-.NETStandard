@@ -1383,7 +1383,7 @@ namespace Opc.Ua
                 );
 
             foreach (var batchMonitoredItemIds in
-                monitoredItemIds.Batch<UInt32, UInt32Collection>(operationLimit))
+                monitoredItemIds.Batch<uint, UInt32Collection>(operationLimit))
             {
                 if (requestHeader != null)
                 {
@@ -1426,7 +1426,7 @@ namespace Opc.Ua
                 );
 
             foreach (var batchMonitoredItemIds in
-                monitoredItemIds.Batch<UInt32, UInt32Collection>(operationLimit))
+                monitoredItemIds.Batch<uint, UInt32Collection>(operationLimit))
             {
                 if (requestHeader != null)
                 {
@@ -1484,7 +1484,7 @@ namespace Opc.Ua
                 );
 
             foreach (var batchLinksToAdd in
-                linksToAdd.Batch<UInt32, UInt32Collection>(operationLimit))
+                linksToAdd.Batch<uint, UInt32Collection>(operationLimit))
             {
                 UInt32Collection batchLinksToRemove;
                 if (operationLimit == 0)
@@ -1533,7 +1533,7 @@ namespace Opc.Ua
             if (linksToRemove.Count > 0)
             {
                 foreach (var batchLinksToRemove in
-                    linksToRemove.Batch<UInt32, UInt32Collection>(operationLimit))
+                    linksToRemove.Batch<uint, UInt32Collection>(operationLimit))
                 {
                     if (requestHeader != null)
                     {
@@ -1592,7 +1592,7 @@ namespace Opc.Ua
                 );
 
             foreach (var batchLinksToAdd in
-                linksToAdd.Batch<UInt32, UInt32Collection>(operationLimit))
+                linksToAdd.Batch<uint, UInt32Collection>(operationLimit))
             {
                 UInt32Collection batchLinksToRemove;
                 if (operationLimit == 0)
@@ -1642,7 +1642,7 @@ namespace Opc.Ua
             if (linksToRemove.Count > 0)
             {
                 foreach (var batchLinksToRemove in
-                    linksToRemove.Batch<UInt32, UInt32Collection>(operationLimit))
+                    linksToRemove.Batch<uint, UInt32Collection>(operationLimit))
                 {
                     if (requestHeader != null)
                     {
@@ -1704,7 +1704,7 @@ namespace Opc.Ua
                 );
 
             foreach (var batchMonitoredItemIds in
-                monitoredItemIds.Batch<UInt32, UInt32Collection>(operationLimit))
+                monitoredItemIds.Batch<uint, UInt32Collection>(operationLimit))
             {
                 if (requestHeader != null)
                 {
@@ -1745,7 +1745,7 @@ namespace Opc.Ua
                 );
 
             foreach (var batchMonitoredItemIds in
-                monitoredItemIds.Batch<UInt32, UInt32Collection>(operationLimit))
+                monitoredItemIds.Batch<uint, UInt32Collection>(operationLimit))
             {
                 if (requestHeader != null)
                 {

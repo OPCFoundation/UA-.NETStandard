@@ -48,7 +48,7 @@ namespace Opc.Ua.Security
         /// <returns>The new instance.</returns>
         public static ISecurityConfigurationManager CreateInstance(string typeName)
         {
-            if (String.IsNullOrEmpty(typeName))
+            if (string.IsNullOrEmpty(typeName))
             {
                 return new SecurityConfigurationManager();
             }

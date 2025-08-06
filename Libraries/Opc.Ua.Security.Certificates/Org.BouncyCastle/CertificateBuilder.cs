@@ -185,7 +185,7 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         public static byte[] CreateSigningRequest(
             X509Certificate2 certificate,
-            IList<String> domainNames = null
+            IList<string> domainNames = null
             )
         {
             if (certificate == null) throw new ArgumentNullException(nameof(certificate));
@@ -205,7 +205,7 @@ namespace Opc.Ua.Security.Certificates
                 X509SubjectAltNameExtension alternateName = new X509SubjectAltNameExtension(san, san.Critical);
 
                 string applicationUri = null;
-                domainNames = domainNames ?? new List<String>();
+                domainNames = domainNames ?? new List<string>();
                 if (alternateName != null)
                 {
                     if (alternateName.Uris.Count > 0)

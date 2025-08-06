@@ -72,7 +72,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <param name="writerGroupConfiguration">The <see cref="WriterGroupDataType"/> conflagration object that produced this message.</param> 
         /// <param name="uadpDataSetMessages"><see cref="UadpDataSetMessage"/> list as input</param>
         public UadpNetworkMessage(WriterGroupDataType writerGroupConfiguration, List<UadpDataSetMessage> uadpDataSetMessages)
-            : base(writerGroupConfiguration, uadpDataSetMessages?.ConvertAll<UaDataSetMessage>(x => (UaDataSetMessage)x) ?? new List<UaDataSetMessage>())
+            : base(writerGroupConfiguration, uadpDataSetMessages?.ConvertAll<UaDataSetMessage>(x => x) ?? new List<UaDataSetMessage>())
         {
             UADPVersion = kUadpVersion;
             DataSetClassId = Guid.Empty;
@@ -215,7 +215,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Discovery DataSetWriter Identifiers
         /// </summary>
-        public UInt16[] DataSetWriterIds
+        public ushort[] DataSetWriterIds
         {
             get
             {
@@ -267,22 +267,22 @@ namespace Opc.Ua.PubSub.Encoding
                 object adjustedValue = value;
                 switch (value)
                 {
-                    case Int16 int16Value:
+                    case short int16Value:
                         if (int16Value > 0)
                         {
-                            adjustedValue = (UInt16)int16Value;
+                            adjustedValue = (ushort)int16Value;
                         }
                         break;
-                    case Int32 int32Value:
+                    case int int32Value:
                         if (int32Value > 0)
                         {
-                            adjustedValue = (UInt32)int32Value;
+                            adjustedValue = (uint)int32Value;
                         }
                         break;
-                    case Int64 int64Value:
+                    case long int64Value:
                         if (int64Value > 0)
                         {
-                            adjustedValue = (UInt64)int64Value;
+                            adjustedValue = (ulong)int64Value;
                         }
                         break;
                 }
@@ -299,19 +299,19 @@ namespace Opc.Ua.PubSub.Encoding
                 {
                     publishedIdTypeType = PublisherIdTypeEncodingMask.Byte;
                 }
-                else if (m_publisherId is UInt16)
+                else if (m_publisherId is ushort)
                 {
                     publishedIdTypeType = PublisherIdTypeEncodingMask.UInt16;
                 }
-                else if (m_publisherId is UInt32)
+                else if (m_publisherId is uint)
                 {
                     publishedIdTypeType = PublisherIdTypeEncodingMask.UInt32;
                 }
-                else if (m_publisherId is UInt64)
+                else if (m_publisherId is ulong)
                 {
                     publishedIdTypeType = PublisherIdTypeEncodingMask.UInt64;
                 }
-                else if (m_publisherId is String)
+                else if (m_publisherId is string)
                 {
                     publishedIdTypeType = PublisherIdTypeEncodingMask.String;
                 }
@@ -336,17 +336,17 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Get and Set VersionTime type: it represents the time in seconds since the year 2000
         /// </summary>
-        public UInt32 GroupVersion { get; set; }
+        public uint GroupVersion { get; set; }
 
         /// <summary>
         /// Get and Set NetworkMessageNumber
         /// </summary>
-        public UInt16 NetworkMessageNumber { get; set; }
+        public ushort NetworkMessageNumber { get; set; }
 
         /// <summary>
         /// Get and Set SequenceNumber
         /// </summary>
-        public UInt16 SequenceNumber { get; set; }
+        public ushort SequenceNumber { get; set; }
 
         #endregion
 
@@ -360,7 +360,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// PicoSeconds
         /// </summary>
-        public UInt16 PicoSeconds { get; set; }
+        public ushort PicoSeconds { get; set; }
 
         #endregion
 
@@ -389,7 +389,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Get and Set SecurityFooterSize
         /// </summary>
-        public UInt16 SecurityFooterSize { get; set; }
+        public ushort SecurityFooterSize { get; set; }
 
         #endregion
 
@@ -1372,7 +1372,7 @@ namespace Opc.Ua.PubSub.Encoding
                     }
                 }
             }
-            BinaryDecoder binaryDecoder = decoder as BinaryDecoder;
+            BinaryDecoder binaryDecoder = decoder;
             if (binaryDecoder != null)
             {
                 int offset = 0;

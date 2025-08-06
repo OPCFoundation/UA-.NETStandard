@@ -1539,7 +1539,7 @@ namespace Opc.Ua.Server
                 {
                     if (m_monitoringMode == MonitoringMode.Disabled)
                     {
-                        return Int32.MaxValue;
+                        return int.MaxValue;
                     }
 
                     // node manager responsible for ensuring correct sampling.
@@ -1755,7 +1755,7 @@ namespace Opc.Ua.Server
 
                 if (xmlElement1 != null && xmlElement2 != null)
                 {
-                    return xmlElement1.OuterXml.Equals(xmlElement2.OuterXml);
+                    return xmlElement1.OuterXml.Equals(xmlElement2.OuterXml, StringComparison.Ordinal);
                 }
 
                 // nothing more to do if no deadband.
@@ -1979,7 +1979,7 @@ namespace Opc.Ua.Server
                         {
                             Utils.LogError(ex, "Failed to restore queue for monitored item with id {0}", Id);
                         }
-                        
+
 
                         if (restoredQueue != null)
                         {
@@ -2017,7 +2017,7 @@ namespace Opc.Ua.Server
                             m_eventQueueHandler = new EventQueueHandler(IsDurable, m_monitoredItemQueueFactory, Id);
                             m_eventQueueHandler.SetQueueSize(m_queueSize, m_discardOldest);
                         }
-                        
+
                     }
 
                     break;

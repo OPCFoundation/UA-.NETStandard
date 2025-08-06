@@ -48,7 +48,7 @@ namespace Opc.Ua
         private ushort[] m_serverMappings;
         private uint m_nestingLevel;
         // JSON encoded value of: “9999-12-31T23:59:59Z”
-        private DateTime m_dateTimeMaxJsonValue = new DateTime((long)3155378975990000000);
+        private DateTime m_dateTimeMaxJsonValue = new DateTime(3155378975990000000);
         private enum JTokenNullObject
         {
             Undefined = 0,
@@ -220,7 +220,7 @@ namespace Opc.Ua
                     else
                     {
                         var index = m_context.NamespaceUris.GetIndex(namespaceUris.GetString(ii));
-                        namespaceMappings[ii] = (index >= 0) ? (UInt16)index : UInt16.MaxValue;
+                        namespaceMappings[ii] = (index >= 0) ? (ushort)index : ushort.MaxValue;
                     }
                 }
 
@@ -244,7 +244,7 @@ namespace Opc.Ua
                     else
                     {
                         var index = m_context.ServerUris.GetIndex(serverUris.GetString(ii));
-                        serverMappings[ii] = (index >= 0) ? (UInt16)index : UInt16.MaxValue;
+                        serverMappings[ii] = (index >= 0) ? (ushort)index : ushort.MaxValue;
                     }
                 }
 
@@ -502,7 +502,7 @@ namespace Opc.Ua
 
             if (value == null)
             {
-                return ReadEnumeratedString<Int32>(token, Int32.TryParse);
+                return ReadEnumeratedString<int>(token, int.TryParse);
             }
 
             if (value is < int.MinValue or > int.MaxValue)
@@ -529,7 +529,7 @@ namespace Opc.Ua
 
             if (value == null)
             {
-                return ReadEnumeratedString<UInt32>(token, UInt32.TryParse);
+                return ReadEnumeratedString<uint>(token, uint.TryParse);
             }
 
             if (value is < uint.MinValue or > uint.MaxValue)
@@ -558,7 +558,7 @@ namespace Opc.Ua
             {
                 long number = 0;
 
-                if (token is not string text || !Int64.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out number))
+                if (token is not string text || !long.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out number))
                 {
                     return 0;
                 }
@@ -587,7 +587,7 @@ namespace Opc.Ua
             {
                 ulong number = 0;
 
-                if (!(token is string text) || !UInt64.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out number))
+                if (!(token is string text) || !ulong.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out number))
                 {
                     return 0;
                 }
@@ -621,21 +621,21 @@ namespace Opc.Ua
             {
                 var text = token as string;
                 float number = 0;
-                if (text == null || !Single.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out number))
+                if (text == null || !float.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out number))
                 {
                     if (text != null)
                     {
                         if (string.Equals(text, "Infinity", StringComparison.OrdinalIgnoreCase))
                         {
-                            return Single.PositiveInfinity;
+                            return float.PositiveInfinity;
                         }
                         else if (string.Equals(text, "-Infinity", StringComparison.OrdinalIgnoreCase))
                         {
-                            return Single.NegativeInfinity;
+                            return float.NegativeInfinity;
                         }
                         else if (string.Equals(text, "NaN", StringComparison.OrdinalIgnoreCase))
                         {
-                            return Single.NaN;
+                            return float.NaN;
                         }
                     }
 
@@ -679,21 +679,21 @@ namespace Opc.Ua
                 var text = token as string;
                 double number = 0;
 
-                if (text == null || !Double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out number))
+                if (text == null || !double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out number))
                 {
                     if (text != null)
                     {
                         if (string.Equals(text, "Infinity", StringComparison.OrdinalIgnoreCase))
                         {
-                            return Double.PositiveInfinity;
+                            return double.PositiveInfinity;
                         }
                         else if (string.Equals(text, "-Infinity", StringComparison.OrdinalIgnoreCase))
                         {
-                            return Double.NegativeInfinity;
+                            return double.NegativeInfinity;
                         }
                         else if (string.Equals(text, "NaN", StringComparison.OrdinalIgnoreCase))
                         {
-                            return Double.NaN;
+                            return double.NaN;
                         }
                     }
 
@@ -736,7 +736,7 @@ namespace Opc.Ua
                 throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
             }
 
-            return (string)value;
+            return value;
         }
 
         /// <summary>
@@ -1072,7 +1072,7 @@ namespace Opc.Ua
                 {
                     namespaceIndex = ToNamespaceIndex(namespaceUri);
 
-                    if (UInt16.MaxValue != namespaceIndex)
+                    if (ushort.MaxValue != namespaceIndex)
                     {
                         namespaceUri = null;
                     }
@@ -1209,7 +1209,7 @@ namespace Opc.Ua
                 return QualifiedName.Null;
             }
 
-            UInt16 namespaceIndex = 0;
+            ushort namespaceIndex = 0;
             string name = null;
             try
             {
@@ -2662,22 +2662,22 @@ namespace Opc.Ua
                             matrix = new Matrix(elements.Cast<byte>().ToArray(), builtInType, dimensions.ToArray());
                             break;
                         case BuiltInType.Int16:
-                            matrix = new Matrix(elements.Cast<Int16>().ToArray(), builtInType, dimensions.ToArray());
+                            matrix = new Matrix(elements.Cast<short>().ToArray(), builtInType, dimensions.ToArray());
                             break;
                         case BuiltInType.UInt16:
-                            matrix = new Matrix(elements.Cast<UInt16>().ToArray(), builtInType, dimensions.ToArray());
+                            matrix = new Matrix(elements.Cast<ushort>().ToArray(), builtInType, dimensions.ToArray());
                             break;
                         case BuiltInType.Int32:
-                            matrix = new Matrix(elements.Cast<Int32>().ToArray(), builtInType, dimensions.ToArray());
+                            matrix = new Matrix(elements.Cast<int>().ToArray(), builtInType, dimensions.ToArray());
                             break;
                         case BuiltInType.UInt32:
-                            matrix = new Matrix(elements.Cast<UInt32>().ToArray(), builtInType, dimensions.ToArray());
+                            matrix = new Matrix(elements.Cast<uint>().ToArray(), builtInType, dimensions.ToArray());
                             break;
                         case BuiltInType.Int64:
-                            matrix = new Matrix(elements.Cast<Int64>().ToArray(), builtInType, dimensions.ToArray());
+                            matrix = new Matrix(elements.Cast<long>().ToArray(), builtInType, dimensions.ToArray());
                             break;
                         case BuiltInType.UInt64:
-                            matrix = new Matrix(elements.Cast<UInt64>().ToArray(), builtInType, dimensions.ToArray());
+                            matrix = new Matrix(elements.Cast<ulong>().ToArray(), builtInType, dimensions.ToArray());
                             break;
                         case BuiltInType.Float:
                             matrix = new Matrix(elements.Cast<float>().ToArray(), builtInType, dimensions.ToArray());
@@ -2732,7 +2732,7 @@ namespace Opc.Ua
                             }
                             else
                             {
-                                matrix = new Matrix(elements.Cast<Int32>().ToArray(), builtInType, dimensions.ToArray());
+                                matrix = new Matrix(elements.Cast<int>().ToArray(), builtInType, dimensions.ToArray());
                             }
                             break;
                         }
@@ -2950,7 +2950,7 @@ namespace Opc.Ua
             {
                 if (!UpdateNamespaceTable)
                 {
-                    return UInt16.MaxValue;
+                    return ushort.MaxValue;
                 }
                 else
                 {
@@ -2984,7 +2984,7 @@ namespace Opc.Ua
             {
                 if (!UpdateNamespaceTable)
                 {
-                    return UInt16.MaxValue;
+                    return ushort.MaxValue;
                 }
                 else
                 {

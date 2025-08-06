@@ -721,7 +721,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 case BuiltInType.DataValue: { return decoder.ReadDataValue(fieldName); }
                 case BuiltInType.Enumeration:
                 {
-                    return type.IsEnum ? decoder.ReadEnumerated(fieldName, type) : (object)decoder.ReadInt32(fieldName);
+                    return type.IsEnum ? decoder.ReadEnumerated(fieldName, type) : decoder.ReadInt32(fieldName);
                 }
                 case BuiltInType.DiagnosticInfo: { return decoder.ReadDiagnosticInfo(fieldName); }
                 case BuiltInType.Variant: { return decoder.ReadVariant(fieldName); }

@@ -196,7 +196,7 @@ namespace Opc.Ua.Gds.Client
         /// <exception cref="System.ArgumentException">endpointUrl</exception>
         public async Task Connect(string endpointUrl)
         {
-            if (String.IsNullOrEmpty(endpointUrl))
+            if (string.IsNullOrEmpty(endpointUrl))
             {
                 throw new ArgumentNullException(nameof(endpointUrl));
             }

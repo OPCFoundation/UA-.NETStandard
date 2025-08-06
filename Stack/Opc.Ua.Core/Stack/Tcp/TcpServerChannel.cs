@@ -319,7 +319,7 @@ namespace Opc.Ua.Bindings
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1804:RemoveUnusedLocals", MessageId = "protocolVersion")]
         private bool ProcessHelloMessage(ArraySegment<byte> messageChunk)
         {
-            const UInt32 kProtocolVersion = 0;
+            const uint kProtocolVersion = 0;
             const int kResponseBufferSize = 127;
 
             // Communication is active on the channel

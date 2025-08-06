@@ -197,7 +197,7 @@ namespace Opc.Ua.Schema.Binary
             TypeDictionary dictionary = (TypeDictionary)Load(typeof(TypeDictionary), directive.Namespace, directive.Location);
 
             // verify namespace.
-            if (!String.IsNullOrEmpty(dictionary.TargetNamespace) && directive.Namespace != dictionary.TargetNamespace)
+            if (!string.IsNullOrEmpty(dictionary.TargetNamespace) && directive.Namespace != dictionary.TargetNamespace)
             {
                 throw Exception("Imported dictionary '{0}' does not match uri specified: '{1}'.", dictionary.TargetNamespace, directive.Namespace);
             }
@@ -238,7 +238,7 @@ namespace Opc.Ua.Schema.Binary
             {
                 for (int ii = 0; ii < documentation.Text.Length; ii++)
                 {
-                    if (!String.IsNullOrEmpty(documentation.Text[ii]))
+                    if (!string.IsNullOrEmpty(documentation.Text[ii]))
                     {
                         return false;
                     }
@@ -333,12 +333,12 @@ namespace Opc.Ua.Schema.Binary
         /// </summary>
         private static bool IsValidName(string name)
         {
-            if (String.IsNullOrEmpty(name))
+            if (string.IsNullOrEmpty(name))
             {
                 return false;
             }
 
-            if (!Char.IsLetter(name[0]) && name[0] != '_' && name[0] != '"')
+            if (!char.IsLetter(name[0]) && name[0] != '_' && name[0] != '"')
             {
                 return false;
             }
@@ -346,7 +346,7 @@ namespace Opc.Ua.Schema.Binary
             bool insideParentheses = name[0] == '"';
             for (int ii = 1; ii < name.Length; ii++)
             {
-                if (Char.IsLetter(name[ii]) || Char.IsDigit(name[ii]))
+                if (char.IsLetter(name[ii]) || char.IsDigit(name[ii]))
                 {
                     continue;
                 }
@@ -470,7 +470,7 @@ namespace Opc.Ua.Schema.Binary
         /// </summary>
         private void ValidateField(StructuredType description, Dictionary<string, FieldType> fields, FieldType field)
         {
-            if (field == null || String.IsNullOrEmpty(field.Name))
+            if (field == null || string.IsNullOrEmpty(field.Name))
             {
                 throw Exception("The structured type '{0}' has an unnamed field.", description.Name);
             }
@@ -490,7 +490,7 @@ namespace Opc.Ua.Schema.Binary
                 throw Exception("Field '{0}' in structured type '{1}' has an unrecognized type '{2}'.", field.Name, description.Name, field.TypeName);
             }
 
-            if (!String.IsNullOrEmpty(field.LengthField))
+            if (!string.IsNullOrEmpty(field.LengthField))
             {
                 if (!fields.TryGetValue(field.LengthField, out FieldType value))
                 {
@@ -503,7 +503,7 @@ namespace Opc.Ua.Schema.Binary
                 }
             }
 
-            if (!String.IsNullOrEmpty(field.SwitchField))
+            if (!string.IsNullOrEmpty(field.SwitchField))
             {
                 if (!fields.TryGetValue(field.SwitchField, out FieldType value))
                 {

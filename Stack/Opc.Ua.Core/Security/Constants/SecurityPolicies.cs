@@ -308,7 +308,7 @@ namespace Opc.Ua
             }
 
             // nothing more to do if no encryption.
-            if (String.IsNullOrEmpty(securityPolicyUri))
+            if (string.IsNullOrEmpty(securityPolicyUri))
             {
                 return encryptedData;
             }
@@ -378,7 +378,7 @@ namespace Opc.Ua
             }
 
             // nothing more to do if no encryption.
-            if (String.IsNullOrEmpty(securityPolicyUri))
+            if (string.IsNullOrEmpty(securityPolicyUri))
             {
                 return dataToDecrypt.Data;
             }
@@ -421,7 +421,7 @@ namespace Opc.Ua
                 case SecurityPolicies.ECC_brainpoolP384r1:
                 case SecurityPolicies.None:
                 {
-                    if (String.IsNullOrEmpty(dataToDecrypt.Algorithm))
+                    if (string.IsNullOrEmpty(dataToDecrypt.Algorithm))
                     {
                         return dataToDecrypt.Data;
                     }
@@ -459,7 +459,7 @@ namespace Opc.Ua
             }
 
             // nothing more to do if no encryption.
-            if (String.IsNullOrEmpty(securityPolicyUri))
+            if (string.IsNullOrEmpty(securityPolicyUri))
             {
                 return signatureData;
             }
@@ -541,7 +541,7 @@ namespace Opc.Ua
             }
 
             // nothing more to do if no encryption.
-            if (String.IsNullOrEmpty(securityPolicyUri))
+            if (string.IsNullOrEmpty(securityPolicyUri))
             {
                 return true;
             }

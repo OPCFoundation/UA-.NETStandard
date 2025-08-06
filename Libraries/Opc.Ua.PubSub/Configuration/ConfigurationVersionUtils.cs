@@ -92,7 +92,7 @@ namespace Opc.Ua.PubSub.Configuration
 
             if (hasMajorVersionChange || hasMinorVersionChange)
             {
-                UInt32 versionTime = CalculateVersionTime(DateTime.UtcNow);
+                uint versionTime = CalculateVersionTime(DateTime.UtcNow);
                 if (hasMajorVersionChange)
                 {
                     // Change both minor and major version
@@ -124,7 +124,7 @@ namespace Opc.Ua.PubSub.Configuration
         /// </summary>
         /// <param name="timeOfConfiguration">The current time of configuration</param>
         /// <returns></returns>
-        public static UInt32 CalculateVersionTime(DateTime timeOfConfiguration)
+        public static uint CalculateVersionTime(DateTime timeOfConfiguration)
         {
             /*This primitive data type is a UInt32 that represents the time in seconds since the year 2000. The epoch date is midnight UTC (00:00) on January 1, 2000.
 

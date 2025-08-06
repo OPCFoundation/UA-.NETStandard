@@ -477,7 +477,7 @@ namespace Opc.Ua
         private static Nonce CreateNonce(ECCurve curve)
         {
 
-            var ecdh = (ECDiffieHellman)ECDiffieHellman.Create(curve);
+            var ecdh = ECDiffieHellman.Create(curve);
             var ecdhParameters = ecdh.ExportParameters(false);
             int xLen = ecdhParameters.Q.X.Length;
             int yLen = ecdhParameters.Q.Y.Length;

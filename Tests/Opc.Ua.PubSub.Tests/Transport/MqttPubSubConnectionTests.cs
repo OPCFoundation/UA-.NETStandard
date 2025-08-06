@@ -45,7 +45,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
     [TestFixture(Description = "Tests for Mqtt connections")]
     public partial class MqttPubSubConnectionTests
     {
-        private const UInt16 kNamespaceIndexAllTypes = 3;
+        private const ushort kNamespaceIndexAllTypes = 3;
 
         private ManualResetEvent m_uaDataShutdownEvent;
         private ManualResetEvent m_uaDeltaDataShutdownEvent;
@@ -72,12 +72,12 @@ namespace Opc.Ua.PubSub.Tests.Transport
         [Ignore("A mosquitto tool should be installed local in order to run correctly.")]
 #endif
         public void ValidateMqttLocalPubSubConnectionWithUadp(
-            [Values((byte)1, (UInt16)1, (UInt32)1, (UInt64)1, "abc")] object publisherId)
+            [Values((byte)1, (ushort)1, (uint)1, (ulong)1, "abc")] object publisherId)
         {
             RestartMosquitto();
 
             //Arrange
-            UInt16 writerGroupId = 1;
+            ushort writerGroupId = 1;
 
             string mqttLocalBrokerUrl = Utils.Format(MqttUrlFormat, Utils.UriSchemeMqtt, "localhost");
 
@@ -182,13 +182,13 @@ namespace Opc.Ua.PubSub.Tests.Transport
         [Ignore("A mosquitto tool should be installed local in order to run correctly.")]
 #endif
         public void ValidateMqttLocalPubSubConnectionWithDeltaUadp(
-            [Values((byte)1, (UInt16)1, (UInt32)1, (UInt64)1, "abc")] object publisherId,
-            [Values(1, 2, 3, 4)] Int32 keyFrameCount)
+            [Values((byte)1, (ushort)1, (uint)1, (ulong)1, "abc")] object publisherId,
+            [Values(1, 2, 3, 4)] int keyFrameCount)
         {
             RestartMosquitto();
 
             //Arrange
-            UInt16 writerGroupId = 1;
+            ushort writerGroupId = 1;
 
             string mqttLocalBrokerUrl = Utils.Format(MqttUrlFormat, Utils.UriSchemeMqtt, "localhost");
 
@@ -318,13 +318,13 @@ namespace Opc.Ua.PubSub.Tests.Transport
         [Ignore("A mosquitto tool should be installed local in order to run correctly.")]
 #endif
         public void ValidateMqttLocalPubSubConnectionWithJson(
-            [Values((byte)1, (UInt16)1, (UInt32)1, (UInt64)1, "abc")] object publisherId,
+            [Values((byte)1, (ushort)1, (uint)1, (ulong)1, "abc")] object publisherId,
             [Values(0, 10000)] double metaDataUpdateTime)
         {
             RestartMosquitto();
 
             //Arrange
-            UInt16 writerGroupId = 1;
+            ushort writerGroupId = 1;
 
             string mqttLocalBrokerUrl = Utils.Format(MqttUrlFormat, Utils.UriSchemeMqtt, "localhost");
 
@@ -444,13 +444,13 @@ namespace Opc.Ua.PubSub.Tests.Transport
         [Ignore("A mosquitto tool should be installed local in order to run correctly.")]
 #endif
         public void ValidateMqttLocalPubSubConnectionWithDeltaJson(
-            [Values((byte)1, (UInt16)1, (UInt32)1, (UInt64)1, "abc")] object publisherId,
-            [Values(2, 3, 4)] Int32 keyFrameCount)
+            [Values((byte)1, (ushort)1, (uint)1, (ulong)1, "abc")] object publisherId,
+            [Values(2, 3, 4)] int keyFrameCount)
         {
             RestartMosquitto();
 
             //Arrange
-            UInt16 writerGroupId = 1;
+            ushort writerGroupId = 1;
 
             string mqttLocalBrokerUrl = Utils.Format(MqttUrlFormat, Utils.UriSchemeMqtt, "localhost");
 

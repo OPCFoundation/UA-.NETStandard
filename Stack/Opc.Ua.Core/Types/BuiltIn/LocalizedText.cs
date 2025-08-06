@@ -108,7 +108,7 @@ namespace Opc.Ua
 
             CultureInfo culture = CultureInfo.InvariantCulture;
 
-            if (!String.IsNullOrEmpty(m_locale))
+            if (!string.IsNullOrEmpty(m_locale))
             {
                 try
                 {
@@ -187,7 +187,7 @@ namespace Opc.Ua
             m_locale = locale;
             m_text = text;
 
-            if (!String.IsNullOrEmpty(key))
+            if (!string.IsNullOrEmpty(key))
             {
                 m_translationInfo = new TranslationInfo(key, locale, text);
             }
@@ -367,7 +367,7 @@ namespace Opc.Ua
 
             if (ltext.m_locale != m_locale)
             {
-                if (!(String.IsNullOrEmpty(ltext.m_locale) && String.IsNullOrEmpty(m_locale)))
+                if (!(string.IsNullOrEmpty(ltext.m_locale) && string.IsNullOrEmpty(m_locale)))
                 {
                     return false;
                 }
@@ -529,7 +529,7 @@ namespace Opc.Ua
                 return true;
             }
 
-            return String.IsNullOrEmpty(value.m_text);
+            return string.IsNullOrEmpty(value.m_text);
         }
         #endregion
 

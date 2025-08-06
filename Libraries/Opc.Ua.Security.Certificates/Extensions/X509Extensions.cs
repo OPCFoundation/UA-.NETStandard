@@ -113,7 +113,7 @@ namespace Opc.Ua.Security.Certificates
             string ocspResponder = null
             )
         {
-            if (String.IsNullOrEmpty(ocspResponder) &&
+            if (string.IsNullOrEmpty(ocspResponder) &&
                (caIssuerUrls == null || caIssuerUrls.Length == 0))
             {
                 throw new ArgumentNullException(nameof(caIssuerUrls), "One CA Issuer Url or OCSP responder is required for the extension.");
@@ -136,7 +136,7 @@ namespace Opc.Ua.Security.Certificates
                     writer.PopSequence();
                 }
             }
-            if (!String.IsNullOrEmpty(ocspResponder))
+            if (!string.IsNullOrEmpty(ocspResponder))
             {
                 writer.PushSequence();
                 writer.WriteObjectIdentifier(Oids.OnlineCertificateStatusProtocol);

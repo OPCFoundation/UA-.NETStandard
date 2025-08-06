@@ -117,7 +117,7 @@ namespace Alarms
                     NodeId branchId = GetNewBranchId();
                     ConditionState branch = alarm.CreateBranch(SystemContext, branchId);
 
-                    string postEventId = Utils.ToHexString(branch.EventId.Value as byte[]);
+                    string postEventId = Utils.ToHexString(branch.EventId.Value);
 
                     Log("CreateBranch", " Branch " + branchId.ToString() +
                         " EventId " + postEventId + " created, Message " + alarm.Message.Value.Text);

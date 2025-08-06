@@ -44,7 +44,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
     [TestFixture(Description = "Tests for Encoding/Decoding of UadpNetworkMessage objects using mqtt")]
     public class MqttUadpNetworkMessageTests
     {
-        private const UInt16 NamespaceIndexAllTypes = 3;
+        private const ushort NamespaceIndexAllTypes = 3;
 
         private const string MqttAddressUrl = "mqtt://localhost:1883";
         private static IList<DateTime> s_publishTimes = new List<DateTime>();
@@ -66,7 +66,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.SourceTimestamp| DataSetFieldContentMask.StatusCode
             )]
                 DataSetFieldContentMask dataSetFieldContentMask,
-           [Values((byte)1, (UInt16)1, (UInt32)1, (UInt64)1, "abc")] object publisherId)
+           [Values((byte)1, (ushort)1, (uint)1, (ulong)1, "abc")] object publisherId)
         {
             // Arrange
             UadpNetworkMessageContentMask uadpNetworkMessageContentMask = UadpNetworkMessageContentMask.PublisherId | UadpNetworkMessageContentMask.WriterGroupId
@@ -304,10 +304,10 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             DataSetFieldContentMask.SourceTimestamp, DataSetFieldContentMask.StatusCode,
             DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.SourceTimestamp| DataSetFieldContentMask.StatusCode)]
                 DataSetFieldContentMask dataSetFieldContentMask,
-            [Values((byte)1, (UInt16)1, (UInt32)1, (UInt64)1, "abc")] object publisherId)
+            [Values((byte)1, (ushort)1, (uint)1, (ulong)1, "abc")] object publisherId)
         {
             // Arrange
-            UInt16 writerGroupId = 1;
+            ushort writerGroupId = 1;
             UadpNetworkMessageContentMask uadpNetworkMessageContentMask = UadpNetworkMessageContentMask.WriterGroupId |
                                                           UadpNetworkMessageContentMask.PublisherId |
                                                           UadpNetworkMessageContentMask.PayloadHeader;
@@ -380,10 +380,10 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             DataSetFieldContentMask.SourceTimestamp, DataSetFieldContentMask.StatusCode,
             DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.SourceTimestamp| DataSetFieldContentMask.StatusCode)]
                 DataSetFieldContentMask dataSetFieldContentMask,
-            [Values((byte)1, (UInt16)1, (UInt32)1, (UInt64)1, "abc")] object publisherId)
+            [Values((byte)1, (ushort)1, (uint)1, (ulong)1, "abc")] object publisherId)
         {
             // Arrange
-            UInt16 writerGroupId = 1;
+            ushort writerGroupId = 1;
             UadpNetworkMessageContentMask uadpNetworkMessageContentMask = UadpNetworkMessageContentMask.WriterGroupId |
                                                           UadpNetworkMessageContentMask.GroupVersion |
                                                           UadpNetworkMessageContentMask.PublisherId |
@@ -460,10 +460,10 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             DataSetFieldContentMask.SourceTimestamp, DataSetFieldContentMask.StatusCode,
             DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.SourceTimestamp| DataSetFieldContentMask.StatusCode)]
                 DataSetFieldContentMask dataSetFieldContentMask,
-            [Values((byte)1, (UInt16)1, (UInt32)1, (UInt64)1, "abc")] object publisherId)
+            [Values((byte)1, (ushort)1, (uint)1, (ulong)1, "abc")] object publisherId)
         {
             // Arrange
-            UInt16 writerGroupId = 1;
+            ushort writerGroupId = 1;
             UadpNetworkMessageContentMask uadpNetworkMessageContentMask = UadpNetworkMessageContentMask.WriterGroupId |
                                                           UadpNetworkMessageContentMask.NetworkMessageNumber |
                                                           UadpNetworkMessageContentMask.PublisherId |
@@ -539,10 +539,10 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             DataSetFieldContentMask.SourceTimestamp, DataSetFieldContentMask.StatusCode,
             DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.SourceTimestamp| DataSetFieldContentMask.StatusCode)]
                 DataSetFieldContentMask dataSetFieldContentMask,
-            [Values((byte)1, (UInt16)1, (UInt32)1, (UInt64)1, "abc")] object publisherId)
+            [Values((byte)1, (ushort)1, (uint)1, (ulong)1, "abc")] object publisherId)
         {
             // Arrange
-            UInt16 writerGroupId = 1;
+            ushort writerGroupId = 1;
             UadpNetworkMessageContentMask uadpNetworkMessageContentMask = UadpNetworkMessageContentMask.WriterGroupId |
                                                           UadpNetworkMessageContentMask.SequenceNumber |
                                                           UadpNetworkMessageContentMask.PublisherId |
@@ -610,10 +610,10 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             DataSetFieldContentMask.SourceTimestamp, DataSetFieldContentMask.StatusCode,
             DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.SourceTimestamp| DataSetFieldContentMask.StatusCode)]
                 DataSetFieldContentMask dataSetFieldContentMask,
-            [Values((byte)1, (UInt16)1, (UInt32)1, (UInt64)1, "abc")] object publisherId)
+            [Values((byte)1, (ushort)1, (uint)1, (ulong)1, "abc")] object publisherId)
         {
             // Arrange
-            UInt16 writerGroupId = 1;
+            ushort writerGroupId = 1;
             UadpNetworkMessageContentMask uadpNetworkMessageContentMask = UadpNetworkMessageContentMask.WriterGroupId |
                                                           UadpNetworkMessageContentMask.PayloadHeader |
                                                           UadpNetworkMessageContentMask.PublisherId;
@@ -686,10 +686,10 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             DataSetFieldContentMask.SourceTimestamp, DataSetFieldContentMask.StatusCode,
             DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.SourceTimestamp| DataSetFieldContentMask.StatusCode)]
                 DataSetFieldContentMask dataSetFieldContentMask,
-            [Values((byte)1, (UInt16)1, (UInt32)1, (UInt64)1, "abc")] object publisherId)
+            [Values((byte)1, (ushort)1, (uint)1, (ulong)1, "abc")] object publisherId)
         {
             // Arrange
-            UInt16 writerGroupId = 1;
+            ushort writerGroupId = 1;
             UadpNetworkMessageContentMask uadpNetworkMessageContentMask = UadpNetworkMessageContentMask.WriterGroupId |
                                                           UadpNetworkMessageContentMask.Timestamp |
                                                           UadpNetworkMessageContentMask.PublisherId |
@@ -765,10 +765,10 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             DataSetFieldContentMask.SourceTimestamp, DataSetFieldContentMask.StatusCode,
             DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.SourceTimestamp| DataSetFieldContentMask.StatusCode)]
                 DataSetFieldContentMask dataSetFieldContentMask,
-            [Values((byte)1, (UInt16)1, (UInt32)1, (UInt64)1, "abc")] object publisherId)
+            [Values((byte)1, (ushort)1, (uint)1, (ulong)1, "abc")] object publisherId)
         {
             // Arrange
-            UInt16 writerGroupId = 1;
+            ushort writerGroupId = 1;
             UadpNetworkMessageContentMask uadpNetworkMessageContentMask = UadpNetworkMessageContentMask.WriterGroupId |
                                                           UadpNetworkMessageContentMask.PicoSeconds |
                                                           UadpNetworkMessageContentMask.PublisherId |
@@ -845,7 +845,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             DataSetFieldContentMask.SourceTimestamp, DataSetFieldContentMask.StatusCode,
             DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.SourceTimestamp| DataSetFieldContentMask.StatusCode)]
                 DataSetFieldContentMask dataSetFieldContentMask,
-            [Values((byte)1, (UInt16)1, (UInt32)1, (UInt64)1, "abc")] object publisherId)
+            [Values((byte)1, (ushort)1, (uint)1, (ulong)1, "abc")] object publisherId)
         {
             // Arrange
             UadpNetworkMessageContentMask uadpNetworkMessageContentMask = UadpNetworkMessageContentMask.PublisherId;
@@ -922,7 +922,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             DataSetFieldContentMask.SourceTimestamp, DataSetFieldContentMask.StatusCode,
             DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.SourceTimestamp| DataSetFieldContentMask.StatusCode)]
                 DataSetFieldContentMask dataSetFieldContentMask,
-            [Values((byte)1, (UInt16)1, (UInt32)1, (UInt64)1, "abc")] object publisherId)
+            [Values((byte)1, (ushort)1, (uint)1, (ulong)1, "abc")] object publisherId)
         {
             // Arrange
             UadpNetworkMessageContentMask uadpNetworkMessageContentMask = UadpNetworkMessageContentMask.PublisherId;
@@ -979,7 +979,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             DataSetFieldContentMask.SourceTimestamp, DataSetFieldContentMask.StatusCode,
             DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.SourceTimestamp| DataSetFieldContentMask.StatusCode)]
                 DataSetFieldContentMask dataSetFieldContentMask,
-            [Values((byte)1, (UInt16)1, (UInt32)1, (UInt64)1, "abc")] object publisherId)
+            [Values((byte)1, (ushort)1, (uint)1, (ulong)1, "abc")] object publisherId)
         {
             // Arrange
             UadpNetworkMessageContentMask uadpNetworkMessageContentMask = UadpNetworkMessageContentMask.PublisherId;
@@ -1055,7 +1055,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             DataSetFieldContentMask.SourceTimestamp, DataSetFieldContentMask.StatusCode,
             DataSetFieldContentMask.ServerPicoSeconds | DataSetFieldContentMask.ServerTimestamp | DataSetFieldContentMask.SourcePicoSeconds | DataSetFieldContentMask.SourceTimestamp| DataSetFieldContentMask.StatusCode)]
                 DataSetFieldContentMask dataSetFieldContentMask,
-            [Values((byte)1, (UInt16)1, (UInt32)1, (UInt64)1, "abc")] object publisherId)
+            [Values((byte)1, (ushort)1, (uint)1, (ulong)1, "abc")] object publisherId)
         {
             // Arrange
             UadpNetworkMessageContentMask uadpNetworkMessageContentMask = UadpNetworkMessageContentMask.PublisherId;
@@ -1156,7 +1156,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test(Description = "Validate that metadata with update time different than 0 is sent periodically for a MQTT Uadp publisher")]
         [Ignore("Max deviation instable in this version.")]
         public void ValidateMetaDataUpdateTimeNonZeroIsSentPeriodically(
-            [Values((byte)1, (UInt16)1, (UInt32)1, (UInt64)1, "abc")] object publisherId,
+            [Values((byte)1, (ushort)1, (uint)1, (ulong)1, "abc")] object publisherId,
             [Values(100, 1000, 2000)] double metaDataUpdateTime,
             [Values(30, 40)] double maxDeviation,
             [Values(10)] int publishTimeInSeconds)

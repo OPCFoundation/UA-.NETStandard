@@ -470,7 +470,7 @@ namespace Opc.Ua
         {
             long ticks = SafeReadInt64();
 
-            if (ticks >= (Int64.MaxValue - Utils.TimeBase.Ticks))
+            if (ticks >= (long.MaxValue - Utils.TimeBase.Ticks))
             {
                 return DateTime.MaxValue;
             }

@@ -222,7 +222,7 @@ namespace Opc.Ua
             var deleteEntryList = new List<Entry>();
             lock (m_lock)
             {
-                // sync cache if necessary. 
+                // sync cache if necessary.
                 Load(null);
 
                 DateTime now = DateTime.UtcNow;
@@ -278,7 +278,7 @@ namespace Opc.Ua
             {
                 try
                 {
-                    // try to delete 
+                    // try to delete
                     entry.CertificateFile.Delete();
                 }
                 catch (IOException)
@@ -522,7 +522,7 @@ namespace Opc.Ua
                             {
                                 if (!X509Utils.CompareDistinguishedName(subjectName, certificate.Subject))
                                 {
-                                    if (subjectName.Contains('='))
+                                    if (subjectName.Contains('=', StringComparison.Ordinal))
                                     {
                                         continue;
                                     }
@@ -966,7 +966,7 @@ namespace Opc.Ua
 
                             m_certificates[entry.Certificate.Thumbprint] = entry;
 
-                            if (!String.IsNullOrEmpty(thumbprint) &&
+                            if (!string.IsNullOrEmpty(thumbprint) &&
                                 thumbprint.Equals(entry.Certificate.Thumbprint, StringComparison.OrdinalIgnoreCase))
                             {
                                 incompleteSearch = true;
@@ -999,7 +999,7 @@ namespace Opc.Ua
 
             Entry entry = null;
 
-            if (!String.IsNullOrEmpty(thumbprint))
+            if (!string.IsNullOrEmpty(thumbprint))
             {
                 if (!certificates.TryGetValue(thumbprint, out entry))
                 {
@@ -1044,7 +1044,7 @@ namespace Opc.Ua
             {
                 char ch = commonName[ii];
 
-                if ("<>:\"/\\|?*".IndexOf(ch) != -1)
+                if ("<>:\"/\\|?*".IndexOf(ch, StringComparison.Ordinal) != -1)
                 {
                     ch = '+';
                 }

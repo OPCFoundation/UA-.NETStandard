@@ -722,7 +722,7 @@ namespace Opc.Ua.Server
         /// </summary>
         private void UpdateCurrentMonitoredItemsCount(SessionDiagnosticsDataType diagnostics, int change)
         {
-            long monitoredItemsCount = (long)diagnostics.CurrentMonitoredItemsCount;
+            long monitoredItemsCount = diagnostics.CurrentMonitoredItemsCount;
             monitoredItemsCount += change;
 
             if (monitoredItemsCount > 0)
@@ -899,7 +899,7 @@ namespace Opc.Ua.Server
                 }
                 catch (Exception e)
                 {
-                    ServiceResult result = ServiceResult.Create(e, StatusCodes.BadUnexpectedError, String.Empty);
+                    ServiceResult result = ServiceResult.Create(e, StatusCodes.BadUnexpectedError, string.Empty);
                     results.Add(result.Code);
 
                     if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
@@ -1358,7 +1358,7 @@ namespace Opc.Ua.Server
                 }
                 catch (Exception e)
                 {
-                    ServiceResult result = ServiceResult.Create(e, StatusCodes.BadUnexpectedError, String.Empty);
+                    ServiceResult result = ServiceResult.Create(e, StatusCodes.BadUnexpectedError, string.Empty);
                     results.Add(result.Code);
 
                     if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
@@ -1858,7 +1858,7 @@ namespace Opc.Ua.Server
         /// </summary>
         protected virtual double CalculatePublishingInterval(double publishingInterval)
         {
-            if (Double.IsNaN(publishingInterval) || publishingInterval < m_minPublishingInterval)
+            if (double.IsNaN(publishingInterval) || publishingInterval < m_minPublishingInterval)
             {
                 publishingInterval = m_minPublishingInterval;
             }
@@ -1875,7 +1875,7 @@ namespace Opc.Ua.Server
 
             if (publishingInterval % m_publishingResolution != 0)
             {
-                publishingInterval = (((int)publishingInterval) / ((int)m_publishingResolution) + 1) * m_publishingResolution;
+                publishingInterval = (((int)publishingInterval) / m_publishingResolution + 1) * m_publishingResolution;
             }
 
             return publishingInterval;
@@ -1901,7 +1901,7 @@ namespace Opc.Ua.Server
             {
                 keepAliveCount = (uint)(maxSubscriptionLifetime / publishingInterval);
 
-                if (keepAliveCount < UInt32.MaxValue)
+                if (keepAliveCount < uint.MaxValue)
                 {
                     if (maxSubscriptionLifetime % publishingInterval != 0)
                     {
@@ -1917,7 +1917,7 @@ namespace Opc.Ua.Server
             {
                 keepAliveCount = (uint)(m_maxPublishingInterval / publishingInterval);
 
-                if (keepAliveCount < UInt32.MaxValue)
+                if (keepAliveCount < uint.MaxValue)
                 {
                     if (m_maxPublishingInterval % publishingInterval != 0)
                     {
@@ -1934,7 +1934,7 @@ namespace Opc.Ua.Server
         /// </summary>
         protected virtual uint CalculateLifetimeCount(double publishingInterval, uint keepAliveCount, uint lifetimeCount, bool isDurableSubscription = false)
         {
-            const Int32 kMillisecondsToHours = 3_600_000;
+            const int kMillisecondsToHours = 3_600_000;
 
             ulong maxSubscriptionLifetime = isDurableSubscription ? m_maxDurableSubscriptionLifetimeInHours * kMillisecondsToHours : m_maxSubscriptionLifetime;
 
@@ -1945,7 +1945,7 @@ namespace Opc.Ua.Server
             {
                 lifetimeCount = (uint)(maxSubscriptionLifetime / publishingInterval);
 
-                if (lifetimeCount < UInt32.MaxValue)
+                if (lifetimeCount < uint.MaxValue)
                 {
                     if (maxSubscriptionLifetime % publishingInterval != 0)
                     {
@@ -1955,7 +1955,7 @@ namespace Opc.Ua.Server
             }
 
             // the lifetime must be greater than the keepalive.
-            if (keepAliveCount < UInt32.MaxValue / 3)
+            if (keepAliveCount < uint.MaxValue / 3)
             {
                 if (keepAliveCount * 3 > lifetimeCount)
                 {
@@ -1966,8 +1966,8 @@ namespace Opc.Ua.Server
             }
             else
             {
-                lifetimeCount = UInt32.MaxValue;
-                lifetimeInterval = Double.MaxValue;
+                lifetimeCount = uint.MaxValue;
+                lifetimeInterval = double.MaxValue;
             }
 
             // apply the minimum.
@@ -1975,7 +1975,7 @@ namespace Opc.Ua.Server
             {
                 lifetimeCount = (uint)(m_minSubscriptionLifetime / publishingInterval);
 
-                if (lifetimeCount < UInt32.MaxValue)
+                if (lifetimeCount < uint.MaxValue)
                 {
                     if (m_minSubscriptionLifetime % publishingInterval != 0)
                     {
@@ -2275,7 +2275,7 @@ namespace Opc.Ua.Server
             public Subscription Subscription { get; private set; }
             public uint MonitoredItemId { get; private set; }
 
-            public override bool Equals(Object obj)
+            public override bool Equals(object obj)
             {
                 var crt = obj as ConditionRefreshTask;
 

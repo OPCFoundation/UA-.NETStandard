@@ -77,7 +77,7 @@ namespace Opc.Ua
             value.ParsedIndexRange = NumericRange.Empty;
 
             // parse the index range if specified.
-            if (!String.IsNullOrEmpty(value.IndexRange))
+            if (!string.IsNullOrEmpty(value.IndexRange))
             {
                 try
                 {
@@ -85,7 +85,7 @@ namespace Opc.Ua
                 }
                 catch (Exception e)
                 {
-                    return ServiceResult.Create(e, StatusCodes.BadIndexRangeInvalid, String.Empty);
+                    return ServiceResult.Create(e, StatusCodes.BadIndexRangeInvalid, string.Empty);
                 }
 
                 if (value.ParsedIndexRange.SubRanges != null)

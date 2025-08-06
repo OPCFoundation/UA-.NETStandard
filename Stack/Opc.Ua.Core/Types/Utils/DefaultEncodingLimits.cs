@@ -24,17 +24,17 @@ namespace Opc.Ua
         /// <summary>
         /// The default maximum length for any string, byte string or xml element.
         /// </summary>
-        public static readonly int MaxStringLength = UInt16.MaxValue;
+        public static readonly int MaxStringLength = ushort.MaxValue;
 
         /// <summary>
         /// The default maximum length for any array.
         /// </summary>
-        public static readonly int MaxArrayLength = UInt16.MaxValue;
+        public static readonly int MaxArrayLength = ushort.MaxValue;
 
         /// <summary>
         /// The default maximum length for any ByteString.
         /// </summary>
-        public static readonly int MaxByteStringLength = UInt16.MaxValue * 16;
+        public static readonly int MaxByteStringLength = ushort.MaxValue * 16;
 
         /// <summary>
         /// The default maximum length for any Message.

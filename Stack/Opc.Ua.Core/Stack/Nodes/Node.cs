@@ -117,7 +117,7 @@ namespace Opc.Ua
         {
             if (format == null)
             {
-                if (m_displayName != null && !String.IsNullOrEmpty(m_displayName.Text))
+                if (m_displayName != null && !string.IsNullOrEmpty(m_displayName.Text))
                 {
                     return m_displayName.Text;
                 }
@@ -127,7 +127,7 @@ namespace Opc.Ua
                     return m_browseName.Name;
                 }
 
-                return Utils.Format("(unknown {0})", ((NodeClass)m_nodeClass).ToString().ToLower(CultureInfo.InvariantCulture));
+                return Utils.Format("(unknown {0})", m_nodeClass.ToString().ToLower(CultureInfo.InvariantCulture));
             }
 
             throw new FormatException(Utils.Format("Invalid format string: '{0}'.", format));
@@ -501,7 +501,7 @@ namespace Opc.Ua
         /// Returns a string representation of the HierarchyBrowsePath.
         /// </summary>
         /// <returns>
-        /// A <see cref="System.String"/> that represents the current <see cref="System.Object"/>.
+        /// A <see cref="string"/> that represents the current <see cref="object"/>.
         /// </returns>
         public override string ToString()
         {

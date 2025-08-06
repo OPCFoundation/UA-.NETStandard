@@ -85,7 +85,7 @@ namespace Opc.Ua.Schema
         /// </summary>
         protected static bool IsNull(XmlQualifiedName name)
         {
-            if (name != null && !String.IsNullOrEmpty(name.Name))
+            if (name != null && !string.IsNullOrEmpty(name.Name))
             {
                 return false;
             }
@@ -176,7 +176,7 @@ namespace Opc.Ua.Schema
             // check if a valid path provided.
             FileInfo fileInfo = null;
 
-            if (!String.IsNullOrEmpty(path))
+            if (!string.IsNullOrEmpty(path))
             {
                 fileInfo = new FileInfo(path);
 
@@ -202,7 +202,7 @@ namespace Opc.Ua.Schema
                 return LoadResource(type, location, assembly);
             }
 
-            if (!String.IsNullOrEmpty(path))
+            if (!string.IsNullOrEmpty(path))
             {
                 if (!File.Exists(path))
                 {

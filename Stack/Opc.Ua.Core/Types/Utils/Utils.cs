@@ -179,7 +179,7 @@ namespace Opc.Ua
         #region Trace Support
 #if DEBUG
         private static int s_traceOutput = (int)TraceOutput.DebugAndFile;
-        private static int s_traceMasks = (int)TraceMasks.All;
+        private static int s_traceMasks = TraceMasks.All;
 #else
         private static int s_traceOutput = (int)TraceOutput.FileOnly;
         private static int s_traceMasks = (int)TraceMasks.None;
@@ -299,7 +299,7 @@ namespace Opc.Ua
         /// </summary>
         public static void SetTraceMask(int masks)
         {
-            s_traceMasks = (int)masks;
+            s_traceMasks = masks;
         }
 
         /// <summary>
@@ -515,7 +515,7 @@ namespace Opc.Ua
                 message.AppendLine();
 
                 // append stack trace.
-                if ((s_traceMasks & (int)TraceMasks.StackTrace) != 0)
+                if ((s_traceMasks & TraceMasks.StackTrace) != 0)
                 {
                     message.AppendLine();
                     message.AppendLine();
@@ -537,7 +537,7 @@ namespace Opc.Ua
             StringBuilder message = TraceExceptionMessage(e, format, args);
 
             // trace message.
-            Trace(e, (int)TraceMasks.Error, message.ToString(), handled, null);
+            Trace(e, TraceMasks.Error, message.ToString(), handled, null);
         }
 
         /// <summary>
@@ -1013,7 +1013,7 @@ namespace Opc.Ua
             }
 
             // keep first path segment.
-            int start = filePath.IndexOf(Path.DirectorySeparatorChar);
+            int start = filePath.IndexOf(Path.DirectorySeparatorChar, StringComparison.Ordinal);
 
             if (start == -1)
             {
@@ -1204,7 +1204,7 @@ namespace Opc.Ua
             }
 
             // IPv6 address needs a surrounding []
-            if (!string.IsNullOrEmpty(hostname) && hostname.Contains(':'))
+            if (!string.IsNullOrEmpty(hostname) && hostname.Contains(':', StringComparison.Ordinal))
             {
                 hostname = "[" + hostname + "]";
             }
@@ -1244,7 +1244,7 @@ namespace Opc.Ua
             }
 
             // IPv6 address needs a surrounding []
-            if (!string.IsNullOrEmpty(hostname) && hostname.Contains(':'))
+            if (!string.IsNullOrEmpty(hostname) && hostname.Contains(':', StringComparison.Ordinal))
             {
                 hostname = "[" + hostname + "]";
             }
@@ -1505,12 +1505,12 @@ namespace Opc.Ua
         /// </summary>
         public static int ToInt32(uint identifier)
         {
-            if (identifier <= (uint)int.MaxValue)
+            if (identifier <= int.MaxValue)
             {
                 return (int)identifier;
             }
 
-            return -(int)((long)uint.MaxValue - (long)identifier + 1);
+            return -(int)(uint.MaxValue - (long)identifier + 1);
         }
 
         /// <summary>
@@ -1523,7 +1523,7 @@ namespace Opc.Ua
                 return (uint)identifier;
             }
 
-            return (uint)((long)uint.MaxValue + 1 + (long)identifier);
+            return (uint)((long)uint.MaxValue + 1 + identifier);
         }
 
         /// <summary>
@@ -1596,7 +1596,7 @@ namespace Opc.Ua
         {
             if (buffer == null || buffer.Length == 0)
             {
-                return String.Empty;
+                return string.Empty;
             }
 #endif
 
@@ -1658,7 +1658,7 @@ namespace Opc.Ua
 
             while (ii < bytes.Length * 2)
             {
-                int index = digits.IndexOf(buffer[ii]);
+                int index = digits.IndexOf(buffer[ii], StringComparison.Ordinal);
 
                 if (index == -1)
                 {
@@ -1670,7 +1670,7 @@ namespace Opc.Ua
 
                 if (ii < buffer.Length - 1)
                 {
-                    index = digits.IndexOf(buffer[ii + 1]);
+                    index = digits.IndexOf(buffer[ii + 1], StringComparison.Ordinal);
 
                     if (index == -1)
                     {
@@ -1746,7 +1746,7 @@ namespace Opc.Ua
                 return string.Empty;
             }
 
-            int index = localeId.IndexOf('-');
+            int index = localeId.IndexOf('-', StringComparison.Ordinal);
 
             if (index != -1)
             {

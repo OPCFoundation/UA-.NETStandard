@@ -179,7 +179,7 @@ namespace Opc.Ua.Security.Certificates
             Org.BouncyCastle.OpenSsl.PemReader pemReader;
             using (var pemStreamReader = new StreamReader(new MemoryStream(pemDataBlob), Encoding.UTF8, true))
             {
-                if (String.IsNullOrEmpty(password))
+                if (string.IsNullOrEmpty(password))
                 {
                     pemReader = new Org.BouncyCastle.OpenSsl.PemReader(pemStreamReader);
                 }

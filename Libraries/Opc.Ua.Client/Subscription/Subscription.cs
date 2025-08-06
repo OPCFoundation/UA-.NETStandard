@@ -252,7 +252,7 @@ namespace Opc.Ua.Client
             return this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <summary cref="object.MemberwiseClone" />
         public new object MemberwiseClone()
         {
             return new Subscription(this);
@@ -802,7 +802,7 @@ namespace Opc.Ua.Client
                 lock (m_cache)
                 {
                     return m_availableSequenceNumbers != null ?
-                        (IEnumerable<uint>)new ReadOnlyList<uint>(m_availableSequenceNumbers) :
+                        new ReadOnlyList<uint>(m_availableSequenceNumbers) :
                         Enumerable.Empty<uint>();
                 }
             }
@@ -1919,7 +1919,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Set the subscription to durable.
         /// </summary>
-        public async Task<(bool, UInt32)> SetSubscriptionDurableAsync(uint lifetimeInHours, CancellationToken ct = default)
+        public async Task<(bool, uint)> SetSubscriptionDurableAsync(uint lifetimeInHours, CancellationToken ct = default)
         {
             uint revisedLifetimeInHours = lifetimeInHours;
 
@@ -2072,7 +2072,7 @@ namespace Opc.Ua.Client
         /// </summary>
         private int BeginPublishTimeout()
         {
-            return Math.Max(Math.Min(m_keepAliveInterval * 3, Int32.MaxValue), kMinKeepAliveTimerInterval);
+            return Math.Max(Math.Min(m_keepAliveInterval * 3, int.MaxValue), kMinKeepAliveTimerInterval);
         }
 
         /// <summary>
@@ -2167,10 +2167,10 @@ namespace Opc.Ua.Client
         /// <returns></returns>
         private int CalculateKeepAliveInterval()
         {
-            int keepAliveInterval = (int)(Math.Min(m_currentPublishingInterval * (m_currentKeepAliveCount + 1), Int32.MaxValue));
+            int keepAliveInterval = (int)(Math.Min(m_currentPublishingInterval * (m_currentKeepAliveCount + 1), int.MaxValue));
             if (keepAliveInterval < kMinKeepAliveTimerInterval)
             {
-                keepAliveInterval = (int)(Math.Min(m_publishingInterval * (m_keepAliveCount + 1), Int32.MaxValue));
+                keepAliveInterval = (int)(Math.Min(m_publishingInterval * (m_keepAliveCount + 1), int.MaxValue));
                 keepAliveInterval = Math.Max(kMinKeepAliveTimerInterval, keepAliveInterval);
             }
             return keepAliveInterval;
@@ -2730,7 +2730,7 @@ namespace Opc.Ua.Client
             {
                 foreach (MonitoredItem monitoredItem in m_monitoredItems.Values)
                 {
-                    if (!String.IsNullOrEmpty(monitoredItem.RelativePath) && NodeId.IsNull(monitoredItem.ResolvedNodeId))
+                    if (!string.IsNullOrEmpty(monitoredItem.RelativePath) && NodeId.IsNull(monitoredItem.ResolvedNodeId))
                     {
                         // cannot change the relative path after an item is created.
                         if (monitoredItem.Created)
@@ -3183,7 +3183,7 @@ namespace Opc.Ua.Client
             return (SubscriptionCollection)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <summary cref="object.MemberwiseClone" />
         public new object MemberwiseClone()
         {
             SubscriptionCollection clone = new SubscriptionCollection();
@@ -3198,7 +3198,7 @@ namespace Opc.Ua.Client
         public virtual SubscriptionCollection CloneSubscriptions(bool copyEventhandlers)
         {
             SubscriptionCollection clone = new SubscriptionCollection();
-            clone.AddRange(this.Select(item => (Subscription)item.CloneSubscription(copyEventhandlers)));
+            clone.AddRange(this.Select(item => item.CloneSubscription(copyEventhandlers)));
             return clone;
         }
         #endregion

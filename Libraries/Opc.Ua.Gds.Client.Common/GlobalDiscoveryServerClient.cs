@@ -218,7 +218,7 @@ namespace Opc.Ua.Gds.Client
         /// <exception cref="System.ArgumentException">endpointUrl</exception>
         public async Task Connect(string endpointUrl)
         {
-            if (String.IsNullOrEmpty(endpointUrl))
+            if (string.IsNullOrEmpty(endpointUrl))
             {
                 throw new ArgumentNullException(nameof(endpointUrl));
             }
@@ -894,7 +894,7 @@ namespace Opc.Ua.Gds.Client
         /// <param name="certificateGroupId">Group of the trust list.</param>
         /// <param name="certificateTypeId">Type of the trust list.</param>
         /// <returns></returns>
-        public Boolean GetCertificateStatus(
+        public bool GetCertificateStatus(
             NodeId applicationId,
             NodeId certificateGroupId,
             NodeId certificateTypeId)
@@ -913,7 +913,7 @@ namespace Opc.Ua.Gds.Client
 
             if (outputArguments.Count >= 1 && outputArguments[0] != null)
             {
-                Boolean? result = outputArguments[0] as Boolean?;
+                bool? result = outputArguments[0] as bool?;
                 if (result != null)
                 {
                     return (bool)result;

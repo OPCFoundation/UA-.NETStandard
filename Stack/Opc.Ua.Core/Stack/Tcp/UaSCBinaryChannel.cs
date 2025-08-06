@@ -75,7 +75,7 @@ namespace Opc.Ua.Bindings
             // create a unique contex if none provided.
             m_contextId = contextId;
 
-            if (String.IsNullOrEmpty(m_contextId))
+            if (string.IsNullOrEmpty(m_contextId))
             {
                 m_contextId = Guid.NewGuid().ToString();
             }
@@ -500,7 +500,7 @@ namespace Opc.Ua.Bindings
                 {
                     BufferManager.ReturnBuffer(e.Buffer, "OnWriteComplete");
                 }
-                HandleWriteComplete((BufferCollection)e.BufferList, e.UserToken, e.BytesTransferred, error);
+                HandleWriteComplete(e.BufferList, e.UserToken, e.BytesTransferred, error);
             }
             catch (Exception ex)
             {
@@ -510,7 +510,7 @@ namespace Opc.Ua.Bindings
                     e.BufferList = null;
                 }
                 error = ServiceResult.Create(ex, StatusCodes.BadTcpInternalError, "Unexpected error during write operation.");
-                HandleWriteComplete((BufferCollection)e.BufferList, e.UserToken, e.BytesTransferred, error);
+                HandleWriteComplete(e.BufferList, e.UserToken, e.BytesTransferred, error);
             }
 
             e.Dispose();
@@ -714,7 +714,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected static void UpdateMessageSize(byte[] buffer, int offset, int messageSize)
         {
-            if (offset >= Int32.MaxValue - 4)
+            if (offset >= int.MaxValue - 4)
             {
                 throw new ArgumentOutOfRangeException(nameof(offset));
             }
@@ -971,7 +971,7 @@ namespace Opc.Ua.Bindings
 
         #region Constants
         private const uint kMaxValueLegacyTrue = TcpMessageLimits.MinSequenceNumber;
-        private const uint kMaxValueLegacyFalse = UInt32.MaxValue;
+        private const uint kMaxValueLegacyFalse = uint.MaxValue;
         #endregion
     }
 

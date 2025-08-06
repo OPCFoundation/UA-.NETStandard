@@ -29,14 +29,14 @@ namespace Opc.Ua
         /// <summary>
         /// Formats the value of the current instance using the specified format.
         /// </summary>
-        /// <param name="format">The <see cref="String"/> specifying the format to use.
+        /// <param name="format">The <see cref="string"/> specifying the format to use.
         /// -or-
         /// null to use the default format defined for the type of the <see cref="IFormattable"/> implementation.</param>
         /// <param name="formatProvider">The <see cref="IFormatProvider"/> to use to format the value.
         /// -or-
         /// null to obtain the numeric format information from the current locale setting of the operating system.</param>
         /// <returns>
-        /// A <see cref="String"/> containing the value of the current instance in the specified format.
+        /// A <see cref="string"/> containing the value of the current instance in the specified format.
         /// </returns>
         public string ToString(string format, IFormatProvider formatProvider)
         {
@@ -47,10 +47,10 @@ namespace Opc.Ua
 
         #region Overridden Methods
         /// <summary>
-        /// Returns a <see cref="String"/> that represents the current <see cref="Object"/>.
+        /// Returns a <see cref="string"/> that represents the current <see cref="object"/>.
         /// </summary>
         /// <returns>
-        /// A <see cref="String"/> that represents the current <see cref="Object"/>.
+        /// A <see cref="string"/> that represents the current <see cref="object"/>.
         /// </returns>
         public override string ToString()
         {
@@ -266,7 +266,7 @@ namespace Opc.Ua
         /// </returns>
         private static string GetDisplayName(X509Certificate2 certificate)
         {
-            if (!String.IsNullOrEmpty(certificate.FriendlyName))
+            if (!string.IsNullOrEmpty(certificate.FriendlyName))
             {
                 return certificate.FriendlyName;
             }
@@ -296,7 +296,7 @@ namespace Opc.Ua
             // skip whitespace.
             for (int ii = index; ii < name.Length; ii++)
             {
-                if (!Char.IsWhiteSpace(name[ii]))
+                if (!char.IsWhiteSpace(name[ii]))
                 {
                     index = ii;
                     break;
@@ -336,7 +336,7 @@ namespace Opc.Ua
             bool needPrivateKey)
         {
             // find by thumbprint.
-            if (!String.IsNullOrEmpty(thumbprint))
+            if (!string.IsNullOrEmpty(thumbprint))
             {
                 collection = collection.Find(X509FindType.FindByThumbprint, thumbprint, false);
 
@@ -344,7 +344,7 @@ namespace Opc.Ua
                 {
                     if (!needPrivateKey || certificate.HasPrivateKey)
                     {
-                        if (String.IsNullOrEmpty(subjectName))
+                        if (string.IsNullOrEmpty(subjectName))
                         {
                             return certificate;
                         }
@@ -361,7 +361,7 @@ namespace Opc.Ua
                 return null;
             }
             // find by subject name.
-            if (!String.IsNullOrEmpty(subjectName))
+            if (!string.IsNullOrEmpty(subjectName))
             {
                 List<string> subjectName2 = X509Utils.ParseDistinguishedName(subjectName);
 
@@ -944,7 +944,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public async Task<bool> Delete(string thumbprint)
         {
-            if (String.IsNullOrEmpty(thumbprint))
+            if (string.IsNullOrEmpty(thumbprint))
             {
                 return false;
             }
@@ -966,7 +966,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public async Task<X509Certificate2Collection> FindByThumbprint(string thumbprint)
         {
-            if (String.IsNullOrEmpty(thumbprint))
+            if (string.IsNullOrEmpty(thumbprint))
             {
                 return null;
             }

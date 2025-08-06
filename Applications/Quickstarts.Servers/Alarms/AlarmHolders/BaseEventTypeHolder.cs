@@ -95,7 +95,7 @@ namespace Alarms
             {
                 alarm = m_alarm;
             }
-            return (BaseEventState)alarm;
+            return alarm;
         }
 
 

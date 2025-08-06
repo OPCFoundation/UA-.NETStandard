@@ -508,7 +508,7 @@ namespace Opc.Ua
         /// <param name="format">(Unused). Leave this as null</param>
         /// <param name="formatProvider">The provider of a mechanism for retrieving an object to control formatting.</param>
         /// <returns>
-        /// A <see cref="System.String"/> containing the value of the current embedded instance in the specified format.
+        /// A <see cref="string"/> containing the value of the current embedded instance in the specified format.
         /// </returns>
         /// <exception cref="FormatException">Thrown if the <i>format</i> parameter is not null</exception>
         public string ToString(string format, IFormatProvider formatProvider)

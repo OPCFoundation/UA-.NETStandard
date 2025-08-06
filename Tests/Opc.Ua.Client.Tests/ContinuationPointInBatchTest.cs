@@ -87,7 +87,7 @@ namespace Opc.Ua.Client.Tests
             m_writer.Write(value);
         }
 
-        public List<String> getEntries()
+        public List<string> getEntries()
         {
             m_stream.Position = 0;
             List<string> entries = new List<string>();
@@ -171,7 +171,7 @@ namespace Opc.Ua.Client.Tests
             TextWriter localWriter = enableTracing ? writer : null;
             {
 
-                // start Ref server                                
+                // start Ref server
                 ServerFixtureWithLimits = new ServerFixture<ReferenceServerWithLimits>(enableTracing, disableActivityLogging) {
                     UriScheme = UriScheme,
                     SecurityNone = securityNone,
@@ -280,7 +280,7 @@ namespace Opc.Ua.Client.Tests
         /// on the maximum number of continuation points supported
         /// by the server, and the maximum number of nodes allowed
         /// in a browse service call.
-        /// 
+        ///
         /// Browse all variables in the objects folder.
         /// </summary>
         [Theory, Order(100)]
@@ -415,7 +415,7 @@ namespace Opc.Ua.Client.Tests
         /// Depending on the number of allowed browse continuation points, the following
         /// results are expected and verified:
         /// i) if the number of allowed browse continuation points is less than the number
-        /// of nodes per browse, the ManagedBrowse method will trigger the status codes 
+        /// of nodes per browse, the ManagedBrowse method will trigger the status codes
         /// BadNoContinuationPoint several times, since it uses the number of nodes per browse for
         /// creating packages. It will also have to rebrowse many nodes. With an increasing number
         /// of allowed browse continuation points the number of results with status code
@@ -432,7 +432,7 @@ namespace Opc.Ua.Client.Tests
         ///
         /// No return value should have the status code BadContinuationPointInvalid, since there is
         /// no attempt to allocate continuation points in parallel from more than one service call.
-        /// </summary>        
+        /// </summary>
         [Theory, Order(200)]
         public void ManagedBrowseWithManyContinuationPoints(ManagedBrowseTestDataProvider testData)
         {
@@ -475,7 +475,7 @@ namespace Opc.Ua.Client.Tests
 
             Assert.AreEqual(nodeIds.Count, referenceDescriptionCollectionsPass1.Count);
 
-            List<String> memoryLogPass1 = memoryWriter.getEntries();
+            List<string> memoryLogPass1 = memoryWriter.getEntries();
             WriteMemoryLogToTextOut(memoryLogPass1, "memoryLogPass1");
 #if DEBUG
             VerifyExpectedResults(memoryLogPass1, pass1ExpectedResults);
@@ -508,7 +508,7 @@ namespace Opc.Ua.Client.Tests
                 out var referenceDescriptionsPass2, out var errorsPass2);
             Assert.AreEqual(nodeIds.Count, referenceDescriptionsPass2.Count);
 
-            List<String> memoryLogPass2 = memoryWriter.getEntries();
+            List<string> memoryLogPass2 = memoryWriter.getEntries();
             WriteMemoryLogToTextOut(memoryLogPass2, "memoryLogPass2");
 #if DEBUG
             // since there is no randomness in this test, we can verify the results directly
@@ -537,9 +537,9 @@ namespace Opc.Ua.Client.Tests
                 Assert.That(referenceDescriptionCollection.Count, Is.EqualTo(referenceDescriptionCollections2ndBrowse[index].Count));
 
                 // now verify that the type of the nodes are the same, once for each list of reference descriptions
-                String randomNodeName =
+                string randomNodeName =
                     referenceDescriptionCollection[random.Next(0, referenceDescriptionCollection.Count - 1)].DisplayName.Text;
-                String suffix = getSuffixesForMassFolders()[index];
+                string suffix = getSuffixesForMassFolders()[index];
                 Assert.IsTrue(randomNodeName.StartsWith(suffix));
 
                 int ii = random.Next(0, referenceDescriptionCollection.Count - 1);
@@ -564,7 +564,7 @@ namespace Opc.Ua.Client.Tests
         /// which forces the method to create packages which have at most
         /// min(maxBrowseContinuationPoints, maxNodesPerBrowse)
         /// nodes.
-        /// 
+        ///
         /// The following results are expected and verified:
         ///
         /// In all cases, the browse will succeed without a status code BadNoContinuationPoints
@@ -618,7 +618,7 @@ namespace Opc.Ua.Client.Tests
 
             Assert.AreEqual(nodeIds.Count, referenceDescriptionCollectionsPass1.Count);
 
-            List<String> memoryLogPass1 = memoryWriter.getEntries();
+            List<string> memoryLogPass1 = memoryWriter.getEntries();
             WriteMemoryLogToTextOut(memoryLogPass1, "memoryLogPass1");
             // this is no typo - we expect no error, hence we use pass2ExpectedResults
             VerifyExpectedResults(memoryLogPass1, pass2ExpectedResults);
@@ -652,7 +652,7 @@ namespace Opc.Ua.Client.Tests
                 out var referenceDescriptionsPass2, out var errorsPass2);
             Assert.AreEqual(nodeIds.Count, referenceDescriptionsPass2.Count);
 
-            List<String> memoryLogPass2 = memoryWriter.getEntries();
+            List<string> memoryLogPass2 = memoryWriter.getEntries();
             WriteMemoryLogToTextOut(memoryLogPass2, "memoryLogPass2");
 
             // since there is no randomness in this test, we can verify the results directly
@@ -681,9 +681,9 @@ namespace Opc.Ua.Client.Tests
                 Assert.That(referenceDescriptionCollection.Count, Is.EqualTo(referenceDescriptionCollections2ndBrowse[index].Count));
 
                 // now verify that the type of the nodes are the same, once for each list of reference descriptions
-                String randomNodeName =
+                string randomNodeName =
                     referenceDescriptionCollection[random.Next(0, referenceDescriptionCollection.Count - 1)].DisplayName.Text;
-                String suffix = getSuffixesForMassFolders()[index];
+                string suffix = getSuffixesForMassFolders()[index];
                 Assert.IsTrue(randomNodeName.StartsWith(suffix));
 
                 int ii = random.Next(0, referenceDescriptionCollection.Count - 1);
@@ -711,7 +711,7 @@ namespace Opc.Ua.Client.Tests
         /// an upper bound for the number of rebrowse attempts would be needed, or a session wide management
         /// of the continuation points the server must potentially allocate for the service calls
         /// from the client).
-        /// 
+        ///
         /// The result with regards to the BadNoContinuationPoint should be similar to the one from
         /// the ManagedBrowseWithManyContinuationPoints test case
         /// </summary>
@@ -772,7 +772,7 @@ namespace Opc.Ua.Client.Tests
             Assert.AreEqual(nodeIds1.Count, referenceDescriptionCollectionsPass1.Count);
             Assert.AreEqual(nodeIds2.Count, referenceDescriptionCollectionsPass2.Count);
 
-            List<String> memoryLogPass1 = memoryWriter.getEntries();
+            List<string> memoryLogPass1 = memoryWriter.getEntries();
             WriteMemoryLogToTextOut(memoryLogPass1, "memoryLogPass1");
 
             memoryWriter.Close(); memoryWriter.Dispose();
@@ -810,9 +810,9 @@ namespace Opc.Ua.Client.Tests
                 Assert.That(referenceDescriptionCollection.Count, Is.EqualTo(referenceDescriptionCollections2ndBrowse[index].Count));
 
                 // now verify that the types of the nodes are the same, once for each list of reference descriptions
-                String randomNodeName =
+                string randomNodeName =
                     referenceDescriptionCollection[random.Next(0, referenceDescriptionCollection.Count - 1)].DisplayName.Text;
-                String suffix = getSuffixesForMassFolders()[index];
+                string suffix = getSuffixesForMassFolders()[index];
                 Assert.IsTrue(randomNodeName.StartsWith(suffix));
 
                 int ii = random.Next(0, referenceDescriptionCollection.Count - 1);
@@ -834,7 +834,7 @@ namespace Opc.Ua.Client.Tests
         /// on the maximum number of continuation points supported
         /// by the server, and the maximum number of nodes allowed
         /// in a browse service call.
-        /// 
+        ///
         /// Browse all variables in the objects folder.
         /// </summary>
         [Theory, Order(400)]
@@ -1027,7 +1027,7 @@ namespace Opc.Ua.Client.Tests
             Assert.AreEqual(nodeIds.Count, referenceDescriptionCollectionPass1.Count);
 
 #if DEBUG
-            List<String> memoryLogPass1 = memoryWriter.getEntries();
+            List<string> memoryLogPass1 = memoryWriter.getEntries();
             WriteMemoryLogToTextOut(memoryLogPass1, "memoryLogPass1");
             VerifyExpectedResults(memoryLogPass1, pass1ExpectedResults);
 #endif
@@ -1037,7 +1037,7 @@ namespace Opc.Ua.Client.Tests
         #endregion async tests
 
         #region helper methods
-        private void WriteMemoryLogToTextOut(List<String> memoryLog, string contextInfo)
+        private void WriteMemoryLogToTextOut(List<string> memoryLog, string contextInfo)
         {
             Session theSession = ((Session)(((TraceableSession)Session).Session));
 
@@ -1046,7 +1046,7 @@ namespace Opc.Ua.Client.Tests
             if (memoryLog.Count > 0)
             {
                 TestContext.WriteLine($"<!-- begin: output from memory log from context {contextInfo} -->");
-                foreach (String s in memoryLog)
+                foreach (string s in memoryLog)
                 {
                     TestContext.Out.WriteLine(s);
                 }
@@ -1061,23 +1061,23 @@ namespace Opc.Ua.Client.Tests
         private void VerifyExpectedResults(List<string> memoryLogPass,
             ManagedBrowseExpectedResultValues expectedResults)
         {
-            List<string> messagesWithBadNoCPSC = memoryLogPass.Where(x => x.Contains("BadNoContinuationPoints")).ToList();
+            List<string> messagesWithBadNoCPSC = memoryLogPass.Where(x => x.Contains("BadNoContinuationPoints", StringComparison.Ordinal)).ToList();
 
             Assert.IsTrue(messagesWithBadNoCPSC.Count == expectedResults.ExpectedNumberOfBadNoCPSCs.Count);
 
             int pass = 0;
-            foreach (String s in messagesWithBadNoCPSC)
+            foreach (string s in messagesWithBadNoCPSC)
             {
                 // get the part of the error message after the time stamp:
                 string msg = s.Substring(s.IndexOf("ManagedBrowse"));
                 // create error message from expected results
-                String expectedString = Utils.Format(
+                string expectedString = Utils.Format(
                     "ManagedBrowse: in pass {0}, {1} {2} occured with a status code {3}.",
                     pass,
                     expectedResults.ExpectedNumberOfBadNoCPSCs[pass],
                     expectedResults.ExpectedNumberOfBadNoCPSCs[pass] == 1 ? "error" :
                     "errors", nameof(StatusCodes.BadNoContinuationPoints));
-                Assert.IsTrue(msg.Equals(expectedString));
+                Assert.IsTrue(msg.Equals(expectedString, StringComparison.Ordinal));
                 pass++;
             }
         }
@@ -1085,9 +1085,9 @@ namespace Opc.Ua.Client.Tests
         List<NodeId> getMassFolderNodesToBrowse()
         {
 
-            String MassFolderPrefix = "Scalar_Simulation_Mass_";
+            string MassFolderPrefix = "Scalar_Simulation_Mass_";
 
-            List<String> nodesToBrowse = new List<String>();
+            List<string> nodesToBrowse = new List<string>();
             foreach (string suffix in getSuffixesForMassFolders())
             {
                 nodesToBrowse.Add(MassFolderPrefix + suffix);
@@ -1095,7 +1095,7 @@ namespace Opc.Ua.Client.Tests
 
             int nsi = Session.NamespaceUris.GetIndex("http://opcfoundation.org/Quickstarts/ReferenceServer");
             List<NodeId> result = new List<NodeId>();
-            foreach (String nodeString in nodesToBrowse)
+            foreach (string nodeString in nodesToBrowse)
             {
                 result.Add(new NodeId(nodeString, (ushort)nsi));
             }

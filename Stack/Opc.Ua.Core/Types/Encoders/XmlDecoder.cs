@@ -78,7 +78,7 @@ namespace Opc.Ua
                 name = m_reader.Name;
             }
 
-            int index = name.IndexOf(':');
+            int index = name.IndexOf(':', StringComparison.Ordinal);
 
             if (index != -1)
             {

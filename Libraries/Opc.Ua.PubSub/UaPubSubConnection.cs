@@ -459,7 +459,7 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// Get data set writer discovery responses
         /// </summary>
-        protected IList<DataSetWriterConfigurationResponse> GetDataSetWriterDiscoveryResponses(UInt16[] dataSetWriterIds)
+        protected IList<DataSetWriterConfigurationResponse> GetDataSetWriterDiscoveryResponses(ushort[] dataSetWriterIds)
         {
             List<DataSetWriterConfigurationResponse> responses = new List<DataSetWriterConfigurationResponse>();
 

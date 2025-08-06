@@ -90,12 +90,12 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// Get and Set WriterGroupId
         /// </summary>
-        public UInt16 WriterGroupId { get; set; }
+        public ushort WriterGroupId { get; set; }
 
         /// <summary>
         /// Get and Set DataSetWriterId if a single value exists for the message.
         /// </summary>
-        public UInt16? DataSetWriterId
+        public ushort? DataSetWriterId
         {
             get
             {
@@ -109,7 +109,7 @@ namespace Opc.Ua.PubSub
                     return null;
                 }
 
-                return ((m_dataSetWriterId != 0) ? m_dataSetWriterId : (UInt16?)null);
+                return ((m_dataSetWriterId != 0) ? m_dataSetWriterId : null);
             }
 
             set

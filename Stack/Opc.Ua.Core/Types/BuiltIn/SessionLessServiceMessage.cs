@@ -22,7 +22,7 @@ namespace Opc.Ua
         /// <summary>
         /// The VersionTime of the namespaces URIs on the server.
         /// </summary>
-        public UInt32 UriVersion;
+        public uint UriVersion;
 
         /// <summary>
         /// The namespaces URIs referenced by the message.
@@ -103,7 +103,7 @@ namespace Opc.Ua
             }
             else
             {
-                encoder.WriteUInt32("TypeId", (uint)0);
+                encoder.WriteUInt32("TypeId", 0);
             }
         }
 

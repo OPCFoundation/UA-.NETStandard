@@ -383,12 +383,12 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             var variant = new VariantCollection {
                 new Variant(4L),
                 new Variant("test"),
-                new Variant(new Int32[] {1, 2, 3, 4, 5 }),
-                new Variant(new Int64[] {1, 2, 3, 4, 5 }),
+                new Variant(new int[] {1, 2, 3, 4, 5 }),
+                new Variant(new long[] {1, 2, 3, 4, 5 }),
                 new Variant(new string[] {"1", "2", "3", "4", "5" }),
                 //TODO: works as expected, but the expected need to be tweaked for the Int32 result
                 //new Variant(new TestEnumType[] { TestEnumType.One, TestEnumType.Two, TestEnumType.Hundred }),
-                new Variant(new Int32[] { 2, 3, 10 }, new TypeInfo(BuiltInType.Enumeration, 1))
+                new Variant(new int[] { 2, 3, 10 }, new TypeInfo(BuiltInType.Enumeration, 1))
             };
             EncodeDecodeDataValue(encoderType, jsonEncodingType, BuiltInType.Variant, MemoryStreamType.ArraySegmentStream, variant);
         }

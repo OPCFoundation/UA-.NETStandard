@@ -23,7 +23,7 @@ namespace Opc.Ua
     /// </summary>
     /// <remarks>
     /// <para>
-    /// The QualifiedName is defined in <b>Part 3 - Address Space Model, Section 7.3</b>, titled 
+    /// The QualifiedName is defined in <b>Part 3 - Address Space Model, Section 7.3</b>, titled
     /// <b>Qualified Name</b>.
     /// <br/></para>
     /// <para>
@@ -126,7 +126,7 @@ namespace Opc.Ua
         public string Name => m_name;
 
         /// <summary>
-        /// 
+        ///
         /// </summary>
         [DataMember(Name = "Name", Order = 2)]
         internal string XmlEncodedName
@@ -172,7 +172,7 @@ namespace Opc.Ua
 
             if (m_name != null)
             {
-                return String.CompareOrdinal(m_name, qname.m_name);
+                return string.CompareOrdinal(m_name, qname.m_name);
             }
 
             return 0;
@@ -333,7 +333,7 @@ namespace Opc.Ua
                     // prepend the namespace index if the name contains a colon.
                     if (m_name != null)
                     {
-                        int index = m_name.IndexOf(':');
+                        int index = m_name.IndexOf(':', StringComparison.Ordinal);
 
                         if (index != -1)
                         {
@@ -386,13 +386,13 @@ namespace Opc.Ua
         public static QualifiedName Create(string name, string namespaceUri, NamespaceTable namespaceTable)
         {
             // check for null.
-            if (String.IsNullOrEmpty(name))
+            if (string.IsNullOrEmpty(name))
             {
                 return QualifiedName.Null;
             }
 
             // return a name using the default namespace.
-            if (String.IsNullOrEmpty(namespaceUri))
+            if (string.IsNullOrEmpty(namespaceUri))
             {
                 return new QualifiedName(name);
             }
@@ -423,7 +423,7 @@ namespace Opc.Ua
         /// <returns>True if the name is value.</returns>
         public static bool IsValid(QualifiedName value, NamespaceTable namespaceUris)
         {
-            if (value == null || String.IsNullOrEmpty(value.m_name))
+            if (value == null || string.IsNullOrEmpty(value.m_name))
             {
                 return false;
             }
@@ -447,12 +447,12 @@ namespace Opc.Ua
         public static QualifiedName Parse(string text)
         {
             // check for null.
-            if (String.IsNullOrEmpty(text))
+            if (string.IsNullOrEmpty(text))
             {
                 return QualifiedName.Null;
             }
 
-            // extract local namespace index. 
+            // extract local namespace index.
             ushort namespaceIndex = 0;
             int start = -1;
 
@@ -466,7 +466,7 @@ namespace Opc.Ua
                     break;
                 }
 
-                if (Char.IsDigit(ch))
+                if (char.IsDigit(ch))
                 {
                     namespaceIndex *= 10;
                     namespaceIndex += (ushort)(ch - '0');
@@ -492,7 +492,7 @@ namespace Opc.Ua
         public static QualifiedName Parse(IServiceMessageContext context, string text, bool updateTables)
         {
             // check for null.
-            if (String.IsNullOrEmpty(text))
+            if (string.IsNullOrEmpty(text))
             {
                 return QualifiedName.Null;
             }
@@ -525,7 +525,7 @@ namespace Opc.Ua
 
                 if (index > 0)
                 {
-                    if (UInt16.TryParse(text.Substring(0, index), out ushort nsIndex))
+                    if (ushort.TryParse(text.Substring(0, index), out ushort nsIndex))
                     {
                         namespaceIndex = nsIndex;
                     }
@@ -549,7 +549,7 @@ namespace Opc.Ua
         /// <returns>The formatted identifier.</returns>
         public string Format(IServiceMessageContext context, bool useNamespaceUri = false)
         {
-            if (String.IsNullOrEmpty(m_name))
+            if (string.IsNullOrEmpty(m_name))
             {
                 return null;
             }
@@ -562,7 +562,7 @@ namespace Opc.Ua
                 {
                     var namespaceUri = context.NamespaceUris.GetString(m_namespaceIndex);
 
-                    if (!String.IsNullOrEmpty(namespaceUri))
+                    if (!string.IsNullOrEmpty(namespaceUri))
                     {
                         buffer.Append("nsu=");
                         buffer.Append(Utils.EscapeUri(namespaceUri));
@@ -594,7 +594,7 @@ namespace Opc.Ua
         {
             if (value != null)
             {
-                if (value.m_namespaceIndex != 0 || !String.IsNullOrEmpty(value.m_name))
+                if (value.m_namespaceIndex != 0 || !string.IsNullOrEmpty(value.m_name))
                 {
                     return false;
                 }

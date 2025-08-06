@@ -450,7 +450,7 @@ namespace Opc.Ua
                 return signature;
             }
 #endif
-            var senderPrivateKey = signingCertificate.GetECDsaPrivateKey() as ECDsa;
+            var senderPrivateKey = signingCertificate.GetECDsaPrivateKey();
 
             if (senderPrivateKey == null)
             {

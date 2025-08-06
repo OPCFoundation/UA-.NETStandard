@@ -793,7 +793,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 IList<UaNetworkMessage> networkMessages = null;
                 if (udpConnectionType == UdpConnectionType.Discovery)
                 {
-                    List<UInt16> dataSetWriterIds = new List<UInt16>();
+                    List<ushort> dataSetWriterIds = new List<ushort>();
                     foreach (DataSetWriterDataType dataSetWriterDataType in writerGroup0.DataSetWriters)
                     {
                         dataSetWriterIds.Add(dataSetWriterDataType.DataSetWriterId);
@@ -905,7 +905,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
 
                 UaNetworkMessage networkMessage = null;
 
-                List<UInt16> dataSetWriterIds = new List<UInt16>();
+                List<ushort> dataSetWriterIds = new List<ushort>();
                 foreach (DataSetWriterDataType dataSetWriterDataType in writerGroup0.DataSetWriters)
                 {
                     dataSetWriterIds.Add(dataSetWriterDataType.DataSetWriterId);
@@ -965,7 +965,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
         /// UADP Discovery: Provide DataSetWriterConfiguration setting GetDataSetWriterConfigurationCallback method to deliver them during a Subscriber request
         /// </summary>
         /// <returns></returns>
-        private IList<UInt16> GetDataSetWriterConfiguration(UaPubSubApplication uaPubSubApplication)
+        private IList<ushort> GetDataSetWriterConfiguration(UaPubSubApplication uaPubSubApplication)
         {
             return CreateDataSetWriterIdsList(uaPubSubApplication);
         }
@@ -975,9 +975,9 @@ namespace Opc.Ua.PubSub.Tests.Transport
         /// </summary>
         /// <param name="uaPubSubApplication"></param>
         /// <returns></returns>
-        private static IList<UInt16> CreateDataSetWriterIdsList(UaPubSubApplication uaPubSubApplication)
+        private static IList<ushort> CreateDataSetWriterIdsList(UaPubSubApplication uaPubSubApplication)
         {
-            List<UInt16> ids = new List<UInt16>();
+            List<ushort> ids = new List<ushort>();
 
             foreach (var connection in uaPubSubApplication.UaPubSubConfigurator.PubSubConfiguration.Connections)
             {

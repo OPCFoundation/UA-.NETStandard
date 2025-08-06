@@ -41,7 +41,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
     public class UaPublisherTests
     {
         static List<long> s_publishTicks = new List<long>();
-        static object s_lock = new Object();
+        static object s_lock = new object();
 
         [Test(Description = "Test that PublishMessage method is called after a UAPublisher is started.")]
         [Combinatorial]

@@ -249,7 +249,7 @@ namespace Opc.Ua.Server
             }
 
             // determine whether a transition occurs at the StartTime
-            double lastValue = Double.NaN;
+            double lastValue = double.NaN;
 
             if (slice.EarlyBound != null)
             {
@@ -261,7 +261,7 @@ namespace Opc.Ua.Server
                     }
                     catch (Exception)
                     {
-                        lastValue = Double.NaN;
+                        lastValue = double.NaN;
                     }
                 }
             }
@@ -287,7 +287,7 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
-                if (!Double.IsNaN(lastValue))
+                if (!double.IsNaN(lastValue))
                 {
                     if (lastValue != nextValue)
                     {

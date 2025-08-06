@@ -164,7 +164,7 @@ namespace Quickstarts
                 intWriteVal.NodeId = new NodeId("ns=2;s=Scalar_Static_Int32");
                 intWriteVal.AttributeId = Attributes.Value;
                 intWriteVal.Value = new DataValue();
-                intWriteVal.Value.Value = (int)100;
+                intWriteVal.Value.Value = 100;
                 nodesToWrite.Add(intWriteVal);
 
                 // Float Node - Objects\CTT\Scalar\Scalar_Static\Float
@@ -1352,7 +1352,7 @@ namespace Quickstarts
                         }
 
                         string fieldName = fieldPath.ToString();
-                        if (fieldName.Equals("Time"))
+                        if (fieldName.Equals("Time", StringComparison.Ordinal))
                         {
                             try
                             {
@@ -1363,11 +1363,11 @@ namespace Quickstarts
                                 string timeBetweenEvents = "";
                                 if (m_processedEvents > 1)
                                 {
-                                    timeBetweenEvents = ", time since last event = " + timeSpan.Seconds.ToString() + " seconds";
+                                    timeBetweenEvents = ", time since last event = " + timeSpan.Seconds.ToString(CultureInfo.InvariantCulture) + " seconds";
                                 }
 
                                 m_output.WriteLine("Event Received - total count = {0}{1}",
-                                    m_processedEvents.ToString(),
+                                    m_processedEvents.ToString(CultureInfo.InvariantCulture),
                                     timeBetweenEvents);
                             }
                             catch (Exception ex)
@@ -1377,7 +1377,7 @@ namespace Quickstarts
                         }
 
                         m_output.WriteLine("\tField [{0}] \"{1}\" = [{2}]",
-                            entry.Key.ToString(), fieldName, field.Value);
+                            entry.Key.ToString(CultureInfo.InvariantCulture), fieldName, field.Value);
                     }
                 }
             }

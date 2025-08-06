@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -34,6 +34,7 @@ using System.Linq;
 using System.Net;
 using System.Net.NetworkInformation;
 using System.Net.Sockets;
+using System.Runtime.InteropServices;
 using System.Threading;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Encoding;
@@ -162,7 +163,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             UadpWriterGroupMessageDataType messageSettings = ExtensionObject.ToEncodeable(writerGroup0.MessageSettings)
                 as UadpWriterGroupMessageDataType;
 
-            //Act  
+            //Act
             UdpPubSubConnection.ResetSequenceNumber();
 
             var networkMessages = m_udpPublisherConnection.CreateNetworkMessages(writerGroup0, new WriterGroupPublishState());
@@ -198,7 +199,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             //Arrange
             WriterGroupDataType writerGroup0 = m_udpPublisherConnection.PubSubConnectionConfiguration.WriterGroups.First();
 
-            //Act  
+            //Act
             UdpPubSubConnection.ResetSequenceNumber();
             for (int i = 0; i < 10; i++)
             {
@@ -249,7 +250,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                     var addreses = nic.GetIPProperties().UnicastAddresses;
                     foreach (UnicastIPAddressInformation addr in addreses)
                     {
-                        if (addr.Address.ToString().Contains(activeIp))
+                        if (addr.Address.ToString().Contains(activeIp, StringComparison.Ordinal))
                         {
                             // return specified address
                             return addr;
@@ -307,7 +308,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             var hostName = Dns.GetHostName();
             foreach (var address in Dns.GetHostEntry(hostName).AddressList)
             {
-                if (address.MapToIPv4().ToString().Equals(ipAddress))
+                if (address.MapToIPv4().ToString().Equals(ipAddress, StringComparison.Ordinal))
                 {
                     return true;
                 }
@@ -331,10 +332,14 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 }
                 foreach (var uniIpAddrInfo in netI.GetIPProperties().UnicastAddresses.Where(x => netI.GetIPProperties().GatewayAddresses.Count > 0))
                 {
-                    if ((uniIpAddrInfo.Address.AddressFamily == AddressFamily.InterNetwork ||
-                        uniIpAddrInfo.Address.AddressFamily == AddressFamily.InterNetworkV6) &&
-                        uniIpAddrInfo.AddressPreferredLifetime != uint.MaxValue)
+                    if (uniIpAddrInfo.Address.AddressFamily == AddressFamily.InterNetwork ||
+                        uniIpAddrInfo.Address.AddressFamily == AddressFamily.InterNetworkV6)
                     {
+                        // Address preferred lifetime is only supported on Windows
+                        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows) && uniIpAddrInfo.AddressPreferredLifetime == uint.MaxValue)
+                        {
+                            continue;
+                        }
                         addresses.Add(uniIpAddrInfo.Address);
                     }
                 }
@@ -380,6 +385,6 @@ namespace Opc.Ua.PubSub.Tests.Transport
 
             return null;
         }
-        #endregion
+#endregion
     }
 }

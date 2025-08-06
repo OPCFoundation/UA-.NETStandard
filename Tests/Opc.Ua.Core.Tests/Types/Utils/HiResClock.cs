@@ -223,7 +223,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         }
 
         [DllImport("kernel32")]
-        private extern static UInt64 GetTickCount64();
+        private extern static ulong GetTickCount64();
 
         [Benchmark]
         public void WindowsGetTickCount64()

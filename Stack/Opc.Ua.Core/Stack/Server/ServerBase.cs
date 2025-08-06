@@ -914,7 +914,7 @@ namespace Opc.Ua
             {
                 UserTokenPolicy clone = (UserTokenPolicy)policy.Clone();
 
-                if (String.IsNullOrEmpty(policy.SecurityPolicyUri))
+                if (string.IsNullOrEmpty(policy.SecurityPolicyUri))
                 {
                     if (description.SecurityMode == MessageSecurityMode.None)
                     {
@@ -1420,14 +1420,14 @@ namespace Opc.Ua
             MessageContext = messageContext;
 
             // assign a unique identifier if none specified.
-            if (String.IsNullOrEmpty(configuration.ApplicationUri))
+            if (string.IsNullOrEmpty(configuration.ApplicationUri))
             {
                 var instanceCertificate = InstanceCertificateTypesProvider.GetInstanceCertificate(
                     configuration.ServerConfiguration.SecurityPolicies[0].SecurityPolicyUri);
 
                 configuration.ApplicationUri = X509Utils.GetApplicationUriFromCertificate(instanceCertificate);
 
-                if (String.IsNullOrEmpty(configuration.ApplicationUri))
+                if (string.IsNullOrEmpty(configuration.ApplicationUri))
                 {
                     configuration.ApplicationUri = Utils.Format(
                         "http://{0}/{1}/{2}",
@@ -1441,7 +1441,7 @@ namespace Opc.Ua
             MessageContext.NamespaceUris.Append(configuration.ApplicationUri);
 
             // assign an instance name.
-            if (String.IsNullOrEmpty(configuration.ApplicationName) && defaultInstanceCertificate != null)
+            if (string.IsNullOrEmpty(configuration.ApplicationName) && defaultInstanceCertificate != null)
             {
                 configuration.ApplicationName = defaultInstanceCertificate.GetNameInfo(X509NameType.DnsName, false);
             }

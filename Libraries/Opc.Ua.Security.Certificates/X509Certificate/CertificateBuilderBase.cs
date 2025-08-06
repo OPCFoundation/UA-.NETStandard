@@ -189,7 +189,7 @@ namespace Opc.Ua.Security.Certificates
         /// <inheritdoc/>
         public ICertificateBuilder SetLifeTime(ushort months)
         {
-            m_notAfter = m_notBefore.AddMonths(months == 0 ? X509Defaults.LifeTime : (int)months);
+            m_notAfter = m_notBefore.AddMonths(months == 0 ? X509Defaults.LifeTime : months);
             return this;
         }
 

@@ -769,7 +769,7 @@ namespace Opc.Ua
             SuperTypeId = Opc.Ua.NodeId.Create(Opc.Ua.VariableTypes.BaseVariableType, Opc.Ua.Namespaces.OpcUa, context.NamespaceUris);
             NodeId = Opc.Ua.NodeId.Create(Opc.Ua.VariableTypes.BaseDataVariableType, Opc.Ua.Namespaces.OpcUa, context.NamespaceUris);
             BrowseName = Opc.Ua.QualifiedName.Create(Opc.Ua.BrowseNames.BaseDataVariableType, Opc.Ua.Namespaces.OpcUa, context.NamespaceUris);
-            DisplayName = new LocalizedText(Opc.Ua.BrowseNames.BaseDataVariableType, String.Empty, Opc.Ua.BrowseNames.BaseDataVariableType);
+            DisplayName = new LocalizedText(Opc.Ua.BrowseNames.BaseDataVariableType, string.Empty, Opc.Ua.BrowseNames.BaseDataVariableType);
             Description = null;
             WriteMask = AttributeWriteMask.None;
             UserWriteMask = AttributeWriteMask.None;
@@ -870,7 +870,7 @@ namespace Opc.Ua
             SuperTypeId = Opc.Ua.NodeId.Create(Opc.Ua.VariableTypes.BaseVariableType, Opc.Ua.Namespaces.OpcUa, context.NamespaceUris);
             NodeId = Opc.Ua.NodeId.Create(Opc.Ua.VariableTypes.PropertyType, Opc.Ua.Namespaces.OpcUa, context.NamespaceUris);
             BrowseName = Opc.Ua.QualifiedName.Create(Opc.Ua.BrowseNames.PropertyType, Opc.Ua.Namespaces.OpcUa, context.NamespaceUris);
-            DisplayName = new LocalizedText(Opc.Ua.BrowseNames.PropertyType, String.Empty, Opc.Ua.BrowseNames.PropertyType);
+            DisplayName = new LocalizedText(Opc.Ua.BrowseNames.PropertyType, string.Empty, Opc.Ua.BrowseNames.PropertyType);
             Description = null;
             WriteMask = AttributeWriteMask.None;
             UserWriteMask = AttributeWriteMask.None;

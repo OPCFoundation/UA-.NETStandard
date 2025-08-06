@@ -145,10 +145,10 @@ namespace Opc.Ua.Server
                 return GetNoDataValue(slice);
             }
 
-            double minimumGoodValue = Double.MaxValue;
-            double minimumUncertainValue = Double.MaxValue;
-            double maximumGoodValue = Double.MinValue;
-            double maximumUncertainValue = Double.MinValue;
+            double minimumGoodValue = double.MaxValue;
+            double minimumUncertainValue = double.MaxValue;
+            double maximumGoodValue = double.MinValue;
+            double maximumUncertainValue = double.MinValue;
 
             DateTime minimumGoodTimestamp = DateTime.MinValue;
             DateTime maximumGoodTimestamp = DateTime.MinValue;
@@ -336,8 +336,8 @@ namespace Opc.Ua.Server
                 return GetNoDataValue(slice);
             }
 
-            double minimumGoodValue = Double.MaxValue;
-            double maximumGoodValue = Double.MinValue;
+            double minimumGoodValue = double.MaxValue;
+            double maximumGoodValue = double.MinValue;
 
             DateTime minimumGoodTimestamp = DateTime.MinValue;
             DateTime maximumGoodTimestamp = DateTime.MinValue;

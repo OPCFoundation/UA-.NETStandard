@@ -460,7 +460,7 @@ namespace Opc.Ua.Bindings
                 var result = m_callback.BeginProcessRequest(
                     m_listenerId,
                     endpoint,
-                    input as IServiceRequest,
+                    input,
                     null,
                     null);
 

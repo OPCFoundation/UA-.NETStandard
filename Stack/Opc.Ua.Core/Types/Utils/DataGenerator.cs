@@ -105,7 +105,7 @@ namespace Opc.Ua.Test
                 throw new ArgumentOutOfRangeException(nameof(max));
             }
 
-            if (max < Int32.MaxValue)
+            if (max < int.MaxValue)
             {
                 max++;
             }
@@ -620,11 +620,11 @@ namespace Opc.Ua.Test
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1024:UsePropertiesWhereAppropriate")]
         public sbyte GetRandomSByte()
         {
-            int buffer = m_random.NextInt32(Byte.MaxValue);
+            int buffer = m_random.NextInt32(byte.MaxValue);
 
-            if (buffer > SByte.MaxValue)
+            if (buffer > sbyte.MaxValue)
             {
-                return (sbyte)(SByte.MinValue + (buffer - SByte.MaxValue) - 1);
+                return (sbyte)(sbyte.MinValue + (buffer - sbyte.MaxValue) - 1);
             }
 
             return (sbyte)buffer;
@@ -636,7 +636,7 @@ namespace Opc.Ua.Test
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1024:UsePropertiesWhereAppropriate")]
         public byte GetRandomByte()
         {
-            return (byte)m_random.NextInt32(Byte.MaxValue);
+            return (byte)m_random.NextInt32(byte.MaxValue);
         }
         #endregion
 
@@ -645,11 +645,11 @@ namespace Opc.Ua.Test
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1024:UsePropertiesWhereAppropriate")]
         public short GetRandomInt16()
         {
-            int buffer = m_random.NextInt32(UInt16.MaxValue);
+            int buffer = m_random.NextInt32(ushort.MaxValue);
 
-            if (buffer > Int16.MaxValue)
+            if (buffer > short.MaxValue)
             {
-                return (short)(Int16.MinValue + (buffer - Int16.MaxValue) - 1);
+                return (short)(short.MinValue + (buffer - short.MaxValue) - 1);
             }
 
             return (short)buffer;
@@ -661,7 +661,7 @@ namespace Opc.Ua.Test
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1024:UsePropertiesWhereAppropriate")]
         public ushort GetRandomUInt16()
         {
-            return (ushort)m_random.NextInt32(UInt16.MaxValue);
+            return (ushort)m_random.NextInt32(ushort.MaxValue);
         }
         #endregion
 
@@ -670,7 +670,7 @@ namespace Opc.Ua.Test
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1024:UsePropertiesWhereAppropriate")]
         public int GetRandomInt32()
         {
-            return (int)m_random.NextInt32(Int32.MaxValue);
+            return m_random.NextInt32(int.MaxValue);
         }
         #endregion
 
@@ -1158,24 +1158,24 @@ namespace Opc.Ua.Test
         /// </summary>
         private static readonly BoundaryValues[] s_AvailableBoundaryValues = new BoundaryValues[]
         {
-            new BoundaryValues(typeof(sbyte), SByte.MinValue, (sbyte)0, SByte.MaxValue),
-            new BoundaryValues(typeof(byte), Byte.MinValue, Byte.MaxValue),
-            new BoundaryValues(typeof(short), Int16.MinValue, (short)0, Int16.MaxValue),
-            new BoundaryValues(typeof(ushort), UInt16.MinValue, UInt16.MaxValue),
-            new BoundaryValues(typeof(int), Int32.MinValue, (int)0, Int32.MaxValue),
-            new BoundaryValues(typeof(uint), UInt32.MinValue, UInt32.MaxValue),
-            new BoundaryValues(typeof(long), Int64.MinValue, (long)0, Int64.MaxValue),
-            new BoundaryValues(typeof(ulong), UInt64.MinValue, UInt64.MaxValue),
-            new BoundaryValues(typeof(float), Single.Epsilon, Single.MaxValue, Single.MinValue, Single.NaN, Single.NegativeInfinity, Single.PositiveInfinity, (float)0 ),
-            new BoundaryValues(typeof(double), Double.Epsilon, Double.MaxValue, Double.MinValue, Double.NaN, Double.NegativeInfinity, Double.PositiveInfinity, (double)0 ),
-            new BoundaryValues(typeof(string), null, String.Empty ),
+            new BoundaryValues(typeof(sbyte), sbyte.MinValue, (sbyte)0, sbyte.MaxValue),
+            new BoundaryValues(typeof(byte), byte.MinValue, byte.MaxValue),
+            new BoundaryValues(typeof(short), short.MinValue, (short)0, short.MaxValue),
+            new BoundaryValues(typeof(ushort), ushort.MinValue, ushort.MaxValue),
+            new BoundaryValues(typeof(int), int.MinValue, 0, int.MaxValue),
+            new BoundaryValues(typeof(uint), uint.MinValue, uint.MaxValue),
+            new BoundaryValues(typeof(long), long.MinValue, (long)0, long.MaxValue),
+            new BoundaryValues(typeof(ulong), ulong.MinValue, ulong.MaxValue),
+            new BoundaryValues(typeof(float), float.Epsilon, float.MaxValue, float.MinValue, float.NaN, float.NegativeInfinity, float.PositiveInfinity, (float)0 ),
+            new BoundaryValues(typeof(double), double.Epsilon, double.MaxValue, double.MinValue, double.NaN, double.NegativeInfinity, double.PositiveInfinity, (double)0 ),
+            new BoundaryValues(typeof(string), null, string.Empty ),
             new BoundaryValues(typeof(DateTime), DateTime.MinValue, DateTime.MaxValue, new DateTime(1099, 1, 1), Utils.TimeBase, new DateTime(2039, 4, 4), new DateTime(2001, 9, 11, 9, 15, 0, DateTimeKind.Local)),
             new BoundaryValues(typeof(Guid), Guid.Empty),
             new BoundaryValues(typeof(Uuid), Uuid.Empty),
             new BoundaryValues(typeof(byte[]), null, Array.Empty<byte>()),
             new BoundaryValues(typeof(XmlElement), null ),
-            new BoundaryValues(typeof(NodeId), null, NodeId.Null, new NodeId(Guid.Empty), new NodeId(String.Empty), new NodeId(Array.Empty<byte>()) ),
-            new BoundaryValues(typeof(ExpandedNodeId), null, ExpandedNodeId.Null, new ExpandedNodeId(Guid.Empty), new ExpandedNodeId(String.Empty), new ExpandedNodeId(Array.Empty<byte>()) ),
+            new BoundaryValues(typeof(NodeId), null, NodeId.Null, new NodeId(Guid.Empty), new NodeId(string.Empty), new NodeId(Array.Empty<byte>()) ),
+            new BoundaryValues(typeof(ExpandedNodeId), null, ExpandedNodeId.Null, new ExpandedNodeId(Guid.Empty), new ExpandedNodeId(string.Empty), new ExpandedNodeId(Array.Empty<byte>()) ),
             new BoundaryValues(typeof(QualifiedName), null, QualifiedName.Null ),
             new BoundaryValues(typeof(LocalizedText), null, LocalizedText.Null ),
             new BoundaryValues(typeof(StatusCode), StatusCodes.Good, StatusCodes.Uncertain, StatusCodes.Bad ),
@@ -1210,7 +1210,7 @@ namespace Opc.Ua.Test
                     {
                         string token = line.Trim();
 
-                        if (String.IsNullOrEmpty(token))
+                        if (string.IsNullOrEmpty(token))
                         {
                             continue;
                         }

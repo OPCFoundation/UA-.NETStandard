@@ -733,7 +733,7 @@ namespace Opc.Ua.Bindings
                                 encoder.WriteByte(null, paddingSize);
                                 for (int ii = 0; ii < padding; ii++)
                                 {
-                                    encoder.WriteByte(null, (byte)paddingSize);
+                                    encoder.WriteByte(null, paddingSize);
                                 }
                                 encoder.WriteByte(null, extraPaddingByte);
                             }

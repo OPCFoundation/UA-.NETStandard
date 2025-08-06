@@ -54,9 +54,9 @@ namespace Opc.Ua.Core.Tests
         public string ApplicationUri;
         public string ApplicationName;
         public StringCollection DomainNames;
-        public String Subject;
-        public String PrivateKeyFormat;
-        public String PrivateKeyPassword;
+        public string Subject;
+        public string PrivateKeyFormat;
+        public string PrivateKeyPassword;
         public byte[] Certificate;
         public byte[] PrivateKey;
         public byte[][] IssuerCertificates;

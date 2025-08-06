@@ -212,9 +212,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
             // create a certificate with special key info
             var authorityKeyIdentifier = new Ua.Security.Certificates.X509AuthorityKeyIdentifierExtension(
-                    (byte[])(subjectKeyIdentifier ? ski.SubjectKeyIdentifier.FromHexString() : null),
-                    (X500DistinguishedName)(issuerName ? m_rootCert.IssuerName : null),
-                    (byte[])(serialNumber ? m_rootCert.GetSerialNumber() : null));
+                    subjectKeyIdentifier ? ski.SubjectKeyIdentifier.FromHexString() : null,
+                    issuerName ? m_rootCert.IssuerName : null,
+                    serialNumber ? m_rootCert.GetSerialNumber() : null);
 
             TestContext.Out.WriteLine("Extension: {0}", authorityKeyIdentifier.Format(true));
 
@@ -277,9 +277,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
             // create a certificate with special key info / no key id
             var authorityKeyIdentifier = new Ua.Security.Certificates.X509AuthorityKeyIdentifierExtension(
-                    (byte[])(subjectKeyIdentifier ? ski.SubjectKeyIdentifier.FromHexString() : null),
-                    (X500DistinguishedName)(issuerName ? m_rootAltCert.IssuerName : null),
-                    (byte[])(serialNumber ? m_rootAltCert.GetSerialNumber() : null));
+                    subjectKeyIdentifier ? ski.SubjectKeyIdentifier.FromHexString() : null,
+                    issuerName ? m_rootAltCert.IssuerName : null,
+                    serialNumber ? m_rootAltCert.GetSerialNumber() : null);
             certBuilder.AddExtension(authorityKeyIdentifier);
             TestContext.Out.WriteLine("Extension: {0}", authorityKeyIdentifier.Format(true));
 

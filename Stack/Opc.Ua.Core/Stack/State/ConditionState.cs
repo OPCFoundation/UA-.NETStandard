@@ -189,7 +189,7 @@ namespace Opc.Ua
                 branchedNodeState.AutoReportStateChanges = AutoReportStateChanges;
                 branchedNodeState.ReportStateChange(context, false);
 
-                string postEventId = Utils.ToHexString(branchedNodeState.EventId.Value as byte[]);
+                string postEventId = Utils.ToHexString(branchedNodeState.EventId.Value);
 
                 Dictionary<string, ConditionState> branches = GetBranches();
 

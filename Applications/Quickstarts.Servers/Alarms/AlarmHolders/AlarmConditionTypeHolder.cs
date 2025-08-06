@@ -110,7 +110,7 @@ namespace Alarms
             if (Optional)
             {
                 alarm.SetSuppressedState(SystemContext, suppressed: false);
-                alarm.SetShelvingState(SystemContext, shelved: false, oneShot: false, shelvingTime: Double.MaxValue);
+                alarm.SetShelvingState(SystemContext, shelved: false, oneShot: false, shelvingTime: double.MaxValue);
                 alarm.ShelvingState.LastTransition.Value = new LocalizedText("");
                 alarm.ShelvingState.LastTransition.Id.Value = 0;
 

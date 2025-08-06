@@ -260,7 +260,7 @@ namespace Opc.Ua.Client
         /// </summary>
         private void ValidateClientConfiguration(ApplicationConfiguration configuration)
         {
-            String configurationField;
+            string configurationField;
             if (configuration == null)
             {
                 throw new ArgumentNullException(nameof(configuration));
@@ -298,7 +298,7 @@ namespace Opc.Ua.Client
             MessageSecurityMode channelSecurityMode = MessageSecurityMode.None)
         {
             // skip validation if server nonce is not used for encryption.
-            if (String.IsNullOrEmpty(securityPolicyUri) || securityPolicyUri == SecurityPolicies.None)
+            if (string.IsNullOrEmpty(securityPolicyUri) || securityPolicyUri == SecurityPolicies.None)
             {
                 return;
             }
@@ -1644,13 +1644,13 @@ namespace Opc.Ua.Client
                 }
                 OperationLimits = operationLimits;
 
-                if (values[maxBrowseContinuationPointIndex] is UInt16 serverMaxContinuationPointsPerBrowse &&
+                if (values[maxBrowseContinuationPointIndex] is ushort serverMaxContinuationPointsPerBrowse &&
                     ServiceResult.IsNotBad(errors[maxBrowseContinuationPointIndex]))
                 {
                     ServerMaxContinuationPointsPerBrowse = serverMaxContinuationPointsPerBrowse;
                 }
 
-                if (values[maxByteStringLengthIndex] is UInt32 serverMaxByteStringLength &&
+                if (values[maxByteStringLengthIndex] is uint serverMaxByteStringLength &&
                     ServiceResult.IsNotBad(errors[maxByteStringLengthIndex]))
                 {
                     ServerMaxByteStringLength = serverMaxByteStringLength;
@@ -2311,7 +2311,7 @@ namespace Opc.Ua.Client
                 // select the security policy for the user token.
                 string tokenSecurityPolicyUri = identityPolicy.SecurityPolicyUri;
 
-                if (String.IsNullOrEmpty(tokenSecurityPolicyUri))
+                if (string.IsNullOrEmpty(tokenSecurityPolicyUri))
                 {
                     tokenSecurityPolicyUri = m_endpoint.Description.SecurityPolicyUri;
                 }
@@ -2482,7 +2482,7 @@ namespace Opc.Ua.Client
             // select the security policy for the user token.
             string tokenSecurityPolicyUri = identityPolicy.SecurityPolicyUri;
 
-            if (String.IsNullOrEmpty(tokenSecurityPolicyUri))
+            if (string.IsNullOrEmpty(tokenSecurityPolicyUri))
             {
                 tokenSecurityPolicyUri = m_endpoint.Description.SecurityPolicyUri;
             }
@@ -2633,7 +2633,7 @@ namespace Opc.Ua.Client
                     continue;
                 }
 
-                if (results[ii].Targets[0].RemainingPathIndex != UInt32.MaxValue)
+                if (results[ii].Targets[0].RemainingPathIndex != uint.MaxValue)
                 {
                     errors[ii] = ServiceResult.Create(
                         StatusCodes.BadTargetNodeIdInvalid,
@@ -2861,7 +2861,7 @@ namespace Opc.Ua.Client
 
             ResponseHeader responseHeader = Read(
                 null,
-                Int32.MaxValue,
+                int.MaxValue,
                 TimestampsToReturn.Neither,
                 valuesToRead,
                 out results,
@@ -2873,7 +2873,7 @@ namespace Opc.Ua.Client
 
             for (int ii = 0; ii < nodeIds.Count; ii++)
             {
-                displayNames.Add(String.Empty);
+                displayNames.Add(string.Empty);
                 errors.Add(ServiceResult.Good);
 
                 // process any diagnostics associated with bad or uncertain data.
@@ -4853,7 +4853,7 @@ namespace Opc.Ua.Client
 #endif
             }
 
-            uint timeoutHint = (uint)((timeout > 0) ? (uint)timeout : uint.MaxValue);
+            uint timeoutHint = (timeout > 0) ? (uint)timeout : uint.MaxValue;
             timeoutHint = Math.Min((uint)(OperationTimeout / 2), timeoutHint);
 
             // send publish request.
@@ -5279,7 +5279,7 @@ namespace Opc.Ua.Client
             if (!requireEncryption)
             {
                 requireEncryption = identityPolicy.SecurityPolicyUri != SecurityPolicies.None &&
-                    !String.IsNullOrEmpty(identityPolicy.SecurityPolicyUri);
+                    !string.IsNullOrEmpty(identityPolicy.SecurityPolicyUri);
             }
         }
         /// <summary>
@@ -5581,7 +5581,7 @@ namespace Opc.Ua.Client
             // select the security policy for the user token.
             string tokenSecurityPolicyUri = identityPolicy.SecurityPolicyUri;
 
-            if (String.IsNullOrEmpty(tokenSecurityPolicyUri))
+            if (string.IsNullOrEmpty(tokenSecurityPolicyUri))
             {
                 tokenSecurityPolicyUri = endpoint.SecurityPolicyUri;
             }
@@ -6349,7 +6349,7 @@ namespace Opc.Ua.Client
         {
             var requestHeader = new RequestHeader();
             var userTokenSecurityPolicyUri = identityTokenSecurityPolicyUri;
-            if (String.IsNullOrEmpty(userTokenSecurityPolicyUri))
+            if (string.IsNullOrEmpty(userTokenSecurityPolicyUri))
             {
                 userTokenSecurityPolicyUri = m_endpoint.Description.SecurityPolicyUri;
             }

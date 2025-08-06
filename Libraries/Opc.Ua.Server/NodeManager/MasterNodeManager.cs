@@ -61,7 +61,7 @@ namespace Opc.Ua.Server
             // ensure the dynamic namespace uris.
             int dynamicNamespaceIndex = 1;
 
-            if (!String.IsNullOrEmpty(dynamicNamespaceUri))
+            if (!string.IsNullOrEmpty(dynamicNamespaceUri))
             {
                 dynamicNamespaceIndex = server.NamespaceUris.GetIndex(dynamicNamespaceUri);
 
@@ -408,7 +408,7 @@ namespace Opc.Ua.Server
         /// <exception cref="ArgumentNullException">Throw if the namespaceUri or the nodeManager are null.</exception>
         public void RegisterNamespaceManager(string namespaceUri, INodeManager nodeManager)
         {
-            if (String.IsNullOrEmpty(namespaceUri)) throw new ArgumentNullException(nameof(namespaceUri));
+            if (string.IsNullOrEmpty(namespaceUri)) throw new ArgumentNullException(nameof(namespaceUri));
             if (nodeManager == null) throw new ArgumentNullException(nameof(nodeManager));
 
             // look up the namespace uri.
@@ -470,7 +470,7 @@ namespace Opc.Ua.Server
         /// <exception cref="ArgumentNullException">Throw if the namespaceUri or the nodeManager are null.</exception>
         public bool UnregisterNamespaceManager(string namespaceUri, INodeManager nodeManager)
         {
-            if (String.IsNullOrEmpty(namespaceUri)) throw new ArgumentNullException(nameof(namespaceUri));
+            if (string.IsNullOrEmpty(namespaceUri)) throw new ArgumentNullException(nameof(namespaceUri));
             if (nodeManager == null) throw new ArgumentNullException(nameof(nodeManager));
 
             // look up the namespace uri.
@@ -687,7 +687,7 @@ namespace Opc.Ua.Server
             }
 
             Utils.LogTrace(
-                (int)Utils.TraceMasks.ServiceDetail,
+                Utils.TraceMasks.ServiceDetail,
                 "MasterNodeManager.RegisterNodes - Count={0}",
                 nodesToRegister.Count);
 
@@ -716,7 +716,7 @@ namespace Opc.Ua.Server
             if (nodesToUnregister == null) throw new ArgumentNullException(nameof(nodesToUnregister));
 
             Utils.LogTrace(
-                (int)Utils.TraceMasks.ServiceDetail,
+                Utils.TraceMasks.ServiceDetail,
                 "MasterNodeManager.UnregisterNodes - Count={0}",
                 nodesToUnregister.Count);
 
@@ -834,7 +834,7 @@ namespace Opc.Ua.Server
                     int depth = 0;
                     while (diagnosticInfo != null && depth++ < DiagnosticInfo.MaxInnerDepth)
                     {
-                        if (!String.IsNullOrEmpty(diagnosticInfo.AdditionalInfo))
+                        if (!string.IsNullOrEmpty(diagnosticInfo.AdditionalInfo))
                         {
                             diagnosticsExist = true;
                             break;
@@ -1024,7 +1024,7 @@ namespace Opc.Ua.Server
 
                     BrowsePathTarget target = new BrowsePathTarget();
                     target.TargetId = targetIds[ii];
-                    target.RemainingPathIndex = UInt32.MaxValue;
+                    target.RemainingPathIndex = uint.MaxValue;
 
                     targets.Add(target);
                 }
@@ -1614,7 +1614,7 @@ namespace Opc.Ua.Server
             bool validItems = false;
 
             Utils.LogTrace(
-                (int)Utils.TraceMasks.ServiceDetail,
+                Utils.TraceMasks.ServiceDetail,
                 "MasterNodeManager.Read - Count={0}",
                 nodesToRead.Count);
 
@@ -2312,7 +2312,7 @@ namespace Opc.Ua.Server
                     }
 
                     // the index range parameter has no meaning for event subscriptions.
-                    if (!String.IsNullOrEmpty(itemToCreate.ItemToMonitor.IndexRange))
+                    if (!string.IsNullOrEmpty(itemToCreate.ItemToMonitor.IndexRange))
                     {
                         errors[ii] = StatusCodes.BadIndexRangeInvalid;
                         continue;

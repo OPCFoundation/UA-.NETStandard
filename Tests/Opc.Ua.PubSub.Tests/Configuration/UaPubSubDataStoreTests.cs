@@ -41,7 +41,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test(Description = "Validate WritePublishedDataItem call with different values")]
 
         public void ValidateWritePublishedDataItem(
-            [Values(true, (byte)1, (ushort)2, (short)3, (uint)4, (int)5, (ulong)6, (long)7,
+            [Values(true, (byte)1, (ushort)2, (short)3, (uint)4, 5, (ulong)6, (long)7,
             (double)8, (float)9, "10")] object value)
         {
             //Arrange
@@ -75,7 +75,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
 
             //Assert
             Assert.Throws(typeof(ArgumentException),
-                () => dataStore.WritePublishedDataItem(new NodeId("ns=0;i=2253"), (uint)Attributes.AccessLevelEx + 1));
+                () => dataStore.WritePublishedDataItem(new NodeId("ns=0;i=2253"), Attributes.AccessLevelEx + 1));
         }
         #endregion
 
@@ -111,7 +111,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             UaPubSubDataStore dataStore = new UaPubSubDataStore();
             //Assert
             Assert.Throws(typeof(ArgumentException),
-                () => dataStore.ReadPublishedDataItem(new NodeId("ns=0;i=2253"), (uint)Attributes.AccessLevelEx + 1));
+                () => dataStore.ReadPublishedDataItem(new NodeId("ns=0;i=2253"), Attributes.AccessLevelEx + 1));
         }
         #endregion
     }

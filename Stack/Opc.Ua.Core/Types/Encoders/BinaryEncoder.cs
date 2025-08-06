@@ -517,7 +517,7 @@ namespace Opc.Ua
             // check for max value.
             if (ticks >= DateTime.MaxValue.Ticks)
             {
-                ticks = Int64.MaxValue;
+                ticks = long.MaxValue;
             }
 
             // check for min value.
@@ -547,7 +547,7 @@ namespace Opc.Ua
         /// </summary>
         public void WriteGuid(string fieldName, Guid value)
         {
-            m_writer.Write(((Guid)value).ToByteArray());
+            m_writer.Write(value.ToByteArray());
         }
 
         /// <summary>
@@ -594,7 +594,7 @@ namespace Opc.Ua
         /// </summary>
         public void WriteByteString(string fieldName, ReadOnlySpan<byte> value)
         {
-            if (value == null)
+            if (value.IsEmpty)
             {
                 WriteInt32(null, -1);
                 return;
@@ -687,7 +687,7 @@ namespace Opc.Ua
             byte encoding = GetNodeIdEncoding(value.IdType, value.Identifier, namespaceIndex);
 
             // add the bit indicating a uri string is encoded as well.
-            if (!String.IsNullOrEmpty(value.NamespaceUri))
+            if (!string.IsNullOrEmpty(value.NamespaceUri))
             {
                 encoding |= 0x80;
             }
@@ -1723,7 +1723,7 @@ namespace Opc.Ua
                 }
 
                 // Write the Dimensions
-                WriteInt32Array(null, (int[])matrix.Dimensions);
+                WriteInt32Array(null, matrix.Dimensions);
 
                 switch (matrix.TypeInfo.BuiltInType)
                 {
@@ -1756,7 +1756,7 @@ namespace Opc.Ua
                     }
                     case BuiltInType.Int16:
                     {
-                        Int16[] values = (Int16[])matrix.Elements;
+                        short[] values = (short[])matrix.Elements;
                         for (int ii = 0; ii < values.Length; ii++)
                         {
                             WriteInt16(null, values[ii]);
@@ -1765,7 +1765,7 @@ namespace Opc.Ua
                     }
                     case BuiltInType.UInt16:
                     {
-                        UInt16[] values = (UInt16[])matrix.Elements;
+                        ushort[] values = (ushort[])matrix.Elements;
                         for (int ii = 0; ii < values.Length; ii++)
                         {
                             WriteUInt16(null, values[ii]);
@@ -1786,7 +1786,7 @@ namespace Opc.Ua
                     }
                     case BuiltInType.Int32:
                     {
-                        Int32[] values = (Int32[])matrix.Elements;
+                        int[] values = (int[])matrix.Elements;
                         for (int ii = 0; ii < values.Length; ii++)
                         {
                             WriteInt32(null, values[ii]);
@@ -1795,7 +1795,7 @@ namespace Opc.Ua
                     }
                     case BuiltInType.UInt32:
                     {
-                        UInt32[] values = (UInt32[])matrix.Elements;
+                        uint[] values = (uint[])matrix.Elements;
                         for (int ii = 0; ii < values.Length; ii++)
                         {
                             WriteUInt32(null, values[ii]);
@@ -1804,7 +1804,7 @@ namespace Opc.Ua
                     }
                     case BuiltInType.Int64:
                     {
-                        Int64[] values = (Int64[])matrix.Elements;
+                        long[] values = (long[])matrix.Elements;
                         for (int ii = 0; ii < values.Length; ii++)
                         {
                             WriteInt64(null, values[ii]);
@@ -1813,7 +1813,7 @@ namespace Opc.Ua
                     }
                     case BuiltInType.UInt64:
                     {
-                        UInt64[] values = (UInt64[])matrix.Elements;
+                        ulong[] values = (ulong[])matrix.Elements;
                         for (int ii = 0; ii < values.Length; ii++)
                         {
                             WriteUInt64(null, values[ii]);
@@ -2270,13 +2270,13 @@ namespace Opc.Ua
                 {
                     uint id = Convert.ToUInt32(identifier, CultureInfo.InvariantCulture);
 
-                    if (id <= Byte.MaxValue && namespaceIndex == 0)
+                    if (id <= byte.MaxValue && namespaceIndex == 0)
                     {
                         encoding = NodeIdEncodingBits.TwoByte;
                         break;
                     }
 
-                    if (id <= UInt16.MaxValue && namespaceIndex <= Byte.MaxValue)
+                    if (id <= ushort.MaxValue && namespaceIndex <= byte.MaxValue)
                     {
                         encoding = NodeIdEncodingBits.FourByte;
                         break;
@@ -2524,7 +2524,7 @@ namespace Opc.Ua
                 // write the dimensions.
                 if (value.TypeInfo.ValueRank > ValueRanks.OneDimension)
                 {
-                    WriteInt32Array(null, (int[])matrix.Dimensions);
+                    WriteInt32Array(null, matrix.Dimensions);
                 }
             }
         }

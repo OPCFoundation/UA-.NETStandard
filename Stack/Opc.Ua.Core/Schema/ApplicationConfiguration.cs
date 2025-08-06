@@ -256,7 +256,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Disabling / enabling high resolution clock 
+        /// Disabling / enabling high resolution clock
         /// </summary>
         /// <value><c>true</c> if high resolution clock is disabled; otherwise, <c>false</c>.</value>
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 12)]
@@ -418,7 +418,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// The number of times the decoder can recover from a decoder error 
+        /// The number of times the decoder can recover from a decoder error
         /// of an IEncodeable before throwing a decoder error.
         /// </summary>
         [DataMember(IsRequired = false, Order = 7)]
@@ -523,7 +523,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// The masks used to select what is written to the output  
+        /// The masks used to select what is written to the output
         /// Masks supported by the trace feature:
         /// - Do not output any messages -None = 0x0;
         /// - Output error messages - Error = 0x1;
@@ -601,9 +601,9 @@ namespace Opc.Ua
         /// </summary>
         /// <value>The name of the type.</value>
         /// <remarks>
-        /// This can be any instance of the System.ServiceModel.Channels.Binding class 
+        /// This can be any instance of the System.ServiceModel.Channels.Binding class
         /// that implements these constructors:
-        /// 
+        ///
         /// XxxBinding(EndpointDescription description, EndpointConfiguration configuration);
         /// XxxBinding(IList{EndpointDescription} descriptions, EndpointConfiguration configuration)
         /// XxxBinding(EndpointConfiguration configuration)
@@ -931,7 +931,7 @@ namespace Opc.Ua
         /// <summary>
         /// A store where invalid certificates can be placed for later review by the administrator.
         /// </summary>
-        /// <value> 
+        /// <value>
         /// A store where invalid certificates can be placed for later review by the administrator.
         /// </value>
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 7)]
@@ -1180,7 +1180,7 @@ namespace Opc.Ua
 
         #endregion
 
-        #region Private Fields       
+        #region Private Fields
         private CertificateIdentifierCollection m_applicationCertificates;
         private CertificateTrustList m_trustedIssuerCertificates;
         private CertificateTrustList m_trustedPeerCertificates;
@@ -1377,7 +1377,7 @@ namespace Opc.Ua
             var newPolicies = new ServerSecurityPolicyCollection();
             foreach (var securityPolicy in m_securityPolicies)
             {
-                if (String.IsNullOrWhiteSpace(securityPolicy.SecurityPolicyUri))
+                if (string.IsNullOrWhiteSpace(securityPolicy.SecurityPolicyUri))
                 {
                     // add wild card policies
                     foreach (var policyUri in Opc.Ua.SecurityPolicies.GetDefaultUris())
@@ -1398,7 +1398,7 @@ namespace Opc.Ua
                 {
                     for (int i = 0; i < supportedPolicies.Length; i++)
                     {
-                        if (securityPolicy.SecurityPolicyUri.Contains(supportedPolicies[i]))
+                        if (securityPolicy.SecurityPolicyUri.Contains(supportedPolicies[i], StringComparison.Ordinal))
                         {
                             if (newPolicies.Find(s =>
                                 s.SecurityMode == securityPolicy.SecurityMode &&
@@ -1950,7 +1950,7 @@ namespace Opc.Ua
 
         /// <summary>
         /// The server capabilities.
-        /// The latest set of server capabilities is listed 
+        /// The latest set of server capabilities is listed
         /// <see href="http://www.opcfoundation.org/UA/schemas/1.05/ServerCapabilities.csv">here.</see>
         /// </summary>
         /// <value>The array of server capabilites.</value>
@@ -2840,9 +2840,9 @@ namespace Opc.Ua
         /// or similar network infrastructure. If these paths are specified in the configuration
         /// file then the server will use the domain of the URL used by the client to determine
         /// which, if any, or the alternate addresses to use instead of the primary addresses.
-        /// 
+        ///
         /// In the ideal world the server would provide these URLs during registration but this
-        /// table allows the administrator to provide the information to the discovery server 
+        /// table allows the administrator to provide the information to the discovery server
         /// directly without requiring a patch to the server.
         /// </remarks>
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 2)]
@@ -2949,9 +2949,9 @@ namespace Opc.Ua
             {
                 m_storePath = value;
 
-                if (!String.IsNullOrEmpty(m_storePath))
+                if (!string.IsNullOrEmpty(m_storePath))
                 {
-                    if (String.IsNullOrEmpty(m_storeType))
+                    if (string.IsNullOrEmpty(m_storeType))
                     {
                         m_storeType = CertificateStoreIdentifier.DetermineStoreType(m_storePath);
                     }
@@ -3129,7 +3129,7 @@ namespace Opc.Ua
         {
             get
             {
-                if (!String.IsNullOrEmpty(m_storeName))
+                if (!string.IsNullOrEmpty(m_storeName))
                 {
                     return CertificateStoreType.X509Store;
                 }
@@ -3152,9 +3152,9 @@ namespace Opc.Ua
         {
             get
             {
-                if (!String.IsNullOrEmpty(m_storeName))
+                if (!string.IsNullOrEmpty(m_storeName))
                 {
-                    if (String.IsNullOrEmpty(m_storeLocation))
+                    if (string.IsNullOrEmpty(m_storeLocation))
                     {
                         return Utils.Format("LocalMachine\\{0}", m_storeName);
                     }
@@ -3169,9 +3169,9 @@ namespace Opc.Ua
             {
                 m_storePath = value;
 
-                if (!String.IsNullOrEmpty(m_storePath))
+                if (!string.IsNullOrEmpty(m_storePath))
                 {
-                    if (String.IsNullOrEmpty(m_storeType))
+                    if (string.IsNullOrEmpty(m_storeType))
                     {
                         m_storeType = CertificateStoreIdentifier.DetermineStoreType(m_storePath);
                     }
@@ -3211,7 +3211,7 @@ namespace Opc.Ua
         /// <value>
         /// The distinguished name of an X509 certificate acording to the Abstract Syntax Notation One (ASN.1) syntax.
         /// </value>
-        /// <remarks> The subject field identifies the entity associated with the public key stored in the subject public 
+        /// <remarks> The subject field identifies the entity associated with the public key stored in the subject public
         /// key field.  The subject name MAY be carried in the subject field and/or the subjectAltName extension.
         /// Where it is non-empty, the subject field MUST contain an X.500 distinguished name (DN).
         /// Name is defined by the following ASN.1 structures:
@@ -3227,26 +3227,26 @@ namespace Opc.Ua
         ///   universalString         UniversalString (SIZE (1..MAX)),
         ///   utf8String              UTF8String (SIZE (1..MAX)),
         ///   bmpString               BMPString (SIZE (1..MAX)) }
-        ///  The Name describes a hierarchical name composed of attributes, such as country name, and 
-        ///  corresponding values, such as US.  The type of the component AttributeValue is determined by 
+        ///  The Name describes a hierarchical name composed of attributes, such as country name, and
+        ///  corresponding values, such as US.  The type of the component AttributeValue is determined by
         ///  the AttributeType; in general it will be a DirectoryString.
         /// String X.500 AttributeType:
         /// <list type="bullet">
-        /// <item>CN commonName</item> 
+        /// <item>CN commonName</item>
         /// <item>L localityName</item>
         /// <item>ST stateOrProvinceName</item>
-        /// <item>O organizationName</item> 
+        /// <item>O organizationName</item>
         /// <item>OU organizationalUnitName</item>
         /// <item>C countryName</item>
         /// <item>STREET streetAddress</item>
         /// <item>DC domainComponent</item>
         /// <item>UID userid</item>
         /// </list>
-        /// This notation is designed to be convenient for common forms of name. This section gives a few 
+        /// This notation is designed to be convenient for common forms of name. This section gives a few
         /// examples of distinguished names written using this notation. First is a name containing three relative
         /// distinguished names (RDNs):
         /// <code>CN=Steve Kille,O=Isode Limited,C=GB</code>
-        /// 
+        ///
         /// RFC 3280 Internet X.509 Public Key Infrastructure, April 2002
         /// RFC 2253 LADPv3 Distinguished Names, December 1997
         /// </remarks>
@@ -3267,7 +3267,7 @@ namespace Opc.Ua
 
             set
             {
-                if (m_certificate != null && !String.IsNullOrEmpty(value))
+                if (m_certificate != null && !string.IsNullOrEmpty(value))
                 {
                     if (m_certificate.Subject != value)
                     {
@@ -3301,7 +3301,7 @@ namespace Opc.Ua
             {
                 if (m_certificate != null)
                 {
-                    if (!String.IsNullOrEmpty(value) && m_certificate.Thumbprint != value)
+                    if (!string.IsNullOrEmpty(value) && m_certificate.Thumbprint != value)
                     {
                         throw new ArgumentException("Thumbprint does not match the thumbprint of the current certificate.");
                     }

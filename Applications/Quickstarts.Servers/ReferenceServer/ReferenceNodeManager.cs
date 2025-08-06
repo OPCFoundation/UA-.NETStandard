@@ -141,27 +141,27 @@ namespace Quickstarts.ReferenceServer
             switch (builtInType)
             {
                 case BuiltInType.UInt16:
-                    return new Range(System.UInt16.MaxValue, System.UInt16.MinValue);
+                    return new Range(ushort.MaxValue, ushort.MinValue);
                 case BuiltInType.UInt32:
-                    return new Range(System.UInt32.MaxValue, System.UInt32.MinValue);
+                    return new Range(uint.MaxValue, uint.MinValue);
                 case BuiltInType.UInt64:
-                    return new Range(System.UInt64.MaxValue, System.UInt64.MinValue);
+                    return new Range(ulong.MaxValue, ulong.MinValue);
                 case BuiltInType.SByte:
-                    return new Range(System.SByte.MaxValue, System.SByte.MinValue);
+                    return new Range(sbyte.MaxValue, sbyte.MinValue);
                 case BuiltInType.Int16:
-                    return new Range(System.Int16.MaxValue, System.Int16.MinValue);
+                    return new Range(short.MaxValue, short.MinValue);
                 case BuiltInType.Int32:
-                    return new Range(System.Int32.MaxValue, System.Int32.MinValue);
+                    return new Range(int.MaxValue, int.MinValue);
                 case BuiltInType.Int64:
-                    return new Range(System.Int64.MaxValue, System.Int64.MinValue);
+                    return new Range(long.MaxValue, long.MinValue);
                 case BuiltInType.Float:
-                    return new Range(System.Single.MaxValue, System.Single.MinValue);
+                    return new Range(float.MaxValue, float.MinValue);
                 case BuiltInType.Double:
-                    return new Range(System.Double.MaxValue, System.Double.MinValue);
+                    return new Range(double.MaxValue, double.MinValue);
                 case BuiltInType.Byte:
-                    return new Range(System.Byte.MaxValue, System.Byte.MinValue);
+                    return new Range(byte.MaxValue, byte.MinValue);
                 default:
-                    return new Range(System.SByte.MaxValue, System.SByte.MinValue);
+                    return new Range(sbyte.MaxValue, sbyte.MinValue);
             }
         }
         #endregion
@@ -524,7 +524,7 @@ namespace Quickstarts.ReferenceServer
                         // set initial value to String.Empty for String node.
                         if (name == BuiltInType.String.ToString())
                         {
-                            item.Value = String.Empty;
+                            item.Value = string.Empty;
                         }
                     }
                     #endregion
@@ -557,7 +557,7 @@ namespace Quickstarts.ReferenceServer
                             //set default value for Definition property
                             if (item.Definition != null)
                             {
-                                item.Definition.Value = String.Empty;
+                                item.Definition.Value = string.Empty;
                             }
                         }
                     }
@@ -568,29 +568,29 @@ namespace Quickstarts.ReferenceServer
                     FolderState analogArrayFolder = CreateFolder(analogItemFolder, "DataAccess_AnalogType_Array", "Array");
                     const string daAnalogArray = "DataAccess_AnalogType_Array_";
 
-                    CreateAnalogItemVariable(analogArrayFolder, daAnalogArray + "Boolean", "Boolean", BuiltInType.Boolean, ValueRanks.OneDimension, new Boolean[] { true, false, true, false, true, false, true, false, true });
-                    CreateAnalogItemVariable(analogArrayFolder, daAnalogArray + "Byte", "Byte", BuiltInType.Byte, ValueRanks.OneDimension, new Byte[] { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 });
-                    CreateAnalogItemVariable(analogArrayFolder, daAnalogArray + "ByteString", "ByteString", BuiltInType.ByteString, ValueRanks.OneDimension, new Byte[][] { new Byte[] { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 }, new Byte[] { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 }, new Byte[] { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 }, new Byte[] { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 }, new Byte[] { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 }, new Byte[] { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 }, new Byte[] { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 }, new Byte[] { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 }, new Byte[] { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 }, new Byte[] { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 } });
+                    CreateAnalogItemVariable(analogArrayFolder, daAnalogArray + "Boolean", "Boolean", BuiltInType.Boolean, ValueRanks.OneDimension, new bool[] { true, false, true, false, true, false, true, false, true });
+                    CreateAnalogItemVariable(analogArrayFolder, daAnalogArray + "Byte", "Byte", BuiltInType.Byte, ValueRanks.OneDimension, new byte[] { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 });
+                    CreateAnalogItemVariable(analogArrayFolder, daAnalogArray + "ByteString", "ByteString", BuiltInType.ByteString, ValueRanks.OneDimension, new byte[][] { new byte[] { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 }, new byte[] { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 }, new byte[] { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 }, new byte[] { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 }, new byte[] { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 }, new byte[] { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 }, new byte[] { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 }, new byte[] { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 }, new byte[] { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 }, new byte[] { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 } });
                     CreateAnalogItemVariable(analogArrayFolder, daAnalogArray + "DateTime", "DateTime", BuiltInType.DateTime, ValueRanks.OneDimension, new DateTime[] { DateTime.MinValue, DateTime.MaxValue, DateTime.MinValue, DateTime.MaxValue, DateTime.MinValue, DateTime.MaxValue, DateTime.MinValue, DateTime.MaxValue, DateTime.MinValue });
                     CreateAnalogItemVariable(analogArrayFolder, daAnalogArray + "Double", "Double", BuiltInType.Double, ValueRanks.OneDimension, new double[] { 9.00001d, 9.0002d, 9.003d, 9.04d, 9.5d, 9.06d, 9.007d, 9.008d, 9.0009d });
                     CreateAnalogItemVariable(analogArrayFolder, daAnalogArray + "Duration", "Duration", DataTypeIds.Duration, ValueRanks.OneDimension, new double[] { 9.00001d, 9.0002d, 9.003d, 9.04d, 9.5d, 9.06d, 9.007d, 9.008d, 9.0009d }, null);
                     CreateAnalogItemVariable(analogArrayFolder, daAnalogArray + "Float", "Float", BuiltInType.Float, ValueRanks.OneDimension, new float[] { 0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 1.1f, 2.2f, 3.3f, 4.4f, 5.5f });
                     CreateAnalogItemVariable(analogArrayFolder, daAnalogArray + "Guid", "Guid", BuiltInType.Guid, ValueRanks.OneDimension, new Guid[] { Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid() });
-                    CreateAnalogItemVariable(analogArrayFolder, daAnalogArray + "Int16", "Int16", BuiltInType.Int16, ValueRanks.OneDimension, new Int16[] { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 });
-                    CreateAnalogItemVariable(analogArrayFolder, daAnalogArray + "Int32", "Int32", BuiltInType.Int32, ValueRanks.OneDimension, new Int32[] { 10, 11, 12, 13, 14, 15, 16, 17, 18, 19 });
-                    CreateAnalogItemVariable(analogArrayFolder, daAnalogArray + "Int64", "Int64", BuiltInType.Int64, ValueRanks.OneDimension, new Int64[] { 10, 11, 12, 13, 14, 15, 16, 17, 18, 19 });
-                    CreateAnalogItemVariable(analogArrayFolder, daAnalogArray + "Integer", "Integer", BuiltInType.Integer, ValueRanks.OneDimension, new Int64[] { 10, 11, 12, 13, 14, 15, 16, 17, 18, 19 });
-                    CreateAnalogItemVariable(analogArrayFolder, daAnalogArray + "LocaleId", "LocaleId", DataTypeIds.LocaleId, ValueRanks.OneDimension, new String[] { "en", "fr", "de", "en", "fr", "de", "en", "fr", "de", "en" }, null);
+                    CreateAnalogItemVariable(analogArrayFolder, daAnalogArray + "Int16", "Int16", BuiltInType.Int16, ValueRanks.OneDimension, new short[] { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 });
+                    CreateAnalogItemVariable(analogArrayFolder, daAnalogArray + "Int32", "Int32", BuiltInType.Int32, ValueRanks.OneDimension, new int[] { 10, 11, 12, 13, 14, 15, 16, 17, 18, 19 });
+                    CreateAnalogItemVariable(analogArrayFolder, daAnalogArray + "Int64", "Int64", BuiltInType.Int64, ValueRanks.OneDimension, new long[] { 10, 11, 12, 13, 14, 15, 16, 17, 18, 19 });
+                    CreateAnalogItemVariable(analogArrayFolder, daAnalogArray + "Integer", "Integer", BuiltInType.Integer, ValueRanks.OneDimension, new long[] { 10, 11, 12, 13, 14, 15, 16, 17, 18, 19 });
+                    CreateAnalogItemVariable(analogArrayFolder, daAnalogArray + "LocaleId", "LocaleId", DataTypeIds.LocaleId, ValueRanks.OneDimension, new string[] { "en", "fr", "de", "en", "fr", "de", "en", "fr", "de", "en" }, null);
                     CreateAnalogItemVariable(analogArrayFolder, daAnalogArray + "LocalizedText", "LocalizedText", BuiltInType.LocalizedText, ValueRanks.OneDimension, new LocalizedText[] { new LocalizedText("en", "Hello World1"), new LocalizedText("en", "Hello World2"), new LocalizedText("en", "Hello World3"), new LocalizedText("en", "Hello World4"), new LocalizedText("en", "Hello World5"), new LocalizedText("en", "Hello World6"), new LocalizedText("en", "Hello World7"), new LocalizedText("en", "Hello World8"), new LocalizedText("en", "Hello World9"), new LocalizedText("en", "Hello World10") });
                     CreateAnalogItemVariable(analogArrayFolder, daAnalogArray + "NodeId", "NodeId", BuiltInType.NodeId, ValueRanks.OneDimension, new NodeId[] { new NodeId(Guid.NewGuid()), new NodeId(Guid.NewGuid()), new NodeId(Guid.NewGuid()), new NodeId(Guid.NewGuid()), new NodeId(Guid.NewGuid()), new NodeId(Guid.NewGuid()), new NodeId(Guid.NewGuid()), new NodeId(Guid.NewGuid()), new NodeId(Guid.NewGuid()), new NodeId(Guid.NewGuid()) });
-                    CreateAnalogItemVariable(analogArrayFolder, daAnalogArray + "Number", "Number", BuiltInType.Number, ValueRanks.OneDimension, new Int16[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 });
+                    CreateAnalogItemVariable(analogArrayFolder, daAnalogArray + "Number", "Number", BuiltInType.Number, ValueRanks.OneDimension, new short[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 });
                     CreateAnalogItemVariable(analogArrayFolder, daAnalogArray + "QualifiedName", "QualifiedName", BuiltInType.QualifiedName, ValueRanks.OneDimension, new QualifiedName[] { "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9" });
-                    CreateAnalogItemVariable(analogArrayFolder, daAnalogArray + "SByte", "SByte", BuiltInType.SByte, ValueRanks.OneDimension, new SByte[] { 10, 20, 30, 40, 50, 60, 70, 80, 90 });
-                    CreateAnalogItemVariable(analogArrayFolder, daAnalogArray + "String", "String", BuiltInType.String, ValueRanks.OneDimension, new String[] { "a00", "b10", "c20", "d30", "e40", "f50", "g60", "h70", "i80", "j90" });
-                    CreateAnalogItemVariable(analogArrayFolder, daAnalogArray + "UInt16", "UInt16", BuiltInType.UInt16, ValueRanks.OneDimension, new UInt16[] { 20, 21, 22, 23, 24, 25, 26, 27, 28, 29 });
-                    CreateAnalogItemVariable(analogArrayFolder, daAnalogArray + "UInt32", "UInt32", BuiltInType.UInt32, ValueRanks.OneDimension, new UInt32[] { 30, 31, 32, 33, 34, 35, 36, 37, 38, 39 });
-                    CreateAnalogItemVariable(analogArrayFolder, daAnalogArray + "UInt64", "UInt64", BuiltInType.UInt64, ValueRanks.OneDimension, new UInt64[] { 10, 11, 12, 13, 14, 15, 16, 17, 18, 19 });
-                    CreateAnalogItemVariable(analogArrayFolder, daAnalogArray + "UInteger", "UInteger", BuiltInType.UInteger, ValueRanks.OneDimension, new UInt64[] { 10, 11, 12, 13, 14, 15, 16, 17, 18, 19 });
+                    CreateAnalogItemVariable(analogArrayFolder, daAnalogArray + "SByte", "SByte", BuiltInType.SByte, ValueRanks.OneDimension, new sbyte[] { 10, 20, 30, 40, 50, 60, 70, 80, 90 });
+                    CreateAnalogItemVariable(analogArrayFolder, daAnalogArray + "String", "String", BuiltInType.String, ValueRanks.OneDimension, new string[] { "a00", "b10", "c20", "d30", "e40", "f50", "g60", "h70", "i80", "j90" });
+                    CreateAnalogItemVariable(analogArrayFolder, daAnalogArray + "UInt16", "UInt16", BuiltInType.UInt16, ValueRanks.OneDimension, new ushort[] { 20, 21, 22, 23, 24, 25, 26, 27, 28, 29 });
+                    CreateAnalogItemVariable(analogArrayFolder, daAnalogArray + "UInt32", "UInt32", BuiltInType.UInt32, ValueRanks.OneDimension, new uint[] { 30, 31, 32, 33, 34, 35, 36, 37, 38, 39 });
+                    CreateAnalogItemVariable(analogArrayFolder, daAnalogArray + "UInt64", "UInt64", BuiltInType.UInt64, ValueRanks.OneDimension, new ulong[] { 10, 11, 12, 13, 14, 15, 16, 17, 18, 19 });
+                    CreateAnalogItemVariable(analogArrayFolder, daAnalogArray + "UInteger", "UInteger", BuiltInType.UInteger, ValueRanks.OneDimension, new ulong[] { 10, 11, 12, 13, 14, 15, 16, 17, 18, 19 });
                     CreateAnalogItemVariable(analogArrayFolder, daAnalogArray + "UtcTime", "UtcTime", DataTypeIds.UtcTime, ValueRanks.OneDimension, new DateTime[] { DateTime.MinValue.ToUniversalTime(), DateTime.MaxValue.ToUniversalTime(), DateTime.MinValue.ToUniversalTime(), DateTime.MaxValue.ToUniversalTime(), DateTime.MinValue.ToUniversalTime(), DateTime.MaxValue.ToUniversalTime(), DateTime.MinValue.ToUniversalTime(), DateTime.MaxValue.ToUniversalTime(), DateTime.MinValue.ToUniversalTime() }, null);
                     CreateAnalogItemVariable(analogArrayFolder, daAnalogArray + "Variant", "Variant", BuiltInType.Variant, ValueRanks.OneDimension, new Variant[] { 10, 11, 12, 13, 14, 15, 16, 17, 18, 19 });
                     XmlDocument doc1 = new XmlDocument();
@@ -869,7 +869,7 @@ namespace Quickstarts.ReferenceServer
                     variables.Add(nodeIdsInstructions);
 
                     BaseDataVariableState integerNodeId = CreateVariable(nodeIdsFolder, nodeIds + "Int16Integer", "Int16Integer", DataTypeIds.Int16, ValueRanks.Scalar);
-                    integerNodeId.NodeId = new NodeId((uint)9202, NamespaceIndex);
+                    integerNodeId.NodeId = new NodeId(9202, NamespaceIndex);
                     variables.Add(integerNodeId);
 
                     variables.Add(CreateVariable(nodeIdsFolder, nodeIds + "Int16String", "Int16String", DataTypeIds.Int16, ValueRanks.Scalar));
@@ -1480,11 +1480,11 @@ namespace Quickstarts.ReferenceServer
         {
             try
             {
-                m_simulationInterval = (UInt16)value;
+                m_simulationInterval = (ushort)value;
 
                 if (m_simulationEnabled)
                 {
-                    m_simulationTimer.Change(100, (int)m_simulationInterval);
+                    m_simulationTimer.Change(100, m_simulationInterval);
                 }
 
                 return ServiceResult.Good;
@@ -1504,7 +1504,7 @@ namespace Quickstarts.ReferenceServer
 
                 if (m_simulationEnabled)
                 {
-                    m_simulationTimer.Change(100, (int)m_simulationInterval);
+                    m_simulationTimer.Change(100, m_simulationInterval);
                 }
                 else
                 {
@@ -1670,7 +1670,7 @@ namespace Quickstarts.ReferenceServer
             variable.ValuePrecision.Value = 2;
             variable.ValuePrecision.AccessLevel = AccessLevels.CurrentReadOrWrite;
             variable.ValuePrecision.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
-            variable.Definition.Value = String.Empty;
+            variable.Definition.Value = string.Empty;
             variable.Definition.AccessLevel = AccessLevels.CurrentReadOrWrite;
             variable.Definition.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
 
@@ -1682,7 +1682,7 @@ namespace Quickstarts.ReferenceServer
             return variable;
         }
 
-        private DataItemState[] CreateDataItemVariables(NodeState parent, string path, string name, BuiltInType dataType, int valueRank, UInt16 numVariables)
+        private DataItemState[] CreateDataItemVariables(NodeState parent, string path, string name, BuiltInType dataType, int valueRank, ushort numVariables)
         {
             List<DataItemState> itemsCreated = new List<DataItemState>();
             // create the default name first:
@@ -2073,7 +2073,7 @@ namespace Quickstarts.ReferenceServer
                 return StatusCodes.BadIndexRangeInvalid;
             }
 
-            Int32 number = Convert.ToInt32(value, CultureInfo.InvariantCulture);
+            int number = Convert.ToInt32(value, CultureInfo.InvariantCulture);
             if (number >= variable.EnumValues.Value.Length || number < 0)
             {
                 return StatusCodes.BadOutOfRange;
@@ -2244,12 +2244,12 @@ namespace Quickstarts.ReferenceServer
             return variable;
         }
 
-        private BaseDataVariableState[] CreateVariables(NodeState parent, string path, string name, BuiltInType dataType, int valueRank, UInt16 numVariables)
+        private BaseDataVariableState[] CreateVariables(NodeState parent, string path, string name, BuiltInType dataType, int valueRank, ushort numVariables)
         {
             return CreateVariables(parent, path, name, (uint)dataType, valueRank, numVariables);
         }
 
-        private BaseDataVariableState[] CreateVariables(NodeState parent, string path, string name, NodeId dataType, int valueRank, UInt16 numVariables)
+        private BaseDataVariableState[] CreateVariables(NodeState parent, string path, string name, NodeId dataType, int valueRank, ushort numVariables)
         {
             // first, create a new Parent folder for this data-type
             FolderState newParentFolder = CreateFolder(parent, path, name);
@@ -2500,10 +2500,10 @@ namespace Quickstarts.ReferenceServer
             try
             {
                 float floatValue = (float)inputArguments[0];
-                UInt32 uintValue = (UInt32)inputArguments[1];
+                uint uintValue = (uint)inputArguments[1];
 
                 // set output parameter
-                outputArguments[0] = (float)(floatValue + uintValue);
+                outputArguments[0] = floatValue + uintValue;
                 return ServiceResult.Good;
             }
             catch
@@ -2527,11 +2527,11 @@ namespace Quickstarts.ReferenceServer
 
             try
             {
-                Int16 op1 = (Int16)inputArguments[0];
-                UInt16 op2 = (UInt16)inputArguments[1];
+                short op1 = (short)inputArguments[0];
+                ushort op2 = (ushort)inputArguments[1];
 
                 // set output parameter
-                outputArguments[0] = (Int32)(op1 * op2);
+                outputArguments[0] = op1 * op2;
                 return ServiceResult.Good;
             }
             catch
@@ -2555,11 +2555,11 @@ namespace Quickstarts.ReferenceServer
 
             try
             {
-                Int32 op1 = (Int32)inputArguments[0];
-                UInt16 op2 = (UInt16)inputArguments[1];
+                int op1 = (int)inputArguments[0];
+                ushort op2 = (ushort)inputArguments[1];
 
                 // set output parameter
-                outputArguments[0] = (float)((float)op1 / (float)op2);
+                outputArguments[0] = op1 / (float)op2;
                 return ServiceResult.Good;
             }
             catch
@@ -2583,11 +2583,11 @@ namespace Quickstarts.ReferenceServer
 
             try
             {
-                Int16 op1 = (Int16)inputArguments[0];
-                Byte op2 = (Byte)inputArguments[1];
+                short op1 = (short)inputArguments[0];
+                byte op2 = (byte)inputArguments[1];
 
                 // set output parameter
-                outputArguments[0] = (Int16)(op1 - op2);
+                outputArguments[0] = (short)(op1 - op2);
                 return ServiceResult.Good;
             }
             catch
@@ -2614,7 +2614,7 @@ namespace Quickstarts.ReferenceServer
                 string op1 = (string)inputArguments[0];
 
                 // set output parameter
-                outputArguments[0] = (string)("hello " + op1);
+                outputArguments[0] = "hello " + op1;
                 return ServiceResult.Good;
             }
             catch
@@ -2649,7 +2649,7 @@ namespace Quickstarts.ReferenceServer
             try
             {
                 // set output parameter
-                outputArguments[0] = (string)("Output");
+                outputArguments[0] = "Output";
                 return ServiceResult.Good;
             }
             catch
@@ -2785,7 +2785,7 @@ namespace Quickstarts.ReferenceServer
         private RandomSource m_randomSource;
         private DataGenerator m_generator;
         private Timer m_simulationTimer;
-        private UInt16 m_simulationInterval = 1000;
+        private ushort m_simulationInterval = 1000;
         private bool m_simulationEnabled = true;
         private List<BaseDataVariableState> m_dynamicNodes;
         #endregion

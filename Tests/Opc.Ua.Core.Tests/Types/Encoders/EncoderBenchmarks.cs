@@ -163,7 +163,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         #region Protected Fields
         protected Random m_random;
         protected NodeId m_nodeId = new NodeId(1234);
-        protected List<Int32> m_list;
+        protected List<int> m_list;
         protected List<DataValue> m_values;
         protected IServiceMessageContext m_context;
         protected RecyclableMemoryStreamManager m_memoryManager;

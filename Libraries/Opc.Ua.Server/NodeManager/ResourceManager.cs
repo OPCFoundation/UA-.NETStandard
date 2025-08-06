@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -79,7 +79,7 @@ namespace Opc.Ua.Server
         /// <summary cref="ITranslationManager.Translate(IList{string}, string, string, object[])" />
         public virtual LocalizedText Translate(IList<string> preferredLocales, string key, string text, params object[] args)
         {
-            return Translate(preferredLocales, null, new TranslationInfo(key, String.Empty, text, args));
+            return Translate(preferredLocales, null, new TranslationInfo(key, string.Empty, text, args));
         }
 
         /// <virtual cref="ITranslationManager.Translate(IList{string}, LocalizedText)" />
@@ -115,7 +115,7 @@ namespace Opc.Ua.Server
                     }
                 }
 
-                if (!String.IsNullOrEmpty(result.SymbolicId))
+                if (!string.IsNullOrEmpty(result.SymbolicId))
                 {
                     translatedText = TranslateSymbolicId(preferredLocales, result.SymbolicId, result.NamespaceUri, args);
                 }
@@ -249,7 +249,7 @@ namespace Opc.Ua.Server
                     m_statusCodeMapping = new Dictionary<uint, TranslationInfo>();
                 }
 
-                if (String.IsNullOrEmpty(locale) || locale == "en-US")
+                if (string.IsNullOrEmpty(locale) || locale == "en-US")
                 {
                     m_statusCodeMapping[statusCode] = new TranslationInfo(key, locale, text);
                 }
@@ -274,7 +274,7 @@ namespace Opc.Ua.Server
                         m_symbolicIdMapping = new Dictionary<XmlQualifiedName, TranslationInfo>();
                     }
 
-                    if (String.IsNullOrEmpty(locale) || locale == "en-US")
+                    if (string.IsNullOrEmpty(locale) || locale == "en-US")
                     {
                         m_symbolicIdMapping[symbolicId] = new TranslationInfo(key, locale, text);
                     }
@@ -406,7 +406,7 @@ namespace Opc.Ua.Server
                         }
                     }
                 }
-                return new LocalizedText((IReadOnlyDictionary<string, string>)translations);
+                return new LocalizedText(translations);
             }
             // single locale requested.
             else

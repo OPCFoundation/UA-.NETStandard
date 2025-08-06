@@ -528,7 +528,7 @@ namespace Opc.Ua.Server
                 {
                     result = StatusCodes.BadInvalidState;
                 }
-                else if (String.IsNullOrEmpty(thumbprint))
+                else if (string.IsNullOrEmpty(thumbprint))
                 {
                     result = StatusCodes.BadInvalidArgument;
                 }

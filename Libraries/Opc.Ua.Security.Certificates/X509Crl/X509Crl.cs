@@ -393,7 +393,7 @@ namespace Opc.Ua.Security.Certificates
         {
             get
             {
-                return (X509CRL)base[index];
+                return base[index];
             }
             set
             {

@@ -261,7 +261,7 @@ namespace Opc.Ua
                 {
                     if (attributes[ii] is DataContractAttribute contract)
                     {
-                        if (String.IsNullOrEmpty(contract.Name))
+                        if (string.IsNullOrEmpty(contract.Name))
                         {
                             return new XmlQualifiedName(systemType.Name, contract.Namespace);
                         }
@@ -279,7 +279,7 @@ namespace Opc.Ua
                 {
                     if (attributes[ii] is CollectionDataContractAttribute contract)
                     {
-                        if (String.IsNullOrEmpty(contract.Name))
+                        if (string.IsNullOrEmpty(contract.Name))
                         {
                             return new XmlQualifiedName(systemType.Name, contract.Namespace);
                         }
@@ -289,7 +289,7 @@ namespace Opc.Ua
                 }
             }
 
-            if (systemType == typeof(System.Byte[]))
+            if (systemType == typeof(byte[]))
             {
                 return new XmlQualifiedName("ByteString");
             }
@@ -528,7 +528,7 @@ namespace Opc.Ua
             return MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <summary cref="object.MemberwiseClone" />
         public new object MemberwiseClone()
         {
             EncodeableFactory clone = new EncodeableFactory(null);

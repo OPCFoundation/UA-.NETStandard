@@ -263,7 +263,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Gets or sets the <see cref="System.Object"/> at the specified index.
+        /// Gets or sets the <see cref="object"/> at the specified index.
         /// </summary>
         object IList.this[int index]
         {

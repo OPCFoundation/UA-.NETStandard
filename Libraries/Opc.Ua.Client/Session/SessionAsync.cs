@@ -233,7 +233,7 @@ namespace Opc.Ua.Client
                 // select the security policy for the user token.
                 string tokenSecurityPolicyUri = identityPolicy.SecurityPolicyUri;
 
-                if (String.IsNullOrEmpty(tokenSecurityPolicyUri))
+                if (string.IsNullOrEmpty(tokenSecurityPolicyUri))
                 {
                     tokenSecurityPolicyUri = m_endpoint.Description.SecurityPolicyUri;
                 }
@@ -708,13 +708,13 @@ namespace Opc.Ua.Client
                 }
                 OperationLimits = operationLimits;
 
-                if (values[maxBrowseContinuationPointIndex].Value is UInt16 serverMaxContinuationPointsPerBrowse &&
+                if (values[maxBrowseContinuationPointIndex].Value is ushort serverMaxContinuationPointsPerBrowse &&
                     ServiceResult.IsNotBad(errors[maxBrowseContinuationPointIndex]))
                 {
                     ServerMaxContinuationPointsPerBrowse = serverMaxContinuationPointsPerBrowse;
                 }
 
-                if (values[maxByteStringLengthIndex].Value is UInt32 serverMaxByteStringLength &&
+                if (values[maxByteStringLengthIndex].Value is uint serverMaxByteStringLength &&
                     ServiceResult.IsNotBad(errors[maxByteStringLengthIndex]))
                 {
                     ServerMaxByteStringLength = serverMaxByteStringLength;
@@ -1252,7 +1252,7 @@ namespace Opc.Ua.Client
                     List<ServiceResult> errorsForNextPass = new List<ServiceResult>();
 
                     // loop over the batches
-                    foreach (var nodesToBrowseBatch in ((List<NodeId>)nodesToBrowseForPass).Batch<NodeId, List<NodeId>>(maxNodesPerBrowse))
+                    foreach (var nodesToBrowseBatch in nodesToBrowseForPass.Batch<NodeId, List<NodeId>>(maxNodesPerBrowse))
                     {
                         int nodesToBrowseBatchCount = nodesToBrowseBatch.Count;
 

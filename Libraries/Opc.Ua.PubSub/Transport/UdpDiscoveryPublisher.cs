@@ -47,7 +47,7 @@ namespace Opc.Ua.PubSub.Transport
         private const int kMinimumResponseInterval = 500;
 
         // The list that will store the WriterIds that shall be set as DataSetMetaData Response message
-        private readonly List<UInt16> m_metadataWriterIdsToSend;
+        private readonly List<ushort> m_metadataWriterIdsToSend;
         #endregion
 
         #region Constructor
@@ -163,9 +163,9 @@ namespace Opc.Ua.PubSub.Transport
                     && networkMessage.DataSetWriterIds != null)
             {
                 Utils.Trace(Utils.TraceMasks.Information, "UdpDiscoveryPublisher.ProcessReceivedMessageDiscovery Request MetaData Received on endpoint {1} for {0}",
-                String.Join(", ", networkMessage.DataSetWriterIds), source.Address);
+                string.Join(", ", networkMessage.DataSetWriterIds), source.Address);
 
-                foreach (UInt16 dataSetWriterId in networkMessage.DataSetWriterIds)
+                foreach (ushort dataSetWriterId in networkMessage.DataSetWriterIds)
                 {
                     lock (m_lock)
                     {
@@ -226,7 +226,7 @@ namespace Opc.Ua.PubSub.Transport
             await Task.Delay(kMinimumResponseInterval).ConfigureAwait(false);
             lock (m_lock)
             {
-                IList<UInt16> dataSetWriterIdsToSend = new List<UInt16>();
+                IList<ushort> dataSetWriterIdsToSend = new List<ushort>();
                 if (GetDataSetWriterIds != null)
                 {
                     dataSetWriterIdsToSend = GetDataSetWriterIds.Invoke(m_udpConnection.Application);

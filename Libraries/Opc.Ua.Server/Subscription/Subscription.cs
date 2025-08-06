@@ -457,7 +457,7 @@ namespace Opc.Ua.Server
                     if (context == null)
                     {
                         RequestHeader requestHeader = new RequestHeader();
-                        requestHeader.ReturnDiagnostics = (uint)(int)DiagnosticsMasks.OperationSymbolicIdAndText;
+                        requestHeader.ReturnDiagnostics = (int)DiagnosticsMasks.OperationSymbolicIdAndText;
                         context = new OperationContext(requestHeader, RequestType.Unknown);
                     }
 

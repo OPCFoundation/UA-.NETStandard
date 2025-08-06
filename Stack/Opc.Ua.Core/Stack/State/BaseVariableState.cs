@@ -1279,7 +1279,7 @@ namespace Opc.Ua
         /// <returns>The array dimensions list.</returns>
         public static ReadOnlyList<uint> ArrayDimensionsFromXml(string value)
         {
-            if (String.IsNullOrEmpty(value))
+            if (string.IsNullOrEmpty(value))
             {
                 return null;
             }

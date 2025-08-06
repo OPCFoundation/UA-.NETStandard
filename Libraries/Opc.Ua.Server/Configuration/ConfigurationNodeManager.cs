@@ -415,7 +415,7 @@ namespace Opc.Ua.Server
                 }
 
                 privateKeyFormat = privateKeyFormat?.ToUpper();
-                if (!(String.IsNullOrEmpty(privateKeyFormat) || privateKeyFormat == "PEM" || privateKeyFormat == "PFX"))
+                if (!(string.IsNullOrEmpty(privateKeyFormat) || privateKeyFormat == "PEM" || privateKeyFormat == "PFX"))
                 {
                     throw new ServiceResultException(StatusCodes.BadNotSupported, "The private key format is not supported.");
                 }
@@ -736,7 +736,7 @@ namespace Opc.Ua.Server
                     if (updateCertificate != null)
                     {
                         disconnectSessions = true;
-                        Utils.LogCertificate((int)Utils.TraceMasks.Security, "Apply Changes for certificate: ",
+                        Utils.LogCertificate(Utils.TraceMasks.Security, "Apply Changes for certificate: ",
                             updateCertificate.CertificateWithPrivateKey);
                     }
                 }
@@ -749,7 +749,7 @@ namespace Opc.Ua.Server
             if (disconnectSessions)
             {
                 Task.Run(async () => {
-                    Utils.LogInfo((int)Utils.TraceMasks.Security, "Apply Changes for application certificate update.");
+                    Utils.LogInfo(Utils.TraceMasks.Security, "Apply Changes for application certificate update.");
                     // give the client some time to receive the response
                     // before the certificate update may disconnect all sessions
                     await Task.Delay(1000).ConfigureAwait(false);

@@ -75,7 +75,7 @@ namespace Alarms
         /// <summary>
         /// Start the Alarm cycles for n seconds.
         /// </summary>
-        public virtual void Start(UInt32 seconds = 0)
+        public virtual void Start(uint seconds = 0)
         {
             Stop();
 
@@ -140,7 +140,7 @@ namespace Alarms
             if (value.GetType().Name == "Int32")
             {
                 // Don't let anyone write a value out of range
-                Int32 potentialWrite = (Int32)value;
+                int potentialWrite = (int)value;
                 if (potentialWrite >= AlarmDefines.MIN_VALUE && potentialWrite <= AlarmDefines.MAX_VALUE)
                 {
                     m_value = potentialWrite;

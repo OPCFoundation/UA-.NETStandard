@@ -84,8 +84,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         /// <summary>
         /// Constants used by test data set.
         /// </summary>
-        const Int64 kInt64Value = -123456789123456;
-        const UInt64 kUInt64Value = 123456789123456;
+        const long kInt64Value = -123456789123456;
+        const ulong kUInt64Value = 123456789123456;
 
         /// <summary>
         /// An array of spec compliant Json encoding test data sets which
@@ -99,19 +99,19 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         public static readonly JsonValidationData[] Data = new JsonValidationDataCollection() {
             {   BuiltInType.Boolean, false, "false", null, null, "false"},
             {   BuiltInType.Boolean, true,"true", null },
-            {   BuiltInType.Byte, (Byte)0, "0", null, null, "0"},
-            {   BuiltInType.Byte, (Byte)88, "88", null },
-            {   BuiltInType.SByte, (SByte)0, "0", null, null, "0"},
-            {   BuiltInType.UInt16, (UInt16)12345, "12345", null },
-            {   BuiltInType.Int16, (Int16)(-12345), "-12345", null },
-            {   BuiltInType.UInt32, (UInt32)1234567, "1234567", null },
-            {   BuiltInType.Int32, (Int32)(-12345678), "-12345678", null },
+            {   BuiltInType.Byte, (byte)0, "0", null, null, "0"},
+            {   BuiltInType.Byte, (byte)88, "88", null },
+            {   BuiltInType.SByte, (sbyte)0, "0", null, null, "0"},
+            {   BuiltInType.UInt16, (ushort)12345, "12345", null },
+            {   BuiltInType.Int16, (short)(-12345), "-12345", null },
+            {   BuiltInType.UInt32, (uint)1234567, "1234567", null },
+            {   BuiltInType.Int32, -12345678, "-12345678", null },
             {   BuiltInType.Int64, kInt64Value, Quotes(kInt64Value.ToString(CultureInfo.InvariantCulture)), null },
-            {   BuiltInType.UInt64, (UInt64)kUInt64Value, Quotes(kUInt64Value.ToString(CultureInfo.InvariantCulture)), null },
+            {   BuiltInType.UInt64, kUInt64Value, Quotes(kUInt64Value.ToString(CultureInfo.InvariantCulture)), null },
             {   BuiltInType.Float, (float)3.14, "3.14", "3.14" },
             // TODO: why is JToken.DeepEquals failing here?
             //{   BuiltInType.Float, float.PositiveInfinity, "Infinity", "Infinity" },
-            {   BuiltInType.Double, (double)7.77, "7.77", "7.77" }
+            {   BuiltInType.Double, 7.77, "7.77", "7.77" }
         }.ToArray();
         #endregion DataSource
 
@@ -266,7 +266,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             JsonEncodingType jsonEncoding)
         {
             // build expected result
-            string typeId = String.Empty;
+            string typeId = string.Empty;
             if (!data.TypeId.IsNull)
             {
                 var nodeId = ExpandedNodeId.ToNodeId(data.TypeId, EncoderContext.NamespaceUris);
@@ -281,7 +281,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             }
 
             bool expectedIsEmpty = false;
-            if (String.IsNullOrEmpty(expected))
+            if (string.IsNullOrEmpty(expected))
             {
                 expected = "{}";
                 expectedIsEmpty = true;

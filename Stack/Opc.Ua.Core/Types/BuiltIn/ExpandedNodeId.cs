@@ -665,7 +665,7 @@ namespace Opc.Ua
 
                         ushort value = 0;
 
-                        int digit = kHexDigits.IndexOf(char.ToUpperInvariant(text[++ii]));
+                        int digit = kHexDigits.IndexOf(char.ToUpperInvariant(text[++ii]), StringComparison.Ordinal);
 
                         if (digit == -1)
                         {
@@ -675,7 +675,7 @@ namespace Opc.Ua
                         value += (ushort)digit;
                         value <<= 4;
 
-                        digit = kHexDigits.IndexOf(char.ToUpperInvariant(text[++ii]));
+                        digit = kHexDigits.IndexOf(char.ToUpperInvariant(text[++ii]), StringComparison.Ordinal);
 
                         if (digit == -1)
                         {
@@ -1064,7 +1064,7 @@ namespace Opc.Ua
 
                 text = text.Substring(index + 1);
             }
-            
+
             if (text.StartsWith("svr=", StringComparison.Ordinal))
             {
                 int index = text.IndexOf(';', 4);
@@ -1299,7 +1299,7 @@ namespace Opc.Ua
                 // parse the server index if present.
                 if (text.StartsWith("svr=", StringComparison.Ordinal))
                 {
-                    int index = text.IndexOf(';');
+                    int index = text.IndexOf(';', StringComparison.Ordinal);
 
                     if (index == -1)
                     {
@@ -1314,7 +1314,7 @@ namespace Opc.Ua
                 // parse the namespace uri if present.
                 if (text.StartsWith("nsu=", StringComparison.Ordinal))
                 {
-                    int index = text.IndexOf(';');
+                    int index = text.IndexOf(';', StringComparison.Ordinal);
 
                     if (index == -1)
                     {

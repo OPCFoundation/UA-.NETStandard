@@ -123,7 +123,7 @@ namespace Opc.Ua.Gds.Tests
             m_client = new ServerPushConfigurationClient(application.ApplicationConfiguration) {
                 EndpointUrl = TestUtils.PatchOnlyGDSEndpointUrlPort(clientConfiguration.ServerUrl, port)
             };
-            if (String.IsNullOrEmpty(clientConfiguration.AppUserName))
+            if (string.IsNullOrEmpty(clientConfiguration.AppUserName))
             {
                 AppUser = new UserIdentity(new AnonymousIdentityToken());
             }

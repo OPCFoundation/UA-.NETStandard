@@ -25,11 +25,11 @@ namespace Opc.Ua
         /// </summary>
         public ServerProperties()
         {
-            m_productUri = String.Empty;
-            m_manufacturerName = String.Empty;
-            m_productName = String.Empty;
-            m_softwareVersion = String.Empty;
-            m_buildNumber = String.Empty;
+            m_productUri = string.Empty;
+            m_manufacturerName = string.Empty;
+            m_productName = string.Empty;
+            m_softwareVersion = string.Empty;
+            m_buildNumber = string.Empty;
             m_buildDate = DateTime.MinValue;
             m_datatypeAssemblies = new StringCollection();
             m_softwareCertificates = new SignedSoftwareCertificateCollection();

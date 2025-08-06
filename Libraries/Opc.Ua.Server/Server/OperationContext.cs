@@ -215,7 +215,7 @@ namespace Opc.Ua.Server
         /// <param name="statusCode">The status code.</param>
         public void SetStatusCode(StatusCode statusCode)
         {
-            Interlocked.Exchange(ref m_operationStatus, (long)statusCode.Code);
+            Interlocked.Exchange(ref m_operationStatus, statusCode.Code);
         }
         #endregion
 

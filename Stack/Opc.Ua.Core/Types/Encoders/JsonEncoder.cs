@@ -997,20 +997,20 @@ namespace Opc.Ua
         /// </summary>
         public void WriteFloat(string fieldName, float value)
         {
-            if (fieldName != null && !IncludeDefaultNumberValues && (value > -Single.Epsilon) && (value < Single.Epsilon))
+            if (fieldName != null && !IncludeDefaultNumberValues && (value > -float.Epsilon) && (value < float.Epsilon))
             {
                 return;
             }
 
-            if (Single.IsNaN(value))
+            if (float.IsNaN(value))
             {
                 WriteSimpleField(fieldName, "\"NaN\"");
             }
-            else if (Single.IsPositiveInfinity(value))
+            else if (float.IsPositiveInfinity(value))
             {
                 WriteSimpleField(fieldName, "\"Infinity\"");
             }
-            else if (Single.IsNegativeInfinity(value))
+            else if (float.IsNegativeInfinity(value))
             {
                 WriteSimpleField(fieldName, "\"-Infinity\"");
             }
@@ -1025,20 +1025,20 @@ namespace Opc.Ua
         /// </summary>
         public void WriteDouble(string fieldName, double value)
         {
-            if (fieldName != null && !IncludeDefaultNumberValues && (value > -Double.Epsilon) && (value < Double.Epsilon))
+            if (fieldName != null && !IncludeDefaultNumberValues && (value > -double.Epsilon) && (value < double.Epsilon))
             {
                 return;
             }
 
-            if (Double.IsNaN(value))
+            if (double.IsNaN(value))
             {
                 WriteSimpleField(fieldName, "\"NaN\"");
             }
-            else if (Double.IsPositiveInfinity(value))
+            else if (double.IsPositiveInfinity(value))
             {
                 WriteSimpleField(fieldName, "\"Infinity\"");
             }
-            else if (Double.IsNegativeInfinity(value))
+            else if (double.IsNegativeInfinity(value))
             {
                 WriteSimpleField(fieldName, "\"-Infinity\"");
             }
@@ -2689,13 +2689,13 @@ namespace Opc.Ua
             }
             else
             {
-                if (arrayType != typeof(Int32))
+                if (arrayType != typeof(int))
                 {
                     throw new ServiceResultException(
                         StatusCodes.BadEncodingError,
                         Utils.Format("Type '{0}' is not allowed in an Enumeration.", arrayType.FullName));
                 }
-                foreach (Int32 value in values)
+                foreach (int value in values)
                 {
                     WriteEnumerated(null, value);
                 }
@@ -3271,7 +3271,7 @@ namespace Opc.Ua
                 {
                     string symbolicId = StatusCode.LookupSymbolicId(value.CodeBits);
 
-                    if (!String.IsNullOrEmpty(symbolicId))
+                    if (!string.IsNullOrEmpty(symbolicId))
                     {
                         WriteSimpleField("Symbol", symbolicId, EscapeOptions.Quotes | EscapeOptions.NoFieldNameEscape);
                     }

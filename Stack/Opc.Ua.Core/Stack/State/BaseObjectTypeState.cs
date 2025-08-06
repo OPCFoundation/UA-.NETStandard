@@ -35,7 +35,7 @@ namespace Opc.Ua
             SuperTypeId = Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.BaseObjectType, Opc.Ua.Namespaces.OpcUa, context.NamespaceUris);
             NodeId = Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.BaseObjectType, Opc.Ua.Namespaces.OpcUa, context.NamespaceUris);
             BrowseName = Opc.Ua.QualifiedName.Create(Opc.Ua.BrowseNames.BaseObjectType, Opc.Ua.Namespaces.OpcUa, context.NamespaceUris);
-            DisplayName = new LocalizedText(Opc.Ua.BrowseNames.BaseObjectType, String.Empty, Opc.Ua.BrowseNames.BaseObjectType);
+            DisplayName = new LocalizedText(Opc.Ua.BrowseNames.BaseObjectType, string.Empty, Opc.Ua.BrowseNames.BaseObjectType);
             Description = null;
             WriteMask = AttributeWriteMask.None;
             UserWriteMask = AttributeWriteMask.None;
@@ -97,7 +97,7 @@ namespace Opc.Ua
             SuperTypeId = Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.FolderType, Opc.Ua.Namespaces.OpcUa, context.NamespaceUris);
             NodeId = Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.FolderType, Opc.Ua.Namespaces.OpcUa, context.NamespaceUris);
             BrowseName = Opc.Ua.QualifiedName.Create(Opc.Ua.BrowseNames.FolderType, Opc.Ua.Namespaces.OpcUa, context.NamespaceUris);
-            DisplayName = new LocalizedText(Opc.Ua.BrowseNames.FolderType, String.Empty, Opc.Ua.BrowseNames.FolderType);
+            DisplayName = new LocalizedText(Opc.Ua.BrowseNames.FolderType, string.Empty, Opc.Ua.BrowseNames.FolderType);
             Description = null;
             WriteMask = AttributeWriteMask.None;
             UserWriteMask = AttributeWriteMask.None;

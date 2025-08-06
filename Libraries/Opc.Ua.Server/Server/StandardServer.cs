@@ -353,7 +353,7 @@ namespace Opc.Ua.Server
             try
             {
                 // check the server uri.
-                if (!String.IsNullOrEmpty(serverUri))
+                if (!string.IsNullOrEmpty(serverUri))
                 {
                     if (serverUri != this.Configuration.ApplicationUri)
                     {
@@ -394,8 +394,8 @@ namespace Opc.Ua.Server
                             string certificateApplicationUri = X509Utils.GetApplicationUriFromCertificate(parsedClientCertificate);
 
                             // verify if applicationUri from ApplicationDescription matches the applicationUri in the client certificate.
-                            if (!String.IsNullOrEmpty(certificateApplicationUri) &&
-                                !String.IsNullOrEmpty(clientDescription.ApplicationUri) &&
+                            if (!string.IsNullOrEmpty(certificateApplicationUri) &&
+                                !string.IsNullOrEmpty(clientDescription.ApplicationUri) &&
                                 certificateApplicationUri != clientDescription.ApplicationUri)
                             {
                                 // report the AuditCertificateDataMismatch event for invalid uri
@@ -3101,7 +3101,7 @@ namespace Opc.Ua.Server
                         {
                             UriBuilder uri = new UriBuilder(BaseAddresses[ii].DiscoveryUrl);
 
-                            if (String.Equals(uri.Host, "localhost", StringComparison.OrdinalIgnoreCase))
+                            if (string.Equals(uri.Host, "localhost", StringComparison.OrdinalIgnoreCase))
                             {
                                 uri.Host = computerName;
                             }
@@ -3152,7 +3152,7 @@ namespace Opc.Ua.Server
                     OnServerStarted(m_serverInternal);
 
                     // monitor the configuration file.
-                    if (!String.IsNullOrEmpty(configuration.SourceFilePath))
+                    if (!string.IsNullOrEmpty(configuration.SourceFilePath))
                     {
                         Utils.LogInfo(TraceMasks.StartStop, "Server - Configuration watcher started.");
                         m_configurationWatcher = new ConfigurationWatcher(configuration);

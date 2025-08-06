@@ -262,10 +262,10 @@ namespace Opc.Ua
                 // decode length.
                 int length = 0;
 
-                length += (((int)plainText.Array[plainText.Offset + 0]));
-                length += (((int)plainText.Array[plainText.Offset + 1]) << 8);
-                length += (((int)plainText.Array[plainText.Offset + 2]) << 16);
-                length += (((int)plainText.Array[plainText.Offset + 3]) << 24);
+                length += plainText.Array[plainText.Offset + 0];
+                length += (plainText.Array[plainText.Offset + 1] << 8);
+                length += (plainText.Array[plainText.Offset + 2] << 16);
+                length += (plainText.Array[plainText.Offset + 3] << 24);
 
                 if (length > (plainText.Count - plainText.Offset - 4))
                 {

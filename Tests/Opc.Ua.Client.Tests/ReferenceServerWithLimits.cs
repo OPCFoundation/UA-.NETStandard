@@ -218,7 +218,7 @@ namespace Opc.Ua.Client.Tests
                 m_4TestMaxBrowseContinuationPoints,
                 m_4TestMaxHistoryContinuationPoints);
 
-            return (Opc.Ua.Server.Session)session;
+            return session;
         }
     }
 

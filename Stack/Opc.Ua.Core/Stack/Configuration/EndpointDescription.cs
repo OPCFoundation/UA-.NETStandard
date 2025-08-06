@@ -58,7 +58,7 @@ namespace Opc.Ua
         {
             get
             {
-                if (!String.IsNullOrEmpty(EndpointUrl) && EndpointUrl.StartsWith(Utils.UriSchemeOpcTcp))
+                if (!string.IsNullOrEmpty(EndpointUrl) && EndpointUrl.StartsWith(Utils.UriSchemeOpcTcp))
                 {
                     return BinaryEncodingSupport.Required;
                 }

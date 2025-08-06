@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -104,7 +104,7 @@ namespace MemoryBuffer
         /// <remarks>
         /// The externalReferences is an out parameter that allows the node manager to link to nodes
         /// in other node managers. For example, the 'Objects' node is managed by the CoreNodeManager and
-        /// should have a reference to the root folder node(s) exposed by this node manager.  
+        /// should have a reference to the root folder node(s) exposed by this node manager.
         /// </remarks>
         public override void CreateAddressSpace(IDictionary<NodeId, IList<IReference>> externalReferences)
         {
@@ -177,7 +177,7 @@ namespace MemoryBuffer
         /// Returns a unique handle for the node.
         /// </summary>
         /// <remarks>
-        /// This must efficiently determine whether the node belongs to the node manager. If it does belong to 
+        /// This must efficiently determine whether the node belongs to the node manager. If it does belong to
         /// NodeManager it should return a handle that does not require the NodeId to be validated again when
         /// the handle is passed into other methods such as 'Read' or 'Write'.
         /// </remarks>
@@ -208,7 +208,7 @@ namespace MemoryBuffer
                         return null;
                     }
 
-                    int index = id.IndexOf('[');
+                    int index = id.IndexOf('[', StringComparison.Ordinal);
 
                     if (index == -1)
                     {
@@ -228,7 +228,7 @@ namespace MemoryBuffer
 
                     for (int ii = 0; ii < offsetText.Length; ii++)
                     {
-                        if (!Char.IsDigit(offsetText[ii]))
+                        if (!char.IsDigit(offsetText[ii]))
                         {
                             return null;
                         }
@@ -246,7 +246,7 @@ namespace MemoryBuffer
                     // operations and pointers to functions in the buffer object that
                     // allow the value to be accessed. These tags are ephemeral and are
                     // discarded after the operation completes. This design pattern allows
-                    // the server to expose potentially millions of UA nodes without 
+                    // the server to expose potentially millions of UA nodes without
                     // creating millions of objects that reside in memory.
                     return new MemoryTagState(buffer, offset);
                 }
@@ -415,7 +415,7 @@ namespace MemoryBuffer
 
             // create the item.
             MemoryBufferMonitoredItem datachangeItem = buffer.RestoreDataChangeItem(
-                context as ServerSystemContext,
+                context,
                 tag,
                 storedMonitoredItem);
 

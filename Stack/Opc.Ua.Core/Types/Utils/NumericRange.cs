@@ -381,13 +381,13 @@ namespace Opc.Ua
         {
             range = NumericRange.Empty;
 
-            if (String.IsNullOrEmpty(textToParse))
+            if (string.IsNullOrEmpty(textToParse))
             {
                 return ServiceResult.Good;
             }
 
             // check for multidimensional ranges.
-            int index = textToParse.IndexOf(',');
+            int index = textToParse.IndexOf(',', StringComparison.Ordinal);
 
             if (index >= 0)
             {
@@ -977,7 +977,7 @@ namespace Opc.Ua
             {
                 // check for string.
 
-                if (value is String chars)
+                if (value is string chars)
                 {
                     isString = true;
                     array = chars.ToCharArray();

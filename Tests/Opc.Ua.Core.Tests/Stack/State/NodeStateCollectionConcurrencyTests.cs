@@ -28,8 +28,8 @@ namespace Opc.Ua.Core.Tests.Stack.State
 
             testNodeState.Create(
                 new SystemContext() { NamespaceUris = serviceMessageContext.NamespaceUris },
-                new NodeId("TestNode", (ushort)7),
-                new QualifiedName("TestNode", (ushort)7),
+                new NodeId("TestNode", 7),
+                new QualifiedName("TestNode", 7),
                 new LocalizedText("TestNode"),
                 true);
 
@@ -84,8 +84,8 @@ namespace Opc.Ua.Core.Tests.Stack.State
             
             testNodeState.Create(
                 new SystemContext() { NamespaceUris = serviceMessageContext.NamespaceUris },
-                new NodeId("TestNode", (ushort)7),
-                new QualifiedName("TestNode", (ushort)7),
+                new NodeId("TestNode", 7),
+                new QualifiedName("TestNode", 7),
                 new LocalizedText("TestNode"),
                 true);
 
@@ -109,8 +109,8 @@ namespace Opc.Ua.Core.Tests.Stack.State
 
                     testNodeState.Create(
                         new SystemContext() { NamespaceUris = serviceMessageContext.NamespaceUris },
-                        new NodeId("TestNode", (ushort)7),
-                        new QualifiedName("TestNode", (ushort)7),
+                        new NodeId("TestNode", 7),
+                        new QualifiedName("TestNode", 7),
                         new LocalizedText("TestNode"),
                         true);
 
@@ -148,8 +148,8 @@ namespace Opc.Ua.Core.Tests.Stack.State
 
             testNodeState.Create(
                 new SystemContext() { NamespaceUris = serviceMessageContext.NamespaceUris },
-                new NodeId("TestNode", (ushort)7),
-                new QualifiedName("TestNode", (ushort)7),
+                new NodeId("TestNode", 7),
+                new QualifiedName("TestNode", 7),
                 new LocalizedText("TestNode"),
                 true);
 
@@ -173,8 +173,8 @@ namespace Opc.Ua.Core.Tests.Stack.State
 
                     testNodeState.Create(
                         new SystemContext() { NamespaceUris = serviceMessageContext.NamespaceUris },
-                        new NodeId("TestNode", (ushort)7),
-                        new QualifiedName("TestNode", (ushort)7),
+                        new NodeId("TestNode", 7),
+                        new QualifiedName("TestNode", 7),
                         new LocalizedText("TestNode"),
                         true);
 

@@ -137,9 +137,9 @@ namespace Opc.Ua
                     {
                         foreach (var jj in ii.Servers)
                         {
-                            // this is too allow generic sample config files to work on any machine. 
+                            // this is too allow generic sample config files to work on any machine.
                             // in a real system explicit host names would be used so this would have no effect.
-                            var uri = jj.ApplicationUri.Replace("localhost", System.Net.Dns.GetHostName().ToLowerInvariant());
+                            var uri = jj.ApplicationUri.Replace("localhost", System.Net.Dns.GetHostName().ToLowerInvariant(), StringComparison.Ordinal);
 
                             if (uri == serverApplicationUri)
                             {
@@ -182,16 +182,16 @@ namespace Opc.Ua
             {
                 foreach (var ii in list)
                 {
-                    // this is too allow generic sample config files to work on any machine. 
+                    // this is too allow generic sample config files to work on any machine.
                     // in a real system explicit host names would be used so this would have no effect.
-                    var uri = ii.AuthorityUrl.Replace("localhost", System.Net.Dns.GetHostName().ToLowerInvariant());
+                    var uri = ii.AuthorityUrl.Replace("localhost", System.Net.Dns.GetHostName().ToLowerInvariant(), StringComparison.Ordinal);
 
                     if (!uri.EndsWith("/", StringComparison.Ordinal))
                     {
                         uri += "/";
                     }
 
-                    if (String.Equals(uri, authorityUrl, StringComparison.OrdinalIgnoreCase))
+                    if (string.Equals(uri, authorityUrl, StringComparison.OrdinalIgnoreCase))
                     {
                         var credential = new OAuth2Credential() {
                             AuthorityUrl = authorityUrl,

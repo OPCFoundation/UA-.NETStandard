@@ -478,7 +478,7 @@ namespace Opc.Ua.Server
                 // copy target attributes.
                 if ((resultMask & BrowseResultMask.NodeClass) != 0)
                 {
-                    metadata.NodeClass = (NodeClass)target.NodeClass;
+                    metadata.NodeClass = target.NodeClass;
                 }
 
                 if ((resultMask & BrowseResultMask.BrowseName) != 0)
@@ -491,7 +491,7 @@ namespace Opc.Ua.Server
                     metadata.DisplayName = target.DisplayName;
 
                     // check if the display name can be localized.
-                    if (!String.IsNullOrEmpty(metadata.DisplayName.Key))
+                    if (!string.IsNullOrEmpty(metadata.DisplayName.Key))
                     {
                         metadata.DisplayName = Server.ResourceManager.Translate(context.PreferredLocales, metadata.DisplayName);
                     }
@@ -622,7 +622,7 @@ namespace Opc.Ua.Server
 
                 while (enumerator.MoveNext())
                 {
-                    ILocalNode actualNode = GetLocalNode(enumerator.Current.Key) as ILocalNode;
+                    ILocalNode actualNode = GetLocalNode(enumerator.Current.Key);
 
                     if (actualNode != null)
                     {
@@ -661,7 +661,7 @@ namespace Opc.Ua.Server
                     }
                     
                     // look up the node.
-                    ILocalNode node = GetLocalNode(nodeToRead.NodeId) as ILocalNode;
+                    ILocalNode node = GetLocalNode(nodeToRead.NodeId);
 
                     if (node == null)
                     {
@@ -781,7 +781,7 @@ namespace Opc.Ua.Server
                     }
                     
                     // look up the node.
-                    ILocalNode node = GetLocalNode(nodeToRead.NodeId) as ILocalNode;
+                    ILocalNode node = GetLocalNode(nodeToRead.NodeId);
 
                     if (node == null)
                     {
@@ -822,7 +822,7 @@ namespace Opc.Ua.Server
                     }
                     
                     // look up the node.
-                    ILocalNode node = GetLocalNode(nodeToWrite.NodeId) as ILocalNode;
+                    ILocalNode node = GetLocalNode(nodeToWrite.NodeId);
 
                     if (node == null)
                     {
@@ -982,7 +982,7 @@ namespace Opc.Ua.Server
                     }
                     
                     // look up the node.
-                    ILocalNode node = GetLocalNode(nodeToUpdate.NodeId) as ILocalNode;
+                    ILocalNode node = GetLocalNode(nodeToUpdate.NodeId);
 
                     if (node == null)
                     {
@@ -1024,7 +1024,7 @@ namespace Opc.Ua.Server
                     }
                                         
                     // look up the node.
-                    ILocalNode node = GetLocalNode(methodToCall.ObjectId) as ILocalNode;
+                    ILocalNode node = GetLocalNode(methodToCall.ObjectId);
 
                     if (node == null)
                     {
@@ -1034,7 +1034,7 @@ namespace Opc.Ua.Server
                     methodToCall.Processed = true;                                      
                                         
                     // look up the method.
-                    ILocalNode method = GetLocalNode(methodToCall.MethodId) as ILocalNode;
+                    ILocalNode method = GetLocalNode(methodToCall.MethodId);
 
                     if (method == null)
                     {
@@ -1151,7 +1151,7 @@ namespace Opc.Ua.Server
                     }
                     
                     // look up the node.
-                    ILocalNode node = this.GetLocalNode(itemToCreate.ItemToMonitor.NodeId) as ILocalNode;
+                    ILocalNode node = this.GetLocalNode(itemToCreate.ItemToMonitor.NodeId);
 
                     if (node == null)
                     {
@@ -1316,7 +1316,7 @@ namespace Opc.Ua.Server
                     }
 
                     // look up the node.
-                    ILocalNode node = this.GetLocalNode(item.NodeId) as ILocalNode;
+                    ILocalNode node = this.GetLocalNode(item.NodeId);
 
                     if (node == null)
                     {
@@ -1739,7 +1739,7 @@ namespace Opc.Ua.Server
         {
             int namespaceIndex = 1;
 
-            if (!String.IsNullOrEmpty(namespaceUri))
+            if (!string.IsNullOrEmpty(namespaceUri))
             {
                 namespaceIndex = m_server.NamespaceUris.GetIndex(namespaceUri);
 
@@ -1907,7 +1907,7 @@ namespace Opc.Ua.Server
 
             lock (m_lock)
             {
-                source = GetLocalNode(sourceId) as ILocalNode;
+                source = GetLocalNode(sourceId);
 
                 if (source == null)
                 {
@@ -1975,7 +1975,7 @@ namespace Opc.Ua.Server
                 DeclarationNode declaration = new DeclarationNode();
 
                 declaration.Node = templateDeclaration;
-                declaration.BrowsePath = String.Empty;
+                declaration.BrowsePath = string.Empty;
 
                 declarations.Add(declaration);
 
@@ -1994,7 +1994,7 @@ namespace Opc.Ua.Server
                 DeclarationNode declaration = declarations[ii];
                 
                 // update type definition list.
-                if (String.IsNullOrEmpty(declaration.BrowsePath))
+                if (string.IsNullOrEmpty(declaration.BrowsePath))
                 {
                     typeDefinitions.Add(declaration.Node);
                     continue;
@@ -2016,7 +2016,7 @@ namespace Opc.Ua.Server
             
             // build list of instances that already exist.
             SortedDictionary<string,ILocalNode> existingInstances = new SortedDictionary<string,ILocalNode>();
-            BuildInstanceList(instance, String.Empty, existingInstances);
+            BuildInstanceList(instance, string.Empty, existingInstances);
 
             // maps the instance declaration onto an instance node.
             Dictionary<NodeId,ILocalNode> instancesToCreate = new Dictionary<NodeId,ILocalNode>(); 
@@ -2267,14 +2267,14 @@ namespace Opc.Ua.Server
             DeclarationNode declaration = new DeclarationNode();
 
             declaration.Node = typeDefinition;
-            declaration.BrowsePath = String.Empty;
+            declaration.BrowsePath = string.Empty;
 
             declarations.Add(declaration);
 
             // follow references to supertypes first.
             foreach (IReference reference in typeDefinition.References.Find(ReferenceTypeIds.HasSubtype, true, false, null))
             {
-                ILocalNode supertype = GetLocalNode(reference.TargetId) as ILocalNode;
+                ILocalNode supertype = GetLocalNode(reference.TargetId);
 
                 if (supertype == null)
                 {
@@ -2308,7 +2308,7 @@ namespace Opc.Ua.Server
                 }
 
                 // find child (ignore children that are not in the node table).
-                ILocalNode child = GetLocalNode(reference.TargetId) as ILocalNode;
+                ILocalNode child = GetLocalNode(reference.TargetId);
 
                 if (child == null)
                 {
@@ -2356,7 +2356,7 @@ namespace Opc.Ua.Server
             foreach (IReference reference in references)
             {
                 // find child (ignore children that are not in the node table).
-                ILocalNode child = GetLocalNode(reference.TargetId) as ILocalNode;
+                ILocalNode child = GetLocalNode(reference.TargetId);
 
                 if (child == null)
                 {
@@ -2376,7 +2376,7 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
-                ILocalNode node = GetLocalNode(nodeId) as ILocalNode;
+                ILocalNode node = GetLocalNode(nodeId);
 
                 if (node == null)
                 {
@@ -2434,7 +2434,7 @@ namespace Opc.Ua.Server
                             continue;
                         }
                         
-                        ILocalNode child = GetLocalNode(reference.TargetId) as ILocalNode;
+                        ILocalNode child = GetLocalNode(reference.TargetId);
 
                         if (child != null)
                         {
@@ -3082,7 +3082,7 @@ namespace Opc.Ua.Server
             {
                 List<ILocalNode> targets = new List<ILocalNode>();
 
-                ILocalNode source = GetLocalNode(sourceId) as ILocalNode;
+                ILocalNode source = GetLocalNode(sourceId);
 
                 if (source == null)
                 {
@@ -3091,7 +3091,7 @@ namespace Opc.Ua.Server
 
                 foreach (IReference reference in source.References.Find(referenceTypeId, isInverse, true, m_nodes.TypeTree))
                 {                    
-                    ILocalNode target = GetLocalNode(reference.TargetId) as ILocalNode;
+                    ILocalNode target = GetLocalNode(reference.TargetId);
 
                     if (target != null)
                     {
@@ -3115,7 +3115,7 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
-                ILocalNode source = GetLocalNode(sourceId) as ILocalNode;
+                ILocalNode source = GetLocalNode(sourceId);
 
                 if (source == null)
                 {
@@ -3138,7 +3138,7 @@ namespace Opc.Ua.Server
         {
             foreach (IReference reference in source.References.Find(referenceTypeId, isInverse, includeSubtypes, m_server.TypeTree))
             {
-                ILocalNode target = GetLocalNode(reference.TargetId) as ILocalNode;
+                ILocalNode target = GetLocalNode(reference.TargetId);
 
                 if (target == null)
                 {
@@ -3189,7 +3189,7 @@ namespace Opc.Ua.Server
                     }
 
                     // find target.
-                    ILocalNode target = GetLocalNode(reference.TargetId) as ILocalNode;
+                    ILocalNode target = GetLocalNode(reference.TargetId);
 
                     if (target != null)
                     {
@@ -3221,7 +3221,7 @@ namespace Opc.Ua.Server
                     return null;
                 }
 
-                return GetLocalNode(nodeId) as ILocalNode;
+                return GetLocalNode(nodeId);
             }
         }
 
@@ -3288,7 +3288,7 @@ namespace Opc.Ua.Server
                 }
 
                 // percent deadbands only allowed for analog data items.
-                if (datachangeFilter.DeadbandType == (uint)(int)DeadbandType.Percent)
+                if (datachangeFilter.DeadbandType == (int)DeadbandType.Percent)
                 {
                     ExpandedNodeId typeDefinitionId = metadata.TypeDefinition;
 

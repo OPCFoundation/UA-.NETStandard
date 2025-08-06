@@ -80,7 +80,7 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
         }
 
         /// <inheritdoc/>
-        public Object AlgorithmDetails => m_algID;
+        public object AlgorithmDetails => m_algID;
 
         /// <inheritdoc/>
         public IStreamCalculator<IBlockResult> CreateCalculator()

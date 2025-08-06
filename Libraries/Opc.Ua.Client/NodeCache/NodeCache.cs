@@ -1049,7 +1049,7 @@ namespace Opc.Ua.Client
             // check for null.
             if (node == null)
             {
-                return String.Empty;
+                return string.Empty;
             }
 
             // check for remote node.
@@ -1111,7 +1111,7 @@ namespace Opc.Ua.Client
         {
             if (NodeId.IsNull(nodeId))
             {
-                return String.Empty;
+                return string.Empty;
             }
 
             INode node = Find(nodeId);
@@ -1129,7 +1129,7 @@ namespace Opc.Ua.Client
         {
             if (reference == null || NodeId.IsNull(reference.NodeId))
             {
-                return String.Empty;
+                return string.Empty;
             }
 
             INode node = Find(reference.NodeId);

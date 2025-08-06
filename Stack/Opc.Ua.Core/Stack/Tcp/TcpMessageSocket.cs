@@ -351,7 +351,7 @@ namespace Opc.Ua.Bindings
 
             // Get port
             int port = endpointUrl.Port;
-            if (port <= 0 || port > UInt16.MaxValue)
+            if (port <= 0 || port > ushort.MaxValue)
             {
                 port = Utils.UaTcpDefaultPort;
             }
@@ -530,7 +530,7 @@ namespace Opc.Ua.Bindings
             // start reading the message body.
             if (m_incomingMessageSize < 0)
             {
-                UInt32 messageType = BitConverter.ToUInt32(m_receiveBuffer, 0);
+                uint messageType = BitConverter.ToUInt32(m_receiveBuffer, 0);
                 if (!TcpMessageType.IsValid(messageType))
                 {
                     m_readState = ReadState.Error;

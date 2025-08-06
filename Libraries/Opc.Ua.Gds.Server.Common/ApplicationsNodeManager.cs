@@ -83,7 +83,7 @@ namespace Opc.Ua.Gds.Server
                 m_globalDiscoveryServerConfiguration = new GlobalDiscoveryServerConfiguration();
             }
 
-            if (!String.IsNullOrEmpty(m_globalDiscoveryServerConfiguration.DefaultSubjectNameContext))
+            if (!string.IsNullOrEmpty(m_globalDiscoveryServerConfiguration.DefaultSubjectNameContext))
             {
                 if (m_globalDiscoveryServerConfiguration.DefaultSubjectNameContext[0] != ',')
                 {
@@ -181,7 +181,7 @@ namespace Opc.Ua.Gds.Server
             return null;
         }
 
-        private Boolean? GetCertificateStatus(
+        private bool? GetCertificateStatus(
             NodeId certificateGroupId,
             NodeId certificateTypeId)
         {
@@ -283,12 +283,12 @@ namespace Opc.Ua.Gds.Server
 
         protected async Task<ICertificateGroup> InitializeCertificateGroup(CertificateGroupConfiguration certificateGroupConfiguration)
         {
-            if (String.IsNullOrEmpty(certificateGroupConfiguration.SubjectName))
+            if (string.IsNullOrEmpty(certificateGroupConfiguration.SubjectName))
             {
                 throw new ArgumentNullException("SubjectName not specified");
             }
 
-            if (String.IsNullOrEmpty(certificateGroupConfiguration.BaseStorePath))
+            if (string.IsNullOrEmpty(certificateGroupConfiguration.BaseStorePath))
             {
                 throw new ArgumentNullException("BaseStorePath not specified");
             }
@@ -947,7 +947,7 @@ namespace Opc.Ua.Gds.Server
 
             if (!contextFound)
             {
-                if (!String.IsNullOrEmpty(m_globalDiscoveryServerConfiguration.DefaultSubjectNameContext))
+                if (!string.IsNullOrEmpty(m_globalDiscoveryServerConfiguration.DefaultSubjectNameContext))
                 {
                     builder.Append(m_globalDiscoveryServerConfiguration.DefaultSubjectNameContext);
                 }
@@ -1042,7 +1042,7 @@ namespace Opc.Ua.Gds.Server
                 return new ServiceResult(StatusCodes.BadInvalidArgument, "The CertificateType is invalid.");
             }
 
-            if (!String.IsNullOrEmpty(subjectName))
+            if (!string.IsNullOrEmpty(subjectName))
             {
                 subjectName = GetSubjectName(application, certificateGroup, subjectName);
             }
@@ -1065,7 +1065,7 @@ namespace Opc.Ua.Gds.Server
                     buffer.Append(GetDefaultUserToken());
                 }
 
-                if (!String.IsNullOrEmpty(m_globalDiscoveryServerConfiguration.DefaultSubjectNameContext))
+                if (!string.IsNullOrEmpty(m_globalDiscoveryServerConfiguration.DefaultSubjectNameContext))
                 {
                     buffer.Append(m_globalDiscoveryServerConfiguration.DefaultSubjectNameContext);
                 }
@@ -1234,7 +1234,7 @@ namespace Opc.Ua.Gds.Server
             {
                 foreach (var group in m_certificateGroups)
                 {
-                    if (String.Equals(group.Value.Configuration.Id, certificateGroupId, StringComparison.OrdinalIgnoreCase))
+                    if (string.Equals(group.Value.Configuration.Id, certificateGroupId, StringComparison.OrdinalIgnoreCase))
                     {
                         certificateGroup = group.Value;
                         break;
@@ -1437,7 +1437,7 @@ namespace Opc.Ua.Gds.Server
             NodeId applicationId,
             NodeId certificateGroupId,
             NodeId certificateTypeId,
-            ref Boolean updateRequired)
+            ref bool updateRequired)
         {
             AuthorizationHelper.HasAuthorization(context, AuthorizationHelper.AuthenticatedUserOrSelfAdmin, applicationId);
 
@@ -1453,13 +1453,13 @@ namespace Opc.Ua.Gds.Server
                 certificateGroupId = m_defaultApplicationGroupId;
             }
 
-            Boolean? updateRequiredResult = GetCertificateStatus(certificateGroupId, certificateTypeId);
+            bool? updateRequiredResult = GetCertificateStatus(certificateGroupId, certificateTypeId);
             if (updateRequiredResult == null)
             {
                 return new ServiceResult(StatusCodes.BadNotFound, "The CertificateGroupId and CertificateTypeId do not refer to a group and type that is valid for the application.");
             }
 
-            updateRequired = (Boolean)updateRequiredResult;
+            updateRequired = (bool)updateRequiredResult;
 
             return ServiceResult.Good;
         }

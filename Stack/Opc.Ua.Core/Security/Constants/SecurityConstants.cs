@@ -155,7 +155,7 @@ namespace Opc.Ua
         /// <returns>The normalized URI.</returns>
         public static string NormalizeUri(string profileUri)
         {
-            if (System.String.IsNullOrEmpty(profileUri))
+            if (string.IsNullOrEmpty(profileUri))
             {
                 return profileUri;
             }

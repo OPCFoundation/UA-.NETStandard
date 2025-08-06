@@ -401,7 +401,7 @@ namespace Opc.Ua.Client
                     StartService();
 
                     // monitor the configuration file.
-                    if (!String.IsNullOrEmpty(configuration.SourceFilePath))
+                    if (!string.IsNullOrEmpty(configuration.SourceFilePath))
                     {
                         m_configurationWatcher = new ConfigurationWatcher(configuration);
                         m_configurationWatcher.Changed += OnConfigurationChanged;

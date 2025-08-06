@@ -112,7 +112,7 @@ namespace Opc.Ua
         /// </summary>
         public int Append(string value)
         {
-            if (String.IsNullOrEmpty(value))
+            if (string.IsNullOrEmpty(value))
             {
                 throw new ArgumentNullException(nameof(value));
             }
@@ -154,7 +154,7 @@ namespace Opc.Ua
         {
             lock (m_lock)
             {
-                if (String.IsNullOrEmpty(value))
+                if (string.IsNullOrEmpty(value))
                 {
                     return -1;
                 }
@@ -168,7 +168,7 @@ namespace Opc.Ua
         /// </summary>
         public ushort GetIndexOrAppend(string value)
         {
-            if (String.IsNullOrEmpty(value))
+            if (string.IsNullOrEmpty(value))
             {
                 throw new ArgumentNullException(nameof(value));
             }
@@ -244,7 +244,7 @@ namespace Opc.Ua
                 {
                     if (!updateTable)
                     {
-                        mapping[ii] = UInt16.MaxValue;
+                        mapping[ii] = ushort.MaxValue;
                         continue;
                     }
 

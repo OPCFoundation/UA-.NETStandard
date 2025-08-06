@@ -130,7 +130,7 @@ namespace Opc.Ua.Gds.Tests
             m_client = new GlobalDiscoveryServerClient(Configuration, gdsClientConfiguration.GlobalDiscoveryServerUrl) {
                 EndpointUrl = TestUtils.PatchOnlyGDSEndpointUrlPort(gdsClientConfiguration.GlobalDiscoveryServerUrl, port)
             };
-            if (String.IsNullOrEmpty(gdsClientConfiguration.AppUserName))
+            if (string.IsNullOrEmpty(gdsClientConfiguration.AppUserName))
             {
                 AppUser = new UserIdentity(new AnonymousIdentityToken());
             }

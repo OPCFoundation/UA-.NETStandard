@@ -289,7 +289,7 @@ namespace Opc.Ua.Export
                 exportedNode.DisplayName = null;
             }
 
-            if (node.Description != null && !String.IsNullOrEmpty(node.Description.Text))
+            if (node.Description != null && !string.IsNullOrEmpty(node.Description.Text))
             {
                 exportedNode.Description = Export(new Opc.Ua.LocalizedText[] { node.Description });
             }
@@ -331,7 +331,7 @@ namespace Opc.Ua.Export
                 exportedNode.AccessRestrictionsSpecified = true;
             }
 
-            if (!String.IsNullOrEmpty(node.SymbolicName) && node.SymbolicName != node.BrowseName.Name)
+            if (!string.IsNullOrEmpty(node.SymbolicName) && node.SymbolicName != node.BrowseName.Name)
             {
                 exportedNode.SymbolicName = node.SymbolicName;
             }
@@ -675,7 +675,7 @@ namespace Opc.Ua.Export
                 importedNode.AccessRestrictions = (AccessRestrictionType?)node.AccessRestrictions;
             }
 
-            if (!String.IsNullOrEmpty(node.SymbolicName))
+            if (!string.IsNullOrEmpty(node.SymbolicName))
             {
                 importedNode.SymbolicName = node.SymbolicName;
             }
@@ -718,7 +718,7 @@ namespace Opc.Ua.Export
 
             string parentNodeId = (node as UAInstance)?.ParentNodeId;
 
-            if (!String.IsNullOrEmpty(parentNodeId))
+            if (!string.IsNullOrEmpty(parentNodeId))
             {
                 // set parent NodeId in Handle property.
                 importedNode.Handle = ImportNodeId(parentNodeId, context.NamespaceUris, true);
@@ -734,7 +734,7 @@ namespace Opc.Ua.Export
         {
             string nodeId = Export(source, namespaceUris);
 
-            if (!String.IsNullOrEmpty(nodeId))
+            if (!string.IsNullOrEmpty(nodeId))
             {
                 if (this.Aliases != null)
                 {
@@ -758,7 +758,7 @@ namespace Opc.Ua.Export
         {
             if (Opc.Ua.NodeId.IsNull(source))
             {
-                return String.Empty;
+                return string.Empty;
             }
 
             if (source.NamespaceIndex > 0)
@@ -775,7 +775,7 @@ namespace Opc.Ua.Export
         /// </summary>
         private Opc.Ua.NodeId ImportNodeId(string source, NamespaceTable namespaceUris, bool lookupAlias)
         {
-            if (String.IsNullOrEmpty(source))
+            if (string.IsNullOrEmpty(source))
             {
                 return Opc.Ua.NodeId.Null;
             }
@@ -812,17 +812,17 @@ namespace Opc.Ua.Export
         {
             if (Opc.Ua.NodeId.IsNull(source))
             {
-                return String.Empty;
+                return string.Empty;
             }
 
-            if (source.ServerIndex <= 0 && source.NamespaceIndex <= 0 && String.IsNullOrEmpty(source.NamespaceUri))
+            if (source.ServerIndex <= 0 && source.NamespaceIndex <= 0 && string.IsNullOrEmpty(source.NamespaceUri))
             {
                 return source.ToString();
             }
 
             ushort namespaceIndex = 0;
 
-            if (String.IsNullOrEmpty(source.NamespaceUri))
+            if (string.IsNullOrEmpty(source.NamespaceUri))
             {
                 namespaceIndex = ExportNamespaceIndex(source.NamespaceIndex, namespaceUris);
             }
@@ -841,7 +841,7 @@ namespace Opc.Ua.Export
         /// </summary>
         private Opc.Ua.ExpandedNodeId ImportExpandedNodeId(string source, NamespaceTable namespaceUris, StringTable serverUris)
         {
-            if (String.IsNullOrEmpty(source))
+            if (string.IsNullOrEmpty(source))
             {
                 return Opc.Ua.ExpandedNodeId.Null;
             }
@@ -861,7 +861,7 @@ namespace Opc.Ua.Export
             // parse the node.
             Opc.Ua.ExpandedNodeId nodeId = Opc.Ua.ExpandedNodeId.Parse(source);
 
-            if (nodeId.ServerIndex <= 0 && nodeId.NamespaceIndex <= 0 && String.IsNullOrEmpty(nodeId.NamespaceUri))
+            if (nodeId.ServerIndex <= 0 && nodeId.NamespaceIndex <= 0 && string.IsNullOrEmpty(nodeId.NamespaceUri))
             {
                 return nodeId;
             }
@@ -873,7 +873,7 @@ namespace Opc.Ua.Export
             {
                 string namespaceUri = nodeId.NamespaceUri;
 
-                if (String.IsNullOrEmpty(nodeId.NamespaceUri))
+                if (string.IsNullOrEmpty(nodeId.NamespaceUri))
                 {
                     namespaceUri = namespaceUris.GetString(namespaceIndex);
                 }
@@ -894,7 +894,7 @@ namespace Opc.Ua.Export
         {
             if (Opc.Ua.QualifiedName.IsNull(source))
             {
-                return String.Empty;
+                return string.Empty;
             }
 
             if (source.NamespaceIndex > 0)
@@ -1097,7 +1097,7 @@ namespace Opc.Ua.Export
                             output.Description = Import(field.Description);
                             output.DataType = ImportNodeId(field.DataType, namespaceUris, true);
                             output.ValueRank = field.ValueRank;
-                            if (!String.IsNullOrWhiteSpace(field.ArrayDimensions))
+                            if (!string.IsNullOrWhiteSpace(field.ArrayDimensions))
                             {
                                 if (output.ValueRank > 1 || field.ArrayDimensions[0] > 0)
                                 {
@@ -1166,7 +1166,7 @@ namespace Opc.Ua.Export
         /// </summary>
         private Opc.Ua.QualifiedName ImportQualifiedName(string source, NamespaceTable namespaceUris)
         {
-            if (String.IsNullOrEmpty(source))
+            if (string.IsNullOrEmpty(source))
             {
                 return Opc.Ua.QualifiedName.Null;
             }
@@ -1189,7 +1189,7 @@ namespace Opc.Ua.Export
         {
             if (arrayDimensions == null)
             {
-                return String.Empty;
+                return string.Empty;
             }
 
             StringBuilder buffer = new StringBuilder();
@@ -1212,7 +1212,7 @@ namespace Opc.Ua.Export
         /// </summary>
         private uint[] ImportArrayDimensions(string arrayDimensions)
         {
-            if (String.IsNullOrEmpty(arrayDimensions))
+            if (string.IsNullOrEmpty(arrayDimensions))
             {
                 return null;
             }
@@ -1312,7 +1312,7 @@ namespace Opc.Ua.Export
             // return a bad value if parameters are bad.
             if (namespaceUris == null || namespaceUris.Count <= namespaceIndex)
             {
-                return UInt16.MaxValue;
+                return ushort.MaxValue;
             }
 
             // find an existing index.
@@ -1361,7 +1361,7 @@ namespace Opc.Ua.Export
             // return a bad value if parameters are bad.
             if (namespaceUris == null || this.NamespaceUris == null || this.NamespaceUris.Length <= namespaceIndex - 1)
             {
-                return UInt16.MaxValue;
+                return ushort.MaxValue;
             }
 
             // find or append uri.
@@ -1376,7 +1376,7 @@ namespace Opc.Ua.Export
             // return a bad value if parameters are bad.
             if (namespaceUris == null)
             {
-                return UInt16.MaxValue;
+                return ushort.MaxValue;
             }
 
             int namespaceIndex = namespaceUris.GetIndex(namespaceUri);
@@ -1432,7 +1432,7 @@ namespace Opc.Ua.Export
             // return a bad value if parameters are bad.
             if (serverUris == null || serverUris.Count < serverIndex)
             {
-                return UInt16.MaxValue;
+                return ushort.MaxValue;
             }
 
             // find an existing index.
@@ -1481,7 +1481,7 @@ namespace Opc.Ua.Export
             // return a bad value if parameters are bad.
             if (serverUris == null || this.ServerUris == null || this.ServerUris.Length <= serverIndex - 1)
             {
-                return UInt16.MaxValue;
+                return ushort.MaxValue;
             }
 
             // find or append uri.

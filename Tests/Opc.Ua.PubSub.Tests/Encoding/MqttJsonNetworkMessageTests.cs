@@ -53,7 +53,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
     [Parallelizable]
     public class MqttJsonNetworkMessageTests
     {
-        private const UInt16 NamespaceIndexAllTypes = 3;
+        private const ushort NamespaceIndexAllTypes = 3;
 
         private const string MqttAddressUrl = "mqtt://localhost:1883";
         static IList<DateTime> s_publishTimes = new List<DateTime>();
@@ -1149,7 +1149,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             PubSubEncoding.JsonNetworkMessage jsonNetworkMessage = new PubSubEncoding.JsonNetworkMessage(writerGroup, metadata);
             jsonNetworkMessage.MessageId = messageId;
             jsonNetworkMessage.PublisherId = publisherId;
-            jsonNetworkMessage.DataSetWriterId = MessagesHelper.ConvertToNullable<UInt16>(dataSetWriterId);
+            jsonNetworkMessage.DataSetWriterId = MessagesHelper.ConvertToNullable<ushort>(dataSetWriterId);
 
             jsonNetworkMessage.DataSetMetaData.Name = metaDataName;
             jsonNetworkMessage.DataSetMetaData.Description = metaDataDescription != null ? new LocalizedText(metaDataDescription) : metaDataDescription;
@@ -1823,8 +1823,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         /// <returns></returns>
         private DataSetMessageFailOptions VerifyDataSetMessagesEncoding(PubSubEncoding.JsonNetworkMessage jsonNetworkMessage, IJsonDecoder jsonDecoder)
         {
-            UInt16 dataSetWriterIdValue = 0;
-            UInt32 sequenceNumberValue = 0;
+            ushort dataSetWriterIdValue = 0;
+            uint sequenceNumberValue = 0;
             StatusCode statusValue = StatusCodes.Good;
             FieldTypeEncodingMask fieldTypeEncoding = FieldTypeEncodingMask.Reserved;
             Dictionary<string, object> dataSetPayload = null;
@@ -1936,7 +1936,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                                                     Assert.IsNotNull(expandedNodeId, "Decoded 'ExpandedNodeId' Field: {0} should not be null", field.FieldMetaData.Name);
                                                     Assert.IsNotEmpty(expandedNodeId.NamespaceUri, "Decoded 'ExpandedNodeId.NamespaceUri' Field: {0} should not be empty", field.FieldMetaData.Name);
 
-                                                    UInt16 namespaceIndex =
+                                                    ushort namespaceIndex =
                                                         Convert.ToUInt16(ServiceMessageContext.GlobalContext.NamespaceUris.GetIndex(((ExpandedNodeId)decodedFieldValue).NamespaceUri));
 
                                                     StringBuilder stringBuilder = new StringBuilder();
@@ -2013,7 +2013,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                                                         Assert.IsNotNull(expandedNodeId, "Decoded 'ExpandedNodeId' Field: {0} should not be null", field.FieldMetaData.Name);
                                                         Assert.IsNotEmpty(expandedNodeId.NamespaceUri, "Decoded 'ExpandedNodeId.NamespaceUri' Field: {0} should not be empty", field.FieldMetaData.Name);
 
-                                                        UInt16 namespaceIndex =
+                                                        ushort namespaceIndex =
                                                             Convert.ToUInt16(ServiceMessageContext.GlobalContext.NamespaceUris.GetIndex(((ExpandedNodeId)dataValue.Value).NamespaceUri));
 
                                                         StringBuilder stringBuilder = new StringBuilder();

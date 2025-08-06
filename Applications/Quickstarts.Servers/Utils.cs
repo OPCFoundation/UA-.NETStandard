@@ -60,7 +60,7 @@ namespace Quickstarts.Servers
                         new CallMethodRequest {
                             MethodId = new NodeId("Alarms.Start", (ushort)index),
                             ObjectId = new NodeId("Alarms", (ushort)index),
-                            InputArguments = new VariantCollection() { new Variant((UInt32)UInt32.MaxValue) }
+                            InputArguments = new VariantCollection() { new Variant(uint.MaxValue) }
                         });
                     var requestHeader = new RequestHeader() {
                         Timestamp = DateTime.UtcNow,

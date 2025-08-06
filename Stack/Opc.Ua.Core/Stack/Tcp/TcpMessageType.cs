@@ -232,7 +232,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Sequence numbers may only rollover if they are larger than this value.
         /// </summary>
-        public const uint MinSequenceNumber = UInt32.MaxValue - 1024;
+        public const uint MinSequenceNumber = uint.MaxValue - 1024;
 
         /// <summary>
         /// The first sequence number after a rollover must be less than this value.
@@ -242,7 +242,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// The default buffer size to use for communication.
         /// </summary>
-        public const int DefaultMaxBufferSize = UInt16.MaxValue;
+        public const int DefaultMaxBufferSize = ushort.MaxValue;
 
         /// <summary>
         /// The default maximum chunk count for Request and Response messages.

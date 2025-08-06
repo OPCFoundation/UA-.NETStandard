@@ -100,8 +100,8 @@ namespace Opc.Ua
         public TranslationInfo(System.Xml.XmlQualifiedName symbolicId, params object[] args)
         {
             m_key = symbolicId.ToString();
-            m_locale = String.Empty;
-            m_text = String.Empty;
+            m_locale = string.Empty;
+            m_text = string.Empty;
             m_args = args;
         }
 

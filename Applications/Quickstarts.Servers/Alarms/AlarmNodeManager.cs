@@ -323,7 +323,7 @@ namespace Alarms
                             controller.Source.GetReferences(SystemContext, references, ReferenceTypes.HasCondition, false);
                             foreach (IReference reference in references)
                             {
-                                string identifier = (string)reference.TargetId.ToString();
+                                string identifier = reference.TargetId.ToString();
                                 if (m_alarms.ContainsKey(identifier))
                                 {
                                     AlarmHolder holder = m_alarms[identifier];
@@ -358,7 +358,7 @@ namespace Alarms
             IList<object> outputArguments)
         {
             // all arguments must be provided.
-            UInt32 seconds;
+            uint seconds;
             if (inputArguments.Count < 1)
             {
                 return StatusCodes.BadArgumentsMissing;
@@ -366,7 +366,7 @@ namespace Alarms
 
             try
             {
-                seconds = (UInt32)inputArguments[0];
+                seconds = (uint)inputArguments[0];
             }
             catch
             {
@@ -393,7 +393,7 @@ namespace Alarms
                         sourceController.Source.GetReferences(SystemContext, references, ReferenceTypes.HasCondition, false);
                         foreach (IReference reference in references)
                         {
-                            string identifier = (string)reference.TargetId.ToString();
+                            string identifier = reference.TargetId.ToString();
                             if (m_alarms.ContainsKey(identifier))
                             {
                                 AlarmHolder holder = m_alarms[identifier];
@@ -417,7 +417,7 @@ namespace Alarms
             IList<object> outputArguments)
         {
             // all arguments must be provided.
-            UInt32 seconds;
+            uint seconds;
             if (inputArguments.Count < 1)
             {
                 return StatusCodes.BadArgumentsMissing;
@@ -425,7 +425,7 @@ namespace Alarms
 
             try
             {
-                seconds = (UInt32)inputArguments[0];
+                seconds = (uint)inputArguments[0];
             }
             catch
             {
@@ -452,7 +452,7 @@ namespace Alarms
                         sourceController.Source.GetReferences(SystemContext, references, ReferenceTypes.HasCondition, false);
                         foreach (IReference reference in references)
                         {
-                            string identifier = (string)reference.TargetId.ToString();
+                            string identifier = reference.TargetId.ToString();
                             if (m_alarms.ContainsKey(identifier))
                             {
                                 AlarmHolder holder = m_alarms[identifier];
@@ -495,7 +495,7 @@ namespace Alarms
                         sourceController.Source.GetReferences(SystemContext, references, ReferenceTypes.HasCondition, false);
                         foreach (IReference reference in references)
                         {
-                            string identifier = (string)reference.TargetId.ToString();
+                            string identifier = reference.TargetId.ToString();
                             if (m_alarms.ContainsKey(identifier))
                             {
                                 AlarmHolder holder = m_alarms[identifier];
@@ -546,7 +546,7 @@ namespace Alarms
                     sourceController.Source.GetReferences(SystemContext, references, ReferenceTypes.HasCondition, false);
                     foreach (IReference reference in references)
                     {
-                        string identifier = (string)reference.TargetId.ToString();
+                        string identifier = reference.TargetId.ToString();
                         if (m_alarms.ContainsKey(identifier))
                         {
                             AlarmHolder holder = m_alarms[identifier];
@@ -1003,7 +1003,7 @@ namespace Alarms
                     new SupportedAlarmConditionType( "System", "SystemConditionClassType",  ObjectTypeIds.SystemConditionClassType ) };
 
 
-        private const UInt16 kSimulationInterval = 100;
+        private const ushort kSimulationInterval = 100;
         private Timer m_simulationTimer;
         #endregion
 

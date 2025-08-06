@@ -1009,7 +1009,7 @@ namespace Opc.Ua.Client.Tests
         public void ReadValueTyped()
         {
             // Test ReadValue
-            _ = Session.ReadValue(VariableIds.Server_ServerRedundancy_RedundancySupport, typeof(Int32));
+            _ = Session.ReadValue(VariableIds.Server_ServerRedundancy_RedundancySupport, typeof(int));
             _ = Session.ReadValue(VariableIds.Server_ServerStatus, typeof(ServerStatusDataType));
             var sre = Assert.Throws<ServiceResultException>(() => Session.ReadValue(VariableIds.Server_ServerStatus, typeof(ServiceHost)));
             Assert.AreEqual((StatusCode)StatusCodes.BadTypeMismatch, (StatusCode)sre.StatusCode);
@@ -1553,7 +1553,7 @@ namespace Opc.Ua.Client.Tests
                     testableTraceableRequestHeaderClientSession.TestableUpdateRequestHeader(request, true);
 
                     // Get the AdditionalHeader from the request
-                    var additionalHeader = request.RequestHeader.AdditionalHeader as ExtensionObject;
+                    var additionalHeader = request.RequestHeader.AdditionalHeader;
                     Assert.NotNull(additionalHeader);
 
                     // Simulate extraction
@@ -1730,9 +1730,8 @@ namespace Opc.Ua.Client.Tests
                 {
                     extractedFriendlyNamae = friendlyNameContext[1];
                 }
-                if (eccurveHashPair.Curve.Oid.FriendlyName.Contains(extractedFriendlyNamae))
+                if (eccurveHashPair.Curve.Oid.FriendlyName.Contains(extractedFriendlyNamae, StringComparison.Ordinal))
                 {
-
                     X509Certificate2 cert = CertificateBuilder.Create("CN=Client Test ECC Subject, O=OPC Foundation")
                     .SetECCurve(eccurveHashPair.Curve)
                     .CreateForECDsa();

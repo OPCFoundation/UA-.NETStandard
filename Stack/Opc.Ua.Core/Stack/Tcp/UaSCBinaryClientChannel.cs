@@ -13,6 +13,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
@@ -166,7 +167,7 @@ namespace Opc.Ua.Bindings
 
             try
             {
-                operation.End(Int32.MaxValue);
+                operation.End(int.MaxValue);
                 Utils.LogInfo("CLIENTCHANNEL SOCKET CONNECTED: {0:X8}, ChannelId={1}", Socket.Handle, ChannelId);
             }
             catch (Exception e)
@@ -189,7 +190,7 @@ namespace Opc.Ua.Bindings
 
             try
             {
-                await operation.EndAsync(Int32.MaxValue, true, ct).ConfigureAwait(false);
+                await operation.EndAsync(int.MaxValue, true, ct).ConfigureAwait(false);
                 Utils.LogInfo("CLIENTCHANNEL SOCKET CONNECTED: {0:X8}, ChannelId={1}", Socket.Handle, ChannelId);
             }
             catch (Exception e)
@@ -329,7 +330,7 @@ namespace Opc.Ua.Bindings
 
             try
             {
-                operation.End(Int32.MaxValue);
+                operation.End(int.MaxValue);
             }
             finally
             {
@@ -351,7 +352,7 @@ namespace Opc.Ua.Bindings
 
             try
             {
-                await operation.EndAsync(Int32.MaxValue, true, ct).ConfigureAwait(false);
+                await operation.EndAsync(int.MaxValue, true, ct).ConfigureAwait(false);
             }
             finally
             {
@@ -653,7 +654,7 @@ namespace Opc.Ua.Bindings
                     throw new ServiceResultException(StatusCodes.BadNonceInvalid);
                 }
 
-                string implementation = String.Format(g_ImplementationString, m_socketFactory.Implementation);
+                string implementation = string.Format(CultureInfo.InvariantCulture, g_ImplementationString, m_socketFactory.Implementation);
 
                 // log security information.
                 if (State == TcpChannelState.Opening)
@@ -930,7 +931,7 @@ namespace Opc.Ua.Bindings
                         }
 
                         // begin the operation.
-                        m_handshakeOperation = BeginOperation(Int32.MaxValue, m_handshakeComplete, token);
+                        m_handshakeOperation = BeginOperation(int.MaxValue, m_handshakeComplete, token);
 
                         // send the request.
                         SendOpenSecureChannelRequest(true);
@@ -974,7 +975,7 @@ namespace Opc.Ua.Bindings
                     if (!ReverseSocket)
                     {
                         // create an operation.
-                        m_handshakeOperation = BeginOperation(Int32.MaxValue, m_handshakeComplete, null);
+                        m_handshakeOperation = BeginOperation(int.MaxValue, m_handshakeComplete, null);
 
                         State = TcpChannelState.Connecting;
                         Socket = m_socketFactory.Create(this, BufferManager, Quotas.MaxBufferSize);
@@ -1010,7 +1011,7 @@ namespace Opc.Ua.Bindings
 
                     Utils.LogTrace("ChannelId {0}: OnHandshakeComplete", ChannelId);
 
-                    m_handshakeOperation.End(Int32.MaxValue);
+                    m_handshakeOperation.End(int.MaxValue);
 
                     return;
                 }

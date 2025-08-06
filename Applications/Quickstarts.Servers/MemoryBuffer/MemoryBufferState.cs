@@ -57,12 +57,12 @@ namespace MemoryBuffer
             {
                 count = configuration.TagCount;
 
-                if (!String.IsNullOrEmpty(configuration.DataType))
+                if (!string.IsNullOrEmpty(configuration.DataType))
                 {
                     dataType = configuration.DataType;
                 }
 
-                if (!String.IsNullOrEmpty(configuration.Name))
+                if (!string.IsNullOrEmpty(configuration.Name))
                 {
                     name = dataType;
                 }
@@ -135,7 +135,7 @@ namespace MemoryBuffer
         /// <param name="noOfElements">The number of elements.</param>
         public void CreateBuffer(string elementName, int noOfElements)
         {
-            if (String.IsNullOrEmpty(elementName))
+            if (string.IsNullOrEmpty(elementName))
             {
                 elementName = "UInt32";
             }

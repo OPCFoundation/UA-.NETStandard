@@ -231,7 +231,7 @@ namespace Opc.Ua.Sample
             QualifiedName browseName,
             BaseInstanceState instance)
         {
-            ServerSystemContext contextToUse = (ServerSystemContext)m_systemContext.Copy(context);
+            ServerSystemContext contextToUse = m_systemContext.Copy(context);
 
             lock (Lock)
             {
@@ -1628,7 +1628,7 @@ namespace Opc.Ua.Sample
                     nodeToWrite.Processed = true;
 
                     // index range is not supported.
-                    if (!String.IsNullOrEmpty(nodeToWrite.IndexRange))
+                    if (!string.IsNullOrEmpty(nodeToWrite.IndexRange))
                     {
                         errors[ii] = StatusCodes.BadWriteNotSupported;
                         continue;

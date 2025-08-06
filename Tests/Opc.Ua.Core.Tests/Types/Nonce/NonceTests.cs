@@ -44,7 +44,7 @@ namespace Opc.Ua.Core.Tests.Types.Nonce
     {
         #region Test Methods
         /// <summary>
-        /// Test the CreateNonce - securitypolicy and valid nonceLength 
+        /// Test the CreateNonce - securitypolicy and valid nonceLength
         /// </summary>
         [Theory]
         [TestCase(SecurityPolicies.ECC_nistP256)]
@@ -117,7 +117,7 @@ namespace Opc.Ua.Core.Tests.Types.Nonce
 
                 byte[] randomValue = Ua.Nonce.CreateRandomNonceData(nonceLength);
 
-                if (securityPolicyUri.Contains("ECC_"))
+                if (securityPolicyUri.Contains("ECC_", StringComparison.Ordinal))
                 {
                     if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX) &&
                         (securityPolicyUri == SecurityPolicies.ECC_nistP256 || securityPolicyUri == SecurityPolicies.ECC_nistP384))
