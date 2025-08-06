@@ -54,7 +54,7 @@ namespace Opc.Ua.Server
         /// Returns all of the subscriptions known to the subscription manager.
         /// </summary>
         /// <returns>A list of the subscriptions.</returns>
-        IList<Subscription> GetSubscriptions();
+        IList<ISubscription> GetSubscriptions();
 
         /// <summary>
         /// Set a subscription into durable mode
@@ -262,5 +262,5 @@ namespace Opc.Ua.Server
     /// </summary>
     /// <param name="subscription">The subscription that was affected.</param>
     /// <param name="deleted">True if the subscription was deleted.</param>
-    public delegate void SubscriptionEventHandler(Subscription subscription, bool deleted);
+    public delegate void SubscriptionEventHandler(ISubscription subscription, bool deleted);
 }

@@ -2329,44 +2329,4 @@ namespace Opc.Ua.Server
         private event SubscriptionEventHandler m_SubscriptionDeleted;
         #endregion
     }
-
-    /// <summary>
-    /// Provides access to the subscription manager within the server.
-    /// </summary>
-    /// <remarks>
-    /// Sinks that receive these events must not block the thread.
-    /// </remarks>
-    public interface ISubscriptionManager
-    {
-        /// <summary>
-        /// Raised after a new subscription is created.
-        /// </summary>
-        event SubscriptionEventHandler SubscriptionCreated;
-
-        /// <summary>
-        /// Raised before a subscription is deleted.
-        /// </summary>
-        event SubscriptionEventHandler SubscriptionDeleted;
-
-        /// <summary>
-        /// Returns all of the subscriptions known to the subscription manager.
-        /// </summary>
-        /// <returns>A list of the subscriptions.</returns>
-        IList<ISubscription> GetSubscriptions();
-
-        /// <summary>
-        /// Set a subscription into durable mode
-        /// </summary>
-        ServiceResult SetSubscriptionDurable(
-            ISystemContext context,
-            uint subscriptionId,
-            uint lifetimeInHours,
-            out uint revisedLifetimeInHours);
-    }
-    /// <summary>
-    /// The delegate for functions used to receive subscription related events.
-    /// </summary>
-    /// <param name="subscription">The subscription that was affected.</param>
-    /// <param name="deleted">True if the subscription was deleted.</param>
-    public delegate void SubscriptionEventHandler(ISubscription subscription, bool deleted);
 }
