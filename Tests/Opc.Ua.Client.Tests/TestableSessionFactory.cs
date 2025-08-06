@@ -42,7 +42,7 @@ namespace Opc.Ua.Client.Tests
         /// <summary>
         /// The default instance of the factory.
         /// </summary>
-        public new static readonly TestableSessionFactory Instance = new TestableSessionFactory();
+        public static new readonly TestableSessionFactory Instance = new TestableSessionFactory();
 
         /// <summary>
         /// Force use of the default instance.
@@ -67,7 +67,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         /// <inheritdoc/>
-        public async override Task<ISession> CreateAsync(
+        public override async Task<ISession> CreateAsync(
             ApplicationConfiguration configuration,
             ConfiguredEndpoint endpoint,
             bool updateBeforeConnect,
@@ -84,7 +84,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         /// <inheritdoc/>
-        public async override Task<ISession> CreateAsync(
+        public override async Task<ISession> CreateAsync(
             ApplicationConfiguration configuration,
             ITransportWaitingConnection connection,
             ConfiguredEndpoint endpoint,
@@ -103,7 +103,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         /// <inheritdoc/>
-        public async override Task<ISession> CreateAsync(
+        public override async Task<ISession> CreateAsync(
             ApplicationConfiguration configuration,
             ReverseConnectManager reverseConnectManager,
             ConfiguredEndpoint endpoint,

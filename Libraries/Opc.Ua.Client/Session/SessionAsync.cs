@@ -31,6 +31,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Security.Cryptography.X509Certificates;
@@ -566,7 +567,6 @@ namespace Opc.Ua.Client
                 }
                 catch( Exception ex)
                 {
-                    // Archie For Debugging only
                     Utils.LogError("Session TRANSFER ASYNC of {0} subscriptions Failed due to unexpected Exception {1}",
                         subscriptions.Count, ex.Message);
                     failedSubscriptions++;
@@ -983,6 +983,86 @@ namespace Opc.Ua.Client
 
             return (values, errors);
         }
+
+        /// <inheritdoc/>
+        public async Task<byte[]> ReadByteStringInChunksAsync(NodeId nodeId, CancellationToken ct)
+        {
+            int count = (int)ServerMaxByteStringLength;
+
+            int maxByteStringLength = m_configuration.TransportQuotas.MaxByteStringLength;
+            if (maxByteStringLength > 0)
+            {
+                count = ServerMaxByteStringLength > maxByteStringLength ?
+                    maxByteStringLength : (int)ServerMaxByteStringLength;
+            }
+
+            if (count <= 1)
+            {
+                throw ServiceResultException.Create(StatusCodes.BadIndexRangeNoData,
+                    "The MaxByteStringLength is not known or too small for reading data in chunks.");
+            }
+
+            int offset = 0;
+            using var bytes = new MemoryStream();
+            while (true)
+            {
+                var valueToRead = new ReadValueId {
+                    NodeId = nodeId,
+                    AttributeId = Attributes.Value,
+                    IndexRange = new NumericRange(offset, offset + count - 1).ToString(),
+                    DataEncoding = null
+                };
+                var readValueIds = new ReadValueIdCollection { valueToRead };
+
+                ReadResponse result = await ReadAsync(
+                    null,
+                    0,
+                    TimestampsToReturn.Neither,
+                    readValueIds,
+                    ct).ConfigureAwait(false);
+
+                ResponseHeader responseHeader = result.ResponseHeader;
+                DataValueCollection results = result.Results;
+                DiagnosticInfoCollection diagnosticInfos = result.DiagnosticInfos;
+                ClientBase.ValidateResponse(results, readValueIds);
+                ClientBase.ValidateDiagnosticInfos(diagnosticInfos, readValueIds);
+
+                if (offset == 0)
+                {
+                    Variant wrappedValue = results[0].WrappedValue;
+                    if (wrappedValue.TypeInfo.BuiltInType != BuiltInType.ByteString ||
+                        wrappedValue.TypeInfo.ValueRank != ValueRanks.Scalar)
+                    {
+                        throw new ServiceResultException(StatusCodes.BadTypeMismatch, "Value is not a ByteString scalar.");
+                    }
+                }
+
+                if (StatusCode.IsBad(results[0].StatusCode))
+                {
+                    if (results[0].StatusCode == StatusCodes.BadIndexRangeNoData)
+                    {
+                        // this happens when the previous read has fetched all remaining data
+                        break;
+                    }
+                    ServiceResult serviceResult = ClientBase.GetResult(results[0].StatusCode, 0, diagnosticInfos, responseHeader);
+                    throw new ServiceResultException(serviceResult);
+                }
+
+                byte[] chunk = results[0].Value as byte[];
+                if (chunk == null || chunk.Length == 0)
+                {
+                    break;
+                }
+
+                bytes.Write(chunk, 0, chunk.Length);
+                if (chunk.Length < count)
+                {
+                    break;
+                }
+                offset += count;
+            }
+            return bytes.ToArray();
+        }
         #endregion
 
         #region Browse Methods
@@ -1189,7 +1269,8 @@ namespace Opc.Ua.Client
                                 browseDirection,
                                 referenceTypeId,
                                 includeSubtypes,
-                                nodeClassMask
+                                nodeClassMask,
+                                ct
                             ).ConfigureAwait(false);
 
                         int resultOffset = batchOffset;
@@ -1752,6 +1833,20 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public Task ReconnectAsync(ITransportChannel channel, CancellationToken ct)
             => ReconnectAsync(null, channel, ct);
+
+        /// <inheritdoc/>
+        public async Task ReloadInstanceCertificateAsync(CancellationToken ct = default)
+        {
+            await m_reconnectLock.WaitAsync(ct).ConfigureAwait(false);
+            try
+            {
+                await LoadInstanceCertificateAsync(null).ConfigureAwait(false);
+            }
+            finally
+            {
+                m_reconnectLock.Release();
+            }
+        }
 
         /// <summary>
         /// Reconnects to the server after a network failure using a waiting connection.

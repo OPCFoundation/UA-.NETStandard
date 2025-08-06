@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -62,7 +62,7 @@ namespace Opc.Ua.Client
                 revisedLifetimeCount,
                 revisedMaxKeepAliveCount,
                 m_maxNotificationsPerPublish,
-                m_publishingEnabled,
+                false,
                 m_priority,
                 ct).ConfigureAwait(false);
 
@@ -73,6 +73,13 @@ namespace Opc.Ua.Client
                 response.RevisedLifetimeCount);
 
             await CreateItemsAsync(ct).ConfigureAwait(false);
+
+
+            // only enable publishing afer CreateSubscription is called to avoid race conditions with subscription cleanup.
+            if (m_publishingEnabled)
+            {
+                await SetPublishingModeAsync(m_publishingEnabled, ct).ConfigureAwait(false);
+            }
 
             ChangesCompleted();
         }
@@ -93,13 +100,10 @@ namespace Opc.Ua.Client
                 return;
             }
 
+            await ResetPublishTimerAndWorkerStateAsync().ConfigureAwait(false);
+
             try
             {
-                lock (m_cache)
-                {
-                    ResetPublishTimerAndWorkerState();
-                }
-
                 // delete the subscription.
                 UInt32Collection subscriptionIds = new uint[] { m_id };
 
@@ -119,7 +123,7 @@ namespace Opc.Ua.Client
                 }
             }
 
-            // suppress exception if silent flag is set. 
+            // suppress exception if silent flag is set.
             catch (Exception e)
             {
                 if (!silent)

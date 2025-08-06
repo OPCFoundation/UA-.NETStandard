@@ -1,7 +1,7 @@
 <Project>
   <ItemGroup Condition="$(NBGV_PublicRelease) != 'True' AND '$(CODEQL_RUNNER)' == '' AND '$(Dockerbuild)' != 'true'">
     <!-- Note: Versions such as 3.6.146, where known working for 4 digit versioning -->
-    <PackageReference Include="Nerdbank.GitVersioning" Version="3.7.115">
+    <PackageReference Include="Nerdbank.GitVersioning">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
@@ -23,4 +23,3 @@
     <GitVersionBaseDirectory>$(MSBuildThisFileDirectory)</GitVersionBaseDirectory>
   </PropertyGroup>
 </Project>
-
