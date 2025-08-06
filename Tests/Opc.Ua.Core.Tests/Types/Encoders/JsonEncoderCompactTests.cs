@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2024 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -85,7 +85,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
         private string Escape(string input)
         {
-            return input.Replace("\\", "\\\\").Replace("\"", "\\\"");
+            return input.Replace("\\", "\\\\", StringComparison.Ordinal).Replace("\"", "\\\"", StringComparison.Ordinal);
         }
 
         private string ToString(Array input, int index)
@@ -1093,15 +1093,15 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         {
             var data = $@"
                 {{
-                    ""D0"": {{ 
+                    ""D0"": {{
                         ""UaTypeId"": ""i=884"",
                         ""High"": 9876.5432
                     }},
-                    ""D1"": {{ 
+                    ""D1"": {{
                         ""UaType"": 22,
-                        ""Body"": {{ 
-                            ""UaTypeId"": ""nsu=http://opcfoundation.org/UA/GDS/;i=1"", 
-                            ""ApplicationId"": ""nsu=urn:localhost:server;s=urn:123456789"",  
+                        ""Body"": {{
+                            ""UaTypeId"": ""nsu=http://opcfoundation.org/UA/GDS/;i=1"",
+                            ""ApplicationId"": ""nsu=urn:localhost:server;s=urn:123456789"",
                             ""ApplicationUri"": ""urn:localhost:test.org:client"",
                             ""ApplicationType"": 1,
                             ""ApplicationNames"": [{{ ""Text"":""Test Client"", ""Locale"":""en"" }}],
@@ -1144,15 +1144,15 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         {
             var data = $@"
                 {{
-                    ""D0"": {{ 
+                    ""D0"": {{
                         ""UaTypeId"": ""i=884"",
                         ""High"": 9876.5432
                     }},
-                    ""D1"": {{ 
+                    ""D1"": {{
                         ""UaType"": 22,
-                        ""Value"": {{ 
-                            ""UaTypeId"": ""nsu=http://opcfoundation.org/UA/GDS/;i=1"", 
-                            ""ApplicationId"": ""nsu=urn:localhost:server;s=urn:123456789"",  
+                        ""Value"": {{
+                            ""UaTypeId"": ""nsu=http://opcfoundation.org/UA/GDS/;i=1"",
+                            ""ApplicationId"": ""nsu=urn:localhost:server;s=urn:123456789"",
                             ""ApplicationUri"": ""urn:localhost:test.org:client"",
                             ""ApplicationType"": 0,
                             ""ApplicationNames"": [{{ ""Text"":""Test Client"", ""Locale"":""en"" }}],
@@ -1205,16 +1205,16 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         {
             var data = $@"
                 {{
-                    ""D0"": {{ 
+                    ""D0"": {{
                         ""TypeId"": ""i=884"",
                         ""Body"": {{ ""Low"": 0, ""High"": 9876.5432 }}
                     }},
-                    ""D1"": {{ 
+                    ""D1"": {{
                         ""Type"": 22,
-                        ""Body"": {{ 
-                            ""TypeId"": ""nsu=http://opcfoundation.org/UA/GDS/;i=1"", 
-                            ""Body"": {{ 
-                                ""ApplicationId"": ""nsu=urn:localhost:server;s=urn:123456789"",  
+                        ""Body"": {{
+                            ""TypeId"": ""nsu=http://opcfoundation.org/UA/GDS/;i=1"",
+                            ""Body"": {{
+                                ""ApplicationId"": ""nsu=urn:localhost:server;s=urn:123456789"",
                                 ""ApplicationUri"": ""urn:localhost:test.org:client"",
                                 ""ApplicationType"": ""Client_1"",
                                 ""ApplicationNames"": [{{ ""Text"":""Test Client"", ""Locale"":""en"" }}],
@@ -1259,16 +1259,16 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         {
             var data = $@"
                 {{
-                    ""D0"": {{ 
+                    ""D0"": {{
                         ""UaTypeId"": ""i=884"",
                         ""Low"": 0,
                         ""High"": 9876.5432
                     }},
-                    ""D1"": {{ 
+                    ""D1"": {{
                         ""UaType"": 22,
-                        ""Value"": {{ 
-                            ""UaTypeId"": ""nsu=http://opcfoundation.org/UA/GDS/;i=1"", 
-                            ""ApplicationId"": ""nsu=urn:localhost:server;s=urn:123456789"",  
+                        ""Value"": {{
+                            ""UaTypeId"": ""nsu=http://opcfoundation.org/UA/GDS/;i=1"",
+                            ""ApplicationId"": ""nsu=urn:localhost:server;s=urn:123456789"",
                             ""ApplicationUri"": ""urn:localhost:test.org:client"",
                             ""ApplicationType"": ""Client_1"",
                             ""ApplicationNames"": [{{ ""Text"":""Test Client"", ""Locale"":""en"" }}],
@@ -1322,16 +1322,16 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         {
             var data = $@"
                 {{
-                    ""D0"": {{ 
+                    ""D0"": {{
                         ""TypeId"": {{ ""Id"": 884 }},
                         ""Body"": {{ ""High"": 9876.5432 }}
                     }},
-                    ""D1"": {{ 
+                    ""D1"": {{
                         ""Type"": 22,
-                        ""Body"": {{ 
+                        ""Body"": {{
                             ""TypeId"": {{ ""Id"": 1, ""Namespace"": 2 }},
-                            ""Body"": {{ 
-                                ""ApplicationId"": {{ ""IdType"":1, ""Id"":""urn:123456789"",""Namespace"":1 }},  
+                            ""Body"": {{
+                                ""ApplicationId"": {{ ""IdType"":1, ""Id"":""urn:123456789"",""Namespace"":1 }},
                                 ""ApplicationUri"": ""urn:localhost:test.org:client"",
                                 ""ApplicationType"": 1,
                                 ""ApplicationNames"": [{{ ""Text"":""Test Client"", ""Locale"":""en"" }}],
@@ -1375,16 +1375,16 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         {
             var data = $@"
                 {{
-                    ""D0"": {{ 
+                    ""D0"": {{
                         ""TypeId"": {{ ""Id"": 884 }},
                         ""Body"": {{ ""Low"":0, ""High"": 9876.5432 }}
                     }},
-                    ""D1"": {{ 
+                    ""D1"": {{
                         ""Type"": 22,
-                        ""Body"": {{ 
+                        ""Body"": {{
                             ""TypeId"": {{ ""Id"": 1, ""Namespace"": 2 }},
-                            ""Body"": {{ 
-                                ""ApplicationId"": {{ ""IdType"":1, ""Id"":""urn:123456789"",""Namespace"":1 }},  
+                            ""Body"": {{
+                                ""ApplicationId"": {{ ""IdType"":1, ""Id"":""urn:123456789"",""Namespace"":1 }},
                                 ""ApplicationUri"": ""urn:localhost:test.org:client"",
                                 ""ApplicationType"": 1,
                                 ""ApplicationNames"": [{{ ""Text"":""Test Client"", ""Locale"":""en"" }}],
@@ -1441,7 +1441,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 {{
                     ""D0"": {{ ""Low"": 0, ""High"": 9876.5432 }},
                     ""D1"": {{
-                        ""ApplicationId"": {{ ""IdType"":1, ""Id"":""urn:123456789"",""Namespace"":""urn:localhost:server"" }},  
+                        ""ApplicationId"": {{ ""IdType"":1, ""Id"":""urn:123456789"",""Namespace"":""urn:localhost:server"" }},
                         ""ApplicationUri"": ""urn:localhost:test.org:client"",
                         ""ApplicationType"": ""Client_1"",
                         ""ApplicationNames"": [""Test Client""],
@@ -1477,7 +1477,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 {{
                     ""D0"": {{ ""Low"": 0, ""High"": 9876.5432 }},
                     ""D1"": {{
-                        ""ApplicationId"": {{ ""IdType"":1, ""Id"":""urn:123456789"",""Namespace"":""urn:localhost:server"" }},  
+                        ""ApplicationId"": {{ ""IdType"":1, ""Id"":""urn:123456789"",""Namespace"":""urn:localhost:server"" }},
                         ""ApplicationUri"": ""urn:localhost:test.org:client"",
                         ""ApplicationType"": ""Client_1"",
                         ""ApplicationNames"": [""Test Client""],

@@ -1496,7 +1496,7 @@ namespace Opc.Ua.Client.Tests
                 if (item.Key == "traceparent")
                 {
                     var traceparent = item.Value.ToString();
-                    int firstDash = traceparent.IndexOf('-');
+                    int firstDash = traceparent.IndexOf('-', StringComparison.Ordinal);
                     int secondDash = traceparent.IndexOf('-', firstDash + 1);
                     int thirdDash = traceparent.IndexOf('-', secondDash + 1);
 

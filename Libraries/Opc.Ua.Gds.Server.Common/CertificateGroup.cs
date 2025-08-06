@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -70,7 +70,7 @@ namespace Opc.Ua.Gds.Server
             {
                 IssuerCertificatesStore = new CertificateStoreIdentifier(trustedIssuerCertificatesStorePath);
             }
-            SubjectName = Configuration.SubjectName.Replace("localhost", Utils.GetHostName());
+            SubjectName = Configuration.SubjectName.Replace("localhost", Utils.GetHostName(), StringComparison.Ordinal);
             CertificateTypes = new NodeIdCollection();
 
             Certificates = new ConcurrentDictionary<NodeId, X509Certificate2>();
@@ -470,7 +470,7 @@ namespace Opc.Ua.Gds.Server
         }
 
         /// <summary>
-        /// Revoke the CA signed certificate. 
+        /// Revoke the CA signed certificate.
         /// The issuer CA public key, the private key and the crl reside in the storepath.
         /// The CRL number is increased by one and existing CRL for the issuer are deleted from the store.
         /// </summary>
@@ -689,7 +689,7 @@ namespace Opc.Ua.Gds.Server
 
         #region Protected Properties
         protected string SubjectName { get; }
-        #endregion 
+        #endregion
 
     }
 

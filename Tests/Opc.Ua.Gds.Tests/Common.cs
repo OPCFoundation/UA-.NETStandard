@@ -112,7 +112,7 @@ namespace Opc.Ua.Gds.Tests
             string localhost = domainNames[0];
             string locale = m_randomSource.NextInt32(10) == 0 ? null : "en-US";
             string privateKeyFormat = m_randomSource.NextInt32(1) == 0 ? "PEM" : "PFX";
-            string appUri = ("urn:localhost:opcfoundation.org:" + pureAppUri.ToLower()).Replace("localhost", localhost);
+            string appUri = ("urn:localhost:opcfoundation.org:" + pureAppUri.ToLower()).Replace("localhost", localhost, StringComparison.Ordinal);
             string prodUri = "http://opcfoundation.org/UA/" + pureAppUri;
             StringCollection discoveryUrls = new StringCollection();
             StringCollection serverCapabilities = new StringCollection();

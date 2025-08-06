@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2024 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -169,7 +169,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             }
 
             // Check encode result against expected XML value
-            Assert.AreEqual(expected.Replace("\r", "").Replace("\n", ""), actualXmlValue.Replace("\r", "").Replace("\n", ""));
+            Assert.AreEqual(expected.Replace("\r", "", StringComparison.Ordinal).Replace("\n", "", StringComparison.Ordinal), actualXmlValue.Replace("\r", "", StringComparison.Ordinal).Replace("\n", "", StringComparison.Ordinal));
 
             // Decode
             Variant actualVariant;
@@ -191,7 +191,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void EncodeDecodeVariantNil()
         {
-            
+
             var variant = Variant.Null;
 
             string expected = "<?xml version=\"1.0\" encoding=\"utf-16\"?>\r\n<uax:VariantTest xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\r\n  <uax:Test>\r\n    <uax:Value xsi:nil=\"true\" />\r\n  </uax:Test>\r\n</uax:VariantTest>";
@@ -208,7 +208,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             }
 
             // Check encode result against expected XML value
-            Assert.AreEqual(expected.Replace("\r", "").Replace("\n", ""), actualXmlValue.Replace("\r", "").Replace("\n", ""));
+            Assert.AreEqual(expected.Replace("\r", "", StringComparison.Ordinal).Replace("\n", "", StringComparison.Ordinal), actualXmlValue.Replace("\r", "", StringComparison.Ordinal).Replace("\n", "", StringComparison.Ordinal));
 
             // Decode
             Variant actualVariant;

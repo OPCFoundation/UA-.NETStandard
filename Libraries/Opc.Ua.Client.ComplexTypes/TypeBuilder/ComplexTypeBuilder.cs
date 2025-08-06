@@ -158,11 +158,11 @@ namespace Opc.Ua.Client.ComplexTypes
             if (string.IsNullOrWhiteSpace(moduleName))
             {
                 // remove space chars in malformed namespace url
-                string tempNamespace = targetNamespace.Replace(" ", "");
+                string tempNamespace = targetNamespace.Replace(" ", "", StringComparison.Ordinal);
                 var uri = new Uri(tempNamespace, UriKind.RelativeOrAbsolute);
                 string tempName = uri.IsAbsoluteUri ? uri.AbsolutePath : uri.ToString();
 
-                tempName = tempName.Replace("/", "");
+                tempName = tempName.Replace("/", "", StringComparison.Ordinal);
                 string[] splitName = tempName.Split(':');
                 moduleName = splitName.Last();
             }

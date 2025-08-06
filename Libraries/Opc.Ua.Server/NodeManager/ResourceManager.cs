@@ -522,7 +522,7 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
-                int index = language.IndexOf('-');
+                int index = language.IndexOf('-', StringComparison.Ordinal);
 
                 if (index != -1)
                 {

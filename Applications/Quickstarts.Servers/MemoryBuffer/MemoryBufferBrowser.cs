@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -39,7 +39,7 @@ using Opc.Ua.Server;
 namespace MemoryBuffer
 {
     /// <summary>
-    /// A class to browse the references for a memory buffer. 
+    /// A class to browse the references for a memory buffer.
     /// </summary>
     public class MemoryBufferBrowser : NodeBrowser
     {
@@ -155,7 +155,7 @@ namespace MemoryBuffer
 
                 for (int ii = 0; ii < name.Length; ii++)
                 {
-                    if ("0123456789ABCDEF".IndexOf(name[ii]) == -1)
+                    if ("0123456789ABCDEF".IndexOf(name[ii], StringComparison.Ordinal) == -1)
                     {
                         return null;
                     }
