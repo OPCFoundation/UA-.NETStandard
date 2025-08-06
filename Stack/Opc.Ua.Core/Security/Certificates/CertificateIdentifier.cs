@@ -92,16 +92,6 @@ namespace Opc.Ua
                 return true;
             }
 
-            if (m_storeLocation != id.m_storeLocation)
-            {
-                return false;
-            }
-
-            if (m_storeName != id.m_storeName)
-            {
-                return false;
-            }
-
             if (SubjectName != id.SubjectName)
             {
                 return false;
@@ -121,7 +111,7 @@ namespace Opc.Ua
         /// <returns></returns>
         public override int GetHashCode()
         {
-            return HashCode.Combine(Thumbprint, m_storeLocation, m_storeName, SubjectName, CertificateType);
+            return HashCode.Combine(Thumbprint, m_storePath, m_storeType, SubjectName, CertificateType);
         }
         #endregion
 
@@ -405,110 +395,6 @@ namespace Opc.Ua
 
             // certificate not found.
             return null;
-        }
-
-        /// <summary>
-        /// Creates a DER blob from a certificate with zero or more supporting certificates.
-        /// </summary>
-        /// <param name="certificates">The certificates list to be returned as raw data.</param>
-        /// <returns>
-        /// A DER blob containing zero or more certificates.
-        /// </returns>
-        /// <exception cref="CryptographicException">If the <paramref name="certificates"/> is null or empty.</exception>
-        [Obsolete("Use Utils.CreateCertificateChainBlob instead")]
-        public static byte[] CreateBlob(IList<X509Certificate2> certificates)
-        {
-            if (certificates == null || certificates.Count == 0)
-            {
-                throw new CryptographicException("Primary certificate has not been provided.");
-            }
-
-            // copy the primary certificate.
-            X509Certificate2 certificate = certificates[0];
-            byte[] blobData = certificate.RawData;
-
-            // check for any supporting certificates.
-            if (certificates.Count > 1)
-            {
-                List<byte[]> additionalData = new List<byte[]>(certificates.Count - 1);
-                int length = blobData.Length;
-
-                for (int ii = 1; ii < certificates.Count; ii++)
-                {
-                    byte[] bytes = certificates[ii].RawData;
-                    length += bytes.Length;
-                    additionalData.Add(bytes);
-                }
-
-                // append the supporting certificates to the raw data.
-                byte[] rawData = new byte[length];
-                Array.Copy(blobData, rawData, blobData.Length);
-
-                length = blobData.Length;
-
-                for (int ii = 0; ii < additionalData.Count; ii++)
-                {
-                    byte[] bytes = additionalData[ii];
-                    Array.Copy(bytes, 0, rawData, length, bytes.Length);
-                    length += bytes.Length;
-                }
-
-                blobData = rawData;
-            }
-
-            return blobData;
-        }
-
-        /// <summary>
-        /// Parses a blob with a list of DER encoded certificates.
-        /// </summary>
-        /// <param name="encodedData">The encoded data.</param>
-        /// <returns>
-        /// An object of <see cref="X509Certificate2Collection"/> containing <see cref="X509Certificate2"/>
-        /// certificates created from a buffer with DER encoded certificate
-        /// </returns>
-        /// <remarks>
-        /// Any supporting certificates found in the buffer are processed as well.
-        /// </remarks>
-        [Obsolete("Use Utils.ParseCertificateChainBlob instead")]
-        public static X509Certificate2Collection ParseBlob(byte[] encodedData)
-        {
-            if (!IsValidCertificateBlob(encodedData))
-            {
-                throw new CryptographicException("Primary certificate in blob is not valid.");
-            }
-
-            X509Certificate2Collection collection = new X509Certificate2Collection();
-            X509Certificate2 certificate = CertificateFactory.Create(encodedData, true);
-            collection.Add(certificate);
-
-            byte[] rawData = encodedData;
-            byte[] data = certificate.RawData;
-
-            int processedBytes = data.Length;
-
-            if (encodedData.Length < processedBytes)
-            {
-                byte[] buffer = new byte[encodedData.Length - processedBytes];
-
-                do
-                {
-                    Array.Copy(encodedData, processedBytes, buffer, 0, encodedData.Length - processedBytes);
-
-                    if (!IsValidCertificateBlob(buffer))
-                    {
-                        throw new CryptographicException("Supporting certificate in blob is not valid.");
-                    }
-
-                    X509Certificate2 issuerCertificate = CertificateFactory.Create(buffer, true);
-                    collection.Add(issuerCertificate);
-                    data = issuerCertificate.RawData;
-                    processedBytes += data.Length;
-                }
-                while (processedBytes < encodedData.Length);
-            }
-
-            return collection;
         }
 
         /// <summary>
