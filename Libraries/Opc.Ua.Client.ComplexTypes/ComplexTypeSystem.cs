@@ -33,7 +33,6 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
-using static Opc.Ua.Utils;
 
 namespace Opc.Ua.Client.ComplexTypes
 {
@@ -54,7 +53,7 @@ namespace Opc.Ua.Client.ComplexTypes
     {
         // an internal limit to prevent the retry
         // datatype loader mechanism to loop forever
-        private const int MaxLoopCount = 100;
+        internal const int MaxLoopCount = 100;
 
         /// <summary>
         /// The data type systems that were loaded
@@ -119,7 +118,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// For servers without DataTypeDefinition support, all
         /// custom types are loaded.
         /// </remarks>
-        public async Task<Type> LoadType(ExpandedNodeId nodeId, bool subTypes = false, bool throwOnError = false, CancellationToken ct = default)
+        public async Task<Type> LoadTypeAsync(ExpandedNodeId nodeId, bool subTypes = false, bool throwOnError = false, CancellationToken ct = default)
         {
             try
             {
@@ -140,8 +139,8 @@ namespace Opc.Ua.Client.ComplexTypes
 
                 if (subTypeNodesWithoutKnownTypes.Count > 0)
                 {
-                    IList<INode> serverEnumTypes = new List<INode>();
-                    IList<INode> serverStructTypes = new List<INode>();
+                    IList<INode> serverEnumTypes = [];
+                    IList<INode> serverStructTypes = [];
                     foreach (INode node in subTypeNodesWithoutKnownTypes)
                     {
                         await AddEnumerationOrStructureTypeAsync(node, serverEnumTypes, serverStructTypes, ct).ConfigureAwait(false);
@@ -152,7 +151,7 @@ namespace Opc.Ua.Client.ComplexTypes
                     {
                         if (!DisableDataTypeDictionary)
                         {
-                            await LoadDictionaryDataTypes(serverEnumTypes, serverStructTypes, false, ct).ConfigureAwait(false);
+                            _ = await LoadDictionaryDataTypesAsync(serverEnumTypes, false, ct).ConfigureAwait(false);
                         }
                     }
                 }
@@ -178,7 +177,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// For servers without DataTypeDefinition support all
         /// custom types are loaded.
         /// </remarks>
-        public async Task<bool> LoadNamespace(string nameSpace, bool throwOnError = false, CancellationToken ct = default)
+        public async Task<bool> LoadNamespaceAsync(string nameSpace, bool throwOnError = false, CancellationToken ct = default)
         {
             try
             {
@@ -192,8 +191,8 @@ namespace Opc.Ua.Client.ComplexTypes
                 IList<INode> serverEnumTypes = await m_complexTypeResolver.LoadDataTypesAsync(DataTypeIds.Enumeration, ct: ct).ConfigureAwait(false);
                 IList<INode> serverStructTypes = await m_complexTypeResolver.LoadDataTypesAsync(DataTypeIds.Structure, true, ct: ct).ConfigureAwait(false);
                 // filter for namespace
-                serverEnumTypes = serverEnumTypes.Where(rd => rd.NodeId.NamespaceIndex == nameSpaceIndex).ToList();
-                serverStructTypes = serverStructTypes.Where(rd => rd.NodeId.NamespaceIndex == nameSpaceIndex).ToList();
+                serverEnumTypes = [.. serverEnumTypes.Where(rd => rd.NodeId.NamespaceIndex == nameSpaceIndex)];
+                serverStructTypes = [.. serverStructTypes.Where(rd => rd.NodeId.NamespaceIndex == nameSpaceIndex)];
                 // load types
                 if (DisableDataTypeDefinition || !await LoadBaseDataTypesAsync(serverEnumTypes, serverStructTypes, ct).ConfigureAwait(false))
                 {
@@ -201,7 +200,7 @@ namespace Opc.Ua.Client.ComplexTypes
                     {
                         return false;
                     }
-                    return await LoadDictionaryDataTypes(serverEnumTypes, serverStructTypes, false, ct).ConfigureAwait(false);
+                    return await LoadDictionaryDataTypesAsync(serverEnumTypes, false, ct).ConfigureAwait(false);
                 }
                 return true;
             }
@@ -238,9 +237,9 @@ namespace Opc.Ua.Client.ComplexTypes
             try
             {
                 // load server types in cache
-                await m_complexTypeResolver.LoadDataTypesAsync(DataTypeIds.BaseDataType, true, ct: ct).ConfigureAwait(false);
+                _ = await m_complexTypeResolver.LoadDataTypesAsync(DataTypeIds.BaseDataType, true, ct: ct).ConfigureAwait(false);
                 IList<INode> serverEnumTypes = await m_complexTypeResolver.LoadDataTypesAsync(DataTypeIds.Enumeration, ct: ct).ConfigureAwait(false);
-                IList<INode> serverStructTypes = onlyEnumTypes ? new List<INode>() :
+                IList<INode> serverStructTypes = onlyEnumTypes ? [] :
                     await m_complexTypeResolver.LoadDataTypesAsync(DataTypeIds.Structure, true, ct: ct).ConfigureAwait(false);
                 if (DisableDataTypeDefinition || !await LoadBaseDataTypesAsync(serverEnumTypes, serverStructTypes, ct).ConfigureAwait(false))
                 {
@@ -248,7 +247,7 @@ namespace Opc.Ua.Client.ComplexTypes
                     {
                         return false;
                     }
-                    return await LoadDictionaryDataTypes(serverEnumTypes, serverStructTypes, true, ct).ConfigureAwait(false);
+                    return await LoadDictionaryDataTypesAsync(serverEnumTypes, true, ct).ConfigureAwait(false);
                 }
                 return true;
             }
@@ -353,15 +352,14 @@ namespace Opc.Ua.Client.ComplexTypes
         /// Loads all custom types at this time to avoid
         /// complexity when resolving type dependencies.
         /// </remarks>
-        private async Task<bool> LoadDictionaryDataTypes(
+        private async Task<bool> LoadDictionaryDataTypesAsync(
             IList<INode> serverEnumTypes,
-            IList<INode> serverStructTypes,
             bool fullTypeList,
             CancellationToken ct = default
             )
         {
             // build a type dictionary with all known new types
-            var allEnumTypes = fullTypeList ? serverEnumTypes : await m_complexTypeResolver.LoadDataTypesAsync(DataTypeIds.Enumeration, ct: ct).ConfigureAwait(false);
+            IList<INode> allEnumTypes = fullTypeList ? serverEnumTypes : await m_complexTypeResolver.LoadDataTypesAsync(DataTypeIds.Enumeration, ct: ct).ConfigureAwait(false);
             var typeDictionary = new Dictionary<XmlQualifiedName, NodeId>();
 
             // strip known types from list
@@ -422,7 +420,7 @@ namespace Opc.Ua.Client.ComplexTypes
                                 NodeId nodeId = dictionary.DataTypes.FirstOrDefault(d => d.Value.Name == item.Name).Key;
                                 if (nodeId == null)
                                 {
-                                    Utils.LogError(TraceMasks.Error, "Skip the type definition of {0} because the data type node was not found.", item.Name);
+                                    Utils.LogError(Utils.TraceMasks.Error, "Skip the type definition of {0} because the data type node was not found.", item.Name);
                                     continue;
                                 }
 
@@ -432,7 +430,7 @@ namespace Opc.Ua.Client.ComplexTypes
 
                                 if (dataTypeNode == null)
                                 {
-                                    Utils.LogError(TraceMasks.Error, "Skip the type definition of {0} because the data type node was not found.", item.Name);
+                                    Utils.LogError(Utils.TraceMasks.Error, "Skip the type definition of {0} because the data type node was not found.", item.Name);
                                     continue;
                                 }
 
@@ -480,7 +478,7 @@ namespace Opc.Ua.Client.ComplexTypes
                                     IList<NodeId> encodingIds;
                                     ExpandedNodeId xmlEncodingId;
                                     (encodingIds, binaryEncodingId, xmlEncodingId) = await m_complexTypeResolver.BrowseForEncodingsAsync(
-                                        typeId, m_supportedEncodings, ct).ConfigureAwait(false);
+                                        typeId, s_supportedEncodings, ct).ConfigureAwait(false);
                                     try
                                     {
                                         // build the actual .NET structured type in assembly
@@ -505,7 +503,7 @@ namespace Opc.Ua.Client.ComplexTypes
                                     if (complexType != null)
                                     {
                                         // match namespace and add new type to type factory
-                                        foreach (var encodingId in encodingIds)
+                                        foreach (NodeId encodingId in encodingIds)
                                         {
                                             AddEncodeableType(encodingId, complexType);
                                         }
@@ -545,8 +543,8 @@ namespace Opc.Ua.Client.ComplexTypes
             CancellationToken ct = default
             )
         {
-            IList<INode> enumTypesToDoList = new List<INode>();
-            IList<INode> structTypesToDoList = new List<INode>();
+            IList<INode> enumTypesToDoList = [];
+            IList<INode> structTypesToDoList = [];
 
             bool repeatDataTypeLoad;
             do
@@ -567,7 +565,7 @@ namespace Opc.Ua.Client.ComplexTypes
                     foreach (ExpandedNodeId nodeId in dtnfex.NodeIds)
                     {
                         // add missing types to list
-                        var dataTypeNode = await m_complexTypeResolver.FindAsync(nodeId, ct).ConfigureAwait(false);
+                        INode dataTypeNode = await m_complexTypeResolver.FindAsync(nodeId, ct).ConfigureAwait(false);
                         if (dataTypeNode != null)
                         {
                             await AddEnumerationOrStructureTypeAsync(dataTypeNode, serverEnumTypes, serverStructTypes, ct).ConfigureAwait(false);
@@ -655,8 +653,8 @@ namespace Opc.Ua.Client.ComplexTypes
             IList<INode> structTypesWorkList = serverStructTypes;
 
             // allow the loader to cache the encodings
-            IList<ExpandedNodeId> nodeIds = serverStructTypes.Select(n => n.NodeId).ToList();
-            _ = await m_complexTypeResolver.BrowseForEncodingsAsync(nodeIds, m_supportedEncodings, ct).ConfigureAwait(false);
+            IList<ExpandedNodeId> nodeIds = [.. serverStructTypes.Select(n => n.NodeId)];
+            _ = await m_complexTypeResolver.BrowseForEncodingsAsync(nodeIds, s_supportedEncodings, ct).ConfigureAwait(false);
 
             // create structured types for all namespaces
             int loopCounter = 0;
@@ -680,7 +678,7 @@ namespace Opc.Ua.Client.ComplexTypes
                         foreach (INode structType in structTypes)
                         {
                             Type newType = null;
-                            if (!(structType is DataTypeNode dataTypeNode) ||
+                            if (structType is not DataTypeNode dataTypeNode ||
                                 dataTypeNode.IsAbstract)
                             {
                                 continue;
@@ -690,7 +688,7 @@ namespace Opc.Ua.Client.ComplexTypes
                             if (structureDefinition != null)
                             {
                                 (IList<NodeId> encodingIds, ExpandedNodeId binaryEncodingId, ExpandedNodeId xmlEncodingId)
-                                    = await m_complexTypeResolver.BrowseForEncodingsAsync(structType.NodeId, m_supportedEncodings, ct).ConfigureAwait(false);
+                                    = await m_complexTypeResolver.BrowseForEncodingsAsync(structType.NodeId, s_supportedEncodings, ct).ConfigureAwait(false);
                                 try
                                 {
                                     ExpandedNodeId typeId = NormalizeExpandedNodeId(structType.NodeId);
@@ -718,7 +716,7 @@ namespace Opc.Ua.Client.ComplexTypes
                                         }
                                         foreach (ExpandedNodeId id in missingTypeIdsFromWorkList)
                                         {
-                                            if (!structTypesToDoList.Where(n => n.NodeId == id).Any())
+                                            if (!structTypesToDoList.Any(n => n.NodeId == id))
                                             {
                                                 structTypesToDoList.Add(await m_complexTypeResolver.FindAsync(id, ct).ConfigureAwait(false));
                                             }
@@ -763,7 +761,7 @@ namespace Opc.Ua.Client.ComplexTypes
                     loopCounter < MaxLoopCount)
                 {
                     structTypesWorkList = structTypesToDoList;
-                    structTypesToDoList = new List<INode>();
+                    structTypesToDoList = [];
                 }
                 else
                 {
@@ -779,7 +777,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <summary>
         /// Return the structure definition from a DataTypeDefinition
         /// </summary>
-        private StructureDefinition GetStructureDefinition(DataTypeNode dataTypeNode)
+        private static StructureDefinition GetStructureDefinition(DataTypeNode dataTypeNode)
         {
             if (dataTypeNode.DataTypeDefinition?.Body is StructureDefinition structureDefinition)
             {
@@ -803,8 +801,7 @@ namespace Opc.Ua.Client.ComplexTypes
                     {
                         return null;
                     }
-                    if (!(field.ValueRank == ValueRanks.Scalar ||
-                        field.ValueRank >= ValueRanks.OneDimension))
+                    if (field.ValueRank is not (ValueRanks.Scalar or >= ValueRanks.OneDimension))
                     {
                         return null;
                     }
@@ -830,7 +827,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// </summary>
         private async Task AddEnumerationOrStructureTypeAsync(INode dataTypeNode, IList<INode> serverEnumTypes, IList<INode> serverStructTypes, CancellationToken ct = default)
         {
-            NodeId superType = ExpandedNodeId.ToNodeId(dataTypeNode.NodeId, m_complexTypeResolver.NamespaceUris);
+            var superType = ExpandedNodeId.ToNodeId(dataTypeNode.NodeId, m_complexTypeResolver.NamespaceUris);
             while (true)
             {
                 superType = await m_complexTypeResolver.FindSuperTypeAsync(superType, ct).ConfigureAwait(false);
@@ -860,8 +857,8 @@ namespace Opc.Ua.Client.ComplexTypes
         /// </summary>
         private List<INode> RemoveKnownTypes(IList<INode> nodeList)
         {
-            return nodeList.Where(
-                node => GetSystemType(node.NodeId) == null).Distinct().ToList();
+            return [.. nodeList.Where(
+                node => GetSystemType(node.NodeId) == null).Distinct()];
         }
 
         /// <summary>
@@ -891,7 +888,7 @@ namespace Opc.Ua.Client.ComplexTypes
             {
                 Type newType = null;
                 DataTypeNode enumDescription = null;
-                DataTypeNode enumType = enumerationTypes.FirstOrDefault(node =>
+                var enumType = enumerationTypes.FirstOrDefault(node =>
                     node.BrowseName.Name == item.Name &&
                     (node.BrowseName.NamespaceIndex == complexTypeBuilder.TargetNamespaceIndex ||
                     complexTypeBuilder.TargetNamespaceIndex == -1))
@@ -969,7 +966,7 @@ namespace Opc.Ua.Client.ComplexTypes
 
                 // 1. use DataTypeDefinition
                 if (DisableDataTypeDefinition ||
-                    !(enumTypeNode.DataTypeDefinition?.Body is EnumDefinition enumDefinition))
+                    enumTypeNode.DataTypeDefinition?.Body is not EnumDefinition enumDefinition)
                 {
                     // browse for EnumFields or EnumStrings property
                     object enumTypeArray = await m_complexTypeResolver.GetEnumTypeArrayAsync(enumTypeNode.NodeId, ct).ConfigureAwait(false);
@@ -1030,7 +1027,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 {
                     if (missingTypes == null)
                     {
-                        missingTypes = new ExpandedNodeIdCollection() { field.DataType };
+                        missingTypes = [field.DataType];
                     }
                     else if (!missingTypes.Contains(field.DataType))
                     {
@@ -1062,7 +1059,7 @@ namespace Opc.Ua.Client.ComplexTypes
             List<Type>.Enumerator typeListEnumerator = typeList.GetEnumerator();
             foreach (StructureField field in structureDefinition.Fields)
             {
-                typeListEnumerator.MoveNext();
+                _ = typeListEnumerator.MoveNext();
 
                 // check for recursive data type:
                 //    field has the same data type as the parent structure
@@ -1082,13 +1079,18 @@ namespace Opc.Ua.Client.ComplexTypes
             return (fieldBuilder.CreateType(), missingTypes);
         }
 
-        bool IsAllowSubTypes(StructureDefinition structureDefinition)
+        private static bool IsAllowSubTypes(StructureDefinition structureDefinition)
         {
             switch (structureDefinition.StructureType)
             {
                 case StructureType.UnionWithSubtypedValues:
                 case StructureType.StructureWithSubtypedValues:
                     return true;
+                case StructureType.Structure:
+                case StructureType.StructureWithOptionalFields:
+                case StructureType.Union:
+                default:
+                    break;
             }
             return false;
         }
@@ -1099,16 +1101,18 @@ namespace Opc.Ua.Client.ComplexTypes
             return dataTypeNode?.IsAbstract == true;
         }
 
-        private bool IsRecursiveDataType(NodeId structureDataType, NodeId fieldDataType)
-            => fieldDataType.Equals(structureDataType);
+        private static bool IsRecursiveDataType(NodeId structureDataType, NodeId fieldDataType)
+        {
+            return fieldDataType.Equals(structureDataType);
+        }
 
         /// <summary>
         /// Determine the type of a field in a StructureField definition.
         /// </summary>
         private async Task<Type> GetFieldTypeAsync(StructureField field, bool allowSubTypes, CancellationToken ct = default)
         {
-            if (field.ValueRank != ValueRanks.Scalar &&
-                field.ValueRank < ValueRanks.OneDimension)
+            if (field.ValueRank is not ValueRanks.Scalar and
+                < ValueRanks.OneDimension)
             {
                 throw new DataTypeNotSupportedException(field.DataType, $"The ValueRank {field.ValueRank} is not supported.");
             }
@@ -1145,11 +1149,11 @@ namespace Opc.Ua.Client.ComplexTypes
         /// </summary>
         private async Task<NodeId> GetBuiltInSuperTypeAsync(NodeId dataType, bool allowSubTypes, bool isOptional, CancellationToken ct = default)
         {
-            const int MaxSuperTypes = 100;
+            const int maxSuperTypes = 100;
 
             int iterations = 0;
             NodeId superType = dataType;
-            while (iterations++ < MaxSuperTypes)
+            while (iterations++ < maxSuperTypes)
             {
                 superType = await m_complexTypeResolver.FindSuperTypeAsync(superType, ct).ConfigureAwait(false);
                 if (superType?.IsNullNodeId != false)
@@ -1208,7 +1212,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// Sort the structures by dependencies, with structures with dependent
         /// types at the end of the list, so they can be added to the factory in order.
         /// </summary>
-        private void SplitAndSortDictionary(
+        private static void SplitAndSortDictionary(
             DataDictionary dictionary,
             List<Schema.Binary.TypeDescription> structureList,
             List<Schema.Binary.TypeDescription> enumList
@@ -1248,8 +1252,12 @@ namespace Opc.Ua.Client.ComplexTypes
         #region Private Fields
         private IComplexTypeResolver m_complexTypeResolver;
         private IComplexTypeFactory m_complexTypeBuilderFactory;
-        private NodeIdDictionary<DataTypeDefinition> m_dataTypeDefinitionCache = new NodeIdDictionary<DataTypeDefinition>();
-        private static readonly string[] m_supportedEncodings = new string[] { BrowseNames.DefaultBinary, BrowseNames.DefaultXml, BrowseNames.DefaultJson };
+        private readonly NodeIdDictionary<DataTypeDefinition> m_dataTypeDefinitionCache = [];
+        private static readonly string[] s_supportedEncodings = [
+            BrowseNames.DefaultBinary,
+            BrowseNames.DefaultXml,
+            BrowseNames.DefaultJson
+        ];
         #endregion Private Fields
     }
 }//namespace

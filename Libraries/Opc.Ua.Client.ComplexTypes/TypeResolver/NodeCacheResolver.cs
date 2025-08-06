@@ -121,11 +121,13 @@ namespace Opc.Ua.Client.ComplexTypes
             }
 
             // find the dictionary for the description.
+#pragma warning disable IDE0008 // Use explicit type
             var references = await FindReferencesAsync(
                 dataTypeSystem,
                 ReferenceTypeIds.HasComponent,
                 false,
                 ct).ConfigureAwait(false);
+#pragma warning restore IDE0008 // Use explicit type
 
             if (references.Count == 0)
             {
@@ -137,11 +139,13 @@ namespace Opc.Ua.Client.ComplexTypes
             var referenceNodeIds = references.Select(r => r.NodeId).ToList();
 
             // find namespace properties
+#pragma warning disable IDE0008 // Use explicit type
             var namespaceReferences = await FindReferencesAsync(
                 referenceNodeIds,
                 ReferenceTypeIds.HasProperty,
                 false,
                 ct).ConfigureAwait(false);
+#pragma warning restore IDE0008 // Use explicit type
 
             var namespaceNodes = namespaceReferences
                 .Where(n => n.BrowseName == BrowseNames.NamespaceUri)
@@ -168,7 +172,7 @@ namespace Opc.Ua.Client.ComplexTypes
             {
                 if (StatusCode.IsNotBad(nameSpaceValues[ii].StatusCode))
                 {
-                    var dataValue = nameSpaceValues[ii].Value;
+                    object dataValue = nameSpaceValues[ii].Value;
 
                     // servers may optimize space by not returning a dictionary
                     if (dataValue != null)
@@ -245,19 +249,23 @@ namespace Opc.Ua.Client.ComplexTypes
             CancellationToken ct = default)
         {
             // cache type encodings
+#pragma warning disable IDE0008 // Use explicit type
             var encodings = await FindReferencesAsync(
                  nodeIds,
                  ReferenceTypeIds.HasEncoding,
                  false,
                  ct).ConfigureAwait(false);
+#pragma warning restore IDE0008 // Use explicit type
 
             // cache dictionary descriptions
             nodeIds = [.. encodings.Select(r => r.NodeId)];
+#pragma warning disable IDE0008 // Use explicit type
             var descriptions = await FindReferencesAsync(
                 nodeIds,
                 ReferenceTypeIds.HasDescription,
                 false,
                 ct).ConfigureAwait(false);
+#pragma warning restore IDE0008 // Use explicit type
 
             return [.. encodings
                 .Where(r => supportedEncodings.Contains(r.BrowseName.Name))
@@ -270,11 +278,13 @@ namespace Opc.Ua.Client.ComplexTypes
             string[] supportedEncodings,
             CancellationToken ct = default)
         {
+#pragma warning disable IDE0008 // Use explicit type
             var references = await FindReferencesAsync(
                 nodeId,
                 ReferenceTypeIds.HasEncoding,
                 false,
                 ct).ConfigureAwait(false);
+#pragma warning restore IDE0008 // Use explicit type
 
             ExpandedNodeId binaryEncodingId = references
                 .FirstOrDefault(r => r.BrowseName.Name == BrowseNames.DefaultBinary)?.NodeId;
@@ -296,11 +306,13 @@ namespace Opc.Ua.Client.ComplexTypes
             ExpandedNodeId encodingId;
             DataTypeNode dataTypeNode;
 
+#pragma warning disable IDE0008 // Use explicit type
             var references = await FindReferencesAsync(
                 nodeId,
                 ReferenceTypeIds.HasDescription,
                 true,
                 ct).ConfigureAwait(false);
+#pragma warning restore IDE0008 // Use explicit type
 
             if (references.Count == 1)
             {
@@ -351,11 +363,13 @@ namespace Opc.Ua.Client.ComplexTypes
 
             while (nodesToBrowse.Count > 0)
             {
+#pragma warning disable IDE0008 // Use explicit type
                 var response = await FindReferencesAsync(
                     nodesToBrowse,
                     ReferenceTypeIds.HasSubtype,
                     false,
                     ct).ConfigureAwait(false);
+#pragma warning restore IDE0008 // Use explicit type
 
                 var nextNodesToBrowse = new ExpandedNodeIdCollection();
                 if (nestedSubTypes)
@@ -388,12 +402,14 @@ namespace Opc.Ua.Client.ComplexTypes
             CancellationToken ct = default)
         {
             // find the property reference for the enum type
+#pragma warning disable IDE0008 // Use explicit type
             var references = await FindReferencesAsync(
                 nodeId,
                 ReferenceTypeIds.HasProperty,
                 false,
                 ct).ConfigureAwait(false);
-            INode property = references.FirstOrDefault();
+#pragma warning restore IDE0008 // Use explicit type
+            INode property = references.Count > 0 ? references[0] : null;
             if (property != null)
             {
                 // read the enum type array
@@ -436,7 +452,7 @@ namespace Opc.Ua.Client.ComplexTypes
             string name)
         {
             var dictionaryToLoad = new DataDictionary();
-            await LoadDictionaryAsync(dictionaryToLoad, dictionaryId, name);
+            await LoadDictionaryAsync(dictionaryToLoad, dictionaryId, name).ConfigureAwait(false);
             return dictionaryToLoad;
         }
 
@@ -459,7 +475,7 @@ namespace Opc.Ua.Client.ComplexTypes
             try
             {
                 ReadResponse readResult = await m_session.ReadAsync(null, 0,
-                    TimestampsToReturn.Neither, itemsToRead, ct);
+                    TimestampsToReturn.Neither, itemsToRead, ct).ConfigureAwait(false);
 
                 ResponseHeader responseHeader = readResult.ResponseHeader;
                 DataValueCollection values = readResult.Results;
@@ -617,11 +633,13 @@ namespace Opc.Ua.Client.ComplexTypes
             NodeId dictionaryId,
             CancellationToken ct)
         {
+#pragma warning disable IDE0008 // Use explicit type
             var references = await FindReferencesAsync(
                 dictionaryId,
                 ReferenceTypeIds.HasComponent,
                 true,
                 ct).ConfigureAwait(false);
+#pragma warning restore IDE0008 // Use explicit type
             if (references.Count > 0)
             {
                 dictionaryToLoad.TypeSystemId = ExpandedNodeId.ToNodeId(
@@ -643,14 +661,16 @@ namespace Opc.Ua.Client.ComplexTypes
             NodeId dictionaryId,
             CancellationToken ct)
         {
+#pragma warning disable IDE0008 // Use explicit type
             var references = await FindReferencesAsync(
                 dictionaryId,
                 ReferenceTypeIds.HasComponent,
                 false,
                 ct).ConfigureAwait(false);
+#pragma warning restore IDE0008 // Use explicit type
 
             // read the value to get the names that are used in the dictionary
-            var values = await GetValuesAsync(references.Select(node => node.NodeId), ct);
+            IReadOnlyList<DataValue> values = await GetValuesAsync(references.Select(node => node.NodeId), ct).ConfigureAwait(false);
             Debug.Assert(values.Count == references.Count);
             int ii = 0;
             foreach (INode reference in references)

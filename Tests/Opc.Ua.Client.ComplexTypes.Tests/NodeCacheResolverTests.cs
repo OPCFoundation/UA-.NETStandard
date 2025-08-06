@@ -142,10 +142,10 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
             {
                 var dictionaryId = ExpandedNodeId.ToNodeId(r.NodeId, Session.NamespaceUris);
                 TestContext.Out.WriteLine("  ReadDictionary {0} {1}", r.BrowseName.Name, dictionaryId);
-                DataDictionary dictionaryToLoad = await nodeResolver.LoadDictionaryAsync(dictionaryId, r.BrowseName.Name);
+                DataDictionary dictionaryToLoad = await nodeResolver.LoadDictionaryAsync(dictionaryId, r.BrowseName.Name).ConfigureAwait(false);
 
                 // internal API for testing only
-                byte[] dictionary = await  nodeResolver.ReadDictionaryAsync(dictionaryId);
+                byte[] dictionary = await  nodeResolver.ReadDictionaryAsync(dictionaryId).ConfigureAwait(false);
                 // TODO: workaround known issues in the Xml type system.
                 // https://mantis.opcfoundation.org/view.php?id=7393
                 if (dataTypeSystem.Equals(ObjectIds.XmlSchema_TypeSystem))

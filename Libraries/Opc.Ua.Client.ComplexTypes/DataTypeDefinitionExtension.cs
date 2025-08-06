@@ -27,11 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Reflection.Emit;
-using System.Runtime.InteropServices;
 using System.Xml;
 
 namespace Opc.Ua.Client.ComplexTypes
@@ -70,7 +67,7 @@ namespace Opc.Ua.Client.ComplexTypes
             var structureDefinition = new StructureDefinition() {
                 BaseDataType = null,
                 DefaultEncodingId = ExpandedNodeId.ToNodeId(defaultEncodingId, namespaceTable),
-                Fields = new StructureFieldCollection(),
+                Fields = [],
                 StructureType = StructureType.Structure
             };
 
@@ -78,7 +75,7 @@ namespace Opc.Ua.Client.ComplexTypes
             bool hasBitField = false;
             bool isUnionType = false;
 
-            foreach (var field in structuredType.Field)
+            foreach (Schema.Binary.FieldType field in structuredType.Field)
             {
                 // check for yet unsupported properties
                 if (field.IsLengthInBytes ||
@@ -92,8 +89,8 @@ namespace Opc.Ua.Client.ComplexTypes
                     isUnionType = true;
                 }
 
-                if (field.TypeName.Namespace == Namespaces.OpcBinarySchema ||
-                    field.TypeName.Namespace == Namespaces.OpcUa)
+                if (field.TypeName.Namespace is Namespaces.OpcBinarySchema or
+                    Namespaces.OpcUa)
                 {
                     if (field.TypeName.Name == "Bit")
                     {
@@ -131,15 +128,15 @@ namespace Opc.Ua.Client.ComplexTypes
             }
 
             byte switchFieldBitPosition = 0;
-            Int32 dataTypeFieldPosition = 0;
+            int dataTypeFieldPosition = 0;
             var switchFieldBits = new Dictionary<string, byte>();
             // convert fields
-            foreach (var field in structuredType.Field)
+            foreach (Schema.Binary.FieldType field in structuredType.Field)
             {
                 // consume optional bits
                 if (field.TypeName.IsXmlBitType())
                 {
-                    var count = structureDefinition.Fields.Count;
+                    int count = structureDefinition.Fields.Count;
                     if (count == 0 &&
                         switchFieldBitPosition < 32)
                     {
@@ -156,14 +153,14 @@ namespace Opc.Ua.Client.ComplexTypes
                     continue;
                 }
 
-                if (switchFieldBitPosition != 0 &&
-                    switchFieldBitPosition != 32)
+                if (switchFieldBitPosition is not 0 and
+                    not 32)
                 {
                     throw new DataTypeNotSupportedException(
                         "Bitwise option selectors must have 32 bits.");
                 }
                 NodeId fieldDataTypeNodeId;
-                if(field.TypeName == structuredType.QName)
+                if (field.TypeName == structuredType.QName)
                 {
                     // recursive type
                     fieldDataTypeNodeId = dataTypeNodeId;
@@ -185,7 +182,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 if (field.LengthField != null)
                 {
                     // handle array length
-                    var lastField = structureDefinition.Fields.Last();
+                    StructureField lastField = structureDefinition.Fields.Last();
                     if (lastField.Name != field.LengthField)
                     {
                         throw new DataTypeNotSupportedException(
@@ -243,9 +240,9 @@ namespace Opc.Ua.Client.ComplexTypes
 
             if (enumeratedType.EnumeratedValue != null)
             {
-                foreach (var enumValue in enumeratedType.EnumeratedValue)
+                foreach (Schema.Binary.EnumeratedValue enumValue in enumeratedType.EnumeratedValue)
                 {
-                    var fieldName = enumValue.Name;
+                    string fieldName = enumValue.Name;
                     if (string.IsNullOrEmpty(fieldName))
                     {
                         if (string.IsNullOrEmpty(enumTypeName))
@@ -277,7 +274,7 @@ namespace Opc.Ua.Client.ComplexTypes
         {
             var enumDefinition = new EnumDefinition();
 
-            foreach (var extensionObject in enumValueTypes)
+            foreach (ExtensionObject extensionObject in enumValueTypes)
             {
                 if (extensionObject.Body is not EnumValueType enumValue)
                 {
@@ -287,7 +284,7 @@ namespace Opc.Ua.Client.ComplexTypes
                     continue;
                 }
 
-                var name = enumValue.DisplayName.Text;
+                string name = enumValue.DisplayName.Text;
                 if (string.IsNullOrEmpty(name))
                 {
                     if (string.IsNullOrEmpty(enumTypeName))
@@ -320,7 +317,7 @@ namespace Opc.Ua.Client.ComplexTypes
             for (int ii = 0; ii < enumFieldNames.Length; ii++)
             {
                 LocalizedText enumFieldName = enumFieldNames[ii];
-                var name = enumFieldName.Text;
+                string name = enumFieldName.Text;
 
                 if (string.IsNullOrEmpty(name))
                 {
@@ -351,8 +348,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// </summary>
         private static bool IsXmlBitType(this XmlQualifiedName typeName)
         {
-            if (typeName.Namespace == Namespaces.OpcBinarySchema ||
-                typeName.Namespace == Namespaces.OpcUa)
+            if (typeName.Namespace is Namespaces.OpcBinarySchema or Namespaces.OpcUa)
             {
                 if (typeName.Name == "Bit")
                 {
@@ -370,16 +366,17 @@ namespace Opc.Ua.Client.ComplexTypes
             this XmlQualifiedName typeName,
             Dictionary<XmlQualifiedName, NodeId> typeCollection)
         {
-            if (typeName.Namespace == Namespaces.OpcBinarySchema ||
-                typeName.Namespace == Namespaces.OpcUa)
+            if (typeName.Namespace is Namespaces.OpcBinarySchema or
+                Namespaces.OpcUa)
             {
                 switch (typeName.Name)
                 {
                     case "CharArray": return DataTypeIds.String;
                     case "Variant": return DataTypeIds.BaseDataType;
                     case "ExtensionObject": return DataTypeIds.Structure;
+                    default: break;
                 }
-                var internalField = typeof(DataTypeIds).GetField(typeName.Name);
+                System.Reflection.FieldInfo internalField = typeof(DataTypeIds).GetField(typeName.Name);
                 if (internalField == null)
                 {
                     // The type was not found in the internal type factory.

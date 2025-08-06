@@ -30,11 +30,6 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Runtime.ExceptionServices;
-using System.Runtime.Serialization;
-using System.Threading;
-using System.Threading.Tasks;
 using Opc.Ua.Schema;
 
 namespace Opc.Ua.Client.ComplexTypes
@@ -42,8 +37,7 @@ namespace Opc.Ua.Client.ComplexTypes
     /// <summary>
     /// A class that holds the configuration for a UA service.
     /// </summary>
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1711:IdentifiersShouldNotHaveIncorrectSuffix"), DataContract(Namespace = Namespaces.OpcUaXsd)]
-    public class DataDictionary
+    public sealed class DataDictionary
     {
         #region Constructors
         /// <summary>
@@ -59,7 +53,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// </summary>
         private void Initialize()
         {
-            DataTypes = new NodeIdDictionary<QualifiedName>();
+            DataTypes = [];
             m_validator = null;
             TypeSystemId = null;
             TypeSystemName = null;
@@ -146,7 +140,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <param name="throwOnError">Throw if an error occurred.</param>
         internal void Validate(byte[] dictionary, IDictionary<string, byte[]> imports = null, bool throwOnError = false)
         {
-            MemoryStream istrm = new MemoryStream(dictionary);
+            var istrm = new MemoryStream(dictionary);
 
             if (TypeSystemId == Objects.XmlSchema_TypeSystem)
             {

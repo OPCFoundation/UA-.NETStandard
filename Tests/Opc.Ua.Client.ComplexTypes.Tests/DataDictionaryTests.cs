@@ -182,7 +182,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
                 Assert.AreEqual(StatusCodes.BadEncodingLimitsExceeded, x.StatusCode);
 
                 // now ensure we get the dictionary in chunks
-                DataDictionary dictionary = await LoadDataDictionaryAsync(theSession, referenceDescription);
+                DataDictionary dictionary = await LoadDataDictionaryAsync(theSession, referenceDescription).ConfigureAwait(false);
                 Assert.IsNotNull(dictionary);
 
                 // Sanity checks: verify that some well-known information is present
@@ -220,7 +220,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
             var nodeCacheResolver = new NodeCacheResolver(session);
 
             // load the dictionary.
-            DataDictionary dictionary = await nodeCacheResolver.LoadDictionaryAsync(dictionaryId, dictionaryNode.ToString());
+            DataDictionary dictionary = await nodeCacheResolver.LoadDictionaryAsync(dictionaryId, dictionaryNode.ToString()).ConfigureAwait(false);
             return dictionary;
         }
 

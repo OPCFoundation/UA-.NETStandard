@@ -207,7 +207,7 @@ namespace Opc.Ua.Client.Tests
                 WriteValue
             };
 
-            var result = await theSession.WriteAsync(null, writeValues, default);
+            var result = await theSession.WriteAsync(null, writeValues, default).ConfigureAwait(false);
             StatusCodeCollection results = result.Results;
             DiagnosticInfoCollection diagnosticInfos = result.DiagnosticInfos;
             if (results[0] != StatusCodes.Good)
@@ -215,7 +215,7 @@ namespace Opc.Ua.Client.Tests
                 Assert.Fail($"Write failed with status code {results[0]}");
             }
 
-            byte[] readData = await theSession.ReadByteStringInChunksAsync(NodeId, default);
+            byte[] readData = await theSession.ReadByteStringInChunksAsync(NodeId, default).ConfigureAwait(false);
             Assert.IsTrue(Utils.IsEqual(chunk, readData));
         }
         #endregion // Test Methods
