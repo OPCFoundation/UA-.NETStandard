@@ -3239,7 +3239,7 @@ namespace Opc.Ua.Server
         /// <returns>returns true if a channelId was found for the provided AuthenticationToken</returns>
         public override bool TryGetSecureChannelIdForAuthenticationToken(NodeId authenticationToken, out uint channelId)
         {
-            Session session = ServerInternal.SessionManager.GetSession(authenticationToken);
+            ISession session = ServerInternal.SessionManager.GetSession(authenticationToken);
 
             if (session == null)
             {
