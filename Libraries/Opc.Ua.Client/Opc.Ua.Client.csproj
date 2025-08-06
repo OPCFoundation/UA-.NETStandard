@@ -20,7 +20,7 @@
   <Choose>
     <When Condition="'$(TargetFramework)' == 'net8.0' OR '$(TargetFramework)' == 'net9.0'">
       <PropertyGroup>
-        <!-- Disable strongname warning as that's not been enforced since .net 5.-->
+        <!-- Disable strongname warning as that has not been enforced since .net 5.-->
         <NoWarn>$(NoWarn);CS8002</NoWarn>
       </PropertyGroup>
     </When>
