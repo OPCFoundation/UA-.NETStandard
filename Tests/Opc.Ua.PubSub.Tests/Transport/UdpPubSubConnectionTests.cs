@@ -34,6 +34,7 @@ using System.Linq;
 using System.Net;
 using System.Net.NetworkInformation;
 using System.Net.Sockets;
+using System.Runtime.InteropServices;
 using System.Threading;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Encoding;
@@ -331,10 +332,14 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 }
                 foreach (var uniIpAddrInfo in netI.GetIPProperties().UnicastAddresses.Where(x => netI.GetIPProperties().GatewayAddresses.Count > 0))
                 {
-                    if ((uniIpAddrInfo.Address.AddressFamily == AddressFamily.InterNetwork ||
-                        uniIpAddrInfo.Address.AddressFamily == AddressFamily.InterNetworkV6) &&
-                        uniIpAddrInfo.AddressPreferredLifetime != uint.MaxValue)
+                    if (uniIpAddrInfo.Address.AddressFamily == AddressFamily.InterNetwork ||
+                        uniIpAddrInfo.Address.AddressFamily == AddressFamily.InterNetworkV6)
                     {
+                        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows) &&
+                           (uniIpAddrInfo.AddressPreferredLifetime == uint.MaxValue))
+                        {
+                            continue;
+                        }
                         addresses.Add(uniIpAddrInfo.Address);
                     }
                 }
