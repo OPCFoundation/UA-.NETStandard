@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -1333,7 +1334,7 @@ namespace Opc.Ua.Server.Tests
 
             for (uint i = 0; i < 3000; i++)
             {
-                Assert.That(queue.Dequeue(out var value), $"Dequeue operation failed for the {i}st item");
+                Assert.That(queue.Dequeue(out var value), string.Format(CultureInfo.InvariantCulture, "Dequeue operation failed for the {0}st item", i));
                 Assert.That(i, Is.EqualTo(value.ClientHandle));
 
                 //simulate publishing operation
@@ -1366,7 +1367,7 @@ namespace Opc.Ua.Server.Tests
 
             for (uint i = 0; i < 3000; i++)
             {
-                Assert.That(queue.Dequeue(out var value, out var _), $"Dequeue operation failed for the {i}st item");
+                Assert.That(queue.Dequeue(out var value, out var _), string.Format(CultureInfo.InvariantCulture, "Dequeue operation failed for the {0}st item", i));
                 Assert.That(i, Is.EqualTo((uint)value.Value));
 
                 //simulate publishing operation

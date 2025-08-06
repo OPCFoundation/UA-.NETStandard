@@ -592,6 +592,7 @@ namespace Opc.Ua
         /// <summary>
         /// Writes a byte string to the stream.
         /// </summary>
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2265:Do not compare Span<T> to 'null' or 'default'", Justification = "Null compare works with ReadOnlySpan<byte>")]
         public void WriteByteString(string fieldName, ReadOnlySpan<byte> value)
         {
             if (value.IsEmpty)

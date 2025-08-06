@@ -335,8 +335,8 @@ namespace Opc.Ua.PubSub.Tests.Transport
                     if (uniIpAddrInfo.Address.AddressFamily == AddressFamily.InterNetwork ||
                         uniIpAddrInfo.Address.AddressFamily == AddressFamily.InterNetworkV6)
                     {
-                        // Address preferred lifetime is only supported on Windows
-                        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows) && uniIpAddrInfo.AddressPreferredLifetime == uint.MaxValue)
+                        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows) &&
+                           (uniIpAddrInfo.AddressPreferredLifetime == uint.MaxValue))
                         {
                             continue;
                         }

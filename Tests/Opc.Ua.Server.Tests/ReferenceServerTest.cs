@@ -75,6 +75,7 @@ namespace Opc.Ua.Server.Tests
                 AllNodeManagers = true,
                 OperationLimits = true,
                 DurableSubscriptionsEnabled = false,
+                UseSamplingGroupsInReferenceNodeManager = true,
             };
             m_server = await m_fixture.StartAsync(TestContext.Out).ConfigureAwait(false);
         }
@@ -542,6 +543,11 @@ namespace Opc.Ua.Server.Tests
                     // fill queues, but only a single value per resend publish shall be returned
                     for (int i = 1; i < queueSize; i++)
                     {
+                        //If sampling groups are used, samplingInterval needs to be waited before values are queued
+                        if (m_fixture.UseSamplingGroupsInReferenceNodeManager)
+                        {
+                            Thread.Sleep((int)(100.0 * 1.1));
+                        }
                         UpdateValues(testSet);
                     }
                 }

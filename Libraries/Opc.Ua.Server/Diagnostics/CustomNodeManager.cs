@@ -29,6 +29,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
@@ -68,6 +69,19 @@ namespace Opc.Ua.Server
             IServerInternal server,
             ApplicationConfiguration configuration,
             params string[] namespaceUris)
+        :
+            this(server, configuration, false, namespaceUris)
+        {
+        }
+
+        /// <summary>
+        /// Initializes the node manager.
+        /// </summary>
+        protected CustomNodeManager2(
+            IServerInternal server,
+            ApplicationConfiguration configuration,
+            bool useSamplingGroups,
+            params string[] namespaceUris)
         {
             // set defaults.
             m_maxQueueSize = 1000;
@@ -105,9 +119,15 @@ namespace Opc.Ua.Server
             m_namespaceUris = namespaceUris;
             m_namespaceIndexes = namespaceIndexes;
 
-            // create the table of monitored nodes.
-            // these are created by the node manager whenever a client subscribe to an attribute of the node.
-            m_monitoredNodes = new NodeIdDictionary<MonitoredNode2>();
+            // create a monitored item manager that owns sampling groups / monitoredNodes
+            if (useSamplingGroups)
+            {
+                m_monitoredItemManager = new SamplingGroupMonitoredItemManager(this, server, configuration);
+            }
+            else
+            {
+                m_monitoredItemManager = new MonitoredNodeMonitoredItemManager(this);
+            }
 
             m_predefinedNodes = new NodeIdDictionary<NodeState>();
         }
@@ -132,6 +152,7 @@ namespace Opc.Ua.Server
             {
                 lock (Lock)
                 {
+                    Utils.SilentDispose(m_monitoredItemManager);
                     foreach (NodeState node in m_predefinedNodes.Values)
                     {
                         Utils.SilentDispose(node);
@@ -245,7 +266,12 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Gets the table of nodes being monitored.
         /// </summary>
-        protected NodeIdDictionary<MonitoredNode2> MonitoredNodes => m_monitoredNodes;
+        protected NodeIdDictionary<MonitoredNode2> MonitoredNodes => m_monitoredItemManager.MonitoredNodes;
+
+        /// <summary>
+        /// Gets the table of monitored items managed by the node manager.
+        /// </summary>
+        protected ConcurrentDictionary<uint, IMonitoredItem> MonitoredItems => m_monitoredItemManager.MonitoredItems;
 
         /// <summary>
         /// Sets the namespaces supported by the NodeManager.
@@ -769,8 +795,7 @@ namespace Opc.Ua.Server
             }
 
             // add reserve reference from external node.
-            ReferenceNode referenceToAdd = new ReferenceNode
-            {
+            ReferenceNode referenceToAdd = new ReferenceNode {
                 ReferenceTypeId = referenceTypeId,
                 IsInverse = isInverse,
                 TargetId = targetId
@@ -892,8 +917,7 @@ namespace Opc.Ua.Server
             NodeState node = null;
             if (m_predefinedNodes.TryGetValue(nodeId, out node) == true)
             {
-                var handle = new NodeHandle
-                {
+                var handle = new NodeHandle {
                     NodeId = nodeId,
                     Node = node,
                     Validated = true
@@ -1034,8 +1058,7 @@ namespace Opc.Ua.Server
                     Attributes.UserRolePermissions);
 
                 // construct the meta-data object.
-                NodeMetadata metadata = new NodeMetadata(target, target.NodeId)
-                {
+                NodeMetadata metadata = new NodeMetadata(target, target.NodeId) {
                     NodeClass = target.NodeClass,
                     BrowseName = target.BrowseName,
                     DisplayName = target.DisplayName
@@ -1940,8 +1963,13 @@ namespace Opc.Ua.Server
                         CheckIfSemanticsHaveChanged(systemContext, propertyState, propertyValue, previousPropertyValue);
                     }
 
-                    // updates to source finished - report changes to monitored items.
-                    handle.Node.ClearChangeMasks(systemContext, true);
+                    //not needed for sampling groups
+                    if (m_monitoredItemManager is MonitoredNodeMonitoredItemManager)
+                    {
+                        // updates to source finished - report changes to monitored items.
+                        handle.Node.ClearChangeMasks(systemContext, true);
+                    }
+
                 }
 
                 // check for nothing to do.
@@ -1980,38 +2008,50 @@ namespace Opc.Ua.Server
                 return;
             }
 
-            //look for the Parent and its monitoring items
-            foreach (var monitoredNode in m_monitoredNodes.Values)
+            // ceck if property value changed
+            if (Utils.IsEqual(newPropertyValue, previousPropertyValue))
             {
-                var propertyState = monitoredNode.Node.FindChild(systemContext, property.BrowseName);
+                return;
+            }
 
-                if (propertyState != null && property != null && propertyState.NodeId == property.NodeId && !Utils.IsEqual(newPropertyValue, previousPropertyValue))
+            foreach (var kvp in MonitoredItems)
+            {
+                var monitoredItem = kvp.Value as MonitoredItem;
+                if (monitoredItem == null || monitoredItem.AttributeId != Attributes.Value)
                 {
-                    foreach (var monitoredItem in monitoredNode.DataChangeMonitoredItems)
+                    continue;
+                }
+
+                // Try to get the node from the handle
+                NodeHandle handle = monitoredItem.ManagerHandle as NodeHandle;
+                if (handle == null || handle.Node == null)
+                {
+                    continue;
+                }
+
+                NodeState node = handle.Node;
+                var propertyState = node.FindChild(systemContext, property.BrowseName);
+
+                if (propertyState != null && property != null && propertyState.NodeId == property.NodeId)
+                {
+                    if ((node is AnalogItemState && (propertyName == BrowseNames.EURange || propertyName == BrowseNames.EngineeringUnits)) ||
+                        (node is TwoStateDiscreteState && (propertyName == BrowseNames.FalseState || propertyName == BrowseNames.TrueState)) ||
+                        (node is MultiStateDiscreteState && (propertyName == BrowseNames.EnumStrings)) ||
+                        (node is ArrayItemState && (propertyName == BrowseNames.InstrumentRange || propertyName == BrowseNames.EURange || propertyName == BrowseNames.EngineeringUnits || propertyName == BrowseNames.Title)) ||
+                        ((node is YArrayItemState || node is XYArrayItemState) && (propertyName == BrowseNames.InstrumentRange || propertyName == BrowseNames.EURange || propertyName == BrowseNames.EngineeringUnits || propertyName == BrowseNames.Title || propertyName == BrowseNames.XAxisDefinition)) ||
+                        (node is ImageItemState && (propertyName == BrowseNames.InstrumentRange || propertyName == BrowseNames.EURange || propertyName == BrowseNames.EngineeringUnits || propertyName == BrowseNames.Title || propertyName == BrowseNames.XAxisDefinition || propertyName == BrowseNames.YAxisDefinition)) ||
+                        (node is CubeItemState && (propertyName == BrowseNames.InstrumentRange || propertyName == BrowseNames.EURange || propertyName == BrowseNames.EngineeringUnits || propertyName == BrowseNames.Title || propertyName == BrowseNames.XAxisDefinition || propertyName == BrowseNames.YAxisDefinition || propertyName == BrowseNames.ZAxisDefinition)) ||
+                        (node is NDimensionArrayItemState && (propertyName == BrowseNames.InstrumentRange || propertyName == BrowseNames.EURange || propertyName == BrowseNames.EngineeringUnits || propertyName == BrowseNames.Title || propertyName == BrowseNames.AxisDefinition)))
                     {
-                        if (monitoredItem.AttributeId == Attributes.Value)
-                        {
-                            NodeState node = monitoredNode.Node;
+                        monitoredItem.SetSemanticsChanged();
 
-                            if ((node is AnalogItemState && (propertyName == BrowseNames.EURange || propertyName == BrowseNames.EngineeringUnits)) ||
-                                (node is TwoStateDiscreteState && (propertyName == BrowseNames.FalseState || propertyName == BrowseNames.TrueState)) ||
-                                (node is MultiStateDiscreteState && (propertyName == BrowseNames.EnumStrings)) ||
-                                (node is ArrayItemState && (propertyName == BrowseNames.InstrumentRange || propertyName == BrowseNames.EURange || propertyName == BrowseNames.EngineeringUnits || propertyName == BrowseNames.Title)) ||
-                                ((node is YArrayItemState || node is XYArrayItemState) && (propertyName == BrowseNames.InstrumentRange || propertyName == BrowseNames.EURange || propertyName == BrowseNames.EngineeringUnits || propertyName == BrowseNames.Title || propertyName == BrowseNames.XAxisDefinition)) ||
-                                (node is ImageItemState && (propertyName == BrowseNames.InstrumentRange || propertyName == BrowseNames.EURange || propertyName == BrowseNames.EngineeringUnits || propertyName == BrowseNames.Title || propertyName == BrowseNames.XAxisDefinition || propertyName == BrowseNames.YAxisDefinition)) ||
-                                (node is CubeItemState && (propertyName == BrowseNames.InstrumentRange || propertyName == BrowseNames.EURange || propertyName == BrowseNames.EngineeringUnits || propertyName == BrowseNames.Title || propertyName == BrowseNames.XAxisDefinition || propertyName == BrowseNames.YAxisDefinition || propertyName == BrowseNames.ZAxisDefinition)) ||
-                                (node is NDimensionArrayItemState && (propertyName == BrowseNames.InstrumentRange || propertyName == BrowseNames.EURange || propertyName == BrowseNames.EngineeringUnits || propertyName == BrowseNames.Title || propertyName == BrowseNames.AxisDefinition)))
-                            {
-                                monitoredItem.SetSemanticsChanged();
+                        var value = new DataValue {
+                            ServerTimestamp = DateTime.UtcNow
+                        };
 
-                                DataValue value = new DataValue();
-                                value.ServerTimestamp = DateTime.UtcNow;
+                        node.ReadAttribute(systemContext, Attributes.Value, monitoredItem.IndexRange, null, value);
 
-                                monitoredNode.Node.ReadAttribute(systemContext, Attributes.Value, monitoredItem.IndexRange, null, value);
-
-                                monitoredItem.QueueValue(value, ServiceResult.Good, true);
-                            }
-                        }
+                        monitoredItem.QueueValue(value, ServiceResult.Good, true);
                     }
                 }
             }
@@ -3236,60 +3276,7 @@ namespace Opc.Ua.Server
             IEventMonitoredItem monitoredItem,
             bool unsubscribe)
         {
-            MonitoredNode2 monitoredNode = null;
-
-            // handle unsubscribe.
-            if (unsubscribe)
-            {
-                // check for existing monitored node.
-                if (!MonitoredNodes.TryGetValue(source.NodeId, out monitoredNode))
-                {
-                    return StatusCodes.BadNodeIdUnknown;
-                }
-
-                monitoredNode.Remove(monitoredItem);
-
-                // check if node is no longer being monitored.
-                if (!monitoredNode.HasMonitoredItems)
-                {
-                    MonitoredNodes.Remove(source.NodeId);
-                }
-
-                // update flag.
-                source.SetAreEventsMonitored(context, !unsubscribe, true);
-
-                // call subclass.
-                OnSubscribeToEvents(context, monitoredNode, unsubscribe);
-
-                // all done.
-                return ServiceResult.Good;
-            }
-
-            // only objects or views can be subscribed to.
-            if (!(source is BaseObjectState instance) || (instance.EventNotifier & EventNotifiers.SubscribeToEvents) == 0)
-            {
-                if (!(source is ViewState view) || (view.EventNotifier & EventNotifiers.SubscribeToEvents) == 0)
-                {
-                    return StatusCodes.BadNotSupported;
-                }
-            }
-
-            // check for existing monitored node.
-            if (!MonitoredNodes.TryGetValue(source.NodeId, out monitoredNode))
-            {
-                MonitoredNodes[source.NodeId] = monitoredNode = new MonitoredNode2(this, source);
-            }
-
-            if (monitoredNode.EventMonitoredItems != null)
-            {
-                // remove existing monitored items with the same Id prior to insertion in order to avoid duplicates
-                // this is necessary since the SubscribeToEvents method is called also from ModifyMonitoredItemsForEvents
-                monitoredNode.EventMonitoredItems.RemoveAll(e => e.Id == monitoredItem.Id);
-            }
-
-            // this links the node to specified monitored item and ensures all events
-            // reported by the node are added to the monitored item's queue.
-            monitoredNode.Add(monitoredItem);
+            (MonitoredNode2 monitoredNode, ServiceResult serviceResult) = m_monitoredItemManager.SubscribeToEvents(context, source, monitoredItem, unsubscribe);
 
             // This call recursively updates a reference count all nodes in the notifier
             // hierarchy below the area. Sources with a reference count of 0 do not have
@@ -3300,7 +3287,7 @@ namespace Opc.Ua.Server
             OnSubscribeToEvents(context, monitoredNode, unsubscribe);
 
             // all done.
-            return ServiceResult.Good;
+            return serviceResult;
         }
 
         /// <summary>
@@ -3356,16 +3343,14 @@ namespace Opc.Ua.Server
                     }
                     else
                     {
-                        // check for existing monitored node.
-                        MonitoredNode2 monitoredNode = null;
-
-                        if (!MonitoredNodes.TryGetValue(monitoredItem.NodeId, out monitoredNode))
+                        // check if monitored Item is managed by this node manager
+                        if (!MonitoredItems.ContainsKey(monitoredItem.Id))
                         {
                             continue;
                         }
 
                         // get the refresh events.
-                        nodesToRefresh.Add(monitoredNode.Node);
+                        nodesToRefresh.Add(((NodeHandle)monitoredItem.ManagerHandle).Node);
                     }
                 }
 
@@ -3468,6 +3453,7 @@ namespace Opc.Ua.Server
                         systemContext,
                         handle,
                         itemToCreate,
+                        savedOwnerIdentity,
                         out monitoredItem);
                 }
 
@@ -3478,6 +3464,11 @@ namespace Opc.Ua.Server
 
                 // save the monitored item.
                 monitoredItems[handle.Index] = monitoredItem;
+            }
+
+            lock (Lock)
+            {
+                m_monitoredItemManager.ApplyChanges();
             }
 
             // do any post processing.
@@ -3492,6 +3483,7 @@ namespace Opc.Ua.Server
             ServerSystemContext context,
             NodeHandle handle,
             IStoredMonitoredItem storedMonitoredItem,
+            IUserIdentity savedOwnerIdentity,
             out IMonitoredItem monitoredItem)
         {
             monitoredItem = null;
@@ -3502,36 +3494,22 @@ namespace Opc.Ua.Server
                 return false;
             }
 
-            // check if the node is already being monitored.
-            MonitoredNode2 monitoredNode = null;
-
-            if (!m_monitoredNodes.TryGetValue(handle.Node.NodeId, out monitoredNode))
-            {
-                NodeState cachedNode = AddNodeToComponentCache(context, handle, handle.Node);
-                m_monitoredNodes[handle.Node.NodeId] = monitoredNode = new MonitoredNode2(this, cachedNode);
-            }
-
-            handle.Node = monitoredNode.Node;
-            handle.MonitoredNode = monitoredNode;
 
             // put an upper limit on queue size.
             storedMonitoredItem.QueueSize = SubscriptionManager.CalculateRevisedQueueSize(storedMonitoredItem.IsDurable, storedMonitoredItem.QueueSize, m_maxQueueSize, m_maxDurableQueueSize);
 
-            // create the item.
-            MonitoredItem datachangeItem = new MonitoredItem(
+            bool success = m_monitoredItemManager.RestoreMonitoredItem(
                 Server,
                 this,
+                context,
                 handle,
-                storedMonitoredItem);
-
-            // update monitored item list.
-            monitoredItem = datachangeItem;
-
-            // save the monitored item.
-            monitoredNode.Add(datachangeItem);
+                storedMonitoredItem,
+                savedOwnerIdentity,
+                AddNodeToComponentCache,
+                out monitoredItem);
 
             // report change.
-            OnMonitoredItemCreated(context, handle, datachangeItem);
+            OnMonitoredItemCreated(context, handle, (MonitoredItem)monitoredItem);
 
             return true;
         }
@@ -3644,6 +3622,11 @@ namespace Opc.Ua.Server
                 createdItems.Add(monitoredItem);
             }
 
+            lock (Lock)
+            {
+                m_monitoredItemManager.ApplyChanges();
+            }
+
             // do any post processing.
             OnCreateMonitoredItemsComplete(systemContext, createdItems);
         }
@@ -3687,18 +3670,6 @@ namespace Opc.Ua.Server
             {
                 return StatusCodes.BadAttributeIdInvalid;
             }
-
-            // check if the node is already being monitored.
-            MonitoredNode2 monitoredNode = null;
-
-            if (!m_monitoredNodes.TryGetValue(handle.Node.NodeId, out monitoredNode))
-            {
-                NodeState cachedNode = AddNodeToComponentCache(context, handle, handle.Node);
-                m_monitoredNodes[handle.Node.NodeId] = monitoredNode = new MonitoredNode2(this, cachedNode);
-            }
-
-            handle.Node = monitoredNode.Node;
-            handle.MonitoredNode = monitoredNode;
 
             // create a globally unique identifier.
             uint monitoredItemId = Utils.IncrementIdentifier(ref globalIdCounter);
@@ -3751,29 +3722,28 @@ namespace Opc.Ua.Server
                 return error;
             }
 
-            // create the item.
-            MonitoredItem datachangeItem = new MonitoredItem(
+            monitoredItem = m_monitoredItemManager.CreateMonitoredItem(
                 Server,
                 this,
+                context,
                 handle,
                 subscriptionId,
-                monitoredItemId,
-                itemToCreate.ItemToMonitor,
+                publishingInterval,
                 diagnosticsMasks,
                 timestampsToReturn,
-                itemToCreate.MonitoringMode,
-                itemToCreate.RequestedParameters.ClientHandle,
-                filterToUse,
-                filterToUse,
+                itemToCreate,
                 euRange,
+                filterToUse,
                 samplingInterval,
                 revisedQueueSize,
-                itemToCreate.RequestedParameters.DiscardOldest,
-                0,
-                createDurable);
+                createDurable,
+                monitoredItemId,
+                AddNodeToComponentCache
+                );
+
 
             // report the initial value.
-            error = ReadInitialValue(context, handle, datachangeItem);
+            error = ReadInitialValue(context, handle, (MonitoredItem)monitoredItem);
             if (ServiceResult.IsBad(error))
             {
                 if (error.StatusCode == StatusCodes.BadAttributeIdInvalid ||
@@ -3785,14 +3755,8 @@ namespace Opc.Ua.Server
                 error = StatusCodes.Good;
             }
 
-            // update monitored item list.
-            monitoredItem = datachangeItem;
-
-            // save the monitored item.
-            monitoredNode.Add(datachangeItem);
-
             // report change.
-            OnMonitoredItemCreated(context, handle, datachangeItem);
+            OnMonitoredItemCreated(context, handle, (MonitoredItem)monitoredItem);
 
             return error;
         }
@@ -3808,8 +3772,7 @@ namespace Opc.Ua.Server
             NodeHandle handle,
             IDataChangeMonitoredItem2 monitoredItem)
         {
-            DataValue initialValue = new DataValue
-            {
+            DataValue initialValue = new DataValue {
                 Value = null,
                 ServerTimestamp = DateTime.UtcNow,
                 SourceTimestamp = DateTime.MinValue,
@@ -4149,6 +4112,11 @@ namespace Opc.Ua.Server
                 }
             }
 
+            lock (Lock)
+            {
+                m_monitoredItemManager.ApplyChanges();
+            }
+
             // do any post processing.
             OnModifyMonitoredItemsComplete(systemContext, modifiedItems);
         }
@@ -4233,16 +4201,15 @@ namespace Opc.Ua.Server
             }
 
             // modify the monitored item parameters.
-            error = datachangeItem.ModifyAttributes(
-                diagnosticsMasks,
-                timestampsToReturn,
-                itemToModify.RequestedParameters.ClientHandle,
-                filterToUse,
-                filterToUse,
-                euRange,
-                samplingInterval,
-                revisedQueueSize,
-                itemToModify.RequestedParameters.DiscardOldest);
+            error = m_monitoredItemManager.ModifyMonitoredItem(context,
+                                                               diagnosticsMasks,
+                                                               timestampsToReturn,
+                                                               filterToUse,
+                                                               euRange,
+                                                               samplingInterval,
+                                                               revisedQueueSize,
+                                                               datachangeItem,
+                                                               itemToModify);
 
             // report change.
             if (ServiceResult.IsGood(error))
@@ -4330,6 +4297,11 @@ namespace Opc.Ua.Server
                 }
             }
 
+            lock (Lock)
+            {
+                m_monitoredItemManager.ApplyChanges();
+            }
+
             // do any post processing.
             OnDeleteMonitoredItemsComplete(systemContext, deletedItems);
         }
@@ -4351,27 +4323,15 @@ namespace Opc.Ua.Server
             IMonitoredItem monitoredItem,
             NodeHandle handle)
         {
-            // check for valid monitored item.
-            MonitoredItem datachangeItem = monitoredItem as MonitoredItem;
-
-            // check if the node is already being monitored.
-            MonitoredNode2 monitoredNode = null;
-
-            if (m_monitoredNodes.TryGetValue(handle.NodeId, out monitoredNode))
-            {
-                monitoredNode.Remove(datachangeItem);
-
-                // check if node is no longer being monitored.
-                if (!monitoredNode.HasMonitoredItems)
-                {
-                    m_monitoredNodes.Remove(handle.NodeId);
-                }
-            }
+            StatusCode statusCode = m_monitoredItemManager.DeleteMonitoredItem(
+                context,
+                monitoredItem,
+                handle);
 
             // report change.
-            OnMonitoredItemDeleted(context, handle, datachangeItem);
+            OnMonitoredItemDeleted(context, handle, (MonitoredItem)monitoredItem);
 
-            return ServiceResult.Good;
+            return statusCode;
         }
 
         /// <summary>
@@ -4522,6 +4482,11 @@ namespace Opc.Ua.Server
                 }
             }
 
+            lock (Lock)
+            {
+                m_monitoredItemManager.ApplyChanges();
+            }
+
             // do any post processing.
             OnSetMonitoringModeComplete(systemContext, changedItems);
         }
@@ -4544,30 +4509,24 @@ namespace Opc.Ua.Server
             MonitoringMode monitoringMode,
             NodeHandle handle)
         {
-            // check for valid monitored item.
-            MonitoredItem datachangeItem = monitoredItem as MonitoredItem;
-
-            // update monitoring mode.
-            MonitoringMode previousMode = datachangeItem.SetMonitoringMode(monitoringMode);
-
-            // must send the latest value after enabling a disabled item.
-            if (monitoringMode == MonitoringMode.Reporting && previousMode == MonitoringMode.Disabled)
-            {
-                handle.MonitoredNode.QueueValue(context, handle.Node, datachangeItem);
-            }
+            (ServiceResult result, MonitoringMode? previousMode) = m_monitoredItemManager.SetMonitoringMode(
+                context,
+                monitoredItem,
+                monitoringMode,
+                handle);
 
             // report change.
-            if (previousMode != monitoringMode)
+            if (ServiceResult.IsGood(result) && previousMode != monitoringMode)
             {
                 OnMonitoringModeChanged(
                     context,
                     handle,
-                    datachangeItem,
-                    previousMode,
+                    (MonitoredItem)monitoredItem,
+                    (MonitoringMode)previousMode,
                     monitoringMode);
             }
 
-            return ServiceResult.Good;
+            return result;
         }
 
         /// <summary>
@@ -4899,13 +4858,16 @@ namespace Opc.Ua.Server
         private ServerSystemContext m_systemContext;
         private IReadOnlyList<string> m_namespaceUris;
         private IReadOnlyList<ushort> m_namespaceIndexes;
-        private NodeIdDictionary<MonitoredNode2> m_monitoredNodes;
         private NodeIdDictionary<CacheEntry> m_componentCache;
         private NodeIdDictionary<NodeState> m_predefinedNodes;
         private List<NodeState> m_rootNotifiers;
         private uint m_maxQueueSize;
         private uint m_maxDurableQueueSize;
         private string m_aliasRoot;
+        /// <summary>
+        /// the monitored item manager of the NodeManager
+        /// </summary>
+        protected IMonitoredItemManager m_monitoredItemManager;
         #endregion
     }
 }
