@@ -4700,10 +4700,8 @@ namespace Opc.Ua.Client
         /// </summary>
         private Dictionary<uint, DataValue> CreateAttributes(NodeClass nodeclass = NodeClass.Unspecified, bool optionalAttributes = true)
         {
-            const int maxAttributes = 28;
-
             // Attributes to read for all types of nodes
-            var attributes = new Dictionary<uint, DataValue>(maxAttributes) {
+            var attributes = new Dictionary<uint, DataValue>(Attributes.MaxAttributes) {
                 { Attributes.NodeId, null },
                 { Attributes.NodeClass, null },
                 { Attributes.BrowseName, null },
@@ -4761,7 +4759,7 @@ namespace Opc.Ua.Client
 
                 default:
                     // build complete list of attributes.
-                    attributes = new Dictionary<uint, DataValue>(maxAttributes) {
+                    attributes = new Dictionary<uint, DataValue>(Attributes.MaxAttributes) {
                         { Attributes.NodeId, null },
                         { Attributes.NodeClass, null },
                         { Attributes.BrowseName, null },

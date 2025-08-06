@@ -59,7 +59,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// </summary>
         private void Initialize()
         {
-            DataTypes = new Dictionary<NodeId, QualifiedName>();
+            DataTypes = new NodeIdDictionary<QualifiedName>();
             m_validator = null;
             TypeSystemId = null;
             TypeSystemName = null;
@@ -97,7 +97,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <summary>
         /// The data type dictionary DataTypes
         /// </summary>
-        public Dictionary<NodeId, QualifiedName> DataTypes { get; internal set; }
+        public NodeIdDictionary<QualifiedName> DataTypes { get; internal set; }
 
         /// <summary>
         /// Returns true if the dictionary contains the data type description.
