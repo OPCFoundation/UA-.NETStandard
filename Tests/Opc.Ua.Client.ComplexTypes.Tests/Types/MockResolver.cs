@@ -52,8 +52,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 
         private void Initialize()
         {
-            m_dataTypeDictionary = new Dictionary<NodeId, DataDictionary>();
-            m_dataTypeNodes = new Dictionary<NodeId, INode>();
+            m_dataTypeDictionary = new NodeIdDictionary<DataDictionary>();
+            m_dataTypeNodes = new NodeIdDictionary<INode>();
             m_factory = new EncodeableFactory(EncodeableFactory.GlobalFactory);
             m_namespaceUris = new NamespaceTable();
 
@@ -65,9 +65,12 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         }
         #endregion Constructors
 
-        public Dictionary<NodeId, INode> DataTypeNodes => m_dataTypeNodes;
+        public NodeIdDictionary<INode> DataTypeNodes => m_dataTypeNodes;
 
         #region IComplexTypeResolver
+        /// <inheritdoc/>
+        public NodeIdDictionary<DataDictionary> DataTypeSystem => m_dataTypeDictionary;
+
         /// <inheritdoc/>
         public NamespaceTable NamespaceUris => m_namespaceUris;
 
@@ -75,9 +78,9 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         public IEncodeableFactory Factory => m_factory;
 
         /// <inheritdoc/>
-        public Task<Dictionary<NodeId, DataDictionary>> LoadDataTypeSystem(NodeId dataTypeSystem = null, CancellationToken ct = default)
+        public Task<IReadOnlyDictionary<NodeId, DataDictionary>> LoadDataTypeSystem(NodeId dataTypeSystem = null, CancellationToken ct = default)
         {
-            return Task.FromResult(m_dataTypeDictionary);
+            return Task.FromResult<IReadOnlyDictionary<NodeId, DataDictionary>>(m_dataTypeDictionary);
         }
 
         /// <inheritdoc/>
@@ -241,8 +244,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         #endregion Private Methods
 
         #region Private Fields
-        private Dictionary<NodeId, DataDictionary> m_dataTypeDictionary;
-        private Dictionary<NodeId, INode> m_dataTypeNodes;
+        private NodeIdDictionary<DataDictionary> m_dataTypeDictionary;
+        private NodeIdDictionary<INode> m_dataTypeNodes;
         private EncodeableFactory m_factory;
         private NamespaceTable m_namespaceUris;
         #endregion Private Fields

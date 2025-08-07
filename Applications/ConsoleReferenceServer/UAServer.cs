@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -241,18 +242,18 @@ namespace Quickstarts
             StringBuilder item = new StringBuilder();
             lock (session.DiagnosticsLock)
             {
-                item.AppendFormat("{0,9}:{1,20}:", reason, session.SessionDiagnostics.SessionName);
+                item.AppendFormat(CultureInfo.InvariantCulture, "{0,9}:{1,20}:", reason, session.SessionDiagnostics.SessionName);
                 if (lastContact)
                 {
-                    item.AppendFormat("Last Event:{0:HH:mm:ss}", session.SessionDiagnostics.ClientLastContactTime.ToLocalTime());
+                    item.AppendFormat(CultureInfo.InvariantCulture, "Last Event:{0:HH:mm:ss}", session.SessionDiagnostics.ClientLastContactTime.ToLocalTime());
                 }
                 else
                 {
                     if (session.Identity != null)
                     {
-                        item.AppendFormat(":{0,20}", session.Identity.DisplayName);
+                        item.AppendFormat(CultureInfo.InvariantCulture, ":{0,20}", session.Identity.DisplayName);
                     }
-                    item.AppendFormat(":{0}", session.Id);
+                    item.AppendFormat(CultureInfo.InvariantCulture, ":{0}", session.Id);
                 }
             }
             m_output.WriteLine(item.ToString());

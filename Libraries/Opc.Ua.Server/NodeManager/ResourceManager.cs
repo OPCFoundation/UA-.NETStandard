@@ -284,6 +284,7 @@ namespace Opc.Ua.Server
         #endregion
 
         #region Protected Methods
+
         /// <summary>
         /// Translates the text provided.
         /// </summary>

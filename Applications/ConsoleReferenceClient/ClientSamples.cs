@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -709,7 +709,7 @@ namespace Quickstarts
                         // the resultMask defaults to "all"
                         // maybe the API should be extended to
                         // support it. But that will then also be
-                        // necessary for BrowseAsync 
+                        // necessary for BrowseAsync
                         (
                             IList<ReferenceDescriptionCollection> descriptions,
                             IList<ServiceResult> errors
@@ -878,7 +878,7 @@ namespace Quickstarts
                             StatusCode statusCode = browseResult.StatusCode;
                             if (StatusCode.IsBad(statusCode))
                             {
-                                // this error indicates that the server does not have enough simultaneously active 
+                                // this error indicates that the server does not have enough simultaneously active
                                 // continuation points. This request will need to be resent after the other operations
                                 // have been completed and their continuation points released.
                                 if (statusCode == StatusCodes.BadNoContinuationPoints)
@@ -1021,8 +1021,8 @@ namespace Quickstarts
                     m_output.WriteLine($"{type.Namespace}.{type.Name}");
                 }
 
-                m_output.WriteLine($"Loaded {session.DataTypeSystem.Count} dictionaries:");
-                foreach (var dictionary in session.DataTypeSystem)
+                m_output.WriteLine($"Loaded {complexTypeSystem.DataTypeSystem.Count} dictionaries:");
+                foreach (var dictionary in complexTypeSystem.DataTypeSystem)
                 {
                     m_output.WriteLine($" + {dictionary.Value.Name}");
                     foreach (var type in dictionary.Value.DataTypes)
@@ -1363,11 +1363,11 @@ namespace Quickstarts
                                 string timeBetweenEvents = "";
                                 if (m_processedEvents > 1)
                                 {
-                                    timeBetweenEvents = ", time since last event = " + timeSpan.Seconds.ToString() + " seconds";
+                                    timeBetweenEvents = ", time since last event = " + timeSpan.Seconds.ToString(CultureInfo.InvariantCulture) + " seconds";
                                 }
 
                                 m_output.WriteLine("Event Received - total count = {0}{1}",
-                                    m_processedEvents.ToString(),
+                                    m_processedEvents.ToString(CultureInfo.InvariantCulture),
                                     timeBetweenEvents);
                             }
                             catch (Exception ex)
@@ -1377,7 +1377,7 @@ namespace Quickstarts
                         }
 
                         m_output.WriteLine("\tField [{0}] \"{1}\" = [{2}]",
-                            entry.Key.ToString(), fieldName, field.Value);
+                            entry.Key.ToString(CultureInfo.InvariantCulture), fieldName, field.Value);
                     }
                 }
             }

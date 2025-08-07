@@ -31,6 +31,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -208,7 +209,7 @@ namespace Opc.Ua.Client.Tests
             Assert.IsNotNull(maxLifetimeCountValue);
             Assert.IsNotNull(maxLifetimeCountValue.Value);
             Assert.AreEqual(expectedLifetime,
-                Convert.ToUInt32(maxLifetimeCountValue.Value));
+                Convert.ToUInt32(maxLifetimeCountValue.Value, CultureInfo.InvariantCulture));
 
             Assert.True(Session.RemoveSubscription(subscription));
         }
@@ -226,7 +227,7 @@ namespace Opc.Ua.Client.Tests
             uint expectedModifiedQueueSize,
             bool useEventMI)
         {
-            var subscription = await CreateDurableSubscriptionAsync();
+            var subscription = await CreateDurableSubscriptionAsync().ConfigureAwait(false);
 
             MonitoredItem mi;
             if (useEventMI)
@@ -250,20 +251,20 @@ namespace Opc.Ua.Client.Tests
 
             subscription.AddItem(mi);
 
-            var result = await subscription.CreateItemsAsync();
+            var result = await subscription.CreateItemsAsync().ConfigureAwait(false);
             Assert.That(ServiceResult.IsGood(result.First().Status.Error), Is.True);
             Assert.That(result.First().Status.QueueSize, Is.EqualTo(expectedRevisedQueueSize));
 
             mi.QueueSize = queueSize + 1;
 
-            var resultModify = await subscription.ModifyItemsAsync();
+            var resultModify = await subscription.ModifyItemsAsync().ConfigureAwait(false);
             Assert.That(ServiceResult.IsGood(resultModify.First().Status.Error), Is.True);
             Assert.That(resultModify.First().Status.QueueSize, Is.EqualTo(expectedModifiedQueueSize));
 
 
             Assert.True(subscription.GetMonitoredItems(out _, out _));
 
-            Assert.True(await Session.RemoveSubscriptionAsync(subscription));
+            Assert.True(await Session.RemoveSubscriptionAsync(subscription).ConfigureAwait(false));
         }
 
         [Test, Order(160)]
@@ -439,7 +440,7 @@ namespace Opc.Ua.Client.Tests
                 SecurityPolicies.Basic256Sha256, null,
                 new UserIdentity("sysadmin", "demo")).ConfigureAwait(false);
 
-            var result = await transferSession.TransferSubscriptionsAsync(subscriptions, true);
+            var result = await transferSession.TransferSubscriptionsAsync(subscriptions, true).ConfigureAwait(false);
 
             Assert.AreEqual(setSubscriptionDurable, result,
                 "SetSubscriptionDurable = " + setSubscriptionDurable.ToString() +
@@ -471,7 +472,7 @@ namespace Opc.Ua.Client.Tests
                         DateTime timestamp = pair.Value[index];
 
                         TimeSpan timeSpan = timestamp - previous;
-                        TestContext.Out.WriteLine($"Node: {pair.Key} Index: {index} Time: {DateTimeMs(timestamp)} Previous: {DateTimeMs(previous)} Timespan {timeSpan.TotalMilliseconds.ToString("000.")}");
+                        TestContext.Out.WriteLine($"Node: {pair.Key} Index: {index} Time: {DateTimeMs(timestamp)} Previous: {DateTimeMs(previous)} Timespan {timeSpan.TotalMilliseconds.ToString("000.", CultureInfo.InvariantCulture)}");
 
                         Assert.Less(Math.Abs(timeSpan.TotalMilliseconds), tolerance,
                             $"Node: {pair.Key} Index: {index} Timespan {timeSpan.TotalMilliseconds} ");
@@ -492,7 +493,7 @@ namespace Opc.Ua.Client.Tests
             }
             else if (setSubscriptionDurable)
             {
-                Assert.True(await transferSession.RemoveSubscriptionAsync(subscription));
+                Assert.True(await transferSession.RemoveSubscriptionAsync(subscription).ConfigureAwait(false));
             }
         }
 
@@ -504,7 +505,7 @@ namespace Opc.Ua.Client.Tests
             DataValue dataValue = modifiedValues[desiredValue] as DataValue;
             Assert.IsNotNull(dataValue);
             Assert.IsNotNull(dataValue.Value);
-            Assert.AreEqual(expectedValue, Convert.ToUInt32(dataValue.Value));
+            Assert.AreEqual(expectedValue, Convert.ToUInt32(dataValue.Value, CultureInfo.InvariantCulture));
 
             return modifiedValues;
         }
@@ -542,7 +543,7 @@ namespace Opc.Ua.Client.Tests
             Assert.True(Session.AddSubscription(subscription));
             subscription.Create();
 
-            (bool success, _) = await subscription.SetSubscriptionDurableAsync(1);
+            (bool success, _) = await subscription.SetSubscriptionDurableAsync(1).ConfigureAwait(false);
             Assert.True(success);
 
             return subscription;
@@ -580,7 +581,7 @@ namespace Opc.Ua.Client.Tests
             {
                 TestContext.Out.WriteLine("Initial Browse Reference {0}", reference.BrowseName.Name);
 
-                if (reference.BrowseName.Name == subscriptionId.ToString())
+                if (reference.BrowseName.Name == subscriptionId.ToString(CultureInfo.InvariantCulture))
                 {
                     ReferenceDescriptionCollection desiredReferences;
 
@@ -734,7 +735,7 @@ namespace Opc.Ua.Client.Tests
         private string DateTimeMs(DateTime dateTime)
         {
             string readable = dateTime.ToLongTimeString() + "." +
-                dateTime.Millisecond.ToString("D3");
+                dateTime.Millisecond.ToString("D3", CultureInfo.InvariantCulture);
 
             return readable;
         }

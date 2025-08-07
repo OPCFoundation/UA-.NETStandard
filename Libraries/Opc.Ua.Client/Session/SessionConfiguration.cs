@@ -70,15 +70,6 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Creates a session configuration
-        /// </summary>
-        [Obsolete("Use SessionConfiguration(ISession session, Nonce serverNonce, string userIdentityTokenPolicy, Nonce eccServerEphemeralKey,    NodeId authenthicationToken)")]
-        public SessionConfiguration(ISession session, byte[] serverNonce, NodeId authenthicationToken)
-            :this(session, Nonce.CreateNonce("RSA-only", serverNonce), null, null, authenthicationToken)
-        {
-        }
-
-        /// <summary>
         /// Creates the session configuration from a stream.
         /// </summary>
         public static SessionConfiguration Create(Stream stream)

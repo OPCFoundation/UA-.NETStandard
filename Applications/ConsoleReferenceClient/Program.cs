@@ -235,7 +235,7 @@ namespace Quickstarts.ConsoleReferenceClient
                         {
                             CertificateIdentifier userCertificateIdentifier =
                                 await FindUserCertificateIdentifierAsync(userCertificateThumbprint,
-                                    application.ApplicationConfiguration.SecurityConfiguration.TrustedUserCertificates);
+                                    application.ApplicationConfiguration.SecurityConfiguration.TrustedUserCertificates).ConfigureAwait(true);
 
                             if (userCertificateIdentifier != null)
                             {
@@ -433,12 +433,12 @@ namespace Quickstarts.ConsoleReferenceClient
                                             await uaClient.DurableSubscriptionTransfer(
                                                 serverUrl.ToString(),
                                                 useSecurity: !noSecurity,
-                                                quitCTS.Token);
+                                                quitCTS.Token).ConfigureAwait(true);
                                         }
 
                                         if ( waitCounters > closeSessionTime && waitCounters < restartSessionTime )
                                         {
-                                            Console.WriteLine("No Communication Interval " + stopCount.ToString());
+                                            Console.WriteLine("No Communication Interval " + stopCount.ToString(CultureInfo.InvariantCulture));
                                             stopCount++;
                                         }
                                     }
@@ -483,7 +483,7 @@ namespace Quickstarts.ConsoleReferenceClient
             // get user certificate with matching thumbprint
             X509Certificate2Collection userCertifiactesWithMatchingThumbprint =
                 (await trustedUserCertificates
-                .GetCertificates())
+                .GetCertificates().ConfigureAwait(true))
                 .Find(X509FindType.FindByThumbprint, thumbprint, false);
 
             // create Certificate Identifier
