@@ -152,7 +152,7 @@ namespace Quickstarts
                 m_server = m_server ?? new T();
 
                 // start the server
-                await m_application.Start(m_server).ConfigureAwait(false);
+                await m_application.StartAsync(m_server).ConfigureAwait(false);
 
                 // save state
                 ExitCode = ExitCode.ErrorRunning;
