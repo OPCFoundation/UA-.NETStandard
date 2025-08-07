@@ -3745,6 +3745,7 @@ namespace Opc.Ua.Server
                 AddNodeToComponentCache
                 );
 
+            monitoredItem = dataChangeMonitoredItem;
 
             // report the initial value.
             error = ReadInitialValue(context, handle, dataChangeMonitoredItem);
