@@ -109,7 +109,7 @@ namespace Opc.Ua
         /// </summary>
         /// <remarks>
         /// This method may block the current thread so the caller must not call in the
-        /// thread that calls IServerBase.ScheduleIncomingRequest(). 
+        /// thread that calls IServerBase.ScheduleIncomingRequest().
         /// This method always traps any exceptions and reports them to the client as a fault.
         /// </remarks>
         void CallSynchronously();

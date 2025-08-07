@@ -37,7 +37,7 @@ namespace Opc.Ua
     public class Nonce : IDisposable, ISerializable
 #else
     public class Nonce : ISerializable
-#endif  
+#endif
     {
         #region Constructor
 
@@ -53,30 +53,20 @@ namespace Opc.Ua
             m_bcKeyPair = null;
 #endif
         }
-#endregion
+        #endregion
 
         #region Public Properties
 
         /// <summary>
         /// Gets the nonce data.
         /// </summary>
-        public byte[] Data
-        {
-            get
-            {
-                return m_data;
-            }
-            private set
-            {
-                m_data = value;
-            }
-        }
+        public byte[] Data { get; private set; }
 
         #endregion
 
-#region Public Methods
+        #region Public Methods
 
-#region Instance Methods
+        #region Instance Methods
 
 #if ECC_SUPPORT
         /// <summary>
@@ -511,7 +501,7 @@ namespace Opc.Ua
         /// <param name="secret"></param>
         /// <param name="algorithm"></param>
         /// <returns></returns>
-        private HMAC returnHMACInstance(byte[] secret, HashAlgorithmName algorithm)
+        private static HMAC returnHMACInstance(byte[] secret, HashAlgorithmName algorithm)
         {
             switch (algorithm.Name)
             {
@@ -607,9 +597,8 @@ namespace Opc.Ua
 
 #if ECC_SUPPORT
         private ECDiffieHellman m_ecdh;
-#endif
 
-        private byte[] m_data;
+#endif
 
 #if CURVE25519
         private AsymmetricCipherKeyPair m_bcKeyPair;
@@ -631,6 +620,7 @@ namespace Opc.Ua
         public void Dispose()
         {
             Dispose(true);
+            GC.SuppressFinalize(this);
         }
 
         /// <summary>

@@ -30,7 +30,7 @@ namespace Opc.Ua
         public ServiceResult Validate()
         {
             // check deadband type enumeration.
-            if ((int)DeadbandType < (int)Opc.Ua.DeadbandType.None || (int)DeadbandType > (int)Opc.Ua.DeadbandType.Percent)
+            if ((int)DeadbandType is < ((int)Opc.Ua.DeadbandType.None) or > ((int)Opc.Ua.DeadbandType.Percent))
             {
                 return ServiceResult.Create(
                     StatusCodes.BadDeadbandFilterInvalid,
@@ -39,7 +39,7 @@ namespace Opc.Ua
             }
 
             // check data change trigger enumeration.
-            if ((int)Trigger < (int)DataChangeTrigger.Status || (int)Trigger > (int)DataChangeTrigger.StatusValueTimestamp)
+            if ((int)Trigger is < ((int)DataChangeTrigger.Status) or > ((int)DataChangeTrigger.StatusValueTimestamp))
             {
                 return ServiceResult.Create(
                     StatusCodes.BadDeadbandFilterInvalid,
@@ -77,7 +77,7 @@ namespace Opc.Ua
         /// </summary>
         public static double GetAbsoluteDeadband(MonitoringFilter filter)
         {
-            if (!(filter is DataChangeFilter datachangeFilter))
+            if (filter is not DataChangeFilter datachangeFilter)
             {
                 return 0.0;
             }
@@ -95,7 +95,7 @@ namespace Opc.Ua
         /// </summary>
         public static double GetPercentageDeadband(MonitoringFilter filter)
         {
-            if (!(filter is DataChangeFilter datachangeFilter))
+            if (filter is not DataChangeFilter datachangeFilter)
             {
                 return 0.0;
             }
@@ -174,11 +174,7 @@ namespace Opc.Ua
             /// <summary>
             /// The result for the entire filter.
             /// </summary>
-            public ServiceResult Status
-            {
-                get { return m_status; }
-                set { m_status = value; }
-            }
+            public ServiceResult Status { get; set; }
 
             /// <summary>
             /// Returns a string containing the errors reported.
@@ -225,7 +221,7 @@ namespace Opc.Ua
 
             /// <summary>
             /// The result for each select clause.
-            /// </summary>   
+            /// </summary>
             public List<ServiceResult> SelectClauseResults
             {
                 get
@@ -286,10 +282,9 @@ namespace Opc.Ua
 
                 return result;
             }
-            #endregion
 
-            #region Private Fields
-            private ServiceResult m_status;
+#endregion
+#region Private Fields
             private List<ServiceResult> m_selectClauseResults;
             private ContentFilter.Result m_whereClauseResults;
             #endregion
@@ -626,7 +621,7 @@ namespace Opc.Ua
                 {
                     char ch = browseName.Name[jj];
 
-                    if (ch == '&' || ch == '/')
+                    if (ch is '&' or '/')
                     {
                         buffer.Append('&');
                     }

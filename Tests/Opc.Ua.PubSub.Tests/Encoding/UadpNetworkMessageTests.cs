@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -122,7 +122,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             // Arrange
             UadpNetworkMessage uaNetworkMessage = CreateNetworkMessage(dataSetFieldContentMask);
 
-            // Act  
+            // Act
             // Check PublisherId as byte type
             uaNetworkMessage.SetNetworkMessageContentMask(UadpNetworkMessageContentMask.PublisherId);
             uaNetworkMessage.PublisherId = publisherId;
@@ -153,7 +153,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             // Arrange
             UadpNetworkMessage uaNetworkMessage = CreateNetworkMessage(dataSetFieldContentMask);
 
-            // Act  
+            // Act
             // Check PublisherId as byte type
             uaNetworkMessage.SetNetworkMessageContentMask(UadpNetworkMessageContentMask.PublisherId);
             uaNetworkMessage.PublisherId = publisherId;
@@ -183,7 +183,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             // Arrange
             UadpNetworkMessage uaNetworkMessage = CreateNetworkMessage(dataSetFieldContentMask);
 
-            // Act  
+            // Act
             // GroupFlags are changed internally by the group header options (WriterGroupId, GroupVersion, NetworkMessageNumber, SequenceNumber)
             uaNetworkMessage.SetNetworkMessageContentMask(UadpNetworkMessageContentMask.GroupHeader |
                                                           UadpNetworkMessageContentMask.PublisherId);
@@ -216,7 +216,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             // Arrange
             UadpNetworkMessage uaNetworkMessage = CreateNetworkMessage(dataSetFieldContentMask);
 
-            // Act  
+            // Act
             uaNetworkMessage.SetNetworkMessageContentMask(UadpNetworkMessageContentMask.WriterGroupId |
                                                           UadpNetworkMessageContentMask.PublisherId |
                                                           UadpNetworkMessageContentMask.PayloadHeader);
@@ -248,7 +248,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             // Arrange
             UadpNetworkMessage uaNetworkMessage = CreateNetworkMessage(dataSetFieldContentMask);
 
-            // Act  
+            // Act
             uaNetworkMessage.SetNetworkMessageContentMask(UadpNetworkMessageContentMask.GroupVersion |
                                                           UadpNetworkMessageContentMask.PublisherId |
                                                           UadpNetworkMessageContentMask.PayloadHeader);
@@ -280,7 +280,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             // Arrange
             UadpNetworkMessage uaNetworkMessage = CreateNetworkMessage(dataSetFieldContentMask);
 
-            // Act  
+            // Act
             uaNetworkMessage.SetNetworkMessageContentMask(UadpNetworkMessageContentMask.NetworkMessageNumber |
                                                           UadpNetworkMessageContentMask.PublisherId |
                                                           UadpNetworkMessageContentMask.PayloadHeader);
@@ -312,7 +312,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             // Arrange
             UadpNetworkMessage uaNetworkMessage = CreateNetworkMessage(dataSetFieldContentMask);
 
-            // Act  
+            // Act
             uaNetworkMessage.SetNetworkMessageContentMask(UadpNetworkMessageContentMask.SequenceNumber |
                                                           UadpNetworkMessageContentMask.PublisherId |
                                                           UadpNetworkMessageContentMask.PayloadHeader);
@@ -344,7 +344,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             // Arrange
             UadpNetworkMessage uaNetworkMessage = CreateNetworkMessage(dataSetFieldContentMask);
 
-            // Act  
+            // Act
             uaNetworkMessage.SetNetworkMessageContentMask(UadpNetworkMessageContentMask.PayloadHeader |
                                                           UadpNetworkMessageContentMask.PublisherId);
             uaNetworkMessage.PublisherId = (ushort)10;
@@ -374,7 +374,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             // Arrange
             UadpNetworkMessage uaNetworkMessage = CreateNetworkMessage(dataSetFieldContentMask);
 
-            // Act  
+            // Act
             uaNetworkMessage.SetNetworkMessageContentMask(UadpNetworkMessageContentMask.Timestamp |
                                                           UadpNetworkMessageContentMask.PublisherId |
                                                           UadpNetworkMessageContentMask.PayloadHeader);
@@ -406,7 +406,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             // Arrange
             UadpNetworkMessage uaNetworkMessage = CreateNetworkMessage(dataSetFieldContentMask);
 
-            // Act  
+            // Act
             uaNetworkMessage.SetNetworkMessageContentMask(UadpNetworkMessageContentMask.PicoSeconds |
                                                           UadpNetworkMessageContentMask.PublisherId |
                                                           UadpNetworkMessageContentMask.PayloadHeader);
@@ -438,7 +438,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             // Arrange
             UadpNetworkMessage uaNetworkMessage = CreateNetworkMessage(dataSetFieldContentMask);
 
-            // Act  
+            // Act
             uaNetworkMessage.SetNetworkMessageContentMask(UadpNetworkMessageContentMask.DataSetClassId);
             uaNetworkMessage.DataSetClassId = Guid.NewGuid();
 
@@ -446,7 +446,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             CompareEncodeDecode(uaNetworkMessage);
         }
 
-        #region Private Methods       
+        #region Private Methods
 
         /// <summary>
         /// Load RawData data type into datasets
@@ -489,7 +489,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             m_publisherApplication.DataStore.WritePublishedDataItem(new NodeId("Double", NamespaceIndexAllTypes), Attributes.Value, doubleValue);
             #endregion
 
-            #region DataSet MassTest 
+            #region DataSet MassTest
 
             // DataSet 'MassTest' fill with data
             for (uint index = 0; index < 100; index++)
@@ -550,8 +550,6 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         /// <summary>
         /// Compare encoded/decoded network messages
         /// </summary>
-        /// <param name="uadpNetworkMessageEncode"></param>
-        /// <param name="uadpNetworkMessageDecoded"></param>
         private void CompareEncodeDecode(UadpNetworkMessage uadpNetworkMessage)
         {
             byte[] bytes = uadpNetworkMessage.Encode(ServiceMessageContext.GlobalContext);
@@ -566,8 +564,6 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         /// <summary>
         /// Invalid compare encoded/decoded network messages
         /// </summary>
-        /// <param name="uadpNetworkMessageEncode"></param>
-        /// <param name="uadpNetworkMessageDecoded"></param>
         private void InvalidCompareEncodeDecode(UadpNetworkMessage uadpNetworkMessage)
         {
             byte[] bytes = uadpNetworkMessage.Encode(ServiceMessageContext.GlobalContext);
@@ -605,7 +601,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         }
 
         /// <summary>
-        /// Compare network messages options 
+        /// Compare network messages options
         /// </summary>
         /// <param name="uadpNetworkMessageEncode"></param>
         /// <param name="uadpNetworkMessageDecoded"></param>
@@ -688,7 +684,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     Assert.AreEqual(uadpDataSetMessage.PayloadSizeInStream, uadpDataSetMessageDecoded.PayloadSizeInStream,
                         "PayloadSizeInStream was not decoded correctly, DataSetWriterId = {0}", uadpDataSetMessage.DataSetWriterId);
 
-                    // check payload data fields count 
+                    // check payload data fields count
                     // get related dataset from subscriber DataSets
                     DataSet decodedDataSet = uadpDataSetMessageDecoded.DataSet;
                     Assert.IsNotNull(decodedDataSet, "DataSet '{0}' is missing from subscriber datasets!", uadpDataSetMessage.DataSet.Name);
@@ -722,7 +718,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
                         Assert.AreEqual(dataValueEncoded.Value, dataValueDecoded.Value, "Wrong: Fields[{0}].DataValue.Value; DataSetWriterId = {1}", index, uadpDataSetMessage.DataSetWriterId);
 
-                        // Checks just for DataValue type only 
+                        // Checks just for DataValue type only
                         if ((uadpDataSetMessage.FieldContentMask & DataSetFieldContentMask.StatusCode) ==
                             DataSetFieldContentMask.StatusCode)
                         {

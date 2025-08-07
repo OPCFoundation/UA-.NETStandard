@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -63,12 +63,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         /// <summary>
         /// Create PubSub connection
         /// </summary>
-        /// <param name="uriScheme"></param>
-        /// <param name="publisherId"></param>
-        /// <returns></returns>
         internal static PubSubConnectionDataType CreatePubSubConnection(string transportProfileUri, string addressUrl, object publisherId, PubSubType pubSubType = PubSubType.Publisher)
         {
-            // Define a PubSub connection with PublisherId 
+            // Define a PubSub connection with PublisherId
             var pubSubConnection = new PubSubConnectionDataType();
             pubSubConnection.Name = $"Connection {pubSubType} PubId:" + publisherId;
             pubSubConnection.Enabled = true;
@@ -129,10 +126,6 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         /// <summary>
         /// Create writer group with specified message and transport settings
         /// </summary>
-        /// <param name="writerGroupId"></param>
-        /// <param name="writerGroupMessageDataType"></param>
-        /// <param name="writerGroupTransportDataType"></param>
-        /// <returns></returns>
         private static WriterGroupDataType CreateWriterGroup(ushort writerGroupId,
             WriterGroupMessageDataType messageSettings,
             WriterGroupTransportDataType transportSettings,
@@ -188,7 +181,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             string brokerMetaData = "$Metadata";
 
-            #region Define WriterGroup1            
+            #region Define WriterGroup1
             var writerGroup1 = new WriterGroupDataType();
             writerGroup1.Name = "WriterGroup id:" + writerGroupId;
             writerGroup1.Enabled = true;
@@ -728,7 +721,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             // Define publishedDataSet.DataSetMetaData
             publishedDataSet.DataSetMetaData = CreateDataSetMetaData(dataSetName, namespaceIndex, fieldMetaDatas);
-            //publishedDataSet.DataSetMetaData.DataSetClassId = new Uuid(Guid.NewGuid()); 
+            //publishedDataSet.DataSetMetaData.DataSetClassId = new Uuid(Guid.NewGuid());
 
             var publishedDataSetSimpleSource = new PublishedDataItemsDataType();
             publishedDataSetSimpleSource.PublishedData = new PublishedVariableDataTypeCollection();
@@ -790,11 +783,6 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         /// <summary>
         /// Create dataset reader
         /// </summary>
-        /// <param name="dataSetWriterId"></param>
-        /// <param name="dataSetName"></param>
-        /// <param name="dataSetFieldContentMask"></param>
-        /// <param name="messageSettings"></param>
-        /// <returns></returns>
         public static DataSetReaderDataType CreateDataSetReader(
             ushort publisherId,
             ushort writerGroupId,

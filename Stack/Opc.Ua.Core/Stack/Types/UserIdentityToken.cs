@@ -311,12 +311,7 @@ namespace Opc.Ua
         /// </summary>
         public override SignatureData Sign(byte[] dataToSign, string securityPolicyUri)
         {
-            X509Certificate2 certificate = m_certificate;
-
-            if (certificate == null)
-            {
-                certificate = CertificateFactory.Create(m_certificateData, true);
-            }
+            X509Certificate2 certificate = m_certificate ?? CertificateFactory.Create(m_certificateData, true);
 
             SignatureData signatureData = SecurityPolicies.Sign(
                 certificate,
@@ -335,12 +330,7 @@ namespace Opc.Ua
         {
             try
             {
-                X509Certificate2 certificate = m_certificate;
-
-                if (certificate == null)
-                {
-                    certificate = CertificateFactory.Create(m_certificateData, true);
-                }
+                X509Certificate2 certificate = m_certificate ?? CertificateFactory.Create(m_certificateData, true);
 
                 bool valid = SecurityPolicies.Verify(
                     certificate,

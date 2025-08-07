@@ -109,7 +109,7 @@ namespace Opc.Ua.PubSub
                     return null;
                 }
 
-                return ((m_dataSetWriterId != 0) ? m_dataSetWriterId : null);
+                return (m_dataSetWriterId != 0) ? m_dataSetWriterId : null;
             }
 
             set

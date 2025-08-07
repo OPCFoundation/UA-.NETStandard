@@ -30,7 +30,7 @@ namespace Opc.Ua
         /// </summary>
         public ServiceResultException() : base(Strings.DefaultMessage)
         {
-            m_status = StatusCodes.Bad;
+            Result = StatusCodes.Bad;
         }
 
         /// <summary>
@@ -38,7 +38,7 @@ namespace Opc.Ua
         /// </summary>
         public ServiceResultException(string message) : base(message)
         {
-            m_status = StatusCodes.Bad;
+            Result = StatusCodes.Bad;
         }
 
         /// <summary>
@@ -46,7 +46,7 @@ namespace Opc.Ua
         /// </summary>
         public ServiceResultException(Exception e, uint defaultCode) : base(e.Message, e)
         {
-            m_status = ServiceResult.Create(e, defaultCode, string.Empty);
+            Result = ServiceResult.Create(e, defaultCode, string.Empty);
         }
 
         /// <summary>
@@ -54,7 +54,7 @@ namespace Opc.Ua
         /// </summary>
         public ServiceResultException(string message, Exception e) : base(message, e)
         {
-            m_status = StatusCodes.Bad;
+            Result = StatusCodes.Bad;
         }
 
         /// <summary>
@@ -62,7 +62,7 @@ namespace Opc.Ua
         /// </summary>
         public ServiceResultException(uint statusCode) : base(GetMessage(statusCode))
         {
-            m_status = new ServiceResult(statusCode);
+            Result = new ServiceResult(statusCode);
         }
 
         /// <summary>
@@ -70,7 +70,7 @@ namespace Opc.Ua
         /// </summary>
         public ServiceResultException(uint statusCode, string message) : base(message)
         {
-            m_status = new ServiceResult(statusCode, message);
+            Result = new ServiceResult(statusCode, message);
         }
 
         /// <summary>
@@ -78,7 +78,7 @@ namespace Opc.Ua
         /// </summary>
         public ServiceResultException(uint statusCode, Exception e) : base(GetMessage(statusCode), e)
         {
-            m_status = new ServiceResult(statusCode, e);
+            Result = new ServiceResult(statusCode, e);
         }
 
         /// <summary>
@@ -86,7 +86,7 @@ namespace Opc.Ua
         /// </summary>
         public ServiceResultException(uint statusCode, string message, Exception e) : base(message, e)
         {
-            m_status = new ServiceResult(statusCode, message, e);
+            Result = new ServiceResult(statusCode, message, e);
         }
 
         /// <summary>
@@ -96,11 +96,11 @@ namespace Opc.Ua
         {
             if (status != null)
             {
-                m_status = status;
+                Result = status;
             }
             else
             {
-                m_status = new ServiceResult(StatusCodes.Bad);
+                Result = new ServiceResult(StatusCodes.Bad);
             }
         }
         #endregion
@@ -109,37 +109,37 @@ namespace Opc.Ua
         /// <summary>
         /// The identifier for the status code.
         /// </summary>
-        public uint StatusCode => m_status.Code;
+        public uint StatusCode => Result.Code;
 
         /// <summary>
         /// The namespace that qualifies symbolic identifier.
         /// </summary>
-        public string NamespaceUri => m_status.NamespaceUri;
+        public string NamespaceUri => Result.NamespaceUri;
 
         /// <summary>
         /// The qualified name of the symbolic identifier associated with the status code.
         /// </summary>
-        public string SymbolicId => m_status.SymbolicId;
+        public string SymbolicId => Result.SymbolicId;
 
         /// <summary>
         /// The localized description for the status code.
         /// </summary>
-        public LocalizedText LocalizedText => m_status.LocalizedText;
+        public LocalizedText LocalizedText => Result.LocalizedText;
 
         /// <summary>
         /// Additional diagnostic/debugging information associated with the operation.
         /// </summary>
-        public string AdditionalInfo => m_status.AdditionalInfo;
+        public string AdditionalInfo => Result.AdditionalInfo;
 
         /// <summary>
         /// Returns the status result associated with the exception.
         /// </summary>
-        public ServiceResult Result => m_status;
+        public ServiceResult Result { get; }
 
         /// <summary>
         /// Nested error information.
         /// </summary>
-        public ServiceResult InnerResult => m_status.InnerResult;
+        public ServiceResult InnerResult => Result.InnerResult;
         #endregion
 
         #region Public Methods
@@ -151,7 +151,7 @@ namespace Opc.Ua
             var buffer = new StringBuilder();
 
             buffer.AppendLine(Message);
-            buffer.Append(m_status.ToLongString());
+            buffer.Append(Result.ToLongString());
 
             return buffer.ToString();
         }
@@ -211,10 +211,9 @@ namespace Opc.Ua
 
             return status.ToString();
         }
-        #endregion
 
-        #region Private Fields
-        private readonly ServiceResult m_status;
+#endregion
+#region Private Fields
         #endregion
 
         #region Private Constants

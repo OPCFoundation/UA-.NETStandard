@@ -679,7 +679,7 @@ namespace Opc.Ua
 
             if (Object.ReferenceEquals(m_referenceTypeId, null))
             {
-                return (Object.ReferenceEquals(reference.m_referenceTypeId, null)) ? 0 : -1;
+                return Object.ReferenceEquals(reference.m_referenceTypeId, null) ? 0 : -1;
             }
 
             int result = m_referenceTypeId.CompareTo(reference.m_referenceTypeId);
@@ -691,12 +691,12 @@ namespace Opc.Ua
 
             if (reference.m_isInverse != this.m_isInverse)
             {
-                return (this.m_isInverse) ? +1 : -1;
+                return this.m_isInverse ? +1 : -1;
             }
 
             if (Object.ReferenceEquals(m_targetId, null))
             {
-                return (Object.ReferenceEquals(reference.m_targetId, null)) ? 0 : -1;
+                return Object.ReferenceEquals(reference.m_targetId, null) ? 0 : -1;
             }
 
             return m_targetId.CompareTo(reference.m_targetId);
@@ -766,12 +766,7 @@ namespace Opc.Ua
                 this.MinimumSamplingInterval = variable.MinimumSamplingInterval;
                 this.Historizing = variable.Historizing;
 
-                object value = variable.Value;
-
-                if (value == null)
-                {
-                    value = TypeInfo.GetDefaultValue(variable.DataType, variable.ValueRank);
-                }
+                object value = variable.Value ?? TypeInfo.GetDefaultValue(variable.DataType, variable.ValueRank);
 
                 this.Value = new Variant(value);
 
@@ -1213,7 +1208,7 @@ namespace Opc.Ua
             {
                 case Attributes.Value:
                 {
-                    return (m_value.Value != null);
+                    return m_value.Value != null;
                 }
 
                 case Attributes.ValueRank:

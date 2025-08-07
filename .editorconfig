@@ -180,7 +180,7 @@ dotnet_style_prefer_is_null_check_over_reference_equality_method              = 
 dotnet_style_prefer_inferred_tuple_names                                      = true : suggestion
 dotnet_style_prefer_inferred_anonymous_type_member_names                      = true : suggestion
 dotnet_style_prefer_auto_properties                                           = true : silent
-dotnet_style_prefer_conditional_expression_over_assignment                    = true 
+dotnet_style_prefer_conditional_expression_over_assignment                    = true
 dotnet_style_prefer_conditional_expression_over_return                        = false
 
 # 'using' directive preferences
@@ -338,9 +338,6 @@ dotnet_diagnostic.IDE0049.severity                                            = 
 # CA1507: Use nameof in place of string
 dotnet_diagnostic.CA1507.severity                                             = warning
 
-# CA1510: Use ArgumentNullException throw helper
-dotnet_diagnostic.CA1510.severity                                             = none
-
 # CA1711: Identifiers should not have incorrect suffix
 dotnet_diagnostic.CA1711.severity                                             = silent
 
@@ -359,20 +356,37 @@ dotnet_diagnostic.CA1721.severity                                             = 
 # CA2014: Do not use stackalloc in loops
 dotnet_diagnostic.CA2014.severity                                             = error
 
-# exclude generated code
-
 # IDE0290: Use primary constructor
-csharp_style_prefer_primary_constructors = false:suggestion
-csharp_prefer_system_threading_lock = true:suggestion
+csharp_style_prefer_primary_constructors                                      = false:suggestion
+csharp_prefer_system_threading_lock                                           = true:suggestion
 
 # RCS1146: Use conditional access
-dotnet_diagnostic.RCS1146.severity = none
+dotnet_diagnostic.RCS1146.severity                                            = none
+# CA1510: Use throw helpers - enable when we have a polyfill
+dotnet_diagnostic.CA1510.severity                                             = none
+dotnet_diagnostic.CA1511.severity                                             = none
+dotnet_diagnostic.CA1512.severity                                             = none
+dotnet_diagnostic.CA1513.severity                                             = none
+dotnet_diagnostic.RCS1002.severity                                            = none
+dotnet_diagnostic.RCS1004.severity                                            = none
+dotnet_diagnostic.RCS1006.severity                                            = suggestion
+dotnet_diagnostic.RCS1005.severity                                            = suggestion
+dotnet_diagnostic.RCS1007.severity                                            = warning
+dotnet_diagnostic.RCS1031.severity                                            = suggestion
+dotnet_diagnostic.RCS1043.severity                                            = suggestion
+dotnet_diagnostic.RCS1055.severity                                            = suggestion
+dotnet_diagnostic.RCS1061.severity                                            = suggestion
+dotnet_diagnostic.RCS1066.severity                                            = suggestion
+dotnet_diagnostic.RCS1124.severity                                            = suggestion
+dotnet_diagnostic.RCS1129.severity                                            = suggestion
+dotnet_diagnostic.RCS1141.severity                                            = silent
+dotnet_diagnostic.RCS1156.severity                                            = warning
+dotnet_diagnostic.RCS1160.severity                                            = warning
+dotnet_diagnostic.RCS1174.severity                                            = warning
+dotnet_diagnostic.RCS1181.severity                                            = suggestion
+dotnet_diagnostic.RCS1091.severity                                            = suggestion
 
-# IDE0056: Use index operator
-dotnet_diagnostic.IDE0056.severity = none
-
-# RCS1139: Add summary element to documentation comment
-dotnet_diagnostic.RCS1139.severity = none
+# exclude generated code
 
 [**/Generated/*.cs]
 generated_code = true

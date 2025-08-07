@@ -164,7 +164,7 @@ namespace Opc.Ua
                 for (int jj = 0; jj < indexes.Length; jj++)
                 {
                     divisor /= dimensions[jj];
-                    indexes[jj] = (ii / divisor) % dimensions[jj];
+                    indexes[jj] = ii / divisor % dimensions[jj];
                 }
 
                 object element = array.GetValue(indexes);

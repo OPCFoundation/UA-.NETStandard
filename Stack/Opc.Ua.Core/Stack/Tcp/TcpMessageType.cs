@@ -94,7 +94,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public static bool IsType(uint actualType, uint expectedType)
         {
-            return ((actualType & MessageTypeMask) == expectedType);
+            return (actualType & MessageTypeMask) == expectedType;
         }
 
         /// <summary>
@@ -102,7 +102,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public static bool IsFinal(uint messageType)
         {
-            return ((messageType & ChunkTypeMask) == Final);
+            return (messageType & ChunkTypeMask) == Final;
         }
 
         /// <summary>
@@ -110,7 +110,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public static bool IsAbort(uint messageType)
         {
-            return ((messageType & ChunkTypeMask) == Abort);
+            return (messageType & ChunkTypeMask) == Abort;
         }
 
         /// <summary>
@@ -130,7 +130,7 @@ namespace Opc.Ua.Bindings
             }
 
             uint chunkTypeMask = messageType & ChunkTypeMask;
-            if ((chunkTypeMask != Final) && (chunkTypeMask != Intermediate) && (chunkTypeMask != Abort))
+            if (chunkTypeMask is not Final and not Intermediate and not Abort)
             {
                 return false;
             }

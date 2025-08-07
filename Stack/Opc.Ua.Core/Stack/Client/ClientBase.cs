@@ -43,6 +43,7 @@ namespace Opc.Ua
         public void Dispose()
         {
             Dispose(true);
+            GC.SuppressFinalize(this);
         }
 
         /// <summary>
@@ -167,18 +168,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public DiagnosticsMasks ReturnDiagnostics
-        {
-            get
-            {
-                return m_returnDiagnostics;
-            }
-
-            set
-            {
-                m_returnDiagnostics = value;
-            }
-        }
+        public DiagnosticsMasks ReturnDiagnostics { get; set; }
 
         /// <inheritdoc/>
         public int OperationTimeout
@@ -218,7 +208,7 @@ namespace Opc.Ua
             ITransportChannel channel = Interlocked.Exchange(ref m_channel, null);
             channel?.Close();
 
-            m_authenticationToken = null;
+            AuthenticationToken = null;
             return StatusCodes.Good;
         }
 
@@ -231,7 +221,7 @@ namespace Opc.Ua
                 await channel.CloseAsync(ct).ConfigureAwait(false);
             }
 
-            m_authenticationToken = null;
+            AuthenticationToken = null;
 
             return StatusCodes.Good;
         }
@@ -337,27 +327,13 @@ namespace Opc.Ua
         /// An object used to synchronize access to the session state.
         /// </summary>
         /// <value>The synchronization object.</value>
-        protected object SyncRoot
-        {
-            get { return m_lock; }
-        }
+        protected object SyncRoot { get; } = new object();
 
         /// <summary>
         /// The authorization token used to connect to the server.
         /// </summary>
         /// <value>The authentication token.</value>
-        protected NodeId AuthenticationToken
-        {
-            get
-            {
-                return m_authenticationToken;
-            }
-
-            set
-            {
-                m_authenticationToken = value;
-            }
-        }
+        protected NodeId AuthenticationToken { get; set; }
 
         /// <summary>
         /// Updates the header of a service request.
@@ -366,7 +342,7 @@ namespace Opc.Ua
         /// <param name="useDefaults">if set to <c>true</c> use defaults].</param>
         protected virtual void UpdateRequestHeader(IServiceRequest request, bool useDefaults)
         {
-            lock (m_lock)
+            lock (SyncRoot)
             {
                 if (request.RequestHeader == null)
                 {
@@ -375,7 +351,7 @@ namespace Opc.Ua
 
                 if (useDefaults)
                 {
-                    request.RequestHeader.ReturnDiagnostics = (uint)(int)m_returnDiagnostics;
+                    request.RequestHeader.ReturnDiagnostics = (uint)(int)ReturnDiagnostics;
                 }
 
                 if (request.RequestHeader.RequestHandle == 0)
@@ -385,7 +361,7 @@ namespace Opc.Ua
 
                 if (NodeId.IsNull(request.RequestHeader.AuthenticationToken))
                 {
-                    request.RequestHeader.AuthenticationToken = m_authenticationToken;
+                    request.RequestHeader.AuthenticationToken = AuthenticationToken;
                 }
 
                 request.RequestHeader.Timestamp = DateTime.UtcNow;
@@ -570,13 +546,10 @@ namespace Opc.Ua
 
             return null;
         }
-        #endregion
 
-        #region Private Fields
-        private readonly object m_lock = new object();
+#endregion
+#region Private Fields
         private ITransportChannel m_channel;
-        private NodeId m_authenticationToken;
-        private DiagnosticsMasks m_returnDiagnostics;
         private int m_nextRequestHandle;
         private int m_pendingRequestCount;
         private bool m_disposed;

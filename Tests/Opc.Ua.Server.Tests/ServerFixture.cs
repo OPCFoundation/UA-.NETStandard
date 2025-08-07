@@ -288,7 +288,7 @@ namespace Opc.Ua.Server.Tests
             {
                 // Create an instance of ActivityListener without logging
                 ActivityListener = new ActivityListener() {
-                    ShouldListenTo = (source) => (source.Name == EndpointBase.ActivitySourceName),
+                    ShouldListenTo = (source) => source.Name == EndpointBase.ActivitySourceName,
                     Sample = (ref ActivityCreationOptions<ActivityContext> options) => ActivitySamplingResult.AllDataAndRecorded,
                     ActivityStarted = _ => { },
                     ActivityStopped = _ => { }
@@ -298,7 +298,7 @@ namespace Opc.Ua.Server.Tests
             {
                 // Create an instance of ActivityListener and configure its properties with logging
                 ActivityListener = new ActivityListener() {
-                    ShouldListenTo = (source) => (source.Name == EndpointBase.ActivitySourceName),
+                    ShouldListenTo = (source) => source.Name == EndpointBase.ActivitySourceName,
                     Sample = (ref ActivityCreationOptions<ActivityContext> options) => ActivitySamplingResult.AllDataAndRecorded,
                     ActivityStarted = activity => Utils.LogInfo("Server Started: {0,-15} - TraceId: {1,-32} SpanId: {2,-16} ParentId: {3,-32}",
                         activity.OperationName, activity.TraceId, activity.SpanId, activity.ParentId),

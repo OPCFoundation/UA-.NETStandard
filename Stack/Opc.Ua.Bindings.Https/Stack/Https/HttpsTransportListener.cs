@@ -405,7 +405,7 @@ namespace Opc.Ua.Bindings
                             if (value.StartsWith(kBearerKey, StringComparison.OrdinalIgnoreCase))
                             {
                                 // note: use NodeId(string, uint) to avoid the NodeId.Parse call.
-                                input.RequestHeader.AuthenticationToken = new NodeId(value.Substring(kBearerKey.Length + 1).Trim(), 0);
+                                input.RequestHeader.AuthenticationToken = new NodeId(value[(kBearerKey.Length + 1)..].Trim(), 0);
                             }
                         }
                     }
@@ -456,7 +456,7 @@ namespace Opc.Ua.Bindings
                     }
                 }
 
-                // note: do not use Task.Factory.FromAsync here 
+                // note: do not use Task.Factory.FromAsync here
                 IAsyncResult result = m_callback.BeginProcessRequest(
                     m_listenerId,
                     endpoint,

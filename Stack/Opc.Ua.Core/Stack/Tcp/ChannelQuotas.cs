@@ -23,8 +23,8 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public ChannelQuotas()
         {
-            m_messageContext = ServiceMessageContext.GlobalContext;
-            m_maxMessageSize = TcpMessageLimits.DefaultMaxMessageSize;
+            MessageContext = ServiceMessageContext.GlobalContext;
+            MaxMessageSize = TcpMessageLimits.DefaultMaxMessageSize;
             m_maxBufferSize = TcpMessageLimits.DefaultMaxBufferSize;
             m_channelLifetime = TcpMessageLimits.DefaultChannelLifetime;
             m_securityTokenLifetime = TcpMessageLimits.DefaultSecurityTokenLifeTime;
@@ -35,50 +35,17 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// The context to use when encoding/decoding messages.
         /// </summary>
-        public IServiceMessageContext MessageContext
-        {
-            get
-            {
-                return m_messageContext;
-            }
-
-            set
-            {
-                m_messageContext = value;
-            }
-        }
+        public IServiceMessageContext MessageContext { get; set; }
 
         /// <summary>
         /// Validator to use when handling certificates.
         /// </summary>
-        public ICertificateValidator CertificateValidator
-        {
-            get
-            {
-                return m_certificateValidator;
-            }
-
-            set
-            {
-                m_certificateValidator = value;
-            }
-        }
+        public ICertificateValidator CertificateValidator { get; set; }
 
         /// <summary>
         /// The maximum size for a message sent or received.
         /// </summary>
-        public int MaxMessageSize
-        {
-            get
-            {
-                return m_maxMessageSize;
-            }
-
-            set
-            {
-                m_maxMessageSize = value;
-            }
-        }
+        public int MaxMessageSize { get; set; }
 
         /// <summary>
         /// The maximum size for the send or receive buffers.
@@ -129,15 +96,12 @@ namespace Opc.Ua.Bindings
                 m_securityTokenLifetime = value;
             }
         }
-        #endregion
 
-        #region Private Fields
-        private int m_maxMessageSize;
+#endregion
+#region Private Fields
         private int m_maxBufferSize;
         private int m_channelLifetime;
         private int m_securityTokenLifetime;
-        private IServiceMessageContext m_messageContext;
-        private ICertificateValidator m_certificateValidator;
         #endregion
     }
 }

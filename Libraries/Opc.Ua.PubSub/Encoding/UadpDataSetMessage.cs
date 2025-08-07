@@ -274,7 +274,7 @@ namespace Opc.Ua.PubSub.Encoding
                 }
                 else
                 {
-                    StartPositionInStream = (int)(binaryDecoder.BaseStream.Position);
+                    StartPositionInStream = (int)binaryDecoder.BaseStream.Position;
                 }
             }
             if (binaryDecoder.BaseStream.Length <= StartPositionInStream)
@@ -814,7 +814,7 @@ namespace Opc.Ua.PubSub.Encoding
                 catch (Exception ex)
                 {
                     Utils.Trace(ex, "Error reading element for RawData.");
-                    return (StatusCodes.BadDecodingError);
+                    return StatusCodes.BadDecodingError;
                 }
             }
             return null;

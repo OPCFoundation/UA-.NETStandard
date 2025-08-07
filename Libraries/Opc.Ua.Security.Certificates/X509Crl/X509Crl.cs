@@ -155,7 +155,7 @@ namespace Opc.Ua.Security.Certificates
         }
 
         /// <inheritdoc/>
-        public byte[] RawData { get; private set; }
+        public byte[] RawData { get; }
         #endregion
 
         #region Public Methods
@@ -217,7 +217,7 @@ namespace Opc.Ua.Security.Certificates
         }
 
         /// <summary>
-        /// Decode the Tbs of the CRL. 
+        /// Decode the Tbs of the CRL.
         /// </summary>
         /// <param name="tbs">The raw TbsCertList of the CRL.</param>
         internal void DecodeCrl(byte[] tbs)

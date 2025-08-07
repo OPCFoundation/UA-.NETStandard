@@ -32,7 +32,7 @@ namespace Opc.Ua.Schema.Binary
 
         private string[] anyAttrField;
 
-        /// <remarks/>
+        /// <inheritdoc/>
         [System.Xml.Serialization.XmlAnyElementAttribute()]
         public XmlElement[] Items
         {
@@ -46,7 +46,7 @@ namespace Opc.Ua.Schema.Binary
             }
         }
 
-        /// <remarks/>
+        /// <inheritdoc/>
         [System.Xml.Serialization.XmlTextAttribute()]
         public string[] Text
         {
@@ -60,7 +60,7 @@ namespace Opc.Ua.Schema.Binary
             }
         }
 
-        /// <remarks/>
+        /// <inheritdoc/>
         public string[] AnyAttr
         {
             get
@@ -74,7 +74,7 @@ namespace Opc.Ua.Schema.Binary
         }
     }
 
-    /// <remarks/>
+    /// <inheritdoc/>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("xsd", "2.0.50727.312")]
     [DataContractAttribute()]
     [System.Diagnostics.DebuggerStepThroughAttribute()]
@@ -110,13 +110,13 @@ namespace Opc.Ua.Schema.Binary
 
         private string[] anyAttrField;
 
-        /// <remarks/>
+        /// <inheritdoc/>
         public FieldType()
         {
             this.isLengthInBytesField = false;
         }
 
-        /// <remarks/>
+        /// <inheritdoc/>
         public Documentation Documentation
         {
             get
@@ -129,7 +129,7 @@ namespace Opc.Ua.Schema.Binary
             }
         }
 
-        /// <remarks/>
+        /// <inheritdoc/>
         [System.Xml.Serialization.XmlAttributeAttribute()]
         public string Name
         {
@@ -143,7 +143,7 @@ namespace Opc.Ua.Schema.Binary
             }
         }
 
-        /// <remarks/>
+        /// <inheritdoc/>
         [System.Xml.Serialization.XmlAttributeAttribute()]
         public System.Xml.XmlQualifiedName TypeName
         {
@@ -157,7 +157,7 @@ namespace Opc.Ua.Schema.Binary
             }
         }
 
-        /// <remarks/>
+        /// <inheritdoc/>
         [System.Xml.Serialization.XmlAttributeAttribute()]
         public uint Length
         {
@@ -171,7 +171,7 @@ namespace Opc.Ua.Schema.Binary
             }
         }
 
-        /// <remarks/>
+        /// <inheritdoc/>
         [System.Xml.Serialization.XmlIgnoreAttribute()]
         public bool LengthSpecified
         {
@@ -185,7 +185,7 @@ namespace Opc.Ua.Schema.Binary
             }
         }
 
-        /// <remarks/>
+        /// <inheritdoc/>
         [System.Xml.Serialization.XmlAttributeAttribute()]
         public string LengthField
         {
@@ -199,7 +199,7 @@ namespace Opc.Ua.Schema.Binary
             }
         }
 
-        /// <remarks/>
+        /// <inheritdoc/>
         [System.Xml.Serialization.XmlAttributeAttribute()]
         [System.ComponentModel.DefaultValueAttribute(false)]
         public bool IsLengthInBytes
@@ -214,7 +214,7 @@ namespace Opc.Ua.Schema.Binary
             }
         }
 
-        /// <remarks/>
+        /// <inheritdoc/>
         [System.Xml.Serialization.XmlAttributeAttribute()]
         public string SwitchField
         {
@@ -228,7 +228,7 @@ namespace Opc.Ua.Schema.Binary
             }
         }
 
-        /// <remarks/>
+        /// <inheritdoc/>
         [System.Xml.Serialization.XmlAttributeAttribute()]
         public uint SwitchValue
         {
@@ -242,7 +242,7 @@ namespace Opc.Ua.Schema.Binary
             }
         }
 
-        /// <remarks/>
+        /// <inheritdoc/>
         [System.Xml.Serialization.XmlIgnoreAttribute()]
         public bool SwitchValueSpecified
         {
@@ -256,7 +256,7 @@ namespace Opc.Ua.Schema.Binary
             }
         }
 
-        /// <remarks/>
+        /// <inheritdoc/>
         [System.Xml.Serialization.XmlAttributeAttribute()]
         public SwitchOperand SwitchOperand
         {
@@ -270,7 +270,7 @@ namespace Opc.Ua.Schema.Binary
             }
         }
 
-        /// <remarks/>
+        /// <inheritdoc/>
         [System.Xml.Serialization.XmlIgnoreAttribute()]
         public bool SwitchOperandSpecified
         {
@@ -284,7 +284,7 @@ namespace Opc.Ua.Schema.Binary
             }
         }
 
-        /// <remarks/>
+        /// <inheritdoc/>
         [System.Xml.Serialization.XmlAttributeAttribute(DataType = "hexBinary")]
         public byte[] Terminator
         {
@@ -298,7 +298,7 @@ namespace Opc.Ua.Schema.Binary
             }
         }
 
-        /// <remarks/>
+        /// <inheritdoc/>
         public string[] AnyAttr
         {
             get
@@ -312,33 +312,33 @@ namespace Opc.Ua.Schema.Binary
         }
     }
 
-    /// <remarks/>
+    /// <inheritdoc/>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("xsd", "2.0.50727.312")]
     [DataContractAttribute()]
     [System.Xml.Serialization.XmlTypeAttribute(Namespace = "http://opcfoundation.org/BinarySchema/")]
     public enum SwitchOperand
     {
 
-        /// <remarks/>
+        /// <inheritdoc/>
         Equals,
 
-        /// <remarks/>
+        /// <inheritdoc/>
         GreaterThan,
 
-        /// <remarks/>
+        /// <inheritdoc/>
         LessThan,
 
-        /// <remarks/>
+        /// <inheritdoc/>
         GreaterThanOrEqual,
 
-        /// <remarks/>
+        /// <inheritdoc/>
         LessThanOrEqual,
 
-        /// <remarks/>
+        /// <inheritdoc/>
         NotEqual,
     }
 
-    /// <remarks/>
+    /// <inheritdoc/>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("xsd", "2.0.50727.312")]
     [DataContractAttribute()]
     [System.Diagnostics.DebuggerStepThroughAttribute()]
@@ -354,7 +354,7 @@ namespace Opc.Ua.Schema.Binary
 
         private bool valueFieldSpecified;
 
-        /// <remarks/>
+        /// <inheritdoc/>
         public Documentation Documentation
         {
             get
@@ -367,7 +367,7 @@ namespace Opc.Ua.Schema.Binary
             }
         }
 
-        /// <remarks/>
+        /// <inheritdoc/>
         [System.Xml.Serialization.XmlAttributeAttribute()]
         public string Name
         {
@@ -381,7 +381,7 @@ namespace Opc.Ua.Schema.Binary
             }
         }
 
-        /// <remarks/>
+        /// <inheritdoc/>
         [System.Xml.Serialization.XmlAttributeAttribute()]
         public int Value
         {
@@ -395,7 +395,7 @@ namespace Opc.Ua.Schema.Binary
             }
         }
 
-        /// <remarks/>
+        /// <inheritdoc/>
         [System.Xml.Serialization.XmlIgnoreAttribute()]
         public bool ValueSpecified
         {
@@ -410,7 +410,7 @@ namespace Opc.Ua.Schema.Binary
         }
     }
 
-    /// <remarks/>
+    /// <inheritdoc/>
     [System.Xml.Serialization.XmlIncludeAttribute(typeof(StructuredType))]
     [System.Xml.Serialization.XmlIncludeAttribute(typeof(OpaqueType))]
     [System.Xml.Serialization.XmlIncludeAttribute(typeof(EnumeratedType))]
@@ -429,7 +429,7 @@ namespace Opc.Ua.Schema.Binary
 
         private bool defaultByteOrderFieldSpecified;
 
-        /// <remarks/>
+        /// <inheritdoc/>
         public Documentation Documentation
         {
             get
@@ -442,7 +442,7 @@ namespace Opc.Ua.Schema.Binary
             }
         }
 
-        /// <remarks/>
+        /// <inheritdoc/>
         [System.Xml.Serialization.XmlAttributeAttribute(DataType = "NCName")]
         public string Name
         {
@@ -456,7 +456,7 @@ namespace Opc.Ua.Schema.Binary
             }
         }
 
-        /// <remarks/>
+        /// <inheritdoc/>
         [System.Xml.Serialization.XmlAttributeAttribute()]
         public ByteOrder DefaultByteOrder
         {
@@ -470,7 +470,7 @@ namespace Opc.Ua.Schema.Binary
             }
         }
 
-        /// <remarks/>
+        /// <inheritdoc/>
         [System.Xml.Serialization.XmlIgnoreAttribute()]
         public bool DefaultByteOrderSpecified
         {
@@ -485,21 +485,21 @@ namespace Opc.Ua.Schema.Binary
         }
     }
 
-    /// <remarks/>
+    /// <inheritdoc/>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("xsd", "2.0.50727.312")]
     [DataContractAttribute()]
     [System.Xml.Serialization.XmlTypeAttribute(Namespace = "http://opcfoundation.org/BinarySchema/")]
     public enum ByteOrder
     {
 
-        /// <remarks/>
+        /// <inheritdoc/>
         BigEndian,
 
-        /// <remarks/>
+        /// <inheritdoc/>
         LittleEndian,
     }
 
-    /// <remarks/>
+    /// <inheritdoc/>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("xsd", "2.0.50727.312")]
     [DataContractAttribute()]
     [System.Diagnostics.DebuggerStepThroughAttribute()]
@@ -511,7 +511,7 @@ namespace Opc.Ua.Schema.Binary
 
         private string[] anyAttrField;
 
-        /// <remarks/>
+        /// <inheritdoc/>
         [System.Xml.Serialization.XmlElementAttribute("Field")]
         public FieldType[] Field
         {
@@ -525,7 +525,7 @@ namespace Opc.Ua.Schema.Binary
             }
         }
 
-        /// <remarks/>
+        /// <inheritdoc/>
         public string[] AnyAttr
         {
             get
@@ -539,7 +539,7 @@ namespace Opc.Ua.Schema.Binary
         }
     }
 
-    /// <remarks/>
+    /// <inheritdoc/>
     [System.Xml.Serialization.XmlIncludeAttribute(typeof(EnumeratedType))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("xsd", "2.0.50727.312")]
     [DataContractAttribute()]
@@ -554,13 +554,13 @@ namespace Opc.Ua.Schema.Binary
 
         private bool byteOrderSignificantField;
 
-        /// <remarks/>
+        /// <inheritdoc/>
         public OpaqueType()
         {
             this.byteOrderSignificantField = false;
         }
 
-        /// <remarks/>
+        /// <inheritdoc/>
         [System.Xml.Serialization.XmlAttributeAttribute()]
         public int LengthInBits
         {
@@ -574,7 +574,7 @@ namespace Opc.Ua.Schema.Binary
             }
         }
 
-        /// <remarks/>
+        /// <inheritdoc/>
         [System.Xml.Serialization.XmlIgnoreAttribute()]
         public bool LengthInBitsSpecified
         {
@@ -588,7 +588,7 @@ namespace Opc.Ua.Schema.Binary
             }
         }
 
-        /// <remarks/>
+        /// <inheritdoc/>
         [System.Xml.Serialization.XmlAttributeAttribute()]
         [System.ComponentModel.DefaultValueAttribute(false)]
         public bool ByteOrderSignificant
@@ -604,7 +604,7 @@ namespace Opc.Ua.Schema.Binary
         }
     }
 
-    /// <remarks/>
+    /// <inheritdoc/>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("xsd", "2.0.50727.312")]
     [DataContractAttribute()]
     [System.Diagnostics.DebuggerStepThroughAttribute()]
@@ -614,7 +614,7 @@ namespace Opc.Ua.Schema.Binary
 
         private EnumeratedValue[] enumeratedValueField;
 
-        /// <remarks/>
+        /// <inheritdoc/>
         [System.Xml.Serialization.XmlElementAttribute("EnumeratedValue")]
         public EnumeratedValue[] EnumeratedValue
         {
@@ -629,7 +629,7 @@ namespace Opc.Ua.Schema.Binary
         }
     }
 
-    /// <remarks/>
+    /// <inheritdoc/>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("xsd", "2.0.50727.312")]
     [DataContractAttribute()]
     [System.Diagnostics.DebuggerStepThroughAttribute()]
@@ -641,7 +641,7 @@ namespace Opc.Ua.Schema.Binary
 
         private string locationField;
 
-        /// <remarks/>
+        /// <inheritdoc/>
         [System.Xml.Serialization.XmlAttributeAttribute()]
         public string Namespace
         {
@@ -655,7 +655,7 @@ namespace Opc.Ua.Schema.Binary
             }
         }
 
-        /// <remarks/>
+        /// <inheritdoc/>
         [System.Xml.Serialization.XmlAttributeAttribute()]
         public string Location
         {
@@ -670,7 +670,7 @@ namespace Opc.Ua.Schema.Binary
         }
     }
 
-    /// <remarks/>
+    /// <inheritdoc/>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("xsd", "2.0.50727.312")]
     [DataContractAttribute()]
     [System.Diagnostics.DebuggerStepThroughAttribute()]
@@ -691,7 +691,7 @@ namespace Opc.Ua.Schema.Binary
 
         private bool defaultByteOrderFieldSpecified;
 
-        /// <remarks/>
+        /// <inheritdoc/>
         public Documentation Documentation
         {
             get
@@ -704,7 +704,7 @@ namespace Opc.Ua.Schema.Binary
             }
         }
 
-        /// <remarks/>
+        /// <inheritdoc/>
         [System.Xml.Serialization.XmlElementAttribute("Import")]
         public ImportDirective[] Import
         {
@@ -718,7 +718,7 @@ namespace Opc.Ua.Schema.Binary
             }
         }
 
-        /// <remarks/>
+        /// <inheritdoc/>
         [System.Xml.Serialization.XmlElementAttribute("EnumeratedType", typeof(EnumeratedType))]
         [System.Xml.Serialization.XmlElementAttribute("OpaqueType", typeof(OpaqueType))]
         [System.Xml.Serialization.XmlElementAttribute("StructuredType", typeof(StructuredType))]
@@ -734,7 +734,7 @@ namespace Opc.Ua.Schema.Binary
             }
         }
 
-        /// <remarks/>
+        /// <inheritdoc/>
         [System.Xml.Serialization.XmlAttributeAttribute()]
         public string TargetNamespace
         {
@@ -748,7 +748,7 @@ namespace Opc.Ua.Schema.Binary
             }
         }
 
-        /// <remarks/>
+        /// <inheritdoc/>
         [System.Xml.Serialization.XmlAttributeAttribute()]
         public ByteOrder DefaultByteOrder
         {
@@ -762,7 +762,7 @@ namespace Opc.Ua.Schema.Binary
             }
         }
 
-        /// <remarks/>
+        /// <inheritdoc/>
         [System.Xml.Serialization.XmlIgnoreAttribute()]
         public bool DefaultByteOrderSpecified
         {

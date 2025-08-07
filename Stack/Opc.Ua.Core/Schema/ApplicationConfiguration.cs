@@ -317,18 +317,18 @@ namespace Opc.Ua
         private void Initialize()
         {
             // encoding limits
-            m_maxMessageSize = DefaultEncodingLimits.MaxMessageSize;
-            m_maxStringLength = DefaultEncodingLimits.MaxStringLength;
-            m_maxByteStringLength = DefaultEncodingLimits.MaxByteStringLength;
-            m_maxArrayLength = DefaultEncodingLimits.MaxArrayLength;
-            m_maxEncodingNestingLevels = DefaultEncodingLimits.MaxEncodingNestingLevels;
-            m_maxDecoderRecoveries = DefaultEncodingLimits.MaxDecoderRecoveries;
+            MaxMessageSize = DefaultEncodingLimits.MaxMessageSize;
+            MaxStringLength = DefaultEncodingLimits.MaxStringLength;
+            MaxByteStringLength = DefaultEncodingLimits.MaxByteStringLength;
+            MaxArrayLength = DefaultEncodingLimits.MaxArrayLength;
+            MaxEncodingNestingLevels = DefaultEncodingLimits.MaxEncodingNestingLevels;
+            MaxDecoderRecoveries = DefaultEncodingLimits.MaxDecoderRecoveries;
 
             // message limits
-            m_maxBufferSize = TcpMessageLimits.DefaultMaxBufferSize;
-            m_operationTimeout = TcpMessageLimits.DefaultOperationTimeout;
-            m_channelLifetime = TcpMessageLimits.DefaultChannelLifetime;
-            m_securityTokenLifetime = TcpMessageLimits.DefaultSecurityTokenLifeTime;
+            MaxBufferSize = TcpMessageLimits.DefaultMaxBufferSize;
+            OperationTimeout = TcpMessageLimits.DefaultOperationTimeout;
+            ChannelLifetime = TcpMessageLimits.DefaultChannelLifetime;
+            SecurityTokenLifetime = TcpMessageLimits.DefaultSecurityTokenLifeTime;
         }
 
         /// <summary>
@@ -345,123 +345,73 @@ namespace Opc.Ua
         /// </summary>
         /// <value>The operation timeout.</value>
         [DataMember(IsRequired = false, Order = 0)]
-        public int OperationTimeout
-        {
-            get { return m_operationTimeout; }
-            set { m_operationTimeout = value; }
-        }
+        public int OperationTimeout { get; set; }
 
         /// <summary>
         /// The maximum length of string encoded in a message body.
         /// </summary>
         /// <value>The max length of the string.</value>
         [DataMember(IsRequired = false, Order = 1)]
-        public int MaxStringLength
-        {
-            get { return m_maxStringLength; }
-            set { m_maxStringLength = value; }
-        }
+        public int MaxStringLength { get; set; }
 
         /// <summary>
         /// The maximum length of a byte string encoded in a message body.
         /// </summary>
         /// <value>The max length of the byte string.</value>
         [DataMember(IsRequired = false, Order = 2)]
-        public int MaxByteStringLength
-        {
-            get { return m_maxByteStringLength; }
-            set { m_maxByteStringLength = value; }
-        }
+        public int MaxByteStringLength { get; set; }
 
         /// <summary>
         /// The maximum length of an array encoded in a message body.
         /// </summary>
         /// <value>The max length of the array.</value>
         [DataMember(IsRequired = false, Order = 3)]
-        public int MaxArrayLength
-        {
-            get { return m_maxArrayLength; }
-            set { m_maxArrayLength = value; }
-        }
+        public int MaxArrayLength { get; set; }
 
         /// <summary>
         /// The maximum length of a message body.
         /// </summary>
         /// <value>The max size of the message.</value>
         [DataMember(IsRequired = false, Order = 4)]
-        public int MaxMessageSize
-        {
-            get { return m_maxMessageSize; }
-            set { m_maxMessageSize = value; }
-        }
+        public int MaxMessageSize { get; set; }
 
         /// <summary>
         /// The maximum size of the buffer to use when sending messages.
         /// </summary>
         /// <value>The max size of the buffer.</value>
         [DataMember(IsRequired = false, Order = 5)]
-        public int MaxBufferSize
-        {
-            get { return m_maxBufferSize; }
-            set { m_maxBufferSize = value; }
-        }
+        public int MaxBufferSize { get; set; }
 
 
         /// <summary>
         /// The maximum nesting level accepted while encoding or decoding objects.
         /// </summary>
         [DataMember(IsRequired = false, Order = 6)]
-        public int MaxEncodingNestingLevels
-        {
-            get { return m_maxEncodingNestingLevels; }
-            set { m_maxEncodingNestingLevels = value; }
-        }
+        public int MaxEncodingNestingLevels { get; set; }
 
         /// <summary>
         /// The number of times the decoder can recover from a decoder error
         /// of an IEncodeable before throwing a decoder error.
         /// </summary>
         [DataMember(IsRequired = false, Order = 7)]
-        public int MaxDecoderRecoveries
-        {
-            get { return m_maxDecoderRecoveries; }
-            set { m_maxDecoderRecoveries = value; }
-        }
+        public int MaxDecoderRecoveries { get; set; }
 
         /// <summary>
         /// The lifetime of a secure channel (in milliseconds).
         /// </summary>
         /// <value>The channel lifetime.</value>
         [DataMember(IsRequired = false, Order = 8)]
-        public int ChannelLifetime
-        {
-            get { return m_channelLifetime; }
-            set { m_channelLifetime = value; }
-        }
+        public int ChannelLifetime { get; set; }
 
         /// <summary>
         /// The lifetime of a security token (in milliseconds).
         /// </summary>
         /// <value>The security token lifetime.</value>
         [DataMember(IsRequired = false, Order = 9)]
-        public int SecurityTokenLifetime
-        {
-            get { return m_securityTokenLifetime; }
-            set { m_securityTokenLifetime = value; }
-        }
-        #endregion
+        public int SecurityTokenLifetime { get; set; }
 
-        #region Private Fields
-        private int m_operationTimeout;
-        private int m_maxStringLength;
-        private int m_maxByteStringLength;
-        private int m_maxArrayLength;
-        private int m_maxMessageSize;
-        private int m_maxBufferSize;
-        private int m_channelLifetime;
-        private int m_securityTokenLifetime;
-        private int m_maxEncodingNestingLevels;
-        private int m_maxDecoderRecoveries;
+#endregion
+#region Private Fields
         #endregion
     }
     #endregion
@@ -579,7 +529,7 @@ namespace Opc.Ua
         /// <param name="type">The type.</param>
         public TransportConfiguration(string urlScheme, Type type)
         {
-            m_uriScheme = urlScheme;
+            UriScheme = urlScheme;
             m_typeName = type.AssemblyQualifiedName;
         }
         #endregion
@@ -590,11 +540,7 @@ namespace Opc.Ua
         /// </summary>
         /// <value>The URI scheme.</value>
         [DataMember(IsRequired = true, EmitDefaultValue = false, Order = 0)]
-        public string UriScheme
-        {
-            get { return m_uriScheme; }
-            set { m_uriScheme = value; }
-        }
+        public string UriScheme { get; set; }
 
         /// <summary>
         /// The name of the class that defines the binding for the transport.
@@ -614,10 +560,9 @@ namespace Opc.Ua
             get { return m_typeName; }
             set { m_typeName = value; }
         }
-        #endregion
 
-        #region Private Fields
-        private string m_uriScheme;
+#endregion
+#region Private Fields
         private string m_typeName;
         #endregion
     }
@@ -673,7 +618,7 @@ namespace Opc.Ua
         /// </summary>
         private void Initialize()
         {
-            m_securityMode = MessageSecurityMode.SignAndEncrypt;
+            SecurityMode = MessageSecurityMode.SignAndEncrypt;
             m_securityPolicyUri = SecurityPolicies.Basic256Sha256;
         }
 
@@ -701,11 +646,7 @@ namespace Opc.Ua
         /// </summary>
         /// <value>The security mode.</value>
         [DataMember(IsRequired = false, Order = 1)]
-        public MessageSecurityMode SecurityMode
-        {
-            get { return m_securityMode; }
-            set { m_securityMode = value; }
-        }
+        public MessageSecurityMode SecurityMode { get; set; }
 
         /// <summary>
         /// The security policy to use.
@@ -717,10 +658,9 @@ namespace Opc.Ua
             get { return m_securityPolicyUri; }
             set { m_securityPolicyUri = value; }
         }
-        #endregion
 
-        #region Private Members
-        private MessageSecurityMode m_securityMode;
+#endregion
+#region Private Members
         private string m_securityPolicyUri;
         #endregion
     }
@@ -1075,12 +1015,7 @@ namespace Opc.Ua
 
             set
             {
-                m_userIssuerCertificates = value;
-
-                if (m_userIssuerCertificates == null)
-                {
-                    m_userIssuerCertificates = new CertificateTrustList();
-                }
+                m_userIssuerCertificates = value ?? new CertificateTrustList();
             }
         }
 
@@ -1097,12 +1032,7 @@ namespace Opc.Ua
 
             set
             {
-                m_trustedUserCertificates = value;
-
-                if (m_trustedUserCertificates == null)
-                {
-                    m_trustedUserCertificates = new CertificateTrustList();
-                }
+                m_trustedUserCertificates = value ?? new CertificateTrustList();
             }
         }
 
@@ -1119,12 +1049,7 @@ namespace Opc.Ua
 
             set
             {
-                m_httpsIssuerCertificates = value;
-
-                if (m_httpsIssuerCertificates == null)
-                {
-                    m_httpsIssuerCertificates = new CertificateTrustList();
-                }
+                m_httpsIssuerCertificates = value ?? new CertificateTrustList();
             }
         }
 
@@ -1141,12 +1066,7 @@ namespace Opc.Ua
 
             set
             {
-                m_trustedHttpsCertificates = value;
-
-                if (m_trustedHttpsCertificates == null)
-                {
-                    m_trustedHttpsCertificates = new CertificateTrustList();
-                }
+                m_trustedHttpsCertificates = value ?? new CertificateTrustList();
             }
         }
 
@@ -1230,7 +1150,7 @@ namespace Opc.Ua
         /// <param name="count">The count.</param>
         public SamplingRateGroup(int start, int increment, int count)
         {
-            m_start = start;
+            Start = start;
             m_increment = increment;
             m_count = count;
         }
@@ -1240,7 +1160,7 @@ namespace Opc.Ua
         /// </summary>
         private void Initialize()
         {
-            m_start = 1000;
+            Start = 1000;
             m_increment = 0;
             m_count = 0;
         }
@@ -1259,11 +1179,7 @@ namespace Opc.Ua
         /// </summary>
         /// <value>The first sampling rate in the group (in milliseconds).</value>
         [DataMember(IsRequired = false, Order = 1)]
-        public double Start
-        {
-            get { return m_start; }
-            set { m_start = value; }
-        }
+        public double Start { get; set; }
 
         /// <summary>
         /// The increment between sampling rates in the group (in milliseconds).
@@ -1292,10 +1208,9 @@ namespace Opc.Ua
             get { return m_count; }
             set { m_count = value; }
         }
-        #endregion
 
-        #region Private Members
-        private double m_start;
+#endregion
+#region Private Members
         private double m_increment;
         private int m_count;
         #endregion
@@ -1435,12 +1350,7 @@ namespace Opc.Ua
 
             set
             {
-                m_baseAddresses = value;
-
-                if (m_baseAddresses == null)
-                {
-                    m_baseAddresses = new StringCollection();
-                }
+                m_baseAddresses = value ?? new StringCollection();
             }
         }
 
@@ -1464,12 +1374,7 @@ namespace Opc.Ua
 
             set
             {
-                m_alternateBaseAddresses = value;
-
-                if (m_alternateBaseAddresses == null)
-                {
-                    m_alternateBaseAddresses = new StringCollection();
-                }
+                m_alternateBaseAddresses = value ?? new StringCollection();
             }
         }
 
@@ -1490,12 +1395,7 @@ namespace Opc.Ua
 
             set
             {
-                m_securityPolicies = value;
-
-                if (m_securityPolicies == null)
-                {
-                    m_securityPolicies = new ServerSecurityPolicyCollection();
-                }
+                m_securityPolicies = value ?? new ServerSecurityPolicyCollection();
             }
         }
 
@@ -1628,12 +1528,7 @@ namespace Opc.Ua
 
             set
             {
-                m_userTokenPolicies = value;
-
-                if (m_userTokenPolicies == null)
-                {
-                    m_userTokenPolicies = new UserTokenPolicyCollection();
-                }
+                m_userTokenPolicies = value ?? new UserTokenPolicyCollection();
             }
         }
 
@@ -1926,11 +1821,7 @@ namespace Opc.Ua
             get { return m_serverProfileArray; }
             set
             {
-                m_serverProfileArray = value;
-                if (m_serverProfileArray == null)
-                {
-                    m_serverProfileArray = new StringCollection();
-                }
+                m_serverProfileArray = value ?? new StringCollection();
             }
         }
 
@@ -1960,11 +1851,7 @@ namespace Opc.Ua
             get { return m_serverCapabilities; }
             set
             {
-                m_serverCapabilities = value;
-                if (m_serverCapabilities == null)
-                {
-                    m_serverCapabilities = new StringCollection();
-                }
+                m_serverCapabilities = value ?? new StringCollection();
             }
         }
 
@@ -1978,11 +1865,7 @@ namespace Opc.Ua
             get { return m_supportedPrivateKeyFormats; }
             set
             {
-                m_supportedPrivateKeyFormats = value;
-                if (m_supportedPrivateKeyFormats == null)
-                {
-                    m_supportedPrivateKeyFormats = new StringCollection();
-                }
+                m_supportedPrivateKeyFormats = value ?? new StringCollection();
             }
         }
 
@@ -2476,12 +2359,7 @@ namespace Opc.Ua
 
             set
             {
-                m_wellKnownDiscoveryUrls = value;
-
-                if (m_wellKnownDiscoveryUrls == null)
-                {
-                    m_wellKnownDiscoveryUrls = new StringCollection();
-                }
+                m_wellKnownDiscoveryUrls = value ?? new StringCollection();
             }
         }
 
@@ -2499,12 +2377,7 @@ namespace Opc.Ua
 
             set
             {
-                m_discoveryServers = value;
-
-                if (m_discoveryServers == null)
-                {
-                    m_discoveryServers = new EndpointDescriptionCollection();
-                }
+                m_discoveryServers = value ?? new EndpointDescriptionCollection();
             }
         }
 
@@ -2580,19 +2453,19 @@ namespace Opc.Ua
         /// </summary>
         public ReverseConnectClientConfiguration()
         {
-            Initialize();
+            ReverseConnectClientConfiguration.Initialize();
         }
 
         /// <summary>
         /// Initializes the object during deserialization.
         /// </summary>
         [OnDeserializing]
-        private void Initialize(StreamingContext context) => Initialize();
+        private void Initialize(StreamingContext context) => ReverseConnectClientConfiguration.Initialize();
 
         /// <summary>
         /// Sets private members to default values.
         /// </summary>
-        private void Initialize()
+        private static void Initialize()
         {
         }
         #endregion
@@ -2633,19 +2506,19 @@ namespace Opc.Ua
         /// </summary>
         public ReverseConnectClientEndpoint()
         {
-            Initialize();
+            ReverseConnectClientEndpoint.Initialize();
         }
 
         /// <summary>
         /// Initializes the object during deserialization.
         /// </summary>
         [OnDeserializing]
-        private void Initialize(StreamingContext context) => Initialize();
+        private void Initialize(StreamingContext context) => ReverseConnectClientEndpoint.Initialize();
 
         /// <summary>
         /// Sets private members to default values.
         /// </summary>
-        private void Initialize()
+        private static void Initialize()
         {
         }
         #endregion
@@ -2739,12 +2612,7 @@ namespace Opc.Ua
 
             set
             {
-                m_serverNames = value;
-
-                if (m_serverNames == null)
-                {
-                    m_serverNames = new LocalizedTextCollection();
-                }
+                m_serverNames = value ?? new LocalizedTextCollection();
             }
         }
 
@@ -2753,11 +2621,7 @@ namespace Opc.Ua
         /// </summary>
         /// <value>The discovery server cache file.</value>
         [DataMember(IsRequired = false, Order = 3)]
-        public string DiscoveryServerCacheFile
-        {
-            get { return m_discoveryServerCacheFile; }
-            set { m_discoveryServerCacheFile = value; }
-        }
+        public string DiscoveryServerCacheFile { get; set; }
 
         /// <summary>
         /// Gets or sets the server registrations associated with the discovery server.
@@ -2773,7 +2637,6 @@ namespace Opc.Ua
 
         #region Private Members
         private LocalizedTextCollection m_serverNames;
-        private string m_discoveryServerCacheFile;
         private ServerRegistrationCollection m_serverRegistrations;
         #endregion
     }
@@ -2800,7 +2663,7 @@ namespace Opc.Ua
         /// </summary>
         private void Initialize()
         {
-            m_applicationUri = null;
+            ApplicationUri = null;
             m_alternateDiscoveryUrls = new StringCollection();
         }
 
@@ -2818,18 +2681,7 @@ namespace Opc.Ua
         /// </summary>
         /// <value>The application uri.</value>
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 1)]
-        public string ApplicationUri
-        {
-            get
-            {
-                return m_applicationUri;
-            }
-
-            set
-            {
-                m_applicationUri = value;
-            }
-        }
+        public string ApplicationUri { get; set; }
 
         /// <summary>
         /// Gets or sets the alternate discovery urls.
@@ -2855,18 +2707,12 @@ namespace Opc.Ua
 
             set
             {
-                m_alternateDiscoveryUrls = value;
-
-                if (m_alternateDiscoveryUrls == null)
-                {
-                    m_alternateDiscoveryUrls = new StringCollection();
-                }
+                m_alternateDiscoveryUrls = value ?? new StringCollection();
             }
         }
-        #endregion
 
-        #region Private Members
-        private string m_applicationUri;
+#endregion
+#region Private Members
         private StringCollection m_alternateDiscoveryUrls;
         #endregion
     }
@@ -3025,12 +2871,7 @@ namespace Opc.Ua
 
             set
             {
-                m_trustedCertificates = value;
-
-                if (m_trustedCertificates == null)
-                {
-                    m_trustedCertificates = new CertificateIdentifierCollection();
-                }
+                m_trustedCertificates = value ?? new CertificateIdentifierCollection();
             }
         }
         #endregion
@@ -3073,7 +2914,7 @@ namespace Opc.Ua
         /// </summary>
         public CertificateIdentifier()
         {
-            Initialize();
+            CertificateIdentifier.Initialize();
         }
 
         /// <summary>
@@ -3081,7 +2922,7 @@ namespace Opc.Ua
         /// </summary>
         public CertificateIdentifier(X509Certificate2 certificate)
         {
-            Initialize();
+            CertificateIdentifier.Initialize();
             Certificate = certificate;
         }
 
@@ -3090,7 +2931,7 @@ namespace Opc.Ua
         /// </summary>
         public CertificateIdentifier(X509Certificate2 certificate, CertificateValidationOptions validationOptions)
         {
-            Initialize();
+            CertificateIdentifier.Initialize();
             Certificate = certificate;
             m_validationOptions = validationOptions;
         }
@@ -3101,14 +2942,14 @@ namespace Opc.Ua
         /// </summary>
         public CertificateIdentifier(byte[] rawData)
         {
-            Initialize();
+            CertificateIdentifier.Initialize();
             Certificate = CertificateFactory.Create(rawData, true);
         }
 
         /// <summary>
         /// Sets private members to default values.
         /// </summary>
-        private void Initialize()
+        private static void Initialize()
         {
         }
 
@@ -3116,7 +2957,7 @@ namespace Opc.Ua
         /// Initializes the object during deserialization.
         /// </summary>
         [OnDeserializing()]
-        public void Initialize(StreamingContext context) => Initialize();
+        public void Initialize(StreamingContext context) => CertificateIdentifier.Initialize();
         #endregion
 
         #region Public Properties
@@ -3689,7 +3530,7 @@ namespace Opc.Ua
         /// </summary>
         private void Initialize()
         {
-            m_enabled = false;
+            Enabled = false;
             m_serverUri = null;
             m_thumbprint = null;
         }
@@ -3700,11 +3541,7 @@ namespace Opc.Ua
         /// Whether reverse connect is enabled for the endpoint.
         /// </summary>
         [DataMember(Name = "Enabled", Order = 1, IsRequired = false)]
-        public bool Enabled
-        {
-            get { return m_enabled; }
-            set { m_enabled = value; }
-        }
+        public bool Enabled { get; set; }
 
         /// <summary>
         /// The server Uri of the endpoint.
@@ -3726,10 +3563,9 @@ namespace Opc.Ua
             get { return m_thumbprint; }
             set { m_thumbprint = value; }
         }
-        #endregion
 
-        #region Private Fields
-        private bool m_enabled;
+#endregion
+#region Private Fields
         private string m_serverUri;
         private string m_thumbprint;
         #endregion

@@ -123,12 +123,8 @@ namespace Opc.Ua.Security.Certificates
                     }
                 }
             }
-            catch (Exception)
+            catch (Exception) when (!throwOnError)
             {
-                if (throwOnError)
-                {
-                    throw;
-                }
             }
 
             if (!result && throwOnError)

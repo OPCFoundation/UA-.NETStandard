@@ -475,7 +475,7 @@ namespace Opc.Ua.Security.Certificates
             }
 
             if (IssuerCAKeyCert != null &&
-                (!IssuerCAKeyCert.HasPrivateKey && signatureFactory == null))
+                !IssuerCAKeyCert.HasPrivateKey && signatureFactory == null)
             {
                 throw new NotSupportedException("Need an issuer certificate with a private key or a signature generator.");
             }

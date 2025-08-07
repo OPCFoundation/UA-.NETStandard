@@ -176,7 +176,7 @@ namespace Opc.Ua.Gds.Tests
             string localhost = Regex.Replace(m_dataGenerator.GetRandomSymbol("en").Trim().ToLower(), @"[^\w\d]", "");
             if (localhost.Length >= 12)
             {
-                localhost = localhost.Substring(0, 12);
+                localhost = localhost[..12];
             }
             return localhost;
         }
@@ -200,15 +200,15 @@ namespace Opc.Ua.Gds.Tests
                 int random = m_randomSource.NextInt32(7);
                 if ((result.Count == 0) || (random & 1) == 0)
                 {
-                    result.Add(Utils.Format("opc.tcp://{0}:{1}/{2}", name, (port++).ToString(CultureInfo.InvariantCulture), appUri));
+                    result.Add(Utils.Format("opc.tcp://{0}:{1}/{2}", name, port++.ToString(CultureInfo.InvariantCulture), appUri));
                 }
                 if ((random & 2) == 0)
                 {
-                    result.Add(Utils.Format("http://{0}:{1}/{2}", name, (port++).ToString(CultureInfo.InvariantCulture), appUri));
+                    result.Add(Utils.Format("http://{0}:{1}/{2}", name, port++.ToString(CultureInfo.InvariantCulture), appUri));
                 }
                 if ((random & 4) == 0)
                 {
-                    result.Add(Utils.Format("opc.https://{0}:{1}/{2}", name, (port++).ToString(CultureInfo.InvariantCulture), appUri));
+                    result.Add(Utils.Format("opc.https://{0}:{1}/{2}", name, port++.ToString(CultureInfo.InvariantCulture), appUri));
                 }
             }
             return result;

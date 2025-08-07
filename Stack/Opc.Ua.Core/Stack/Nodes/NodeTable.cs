@@ -105,8 +105,8 @@ namespace Opc.Ua
             StringTable serverUris,
             TypeTable typeTree)
         {
-            m_namespaceUris = namespaceUris;
-            m_serverUris = serverUris;
+            NamespaceUris = namespaceUris;
+            ServerUris = serverUris;
             m_typeTree = typeTree;
             m_localNodes = new NodeIdDictionary<ILocalNode>();
             m_remoteNodes = new SortedDictionary<ExpandedNodeId, RemoteNode>();
@@ -115,16 +115,10 @@ namespace Opc.Ua
 
         #region INodeTable Methods
         /// <inheritdoc/>
-        public NamespaceTable NamespaceUris
-        {
-            get { return m_namespaceUris; }
-        }
+        public NamespaceTable NamespaceUris { get; }
 
         /// <inheritdoc/>
-        public StringTable ServerUris
-        {
-            get { return m_serverUris; }
-        }
+        public StringTable ServerUris { get; }
 
         /// <inheritdoc/>
         public ITypeTable TypeTree
@@ -162,7 +156,7 @@ namespace Opc.Ua
 
 
             // can't follow references for remote nodes.
-            if (!(source is ILocalNode sourceNode))
+            if (source is not ILocalNode sourceNode)
             {
                 return null;
             }
@@ -219,7 +213,7 @@ namespace Opc.Ua
 
 
             // can't follow references for remote nodes.
-            if (!(source is ILocalNode sourceNode))
+            if (source is not ILocalNode sourceNode)
             {
                 return nodes;
             }
@@ -322,7 +316,7 @@ namespace Opc.Ua
                     continue;
                 }
 
-                Node node = nodeSet.Copy(nodeToImport, m_namespaceUris, m_serverUris);
+                Node node = nodeSet.Copy(nodeToImport, NamespaceUris, ServerUris);
 
                 // assign a browse name.
                 if (QualifiedName.IsNull(node.BrowseName))
@@ -399,7 +393,7 @@ namespace Opc.Ua
                         // return the reverse reference to a node outside the table.
                         if (externalReferences != null)
                         {
-                            var targetId = ExpandedNodeId.ToNodeId(reference.TargetId, m_namespaceUris);
+                            var targetId = ExpandedNodeId.ToNodeId(reference.TargetId, NamespaceUris);
 
                             if (targetId == null)
                             {
@@ -465,7 +459,7 @@ namespace Opc.Ua
                 {
                     var node = new Node();
 
-                    node.NodeId = ExpandedNodeId.ToNodeId(reference.NodeId, m_namespaceUris);
+                    node.NodeId = ExpandedNodeId.ToNodeId(reference.NodeId, NamespaceUris);
 
                     InternalAdd(node);
                     target = node;
@@ -593,7 +587,7 @@ namespace Opc.Ua
 
 
             // can only directly remove local nodes.
-            if (!(source is ILocalNode sourceNode))
+            if (source is not ILocalNode sourceNode)
             {
                 return false;
             }
@@ -727,7 +721,7 @@ namespace Opc.Ua
 
 
             // convert to locale node id.
-            var localId = ExpandedNodeId.ToNodeId(nodeId, m_namespaceUris);
+            var localId = ExpandedNodeId.ToNodeId(nodeId, NamespaceUris);
 
             if (localId == null)
             {
@@ -760,12 +754,12 @@ namespace Opc.Ua
             /// <param name="nodeId">The node identifier.</param>
             public RemoteNode(INodeTable owner, ExpandedNodeId nodeId)
             {
-                m_nodeId = nodeId;
+                NodeId = nodeId;
                 m_refs = 0;
                 m_nodeClass = NodeClass.Unspecified;
                 m_browseName = new QualifiedName("(Unknown)");
                 m_displayName = new LocalizedText(m_browseName.Name);
-                m_typeDefinitionId = null;
+                TypeDefinitionId = null;
             }
 
             /// <summary>
@@ -795,11 +789,7 @@ namespace Opc.Ua
             /// The cached type definition id for the remote node.
             /// </summary>
             /// <value>The type definition identifier.</value>
-            public ExpandedNodeId TypeDefinitionId
-            {
-                get { return m_typeDefinitionId; }
-                internal set { m_typeDefinitionId = value; }
-            }
+            public ExpandedNodeId TypeDefinitionId { get; internal set; }
             #endregion
 
             #region INode Members
@@ -807,10 +797,7 @@ namespace Opc.Ua
             /// The node identifier.
             /// </summary>
             /// <value>The node identifier.</value>
-            public ExpandedNodeId NodeId
-            {
-                get { return m_nodeId; }
-            }
+            public ExpandedNodeId NodeId { get; }
 
             /// <summary>
             /// The node class.
@@ -841,14 +828,12 @@ namespace Opc.Ua
                 get { return m_displayName; }
                 internal set { m_displayName = value; }
             }
-            #endregion
 
-            #region Private Fields
-            private readonly ExpandedNodeId m_nodeId;
+#endregion
+#region Private Fields
             private NodeClass m_nodeClass;
             private QualifiedName m_browseName;
             private LocalizedText m_displayName;
-            private ExpandedNodeId m_typeDefinitionId;
             private int m_refs;
             #endregion
         }
@@ -857,8 +842,6 @@ namespace Opc.Ua
         #region Private Fields
         private readonly NodeIdDictionary<ILocalNode> m_localNodes;
         private readonly SortedDictionary<ExpandedNodeId, RemoteNode> m_remoteNodes;
-        private readonly NamespaceTable m_namespaceUris;
-        private readonly StringTable m_serverUris;
         private readonly TypeTable m_typeTree;
         #endregion
     }

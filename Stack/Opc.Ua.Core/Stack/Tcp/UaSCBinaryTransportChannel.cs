@@ -114,11 +114,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Gets or sets the default timeout for requests send via the channel.
         /// </summary>
-        public int OperationTimeout
-        {
-            get { return m_operationTimeout; }
-            set { m_operationTimeout = value; }
-        }
+        public int OperationTimeout { get; set; }
 
         /// <summary>
         /// Initializes a secure channel with the endpoint identified by the URL.
@@ -175,7 +171,7 @@ namespace Opc.Ua.Bindings
                 Interlocked.Exchange(ref m_channel, CreateChannel(null));
 
                 // begin connect operation.
-                return m_channel.BeginConnect(this.m_url, m_operationTimeout, callback, callbackData);
+                return m_channel.BeginConnect(this.m_url, OperationTimeout, callback, callbackData);
             }
         }
 
@@ -224,7 +220,7 @@ namespace Opc.Ua.Bindings
                     Interlocked.Exchange(ref m_channel, CreateChannel(connection));
 
                     // begin connect operation.
-                    IAsyncResult result = m_channel.BeginConnect(m_url, m_operationTimeout, null, null);
+                    IAsyncResult result = m_channel.BeginConnect(m_url, OperationTimeout, null, null);
                     m_channel.EndConnect(result);
                 }
                 finally
@@ -377,7 +373,7 @@ namespace Opc.Ua.Bindings
                 }
             }
 
-            return channel.BeginSendRequest(request, m_operationTimeout, callback, callbackData);
+            return channel.BeginSendRequest(request, OperationTimeout, callback, callbackData);
         }
 
         /// <summary>
@@ -429,7 +425,7 @@ namespace Opc.Ua.Bindings
             // save the settings.
             m_url = url;
             m_settings = settings;
-            m_operationTimeout = settings.Configuration.OperationTimeout;
+            OperationTimeout = settings.Configuration.OperationTimeout;
 
             // initialize the quotas.
             EndpointConfiguration configuration = m_settings.Configuration;
@@ -502,7 +498,6 @@ namespace Opc.Ua.Bindings
         #region Private Fields
         private readonly object m_lock = new object();
         private Uri m_url;
-        private int m_operationTimeout;
         private TransportChannelSettings m_settings;
         private ChannelQuotas m_quotas;
         private BufferManager m_bufferManager;

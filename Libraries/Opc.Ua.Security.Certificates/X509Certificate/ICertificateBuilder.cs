@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -42,8 +42,7 @@ namespace Opc.Ua.Security.Certificates
         , ICertificateBuilderSetIssuer
         , ICertificateBuilderParameter
         , ICertificateBuilderCreateForRSA
-        , IX509Certificate
-    { }
+        , IX509Certificate;
 
     /// <summary>
     /// The interface to set an issuer.
@@ -52,8 +51,7 @@ namespace Opc.Ua.Security.Certificates
         : ICertificateBuilderPublicKey
         , ICertificateBuilderCreateForRSA
         , ICertificateBuilderParameter
-        , ICertificateBuilderCreateGenerator
-    { }
+        , ICertificateBuilderCreateGenerator;
 
     /// <summary>
     /// The interface to set a public key.
@@ -63,7 +61,8 @@ namespace Opc.Ua.Security.Certificates
 #if ECC_SUPPORT
         , ICertificateBuilderECDsaPublicKey
 #endif
-    { }
+        ;
+
 
     /// <summary>
     /// The interface to set key parameters.
@@ -73,7 +72,8 @@ namespace Opc.Ua.Security.Certificates
 #if ECC_SUPPORT
         , ICertificateBuilderECCParameter
 #endif
-    { }
+        ;
+
 
     /// <summary>
     /// The interface to create a certificate.
@@ -83,7 +83,8 @@ namespace Opc.Ua.Security.Certificates
 #if ECC_SUPPORT
         , ICertificateBuilderCreateForECDsa
 #endif
-    { }
+        ;
+
 
     /// <summary>
     /// The interface to use a signature generator.
@@ -93,15 +94,15 @@ namespace Opc.Ua.Security.Certificates
 #if ECC_SUPPORT
         , ICertificateBuilderCreateForECDsaGenerator
 #endif
-    { }
+        ;
+
 
     /// <summary>
     /// The interface to create a RSA based certificate.
     /// </summary>
     public interface ICertificateBuilderCreateForRSAAny
         : ICertificateBuilderCreateForRSA
-        , ICertificateBuilderCreateForRSAGenerator
-    { }
+        , ICertificateBuilderCreateForRSAGenerator;
 
 #if ECC_SUPPORT
     /// <summary>
@@ -109,8 +110,7 @@ namespace Opc.Ua.Security.Certificates
     /// </summary>
     public interface ICertificateBuilderCreateForECDsaAny
         : ICertificateBuilderCreateForECDsa
-        , ICertificateBuilderCreateForECDsaGenerator
-    { }
+        , ICertificateBuilderCreateForECDsaGenerator;
 #endif
 
     /// <summary>

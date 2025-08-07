@@ -153,7 +153,7 @@ namespace Opc.Ua.Server
 
             if (usePercent)
             {
-                duration = (duration / total) * 100;
+                duration = duration / total * 100;
             }
 
             // set the timestamp and status.

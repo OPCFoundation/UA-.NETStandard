@@ -50,7 +50,7 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// The encoded signature algorithm that was used for signing.
         /// </summary>
-        public byte[] SignatureAlgorithmIdentifier { get; private set; }
+        public byte[] SignatureAlgorithmIdentifier { get; }
         /// <summary>
         /// The signature algorithm as Oid string.
         /// </summary>
@@ -234,28 +234,6 @@ namespace Opc.Ua.Security.Certificates
         }
 
         /// <summary>
-        /// Encode a ECDSA signature as ASN.1.
-        /// </summary>
-        /// <param name="signature">The signature to encode as ASN.1</param>
-        private static byte[] EncodeECDsa(byte[] signature)
-        {
-            // Encode from IEEE signature format to ASN1 DER encoded 
-            // signature format for ecdsa certificates.
-            // ECDSA-Sig-Value ::= SEQUENCE { r INTEGER, s INTEGER }
-            var writer = new AsnWriter(AsnEncodingRules.DER);
-            Asn1Tag tag = Asn1Tag.Sequence;
-            writer.PushSequence(tag);
-
-            int segmentLength = signature.Length / 2;
-            writer.WriteIntegerUnsigned(new ReadOnlySpan<byte>(signature, 0, segmentLength));
-            writer.WriteIntegerUnsigned(new ReadOnlySpan<byte>(signature, segmentLength, segmentLength));
-
-            writer.PopSequence(tag);
-
-            return writer.Encode();
-        }
-
-        /// <summary>
         /// Decode a ECDSA signature from ASN.1.
         /// </summary>
         /// <param name="signature">The signature to decode from ASN.1</param>
@@ -271,16 +249,16 @@ namespace Opc.Ua.Security.Certificates
             keySize >>= 3;
             if (r.Span[0] == 0 && r.Length > keySize)
             {
-                r = r.Slice(1);
+                r = r[1..];
             }
             if (s.Span[0] == 0 && s.Length > keySize)
             {
-                s = s.Slice(1);
+                s = s[1..];
             }
             byte[] result = new byte[2 * keySize];
             int offset = keySize - r.Length;
             r.CopyTo(new Memory<byte>(result, offset, r.Length));
-            offset = 2 * keySize - s.Length;
+            offset = (2 * keySize) - s.Length;
             s.CopyTo(new Memory<byte>(result, offset, s.Length));
             return result;
         }

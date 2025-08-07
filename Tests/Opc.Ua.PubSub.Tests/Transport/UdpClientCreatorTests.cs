@@ -62,7 +62,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             {
                 m_urlHostName = localhost.Address.ToString();
             }
-            m_defaultUrl = string.Concat(m_urlScheme, m_urlHostName, ":", kDiscoveryPortNo);
+            m_defaultUrl = $"{m_urlScheme}{m_urlHostName}:{kDiscoveryPortNo}";
         }
 
         [Test(Description = "Validate url value")]
@@ -78,7 +78,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
         [Test(Description = "Invalidate url Scheme value")]
         public void InvalidateUdpClientCreatorUrlScheme()
         {
-            IPEndPoint ipEndPoint = UdpClientCreator.GetEndPoint(string.Concat(Utils.UriSchemeOpcUdp, ":", m_urlHostName, ":", kDiscoveryPortNo));
+            IPEndPoint ipEndPoint = UdpClientCreator.GetEndPoint($"{Utils.UriSchemeOpcUdp}:{m_urlHostName}:{kDiscoveryPortNo}");
             Assert.IsNull(ipEndPoint, "Url scheme is not corect!");
         }
 
@@ -91,14 +91,14 @@ namespace Opc.Ua.PubSub.Tests.Transport
             {
                 urlHostNameChanged = localhostIP;
             }
-            IPEndPoint ipEndPoint = UdpClientCreator.GetEndPoint(string.Concat(m_urlScheme, urlHostNameChanged, ":", kDiscoveryPortNo));
+            IPEndPoint ipEndPoint = UdpClientCreator.GetEndPoint($"{m_urlScheme}{urlHostNameChanged}:{kDiscoveryPortNo}");
             Assert.IsNull(ipEndPoint, "Url hostname is not corect!");
         }
 
         [Test(Description = "Invalidate url Port number value")]
         public void InvalidateUdpClientCreatorUrlPort()
         {
-            IPEndPoint ipEndPoint = UdpClientCreator.GetEndPoint(string.Concat(m_urlScheme, m_urlHostName, ":", "0"));
+            IPEndPoint ipEndPoint = UdpClientCreator.GetEndPoint($"{m_urlScheme}{m_urlHostName}: 0");
             Assert.IsNull(ipEndPoint, "Url port number is wrong");
         }
 
@@ -111,7 +111,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             {
                 urlHostNameChanged = localhostIP;
             }
-            string address = string.Concat(m_urlScheme, urlHostNameChanged, ":", kDiscoveryPortNo);
+            string address = $"{m_urlScheme}{urlHostNameChanged}:{kDiscoveryPortNo}";
             IPEndPoint ipEndPoint = UdpClientCreator.GetEndPoint(address);
             Assert.IsNotNull(ipEndPoint, $"Url hostname({address}) is not correct!");
         }
@@ -125,7 +125,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 Assert.Ignore("Skip UdpClientCreatorUrl test on mac OS.");
             }
 
-            IPEndPoint ipEndPoint = UdpClientCreator.GetEndPoint(string.Concat(m_urlScheme, Environment.MachineName, ":", kDiscoveryPortNo));
+            IPEndPoint ipEndPoint = UdpClientCreator.GetEndPoint($"{m_urlScheme}{Environment.MachineName}:{kDiscoveryPortNo}");
             Assert.IsNotNull(ipEndPoint, "Url hostname is not corect!");
         }
 

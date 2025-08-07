@@ -103,7 +103,7 @@ namespace Opc.Ua.Client
                     {
                         try
                         {
-                            displayName = displayName.Substring(0, index);
+                            displayName = displayName[..index];
                         }
                         catch
                         {

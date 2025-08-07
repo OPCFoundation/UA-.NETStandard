@@ -66,7 +66,7 @@ namespace Opc.Ua.Client
         /// </summary>
         IList<Node> FetchNodes(IList<ExpandedNodeId> nodeIds);
 
-#if (CLIENT_ASYNC)
+#if CLIENT_ASYNC
         /// <summary>
         /// Finds a set of nodes in the nodeset,
         /// fetches missing nodes from server.
@@ -119,7 +119,7 @@ namespace Opc.Ua.Client
         /// </summary>
         IList<INode> FindReferences(IList<ExpandedNodeId> nodeIds, IList<NodeId> referenceTypeIds, bool isInverse, bool includeSubtypes);
 
-#if (CLIENT_ASYNC)
+#if CLIENT_ASYNC
         /// <summary>
         /// Returns the references of the specified node that meet the criteria specified.
         /// </summary>

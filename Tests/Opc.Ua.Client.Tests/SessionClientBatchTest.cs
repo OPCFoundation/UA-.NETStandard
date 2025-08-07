@@ -150,7 +150,7 @@ namespace Opc.Ua.Client.Tests
             Assert.AreEqual((StatusCode)StatusCodes.BadServiceUnsupported, (StatusCode)sre.StatusCode);
         }
 
-#if (CLIENT_ASYNC)
+#if CLIENT_ASYNC
         [Test]
         public void AddNodesAsync()
         {
@@ -203,7 +203,7 @@ namespace Opc.Ua.Client.Tests
             Assert.AreEqual((StatusCode)StatusCodes.BadServiceUnsupported, (StatusCode)sre.StatusCode);
         }
 
-#if (CLIENT_ASYNC)
+#if CLIENT_ASYNC
         [Test]
         public void AddReferencesAsync()
         {
@@ -256,7 +256,7 @@ namespace Opc.Ua.Client.Tests
             Assert.AreEqual((StatusCode)StatusCodes.BadServiceUnsupported, (StatusCode)sre.StatusCode);
         }
 
-#if (CLIENT_ASYNC)
+#if CLIENT_ASYNC
         [Test]
         public void DeleteNodesAsync()
         {
@@ -309,7 +309,7 @@ namespace Opc.Ua.Client.Tests
             Assert.AreEqual((StatusCode)StatusCodes.BadServiceUnsupported, (StatusCode)sre.StatusCode);
         }
 
-#if (CLIENT_ASYNC)
+#if CLIENT_ASYNC
         [Test]
         public void DeleteReferencesAsync()
         {
@@ -399,7 +399,7 @@ namespace Opc.Ua.Client.Tests
                 browseDescriptionCollection = ServerFixtureUtils.CreateBrowseDescriptionCollectionFromNodeId(browseTable, browseTemplate);
             }
 
-            referenceDescriptions.Sort((x, y) => (x.NodeId.CompareTo(y.NodeId)));
+            referenceDescriptions.Sort((x, y) => x.NodeId.CompareTo(y.NodeId));
 
             // read values
             var nodesToRead = new ReadValueIdCollection(referenceDescriptions.Select(r =>
@@ -444,7 +444,7 @@ namespace Opc.Ua.Client.Tests
             }
         }
 
-#if (CLIENT_ASYNC)
+#if CLIENT_ASYNC
         [Test]
         public async Task BrowseAsync()
         {
@@ -505,7 +505,7 @@ namespace Opc.Ua.Client.Tests
                 browseDescriptionCollection = ServerFixtureUtils.CreateBrowseDescriptionCollectionFromNodeId(browseTable, browseTemplate);
             }
 
-            referenceDescriptions.Sort((x, y) => (x.NodeId.CompareTo(y.NodeId)));
+            referenceDescriptions.Sort((x, y) => x.NodeId.CompareTo(y.NodeId));
 
             // read values
             var nodesToRead = new ReadValueIdCollection(referenceDescriptions.Select(r =>
@@ -578,7 +578,7 @@ namespace Opc.Ua.Client.Tests
             Assert.NotNull(responseHeader);
         }
 
-#if (CLIENT_ASYNC)
+#if CLIENT_ASYNC
         [Test]
         public async Task TranslateBrowsePathsToNodeIdsAsync()
         {

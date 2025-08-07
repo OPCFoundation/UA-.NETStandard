@@ -15,7 +15,7 @@ using System.Collections.Generic;
 
 namespace Opc.Ua
 {
-    /// <summary> 
+    /// <summary>
     /// The base class for all reference type nodes.
     /// </summary>
     public class ReferenceTypeState : BaseTypeState

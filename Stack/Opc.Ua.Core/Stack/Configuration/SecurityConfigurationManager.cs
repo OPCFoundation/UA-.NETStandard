@@ -57,14 +57,9 @@ namespace Opc.Ua.Security
                 {
                     var file = new FileInfo(filePath);
                     string sectionName = file.Name;
-                    sectionName = sectionName.Substring(0, sectionName.Length - file.Extension.Length);
+                    sectionName = sectionName[..^file.Extension.Length];
 
-                    configFilePath = ApplicationConfiguration.GetFilePathFromAppConfig(sectionName);
-
-                    if (configFilePath == null)
-                    {
-                        configFilePath = filePath + ".config";
-                    }
+                    configFilePath = ApplicationConfiguration.GetFilePathFromAppConfig(sectionName) ?? filePath + ".config";
                 }
                 catch (Exception e)
                 {
@@ -224,7 +219,7 @@ namespace Opc.Ua.Security
         /// <param name="localName">Name of the local.</param>
         /// <param name="namespaceUri">The namespace URI.</param>
         /// <returns></returns>
-        private XmlElement Find(XmlNode parent, string localName, string namespaceUri)
+        private static XmlElement Find(XmlNode parent, string localName, string namespaceUri)
         {
             for (XmlNode ii = parent.FirstChild; ii != null; ii = ii.NextSibling)
             {
@@ -233,7 +228,7 @@ namespace Opc.Ua.Security
                     return (XmlElement)ii;
                 }
 
-                XmlElement child = Find(ii, localName, namespaceUri);
+                XmlElement child = SecurityConfigurationManager.Find(ii, localName, namespaceUri);
 
                 if (child != null)
                 {
@@ -272,7 +267,7 @@ namespace Opc.Ua.Security
             {
                 document.Load(xmlReader);
             }
-            XmlElement element = Find(document.DocumentElement, "SecuredApplication", Namespaces.OpcUaSecurity);
+            XmlElement element = SecurityConfigurationManager.Find(document.DocumentElement, "SecuredApplication", Namespaces.OpcUaSecurity);
 
             // update secured application.
             if (element != null)

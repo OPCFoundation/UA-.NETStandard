@@ -157,11 +157,11 @@ namespace Opc.Ua
         /// </summary>
         DiagnosticInfo = 25,
 
-        /// <remarks>
-        /// The following BuiltInTypes are for coding convenience
-        /// internally used in the .NET Standard library.
-        /// The enumerations are not used for encoding/decoding.
-        /// </remarks>
+        //
+        // The following BuiltInTypes are for coding convenience
+        // internally used in the .NET Standard library.
+        // The enumerations are not used for encoding/decoding.
+        //
 
         /// <summary>
         /// Any numeric value.
@@ -195,8 +195,8 @@ namespace Opc.Ua
         /// </summary>
         internal TypeInfo()
         {
-            m_builtInType = BuiltInType.Null;
-            m_valueRank = ValueRanks.Any;
+            BuiltInType = BuiltInType.Null;
+            ValueRank = ValueRanks.Any;
         }
 
         /// <summary>
@@ -206,8 +206,8 @@ namespace Opc.Ua
         /// <param name="valueRank">The value rank.</param>
         public TypeInfo(BuiltInType builtInType, int valueRank)
         {
-            m_builtInType = builtInType;
-            m_valueRank = valueRank;
+            BuiltInType = builtInType;
+            ValueRank = valueRank;
         }
         #endregion
 
@@ -401,7 +401,7 @@ namespace Opc.Ua
 
             var builtInType = (BuiltInType)Enum.ToObject(typeof(BuiltInType), datatypeId.Identifier);
 
-            if (builtInType > BuiltInType.DiagnosticInfo && builtInType != BuiltInType.Enumeration)
+            if (builtInType is > BuiltInType.DiagnosticInfo and not BuiltInType.Enumeration)
             {
                 return BuiltInType.Null;
             }
@@ -418,12 +418,12 @@ namespace Opc.Ua
         /// </returns>
         public static bool IsNumericType(BuiltInType builtInType)
         {
-            if (builtInType >= BuiltInType.SByte && builtInType <= BuiltInType.Double)
+            if (builtInType is >= BuiltInType.SByte and <= BuiltInType.Double)
             {
                 return true;
             }
 
-            if (builtInType >= BuiltInType.Number && builtInType <= BuiltInType.UInteger)
+            if (builtInType is >= BuiltInType.Number and <= BuiltInType.UInteger)
             {
                 return true;
             }
@@ -440,12 +440,12 @@ namespace Opc.Ua
         /// </returns>
         public static bool IsValueType(BuiltInType builtInType)
         {
-            if (builtInType >= BuiltInType.Boolean && builtInType <= BuiltInType.Double)
+            if (builtInType is >= BuiltInType.Boolean and <= BuiltInType.Double)
             {
                 return true;
             }
 
-            if (builtInType == BuiltInType.DateTime || builtInType == BuiltInType.Guid || builtInType == BuiltInType.StatusCode)
+            if (builtInType is BuiltInType.DateTime or BuiltInType.Guid or BuiltInType.StatusCode)
             {
                 return true;
             }
@@ -463,12 +463,12 @@ namespace Opc.Ua
         /// </returns>
         public static bool IsEncodingNullableType(BuiltInType builtInType)
         {
-            if (builtInType >= BuiltInType.Boolean && builtInType <= BuiltInType.Double)
+            if (builtInType is >= BuiltInType.Boolean and <= BuiltInType.Double)
             {
                 return false;
             }
 
-            if (builtInType == BuiltInType.DataValue || builtInType == BuiltInType.DiagnosticInfo)
+            if (builtInType is BuiltInType.DataValue or BuiltInType.DiagnosticInfo)
             {
                 return false;
             }
@@ -494,7 +494,7 @@ namespace Opc.Ua
                 {
                     var id = (BuiltInType)(int)(uint)typeId.Identifier;
 
-                    if (id > BuiltInType.Null && id <= BuiltInType.Enumeration && id != BuiltInType.DiagnosticInfo)
+                    if (id is > BuiltInType.Null and <= BuiltInType.Enumeration and not BuiltInType.DiagnosticInfo)
                     {
                         return id;
                     }
@@ -511,7 +511,7 @@ namespace Opc.Ua
             return BuiltInType.Null;
         }
 
-#if (NET_STANDARD_ASYNC)
+#if NET_STANDARD_ASYNC
         /// <summary>
         /// Returns the BuiltInType type for the DataTypeId.
         /// </summary>
@@ -531,7 +531,7 @@ namespace Opc.Ua
                 {
                     var id = (BuiltInType)(int)(uint)typeId.Identifier;
 
-                    if (id > BuiltInType.Null && id <= BuiltInType.Enumeration && id != BuiltInType.DiagnosticInfo)
+                    if (id is > BuiltInType.Null and <= BuiltInType.Enumeration and not BuiltInType.DiagnosticInfo)
                     {
                         return id;
                     }
@@ -638,19 +638,19 @@ namespace Opc.Ua
         /// A constant representing an unknown type.
         /// </summary>
         /// <value>The constant representing an unknown type.</value>
-        public static TypeInfo Unknown => s_Unknown;
+        public static TypeInfo Unknown { get; } = new TypeInfo();
 
         /// <summary>
         /// The built-in type.
         /// </summary>
         /// <value>The type of the type represented by this instance.</value>
-        public BuiltInType BuiltInType => m_builtInType;
+        public BuiltInType BuiltInType { get; }
 
         /// <summary>
         /// The value rank.
         /// </summary>
         /// <value>The value rank of the type represented by this instance.</value>
-        public int ValueRank => m_valueRank;
+        public int ValueRank { get; }
 
         /// <summary>
         /// Returns the type info if the value is an instance of the data type with the specified value rank.
@@ -711,7 +711,7 @@ namespace Opc.Ua
             // A ByteString is equivalent to an Array of Bytes.
             if (typeInfo.BuiltInType == BuiltInType.ByteString && typeInfo.ValueRank == ValueRanks.Scalar)
             {
-                if (expectedValueRank == ValueRanks.OneOrMoreDimensions || expectedValueRank == ValueRanks.OneDimension)
+                if (expectedValueRank is ValueRanks.OneOrMoreDimensions or ValueRanks.OneDimension)
                 {
                     if (typeTree.IsTypeOf(expectedDataTypeId, DataTypeIds.Byte))
                     {
@@ -867,7 +867,7 @@ namespace Opc.Ua
             }
 
             // check simple types.
-            if (typeInfo.BuiltInType != BuiltInType.ExtensionObject && typeInfo.BuiltInType != BuiltInType.Variant)
+            if (typeInfo.BuiltInType is not BuiltInType.ExtensionObject and not BuiltInType.Variant)
             {
                 if (typeTree.IsTypeOf(expectedDataTypeId, new NodeId((uint)(int)typeInfo.BuiltInType)))
                 {
@@ -966,7 +966,7 @@ namespace Opc.Ua
                     for (int jj = 0; jj < indexes.Length; jj++)
                     {
                         divisor /= dimensions[jj];
-                        indexes[jj] = (ii / divisor) % dimensions[jj];
+                        indexes[jj] = ii / divisor % dimensions[jj];
                     }
 
                     object element = array.GetValue(indexes);
@@ -1207,8 +1207,8 @@ namespace Opc.Ua
 
                 if (index != -1)
                 {
-                    dimensions = name.Substring(index);
-                    name = name.Substring(0, index);
+                    dimensions = name[index..];
+                    name = name[..index];
                 }
             }
 
@@ -1230,7 +1230,7 @@ namespace Opc.Ua
                 // check for collection.
                 if (name.EndsWith("Collection", StringComparison.Ordinal))
                 {
-                    builtInType = GetBuiltInType(name.Substring(0, name.Length - "Collection".Length));
+                    builtInType = GetBuiltInType(name[..^"Collection".Length]);
 
                     if (builtInType != BuiltInType.Null)
                     {
@@ -1684,7 +1684,7 @@ namespace Opc.Ua
                 for (int jj = 0; jj < indexes.Length; jj++)
                 {
                     divisor /= dimensions[jj];
-                    indexes[jj] = (ii / divisor) % dimensions[jj];
+                    indexes[jj] = ii / divisor % dimensions[jj];
                 }
 
                 object element = src.GetValue(indexes);
@@ -2450,7 +2450,7 @@ namespace Opc.Ua
 
                 case BuiltInType.Guid:
                 {
-                    return ((Guid)((Uuid)value)).ToByteArray();
+                    return ((Guid)(Uuid)value).ToByteArray();
                 }
             }
 
@@ -2592,7 +2592,7 @@ namespace Opc.Ua
 
                     if (text.StartsWith("0x", StringComparison.Ordinal))
                     {
-                        return (StatusCode)Convert.ToUInt32(text.Substring(2), 16);
+                        return (StatusCode)Convert.ToUInt32(text[2..], 16);
                     }
 
                     return (StatusCode)Convert.ToUInt32((string)value, CultureInfo.InvariantCulture);
@@ -2770,7 +2770,7 @@ namespace Opc.Ua
                 for (int jj = 0; jj < indexes.Length; jj++)
                 {
                     divisor /= dimensions[jj];
-                    indexes[jj] = (ii / divisor) % dimensions[jj];
+                    indexes[jj] = ii / divisor % dimensions[jj];
                 }
 
                 object value = input.GetValue(indexes);
@@ -2789,12 +2789,9 @@ namespace Opc.Ua
 
             return output;
         }
-        #endregion
 
-        #region Private Fields
-        private readonly BuiltInType m_builtInType;
-        private readonly int m_valueRank;
-        private static readonly TypeInfo s_Unknown = new TypeInfo();
+#endregion
+#region Private Fields
         #endregion
 
         #region Scalars Class
@@ -3082,13 +3079,13 @@ namespace Opc.Ua
             if (format == null)
             {
                 var buffer = new System.Text.StringBuilder();
-                buffer.Append(m_builtInType);
+                buffer.Append(BuiltInType);
 
-                if (m_valueRank >= 0)
+                if (ValueRank >= 0)
                 {
                     buffer.Append('[');
 
-                    for (int ii = 1; ii < m_valueRank; ii++)
+                    for (int ii = 1; ii < ValueRank; ii++)
                     {
                         buffer.Append(',');
                     }
@@ -3119,8 +3116,8 @@ namespace Opc.Ua
 
             if (obj is TypeInfo typeInfo)
             {
-                return (m_builtInType == typeInfo.BuiltInType &&
-                    m_valueRank == typeInfo.ValueRank);
+                return BuiltInType == typeInfo.BuiltInType &&
+                    ValueRank == typeInfo.ValueRank;
             }
 
             return false;
@@ -3131,7 +3128,7 @@ namespace Opc.Ua
         /// </summary>
         public override int GetHashCode()
         {
-            return HashCode.Combine(m_builtInType, m_valueRank);
+            return HashCode.Combine(BuiltInType, ValueRank);
         }
         #endregion
     }

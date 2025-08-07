@@ -169,7 +169,7 @@ namespace Opc.Ua
 
                 case ValueRanks.ScalarOrOneDimension:
                 {
-                    if (actualValueRank != ValueRanks.Scalar && actualValueRank != ValueRanks.OneDimension)
+                    if (actualValueRank is not ValueRanks.Scalar and not ValueRanks.OneDimension)
                     {
                         return false;
                     }
@@ -204,7 +204,7 @@ namespace Opc.Ua
             }
 
             // check if one dimension required.
-            if (valueRank == ValueRanks.OneDimension || valueRank == ValueRanks.ScalarOrOneDimension)
+            if (valueRank is ValueRanks.OneDimension or ValueRanks.ScalarOrOneDimension)
             {
                 if (actualArrayDimensions.Count != 1)
                 {

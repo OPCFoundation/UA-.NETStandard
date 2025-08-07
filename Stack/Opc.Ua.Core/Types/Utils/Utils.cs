@@ -545,8 +545,8 @@ namespace Opc.Ua
         /// </summary>
         public static void Trace(int traceMask, string format, params object[] args)
         {
-            const int InformationMask = (TraceMasks.Information | TraceMasks.StartStop | TraceMasks.Security);
-            const int ErrorMask = (TraceMasks.Error | TraceMasks.StackTrace);
+            const int InformationMask = TraceMasks.Information | TraceMasks.StartStop | TraceMasks.Security;
+            const int ErrorMask = TraceMasks.Error | TraceMasks.StackTrace;
             if ((traceMask & ErrorMask) != 0)
             {
                 LogError(traceMask, format, args);
@@ -705,13 +705,13 @@ namespace Opc.Ua
 
             if (index == -1)
             {
-                folder = input.Substring(1);
+                folder = input[1..];
                 path = string.Empty;
             }
             else
             {
-                folder = input.Substring(1, index - 1);
-                path = input.Substring(index + 1);
+                folder = input[1..index];
+                path = input[(index + 1)..];
             }
 
             var buffer = new StringBuilder();
@@ -1017,7 +1017,7 @@ namespace Opc.Ua
 
             if (start == -1)
             {
-                return Utils.Format("{0}...", filePath.Substring(0, maxLength));
+                return Utils.Format("{0}...", filePath[..maxLength]);
             }
 
             // keep file name.
@@ -1035,7 +1035,7 @@ namespace Opc.Ua
             }
 
             // format the result.
-            return Utils.Format("{0}...{1}", filePath.Substring(0, start + 1), filePath.Substring(end));
+            return Utils.Format("{0}...{1}", filePath[..(start + 1)], filePath[end..]);
         }
         #endregion
 
@@ -1225,9 +1225,9 @@ namespace Opc.Ua
                 .Append(hostname ?? GetHostName())
                 .Append(uri.AsSpan(index + localhost.Length));
 #else
-            buffer.Append(uri.Substring(0, index))
+            buffer.Append(uri[..index])
                 .Append(hostname ?? GetHostName())
-                .Append(uri.Substring(index + localhost.Length));
+                .Append(uri[(index + localhost.Length)..]);
 #endif
             return buffer.ToString();
         }
@@ -1265,9 +1265,9 @@ namespace Opc.Ua
                 .Append(hostname ?? GetHostName())
                 .Append(subjectName.AsSpan(index + dclocalhost.Length));
 #else
-            buffer.Append(subjectName.Substring(0, index + 3))
+            buffer.Append(subjectName[..(index + 3)])
                 .Append(hostname ?? GetHostName())
-                .Append(subjectName.Substring(index + dclocalhost.Length));
+                .Append(subjectName[(index + dclocalhost.Length)..]);
 #endif
             return buffer.ToString();
         }
@@ -1306,7 +1306,6 @@ namespace Opc.Ua
             return string.Empty;
         }
 
-#if NET9_0_OR_GREATER
         /// <summary>
         /// Unescapes a URI string using the percent encoding.
         /// </summary>
@@ -1314,12 +1313,15 @@ namespace Opc.Ua
         {
             if (!uri.IsWhiteSpace())
             {
+#if NET9_0_OR_GREATER
                 return Uri.UnescapeDataString(uri);
+#else
+                return Uri.UnescapeDataString(uri.ToString());
+#endif
             }
-
             return string.Empty;
         }
-#else
+
         /// <summary>
         /// Unescapes a URI string using the percent encoding.
         /// </summary>
@@ -1332,7 +1334,6 @@ namespace Opc.Ua
 
             return string.Empty;
         }
-#endif
 
         /// <summary>
         /// Parses a URI string. Returns null if it is invalid.
@@ -1559,7 +1560,7 @@ namespace Opc.Ua
                         multiplier *= dimensions[kk];
                     }
 
-                    indexes[array.Rank - jj - 1] = (ii / multiplier) % dimensions[jj];
+                    indexes[array.Rank - jj - 1] = ii / multiplier % dimensions[jj];
                 }
 
                 flatArray.SetValue(array.GetValue(indexes), ii);
@@ -1750,7 +1751,7 @@ namespace Opc.Ua
 
             if (index != -1)
             {
-                return localeId.Substring(0, index);
+                return localeId[..index];
             }
 
             return localeId;
@@ -2127,7 +2128,7 @@ namespace Opc.Ua
             // check for encodeable objects.
             if (value1 is IEncodeable encodeable1)
             {
-                if (!(value2 is IEncodeable encodeable2))
+                if (value2 is not IEncodeable encodeable2)
                 {
                     return false;
                 }
@@ -2156,7 +2157,7 @@ namespace Opc.Ua
             // check for XmlElement objects.
             if (value1 is XmlElement element1)
             {
-                if (!(value2 is XmlElement element2))
+                if (value2 is not XmlElement element2)
                 {
                     return false;
                 }
@@ -2168,7 +2169,7 @@ namespace Opc.Ua
             if (value1 is Array array1)
             {
                 // arrays are greater than non-arrays.
-                if (!(value2 is Array array2))
+                if (value2 is not Array array2)
                 {
                     return false;
                 }
@@ -2231,7 +2232,7 @@ namespace Opc.Ua
             if (value1 is IEnumerable enumerable1)
             {
                 // collections are greater than non-collections.
-                if (!(value2 is IEnumerable enumerable2))
+                if (value2 is not IEnumerable enumerable2)
                 {
                     return false;
                 }
@@ -2316,7 +2317,7 @@ namespace Opc.Ua
 
                 if (pIndex > pattern.Length)
                 {
-                    return (tIndex >= target.Length); // if end of string true
+                    return tIndex >= target.Length; // if end of string true
                 }
 
                 switch (p)
@@ -2326,13 +2327,13 @@ namespace Opc.Ua
                     {
                         while (tIndex < target.Length)
                         {
-                            if (Match(target.Substring(tIndex++), pattern.Substring(pIndex), caseSensitive))
+                            if (Match(target[tIndex++..], pattern[pIndex..], caseSensitive))
                             {
                                 return true;
                             }
                         }
 
-                        return Match(target, pattern.Substring(pIndex), caseSensitive);
+                        return Match(target, pattern[pIndex..], caseSensitive);
                     }
 
                     // match any one char.
@@ -2501,7 +2502,7 @@ namespace Opc.Ua
         // ConvertCase
         private static char ConvertCase(char c, bool caseSensitive)
         {
-            return (caseSensitive) ? c : char.ToUpperInvariant(c);
+            return caseSensitive ? c : char.ToUpperInvariant(c);
         }
 
         /// <summary>
@@ -2662,7 +2663,7 @@ namespace Opc.Ua
                 extensions.Add(document.DocumentElement);
             }
         }
-        #endregion
+#endregion
 
         #region Reflection Helper Functions
         /// <summary>
@@ -2912,13 +2913,13 @@ namespace Opc.Ua
 #if !NETFRAMEWORK
                     if (useAsnParser)
                     {
-                        ReadOnlyMemory<byte> certBlob = AsnUtils.ParseX509Blob(certificateData.Slice(offset));
+                        ReadOnlyMemory<byte> certBlob = AsnUtils.ParseX509Blob(certificateData[offset..]);
                         certificate = CertificateFactory.Create(certBlob, true);
                     }
                     else
 #endif
                     {
-                        certificate = CertificateFactory.Create(certificateData.Slice(offset), true);
+                        certificate = CertificateFactory.Create(certificateData[offset..], true);
                     }
                 }
                 catch (Exception e)
@@ -3212,9 +3213,9 @@ namespace Opc.Ua
                 }
             }
             catch (Exception ex) when (
-                ex is PlatformNotSupportedException ||
-                ex is ArgumentException ||
-                ex is CryptographicException)
+                ex is PlatformNotSupportedException or
+                ArgumentException or
+                CryptographicException)
             {
                 return false;
             }

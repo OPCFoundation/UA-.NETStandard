@@ -16,7 +16,7 @@ using System.Text;
 
 namespace Opc.Ua
 {
-    /// <summary> 
+    /// <summary>
     /// The base class for all variable type nodes.
     /// </summary>
     public abstract class BaseVariableTypeState : BaseTypeState
@@ -736,7 +736,7 @@ namespace Opc.Ua
         #endregion
     }
 
-    /// <summary> 
+    /// <summary>
     /// A base class for all data variable type nodes.
     /// </summary>
     public class BaseDataVariableTypeState : BaseVariableTypeState
@@ -782,7 +782,7 @@ namespace Opc.Ua
         #endregion
     }
 
-    /// <summary> 
+    /// <summary>
     /// A typed base class for all data variable type nodes.
     /// </summary>
     public class BaseDataVariableTypeState<T> : BaseDataVariableTypeState
@@ -837,7 +837,7 @@ namespace Opc.Ua
         #endregion
     }
 
-    /// <summary> 
+    /// <summary>
     /// A base class for all property variable type nodes.
     /// </summary>
     public class PropertyTypeState : BaseVariableTypeState
@@ -883,7 +883,7 @@ namespace Opc.Ua
         #endregion
     }
 
-    /// <summary> 
+    /// <summary>
     /// A typed base class for all property variable type nodes.
     /// </summary>
     public class PropertyTypeState<T> : PropertyTypeState

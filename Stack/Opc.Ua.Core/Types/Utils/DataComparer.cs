@@ -29,7 +29,7 @@ namespace Opc.Ua.Test
         public DataComparer(IServiceMessageContext context)
         {
             m_context = context;
-            m_throwOnError = true;
+            ThrowOnError = true;
         }
         #endregion
 
@@ -37,11 +37,7 @@ namespace Opc.Ua.Test
         /// <summary>
         /// Gets or set a flag indicating whether an exception should be thrown on error.
         /// </summary>
-        public bool ThrowOnError
-        {
-            get { return m_throwOnError; }
-            set { m_throwOnError = value; }
-        }
+        public bool ThrowOnError { get; set; }
         #endregion
 
         #region Boolean Functions
@@ -421,7 +417,7 @@ namespace Opc.Ua.Test
                         return ReportError(attribute1, attribute2);
                     }
 
-                    string prefix = (attribute1.Name.Length > 5) ? attribute1.Name.Substring(6) : string.Empty;
+                    string prefix = (attribute1.Name.Length > 5) ? attribute1.Name[6..] : string.Empty;
 
                     if (attribute1.Value != value2.GetNamespaceOfPrefix(prefix))
                     {
@@ -824,7 +820,7 @@ namespace Opc.Ua.Test
         /// <param name="value1">First Value.</param>
         /// <param name="value2">Second Value.</param>
         /// <returns>True in case of equal values.
-        /// False or ServiceResultException in case of unequal values.</returns> 
+        /// False or ServiceResultException in case of unequal values.</returns>
         public bool CompareDataValue(DataValue value1, DataValue value2)
         {
             if (value1 == null || value2 == null)
@@ -878,7 +874,7 @@ namespace Opc.Ua.Test
         /// <param name="value1">First Value.</param>
         /// <param name="value2">Second Value.</param>
         /// <returns>True in case of equal values.
-        /// False or ServiceResultException in case of unequal values.</returns> 
+        /// False or ServiceResultException in case of unequal values.</returns>
         public bool CompareMatrix(Matrix value1, Matrix value2)
         {
             if (value1 == null || value2 == null)
@@ -908,7 +904,7 @@ namespace Opc.Ua.Test
         #region ExtensionObject Functions
         /// <summary>
         /// The factory to use when decoding extension objects.
-        /// </summary>        
+        /// </summary>
         public static IEncodeableFactory EncodeableFactory
         {
             get
@@ -1064,13 +1060,13 @@ namespace Opc.Ua.Test
 
         #region Private Methods
         /// <summary>
-        /// The delegate used to compare two values.   
-        /// </summary> 
+        /// The delegate used to compare two values.
+        /// </summary>
         private delegate bool Comparator<T>(T value1, T value2);
 
         /// <summary>
         /// This method compares two arrays.
-        /// </summary>      
+        /// </summary>
         /// <param name="value1">IEnumerable object of type T</param>
         /// <param name="value2">IEnumerable object of type T</param>
         /// <param name="comparator">Method name to compare the arrays.</param>
@@ -1134,7 +1130,7 @@ namespace Opc.Ua.Test
         /// <returns>Throws ServiceResultException in case of unequal values.</returns>
         private bool ReportError(object value1, object value2)
         {
-            if (m_throwOnError)
+            if (ThrowOnError)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadUnexpectedError,
@@ -1149,7 +1145,6 @@ namespace Opc.Ua.Test
 
         #region Private Fields
         private readonly IServiceMessageContext m_context;
-        private bool m_throwOnError;
         #endregion
     }
 }

@@ -16,7 +16,7 @@ using System.Threading;
 namespace Opc.Ua
 {
     /// <summary>
-    /// A base class for AsyncResult objects 
+    /// A base class for AsyncResult objects
     /// </summary>
     public class AsyncResultBase : IAsyncResult, IDisposable
     {
@@ -62,7 +62,11 @@ namespace Opc.Ua
         /// <summary>
         /// Frees any unmanaged resources.
         /// </summary>
-        public void Dispose() => Dispose(true);
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
 
         /// <summary>
         /// An overrideable version of the Dispose.
@@ -125,7 +129,7 @@ namespace Opc.Ua
         /// <param name="ar">The result object returned from the Begin method.</param>
         public static void WaitForComplete(IAsyncResult ar)
         {
-            if (!(ar is AsyncResultBase result))
+            if (ar is not AsyncResultBase result)
             {
                 throw new ArgumentException("IAsyncResult passed to call is not an instance of AsyncResultBase.");
             }
@@ -241,7 +245,7 @@ namespace Opc.Ua
                 }
                 catch (ObjectDisposedException ode)
                 {
-                    // ignore 
+                    // ignore
                     Utils.LogTrace(ode, "Unexpected error handling OperationCompleted for AsyncResult operation.");
                 }
             }

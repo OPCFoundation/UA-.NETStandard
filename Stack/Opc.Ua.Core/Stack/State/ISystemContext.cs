@@ -17,7 +17,7 @@ using System.Text;
 namespace Opc.Ua
 {
     /// <summary>
-    /// An interface to an object that describes how access the system containing the data. 
+    /// An interface to an object that describes how access the system containing the data.
     /// </summary>
     public interface ISystemContext
     {
@@ -113,7 +113,7 @@ namespace Opc.Ua
         /// </summary>
         public SystemContext()
         {
-            m_nodeStateFactory = new NodeStateFactory();
+            NodeStateFactory = new NodeStateFactory();
         }
 
         /// <summary>
@@ -122,8 +122,8 @@ namespace Opc.Ua
         /// <param name="context">The context.</param>
         public SystemContext(IOperationContext context)
         {
-            m_nodeStateFactory = new NodeStateFactory();
-            m_operationContext = context;
+            NodeStateFactory = new NodeStateFactory();
+            OperationContext = context;
         }
         #endregion
 
@@ -132,11 +132,7 @@ namespace Opc.Ua
         /// An application defined handle for the system.
         /// </summary>
         /// <value>The system handle.</value>
-        public object SystemHandle
-        {
-            get { return m_systemHandle; }
-            set { m_systemHandle = value; }
-        }
+        public object SystemHandle { get; set; }
 
         /// <summary>
         /// The identifier for the session (null if multiple sessions are associated with the operation).
@@ -146,9 +142,9 @@ namespace Opc.Ua
         {
             get
             {
-                if (m_operationContext != null)
+                if (OperationContext != null)
                 {
-                    return m_operationContext.SessionId;
+                    return OperationContext.SessionId;
                 }
 
                 return m_sessionId;
@@ -168,9 +164,9 @@ namespace Opc.Ua
         {
             get
             {
-                if (m_operationContext != null)
+                if (OperationContext != null)
                 {
-                    return m_operationContext.UserIdentity;
+                    return OperationContext.UserIdentity;
                 }
 
                 return m_userIdentity;
@@ -190,9 +186,9 @@ namespace Opc.Ua
         {
             get
             {
-                if (m_operationContext != null)
+                if (OperationContext != null)
                 {
-                    return m_operationContext.PreferredLocales;
+                    return OperationContext.PreferredLocales;
                 }
 
                 return m_preferredLocales;
@@ -212,9 +208,9 @@ namespace Opc.Ua
         {
             get
             {
-                if (m_operationContext != null)
+                if (OperationContext != null)
                 {
-                    return m_operationContext.AuditEntryId;
+                    return OperationContext.AuditEntryId;
                 }
 
                 return m_auditEntryId;
@@ -230,61 +226,37 @@ namespace Opc.Ua
         /// The table of namespace uris to use when accessing the system.
         /// </summary>
         /// <value>The namespace URIs.</value>
-        public NamespaceTable NamespaceUris
-        {
-            get { return m_namespaceUris; }
-            set { m_namespaceUris = value; }
-        }
+        public NamespaceTable NamespaceUris { get; set; }
 
         /// <summary>
         /// The table of server uris to use when accessing the system.
         /// </summary>
         /// <value>The server URIs.</value>
-        public StringTable ServerUris
-        {
-            get { return m_serverUris; }
-            set { m_serverUris = value; }
-        }
+        public StringTable ServerUris { get; set; }
 
         /// <summary>
         /// A table containing the types that are to be used when accessing the system.
         /// </summary>
         /// <value>The type table.</value>
-        public ITypeTable TypeTable
-        {
-            get { return m_typeTable; }
-            set { m_typeTable = value; }
-        }
+        public ITypeTable TypeTable { get; set; }
 
         /// <summary>
         /// A factory that can be used to create encodeable types.
         /// </summary>
         /// <value>The encodeable factory.</value>
-        public IEncodeableFactory EncodeableFactory
-        {
-            get { return m_encodeableFactory; }
-            set { m_encodeableFactory = value; }
-        }
+        public IEncodeableFactory EncodeableFactory { get; set; }
 
         /// <summary>
         /// A factory that can be used to create node instances.
         /// </summary>
         /// <value>The node state factory.</value>
-        public NodeStateFactory NodeStateFactory
-        {
-            get { return m_nodeStateFactory; }
-            set { m_nodeStateFactory = value; }
-        }
+        public NodeStateFactory NodeStateFactory { get; set; }
 
         /// <summary>
         /// A factory that can be used to create node ids.
         /// </summary>
         /// <value>The node identifiers factory.</value>
-        public INodeIdFactory NodeIdFactory
-        {
-            get { return m_nodeIdFactory; }
-            set { m_nodeIdFactory = value; }
-        }
+        public INodeIdFactory NodeIdFactory { get; set; }
         #endregion
 
         #region Public Members
@@ -292,11 +264,7 @@ namespace Opc.Ua
         /// The operation context associated with the system context.
         /// </summary>
         /// <value>The operation context.</value>
-        public IOperationContext OperationContext
-        {
-            get { return m_operationContext; }
-            protected set { m_operationContext = value; }
-        }
+        public IOperationContext OperationContext { get; protected set; }
 
         /// <summary>
         /// Creates a copy of the context that can be used with the specified operation context.
@@ -311,7 +279,7 @@ namespace Opc.Ua
 
             if (context != null)
             {
-                copy.m_operationContext = context;
+                copy.OperationContext = context;
             }
 
             return copy;
@@ -327,9 +295,9 @@ namespace Opc.Ua
         {
             get
             {
-                if (m_operationContext != null)
+                if (OperationContext != null)
                 {
-                    return m_operationContext.DiagnosticsMask;
+                    return OperationContext.DiagnosticsMask;
                 }
 
                 return DiagnosticsMasks.None;
@@ -344,9 +312,9 @@ namespace Opc.Ua
         {
             get
             {
-                if (m_operationContext != null)
+                if (OperationContext != null)
                 {
-                    return m_operationContext.StringTable;
+                    return OperationContext.StringTable;
                 }
 
                 return null;
@@ -361,9 +329,9 @@ namespace Opc.Ua
         {
             get
             {
-                if (m_operationContext != null)
+                if (OperationContext != null)
                 {
-                    return m_operationContext.OperationDeadline;
+                    return OperationContext.OperationDeadline;
                 }
 
                 return DateTime.MaxValue;
@@ -378,29 +346,21 @@ namespace Opc.Ua
         {
             get
             {
-                if (m_operationContext != null)
+                if (OperationContext != null)
                 {
-                    return m_operationContext.OperationStatus;
+                    return OperationContext.OperationStatus;
                 }
 
                 return StatusCodes.Good;
             }
         }
-        #endregion
 
-        #region Private Fields
-        private object m_systemHandle;
+#endregion
+#region Private Fields
         private NodeId m_sessionId;
         private IList<string> m_preferredLocales;
         private string m_auditEntryId;
         private IUserIdentity m_userIdentity;
-        private NamespaceTable m_namespaceUris;
-        private StringTable m_serverUris;
-        private ITypeTable m_typeTable;
-        private IEncodeableFactory m_encodeableFactory;
-        private INodeIdFactory m_nodeIdFactory;
-        private IOperationContext m_operationContext;
-        private NodeStateFactory m_nodeStateFactory;
         #endregion
     }
 }

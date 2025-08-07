@@ -22,7 +22,7 @@ using System.Threading;
 
 namespace Opc.Ua
 {
-    /// <summary> 
+    /// <summary>
     /// The base class for all object nodes.
     /// </summary>
     public class BaseObjectState : BaseInstanceState
@@ -343,7 +343,7 @@ namespace Opc.Ua
         #endregion
     }
 
-    /// <summary> 
+    /// <summary>
     /// The base class for all folder nodes.
     /// </summary>
     public class FolderState : BaseObjectState

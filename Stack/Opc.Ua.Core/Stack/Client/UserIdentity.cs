@@ -142,27 +142,15 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public string DisplayName
-        {
-            get { return m_displayName; }
-            set { m_displayName = value; }
-        }
+        public string DisplayName { get; set; }
 
         /// <inheritdoc/>
         [DataMember(Name = "TokenType", IsRequired = true, Order = 20)]
-        public UserTokenType TokenType
-        {
-            get { return m_tokenType; }
-            private set { m_tokenType = value; }
-        }
+        public UserTokenType TokenType { get; private set; }
 
         /// <inheritdoc/>
         [DataMember(Name = "IssuedTokenType", IsRequired = false, Order = 30)]
-        public XmlQualifiedName IssuedTokenType
-        {
-            get { return m_issuedTokenType; }
-            private set { m_issuedTokenType = value; }
-        }
+        public XmlQualifiedName IssuedTokenType { get; private set; }
 
         /// <inheritdoc/>
         public bool SupportsSignatures
@@ -205,24 +193,24 @@ namespace Opc.Ua
 
             if (token is UserNameIdentityToken usernameToken)
             {
-                m_tokenType = UserTokenType.UserName;
-                m_issuedTokenType = null;
-                m_displayName = usernameToken.UserName;
+                TokenType = UserTokenType.UserName;
+                IssuedTokenType = null;
+                DisplayName = usernameToken.UserName;
                 return;
             }
 
             if (token is X509IdentityToken x509Token)
             {
-                m_tokenType = UserTokenType.Certificate;
-                m_issuedTokenType = null;
+                TokenType = UserTokenType.Certificate;
+                IssuedTokenType = null;
                 if (x509Token.Certificate != null)
                 {
-                    m_displayName = x509Token.Certificate.Subject;
+                    DisplayName = x509Token.Certificate.Subject;
                 }
                 else
                 {
                     X509Certificate2 cert = CertificateFactory.Create(x509Token.CertificateData, true);
-                    m_displayName = cert.Subject;
+                    DisplayName = cert.Subject;
                 }
                 return;
             }
@@ -236,9 +224,9 @@ namespace Opc.Ua
                         throw new ArgumentException("JSON Web Token has no data associated with it.", nameof(token));
                     }
 
-                    m_tokenType = UserTokenType.IssuedToken;
-                    m_issuedTokenType = new XmlQualifiedName("", Opc.Ua.Profiles.JwtUserToken);
-                    m_displayName = "JWT";
+                    TokenType = UserTokenType.IssuedToken;
+                    IssuedTokenType = new XmlQualifiedName("", Opc.Ua.Profiles.JwtUserToken);
+                    DisplayName = "JWT";
                     return;
                 }
                 else
@@ -249,9 +237,9 @@ namespace Opc.Ua
 
             if (token is AnonymousIdentityToken anonymousToken)
             {
-                m_tokenType = UserTokenType.Anonymous;
-                m_issuedTokenType = null;
-                m_displayName = "Anonymous";
+                TokenType = UserTokenType.Anonymous;
+                IssuedTokenType = null;
+                DisplayName = "Anonymous";
                 return;
             }
 
@@ -272,9 +260,6 @@ namespace Opc.Ua
 
         #region Private Fields
         private UserIdentityToken m_token;
-        private string m_displayName;
-        private UserTokenType m_tokenType;
-        private XmlQualifiedName m_issuedTokenType;
         private NodeIdCollection m_grantedRoleIds;
         #endregion
     }

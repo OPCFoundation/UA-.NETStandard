@@ -301,7 +301,7 @@ namespace Opc.Ua.Server
                 }
                 else
                 {
-                    variance /= (xData.Count - 1);
+                    variance /= xData.Count - 1;
                 }
             }
             

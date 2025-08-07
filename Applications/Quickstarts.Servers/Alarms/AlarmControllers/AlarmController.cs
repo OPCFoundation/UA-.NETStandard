@@ -221,7 +221,7 @@ namespace Alarms
                     if (m_validLastMaxValue)
                     {
                         Utils.LogInfo(
-                            "Cycle Time {0} Interval {1}", (DateTime.Now - m_lastMaxValue), m_interval);
+                            "Cycle Time {0} Interval {1}", DateTime.Now - m_lastMaxValue, m_interval);
                     }
                     m_lastMaxValue = DateTime.Now;
                     m_validLastMaxValue = true;

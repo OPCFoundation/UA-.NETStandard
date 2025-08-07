@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -162,6 +162,7 @@ namespace Opc.Ua.Server
         public void Dispose()
         {
             Dispose(true);
+            GC.SuppressFinalize(this);
         }
 
         /// <summary>
@@ -252,7 +253,7 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        ///  Determine the History PermissionType depending on PerformUpdateType 
+        ///  Determine the History PermissionType depending on PerformUpdateType
         /// </summary>
         /// <param name="updateType"></param>
         /// <returns>The corresponding PermissionType</returns>
@@ -403,13 +404,13 @@ namespace Opc.Ua.Server
         /// <param name="namespaceUri">The URI of the namespace.</param>
         /// <param name="nodeManager">The NodeManager which owns node in the namespace.</param>
         /// <remarks>
-        /// Multiple NodeManagers may register interest in a Namespace. 
+        /// Multiple NodeManagers may register interest in a Namespace.
         /// The order in which this method is called determines the precedence if multiple NodeManagers exist.
         /// This method adds the namespaceUri to the Server's Namespace table if it does not already exist.
-        /// 
+        ///
         /// This method is thread safe and can be called at anytime.
-        /// 
-        /// This method does not have to be called for any namespaces that were in the NodeManager's 
+        ///
+        /// This method does not have to be called for any namespaces that were in the NodeManager's
         /// NamespaceUri property when the MasterNodeManager was created.
         /// </remarks>
         /// <exception cref="ArgumentNullException">Throw if the namespaceUri or the nodeManager are null.</exception>
@@ -526,7 +527,7 @@ namespace Opc.Ua.Server
                 // allocate a new smaller array to support element removal for the index being updated.
                 var registeredManagers = new INodeManager[namespaceManagers[namespaceIndex].Length - 1];
 
-                // begin by populating the new array with existing elements up to the target index. 
+                // begin by populating the new array with existing elements up to the target index.
                 if (nodeManagerIndex > 0)
                 {
                     Array.Copy(
@@ -1079,7 +1080,7 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
-                // check for valid start node.   
+                // check for valid start node.
                 sourceHandle = GetManagerHandle((NodeId)targetId, out nodeManager);
 
                 if (sourceHandle == null)
@@ -1202,7 +1203,7 @@ namespace Opc.Ua.Server
                     continuationPointsAssigned++;
                 }
 
-                // check for error.   
+                // check for error.
                 result.StatusCode = error.StatusCode;
 
                 if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
@@ -1329,7 +1330,7 @@ namespace Opc.Ua.Server
                     }
                 }
 
-                // initialize result.    
+                // initialize result.
                 var result = new BrowseResult();
                 result.StatusCode = StatusCodes.Good;
                 results.Add(result);
@@ -1805,7 +1806,7 @@ namespace Opc.Ua.Server
 
             for (int ii = 0; ii < nodesToRead.Count; ii++)
             {
-                // Limit permission restrictions to Client initiated service call                
+                // Limit permission restrictions to Client initiated service call
                 HistoryReadResult result = null;
                 DiagnosticInfo diagnosticInfo = null;
 
@@ -3188,7 +3189,7 @@ namespace Opc.Ua.Server
                 return error;
             }
 
-            // validate monitoring filter.         
+            // validate monitoring filter.
             error = ValidateMonitoringFilter(attributes.Filter);
 
             if (ServiceResult.IsBad(error))
@@ -3347,7 +3348,7 @@ namespace Opc.Ua.Server
         #region Validate Permissions Methods
 
         /// <summary>
-        /// Check if the Base NodeClass attributes and NameSpace meta-data attributes 
+        /// Check if the Base NodeClass attributes and NameSpace meta-data attributes
         /// are valid for the given operation context of the specified node.
         /// </summary>
         /// <param name="context">The Operation Context</param>
@@ -3355,7 +3356,7 @@ namespace Opc.Ua.Server
         /// <param name="requestedPermision">The requested permission</param>
         /// <param name="uniqueNodesServiceAttributes">The cache holding the values of the attributes neeeded to be used in subsequent calls</param>
         /// <param name="permissionsOnly">Only the AccessRestrictions and RolePermission attributes are read. Should be false if uniqueNodesServiceAttributes is not null</param>
-        /// <returns>StatusCode Good if permission is granted, BadUserAccessDenied if not granted 
+        /// <returns>StatusCode Good if permission is granted, BadUserAccessDenied if not granted
         /// or a bad status code describing the validation process failure </returns>
         protected ServiceResult ValidatePermissions(
             OperationContext context,
@@ -3376,7 +3377,7 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Check if the Base NodeClass attributes and NameSpace meta-data attributes 
+        /// Check if the Base NodeClass attributes and NameSpace meta-data attributes
         /// are valid for the given operation context of the specified node.
         /// </summary>
         /// <param name="context">The Operation Context</param>
@@ -3385,7 +3386,7 @@ namespace Opc.Ua.Server
         /// <param name="requestedPermision">The requested permission</param>
         /// <param name="uniqueNodesServiceAttributes">The cache holding the values of the attributes neeeded to be used in subsequent calls</param>
         /// <param name="permissionsOnly">Only the AccessRestrictions and RolePermission attributes are read. Should be false if uniqueNodesServiceAttributes is not null</param>
-        /// <returns>StatusCode Good if permission is granted, BadUserAccessDenied if not granted 
+        /// <returns>StatusCode Good if permission is granted, BadUserAccessDenied if not granted
         /// or a bad status code describing the validation process failure </returns>
         protected ServiceResult ValidatePermissions(
             OperationContext context,
@@ -3419,7 +3420,7 @@ namespace Opc.Ua.Server
 
                 if (nodeMetadata != null)
                 {
-                    // check RolePermissions 
+                    // check RolePermissions
                     serviceResult = ValidateRolePermissions(context, nodeMetadata, requestedPermision);
 
                     if (ServiceResult.IsGood(serviceResult))
@@ -3483,7 +3484,7 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Validates the role permissions 
+        /// Validates the role permissions
         /// </summary>
         /// <param name="context"></param>
         /// <param name="nodeMetadata"></param>
@@ -3523,7 +3524,7 @@ namespace Opc.Ua.Server
                 return StatusCodes.Good;
             }
 
-            // group all permissions defined in rolePermissions by RoleId 
+            // group all permissions defined in rolePermissions by RoleId
             var roleIdPermissions = new Dictionary<NodeId, PermissionType>();
             if (rolePermissions != null && rolePermissions.Count > 0)
             {
@@ -3531,7 +3532,7 @@ namespace Opc.Ua.Server
                 {
                     if (roleIdPermissions.ContainsKey(rolePermission.RoleId))
                     {
-                        roleIdPermissions[rolePermission.RoleId] |= ((PermissionType)rolePermission.Permissions);
+                        roleIdPermissions[rolePermission.RoleId] |= (PermissionType)rolePermission.Permissions;
                     }
                     else
                     {
@@ -3540,7 +3541,7 @@ namespace Opc.Ua.Server
                 }
             }
 
-            // group all permissions defined in userRolePermissions by RoleId 
+            // group all permissions defined in userRolePermissions by RoleId
             var roleIdPermissionsDefinedForUser = new Dictionary<NodeId, PermissionType>();
             if (userRolePermissions != null && userRolePermissions.Count > 0)
             {
@@ -3548,7 +3549,7 @@ namespace Opc.Ua.Server
                 {
                     if (roleIdPermissionsDefinedForUser.ContainsKey(rolePermission.RoleId))
                     {
-                        roleIdPermissionsDefinedForUser[rolePermission.RoleId] |= ((PermissionType)rolePermission.Permissions);
+                        roleIdPermissionsDefinedForUser[rolePermission.RoleId] |= (PermissionType)rolePermission.Permissions;
                     }
                     else
                     {

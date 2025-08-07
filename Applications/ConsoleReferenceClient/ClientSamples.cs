@@ -567,7 +567,7 @@ namespace Quickstarts
                                 IReference hasTypeDefinition = variableNode.ReferenceTable.FirstOrDefault(r => r.ReferenceTypeId.Equals(ReferenceTypeIds.HasTypeDefinition));
                                 if (hasTypeDefinition != null)
                                 {
-                                    leafNode = (hasTypeDefinition.TargetId == VariableTypeIds.PropertyType);
+                                    leafNode = hasTypeDefinition.TargetId == VariableTypeIds.PropertyType;
                                 }
                             }
 
@@ -615,7 +615,7 @@ namespace Quickstarts
             m_output.WriteLine("FetchAllNodesNodeCache found {0} nodes in {1}ms", nodeDictionary.Count, stopwatch.ElapsedMilliseconds);
 
             var result = nodeDictionary.Values.ToList();
-            result.Sort((x, y) => (x.NodeId.CompareTo(y.NodeId)));
+            result.Sort((x, y) => x.NodeId.CompareTo(y.NodeId));
 
             if (m_verbose)
             {
@@ -784,7 +784,7 @@ namespace Quickstarts
 
             var result = new ReferenceDescriptionCollection(referenceDescriptions.Values);
 
-            result.Sort((x, y) => (x.NodeId.CompareTo(y.NodeId)));
+            result.Sort((x, y) => x.NodeId.CompareTo(y.NodeId));
 
             m_output.WriteLine("ManagedBrowseFullAddressSpace found {0} references on server in {1}ms.",
                 result.Count, stopWatch.ElapsedMilliseconds);
@@ -973,7 +973,7 @@ namespace Quickstarts
             stopWatch.Stop();
 
             var result = new ReferenceDescriptionCollection(referenceDescriptions.Values);
-            result.Sort((x, y) => (x.NodeId.CompareTo(y.NodeId)));
+            result.Sort((x, y) => x.NodeId.CompareTo(y.NodeId));
 
             m_output.WriteLine("BrowseFullAddressSpace found {0} references on server in {1}ms.",
                 referenceDescriptions.Count, stopWatch.ElapsedMilliseconds);
@@ -1062,8 +1062,6 @@ namespace Quickstarts
         /// <summary>
         /// Output all values as JSON.
         /// </summary>
-        /// <param name="session">The session to use.</param>
-        /// <param name="variableIds">The variables to output.</param>
         public async Task<(DataValueCollection, IList<ServiceResult>)> ReadAllValuesAsync(
             IUAClient uaClient,
             NodeIdCollection variableIds)

@@ -252,7 +252,7 @@ namespace Opc.Ua.Server.Tests
                 browseDescriptionCollection = ServerFixtureUtils.CreateBrowseDescriptionCollectionFromNodeId(browseTable, browseTemplate);
             }
 
-            referenceDescriptions.Sort((x, y) => (x.NodeId.CompareTo(y.NodeId)));
+            referenceDescriptions.Sort((x, y) => x.NodeId.CompareTo(y.NodeId));
 
             TestContext.Out.WriteLine("Found {0} references on server.", referenceDescriptions.Count);
             if (outputResult)

@@ -183,7 +183,7 @@ namespace Alarms
             {
                 if (alarm.AckedState.Id.Value)
                 {
-                    if ((Optional))
+                    if (Optional)
                     {
                         if (alarm.ConfirmedState.Id.Value)
                         {

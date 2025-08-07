@@ -98,7 +98,7 @@ namespace Opc.Ua.Security.Certificates
             )
         {
             modifiedPemDataBlob = null;
-            string label = "CERTIFICATE";
+            const string label = "CERTIFICATE";
             string beginlabel = $"-----BEGIN {label}-----";
             string endlabel = $"-----END {label}-----";
             try
@@ -121,7 +121,7 @@ namespace Opc.Ua.Security.Certificates
                     {
                         return false;
                     }
-                    string pemCertificateContent = pemText.Substring(beginIndex, endIndex - beginIndex);
+                    string pemCertificateContent = pemText[beginIndex..endIndex];
                     byte[] pemCertificateDecoded = Convert.FromBase64CharArray(pemCertificateContent.ToCharArray(), 0, pemCertificateContent.Length);
 
                     X509Certificate2 certificate = X509CertificateLoader.LoadCertificate(pemCertificateDecoded);

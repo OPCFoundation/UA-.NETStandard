@@ -95,7 +95,7 @@ namespace Opc.Ua.Server
             ProcessingInterval = processingInterval;
             Stepped = stepped;
             Configuration = configuration;
-            TimeFlowsBackward = (endTime < startTime);
+            TimeFlowsBackward = endTime < startTime;
 
             if (processingInterval == 0)
             {
@@ -276,7 +276,7 @@ namespace Opc.Ua.Server
             }
 
             // check if more to be done.
-            Complete = ((!TimeFlowsBackward && CurrentSlice.EndTime >= EndTime) || (TimeFlowsBackward && CurrentSlice.StartTime <= EndTime));
+            Complete = (!TimeFlowsBackward && CurrentSlice.EndTime >= EndTime) || (TimeFlowsBackward && CurrentSlice.StartTime <= EndTime);
 
             if (Complete)
             {
@@ -1439,12 +1439,12 @@ namespace Opc.Ua.Server
                 }
             }
 
-            if (totalCount == 0 || (goodCount / totalCount) * 100 >= Configuration.PercentDataGood)
+            if (totalCount == 0 || goodCount / totalCount * 100 >= Configuration.PercentDataGood)
             {
                 // good if the good count is greater than or equal to the configured threshold.
                 statusCode = statusCode.SetCodeBits(StatusCodes.Good);
             }
-            else if ((badCount / totalCount) * 100 >= Configuration.PercentDataBad)
+            else if (badCount / totalCount * 100 >= Configuration.PercentDataBad)
             {
                 // bad if the bad count is greater than or equal to the configured threshold.
                 statusCode = StatusCodes.Bad;
@@ -1508,12 +1508,12 @@ namespace Opc.Ua.Server
                 }
             }
 
-            if (totalDuration == 0 || (goodDuration / totalDuration) * 100 >= Configuration.PercentDataGood)
+            if (totalDuration == 0 || goodDuration / totalDuration * 100 >= Configuration.PercentDataGood)
             {
                 // good if the good duration is greater than or equal to the configured threshold.
                 statusCode = statusCode.SetCodeBits(StatusCodes.Good);
             }
-            else if ((badDuration / totalDuration) * 100 >= Configuration.PercentDataBad)
+            else if (badDuration / totalDuration * 100 >= Configuration.PercentDataBad)
             {
                 // bad if the bad duration is greater than or equal to the configured threshold.
                 statusCode = StatusCodes.Bad;

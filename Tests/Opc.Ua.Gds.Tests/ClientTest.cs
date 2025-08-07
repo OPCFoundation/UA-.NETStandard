@@ -553,7 +553,7 @@ namespace Opc.Ua.Gds.Tests
                 string searchName = application.ApplicationRecord.ApplicationNames[0].Text.Trim();
                 if (searchName.Length > searchPatternLength)
                 {
-                    searchName = string.Concat(searchName.Substring(0, searchPatternLength), "%");
+                    searchName = $"{searchName[..searchPatternLength]}%";
                 }
                 atLeastOneServer = m_gdsClient.GDSClient.QueryServers(1, searchName, "", "", null);
                 Assert.IsNotNull(atLeastOneServer);
@@ -585,7 +585,7 @@ namespace Opc.Ua.Gds.Tests
                 string searchName = application.ApplicationRecord.ApplicationUri;
                 if (searchName.Length > searchPatternLength)
                 {
-                    searchName = string.Concat(searchName.Substring(0, searchPatternLength), "%");
+                    searchName = $"{searchName[..searchPatternLength]}%";
                 }
                 atLeastOneServer = m_gdsClient.GDSClient.QueryServers(1, null, searchName, null, null);
                 Assert.IsNotNull(atLeastOneServer);
@@ -617,7 +617,7 @@ namespace Opc.Ua.Gds.Tests
                 string searchName = application.ApplicationRecord.ProductUri;
                 if (searchName.Length > searchPatternLength)
                 {
-                    searchName = string.Concat(searchName.Substring(0, searchPatternLength), "%");
+                    searchName = $"{searchName[..searchPatternLength]}%";
                 }
                 atLeastOneServer = m_gdsClient.GDSClient.QueryServers(1, null, null, searchName, null);
                 Assert.IsNotNull(atLeastOneServer);

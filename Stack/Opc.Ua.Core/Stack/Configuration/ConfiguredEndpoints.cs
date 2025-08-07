@@ -551,7 +551,7 @@ namespace Opc.Ua
                     Utils.IsUriHttpRelatedScheme(endpointUrl) &&
                     endpointUrl.EndsWith(ConfiguredEndpoint.DiscoverySuffix, StringComparison.OrdinalIgnoreCase))
                 {
-                    endpointUrl = endpointUrl.Substring(0, endpointUrl.Length - ConfiguredEndpoint.DiscoverySuffix.Length);
+                    endpointUrl = endpointUrl[..^ConfiguredEndpoint.DiscoverySuffix.Length];
                 }
 
                 if (endpointUrl != null)
@@ -587,8 +587,8 @@ namespace Opc.Ua
 
             if (index != -1)
             {
-                parameters = url.Substring(index + 3);
-                url = url.Substring(0, index).Trim();
+                parameters = url[(index + 3)..];
+                url = url[..index].Trim();
             }
 
             MessageSecurityMode securityMode = MessageSecurityMode.SignAndEncrypt;
@@ -828,7 +828,7 @@ namespace Opc.Ua
                     if (Utils.IsUriHttpRelatedScheme(baseUrl) &&
                         baseUrl.EndsWith(DiscoverySuffix, StringComparison.Ordinal))
                     {
-                        baseUrl = baseUrl.Substring(0, baseUrl.Length - DiscoverySuffix.Length);
+                        baseUrl = baseUrl[..^DiscoverySuffix.Length];
                     }
                 }
 
@@ -970,7 +970,7 @@ namespace Opc.Ua
         /// </summary>
         public bool NeedUpdateFromServer()
         {
-            bool hasCertificate = (Description.ServerCertificate != null && Description.ServerCertificate.Length > 0);
+            bool hasCertificate = Description.ServerCertificate != null && Description.ServerCertificate.Length > 0;
             bool usingUserTokenSecurity =
                 (SelectedUserTokenPolicy.TokenType != UserTokenType.Anonymous) &&
                 (SelectedUserTokenPolicy.SecurityPolicyUri ?? SecurityPolicies.None) != SecurityPolicies.None;
@@ -1114,7 +1114,7 @@ namespace Opc.Ua
                 EndpointDescriptionCollection collection = client.GetEndpoints(null);
 
                 // find list of matching endpoints.
-                EndpointDescriptionCollection matches = MatchEndpoints(
+                EndpointDescriptionCollection matches = ConfiguredEndpoint.MatchEndpoints(
                     collection,
                     endpointUrl,
                     securityMode,
@@ -1122,7 +1122,7 @@ namespace Opc.Ua
                     );
 
                 // select best match
-                EndpointDescription match = SelectBestMatch(matches, discoveryUrl);
+                EndpointDescription match = ConfiguredEndpoint.SelectBestMatch(matches, discoveryUrl);
 
                 // update the endpoint.                        
                 Update(match);
@@ -1184,7 +1184,7 @@ namespace Opc.Ua
                 EndpointDescriptionCollection collection = await client.GetEndpointsAsync(null, ct).ConfigureAwait(false);
 
                 // find list of matching endpoints.
-                EndpointDescriptionCollection matches = MatchEndpoints(
+                EndpointDescriptionCollection matches = ConfiguredEndpoint.MatchEndpoints(
                     collection,
                     endpointUrl,
                     securityMode,
@@ -1192,7 +1192,7 @@ namespace Opc.Ua
                     );
 
                 // select best match
-                EndpointDescription match = SelectBestMatch(matches, discoveryUrl);
+                EndpointDescription match = ConfiguredEndpoint.SelectBestMatch(matches, discoveryUrl);
 
                 // update the endpoint.                        
                 Update(match);
@@ -1278,7 +1278,7 @@ namespace Opc.Ua
 
         #region Public Properties
         /// <summary>
-        /// The collection that the endpoint belongs to. 
+        /// The collection that the endpoint belongs to.
         /// </summary>
         public ConfiguredEndpointCollection Collection
         {
@@ -1366,7 +1366,7 @@ namespace Opc.Ua
         #endregion
 
         #region Private Methods
-        private EndpointDescriptionCollection MatchEndpoints(
+        private static EndpointDescriptionCollection MatchEndpoints(
             EndpointDescriptionCollection collection,
             Uri endpointUrl,
             MessageSecurityMode securityMode,
@@ -1467,7 +1467,7 @@ namespace Opc.Ua
         /// <summary>
         /// Select the best match from a security description.
         /// </summary>
-        private EndpointDescription SelectBestMatch(
+        private static EndpointDescription SelectBestMatch(
             EndpointDescriptionCollection matches,
             Uri discoveryUrl
             )

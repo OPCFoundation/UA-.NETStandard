@@ -1320,7 +1320,7 @@ namespace Opc.Ua.Server
                     }
                 }
 
-                TraceState(LogLevel.Information, TraceStateId.Config, (publishingEnabled) ? "ENABLED" : "DISABLED");
+                TraceState(LogLevel.Information, TraceStateId.Config, publishingEnabled ? "ENABLED" : "DISABLED");
             }
         }
 

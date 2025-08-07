@@ -33,9 +33,9 @@ using System.Linq;
 namespace System
 {
     /// <summary>
-    /// Polyfills for System.String methods that are not available in .NET Standard 2.0 or .NET Framework.
+    /// Polyfills for System methods that are not available in .NET Standard 2.0 or .NET Framework.
     /// </summary>
-    public static class SystemPolyfills
+    public static class Polyfills
     {
 #if NETSTANDARD2_0 || NETFRAMEWORK
         /// <summary>

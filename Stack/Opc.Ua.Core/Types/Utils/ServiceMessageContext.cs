@@ -33,12 +33,12 @@ namespace Opc.Ua
 
         private void Initialize(bool shared)
         {
-            m_maxStringLength = DefaultEncodingLimits.MaxStringLength;
-            m_maxByteStringLength = DefaultEncodingLimits.MaxByteStringLength;
-            m_maxArrayLength = DefaultEncodingLimits.MaxArrayLength;
-            m_maxMessageSize = DefaultEncodingLimits.MaxMessageSize;
-            m_maxEncodingNestingLevels = DefaultEncodingLimits.MaxEncodingNestingLevels;
-            m_maxDecoderRecoveries = DefaultEncodingLimits.MaxDecoderRecoveries;
+            MaxStringLength = DefaultEncodingLimits.MaxStringLength;
+            MaxByteStringLength = DefaultEncodingLimits.MaxByteStringLength;
+            MaxArrayLength = DefaultEncodingLimits.MaxArrayLength;
+            MaxMessageSize = DefaultEncodingLimits.MaxMessageSize;
+            MaxEncodingNestingLevels = DefaultEncodingLimits.MaxEncodingNestingLevels;
+            MaxDecoderRecoveries = DefaultEncodingLimits.MaxDecoderRecoveries;
             m_namespaceUris = new NamespaceTable(shared);
             m_serverUris = new StringTable(shared);
             m_factory = EncodeableFactory.GlobalFactory;
@@ -49,7 +49,7 @@ namespace Opc.Ua
         /// <summary>
         /// The default context for the process (used only during XML serialization).
         /// </summary>
-        public static ServiceMessageContext GlobalContext => s_globalContext;
+        public static ServiceMessageContext GlobalContext { get; } = new ServiceMessageContext(true);
 
 
         /// <summary>
@@ -57,7 +57,7 @@ namespace Opc.Ua
         /// </summary>
         public static ServiceMessageContext ThreadContext
         {
-            get => s_globalContext;
+            get => GlobalContext;
 
             set
             {
@@ -67,46 +67,22 @@ namespace Opc.Ua
 
         #region Public Properties
         /// <inheritdoc/>
-        public int MaxStringLength
-        {
-            get => m_maxStringLength;
-            set { m_maxStringLength = value; }
-        }
+        public int MaxStringLength { get; set; }
 
         /// <inheritdoc/>
-        public int MaxArrayLength
-        {
-            get => m_maxArrayLength;
-            set { m_maxArrayLength = value; }
-        }
+        public int MaxArrayLength { get; set; }
 
         /// <inheritdoc/>
-        public int MaxByteStringLength
-        {
-            get => m_maxByteStringLength;
-            set { m_maxByteStringLength = value; }
-        }
+        public int MaxByteStringLength { get; set; }
 
         /// <inheritdoc/>
-        public int MaxMessageSize
-        {
-            get => m_maxMessageSize;
-            set { m_maxMessageSize = value; }
-        }
+        public int MaxMessageSize { get; set; }
 
         /// <inheritdoc/>
-        public int MaxEncodingNestingLevels
-        {
-            get => m_maxEncodingNestingLevels;
-            set { m_maxEncodingNestingLevels = value; }
-        }
+        public int MaxEncodingNestingLevels { get; set; }
 
         /// <inheritdoc/>
-        public int MaxDecoderRecoveries
-        {
-            get => m_maxDecoderRecoveries;
-            set { m_maxDecoderRecoveries = value; }
-        }
+        public int MaxDecoderRecoveries { get; set; }
 
         /// <inheritdoc/>
         public NamespaceTable NamespaceUris
@@ -157,20 +133,12 @@ namespace Opc.Ua
                 m_factory = value;
             }
         }
-        #endregion
 
-        #region Private Fields
-        private int m_maxStringLength;
-        private int m_maxByteStringLength;
-        private int m_maxArrayLength;
-        private int m_maxMessageSize;
-        private int m_maxEncodingNestingLevels;
-        private int m_maxDecoderRecoveries;
+#endregion
+#region Private Fields
         private NamespaceTable m_namespaceUris;
         private StringTable m_serverUris;
         private IEncodeableFactory m_factory;
-
-        private static readonly ServiceMessageContext s_globalContext = new ServiceMessageContext(true);
         #endregion
     }
 }

@@ -357,7 +357,7 @@ namespace Opc.Ua.Schema.Binary
                     continue;
                 }
 
-                if (name[ii] == '.' || name[ii] == '-' || name[ii] == '_')
+                if (name[ii] is '.' or '-' or '_')
                 {
                     continue;
                 }

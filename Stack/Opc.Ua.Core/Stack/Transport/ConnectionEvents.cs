@@ -16,7 +16,7 @@ using System.Security.Cryptography.X509Certificates;
 namespace Opc.Ua
 {
     /// <summary>
-    /// The arguments passed to the ConnectionWaiting event. 
+    /// The arguments passed to the ConnectionWaiting event.
     /// </summary>
     public class ConnectionWaitingEventArgs : EventArgs, ITransportWaitingConnection
     {
@@ -49,7 +49,7 @@ namespace Opc.Ua
     }
 
     /// <summary>
-    /// The arguments passed to the ConnectionStatus event. 
+    /// The arguments passed to the ConnectionStatus event.
     /// </summary>
     public class ConnectionStatusEventArgs : EventArgs
     {

@@ -161,7 +161,7 @@ namespace Opc.Ua.Security.Certificates
             )
         {
             modifiedPemDataBlob = null;
-            string label = "CERTIFICATE";
+            const string label = "CERTIFICATE";
             string beginlabel = $"-----BEGIN {label}-----";
             string endlabel = $"-----END {label}-----";
             try

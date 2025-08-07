@@ -274,7 +274,7 @@ namespace Opc.Ua.Server
                         }
 
                         // try the reverse connect
-                        if ((reverseConnection.Enabled) &&
+                        if (reverseConnection.Enabled &&
                             (reverseConnection.MaxSessionCount == 0 ||
                             (reverseConnection.MaxSessionCount == 1 && reverseConnection.LastState == ReverseConnectState.Closed) ||
                              reverseConnection.MaxSessionCount > ServerInternal.SessionManager.GetSessions().Count))

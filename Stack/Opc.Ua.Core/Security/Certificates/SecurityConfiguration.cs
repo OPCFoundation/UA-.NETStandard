@@ -60,25 +60,25 @@ namespace Opc.Ua
                 throw ServiceResultException.Create(StatusCodes.BadConfigurationError, "ApplicationCertificate must be specified.");
             }
             // ensure mandatory stores are valid
-            ValidateStore(TrustedIssuerCertificates, nameof(TrustedIssuerCertificates));
-            ValidateStore(TrustedPeerCertificates, nameof(TrustedPeerCertificates));
+            SecurityConfiguration.ValidateStore(TrustedIssuerCertificates, nameof(TrustedIssuerCertificates));
+            SecurityConfiguration.ValidateStore(TrustedPeerCertificates, nameof(TrustedPeerCertificates));
 
             //ensure optional stores are valid if specified
             if (TrustedHttpsCertificates != null)
             {
-                ValidateStore(TrustedHttpsCertificates, nameof(TrustedHttpsCertificates));
+                SecurityConfiguration.ValidateStore(TrustedHttpsCertificates, nameof(TrustedHttpsCertificates));
             }
             if (HttpsIssuerCertificates != null)
             {
-                ValidateStore(HttpsIssuerCertificates, nameof(HttpsIssuerCertificates));
+                SecurityConfiguration.ValidateStore(HttpsIssuerCertificates, nameof(HttpsIssuerCertificates));
             }
             if (TrustedUserCertificates != null)
             {
-                ValidateStore(TrustedUserCertificates, nameof(TrustedUserCertificates));
+                SecurityConfiguration.ValidateStore(TrustedUserCertificates, nameof(TrustedUserCertificates));
             }
             if (UserIssuerCertificates != null)
             {
-                ValidateStore(UserIssuerCertificates, nameof(UserIssuerCertificates));
+                SecurityConfiguration.ValidateStore(UserIssuerCertificates, nameof(UserIssuerCertificates));
             }
 
             if ((TrustedHttpsCertificates != null && HttpsIssuerCertificates == null)
@@ -104,7 +104,7 @@ namespace Opc.Ua
         /// Validate if the specified store can be opened
         /// throws ServiceResultException
         /// </summary>
-        private void ValidateStore(CertificateStoreIdentifier storeIdentifier, string storeName)
+        private static void ValidateStore(CertificateStoreIdentifier storeIdentifier, string storeName)
         {
             if (string.IsNullOrEmpty(storeIdentifier?.StorePath))
             {

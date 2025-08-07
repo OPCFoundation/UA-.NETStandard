@@ -125,7 +125,7 @@ namespace Opc.Ua.Bindings
                 ? ArrayPool<byte>.Shared
                 : ArrayPool<byte>.Create(maxBufferSize + kCookieLength, 4);
             m_maxBufferSize = maxBufferSize;
-            m_maxSuggestedBufferSize = DetermineSuggestedBufferSize(maxBufferSize);
+            MaxSuggestedBufferSize = DetermineSuggestedBufferSize(maxBufferSize);
         }
         #endregion
 
@@ -344,8 +344,8 @@ namespace Opc.Ua.Bindings
         /// <param name="maxBufferSize">The max buffer size configured.</param>
         private int DetermineSuggestedBufferSize(int maxBufferSize)
         {
-            int bufferArrayPoolSize = RoundUpToPowerOfTwo(maxBufferSize);
-            int maxDataRentSize = RoundUpToPowerOfTwo(maxBufferSize + kCookieLength);
+            int bufferArrayPoolSize = BufferManager.RoundUpToPowerOfTwo(maxBufferSize);
+            int maxDataRentSize = BufferManager.RoundUpToPowerOfTwo(maxBufferSize + kCookieLength);
             if (bufferArrayPoolSize != maxDataRentSize)
             {
                 Utils.LogWarning("BufferManager: Max buffer size {0} + cookie length {1} may waste memory because it allocates buffers in the next bucket!", maxBufferSize, kCookieLength);
@@ -357,7 +357,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Helper to round up to the next power of two.
         /// </summary>
-        private int RoundUpToPowerOfTwo(int value)
+        private static int RoundUpToPowerOfTwo(int value)
         {
             int result = 1;
 
@@ -378,13 +378,12 @@ namespace Opc.Ua.Bindings
         /// To avoid memory waste, use this value as a guideline
         /// for the maximum buffer size when taking buffers.
         /// </remarks>
-        public int MaxSuggestedBufferSize => m_maxSuggestedBufferSize;
+        public int MaxSuggestedBufferSize { get; }
         #endregion
 
         #region Private Fields
         private readonly string m_name;
         private readonly int m_maxBufferSize;
-        private readonly int m_maxSuggestedBufferSize;
 #if TRACE_MEMORY
         private int m_buffersTaken = 0;
 #endif

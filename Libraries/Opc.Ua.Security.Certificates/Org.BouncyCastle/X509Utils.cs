@@ -53,7 +53,7 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
     {
         #region Internal Methods
         /// <summary>
-        /// Create a Pfx blob with a private key by combining 
+        /// Create a Pfx blob with a private key by combining
         /// a bouncy castle X509Certificate and a private key.
         /// </summary>
         internal static byte[] CreatePfxWithPrivateKey(
@@ -281,12 +281,12 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
                 // brainpool bouncy castle curve names are identic to the microsoft ones
                 string msFriendlyName = ecParams.Curve.Oid.FriendlyName;
                 string bcFriendlyName = msFriendlyName;
-                string nistCurveName = "nist";
+                const string nistCurveName = "nist";
                 if (msFriendlyName.StartsWith(nistCurveName))
                 {
-                    string patternMatch = @"(.*?)(\d+)$"; // divide string in two capture groups (string & numeric)
+                    const string patternMatch = @"(.*?)(\d+)$"; // divide string in two capture groups (string & numeric)
                     bcFriendlyName = Regex.Replace(msFriendlyName, patternMatch, m => {
-                        string lastChar = m.Groups[1].Value.Length > 0 ? m.Groups[1].Value.Last().ToString() : "";
+                        string lastChar = m.Groups[1].Value.Length > 0 ? m.Groups[1].Value[^1].ToString() : "";
                         string number = m.Groups[2].Value;
                         return lastChar + "-" + number;
                     });
@@ -339,7 +339,7 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
             System.Collections.Generic.IList<string> subjectDN = certificate.SubjectDN.GetValueList(X509Name.CN);
             if (subjectDN.Count > 0)
             {
-                return subjectDN[0].ToString();
+                return subjectDN[0];
             }
             return string.Empty;
         }

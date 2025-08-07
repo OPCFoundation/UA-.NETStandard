@@ -148,7 +148,7 @@ namespace Opc.Ua
 
         /// <summary>
         /// Converts an array to a collection.
-        /// </summary>        
+        /// </summary>
         /// <remarks>
         /// Converts an array to a collection.
         /// </remarks>
@@ -165,7 +165,7 @@ namespace Opc.Ua
 
         /// <summary>
         /// Converts an array to a collection.
-        /// </summary>        
+        /// </summary>
         /// <remarks>
         /// Converts an array of SByte to a collection.
         /// </remarks>
@@ -232,7 +232,7 @@ namespace Opc.Ua
 
         /// <summary>
         /// Converts an array to a collection.
-        /// </summary>        
+        /// </summary>
         /// <remarks>
         /// Converts an array to a collection.
         /// </remarks>
@@ -249,7 +249,7 @@ namespace Opc.Ua
 
         /// <summary>
         /// Converts an array to a collection.
-        /// </summary>        
+        /// </summary>
         /// <remarks>
         /// Converts an array of Byte to a collection.
         /// </remarks>
@@ -316,7 +316,7 @@ namespace Opc.Ua
 
         /// <summary>
         /// Converts an array to a collection.
-        /// </summary>        
+        /// </summary>
         /// <remarks>
         /// Converts an array to a collection.
         /// </remarks>
@@ -333,7 +333,7 @@ namespace Opc.Ua
 
         /// <summary>
         /// Converts an array to a collection.
-        /// </summary>        
+        /// </summary>
         /// <remarks>
         /// Converts an array to a collection.
         /// </remarks>
@@ -417,7 +417,7 @@ namespace Opc.Ua
 
         /// <summary>
         /// Converts an array to a collection.
-        /// </summary>        
+        /// </summary>
         /// <remarks>
         /// Converts an array to a collection.
         /// </remarks>
@@ -498,7 +498,7 @@ namespace Opc.Ua
 
         /// <summary>
         /// Converts an array to a collection.
-        /// </summary>        
+        /// </summary>
         /// <remarks>
         /// Converts an array to a collection.
         /// </remarks>
@@ -565,7 +565,7 @@ namespace Opc.Ua
 
         /// <summary>
         /// Converts an array to a collection.
-        /// </summary>        
+        /// </summary>
         /// <remarks>
         /// Converts an array to a collection.
         /// </remarks>
@@ -584,7 +584,7 @@ namespace Opc.Ua
 
         /// <summary>
         /// Converts an array to a collection.
-        /// </summary>        
+        /// </summary>
         /// <remarks>
         /// Converts an array to a collection.
         /// </remarks>
@@ -653,7 +653,7 @@ namespace Opc.Ua
 
         /// <summary>
         /// Converts an array to a collection.
-        /// </summary>        
+        /// </summary>
         /// <remarks>
         /// Converts an array to a collection.
         /// </remarks>
@@ -670,7 +670,7 @@ namespace Opc.Ua
 
         /// <summary>
         /// Converts an array to a collection.
-        /// </summary>        
+        /// </summary>
         /// <remarks>
         /// Converts an array to a collection.
         /// </remarks>
@@ -737,7 +737,7 @@ namespace Opc.Ua
 
         /// <summary>
         /// Converts an array to a collection.
-        /// </summary>        
+        /// </summary>
         /// <remarks>
         /// Converts an array to a collection.
         /// </remarks>
@@ -754,7 +754,7 @@ namespace Opc.Ua
 
         /// <summary>
         /// Converts an array to a collection.
-        /// </summary>        
+        /// </summary>
         /// <remarks>
         /// Converts an array to a collection.
         /// </remarks>
@@ -821,7 +821,7 @@ namespace Opc.Ua
 
         /// <summary>
         /// Converts an array to a collection.
-        /// </summary>        
+        /// </summary>
         /// <remarks>
         /// Converts an array to a collection.
         /// </remarks>
@@ -838,7 +838,7 @@ namespace Opc.Ua
 
         /// <summary>
         /// Converts an array to a collection.
-        /// </summary>        
+        /// </summary>
         /// <remarks>
         /// Converts an array to a collection.
         /// </remarks>
@@ -905,7 +905,7 @@ namespace Opc.Ua
 
         /// <summary>
         /// Converts an array to a collection.
-        /// </summary>        
+        /// </summary>
         /// <remarks>
         /// Converts an array to a collection.
         /// </remarks>
@@ -922,7 +922,7 @@ namespace Opc.Ua
 
         /// <summary>
         /// Converts an array to a collection.
-        /// </summary>        
+        /// </summary>
         /// <remarks>
         /// Converts an array to a collection.
         /// </remarks>
@@ -989,7 +989,7 @@ namespace Opc.Ua
 
         /// <summary>
         /// Converts an array to a collection.
-        /// </summary>        
+        /// </summary>
         /// <remarks>
         /// Converts an array to a collection.
         /// </remarks>
@@ -1006,7 +1006,7 @@ namespace Opc.Ua
 
         /// <summary>
         /// Converts an array to a collection.
-        /// </summary>        
+        /// </summary>
         /// <remarks>
         /// Converts an array to a collection.
         /// </remarks>
@@ -1073,7 +1073,7 @@ namespace Opc.Ua
 
         /// <summary>
         /// Converts an array to a collection.
-        /// </summary>        
+        /// </summary>
         /// <remarks>
         /// Converts an array to a collection.
         /// </remarks>
@@ -1090,7 +1090,7 @@ namespace Opc.Ua
 
         /// <summary>
         /// Converts an array to a collection.
-        /// </summary>        
+        /// </summary>
         /// <remarks>
         /// Converts an array to a collection.
         /// </remarks>
@@ -1157,7 +1157,7 @@ namespace Opc.Ua
 
         /// <summary>
         /// Converts an array to a collection.
-        /// </summary>        
+        /// </summary>
         /// <remarks>
         /// Converts an array to a collection.
         /// </remarks>
@@ -1174,7 +1174,7 @@ namespace Opc.Ua
 
         /// <summary>
         /// Converts an array to a collection.
-        /// </summary>        
+        /// </summary>
         /// <remarks>
         /// Converts an array to a collection.
         /// </remarks>
@@ -1248,7 +1248,7 @@ namespace Opc.Ua
 
         /// <summary>
         /// Converts an array to a collection.
-        /// </summary>        
+        /// </summary>
         /// <remarks>
         /// Converts an array to a collection.
         /// </remarks>
@@ -1265,7 +1265,7 @@ namespace Opc.Ua
 
         /// <summary>
         /// Converts an array to a collection.
-        /// </summary>        
+        /// </summary>
         /// <remarks>
         /// Converts an array to a collection.
         /// </remarks>

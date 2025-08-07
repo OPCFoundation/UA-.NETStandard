@@ -98,8 +98,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             {   BuiltInType.SByte, (sbyte)0, null, null, null, "0" },
             {   BuiltInType.SByte, (sbyte)0, "0", null, null, "0", true },
-            {   BuiltInType.SByte, (sbyte)(-77), "-77", null },
-            {   BuiltInType.SByte, (sbyte)(77), "77", null },
+            {   BuiltInType.SByte, (sbyte)-77, "-77", null },
+            {   BuiltInType.SByte, (sbyte)77, "77", null },
             {   BuiltInType.SByte, sbyte.MaxValue, sbyte.MaxValue.ToString(CultureInfo.InvariantCulture), null },
             {   BuiltInType.SByte, sbyte.MinValue, sbyte.MinValue.ToString(CultureInfo.InvariantCulture), null },
 
@@ -112,7 +112,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             {   BuiltInType.Int16, (short)0, null, null,null, "0" },
             {   BuiltInType.Int16, (short)0, "0", null, null, "0", true },
-            {   BuiltInType.Int16, (short)(-12345), "-12345", null },
+            {   BuiltInType.Int16, (short)-12345, "-12345", null },
             {   BuiltInType.Int16, (short)12345, "12345", null },
             {   BuiltInType.Int16, short.MaxValue, short.MaxValue.ToString(CultureInfo.InvariantCulture), null },
             {   BuiltInType.Int16, short.MinValue, short.MinValue.ToString(CultureInfo.InvariantCulture), null },
@@ -146,7 +146,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             {   BuiltInType.Float, (float)0, null, null,null, "0"},
             {   BuiltInType.Float, (float)0, "0", null, null, "0", true},
-            {   BuiltInType.Float, (float)(-12345678.1234), Convert.ToSingle("-12345678.1234", CultureInfo.InvariantCulture).ToString("R",CultureInfo.InvariantCulture), null },
+            {   BuiltInType.Float, (float)-12345678.1234, Convert.ToSingle("-12345678.1234", CultureInfo.InvariantCulture).ToString("R",CultureInfo.InvariantCulture), null },
             {   BuiltInType.Float, (float)12345678.1234, Convert.ToSingle("12345678.1234", CultureInfo.InvariantCulture).ToString("R",CultureInfo.InvariantCulture), null },
             {   BuiltInType.Float, float.MaxValue, float.MaxValue.ToString("R",CultureInfo.InvariantCulture), null },
             {   BuiltInType.Float, float.MinValue, float.MinValue.ToString("R",CultureInfo.InvariantCulture), null },
@@ -855,7 +855,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 var r = XmlReader.Create(ms2, new XmlReaderSettings { DtdProcessing = DtdProcessing.Ignore });
                 xmlDoc.Load(r);
 
-                using (var decoder = new XmlDecoder((xmlDoc.FirstChild as XmlElement), dynamicContext))
+                using (var decoder = new XmlDecoder(xmlDoc.FirstChild as XmlElement, dynamicContext))
                 {
                     decoder.PushNamespace(Namespaces.OpcUaXsd);
                     extensionObjectFromXml = decoder.ReadExtensionObject("ExtensionObject");
@@ -1241,7 +1241,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 #if ECC_SUPPORT && (NETSTANDARD2_1_OR_GREATER || NET6_0_OR_GREATER)
             Span<char> valueString = stackalloc char[JsonEncoder.DateTimeRoundTripKindLength];
             JsonEncoder.ConvertUniversalTimeToString(testDateTime, valueString, out int charsWritten);
-            string resultO = valueString.Slice(0, charsWritten).ToString();
+            string resultO = valueString[..charsWritten].ToString();
 #else
             string resultO = JsonEncoder.ConvertUniversalTimeToString(testDateTime);
 #endif

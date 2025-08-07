@@ -123,8 +123,15 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public void Dispose()
         {
-            //only needed for sampling groups
-            return;
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        /// <summary>
+        /// An overrideable version of the Dispose.
+        /// </summary>
+        protected virtual void Dispose(bool disposing)
+        {
         }
 
         /// <inheritdoc/>

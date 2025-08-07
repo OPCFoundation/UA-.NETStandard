@@ -41,6 +41,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public void Dispose()
         {
+            GC.SuppressFinalize(this);
             Dispose(true);
         }
 
@@ -90,7 +91,7 @@ namespace Opc.Ua
             }
 
             // extract store location.
-            string storeLocation = location.Substring(0, index);
+            string storeLocation = location[..index];
             bool found = false;
             foreach (StoreLocation availableLocation in (StoreLocation[])Enum.GetValues(typeof(StoreLocation)))
             {
@@ -109,7 +110,7 @@ namespace Opc.Ua
                     message.ToString(), storeLocation);
             }
 
-            m_storeName = location.Substring(index + 1);
+            m_storeName = location[(index + 1)..];
         }
 
         /// <inheritdoc/>

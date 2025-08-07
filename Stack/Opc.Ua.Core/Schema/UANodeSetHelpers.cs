@@ -656,7 +656,7 @@ namespace Opc.Ua.Export
                     var o = (UAReferenceType)node;
                     var value = new ReferenceTypeState();
                     value.IsAbstract = o.IsAbstract;
-                    value.InverseName = Import(o.InverseName);
+                    value.InverseName = UANodeSet.Import(o.InverseName);
                     value.Symmetric = o.Symmetric;
                     importedNode = value;
                     break;
@@ -665,14 +665,9 @@ namespace Opc.Ua.Export
 
             importedNode.NodeId = ImportNodeId(node.NodeId, context.NamespaceUris, false);
             importedNode.BrowseName = ImportQualifiedName(node.BrowseName, context.NamespaceUris);
-            importedNode.DisplayName = Import(node.DisplayName);
+            importedNode.DisplayName = UANodeSet.Import(node.DisplayName) ?? new Ua.LocalizedText(importedNode.BrowseName.Name);
 
-            if (importedNode.DisplayName == null)
-            {
-                importedNode.DisplayName = new Ua.LocalizedText(importedNode.BrowseName.Name);
-            }
-
-            importedNode.Description = Import(node.Description);
+            importedNode.Description = UANodeSet.Import(node.Description);
             importedNode.NodeSetDocumentation = node.Documentation;
             importedNode.Categories = (node.Category != null && node.Category.Length > 0) ? node.Category : null;
             importedNode.ReleaseStatus = node.ReleaseStatus;
@@ -962,7 +957,7 @@ namespace Opc.Ua.Export
 
             if (source.Body is StructureDefinition sd)
             {
-                if (sd.StructureType == StructureType.Union || sd.StructureType == StructureType.UnionWithSubtypedValues)
+                if (sd.StructureType is StructureType.Union or StructureType.UnionWithSubtypedValues)
                 {
                     definition.IsUnion = true;
                 }
@@ -985,8 +980,8 @@ namespace Opc.Ua.Export
                             output.IsOptional = field.IsOptional;
                             output.AllowSubTypes = false;
                         }
-                        else if (sd.StructureType == StructureType.StructureWithSubtypedValues ||
-                                 sd.StructureType == StructureType.UnionWithSubtypedValues)
+                        else if (sd.StructureType is StructureType.StructureWithSubtypedValues or
+                                 StructureType.UnionWithSubtypedValues)
                         {
                             output.IsOptional = false;
                             output.AllowSubTypes = field.IsOptional;
@@ -1098,8 +1093,8 @@ namespace Opc.Ua.Export
 
                         foreach (DataTypeField field in source.Field)
                         {
-                            if (sd.StructureType == StructureType.Structure ||
-                                sd.StructureType == StructureType.Union)
+                            if (sd.StructureType is StructureType.Structure or
+                                StructureType.Union)
                             {
                                 if (field.IsOptional)
                                 {
@@ -1121,7 +1116,7 @@ namespace Opc.Ua.Export
                             var output = new StructureField();
 
                             output.Name = field.Name;
-                            output.Description = Import(field.Description);
+                            output.Description = UANodeSet.Import(field.Description);
                             output.DataType = ImportNodeId(field.DataType, namespaceUris, true);
                             output.ValueRank = field.ValueRank;
                             if (!string.IsNullOrWhiteSpace(field.ArrayDimensions))
@@ -1134,13 +1129,13 @@ namespace Opc.Ua.Export
 
                             output.MaxStringLength = field.MaxStringLength;
 
-                            if (sd.StructureType == StructureType.Structure ||
-                                sd.StructureType == StructureType.Union)
+                            if (sd.StructureType is StructureType.Structure or
+                                StructureType.Union)
                             {
                                 output.IsOptional = false;
                             }
-                            else if (sd.StructureType == StructureType.StructureWithSubtypedValues ||
-                                    sd.StructureType == StructureType.UnionWithSubtypedValues)
+                            else if (sd.StructureType is StructureType.StructureWithSubtypedValues or
+                                    StructureType.UnionWithSubtypedValues)
                             {
                                 output.IsOptional = field.AllowSubTypes;
                             }
@@ -1171,8 +1166,8 @@ namespace Opc.Ua.Export
                             var output = new EnumField();
 
                             output.Name = field.Name;
-                            output.DisplayName = Import(field.DisplayName);
-                            output.Description = Import(field.Description);
+                            output.DisplayName = UANodeSet.Import(field.DisplayName);
+                            output.Description = UANodeSet.Import(field.Description);
                             output.Value = field.Value;
 
                             fields.Add(output);
@@ -1212,7 +1207,7 @@ namespace Opc.Ua.Export
         /// <summary>
         /// Exports the array dimensions.
         /// </summary>
-        private string Export(IList<uint> arrayDimensions)
+        private static string Export(IList<uint> arrayDimensions)
         {
             if (arrayDimensions == null)
             {
@@ -1237,7 +1232,7 @@ namespace Opc.Ua.Export
         /// <summary>
         /// Imports the array dimensions.
         /// </summary>
-        private uint[] ImportArrayDimensions(string arrayDimensions)
+        private static uint[] ImportArrayDimensions(string arrayDimensions)
         {
             if (string.IsNullOrEmpty(arrayDimensions))
             {
@@ -1265,7 +1260,7 @@ namespace Opc.Ua.Export
         /// <summary>
         /// Exports localized text.
         /// </summary>
-        private Opc.Ua.Export.LocalizedText[] Export(Opc.Ua.LocalizedText[] input)
+        private static Opc.Ua.Export.LocalizedText[] Export(Opc.Ua.LocalizedText[] input)
         {
             if (input == null)
             {
@@ -1291,7 +1286,7 @@ namespace Opc.Ua.Export
         /// <summary>
         /// Exports localized text.
         /// </summary>
-        private Opc.Ua.Export.LocalizedText Export(Opc.Ua.LocalizedText input)
+        private static Opc.Ua.Export.LocalizedText Export(Opc.Ua.LocalizedText input)
         {
             if (input == null)
             {
@@ -1307,7 +1302,7 @@ namespace Opc.Ua.Export
         /// <summary>
         /// Imports localized text.
         /// </summary>
-        private Opc.Ua.LocalizedText Import(params Opc.Ua.Export.LocalizedText[] input)
+        private static Opc.Ua.LocalizedText Import(params Opc.Ua.Export.LocalizedText[] input)
         {
             if (input == null)
             {

@@ -113,7 +113,7 @@ namespace Opc.Ua
             return responseHeader;
         }
 
-#if (CLIENT_ASYNC)
+#if CLIENT_ASYNC
         /// <inheritdoc/>
         public override async Task<AddNodesResponse> AddNodesAsync(
             RequestHeader requestHeader,
@@ -197,7 +197,7 @@ namespace Opc.Ua
             return responseHeader;
         }
 
-#if (CLIENT_ASYNC)
+#if CLIENT_ASYNC
         /// <inheritdoc/>
         public override async Task<AddReferencesResponse> AddReferencesAsync(
             RequestHeader requestHeader,
@@ -281,7 +281,7 @@ namespace Opc.Ua
             return responseHeader;
         }
 
-#if (CLIENT_ASYNC)
+#if CLIENT_ASYNC
         /// <inheritdoc/>
         public override async Task<DeleteNodesResponse> DeleteNodesAsync(
             RequestHeader requestHeader,
@@ -366,7 +366,7 @@ namespace Opc.Ua
             return responseHeader;
         }
 
-#if (CLIENT_ASYNC)
+#if CLIENT_ASYNC
         /// <inheritdoc/>
         public override async Task<DeleteReferencesResponse> DeleteReferencesAsync(
             RequestHeader requestHeader,
@@ -455,7 +455,7 @@ namespace Opc.Ua
             return responseHeader;
         }
 
-#if (CLIENT_ASYNC)
+#if CLIENT_ASYNC
         /// <inheritdoc/>
         public override async Task<BrowseResponse> BrowseAsync(
             RequestHeader requestHeader,
@@ -545,7 +545,7 @@ namespace Opc.Ua
             return responseHeader;
         }
 
-#if (CLIENT_ASYNC)
+#if CLIENT_ASYNC
         /// <inheritdoc/>
         public override async Task<TranslateBrowsePathsToNodeIdsResponse> TranslateBrowsePathsToNodeIdsAsync(
             RequestHeader requestHeader,
@@ -623,7 +623,7 @@ namespace Opc.Ua
             return responseHeader;
         }
 
-#if (CLIENT_ASYNC)
+#if CLIENT_ASYNC
         /// <inheritdoc/>
         public override async Task<RegisterNodesResponse> RegisterNodesAsync(
             RequestHeader requestHeader,
@@ -681,7 +681,7 @@ namespace Opc.Ua
             return responseHeader;
         }
 
-#if (CLIENT_ASYNC)
+#if CLIENT_ASYNC
         /// <inheritdoc/>
         public override async Task<UnregisterNodesResponse> UnregisterNodesAsync(
             RequestHeader requestHeader,
@@ -751,7 +751,7 @@ namespace Opc.Ua
             return responseHeader;
         }
 
-#if (CLIENT_ASYNC)
+#if CLIENT_ASYNC
         /// <inheritdoc/>
         public override async Task<ReadResponse> ReadAsync(
             RequestHeader requestHeader,
@@ -852,7 +852,7 @@ namespace Opc.Ua
             return responseHeader;
         }
 
-#if (CLIENT_ASYNC)
+#if CLIENT_ASYNC
         /// <inheritdoc/>
         public override async Task<HistoryReadResponse> HistoryReadAsync(
             RequestHeader requestHeader,
@@ -948,7 +948,7 @@ namespace Opc.Ua
             return responseHeader;
         }
 
-#if (CLIENT_ASYNC)
+#if CLIENT_ASYNC
         /// <inheritdoc/>
         public override async Task<WriteResponse> WriteAsync(
             RequestHeader requestHeader,
@@ -1043,7 +1043,7 @@ namespace Opc.Ua
             return responseHeader;
         }
 
-#if (CLIENT_ASYNC)
+#if CLIENT_ASYNC
         /// <inheritdoc/>
         public override async Task<HistoryUpdateResponse> HistoryUpdateAsync(
             RequestHeader requestHeader,
@@ -1133,7 +1133,7 @@ namespace Opc.Ua
             return responseHeader;
         }
 
-#if (CLIENT_ASYNC)
+#if CLIENT_ASYNC
         /// <inheritdoc/>
         public override async Task<CallResponse> CallAsync(
             RequestHeader requestHeader,
@@ -1222,7 +1222,7 @@ namespace Opc.Ua
             return responseHeader;
         }
 
-#if (CLIENT_ASYNC)
+#if CLIENT_ASYNC
         /// <inheritdoc/>
         public override async Task<CreateMonitoredItemsResponse> CreateMonitoredItemsAsync(
             RequestHeader requestHeader,
@@ -1315,7 +1315,7 @@ namespace Opc.Ua
             return responseHeader;
         }
 
-#if (CLIENT_ASYNC)
+#if CLIENT_ASYNC
         /// <inheritdoc/>
         public override async Task<ModifyMonitoredItemsResponse> ModifyMonitoredItemsAsync(
             RequestHeader requestHeader,
@@ -1408,7 +1408,7 @@ namespace Opc.Ua
             return responseHeader;
         }
 
-#if (CLIENT_ASYNC)
+#if CLIENT_ASYNC
         /// <inheritdoc/>
         public override async Task<SetMonitoringModeResponse> SetMonitoringModeAsync(
             RequestHeader requestHeader,
@@ -1568,7 +1568,7 @@ namespace Opc.Ua
             responseHeader.StringTable = stringTable;
             return responseHeader;
         }
-#if (CLIENT_ASYNC)
+#if CLIENT_ASYNC
         /// <inheritdoc/>
         public override async Task<SetTriggeringResponse> SetTriggeringAsync(
             RequestHeader requestHeader,
@@ -1728,7 +1728,7 @@ namespace Opc.Ua
             return responseHeader;
         }
 
-#if (CLIENT_ASYNC)
+#if CLIENT_ASYNC
         /// <inheritdoc/>
         public override async Task<DeleteMonitoredItemsResponse> DeleteMonitoredItemsAsync(
             RequestHeader requestHeader,

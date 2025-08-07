@@ -43,7 +43,7 @@ namespace Opc.Ua
 
             m_begin = -1;
             m_end = -1;
-            m_subranges = null;
+            SubRanges = null;
 
             Begin = begin;
         }
@@ -59,7 +59,7 @@ namespace Opc.Ua
         {
             m_begin = -1;
             m_end = -1;
-            m_subranges = null;
+            SubRanges = null;
 
             Begin = begin;
             End = end;
@@ -159,12 +159,12 @@ namespace Opc.Ua
                     return 0;
                 }
 
-                if (m_subranges == null)
+                if (SubRanges == null)
                 {
                     return 1;
                 }
 
-                return m_subranges.Length;
+                return SubRanges.Length;
             }
         }
 
@@ -172,18 +172,7 @@ namespace Opc.Ua
         /// Gets or sets the sub ranges for multidimensional ranges.
         /// </summary>
         /// <value>The sub ranges.</value>
-        public NumericRange[] SubRanges
-        {
-            get
-            {
-                return m_subranges;
-            }
-
-            set
-            {
-                m_subranges = value;
-            }
-        }
+        public NumericRange[] SubRanges { get; set; }
         #endregion
 
         #region Public Methods
@@ -367,9 +356,7 @@ namespace Opc.Ua
         /// <remarks>
         /// An empty numeric range.
         /// </remarks>
-        public static NumericRange Empty => s_Empty;
-
-        private static readonly NumericRange s_Empty = new NumericRange(-1, -1);
+        public static NumericRange Empty { get; } = new NumericRange(-1, -1);
 
         /// <summary>
         /// Parses a string representing a numeric range.
@@ -401,7 +388,7 @@ namespace Opc.Ua
                     if (ch == ',' || ii == textToParse.Length - 1)
                     {
                         var subrange = new NumericRange();
-                        string subtext = (ch == ',') ? textToParse.Substring(start, ii - start) : textToParse.Substring(start);
+                        string subtext = (ch == ',') ? textToParse[start..ii] : textToParse[start..];
                         ServiceResult result = Validate(subtext, out subrange);
 
                         if (ServiceResult.IsBad(result))
@@ -422,7 +409,7 @@ namespace Opc.Ua
 
                 range.m_begin = subranges[0].Begin;
                 range.m_end = subranges[0].End;
-                range.m_subranges = subranges.ToArray();
+                range.SubRanges = subranges.ToArray();
 
                 return ServiceResult.Good;
             }
@@ -433,8 +420,8 @@ namespace Opc.Ua
 
                 if (index != -1)
                 {
-                    range.Begin = Convert.ToInt32(textToParse.Substring(0, index), CultureInfo.InvariantCulture);
-                    range.End = Convert.ToInt32(textToParse.Substring(index + 1), CultureInfo.InvariantCulture);
+                    range.Begin = Convert.ToInt32(textToParse[..index], CultureInfo.InvariantCulture);
+                    range.End = Convert.ToInt32(textToParse[(index + 1)..], CultureInfo.InvariantCulture);
 
                     if (range.End < 0)
                     {
@@ -489,7 +476,7 @@ namespace Opc.Ua
             // check for matrix.
             if (array == null)
             {
-                if (!(value is Matrix matrix) || matrix.Dimensions.Length != m_subranges.Length)
+                if (!(value is Matrix matrix) || matrix.Dimensions.Length != SubRanges.Length)
                 {
                     value = null;
                     return StatusCodes.BadIndexRangeNoData;
@@ -503,13 +490,13 @@ namespace Opc.Ua
             // check for matching dimensions.
             NumericRange? finalRange = null;
 
-            if (m_subranges.Length > typeInfo.ValueRank)
+            if (SubRanges.Length > typeInfo.ValueRank)
             {
-                if (typeInfo.BuiltInType == BuiltInType.ByteString || typeInfo.BuiltInType == BuiltInType.String)
+                if (typeInfo.BuiltInType is BuiltInType.ByteString or BuiltInType.String)
                 {
-                    if (m_subranges.Length == typeInfo.ValueRank + 1)
+                    if (SubRanges.Length == typeInfo.ValueRank + 1)
                     {
-                        finalRange = m_subranges[m_subranges.Length - 1];
+                        finalRange = SubRanges[SubRanges.Length - 1];
                     }
                 }
 
@@ -525,15 +512,15 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < dimensions.Length; ii++)
             {
-                if (m_subranges.Length > ii)
+                if (SubRanges.Length > ii)
                 {
-                    if (m_subranges[ii].m_begin >= array.GetLength(ii))
+                    if (SubRanges[ii].m_begin >= array.GetLength(ii))
                     {
                         value = null;
                         return StatusCodes.BadIndexRangeNoData;
                     }
 
-                    dimensions[ii] = m_subranges[ii].Count;
+                    dimensions[ii] = SubRanges[ii].Count;
                 }
                 else
                 {
@@ -557,8 +544,8 @@ namespace Opc.Ua
                 for (int jj = 0; jj < dstIndexes.Length; jj++)
                 {
                     divisor /= dimensions[jj];
-                    dstIndexes[jj] = (ii / divisor) % dimensions[jj];
-                    srcIndexes[jj] = dstIndexes[jj] + m_subranges[jj].m_begin;
+                    dstIndexes[jj] = ii / divisor % dimensions[jj];
+                    srcIndexes[jj] = dstIndexes[jj] + SubRanges[jj].m_begin;
 
                     if (array.GetLength(jj) <= srcIndexes[jj])
                     {
@@ -638,7 +625,7 @@ namespace Opc.Ua
                         return StatusCodes.BadIndexRangeInvalid;
                     }
 
-                    if (this.m_begin >= dstString.Length || ((this.m_end > 0 && this.m_end >= dstString.Length)))
+                    if (this.m_begin >= dstString.Length || this.m_end > 0 && this.m_end >= dstString.Length)
                     {
                         return StatusCodes.BadIndexRangeNoData;
                     }
@@ -662,7 +649,7 @@ namespace Opc.Ua
                         return StatusCodes.BadIndexRangeInvalid;
                     }
 
-                    if (this.m_begin >= dstString.Length || ((this.m_end > 0 && this.m_end >= dstString.Length)))
+                    if (this.m_begin >= dstString.Length || this.m_end > 0 && this.m_end >= dstString.Length)
                     {
                         return StatusCodes.BadIndexRangeNoData;
                     }
@@ -685,7 +672,7 @@ namespace Opc.Ua
             // check for destinations specified as a matrix.
             if (dstArray == null)
             {
-                if (!(dst is Matrix matrix) || m_subranges == null || matrix.Dimensions.Length != m_subranges.Length)
+                if (!(dst is Matrix matrix) || SubRanges == null || matrix.Dimensions.Length != SubRanges.Length)
                 {
                     return StatusCodes.BadIndexRangeInvalid;
                 }
@@ -696,7 +683,7 @@ namespace Opc.Ua
             // check for input specified as a matrix.
             if (srcArray == null)
             {
-                if (!(src is Matrix matrix) || m_subranges == null || matrix.Dimensions.Length != m_subranges.Length)
+                if (!(src is Matrix matrix) || SubRanges == null || matrix.Dimensions.Length != SubRanges.Length)
                 {
                     return StatusCodes.BadIndexRangeInvalid;
                 }
@@ -717,7 +704,7 @@ namespace Opc.Ua
             }
 
             // handle one dimension.
-            if (m_subranges == null)
+            if (SubRanges == null)
             {
                 if (dstTypeInfo.ValueRank > 1)
                 {
@@ -729,7 +716,7 @@ namespace Opc.Ua
                     return StatusCodes.BadIndexRangeInvalid;
                 }
 
-                if (this.m_begin >= dstArray.Length || ((this.m_end > 0 && this.m_end >= dstArray.Length)))
+                if (this.m_begin >= dstArray.Length || this.m_end > 0 && this.m_end >= dstArray.Length)
                 {
                     return StatusCodes.BadIndexRangeNoData;
                 }
@@ -751,13 +738,13 @@ namespace Opc.Ua
             // check for matching dimensions.
             NumericRange? finalRange = null;
 
-            if (m_subranges != null && m_subranges.Length > srcTypeInfo.ValueRank)
+            if (SubRanges != null && SubRanges.Length > srcTypeInfo.ValueRank)
             {
-                if (srcTypeInfo.BuiltInType == BuiltInType.ByteString || srcTypeInfo.BuiltInType == BuiltInType.String)
+                if (srcTypeInfo.BuiltInType is BuiltInType.ByteString or BuiltInType.String)
                 {
-                    if (m_subranges.Length == srcTypeInfo.ValueRank + 1)
+                    if (SubRanges.Length == srcTypeInfo.ValueRank + 1)
                     {
-                        finalRange = m_subranges[m_subranges.Length - 1];
+                        finalRange = SubRanges[SubRanges.Length - 1];
                     }
                 }
 
@@ -773,9 +760,9 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < dimensions.Length; ii++)
             {
-                if (m_subranges.Length < ii)
+                if (SubRanges.Length < ii)
                 {
-                    if (m_subranges[ii].Count != srcArray.GetLength(ii))
+                    if (SubRanges[ii].Count != srcArray.GetLength(ii))
                     {
                         return StatusCodes.BadIndexRangeInvalid;
                     }
@@ -796,12 +783,12 @@ namespace Opc.Ua
                 for (int jj = 0; jj < dimensions.Length; jj++)
                 {
                     divisor /= dimensions[jj];
-                    int index = (ii / divisor) % dimensions[jj];
+                    int index = ii / divisor % dimensions[jj];
                     int start = 0;
 
-                    if (m_subranges.Length > jj)
+                    if (SubRanges.Length > jj)
                     {
-                        start = m_subranges[jj].m_begin;
+                        start = SubRanges[jj].m_begin;
                     }
 
                     if (start + index >= dstArray.GetLength(jj))
@@ -861,12 +848,12 @@ namespace Opc.Ua
                 for (int jj = 0; jj < dimensions.Length; jj++)
                 {
                     divisor /= dimensions[jj];
-                    int index = (ii / divisor) % dimensions[jj];
+                    int index = ii / divisor % dimensions[jj];
                     int start = 0;
 
-                    if (m_subranges.Length > jj)
+                    if (SubRanges.Length > jj)
                     {
-                        start = m_subranges[jj].m_begin;
+                        start = SubRanges[jj].m_begin;
                     }
 
                     if (start + index >= dstArray.GetLength(jj))
@@ -985,7 +972,7 @@ namespace Opc.Ua
             }
 
             // check for multidimensional arrays.
-            if (m_subranges != null)
+            if (SubRanges != null)
             {
                 return ApplyMultiRange(ref value);
             }
@@ -1104,7 +1091,6 @@ namespace Opc.Ua
         #region Private Fields
         private int m_begin;
         private int m_end;
-        private NumericRange[] m_subranges;
         #endregion
 
     }//class

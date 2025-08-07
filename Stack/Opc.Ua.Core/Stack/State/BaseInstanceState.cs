@@ -16,7 +16,7 @@ using System.Text;
 
 namespace Opc.Ua
 {
-    /// <summary> 
+    /// <summary>
     /// The base class for all instance nodes.
     /// </summary>
     public class BaseInstanceState : NodeState, IFilterTarget
@@ -27,7 +27,7 @@ namespace Opc.Ua
         /// </summary>
         protected BaseInstanceState(NodeClass nodeClass, NodeState parent) : base(nodeClass)
         {
-            m_parent = parent;
+            Parent = parent;
         }
         #endregion
 
@@ -42,7 +42,7 @@ namespace Opc.Ua
                 m_referenceTypeId = instance.m_referenceTypeId;
                 m_typeDefinitionId = instance.m_typeDefinitionId;
                 m_modellingRuleId = instance.m_modellingRuleId;
-                m_numericId = instance.m_numericId;
+                NumericId = instance.NumericId;
             }
 
             base.Initialize(context, source);
@@ -83,11 +83,7 @@ namespace Opc.Ua
         /// <summary>
         /// The parent node.
         /// </summary>
-        public NodeState Parent
-        {
-            get { return m_parent; }
-            internal set { m_parent = value; }
-        }
+        public NodeState Parent { get; internal set; }
 
         /// <summary>
         /// Returns the id of the default type definition node for the instance.
@@ -111,7 +107,7 @@ namespace Opc.Ua
         /// </summary>
         public string GetDisplayText()
         {
-            return GetNonNullText(this);
+            return BaseInstanceState.GetNonNullText(this);
         }
 
         /// <summary>
@@ -119,9 +115,9 @@ namespace Opc.Ua
         /// </summary>
         public string GetDisplayPath(int maxLength, char seperator)
         {
-            string name = GetNonNullText(this);
+            string name = BaseInstanceState.GetNonNullText(this);
 
-            NodeState stateParent = m_parent;
+            NodeState stateParent = Parent;
 
             if (stateParent == null)
             {
@@ -137,14 +133,14 @@ namespace Opc.Ua
 
                 while (parent != null)
                 {
-                    if (!(parent is BaseInstanceState instance))
+                    if (parent is not BaseInstanceState instance)
                     {
                         break;
                     }
 
                     parent = instance.Parent;
 
-                    string parentName = GetNonNullText(parent);
+                    string parentName = BaseInstanceState.GetNonNullText(parent);
                     names.Add(parentName);
 
                     if (names.Count == maxLength - 2)
@@ -160,7 +156,7 @@ namespace Opc.Ua
                 }
             }
 
-            buffer.Append(GetNonNullText(stateParent));
+            buffer.Append(BaseInstanceState.GetNonNullText(stateParent));
             buffer.Append(seperator);
             buffer.Append(name);
 
@@ -170,7 +166,7 @@ namespace Opc.Ua
         /// <summary>
         /// Returns non-null text for the node.
         /// </summary>
-        private string GetNonNullText(NodeState node)
+        private static string GetNonNullText(NodeState node)
         {
             if (node == null)
             {
@@ -195,11 +191,7 @@ namespace Opc.Ua
         /// <summary>
         /// A numeric identifier for the instance that is unique within the parent.
         /// </summary>
-        public uint NumericId
-        {
-            get { return m_numericId; }
-            set { m_numericId = value; }
-        }
+        public uint NumericId { get; set; }
 
         /// <summary>
         /// The type of reference from the parent node to the instance.
@@ -274,8 +266,8 @@ namespace Opc.Ua
             base.ReportEvent(context, e);
 
             // recursively notify the parent.
-            m_parent?.ReportEvent(context, e);
-            
+            Parent?.ReportEvent(context, e);
+
         }
 
         /// <summary>
@@ -287,7 +279,7 @@ namespace Opc.Ua
         /// <remarks>
         /// This method creates components based on the browse paths in the event field and sets
         /// the NodeId or Value based on values in the event notification.
-        /// </remarks>  
+        /// </remarks>
         public void Update(
             ISystemContext context,
             SimpleAttributeOperandCollection fields,
@@ -546,9 +538,9 @@ namespace Opc.Ua
                 encoder.WriteNodeId("ModellingRuleId", m_modellingRuleId);
             }
 
-            if (m_numericId != 0)
+            if (NumericId != 0)
             {
-                encoder.WriteUInt32("NumericId", m_numericId);
+                encoder.WriteUInt32("NumericId", NumericId);
             }
 
             encoder.PopNamespace();
@@ -578,7 +570,7 @@ namespace Opc.Ua
                 attributesToSave |= AttributesToSave.ModellingRuleId;
             }
 
-            if (m_numericId != 0)
+            if (NumericId != 0)
             {
                 attributesToSave |= AttributesToSave.NumericId;
             }
@@ -613,7 +605,7 @@ namespace Opc.Ua
 
             if ((attributesToSave & AttributesToSave.NumericId) != 0)
             {
-                encoder.WriteUInt32(null, m_numericId);
+                encoder.WriteUInt32(null, NumericId);
             }
         }
 
@@ -644,7 +636,7 @@ namespace Opc.Ua
 
             if ((attributesToLoad & AttributesToSave.NumericId) != 0)
             {
-                m_numericId = decoder.ReadUInt32(null);
+                NumericId = decoder.ReadUInt32(null);
             }
         }
 
@@ -711,7 +703,7 @@ namespace Opc.Ua
                 }
             }
 
-            NodeState parent = m_parent;
+            NodeState parent = Parent;
 
             if (parent != null)
             {
@@ -728,14 +720,12 @@ namespace Opc.Ua
         }
         #endregion
 
-        private bool IsObjectOrVariable => ((this.NodeClass & (NodeClass.Variable | NodeClass.Object)) != 0);
+        private bool IsObjectOrVariable => (this.NodeClass & (NodeClass.Variable | NodeClass.Object)) != 0;
 
-        #region Private Fields
-        private NodeState m_parent;
+#region Private Fields
         private NodeId m_referenceTypeId;
         private NodeId m_typeDefinitionId;
         private NodeId m_modellingRuleId;
-        private uint m_numericId;
         #endregion
     }
 }

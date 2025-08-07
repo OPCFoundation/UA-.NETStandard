@@ -43,6 +43,7 @@ namespace Opc.Ua
         public virtual void Dispose()
         {
             Dispose(true);
+            GC.SuppressFinalize(this);
         }
 
         /// <summary>
@@ -1832,12 +1833,7 @@ namespace Opc.Ua
             }
 
             // get the node factory.
-            NodeStateFactory factory = context.NodeStateFactory;
-
-            if (factory == null)
-            {
-                factory = new NodeStateFactory();
-            }
+            NodeStateFactory factory = context.NodeStateFactory ?? new NodeStateFactory();
 
             // create the appropriate node.
 
@@ -1902,12 +1898,7 @@ namespace Opc.Ua
             }
 
             // get the node factory.
-            NodeStateFactory factory = context.NodeStateFactory;
-
-            if (factory == null)
-            {
-                factory = new NodeStateFactory();
-            }
+            NodeStateFactory factory = context.NodeStateFactory ?? new NodeStateFactory();
 
             // create the appropriate node.
             NodeState child = factory.CreateInstance(
@@ -1971,12 +1962,7 @@ namespace Opc.Ua
             }
 
             // get the node factory.
-            NodeStateFactory factory = context.NodeStateFactory;
-
-            if (factory == null)
-            {
-                factory = new NodeStateFactory();
-            }
+            NodeStateFactory factory = context.NodeStateFactory ?? new NodeStateFactory();
 
             // create the appropriate node.
             NodeState child = factory.CreateInstance(
@@ -2062,12 +2048,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
 
             // get the node factory.
-            NodeStateFactory factory = context.NodeStateFactory;
-
-            if (factory == null)
-            {
-                factory = new NodeStateFactory();
-            }
+            NodeStateFactory factory = context.NodeStateFactory ?? new NodeStateFactory();
 
             // create the appropriate node.
 
@@ -2120,7 +2101,7 @@ namespace Opc.Ua
         /// An event which allows multiple sinks to be notified when the OnStateChanged callback is called.
         /// </summary>
         public event NodeStateChangedHandler StateChanged;
-        #endregion 
+        #endregion
 
         #region Callback Handlers
         /// <summary>
@@ -4010,7 +3991,7 @@ namespace Opc.Ua
 
                 case Attributes.RolePermissions:
                 {
-                    if (!(value is ExtensionObject[] rolePermissionsArray))
+                    if (value is not ExtensionObject[] rolePermissionsArray)
                     {
                         return StatusCodes.BadTypeMismatch;
                     }
@@ -4019,7 +4000,7 @@ namespace Opc.Ua
 
                     foreach (ExtensionObject arrayValue in rolePermissionsArray)
                     {
-                        if (!(arrayValue.Body is RolePermissionType rolePermission))
+                        if (arrayValue.Body is not RolePermissionType rolePermission)
                         {
                             return StatusCodes.BadTypeMismatch;
                         }
@@ -4172,7 +4153,7 @@ namespace Opc.Ua
 
             if (start > 0 || end < symbolicPath.Length)
             {
-                symbolicName = symbolicPath.Substring(start, end - start);
+                symbolicName = symbolicPath[start..end];
             }
 
             // find the top level child.
@@ -4188,7 +4169,7 @@ namespace Opc.Ua
                     // check if additional path elements remain.
                     if (end < symbolicPath.Length - 1)
                     {
-                        return child.FindChildBySymbolicName(context, symbolicPath.Substring(end + 1));
+                        return child.FindChildBySymbolicName(context, symbolicPath[(end + 1)..]);
                     }
 
                     return child;
@@ -4223,7 +4204,7 @@ namespace Opc.Ua
             IList<QualifiedName> browsePath,
             int index)
         {
-            if (index < 0 || index >= int.MaxValue)
+            if (index is < 0 or >= int.MaxValue)
             {
                 throw new ArgumentOutOfRangeException(nameof(index));
             }
@@ -4457,7 +4438,7 @@ namespace Opc.Ua
                 return ReadAttribute(context, attributeId, NumericRange.Empty, null, dataValue);
             }
 
-            // find the child at the current level. 
+            // find the child at the current level.
             BaseInstanceState child = FindChild(context, relativePath[index], false, null);
 
             if (child == null)
@@ -5056,7 +5037,7 @@ namespace Opc.Ua
         /// <param name="reference">The reference.</param>
         public NodeStateHierarchyReference(string sourcePath, IReference reference)
         {
-            m_sourcePath = sourcePath;
+            SourcePath = sourcePath;
             m_referenceTypeId = reference.ReferenceTypeId;
             m_isInverse = reference.IsInverse;
             m_targetPath = null;
@@ -5074,7 +5055,7 @@ namespace Opc.Ua
             string targetPath,
             IReference reference)
         {
-            m_sourcePath = sourcePath;
+            SourcePath = sourcePath;
             m_referenceTypeId = reference.ReferenceTypeId;
             m_isInverse = reference.IsInverse;
             m_targetPath = targetPath;
@@ -5086,10 +5067,7 @@ namespace Opc.Ua
         /// Gets the path to the source node.
         /// </summary>
         /// <value>The source path.</value>
-        public string SourcePath
-        {
-            get { return m_sourcePath; }
-        }
+        public string SourcePath { get; }
 
         /// <summary>
         /// Gets the identifier for the reference type.
@@ -5130,10 +5108,9 @@ namespace Opc.Ua
         {
             get { return m_targetPath; }
         }
-        #endregion
 
-        #region Private Fields
-        private readonly string m_sourcePath;
+#endregion
+#region Private Fields
         private readonly NodeId m_referenceTypeId;
         private readonly bool m_isInverse;
         private readonly ExpandedNodeId m_targetId;

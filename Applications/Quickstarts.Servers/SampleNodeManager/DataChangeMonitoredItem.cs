@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -29,7 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Text;
 using Opc.Ua.Server;
 
 namespace Opc.Ua.Sample
@@ -305,7 +304,7 @@ namespace Opc.Ua.Sample
 
                 m_samplingInterval = samplingInterval;
 
-                // calculate the next sampling interval.                
+                // calculate the next sampling interval.
                 long newSamplingInterval = (long)(m_samplingInterval * TimeSpan.TicksPerMillisecond);
 
                 if (m_samplingInterval > 0)
@@ -930,7 +929,17 @@ namespace Opc.Ua.Sample
             diagnostics.Enqueue(diagnosticInfo);
         }
 
+        /// <inheritdoc/>
         public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        /// <summary>
+        /// An overrideable version of the Dispose.
+        /// </summary>
+        protected virtual void Dispose(bool disposing)
         {
             //only durable queues need to be disposed
         }

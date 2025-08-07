@@ -33,7 +33,7 @@ namespace Opc.Ua
         /// </summary>
         public static bool IsValid(uint attributeId)
         {
-            return (attributeId >= Attributes.NodeId && attributeId <= Attributes.AccessLevelEx);
+            return attributeId is >= Attributes.NodeId and <= Attributes.AccessLevelEx;
         }
 
         /// <summary>

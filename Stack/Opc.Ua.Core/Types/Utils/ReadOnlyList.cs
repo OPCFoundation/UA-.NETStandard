@@ -27,12 +27,7 @@ namespace Opc.Ua
         /// </summary>
         public ReadOnlyList(IList<T> list)
         {
-            m_list = list;
-
-            if (m_list == null)
-            {
-                m_list = Array.Empty<T>();
-            }
+            m_list = list ?? Array.Empty<T>();
         }
 
         /// <summary>
@@ -52,12 +47,7 @@ namespace Opc.Ua
                 list = values;
             }
 
-            m_list = list;
-
-            if (m_list == null)
-            {
-                m_list = Array.Empty<T>();
-            }
+            m_list = list ?? Array.Empty<T>();
         }
         #endregion
 

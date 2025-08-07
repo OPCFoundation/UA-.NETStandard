@@ -108,7 +108,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public void EndReverseConnect(IAsyncResult result)
         {
-            if (!(result is ReverseConnectAsyncResult ar))
+            if (result is not ReverseConnectAsyncResult ar)
             {
                 throw new ArgumentException("EndReverseConnect is called with invalid IAsyncResult.", nameof(result));
             }
@@ -296,7 +296,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         private void OnChannelReconnected(object state)
         {
-            if (!(state is SortedDictionary<uint, IServiceResponse> responses))
+            if (state is not SortedDictionary<uint, IServiceResponse> responses)
             {
                 return;
             }
@@ -464,7 +464,7 @@ namespace Opc.Ua.Bindings
             UpdateLastActiveTime();
 
             // validate the channel state.
-            if (State != TcpChannelState.Opening && State != TcpChannelState.Open)
+            if (State is not TcpChannelState.Opening and not TcpChannelState.Open)
             {
                 ForceChannelFault(StatusCodes.BadTcpMessageTypeInvalid, "Client sent an unexpected OpenSecureChannel message.");
                 return false;
@@ -518,15 +518,15 @@ namespace Opc.Ua.Bindings
                         ForceChannelFault(StatusCodes.BadSecurityChecksFailed, errorSecurityChecksFailed);
                         return false;
                     }
-                    else if (innerException.StatusCode == StatusCodes.BadCertificateTimeInvalid ||
-                        innerException.StatusCode == StatusCodes.BadCertificateIssuerTimeInvalid ||
-                        innerException.StatusCode == StatusCodes.BadCertificateHostNameInvalid ||
-                        innerException.StatusCode == StatusCodes.BadCertificateUriInvalid ||
-                        innerException.StatusCode == StatusCodes.BadCertificateUseNotAllowed ||
-                        innerException.StatusCode == StatusCodes.BadCertificateIssuerUseNotAllowed ||
-                        innerException.StatusCode == StatusCodes.BadCertificateRevocationUnknown ||
-                        innerException.StatusCode == StatusCodes.BadCertificateIssuerRevocationUnknown ||
-                        innerException.StatusCode == StatusCodes.BadCertificateIssuerRevoked)
+                    else if (innerException.StatusCode is StatusCodes.BadCertificateTimeInvalid or
+                        StatusCodes.BadCertificateIssuerTimeInvalid or
+                        StatusCodes.BadCertificateHostNameInvalid or
+                        StatusCodes.BadCertificateUriInvalid or
+                        StatusCodes.BadCertificateUseNotAllowed or
+                        StatusCodes.BadCertificateIssuerUseNotAllowed or
+                        StatusCodes.BadCertificateRevocationUnknown or
+                        StatusCodes.BadCertificateIssuerRevocationUnknown or
+                        StatusCodes.BadCertificateIssuerRevoked)
                     {
                         ForceChannelFault(innerException, innerException.StatusCode, e.Message);
                         return false;
@@ -631,7 +631,7 @@ namespace Opc.Ua.Bindings
                         Utils.LogInfo(
                             "{0} ReconnectToExistingChannel Socket={1:X8}, ChannelId={2}, TokenId={3}",
                             ChannelName,
-                            (Socket != null) ? Socket.Handle : 0,
+                            (Socket?.Handle) ?? 0,
                             (CurrentToken != null) ? CurrentToken.ChannelId : 0,
                             (CurrentToken != null) ? CurrentToken.TokenId : 0);
 
@@ -1007,7 +1007,7 @@ namespace Opc.Ua.Bindings
                 // ensure that only discovery requests come through unsecured.
                 if (DiscoveryOnly)
                 {
-                    if (!(request is GetEndpointsRequest || request is FindServersRequest || request is FindServersOnNetworkRequest))
+                    if (request is not (GetEndpointsRequest or FindServersRequest or FindServersOnNetworkRequest))
                     {
                         SendServiceFault(token, requestId, ServiceResult.Create(StatusCodes.BadSecurityPolicyRejected, "Channel can only be used for discovery."));
                         return true;

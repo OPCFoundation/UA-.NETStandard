@@ -39,8 +39,8 @@ namespace Opc.Ua.Security.Certificates
     /// revoked certificates sequence of a CRL.
     /// </summary>
     /// <remarks>
-    /// CRL fields -- https://tools.ietf.org/html/rfc5280#section-5.1
-    /// 
+    /// <para>CRL fields -- https://tools.ietf.org/html/rfc5280#section-5.1</para>
+    /// <para>
     ///    ...
     ///    revokedCertificates     SEQUENCE OF SEQUENCE  {
     ///        userCertificate         CertificateSerialNumber,
@@ -49,6 +49,7 @@ namespace Opc.Ua.Security.Certificates
     ///                              -- if present, version MUST be v2
     ///                            }  OPTIONAL,
     ///   ...
+    /// </para>
     ///</remarks>
     public class RevokedCertificate
     {
@@ -61,7 +62,7 @@ namespace Opc.Ua.Security.Certificates
         public RevokedCertificate(string serialNumber, CRLReason crlReason)
             : this(serialNumber)
         {
-            CrlEntryExtensions.Add(X509Extensions.BuildX509CRLReason(crlReason));
+            CrlEntryExtensions.Add(crlReason.BuildX509CRLReason());
         }
 
         /// <summary>
@@ -75,7 +76,7 @@ namespace Opc.Ua.Security.Certificates
         {
             if (crlReason != CRLReason.Unspecified)
             {
-                CrlEntryExtensions.Add(X509Extensions.BuildX509CRLReason(crlReason));
+                CrlEntryExtensions.Add(crlReason.BuildX509CRLReason());
             }
         }
 

@@ -247,7 +247,7 @@ namespace Opc.Ua
                 return;
             }
 
-            if (value == null || value is string)
+            if (value is null or string)
             {
                 SetIdentifier(IdType.String, value);
                 return;
@@ -322,7 +322,7 @@ namespace Opc.Ua
                     throw ServiceResultException.Create(StatusCodes.BadNodeIdInvalid, "Invalid NodeId ({0}).", originalText);
                 }
 
-                string namespaceUri = Utils.UnescapeUri(text.Substring(4, index - 4));
+                string namespaceUri = Utils.UnescapeUri(text.AsSpan()[4..index]);
                 namespaceIndex = (options?.UpdateTables == true) ? context.NamespaceUris.GetIndexOrAppend(namespaceUri) : context.NamespaceUris.GetIndex(namespaceUri);
 
                 if (namespaceIndex < 0)
@@ -330,7 +330,7 @@ namespace Opc.Ua
                     throw ServiceResultException.Create(StatusCodes.BadNodeIdInvalid, "No mapping to NamespaceIndex for NamespaceUri ({0}).", namespaceUri);
                 }
 
-                text = text.Substring(index + 1);
+                text = text[(index + 1)..];
             }
 
             if (text.StartsWith("ns=", StringComparison.Ordinal))
@@ -342,7 +342,7 @@ namespace Opc.Ua
                     throw ServiceResultException.Create(StatusCodes.BadNodeIdInvalid, "Invalid ExpandedNodeId ({0}).", originalText);
                 }
 
-                if (ushort.TryParse(text.Substring(3, index - 3), out ushort ns))
+                if (ushort.TryParse(text[3..index], out ushort ns))
                 {
                     namespaceIndex = ns;
 
@@ -352,13 +352,13 @@ namespace Opc.Ua
                     }
                 }
 
-                text = text.Substring(index + 1);
+                text = text[(index + 1)..];
             }
 
             if (text.Length >= 2)
             {
                 char idType = text[0];
-                text = text.Substring(2);
+                text = text[2..];
 
                 switch (idType)
                 {
@@ -812,34 +812,34 @@ namespace Opc.Ua
                         throw new ServiceResultException(StatusCodes.BadNodeIdInvalid, "Invalid namespace index.");
                     }
 
-                    namespaceIndex = Convert.ToUInt16(text.Substring(3, index - 3), CultureInfo.InvariantCulture);
+                    namespaceIndex = Convert.ToUInt16(text[3..index], CultureInfo.InvariantCulture);
                     namespaceSet = true;
 
-                    text = text.Substring(index + 1);
+                    text = text[(index + 1)..];
                 }
 
                 // parse numeric node identifier.
                 if (text.StartsWith("i=", StringComparison.Ordinal))
                 {
-                    return new NodeId(Convert.ToUInt32(text.Substring(2), CultureInfo.InvariantCulture), namespaceIndex);
+                    return new NodeId(Convert.ToUInt32(text[2..], CultureInfo.InvariantCulture), namespaceIndex);
                 }
 
                 // parse string node identifier.
                 if (text.StartsWith("s=", StringComparison.Ordinal))
                 {
-                    return new NodeId(text.Substring(2), namespaceIndex);
+                    return new NodeId(text[2..], namespaceIndex);
                 }
 
                 // parse guid node identifier.
                 if (text.StartsWith("g=", StringComparison.Ordinal))
                 {
-                    return new NodeId(new Guid(text.Substring(2)), namespaceIndex);
+                    return new NodeId(new Guid(text[2..]), namespaceIndex);
                 }
 
                 // parse opaque node identifier.
                 if (text.StartsWith("b=", StringComparison.Ordinal))
                 {
-                    return new NodeId(Convert.FromBase64String(text.Substring(2)), namespaceIndex);
+                    return new NodeId(Convert.FromBase64String(text[2..]), namespaceIndex);
                 }
 
                 // parse the namespace index if present.
@@ -872,11 +872,10 @@ namespace Opc.Ua
         /// <summary>
         /// Returns an instance of a null NodeId.
         /// </summary>
-        public static NodeId Null => s_Null;
+        public static NodeId Null { get; } = new NodeId();
+
 #if IMMUTABLENULLNODEID
-        private static readonly NodeId s_Null = new ImmutableNodeId();
 #else
-        private static readonly NodeId s_Null = new NodeId();
 #endif
         #endregion
 
@@ -1011,7 +1010,7 @@ namespace Opc.Ua
         /// </summary>
         internal void SetNamespaceIndex(ushort value)
         {
-            ValidateImmutableNodeIdIsNotModified();
+            NodeId.ValidateImmutableNodeIdIsNotModified();
             m_namespaceIndex = value;
         }
 
@@ -1020,7 +1019,7 @@ namespace Opc.Ua
         /// </summary>
         internal void SetIdentifier(IdType idType, object value)
         {
-            ValidateImmutableNodeIdIsNotModified();
+            NodeId.ValidateImmutableNodeIdIsNotModified();
             m_identifierType = idType;
 
             switch (idType)
@@ -1050,7 +1049,7 @@ namespace Opc.Ua
         /// </summary>
         internal void SetIdentifier(string value, IdType idType)
         {
-            ValidateImmutableNodeIdIsNotModified();
+            NodeId.ValidateImmutableNodeIdIsNotModified();
 
             m_identifierType = idType;
             SetIdentifier(IdType.String, value);
@@ -1368,7 +1367,7 @@ namespace Opc.Ua
         /// <param name="obj">The object (NodeId or ExpandedNodeId is desired) to compare to</param>
         public override bool Equals(object obj)
         {
-            return (CompareTo(obj) == 0);
+            return CompareTo(obj) == 0;
         }
 
         /// <summary>
@@ -1473,7 +1472,7 @@ namespace Opc.Ua
                 return Object.ReferenceEquals(value2, null);
             }
 
-            return (value1.CompareTo(value2) == 0);
+            return value1.CompareTo(value2) == 0;
         }
 
         /// <summary>
@@ -1489,7 +1488,7 @@ namespace Opc.Ua
                 return !Object.ReferenceEquals(value2, null);
             }
 
-            return (value1.CompareTo(value2) != 0);
+            return value1.CompareTo(value2) != 0;
         }
         #endregion
 
@@ -1509,7 +1508,7 @@ namespace Opc.Ua
             }
             set
             {
-                ValidateImmutableNodeIdIsNotModified();
+                NodeId.ValidateImmutableNodeIdIsNotModified();
 
                 var nodeId = NodeId.Parse(value);
 
@@ -1709,7 +1708,7 @@ namespace Opc.Ua
 
             if (id1 is byte[] bytes1)
             {
-                if (!(id2 is byte[] bytes2))
+                if (id2 is not byte[] bytes2)
                 {
                     return +1;
                 }
@@ -1881,7 +1880,7 @@ namespace Opc.Ua
         /// </summary>
         /// <exception cref="InvalidOperationException"></exception>
         [Conditional("IMMUTABLENULLNODEID")]
-        private void ValidateImmutableNodeIdIsNotModified()
+        private static void ValidateImmutableNodeIdIsNotModified()
         {
 #if IMMUTABLENULLNODEID
             if (this is ImmutableNodeId)

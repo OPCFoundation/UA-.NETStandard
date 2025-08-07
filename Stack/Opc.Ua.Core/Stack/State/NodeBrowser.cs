@@ -52,13 +52,13 @@ namespace Opc.Ua
             IEnumerable<IReference> additionalReferences,
             bool internalOnly)
         {
-            m_context = context;
-            m_view = view;
-            m_referenceType = referenceType;
-            m_includeSubtypes = includeSubtypes;
-            m_browseDirection = browseDirection;
-            m_browseName = browseName;
-            m_internalOnly = internalOnly;
+            SystemContext = context;
+            View = view;
+            ReferenceType = referenceType;
+            IncludeSubtypes = includeSubtypes;
+            BrowseDirection = browseDirection;
+            BrowseName = browseName;
+            InternalOnly = internalOnly;
             m_references = new List<IReference>();
             m_index = 0;
 
@@ -83,6 +83,7 @@ namespace Opc.Ua
         public void Dispose()
         {
             Dispose(true);
+            GC.SuppressFinalize(this);
         }
 
         /// <summary>
@@ -155,29 +156,29 @@ namespace Opc.Ua
             // easiest to check inverse flag first.
             if (isInverse)
             {
-                if (m_browseDirection == BrowseDirection.Forward)
+                if (BrowseDirection == BrowseDirection.Forward)
                 {
                     return false;
                 }
             }
             else
             {
-                if (m_browseDirection == BrowseDirection.Inverse)
+                if (BrowseDirection == BrowseDirection.Inverse)
                 {
                     return false;
                 }
             }
 
             // check for no filter or exact match.
-            if (NodeId.IsNull(m_referenceType) || referenceType == m_referenceType)
+            if (NodeId.IsNull(ReferenceType) || referenceType == ReferenceType)
             {
                 return true;
             }
 
             // check subtypes if possible.
-            if (m_includeSubtypes && m_context != null)
+            if (IncludeSubtypes && SystemContext != null)
             {
-                if (m_context.TypeTable.IsTypeOf(referenceType, m_referenceType))
+                if (SystemContext.TypeTable.IsTypeOf(referenceType, ReferenceType))
                 {
                     return true;
                 }
@@ -208,9 +209,9 @@ namespace Opc.Ua
             lock (DataLock)
             {
                 // do not return add target unless the browse name matches.
-                if (!QualifiedName.IsNull(m_browseName))
+                if (!QualifiedName.IsNull(BrowseName))
                 {
-                    if (target.BrowseName != m_browseName)
+                    if (target.BrowseName != BrowseName)
                     {
                         return;
                     }
@@ -236,79 +237,47 @@ namespace Opc.Ua
         /// <summary>
         /// Thr synchronization lock used by the browser.
         /// </summary>
-        protected object DataLock
-        {
-            get { return m_lock; }
-        }
+        protected object DataLock { get; } = new object();
 
         /// <summary>
         /// The table of types known to the UA server.
         /// </summary>
-        public ISystemContext SystemContext
-        {
-            get { return m_context; }
-        }
+        public ISystemContext SystemContext { get; }
 
         /// <summary>
         /// The view being browsed.
         /// </summary>
-        public ViewDescription View
-        {
-            get { return m_view; }
-        }
+        public ViewDescription View { get; }
 
         /// <summary>
         /// The type of reference to return.
         /// </summary>
-        public NodeId ReferenceType
-        {
-            get { return m_referenceType; }
-        }
+        public NodeId ReferenceType { get; }
 
         /// <summary>
         /// Whether to return subtypes of the reference.
         /// </summary>
-        public bool IncludeSubtypes
-        {
-            get { return m_includeSubtypes; }
-        }
+        public bool IncludeSubtypes { get; }
 
         /// <summary>
         /// The direction for the references to return.
         /// </summary>
-        public BrowseDirection BrowseDirection
-        {
-            get { return m_browseDirection; }
-        }
+        public BrowseDirection BrowseDirection { get; }
 
         /// <summary>
         /// The browse name of the targets to return.
         /// </summary>
-        public QualifiedName BrowseName
-        {
-            get { return m_browseName; }
-        }
+        public QualifiedName BrowseName { get; }
 
         /// <summary>
         /// Indicates that the browser only returned easy to access references stored in memory.
         /// </summary>
-        public bool InternalOnly
-        {
-            get { return m_internalOnly; }
-        }
-        #endregion
+        public bool InternalOnly { get; }
 
-        #region Private Fields
-        private readonly object m_lock = new object();
-        private readonly ISystemContext m_context;
-        private readonly ViewDescription m_view;
-        private readonly NodeId m_referenceType;
-        private readonly bool m_includeSubtypes;
-        private readonly BrowseDirection m_browseDirection;
+#endregion
+#region Private Fields
         private IReference m_pushBack;
         private readonly List<IReference> m_references;
-        private readonly QualifiedName m_browseName;
-        private readonly bool m_internalOnly;
         private int m_index;
         #endregion
     }
@@ -326,10 +295,10 @@ namespace Opc.Ua
         /// </summary>
         public NodeStateReference(NodeId referenceTypeId, bool isInverse, NodeState target)
         {
-            m_referenceTypeId = referenceTypeId;
+            ReferenceTypeId = referenceTypeId;
             m_isInverse = isInverse;
             m_targetId = target.NodeId;
-            m_target = target;
+            Target = target;
         }
 
         /// <summary>
@@ -337,10 +306,10 @@ namespace Opc.Ua
         /// </summary>
         public NodeStateReference(NodeId referenceTypeId, bool isInverse, ExpandedNodeId targetId)
         {
-            m_referenceTypeId = referenceTypeId;
+            ReferenceTypeId = referenceTypeId;
             m_isInverse = isInverse;
             m_targetId = targetId;
-            m_target = null;
+            Target = null;
         }
         #endregion
 
@@ -348,18 +317,12 @@ namespace Opc.Ua
         /// <summary>
         /// The internal target of the reference.
         /// </summary>
-        public NodeState Target
-        {
-            get { return m_target; }
-        }
+        public NodeState Target { get; }
         #endregion
 
         #region IReference Members
         /// <inheritdoc/>
-        public NodeId ReferenceTypeId
-        {
-            get { return m_referenceTypeId; }
-        }
+        public NodeId ReferenceTypeId { get; }
 
         /// <inheritdoc/>
         public bool IsInverse
@@ -372,13 +335,11 @@ namespace Opc.Ua
         {
             get { return m_targetId; }
         }
-        #endregion
 
-        #region Private Fields
-        private readonly NodeId m_referenceTypeId;
+#endregion
+#region Private Fields
         private readonly bool m_isInverse;
         private readonly ExpandedNodeId m_targetId;
-        private readonly NodeState m_target;
         #endregion
     }
     #endregion

@@ -50,7 +50,7 @@ namespace Opc.Ua
             /// </summary>
             public ElementInfo(uint id, string name, uint number)
             {
-                m_id = id;
+                Id = id;
                 m_name = name;
                 m_number = number;
             }
@@ -58,10 +58,7 @@ namespace Opc.Ua
             /// <summary>
             /// The node id for the element.
             /// </summary>
-            public uint Id
-            {
-                get { return m_id; }
-            }
+            public uint Id { get; }
 
             /// <summary>
             /// The browse name of the element.
@@ -78,8 +75,6 @@ namespace Opc.Ua
             {
                 get { return m_number; }
             }
-
-            private readonly uint m_id;
             private readonly string m_name;
             private readonly uint m_number;
         }

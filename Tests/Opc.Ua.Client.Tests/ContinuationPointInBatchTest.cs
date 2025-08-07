@@ -286,7 +286,7 @@ namespace Opc.Ua.Client.Tests
         [Theory, Order(100)]
         public void MBNodeCache_BrowseAllVariables(ManagedBrowseTestDataProvider testData)
         {
-            var theSession = ((Session)(((TraceableSession)Session).Session));
+            var theSession = (Session)((TraceableSession)Session).Session;
             theSession.NodeCache.Clear();
 
             theSession.ContinuationPointPolicy = ContinuationPointPolicy.Default;
@@ -351,7 +351,7 @@ namespace Opc.Ua.Client.Tests
         public void MBNodeCache_BrowseAllVariables_MultipleNodes(ManagedBrowseTestDataProvider testData,
             ContinuationPointPolicy policy)
         {
-            var theSession = ((Session)(((TraceableSession)Session).Session));
+            var theSession = (Session)((TraceableSession)Session).Session;
             theSession.NodeCache.Clear();
 
             theSession.ContinuationPointPolicy = policy;
@@ -438,7 +438,7 @@ namespace Opc.Ua.Client.Tests
         {
             var memoryWriter = new CPBatchTestMemoryWriter();
             base.ClientFixture.SetTraceOutput(memoryWriter);
-            var theSession = ((Session)(((TraceableSession)Session).Session));
+            var theSession = (Session)((TraceableSession)Session).Session;
             theSession.FetchOperationLimits();
 
             theSession.ContinuationPointPolicy = ContinuationPointPolicy.Default;
@@ -582,7 +582,7 @@ namespace Opc.Ua.Client.Tests
         {
             var memoryWriter = new CPBatchTestMemoryWriter();
             base.ClientFixture.SetTraceOutput(memoryWriter);
-            var theSession = ((Session)(((TraceableSession)Session).Session));
+            var theSession = (Session)((TraceableSession)Session).Session;
 
             theSession.ContinuationPointPolicy = ContinuationPointPolicy.Balanced;
 
@@ -723,7 +723,7 @@ namespace Opc.Ua.Client.Tests
         {
             var memoryWriter = new CPBatchTestMemoryWriter();
             base.ClientFixture.SetTraceOutput(memoryWriter);
-            var theSession = ((Session)(((TraceableSession)Session).Session));
+            var theSession = (Session)((TraceableSession)Session).Session;
 
             theSession.ContinuationPointPolicy = policy;
 
@@ -840,7 +840,7 @@ namespace Opc.Ua.Client.Tests
         [Theory, Order(400)]
         public async Task MBNodeCache_BrowseAllVariablesAsync(ManagedBrowseTestDataProvider testData)
         {
-            var theSession = ((Session)(((TraceableSession)Session).Session));
+            var theSession = (Session)((TraceableSession)Session).Session;
             theSession.NodeCache.Clear();
 
             theSession.ContinuationPointPolicy = ContinuationPointPolicy.Default;
@@ -914,7 +914,7 @@ namespace Opc.Ua.Client.Tests
         public async Task MBNodeCache_BrowseAllVariables_MultipleNodesAsync(ManagedBrowseTestDataProvider testData,
             ContinuationPointPolicy policy)
         {
-            var theSession = ((Session)(((TraceableSession)Session).Session));
+            var theSession = (Session)((TraceableSession)Session).Session;
             theSession.NodeCache.Clear();
 
             theSession.ContinuationPointPolicy = policy;
@@ -987,7 +987,7 @@ namespace Opc.Ua.Client.Tests
         {
             var memoryWriter = new CPBatchTestMemoryWriter();
             base.ClientFixture.SetTraceOutput(memoryWriter);
-            var theSession = ((Session)(((TraceableSession)Session).Session));
+            var theSession = (Session)((TraceableSession)Session).Session;
 
             theSession.ContinuationPointPolicy = ContinuationPointPolicy.Default;
 
@@ -1039,7 +1039,7 @@ namespace Opc.Ua.Client.Tests
         #region helper methods
         private void WriteMemoryLogToTextOut(List<string> memoryLog, string contextInfo)
         {
-            var theSession = ((Session)(((TraceableSession)Session).Session));
+            var theSession = (Session)((TraceableSession)Session).Session;
 
             TestContext.WriteLine($"Note: the clients ServerMaxContinuationPointsPerBrowse was set to {theSession.ServerMaxContinuationPointsPerBrowse}");
 
@@ -1069,7 +1069,7 @@ namespace Opc.Ua.Client.Tests
             foreach (string s in messagesWithBadNoCPSC)
             {
                 // get the part of the error message after the time stamp:
-                string msg = s.Substring(s.IndexOf("ManagedBrowse"));
+                string msg = s[s.IndexOf("ManagedBrowse")..];
                 // create error message from expected results
                 string expectedString = Utils.Format(
                     "ManagedBrowse: in pass {0}, {1} {2} occured with a status code {3}.",

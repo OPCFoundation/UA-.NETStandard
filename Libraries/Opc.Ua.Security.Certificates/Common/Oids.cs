@@ -42,15 +42,15 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         public const string Dsa = "1.2.840.10040.4.1";
         /// <summary>
-        /// The Oid string for the RSA encryption scheme with PKCS#1. 
+        /// The Oid string for the RSA encryption scheme with PKCS#1.
         /// </summary>
         public const string Rsa = "1.2.840.113549.1.1.1";
         /// <summary>
-        /// The Oid string for the RSA encryption scheme with OAEP. 
+        /// The Oid string for the RSA encryption scheme with OAEP.
         /// </summary>
         public const string RsaOaep = "1.2.840.113549.1.1.7";
         /// <summary>
-        /// The Oid string for the RSA encryption scheme with PSS. 
+        /// The Oid string for the RSA encryption scheme with PSS.
         /// </summary>
         public const string RsaPss = "1.2.840.113549.1.1.10";
 
@@ -103,12 +103,12 @@ namespace Opc.Ua.Security.Certificates
 
         /// <summary>
         /// The Oid string for Transport Layer Security(TLS) World Wide Web(WWW)
-        /// server authentication. 
+        /// server authentication.
         /// </summary>
         public const string ServerAuthentication = "1.3.6.1.5.5.7.3.1";
         /// <summary>
         /// The Oid string for Transport Layer Security(TLS) World Wide Web(WWW)
-        /// client authentication. 
+        /// client authentication.
         /// </summary>
         public const string ClientAuthentication = "1.3.6.1.5.5.7.3.2";
 

@@ -79,16 +79,26 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public HttpsTransportChannel(string uriScheme)
         {
-            m_uriScheme = uriScheme;
+            UriScheme = uriScheme;
         }
 
         /// <inheritdoc/>
         public void Dispose()
         {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        /// <summary>
+        /// Override this method if you need to release resources.
+        /// </summary>
+        /// <param name="disposing"></param>
+        protected virtual void Dispose(bool disposing)
+        {
         }
 
         /// <inheritdoc/>
-        public string UriScheme => m_uriScheme;
+        public string UriScheme { get; }
 
         /// <inheritdoc/>
         public TransportChannelFeatures SupportedFeatures =>
@@ -117,11 +127,7 @@ namespace Opc.Ua.Bindings
         }
 
         /// <inheritdoc/>
-        public int OperationTimeout
-        {
-            get => m_operationTimeout;
-            set => m_operationTimeout = value;
-        }
+        public int OperationTimeout { get; set; }
 
         /// <inheritdoc/>
         public void Initialize(
@@ -301,12 +307,12 @@ namespace Opc.Ua.Bindings
                     content.Headers.Add(Profiles.HttpsSecurityPolicyHeader, EndpointDescription.SecurityPolicyUri);
                 }
 
-                var result = new HttpsAsyncResult(callback, callbackData, m_operationTimeout, request, null);
+                var result = new HttpsAsyncResult(callback, callbackData, OperationTimeout, request, null);
 
                 _ = Task.Run(async () => {
                     try
                     {
-                        using (var cts = new CancellationTokenSource(m_operationTimeout))
+                        using (var cts = new CancellationTokenSource(OperationTimeout))
                         {
                             response = await m_client.PostAsync(m_url, content, cts.Token).ConfigureAwait(false);
                             response.EnsureSuccessStatusCode();
@@ -327,7 +333,7 @@ namespace Opc.Ua.Bindings
             catch (Exception ex)
             {
                 Utils.LogError(ex, "Exception sending HTTPS request.");
-                var result = new HttpsAsyncResult(callback, callbackData, m_operationTimeout, request, response);
+                var result = new HttpsAsyncResult(callback, callbackData, OperationTimeout, request, response);
                 result.Exception = ex;
                 result.OperationCompleted();
                 return result;
@@ -447,7 +453,7 @@ namespace Opc.Ua.Bindings
                 }
 
                 HttpResponseMessage response;
-                using (var cts = new CancellationTokenSource(m_operationTimeout))
+                using (var cts = new CancellationTokenSource(OperationTimeout))
                 using (var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cts.Token, ct))
                 {
                     response = await m_client.PostAsync(m_url, content, linkedCts.Token).ConfigureAwait(false);
@@ -501,10 +507,10 @@ namespace Opc.Ua.Bindings
             // remove the opc. prefix, the https client can not handle it
             if (m_url.Scheme == Utils.UriSchemeOpcHttps)
             {
-                m_url = new Uri(url.ToString().Substring(4));
+                m_url = new Uri(url.ToString()[4..]);
             }
             m_settings = settings;
-            m_operationTimeout = settings.Configuration.OperationTimeout;
+            OperationTimeout = settings.Configuration.OperationTimeout;
 
             // initialize the quotas.
             m_quotas = new ChannelQuotas {
@@ -528,10 +534,7 @@ namespace Opc.Ua.Bindings
                 CertificateValidator = settings.CertificateValidator
             };
         }
-
-        private readonly string m_uriScheme;
         private Uri m_url;
-        private int m_operationTimeout;
         private TransportChannelSettings m_settings;
         private ChannelQuotas m_quotas;
         private HttpClient m_client;

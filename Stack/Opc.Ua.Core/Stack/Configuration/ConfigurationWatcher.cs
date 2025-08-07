@@ -142,7 +142,7 @@ namespace Opc.Ua
             ApplicationConfiguration configuration,
             string filePath)
         {
-            m_configuration = configuration;
+            Configuration = configuration;
             m_filePath = filePath;
         }
         #endregion
@@ -151,10 +151,7 @@ namespace Opc.Ua
         /// <summary>
         /// The application configuration which changed.
         /// </summary>
-        public ApplicationConfiguration Configuration
-        {
-            get { return m_configuration; }
-        }
+        public ApplicationConfiguration Configuration { get; }
 
         /// <summary>
         /// The path to the application configuration file.
@@ -163,10 +160,9 @@ namespace Opc.Ua
         {
             get { return m_filePath; }
         }
-        #endregion
 
-        #region Private Fields
-        private readonly ApplicationConfiguration m_configuration;
+#endregion
+#region Private Fields
         private readonly string m_filePath;
         #endregion
     }

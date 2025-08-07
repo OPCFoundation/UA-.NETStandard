@@ -298,15 +298,17 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [TestCase(2)]
         public void DecodeCompactAndVerboseNodeId(int index)
         {
-            string data = $@"
-                {{
-                    ""D0"": ""i=2263"",
-                    ""D1"": ""nsu={ToString(NamespaceUris, index)};i={ToString(NumericIds, index)}"",
-                    ""D2"": ""nsu={ToString(NamespaceUris, index + 1)};s={ToString(StringIds, index)}"",
-                    ""D3"": ""nsu={ToString(NamespaceUris, index + 2)};g={ToString(GuidIds, index)}"",
-                    ""D4"": ""nsu={ToString(NamespaceUris, index + 3)};b={ToString(OpaqueIds, index)}""
-                }}
-            ";
+            string data = $$"""
+
+                {
+                    "D0": "i=2263",
+                    "D1": "nsu={{ToString(NamespaceUris, index)}};i={{ToString(NumericIds, index)}}",
+                    "D2": "nsu={{ToString(NamespaceUris, index + 1)}};s={{ToString(StringIds, index)}}",
+                    "D3": "nsu={{ToString(NamespaceUris, index + 2)}};g={{ToString(GuidIds, index)}}",
+                    "D4": "nsu={{ToString(NamespaceUris, index + 3)}};b={{ToString(OpaqueIds, index)}}"
+                }
+
+""";
 
             var context = new ServiceMessageContext();
 
@@ -326,15 +328,17 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [TestCase(2, JsonEncodingType.Compact)]
         public void EncodeCompactOrVerboseNodeId(int index, JsonEncodingType jsonEncoding)
         {
-            string data = $@"
-                {{
-                    ""D0"": ""i=2263"",
-                    ""D1"": ""nsu={ToString(NamespaceUris, index)};i={ToString(NumericIds, index)}"",
-                    ""D2"": ""nsu={ToString(NamespaceUris, index + 1)};s={ToString(StringIds, index)}"",
-                    ""D3"": ""nsu={ToString(NamespaceUris, index + 2)};g={ToString(GuidIds, index)}"",
-                    ""D4"": ""nsu={ToString(NamespaceUris, index + 3)};b={ToString(OpaqueIds, index)}"",
-                }}
-            ";
+            string data = $$"""
+
+                {
+                    "D0": "i=2263",
+                    "D1": "nsu={{ToString(NamespaceUris, index)}};i={{ToString(NumericIds, index)}}",
+                    "D2": "nsu={{ToString(NamespaceUris, index + 1)}};s={{ToString(StringIds, index)}}",
+                    "D3": "nsu={{ToString(NamespaceUris, index + 2)}};g={{ToString(GuidIds, index)}}",
+                    "D4": "nsu={{ToString(NamespaceUris, index + 3)}};b={{ToString(OpaqueIds, index)}}",
+                }
+
+""";
 
             var jsonObj = JObject.Parse(data);
             string expected = JsonConvert.SerializeObject(jsonObj, Formatting.None);
@@ -363,19 +367,21 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [TestCase(2)]
         public void DecodeCompactAndVerboseExpandedNodeId(int index)
         {
-            string data = $@"
-                {{
-                    ""D0"": ""i=2263"",
-                    ""D1"": ""nsu={ToString(NamespaceUris, index)};i={ToString(NumericIds, index)}"",
-                    ""D2"": ""nsu={ToString(NamespaceUris, index + 1)};s={ToString(StringIds, index)}"",
-                    ""D3"": ""nsu={ToString(NamespaceUris, index + 2)};g={ToString(GuidIds, index)}"",
-                    ""D4"": ""nsu={ToString(NamespaceUris, index + 3)};b={ToString(OpaqueIds, index)}"",
-                    ""D5"": ""svu={ToString(ServerUris, index)};nsu={ToString(NamespaceUris, index)};i={ToString(NumericIds, index)}"",
-                    ""D6"": ""svu={ToString(ServerUris, index + 1)};nsu={ToString(NamespaceUris, index + 1)};s={ToString(StringIds, index)}"",
-                    ""D7"": ""svu={ToString(ServerUris, index + 2)};nsu={ToString(NamespaceUris, index + 2)};g={ToString(GuidIds, index)}"",
-                    ""D8"": ""svu={ToString(ServerUris, index + 3)};nsu={ToString(NamespaceUris, index + 3)};b={ToString(OpaqueIds, index)}""
-                }}
-            ";
+            string data = $$"""
+
+                {
+                    "D0": "i=2263",
+                    "D1": "nsu={{ToString(NamespaceUris, index)}};i={{ToString(NumericIds, index)}}",
+                    "D2": "nsu={{ToString(NamespaceUris, index + 1)}};s={{ToString(StringIds, index)}}",
+                    "D3": "nsu={{ToString(NamespaceUris, index + 2)}};g={{ToString(GuidIds, index)}}",
+                    "D4": "nsu={{ToString(NamespaceUris, index + 3)}};b={{ToString(OpaqueIds, index)}}",
+                    "D5": "svu={{ToString(ServerUris, index)}};nsu={{ToString(NamespaceUris, index)}};i={{ToString(NumericIds, index)}}",
+                    "D6": "svu={{ToString(ServerUris, index + 1)}};nsu={{ToString(NamespaceUris, index + 1)}};s={{ToString(StringIds, index)}}",
+                    "D7": "svu={{ToString(ServerUris, index + 2)}};nsu={{ToString(NamespaceUris, index + 2)}};g={{ToString(GuidIds, index)}}",
+                    "D8": "svu={{ToString(ServerUris, index + 3)}};nsu={{ToString(NamespaceUris, index + 3)}};b={{ToString(OpaqueIds, index)}}"
+                }
+
+""";
 
             var context = new ServiceMessageContext();
 
@@ -396,19 +402,21 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
         public void EncodeCompactOrVerboseExpandedNodeId(int index, JsonEncodingType jsonEncoding)
         {
-            string data = $@"
-                {{
-                    ""D0"": ""i=2263"",
-                    ""D1"": ""nsu={ToString(NamespaceUris, index)};i={ToString(NumericIds, index)}"",
-                    ""D2"": ""nsu={ToString(NamespaceUris, index + 1)};s={ToString(StringIds, index)}"",
-                    ""D3"": ""nsu={ToString(NamespaceUris, index + 2)};g={ToString(GuidIds, index)}"",
-                    ""D4"": ""nsu={ToString(NamespaceUris, index + 3)};b={ToString(OpaqueIds, index)}"",
-                    ""D5"": ""svu={ToString(ServerUris, index)};nsu={ToString(NamespaceUris, index)};i={ToString(NumericIds, index)}"",
-                    ""D6"": ""svu={ToString(ServerUris, index + 1)};nsu={ToString(NamespaceUris, index + 1)};s={ToString(StringIds, index)}"",
-                    ""D7"": ""svu={ToString(ServerUris, index + 2)};nsu={ToString(NamespaceUris, index + 2)};g={ToString(GuidIds, index)}"",
-                    ""D8"": ""svu={ToString(ServerUris, index + 3)};nsu={ToString(NamespaceUris, index + 3)};b={ToString(OpaqueIds, index)}""
-                }}
-            ";
+            string data = $$"""
+
+                {
+                    "D0": "i=2263",
+                    "D1": "nsu={{ToString(NamespaceUris, index)}};i={{ToString(NumericIds, index)}}",
+                    "D2": "nsu={{ToString(NamespaceUris, index + 1)}};s={{ToString(StringIds, index)}}",
+                    "D3": "nsu={{ToString(NamespaceUris, index + 2)}};g={{ToString(GuidIds, index)}}",
+                    "D4": "nsu={{ToString(NamespaceUris, index + 3)}};b={{ToString(OpaqueIds, index)}}",
+                    "D5": "svu={{ToString(ServerUris, index)}};nsu={{ToString(NamespaceUris, index)}};i={{ToString(NumericIds, index)}}",
+                    "D6": "svu={{ToString(ServerUris, index + 1)}};nsu={{ToString(NamespaceUris, index + 1)}};s={{ToString(StringIds, index)}}",
+                    "D7": "svu={{ToString(ServerUris, index + 2)}};nsu={{ToString(NamespaceUris, index + 2)}};g={{ToString(GuidIds, index)}}",
+                    "D8": "svu={{ToString(ServerUris, index + 3)}};nsu={{ToString(NamespaceUris, index + 3)}};b={{ToString(OpaqueIds, index)}}"
+                }
+
+""";
 
             var jsonObj = JObject.Parse(data);
             string expected = JsonConvert.SerializeObject(jsonObj, Formatting.None);
@@ -448,15 +456,17 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             context1.NamespaceUris.Append(NamespaceUris[1]);
             context1.NamespaceUris.Append(NamespaceUris[2]);
 
-            string data = $@"
-                {{
-                    ""D0"": {{ ""Id"": 2263 }},
-                    ""D1"": {{ ""Id"": {ToString(NumericIds, index)}, ""Namespace"":{context1.NamespaceUris.GetIndex(Get(NamespaceUris, index))} }},
-                    ""D2"": {{ ""IdType"": 1, ""Id"": ""{ToString(StringIds, index)}"", ""Namespace"":{context1.NamespaceUris.GetIndex(Get(NamespaceUris, index + 1))} }},
-                    ""D3"": {{ ""IdType"": 2, ""Id"": ""{ToString(GuidIds, index)}"", ""Namespace"":{context1.NamespaceUris.GetIndex(Get(NamespaceUris, index + 2))} }},
-                    ""D4"": {{ ""IdType"": 3, ""Id"": ""{ToString(OpaqueIds, index)}"", ""Namespace"":{context1.NamespaceUris.GetIndex(Get(NamespaceUris, index + 3))} }}
-                }}
-            ";
+            string data = $$"""
+
+                {
+                    "D0": { "Id": 2263 },
+                    "D1": { "Id": {{ToString(NumericIds, index)}}, "Namespace":{{context1.NamespaceUris.GetIndex(Get(NamespaceUris, index))}} },
+                    "D2": { "IdType": 1, "Id": "{{ToString(StringIds, index)}}", "Namespace":{{context1.NamespaceUris.GetIndex(Get(NamespaceUris, index + 1))}} },
+                    "D3": { "IdType": 2, "Id": "{{ToString(GuidIds, index)}}", "Namespace":{{context1.NamespaceUris.GetIndex(Get(NamespaceUris, index + 2))}} },
+                    "D4": { "IdType": 3, "Id": "{{ToString(OpaqueIds, index)}}", "Namespace":{{context1.NamespaceUris.GetIndex(Get(NamespaceUris, index + 3))}} }
+                }
+
+""";
 
             var context2 = new ServiceMessageContext();
             context2.NamespaceUris.Append(NamespaceUris[2]);
@@ -482,15 +492,17 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             context1.NamespaceUris.Append(NamespaceUris[1]);
             context1.NamespaceUris.Append(NamespaceUris[2]);
 
-            string data = $@"
-                {{
-                    ""D0"": {{ ""Id"": 2263 }},
-                    ""D1"": {{ ""Id"": {ToString(NumericIds, index)}, ""Namespace"":{context1.NamespaceUris.GetIndex(Get(NamespaceUris, index))} }},
-                    ""D2"": {{ ""IdType"": 1, ""Id"": ""{ToString(StringIds, index)}"", ""Namespace"":{context1.NamespaceUris.GetIndex(Get(NamespaceUris, index + 1))} }},
-                    ""D3"": {{ ""IdType"": 2, ""Id"": ""{ToString(GuidIds, index)}"", ""Namespace"":{context1.NamespaceUris.GetIndex(Get(NamespaceUris, index + 2))} }},
-                    ""D4"": {{ ""IdType"": 3, ""Id"": ""{ToString(OpaqueIds, index)}"", ""Namespace"":{context1.NamespaceUris.GetIndex(Get(NamespaceUris, index + 3))} }}
-                }}
-            ";
+            string data = $$"""
+
+                {
+                    "D0": { "Id": 2263 },
+                    "D1": { "Id": {{ToString(NumericIds, index)}}, "Namespace":{{context1.NamespaceUris.GetIndex(Get(NamespaceUris, index))}} },
+                    "D2": { "IdType": 1, "Id": "{{ToString(StringIds, index)}}", "Namespace":{{context1.NamespaceUris.GetIndex(Get(NamespaceUris, index + 1))}} },
+                    "D3": { "IdType": 2, "Id": "{{ToString(GuidIds, index)}}", "Namespace":{{context1.NamespaceUris.GetIndex(Get(NamespaceUris, index + 2))}} },
+                    "D4": { "IdType": 3, "Id": "{{ToString(OpaqueIds, index)}}", "Namespace":{{context1.NamespaceUris.GetIndex(Get(NamespaceUris, index + 3))}} }
+                }
+
+""";
 
             var jsonObj = JObject.Parse(data);
             string expected = JsonConvert.SerializeObject(jsonObj, Formatting.None);
@@ -532,19 +544,21 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             context1.ServerUris.Append(ServerUris[1]);
             context1.ServerUris.Append(ServerUris[2]);
 
-            string data = $@"
-                {{
-                    ""D0"": {{ ""Id"": 2263 }},
-                    ""D1"": {{ ""Id"": {ToString(NumericIds, index)}, ""Namespace"":{context1.NamespaceUris.GetIndex(Get(NamespaceUris, index))} }},
-                    ""D2"": {{ ""IdType"": 1, ""Id"": ""{ToString(StringIds, index)}"", ""Namespace"":{context1.NamespaceUris.GetIndex(Get(NamespaceUris, index + 1))} }},
-                    ""D3"": {{ ""IdType"": 2, ""Id"": ""{ToString(GuidIds, index)}"", ""Namespace"":{context1.NamespaceUris.GetIndex(Get(NamespaceUris, index + 2))} }},
-                    ""D4"": {{ ""IdType"": 3, ""Id"": ""{ToString(OpaqueIds, index)}"", ""Namespace"":{context1.NamespaceUris.GetIndex(Get(NamespaceUris, index + 3))} }},
-                    ""D5"": {{ ""Id"": {ToString(NumericIds, index)}, ""ServerUri"": {context1.ServerUris.GetIndex(Get(ServerUris, index))}, ""Namespace"":""{Get(NamespaceUris, index)}"" }},
-                    ""D6"": {{ ""IdType"": 1, ""Id"": ""{ToString(StringIds, index)}"", ""ServerUri"": {context1.ServerUris.GetIndex(Get(ServerUris, index + 1))}, ""Namespace"":""{Get(NamespaceUris, index + 1)}"" }},
-                    ""D7"": {{ ""IdType"": 2, ""Id"": ""{ToString(GuidIds, index)}"", ""ServerUri"": {context1.ServerUris.GetIndex(Get(ServerUris, index + 2))}, ""Namespace"":""{Get(NamespaceUris, index + 2)}"" }},
-                    ""D8"": {{ ""IdType"": 3, ""Id"": ""{ToString(OpaqueIds, index)}"", ""ServerUri"": {context1.ServerUris.GetIndex(Get(ServerUris, index + 3))}, ""Namespace"":""{Get(NamespaceUris, index + 3)}"" }}
-                }}
-            ";
+            string data = $$"""
+
+                {
+                    "D0": { "Id": 2263 },
+                    "D1": { "Id": {{ToString(NumericIds, index)}}, "Namespace":{{context1.NamespaceUris.GetIndex(Get(NamespaceUris, index))}} },
+                    "D2": { "IdType": 1, "Id": "{{ToString(StringIds, index)}}", "Namespace":{{context1.NamespaceUris.GetIndex(Get(NamespaceUris, index + 1))}} },
+                    "D3": { "IdType": 2, "Id": "{{ToString(GuidIds, index)}}", "Namespace":{{context1.NamespaceUris.GetIndex(Get(NamespaceUris, index + 2))}} },
+                    "D4": { "IdType": 3, "Id": "{{ToString(OpaqueIds, index)}}", "Namespace":{{context1.NamespaceUris.GetIndex(Get(NamespaceUris, index + 3))}} },
+                    "D5": { "Id": {{ToString(NumericIds, index)}}, "ServerUri": {{context1.ServerUris.GetIndex(Get(ServerUris, index))}}, "Namespace":"{{Get(NamespaceUris, index)}}" },
+                    "D6": { "IdType": 1, "Id": "{{ToString(StringIds, index)}}", "ServerUri": {{context1.ServerUris.GetIndex(Get(ServerUris, index + 1))}}, "Namespace":"{{Get(NamespaceUris, index + 1)}}" },
+                    "D7": { "IdType": 2, "Id": "{{ToString(GuidIds, index)}}", "ServerUri": {{context1.ServerUris.GetIndex(Get(ServerUris, index + 2))}}, "Namespace":"{{Get(NamespaceUris, index + 2)}}" },
+                    "D8": { "IdType": 3, "Id": "{{ToString(OpaqueIds, index)}}", "ServerUri": {{context1.ServerUris.GetIndex(Get(ServerUris, index + 3))}}, "Namespace":"{{Get(NamespaceUris, index + 3)}}" }
+                }
+
+""";
 
             var context2 = new ServiceMessageContext();
             context2.NamespaceUris.Append(NamespaceUris[2]);
@@ -578,19 +592,21 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             context1.ServerUris.Append(ServerUris[1]);
             context1.ServerUris.Append(ServerUris[2]);
 
-            string data = $@"
-                {{
-                    ""D0"": {{ ""Id"": 2263 }},
-                    ""D1"": {{ ""Id"": {ToString(NumericIds, index)}, ""Namespace"":{context1.NamespaceUris.GetIndex(Get(NamespaceUris, index))} }},
-                    ""D2"": {{ ""IdType"": 1, ""Id"": ""{ToString(StringIds, index)}"", ""Namespace"":{context1.NamespaceUris.GetIndex(Get(NamespaceUris, index + 1))} }},
-                    ""D3"": {{ ""IdType"": 2, ""Id"": ""{ToString(GuidIds, index)}"", ""Namespace"":{context1.NamespaceUris.GetIndex(Get(NamespaceUris, index + 2))} }},
-                    ""D4"": {{ ""IdType"": 3, ""Id"": ""{ToString(OpaqueIds, index)}"", ""Namespace"":{context1.NamespaceUris.GetIndex(Get(NamespaceUris, index + 3))} }},
-                    ""D5"": {{ ""Id"": {ToString(NumericIds, index)}, ""Namespace"":{context1.NamespaceUris.GetIndex(Get(NamespaceUris, index))}, ""ServerUri"": {context1.ServerUris.GetIndex(Get(ServerUris, index))} }},
-                    ""D6"": {{ ""IdType"": 1, ""Id"": ""{ToString(StringIds, index)}"", ""Namespace"":{context1.NamespaceUris.GetIndex(Get(NamespaceUris, index + 1))}, ""ServerUri"": {context1.ServerUris.GetIndex(Get(ServerUris, index + 1))} }},
-                    ""D7"": {{ ""IdType"": 2, ""Id"": ""{ToString(GuidIds, index)}"", ""Namespace"":{context1.NamespaceUris.GetIndex(Get(NamespaceUris, index + 2))}, ""ServerUri"": {context1.ServerUris.GetIndex(Get(ServerUris, index + 2))} }},
-                    ""D8"": {{ ""IdType"": 3, ""Id"": ""{ToString(OpaqueIds, index)}"", ""Namespace"":{context1.NamespaceUris.GetIndex(Get(NamespaceUris, index + 3))}, ""ServerUri"": {context1.ServerUris.GetIndex(Get(ServerUris, index + 3))} }}
-                }}
-            ";
+            string data = $$"""
+
+                {
+                    "D0": { "Id": 2263 },
+                    "D1": { "Id": {{ToString(NumericIds, index)}}, "Namespace":{{context1.NamespaceUris.GetIndex(Get(NamespaceUris, index))}} },
+                    "D2": { "IdType": 1, "Id": "{{ToString(StringIds, index)}}", "Namespace":{{context1.NamespaceUris.GetIndex(Get(NamespaceUris, index + 1))}} },
+                    "D3": { "IdType": 2, "Id": "{{ToString(GuidIds, index)}}", "Namespace":{{context1.NamespaceUris.GetIndex(Get(NamespaceUris, index + 2))}} },
+                    "D4": { "IdType": 3, "Id": "{{ToString(OpaqueIds, index)}}", "Namespace":{{context1.NamespaceUris.GetIndex(Get(NamespaceUris, index + 3))}} },
+                    "D5": { "Id": {{ToString(NumericIds, index)}}, "Namespace":{{context1.NamespaceUris.GetIndex(Get(NamespaceUris, index))}}, "ServerUri": {{context1.ServerUris.GetIndex(Get(ServerUris, index))}} },
+                    "D6": { "IdType": 1, "Id": "{{ToString(StringIds, index)}}", "Namespace":{{context1.NamespaceUris.GetIndex(Get(NamespaceUris, index + 1))}}, "ServerUri": {{context1.ServerUris.GetIndex(Get(ServerUris, index + 1))}} },
+                    "D7": { "IdType": 2, "Id": "{{ToString(GuidIds, index)}}", "Namespace":{{context1.NamespaceUris.GetIndex(Get(NamespaceUris, index + 2))}}, "ServerUri": {{context1.ServerUris.GetIndex(Get(ServerUris, index + 2))}} },
+                    "D8": { "IdType": 3, "Id": "{{ToString(OpaqueIds, index)}}", "Namespace":{{context1.NamespaceUris.GetIndex(Get(NamespaceUris, index + 3))}}, "ServerUri": {{context1.ServerUris.GetIndex(Get(ServerUris, index + 3))}} }
+                }
+
+""";
 
             var jsonObj = JObject.Parse(data);
             string expected = JsonConvert.SerializeObject(jsonObj, Formatting.None);
@@ -631,15 +647,17 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [TestCase(2)]
         public void DecodeNonReversibleNodeId(int index)
         {
-            string data = $@"
-                {{
-                    ""D0"": {{ ""Id"": 2263 }},
-                    ""D1"": {{ ""Id"": {ToString(NumericIds, index)}, ""Namespace"":""{Get(NamespaceUris, index)}"" }},
-                    ""D2"": {{ ""IdType"": 1, ""Id"": ""{ToString(StringIds, index)}"", ""Namespace"":""{Get(NamespaceUris, index + 1)}"" }},
-                    ""D3"": {{ ""IdType"": 2, ""Id"": ""{ToString(GuidIds, index)}"", ""Namespace"":""{Get(NamespaceUris, index + 2)}"" }},
-                    ""D4"": {{ ""IdType"": 3, ""Id"": ""{ToString(OpaqueIds, index)}"", ""Namespace"":""{Get(NamespaceUris, index + 3)}"" }}
-                }}
-            ";
+            string data = $$"""
+
+                {
+                    "D0": { "Id": 2263 },
+                    "D1": { "Id": {{ToString(NumericIds, index)}}, "Namespace":"{{Get(NamespaceUris, index)}}" },
+                    "D2": { "IdType": 1, "Id": "{{ToString(StringIds, index)}}", "Namespace":"{{Get(NamespaceUris, index + 1)}}" },
+                    "D3": { "IdType": 2, "Id": "{{ToString(GuidIds, index)}}", "Namespace":"{{Get(NamespaceUris, index + 2)}}" },
+                    "D4": { "IdType": 3, "Id": "{{ToString(OpaqueIds, index)}}", "Namespace":"{{Get(NamespaceUris, index + 3)}}" }
+                }
+
+""";
 
             var context = new ServiceMessageContext();
 
@@ -661,15 +679,17 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             context1.NamespaceUris.Append(NamespaceUris[1]);
             context1.NamespaceUris.Append(NamespaceUris[2]);
 
-            string data = $@"
-                {{
-                    ""D0"": {{ ""Id"": 2263 }},
-                    ""D1"": {{ ""Id"": {ToString(NumericIds, index)}, ""Namespace"":""{Get(NamespaceUris, index)}"" }},
-                    ""D2"": {{ ""IdType"": 1, ""Id"": ""{ToString(StringIds, index)}"", ""Namespace"":""{Get(NamespaceUris, index + 1)}"" }},
-                    ""D3"": {{ ""IdType"": 2, ""Id"": ""{ToString(GuidIds, index)}"", ""Namespace"":""{Get(NamespaceUris, index + 2)}"" }},
-                    ""D4"": {{ ""IdType"": 3, ""Id"": ""{ToString(OpaqueIds, index)}"", ""Namespace"":""{Get(NamespaceUris, index + 3)}"" }}
-                }}
-            ";
+            string data = $$"""
+
+                {
+                    "D0": { "Id": 2263 },
+                    "D1": { "Id": {{ToString(NumericIds, index)}}, "Namespace":"{{Get(NamespaceUris, index)}}" },
+                    "D2": { "IdType": 1, "Id": "{{ToString(StringIds, index)}}", "Namespace":"{{Get(NamespaceUris, index + 1)}}" },
+                    "D3": { "IdType": 2, "Id": "{{ToString(GuidIds, index)}}", "Namespace":"{{Get(NamespaceUris, index + 2)}}" },
+                    "D4": { "IdType": 3, "Id": "{{ToString(OpaqueIds, index)}}", "Namespace":"{{Get(NamespaceUris, index + 3)}}" }
+                }
+
+""";
 
             var jsonObj = JObject.Parse(data);
             string expected = JsonConvert.SerializeObject(jsonObj, Formatting.None);
@@ -713,19 +733,21 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             context1.ServerUris.Append(ServerUris[1]);
             context1.ServerUris.Append(ServerUris[2]);
 
-            string data = $@"
-                {{
-                    ""D0"": {{ ""Id"": 2263 }},
-                    ""D1"": {{ ""Id"": {ToString(NumericIds, index)}, ""Namespace"":""{Get(NamespaceUris, index)}"" }},
-                    ""D2"": {{ ""IdType"": 1, ""Id"": ""{ToString(StringIds, index)}"", ""Namespace"":""{Get(NamespaceUris, index + 1)}"" }},
-                    ""D3"": {{ ""IdType"": 2, ""Id"": ""{ToString(GuidIds, index)}"", ""Namespace"":""{Get(NamespaceUris, index + 2)}"" }},
-                    ""D4"": {{ ""IdType"": 3, ""Id"": ""{ToString(OpaqueIds, index)}"", ""Namespace"":""{Get(NamespaceUris, index + 3)}"" }},
-                    ""D5"": {{ ""Id"": {ToString(NumericIds, index)}, ""ServerUri"": ""{Get(ServerUris, index)}"", ""Namespace"":""{Get(NamespaceUris, index)}"" }},
-                    ""D6"": {{ ""IdType"": 1, ""Id"": ""{ToString(StringIds, index)}"", ""ServerUri"": ""{Get(ServerUris, index + 1)}"", ""Namespace"":""{Get(NamespaceUris, index + 1)}"" }},
-                    ""D7"": {{ ""IdType"": 2, ""Id"": ""{ToString(GuidIds, index)}"", ""ServerUri"": ""{Get(ServerUris, index + 2)}"", ""Namespace"":""{Get(NamespaceUris, index + 2)}"" }},
-                    ""D8"": {{ ""IdType"": 3, ""Id"": ""{ToString(OpaqueIds, index)}"", ""ServerUri"": ""{Get(ServerUris, index + 3)}"", ""Namespace"":""{Get(NamespaceUris, index + 3)}"" }}
-                }}
-            ";
+            string data = $$"""
+
+                {
+                    "D0": { "Id": 2263 },
+                    "D1": { "Id": {{ToString(NumericIds, index)}}, "Namespace":"{{Get(NamespaceUris, index)}}" },
+                    "D2": { "IdType": 1, "Id": "{{ToString(StringIds, index)}}", "Namespace":"{{Get(NamespaceUris, index + 1)}}" },
+                    "D3": { "IdType": 2, "Id": "{{ToString(GuidIds, index)}}", "Namespace":"{{Get(NamespaceUris, index + 2)}}" },
+                    "D4": { "IdType": 3, "Id": "{{ToString(OpaqueIds, index)}}", "Namespace":"{{Get(NamespaceUris, index + 3)}}" },
+                    "D5": { "Id": {{ToString(NumericIds, index)}}, "ServerUri": "{{Get(ServerUris, index)}}", "Namespace":"{{Get(NamespaceUris, index)}}" },
+                    "D6": { "IdType": 1, "Id": "{{ToString(StringIds, index)}}", "ServerUri": "{{Get(ServerUris, index + 1)}}", "Namespace":"{{Get(NamespaceUris, index + 1)}}" },
+                    "D7": { "IdType": 2, "Id": "{{ToString(GuidIds, index)}}", "ServerUri": "{{Get(ServerUris, index + 2)}}", "Namespace":"{{Get(NamespaceUris, index + 2)}}" },
+                    "D8": { "IdType": 3, "Id": "{{ToString(OpaqueIds, index)}}", "ServerUri": "{{Get(ServerUris, index + 3)}}", "Namespace":"{{Get(NamespaceUris, index + 3)}}" }
+                }
+
+""";
 
             var context2 = new ServiceMessageContext();
             context2.ServerUris.Append("http://server-placeholder");
@@ -752,19 +774,21 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             context1.ServerUris.Append(ServerUris[1]);
             context1.ServerUris.Append(ServerUris[2]);
 
-            string data = $@"
-                {{
-                    ""D0"": {{ ""Id"": 2263 }},
-                    ""D1"": {{ ""Id"": {ToString(NumericIds, index)}, ""Namespace"":""{Get(NamespaceUris, index)}"" }},
-                    ""D2"": {{ ""IdType"": 1, ""Id"": ""{ToString(StringIds, index)}"", ""Namespace"":""{Get(NamespaceUris, index + 1)}"" }},
-                    ""D3"": {{ ""IdType"": 2, ""Id"": ""{ToString(GuidIds, index)}"", ""Namespace"":""{Get(NamespaceUris, index + 2)}"" }},
-                    ""D4"": {{ ""IdType"": 3, ""Id"": ""{ToString(OpaqueIds, index)}"", ""Namespace"":""{Get(NamespaceUris, index + 3)}"" }},
-                    ""D5"": {{ ""Id"": {ToString(NumericIds, index)}, ""Namespace"":""{Get(NamespaceUris, index)}"", ""ServerUri"": ""{Get(ServerUris, index)}"" }},
-                    ""D6"": {{ ""IdType"": 1, ""Id"": ""{ToString(StringIds, index)}"", ""Namespace"":""{Get(NamespaceUris, index + 1)}"", ""ServerUri"": ""{Get(ServerUris, index + 1)}"" }},
-                    ""D7"": {{ ""IdType"": 2, ""Id"": ""{ToString(GuidIds, index)}"", ""Namespace"":""{Get(NamespaceUris, index + 2)}"", ""ServerUri"": ""{Get(ServerUris, index + 2)}"" }},
-                    ""D8"": {{ ""IdType"": 3, ""Id"": ""{ToString(OpaqueIds, index)}"", ""Namespace"":""{Get(NamespaceUris, index + 3)}"", ""ServerUri"": ""{Get(ServerUris, index + 3)}"" }}
-                }}
-            ";
+            string data = $$"""
+
+                {
+                    "D0": { "Id": 2263 },
+                    "D1": { "Id": {{ToString(NumericIds, index)}}, "Namespace":"{{Get(NamespaceUris, index)}}" },
+                    "D2": { "IdType": 1, "Id": "{{ToString(StringIds, index)}}", "Namespace":"{{Get(NamespaceUris, index + 1)}}" },
+                    "D3": { "IdType": 2, "Id": "{{ToString(GuidIds, index)}}", "Namespace":"{{Get(NamespaceUris, index + 2)}}" },
+                    "D4": { "IdType": 3, "Id": "{{ToString(OpaqueIds, index)}}", "Namespace":"{{Get(NamespaceUris, index + 3)}}" },
+                    "D5": { "Id": {{ToString(NumericIds, index)}}, "Namespace":"{{Get(NamespaceUris, index)}}", "ServerUri": "{{Get(ServerUris, index)}}" },
+                    "D6": { "IdType": 1, "Id": "{{ToString(StringIds, index)}}", "Namespace":"{{Get(NamespaceUris, index + 1)}}", "ServerUri": "{{Get(ServerUris, index + 1)}}" },
+                    "D7": { "IdType": 2, "Id": "{{ToString(GuidIds, index)}}", "Namespace":"{{Get(NamespaceUris, index + 2)}}", "ServerUri": "{{Get(ServerUris, index + 2)}}" },
+                    "D8": { "IdType": 3, "Id": "{{ToString(OpaqueIds, index)}}", "Namespace":"{{Get(NamespaceUris, index + 3)}}", "ServerUri": "{{Get(ServerUris, index + 3)}}" }
+                }
+
+""";
 
             var jsonObj = JObject.Parse(data);
             string expected = JsonConvert.SerializeObject(jsonObj, Formatting.None);
@@ -805,15 +829,17 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void DecodeCompactAndVerboseQualifiedName()
         {
-            string data = $@"
-                {{
-                    ""D0"": ""ServerStatus"",
-                    ""D1"": ""nsu={ToString(NamespaceUris, 0)};N1"",
-                    ""D2"": ""nsu={ToString(NamespaceUris, 1)};N2"",
-                    ""D3"": ""nsu={ToString(NamespaceUris, 2)};N3"",
-                    ""D4"": ""nsu={ToString(NamespaceUris, 3)};N4""
-                }}
-            ";
+            string data = $$"""
+
+                {
+                    "D0": "ServerStatus",
+                    "D1": "nsu={{ToString(NamespaceUris, 0)}};N1",
+                    "D2": "nsu={{ToString(NamespaceUris, 1)}};N2",
+                    "D3": "nsu={{ToString(NamespaceUris, 2)}};N3",
+                    "D4": "nsu={{ToString(NamespaceUris, 3)}};N4"
+                }
+
+""";
 
             var context = new ServiceMessageContext();
 
@@ -834,15 +860,17 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             context1.NamespaceUris.Append(NamespaceUris[1]);
             context1.NamespaceUris.Append(NamespaceUris[2]);
 
-            string data = $@"
-                {{
-                    ""D0"": ""ServerStatus"",
-                    ""D1"": ""nsu={ToString(NamespaceUris, 0)};N1"",
-                    ""D2"": ""nsu={ToString(NamespaceUris, 1)};N2"",
-                    ""D3"": ""nsu={ToString(NamespaceUris, 2)};N3"",
-                    ""D4"": ""nsu={ToString(NamespaceUris, 3)};N4""
-                }}
-            ";
+            string data = $$"""
+
+                {
+                    "D0": "ServerStatus",
+                    "D1": "nsu={{ToString(NamespaceUris, 0)}};N1",
+                    "D2": "nsu={{ToString(NamespaceUris, 1)}};N2",
+                    "D3": "nsu={{ToString(NamespaceUris, 2)}};N3",
+                    "D4": "nsu={{ToString(NamespaceUris, 3)}};N4"
+                }
+
+""";
 
             var jsonObj = JObject.Parse(data);
             string expected = JsonConvert.SerializeObject(jsonObj, Formatting.None);
@@ -877,15 +905,17 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             context1.NamespaceUris.Append(NamespaceUris[1]);
             context1.NamespaceUris.Append(NamespaceUris[2]);
 
-            string data = $@"
-                {{
-                    ""D0"": {{ ""Name"": ""ServerStatus"" }},
-                    ""D1"": {{ ""Name"": ""N1"", ""Uri"":{context1.NamespaceUris.GetIndex(Get(NamespaceUris, 0))} }},
-                    ""D2"": {{ ""Name"": ""N2"", ""Uri"":{context1.NamespaceUris.GetIndex(Get(NamespaceUris, 1))} }},
-                    ""D3"": {{ ""Name"": ""N3"", ""Uri"":{context1.NamespaceUris.GetIndex(Get(NamespaceUris, 2))} }},
-                    ""D4"": {{ ""Name"": ""N4"", ""Uri"":{context1.NamespaceUris.GetIndex(Get(NamespaceUris, 3))} }}
-                }}
-            ";
+            string data = $$"""
+
+                {
+                    "D0": { "Name": "ServerStatus" },
+                    "D1": { "Name": "N1", "Uri":{{context1.NamespaceUris.GetIndex(Get(NamespaceUris, 0))}} },
+                    "D2": { "Name": "N2", "Uri":{{context1.NamespaceUris.GetIndex(Get(NamespaceUris, 1))}} },
+                    "D3": { "Name": "N3", "Uri":{{context1.NamespaceUris.GetIndex(Get(NamespaceUris, 2))}} },
+                    "D4": { "Name": "N4", "Uri":{{context1.NamespaceUris.GetIndex(Get(NamespaceUris, 3))}} }
+                }
+
+""";
 
             var context2 = new ServiceMessageContext();
             context2.NamespaceUris.Append(NamespaceUris[2]);
@@ -908,15 +938,17 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             context1.NamespaceUris.Append(NamespaceUris[1]);
             context1.NamespaceUris.Append(NamespaceUris[2]);
 
-            string data = $@"
-                {{
-                    ""D0"": {{ ""Name"": ""ServerStatus"" }},
-                    ""D1"": {{ ""Name"": ""N1"", ""Uri"":{context1.NamespaceUris.GetIndex(Get(NamespaceUris, 0))} }},
-                    ""D2"": {{ ""Name"": ""N2"", ""Uri"":{context1.NamespaceUris.GetIndex(Get(NamespaceUris, 1))} }},
-                    ""D3"": {{ ""Name"": ""N3"", ""Uri"":{context1.NamespaceUris.GetIndex(Get(NamespaceUris, 2))} }},
-                    ""D4"": {{ ""Name"": ""N4"", ""Uri"":{context1.NamespaceUris.GetIndex(Get(NamespaceUris, 3))} }}
-                }}
-            ";
+            string data = $$"""
+
+                {
+                    "D0": { "Name": "ServerStatus" },
+                    "D1": { "Name": "N1", "Uri":{{context1.NamespaceUris.GetIndex(Get(NamespaceUris, 0))}} },
+                    "D2": { "Name": "N2", "Uri":{{context1.NamespaceUris.GetIndex(Get(NamespaceUris, 1))}} },
+                    "D3": { "Name": "N3", "Uri":{{context1.NamespaceUris.GetIndex(Get(NamespaceUris, 2))}} },
+                    "D4": { "Name": "N4", "Uri":{{context1.NamespaceUris.GetIndex(Get(NamespaceUris, 3))}} }
+                }
+
+""";
 
             var jsonObj = JObject.Parse(data);
             string expected = JsonConvert.SerializeObject(jsonObj, Formatting.None);
@@ -951,15 +983,17 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             context1.NamespaceUris.Append(NamespaceUris[1]);
             context1.NamespaceUris.Append(NamespaceUris[2]);
 
-            string data = $@"
-                {{
-                    ""D0"": {{ ""Name"":""ServerStatus"" }},
-                    ""D1"": {{ ""Name"": ""N1"", ""Uri"":""{Get(NamespaceUris, 0)}"" }},
-                    ""D2"": {{ ""Name"": ""N2"", ""Uri"":""{Get(NamespaceUris, 1)}"" }},
-                    ""D3"": {{ ""Name"": ""N3"", ""Uri"":""{Get(NamespaceUris, 2)}"" }},
-                    ""D4"": {{ ""Name"": ""N4"", ""Uri"":""{Get(NamespaceUris, 3)}"" }}
-                }}
-            ";
+            string data = $$"""
+
+                {
+                    "D0": { "Name":"ServerStatus" },
+                    "D1": { "Name": "N1", "Uri":"{{Get(NamespaceUris, 0)}}" },
+                    "D2": { "Name": "N2", "Uri":"{{Get(NamespaceUris, 1)}}" },
+                    "D3": { "Name": "N3", "Uri":"{{Get(NamespaceUris, 2)}}" },
+                    "D4": { "Name": "N4", "Uri":"{{Get(NamespaceUris, 3)}}" }
+                }
+
+""";
 
             var context2 = new ServiceMessageContext();
             context2.NamespaceUris.Append(NamespaceUris[2]);
@@ -982,15 +1016,17 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             context1.NamespaceUris.Append(NamespaceUris[1]);
             context1.NamespaceUris.Append(NamespaceUris[2]);
 
-            string data = $@"
-                {{
-                    ""D0"": {{ ""Name"": ""ServerStatus"" }},
-                    ""D1"": {{ ""Name"": ""N1"", ""Uri"":""{Get(NamespaceUris, 0)}"" }},
-                    ""D2"": {{ ""Name"": ""N2"", ""Uri"":""{Get(NamespaceUris, 1)}"" }},
-                    ""D3"": {{ ""Name"": ""N3"", ""Uri"":""{Get(NamespaceUris, 2)}"" }},
-                    ""D4"": {{ ""Name"": ""N4"", ""Uri"":""{Get(NamespaceUris, 3)}"" }}
-                }}
-            ";
+            string data = $$"""
+
+                {
+                    "D0": { "Name": "ServerStatus" },
+                    "D1": { "Name": "N1", "Uri":"{{Get(NamespaceUris, 0)}}" },
+                    "D2": { "Name": "N2", "Uri":"{{Get(NamespaceUris, 1)}}" },
+                    "D3": { "Name": "N3", "Uri":"{{Get(NamespaceUris, 2)}}" },
+                    "D4": { "Name": "N4", "Uri":"{{Get(NamespaceUris, 3)}}" }
+                }
+
+""";
 
             var jsonObj = JObject.Parse(data);
             string expected = JsonConvert.SerializeObject(jsonObj, Formatting.None);
@@ -1023,12 +1059,14 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void DecodeCompactAndVerboseMatrix()
         {
-            string data = $@"
-                {{
-                    ""D0"": {{ ""Dimensions"": [ 2, 3 ], ""Array"": [ 1, 2, 3, 4, 5, 6 ] }},
-                    ""D1"": {{ ""Dimensions"": [ 1, 2, 3 ], ""Array"": [ 1, 2, 3, 4, 5, 6 ] }}
-                }}
-            ";
+            string data = $$"""
+
+                {
+                    "D0": { "Dimensions": [ 2, 3 ], "Array": [ 1, 2, 3, 4, 5, 6 ] },
+                    "D1": { "Dimensions": [ 1, 2, 3 ], "Array": [ 1, 2, 3, 4, 5, 6 ] }
+                }
+
+""";
 
             var context = new ServiceMessageContext();
 
@@ -1054,12 +1092,14 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [TestCase(JsonEncodingType.Verbose)]
         public void EncodeCompactAndVerboseMatrix(JsonEncodingType jsonEncoding)
         {
-            string data = $@"
-                {{
-                    ""D0"": {{ ""Dimensions"": [ 2, 3 ], ""Array"": [ 1, 2, 3, 4, 5, 6 ] }},
-                    ""D1"": {{ ""Dimensions"": [ 1, 2, 3 ], ""Array"": [ 1, 2, 3, 4, 5, 6 ] }}
-                }}
-            ";
+            string data = $$"""
+
+                {
+                    "D0": { "Dimensions": [ 2, 3 ], "Array": [ 1, 2, 3, 4, 5, 6 ] },
+                    "D1": { "Dimensions": [ 1, 2, 3 ], "Array": [ 1, 2, 3, 4, 5, 6 ] }
+                }
+
+""";
 
             var jsonObj = JObject.Parse(data);
             string expected = JsonConvert.SerializeObject(jsonObj, Formatting.None);
@@ -1081,12 +1121,14 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void DecodeReversibleMatrix()
         {
-            string data = $@"
-                {{
-                    ""D0"": [[1, 2, 3], [4, 5, 6]],
-                    ""D1"": [[[1, 2, 3], [4, 5, 6]]]
-                }}
-            ";
+            string data = $$"""
+
+                {
+                    "D0": [[1, 2, 3], [4, 5, 6]],
+                    "D1": [[[1, 2, 3], [4, 5, 6]]]
+                }
+
+""";
 
             var context = new ServiceMessageContext();
 
@@ -1112,12 +1154,14 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [TestCase(JsonEncodingType.NonReversible)]
         public void EncodeReversibleAndNonReversibleMatrix(JsonEncodingType jsonEncoding)
         {
-            string data = $@"
-                {{
-                    ""D0"": [[1, 2, 3], [4, 5, 6]],
-                    ""D1"": [[[1, 2, 3], [4, 5, 6]]]
-                }}
-            ";
+            string data = $$"""
+
+                {
+                    "D0": [[1, 2, 3], [4, 5, 6]],
+                    "D1": [[[1, 2, 3], [4, 5, 6]]]
+                }
+
+""";
 
             var jsonObj = JObject.Parse(data);
             string expected = JsonConvert.SerializeObject(jsonObj, Formatting.None);
@@ -1139,26 +1183,28 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void DecodeCompactExtensionObject()
         {
-            string data = $@"
-                {{
-                    ""D0"": {{
-                        ""UaTypeId"": ""i=884"",
-                        ""High"": 9876.5432
-                    }},
-                    ""D1"": {{
-                        ""UaType"": 22,
-                        ""Body"": {{
-                            ""UaTypeId"": ""nsu=http://opcfoundation.org/UA/GDS/;i=1"",
-                            ""ApplicationId"": ""nsu=urn:localhost:server;s=urn:123456789"",
-                            ""ApplicationUri"": ""urn:localhost:test.org:client"",
-                            ""ApplicationType"": 1,
-                            ""ApplicationNames"": [{{ ""Text"":""Test Client"", ""Locale"":""en"" }}],
-                            ""ProductUri"": ""http://test.org/client"",
-                            ""DiscoveryUrls"": [""opc.tcp://localhost/""]
-                        }}
-                    }}
-                }}
-            ";
+            string data = $$"""
+
+                {
+                    "D0": {
+                        "UaTypeId": "i=884",
+                        "High": 9876.5432
+                    },
+                    "D1": {
+                        "UaType": 22,
+                        "Body": {
+                            "UaTypeId": "nsu=http://opcfoundation.org/UA/GDS/;i=1",
+                            "ApplicationId": "nsu=urn:localhost:server;s=urn:123456789",
+                            "ApplicationUri": "urn:localhost:test.org:client",
+                            "ApplicationType": 1,
+                            "ApplicationNames": [{ "Text":"Test Client", "Locale":"en" }],
+                            "ProductUri": "http://test.org/client",
+                            "DiscoveryUrls": ["opc.tcp://localhost/"]
+                        }
+                    }
+                }
+
+""";
 
             var context = new ServiceMessageContext();
             context.NamespaceUris.Append("urn:localhost:server");
@@ -1190,27 +1236,29 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void EncodeCompactExtensionObject()
         {
-            string data = $@"
-                {{
-                    ""D0"": {{
-                        ""UaTypeId"": ""i=884"",
-                        ""High"": 9876.5432
-                    }},
-                    ""D1"": {{
-                        ""UaType"": 22,
-                        ""Value"": {{
-                            ""UaTypeId"": ""nsu=http://opcfoundation.org/UA/GDS/;i=1"",
-                            ""ApplicationId"": ""nsu=urn:localhost:server;s=urn:123456789"",
-                            ""ApplicationUri"": ""urn:localhost:test.org:client"",
-                            ""ApplicationType"": 0,
-                            ""ApplicationNames"": [{{ ""Text"":""Test Client"", ""Locale"":""en"" }}],
-                            ""ProductUri"": ""http://test.org/client"",
-                            ""DiscoveryUrls"": [""opc.tcp://localhost/""],
-                            ""ServerCapabilities"": []
-                        }}
-                    }}
-                }}
-            ";
+            string data = $$"""
+
+                {
+                    "D0": {
+                        "UaTypeId": "i=884",
+                        "High": 9876.5432
+                    },
+                    "D1": {
+                        "UaType": 22,
+                        "Value": {
+                            "UaTypeId": "nsu=http://opcfoundation.org/UA/GDS/;i=1",
+                            "ApplicationId": "nsu=urn:localhost:server;s=urn:123456789",
+                            "ApplicationUri": "urn:localhost:test.org:client",
+                            "ApplicationType": 0,
+                            "ApplicationNames": [{ "Text":"Test Client", "Locale":"en" }],
+                            "ProductUri": "http://test.org/client",
+                            "DiscoveryUrls": ["opc.tcp://localhost/"],
+                            "ServerCapabilities": []
+                        }
+                    }
+                }
+
+""";
 
             var jsonObj = JObject.Parse(data);
             string expected = JsonConvert.SerializeObject(jsonObj, Formatting.None);
@@ -1251,29 +1299,31 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void DecodeVerboseExtensionObject()
         {
-            string data = $@"
-                {{
-                    ""D0"": {{
-                        ""TypeId"": ""i=884"",
-                        ""Body"": {{ ""Low"": 0, ""High"": 9876.5432 }}
-                    }},
-                    ""D1"": {{
-                        ""Type"": 22,
-                        ""Body"": {{
-                            ""TypeId"": ""nsu=http://opcfoundation.org/UA/GDS/;i=1"",
-                            ""Body"": {{
-                                ""ApplicationId"": ""nsu=urn:localhost:server;s=urn:123456789"",
-                                ""ApplicationUri"": ""urn:localhost:test.org:client"",
-                                ""ApplicationType"": ""Client_1"",
-                                ""ApplicationNames"": [{{ ""Text"":""Test Client"", ""Locale"":""en"" }}],
-                                ""ProductUri"": ""http://test.org/client"",
-                                ""DiscoveryUrls"": [""opc.tcp://localhost/""],
-                                ""ServerCapabilities"": []
-                            }}
-                        }}
-                    }}
-                }}
-            ";
+            string data = $$"""
+
+                {
+                    "D0": {
+                        "TypeId": "i=884",
+                        "Body": { "Low": 0, "High": 9876.5432 }
+                    },
+                    "D1": {
+                        "Type": 22,
+                        "Body": {
+                            "TypeId": "nsu=http://opcfoundation.org/UA/GDS/;i=1",
+                            "Body": {
+                                "ApplicationId": "nsu=urn:localhost:server;s=urn:123456789",
+                                "ApplicationUri": "urn:localhost:test.org:client",
+                                "ApplicationType": "Client_1",
+                                "ApplicationNames": [{ "Text":"Test Client", "Locale":"en" }],
+                                "ProductUri": "http://test.org/client",
+                                "DiscoveryUrls": ["opc.tcp://localhost/"],
+                                "ServerCapabilities": []
+                            }
+                        }
+                    }
+                }
+
+""";
 
             var context = new ServiceMessageContext();
             context.NamespaceUris.Append("urn:localhost:server");
@@ -1305,28 +1355,30 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void EncodeVerboseExtensionObject()
         {
-            string data = $@"
-                {{
-                    ""D0"": {{
-                        ""UaTypeId"": ""i=884"",
-                        ""Low"": 0,
-                        ""High"": 9876.5432
-                    }},
-                    ""D1"": {{
-                        ""UaType"": 22,
-                        ""Value"": {{
-                            ""UaTypeId"": ""nsu=http://opcfoundation.org/UA/GDS/;i=1"",
-                            ""ApplicationId"": ""nsu=urn:localhost:server;s=urn:123456789"",
-                            ""ApplicationUri"": ""urn:localhost:test.org:client"",
-                            ""ApplicationType"": ""Client_1"",
-                            ""ApplicationNames"": [{{ ""Text"":""Test Client"", ""Locale"":""en"" }}],
-                            ""ProductUri"": ""http://test.org/client"",
-                            ""DiscoveryUrls"": [""opc.tcp://localhost/""],
-                            ""ServerCapabilities"": []
-                        }}
-                    }}
-                }}
-            ";
+            string data = $$"""
+
+                {
+                    "D0": {
+                        "UaTypeId": "i=884",
+                        "Low": 0,
+                        "High": 9876.5432
+                    },
+                    "D1": {
+                        "UaType": 22,
+                        "Value": {
+                            "UaTypeId": "nsu=http://opcfoundation.org/UA/GDS/;i=1",
+                            "ApplicationId": "nsu=urn:localhost:server;s=urn:123456789",
+                            "ApplicationUri": "urn:localhost:test.org:client",
+                            "ApplicationType": "Client_1",
+                            "ApplicationNames": [{ "Text":"Test Client", "Locale":"en" }],
+                            "ProductUri": "http://test.org/client",
+                            "DiscoveryUrls": ["opc.tcp://localhost/"],
+                            "ServerCapabilities": []
+                        }
+                    }
+                }
+
+""";
 
             var jsonObj = JObject.Parse(data);
             string expected = JsonConvert.SerializeObject(jsonObj, Formatting.None);
@@ -1368,28 +1420,30 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void DecodeReversibleExtensionObject()
         {
-            string data = $@"
-                {{
-                    ""D0"": {{
-                        ""TypeId"": {{ ""Id"": 884 }},
-                        ""Body"": {{ ""High"": 9876.5432 }}
-                    }},
-                    ""D1"": {{
-                        ""Type"": 22,
-                        ""Body"": {{
-                            ""TypeId"": {{ ""Id"": 1, ""Namespace"": 2 }},
-                            ""Body"": {{
-                                ""ApplicationId"": {{ ""IdType"":1, ""Id"":""urn:123456789"",""Namespace"":1 }},
-                                ""ApplicationUri"": ""urn:localhost:test.org:client"",
-                                ""ApplicationType"": 1,
-                                ""ApplicationNames"": [{{ ""Text"":""Test Client"", ""Locale"":""en"" }}],
-                                ""ProductUri"": ""http://test.org/client"",
-                                ""DiscoveryUrls"": [""opc.tcp://localhost/""]
-                            }}
-                        }}
-                    }}
-                }}
-            ";
+            string data = $$"""
+
+                {
+                    "D0": {
+                        "TypeId": { "Id": 884 },
+                        "Body": { "High": 9876.5432 }
+                    },
+                    "D1": {
+                        "Type": 22,
+                        "Body": {
+                            "TypeId": { "Id": 1, "Namespace": 2 },
+                            "Body": {
+                                "ApplicationId": { "IdType":1, "Id":"urn:123456789","Namespace":1 },
+                                "ApplicationUri": "urn:localhost:test.org:client",
+                                "ApplicationType": 1,
+                                "ApplicationNames": [{ "Text":"Test Client", "Locale":"en" }],
+                                "ProductUri": "http://test.org/client",
+                                "DiscoveryUrls": ["opc.tcp://localhost/"]
+                            }
+                        }
+                    }
+                }
+
+""";
 
             var context = new ServiceMessageContext();
             context.NamespaceUris.Append("urn:localhost:server");
@@ -1421,29 +1475,31 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void EncodeReversibleExtensionObject()
         {
-            string data = $@"
-                {{
-                    ""D0"": {{
-                        ""TypeId"": {{ ""Id"": 884 }},
-                        ""Body"": {{ ""Low"":0, ""High"": 9876.5432 }}
-                    }},
-                    ""D1"": {{
-                        ""Type"": 22,
-                        ""Body"": {{
-                            ""TypeId"": {{ ""Id"": 1, ""Namespace"": 2 }},
-                            ""Body"": {{
-                                ""ApplicationId"": {{ ""IdType"":1, ""Id"":""urn:123456789"",""Namespace"":1 }},
-                                ""ApplicationUri"": ""urn:localhost:test.org:client"",
-                                ""ApplicationType"": 1,
-                                ""ApplicationNames"": [{{ ""Text"":""Test Client"", ""Locale"":""en"" }}],
-                                ""ProductUri"": ""http://test.org/client"",
-                                ""DiscoveryUrls"": [""opc.tcp://localhost/""],
-                                ""ServerCapabilities"": []
-                            }}
-                        }}
-                    }}
-                }}
-            ";
+            string data = $$"""
+
+                {
+                    "D0": {
+                        "TypeId": { "Id": 884 },
+                        "Body": { "Low":0, "High": 9876.5432 }
+                    },
+                    "D1": {
+                        "Type": 22,
+                        "Body": {
+                            "TypeId": { "Id": 1, "Namespace": 2 },
+                            "Body": {
+                                "ApplicationId": { "IdType":1, "Id":"urn:123456789","Namespace":1 },
+                                "ApplicationUri": "urn:localhost:test.org:client",
+                                "ApplicationType": 1,
+                                "ApplicationNames": [{ "Text":"Test Client", "Locale":"en" }],
+                                "ProductUri": "http://test.org/client",
+                                "DiscoveryUrls": ["opc.tcp://localhost/"],
+                                "ServerCapabilities": []
+                            }
+                        }
+                    }
+                }
+
+""";
 
             var jsonObj = JObject.Parse(data);
             string expected = JsonConvert.SerializeObject(jsonObj, Formatting.None);
@@ -1485,20 +1541,22 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void DecodeNonReversibleExtensionObject()
         {
-            string data = $@"
-                {{
-                    ""D0"": {{ ""Low"": 0, ""High"": 9876.5432 }},
-                    ""D1"": {{
-                        ""ApplicationId"": {{ ""IdType"":1, ""Id"":""urn:123456789"",""Namespace"":""urn:localhost:server"" }},
-                        ""ApplicationUri"": ""urn:localhost:test.org:client"",
-                        ""ApplicationType"": ""Client_1"",
-                        ""ApplicationNames"": [""Test Client""],
-                        ""ProductUri"": ""http://test.org/client"",
-                        ""DiscoveryUrls"": [""opc.tcp://localhost/""],
-                        ""ServerCapabilities"": []
-                    }}
-                }}
-            ";
+            string data = $$"""
+
+                {
+                    "D0": { "Low": 0, "High": 9876.5432 },
+                    "D1": {
+                        "ApplicationId": { "IdType":1, "Id":"urn:123456789","Namespace":"urn:localhost:server" },
+                        "ApplicationUri": "urn:localhost:test.org:client",
+                        "ApplicationType": "Client_1",
+                        "ApplicationNames": ["Test Client"],
+                        "ProductUri": "http://test.org/client",
+                        "DiscoveryUrls": ["opc.tcp://localhost/"],
+                        "ServerCapabilities": []
+                    }
+                }
+
+""";
 
             var context = new ServiceMessageContext();
             context.NamespaceUris.Append("urn:localhost:server");
@@ -1521,20 +1579,22 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void EncodeNonReversibleExtensionObject()
         {
-            string data = $@"
-                {{
-                    ""D0"": {{ ""Low"": 0, ""High"": 9876.5432 }},
-                    ""D1"": {{
-                        ""ApplicationId"": {{ ""IdType"":1, ""Id"":""urn:123456789"",""Namespace"":""urn:localhost:server"" }},
-                        ""ApplicationUri"": ""urn:localhost:test.org:client"",
-                        ""ApplicationType"": ""Client_1"",
-                        ""ApplicationNames"": [""Test Client""],
-                        ""ProductUri"": ""http://test.org/client"",
-                        ""DiscoveryUrls"": [""opc.tcp://localhost/""],
-                        ""ServerCapabilities"": []
-                    }}
-                }}
-            ";
+            string data = $$"""
+
+                {
+                    "D0": { "Low": 0, "High": 9876.5432 },
+                    "D1": {
+                        "ApplicationId": { "IdType":1, "Id":"urn:123456789","Namespace":"urn:localhost:server" },
+                        "ApplicationUri": "urn:localhost:test.org:client",
+                        "ApplicationType": "Client_1",
+                        "ApplicationNames": ["Test Client"],
+                        "ProductUri": "http://test.org/client",
+                        "DiscoveryUrls": ["opc.tcp://localhost/"],
+                        "ServerCapabilities": []
+                    }
+                }
+
+""";
 
             var jsonObj = JObject.Parse(data);
             string expected = JsonConvert.SerializeObject(jsonObj, Formatting.None);

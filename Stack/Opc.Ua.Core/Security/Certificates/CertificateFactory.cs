@@ -513,7 +513,7 @@ namespace Opc.Ua
                 {
                     if (subjectNameEntries[ii].StartsWith("CN=", StringComparison.Ordinal))
                     {
-                        applicationName = subjectNameEntries[ii].Substring(3).Trim();
+                        applicationName = subjectNameEntries[ii][3..].Trim();
                         break;
                     }
                 }

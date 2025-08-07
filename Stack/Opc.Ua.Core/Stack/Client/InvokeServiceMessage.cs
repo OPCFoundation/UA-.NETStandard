@@ -26,7 +26,7 @@ namespace Opc.Ua
 
         /// <summary>
         /// Initializes an empty message.
-        /// </summary>    
+        /// </summary>
         public InvokeServiceMessage()
         {
         }

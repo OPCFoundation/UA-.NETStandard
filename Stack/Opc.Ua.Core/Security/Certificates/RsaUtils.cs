@@ -177,7 +177,7 @@ namespace Opc.Ua
                 byte[] plainText = new byte[plainTextSize];
 
                 // encode length.
-                plainText[0] = (byte)((0x000000FF & dataToEncrypt.Length));
+                plainText[0] = (byte)(0x000000FF & dataToEncrypt.Length);
                 plainText[1] = (byte)((0x0000FF00 & dataToEncrypt.Length) >> 8);
                 plainText[2] = (byte)((0x00FF0000 & dataToEncrypt.Length) >> 16);
                 plainText[3] = (byte)((0xFF000000 & dataToEncrypt.Length) >> 24);
@@ -234,7 +234,7 @@ namespace Opc.Ua
             return new ArraySegment<byte>(
                 encryptedBuffer,
                 outputBuffer.Offset,
-                (dataToEncrypt.Count / inputBlockSize) * outputBlockSize);
+                dataToEncrypt.Count / inputBlockSize * outputBlockSize);
         }
 
         /// <summary>
@@ -263,9 +263,9 @@ namespace Opc.Ua
                 int length = 0;
 
                 length += plainText.Array[plainText.Offset + 0];
-                length += (plainText.Array[plainText.Offset + 1] << 8);
-                length += (plainText.Array[plainText.Offset + 2] << 16);
-                length += (plainText.Array[plainText.Offset + 3] << 24);
+                length += plainText.Array[plainText.Offset + 1] << 8;
+                length += plainText.Array[plainText.Offset + 2] << 16;
+                length += plainText.Array[plainText.Offset + 3] << 24;
 
                 if (length > (plainText.Count - plainText.Offset - 4))
                 {
@@ -316,7 +316,7 @@ namespace Opc.Ua
             }
 
             // return buffers.
-            return new ArraySegment<byte>(decryptedBuffer, outputBuffer.Offset, (dataToDecrypt.Count / inputBlockSize) * outputBlockSize);
+            return new ArraySegment<byte>(decryptedBuffer, outputBuffer.Offset, dataToDecrypt.Count / inputBlockSize * outputBlockSize);
         }
 
         /// <summary>

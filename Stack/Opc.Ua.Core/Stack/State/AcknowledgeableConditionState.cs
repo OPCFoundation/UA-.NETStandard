@@ -174,7 +174,7 @@ namespace Opc.Ua
                 }
 
                 // If this is a branch, the comment goes to both the branch and the original event
-                if (CanSetComment(comment))
+                if (AcknowledgeableConditionState.CanSetComment(comment))
                 {
                     SetComment(context, comment, GetCurrentUserId(context));
                 }
@@ -335,7 +335,7 @@ namespace Opc.Ua
                 }
 
                 // If this is a branch, the comment goes to both the branch and the original event
-                if (CanSetComment(comment))
+                if (AcknowledgeableConditionState.CanSetComment(comment))
                 {
                     SetComment(context, comment, GetCurrentUserId(context));
                 }
@@ -480,7 +480,7 @@ namespace Opc.Ua
         /// This also applies to the Confirm method, although the spec needs updating
         /// (Mantis issue 6405)
         /// </remarks>
-        private bool CanSetComment(LocalizedText comment)
+        private static bool CanSetComment(LocalizedText comment)
         {
             bool canSetComment = false;
 

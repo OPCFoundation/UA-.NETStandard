@@ -75,7 +75,7 @@ namespace Opc.Ua
         event EventHandler<ConnectionStatusEventArgs> ConnectionStatusChanged;
 
         /// <summary>
-        /// Creates a reverse connection to a client. 
+        /// Creates a reverse connection to a client.
         /// </summary>
         void CreateReverseConnection(Uri url, int timeout);
 

@@ -26,11 +26,7 @@ namespace Opc.Ua
         /// <summary>
         /// The algorithm used to encrypt the data.
         /// </summary>
-        public string Algorithm
-        {
-            get { return m_algorithm; }
-            set { m_algorithm = value; }
-        }
+        public string Algorithm { get; set; }
 
         /// <summary>
         /// The encrypted data.
@@ -40,10 +36,9 @@ namespace Opc.Ua
             get { return m_data; }
             set { m_data = value; }
         }
-        #endregion
 
-        #region Private Members
-        private string m_algorithm;
+#endregion
+#region Private Members
         private byte[] m_data;
         #endregion
     }

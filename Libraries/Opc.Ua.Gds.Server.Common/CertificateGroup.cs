@@ -471,13 +471,13 @@ namespace Opc.Ua.Gds.Server
         /// <summary>
         /// load the authority signing key.
         /// </summary>
-        public virtual async Task<X509Certificate2> LoadSigningKeyAsync(X509Certificate2 signingCertificate, string signingKeyPassword)
+        public virtual Task<X509Certificate2> LoadSigningKeyAsync(X509Certificate2 signingCertificate, string signingKeyPassword)
         {
             var certIdentifier = new CertificateIdentifier(signingCertificate) {
                 StorePath = AuthoritiesStore.StorePath,
                 StoreType = AuthoritiesStore.StoreType
             };
-            return await certIdentifier.LoadPrivateKey(signingKeyPassword).ConfigureAwait(false);
+            return certIdentifier.LoadPrivateKey(signingKeyPassword);
         }
 
         /// <summary>

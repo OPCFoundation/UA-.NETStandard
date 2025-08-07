@@ -174,7 +174,7 @@ namespace Opc.Ua.Configuration.Tests
             {
                 throw new ArgumentException($"Expected argument {nameof(location)} starting with {StoreTypePrefix}");
             }
-            m_innerStore.Open(location.Substring(StoreTypePrefix.Length), noPrivateKeys);
+            m_innerStore.Open(location[StoreTypePrefix.Length..], noPrivateKeys);
         }
 
         /// <inheritdoc/>
@@ -184,7 +184,7 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         /// <inheritdoc/>
-        public string StoreType => StoreTypePrefix.Substring(0, StoreTypePrefix.Length - 1);
+        public string StoreType => StoreTypePrefix[..^1];
 
         /// <inheritdoc/>
         public string StorePath => m_innerStore.StorePath;

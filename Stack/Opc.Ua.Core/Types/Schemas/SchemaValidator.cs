@@ -31,9 +31,9 @@ namespace Opc.Ua.Schema
         /// </summary>
         public SchemaValidator()
         {
-            m_knownFiles = new Dictionary<string, string>();
-            m_loadedFiles = new Dictionary<string, object>();
-            m_importFiles = new Dictionary<string, byte[]>();
+            KnownFiles = new Dictionary<string, string>();
+            LoadedFiles = new Dictionary<string, object>();
+            ImportFiles = new Dictionary<string, byte[]>();
         }
 
         /// <summary>
@@ -41,9 +41,9 @@ namespace Opc.Ua.Schema
         /// </summary>
         public SchemaValidator(IDictionary<string, string> knownFiles)
         {
-            m_knownFiles = knownFiles ?? new Dictionary<string, string>();
-            m_loadedFiles = new Dictionary<string, object>();
-            m_importFiles = new Dictionary<string, byte[]>();
+            KnownFiles = knownFiles ?? new Dictionary<string, string>();
+            LoadedFiles = new Dictionary<string, object>();
+            ImportFiles = new Dictionary<string, byte[]>();
         }
 
         /// <summary>
@@ -51,9 +51,9 @@ namespace Opc.Ua.Schema
         /// </summary>
         public SchemaValidator(IDictionary<string, byte[]> importFiles)
         {
-            m_knownFiles = new Dictionary<string, string>();
-            m_loadedFiles = new Dictionary<string, object>();
-            m_importFiles = importFiles ?? new Dictionary<string, byte[]>();
+            KnownFiles = new Dictionary<string, string>();
+            LoadedFiles = new Dictionary<string, object>();
+            ImportFiles = importFiles ?? new Dictionary<string, byte[]>();
         }
         #endregion
 
@@ -66,17 +66,17 @@ namespace Opc.Ua.Schema
         /// <summary>
         /// A table of known files.
         /// </summary>
-        public IDictionary<string, string> KnownFiles => m_knownFiles;
+        public IDictionary<string, string> KnownFiles { get; }
 
         /// <summary>
         /// A table of files which have been loaded.
         /// </summary>
-        public IDictionary<string, object> LoadedFiles => m_loadedFiles;
+        public IDictionary<string, object> LoadedFiles { get; }
 
         /// <summary>
         /// A table of import files.
         /// </summary>
-        public IDictionary<string, byte[]> ImportFiles => m_importFiles;
+        public IDictionary<string, byte[]> ImportFiles { get; }
         #endregion
 
         #region Protected Methods
@@ -130,7 +130,7 @@ namespace Opc.Ua.Schema
         /// </summary>
         protected object LoadInput(Type type, Stream stream)
         {
-            m_loadedFiles.Clear();
+            LoadedFiles.Clear();
 
             object schema = LoadFile(type, stream);
 
@@ -144,7 +144,7 @@ namespace Opc.Ua.Schema
         /// </summary>
         protected object LoadInput(Type type, string path)
         {
-            m_loadedFiles.Clear();
+            LoadedFiles.Clear();
 
             object schema = LoadFile(type, path);
 
@@ -159,13 +159,13 @@ namespace Opc.Ua.Schema
         protected object Load(Type type, string namespaceUri, string path, Assembly assembly = null)
         {
             // check if already loaded.
-            if (m_loadedFiles.TryGetValue(namespaceUri, out object value))
+            if (LoadedFiles.TryGetValue(namespaceUri, out object value))
             {
                 return value;
             }
 
             // check if namespace specified in the import table.
-            if (m_importFiles.TryGetValue(namespaceUri, out byte[] schema))
+            if (ImportFiles.TryGetValue(namespaceUri, out byte[] schema))
             {
                 using (Stream memoryStream = new MemoryStream(schema))
                 {
@@ -189,7 +189,7 @@ namespace Opc.Ua.Schema
             // check if path specified in the file table.
             string location = null;
 
-            if (m_knownFiles.TryGetValue(namespaceUri, out location))
+            if (KnownFiles.TryGetValue(namespaceUri, out location))
             {
                 fileInfo = new FileInfo(location);
 
@@ -293,9 +293,9 @@ namespace Opc.Ua.Schema
             {
                 for (int ii = 0; ii < resources.Length; ii++)
                 {
-                    if (!m_knownFiles.ContainsKey(resources[ii][0]))
+                    if (!KnownFiles.ContainsKey(resources[ii][0]))
                     {
-                        m_knownFiles.Add(resources[ii][0], resources[ii][1]);
+                        KnownFiles.Add(resources[ii][0], resources[ii][1]);
                     }
                 }
             }
@@ -310,12 +310,9 @@ namespace Opc.Ua.Schema
         {
             return null;
         }
-        #endregion
 
-        #region Private Fields
-        private readonly IDictionary<string, string> m_knownFiles;
-        private readonly IDictionary<string, object> m_loadedFiles;
-        private readonly IDictionary<string, byte[]> m_importFiles;
+#endregion
+#region Private Fields
         #endregion
     }
 }

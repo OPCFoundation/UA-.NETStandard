@@ -33,7 +33,7 @@ namespace Opc.Ua.Bindings
             m_synchronous = false;
             m_completed = false;
 
-            if (timeout > 0 && timeout != int.MaxValue)
+            if (timeout is > 0 and not int.MaxValue)
             {
                 m_timer = new Timer(new TimerCallback(OnTimeout), null, timeout, Timeout.Infinite);
             }

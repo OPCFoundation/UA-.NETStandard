@@ -2182,10 +2182,10 @@ namespace Opc.Ua.Client
         /// <returns></returns>
         private int CalculateKeepAliveInterval()
         {
-            int keepAliveInterval = (int)(Math.Min(m_currentPublishingInterval * (m_currentKeepAliveCount + 1), int.MaxValue));
+            int keepAliveInterval = (int)Math.Min(m_currentPublishingInterval * (m_currentKeepAliveCount + 1), int.MaxValue);
             if (keepAliveInterval < kMinKeepAliveTimerInterval)
             {
-                keepAliveInterval = (int)(Math.Min(m_publishingInterval * (m_keepAliveCount + 1), int.MaxValue));
+                keepAliveInterval = (int)Math.Min(m_publishingInterval * (m_keepAliveCount + 1), int.MaxValue);
                 keepAliveInterval = Math.Max(kMinKeepAliveTimerInterval, keepAliveInterval);
             }
             return keepAliveInterval;

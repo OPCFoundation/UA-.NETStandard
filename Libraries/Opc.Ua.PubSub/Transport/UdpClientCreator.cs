@@ -277,7 +277,7 @@ namespace Opc.Ua.PubSub.Transport
                     uint addressBits = BitConverter.ToUInt32(address.GetAddressBytes(), 0);
                     uint invertedSubnetBits = ~BitConverter.ToUInt32(subnetMask, 0);
 
-                    bool isBroadcast = ((addressBits & invertedSubnetBits) == invertedSubnetBits);
+                    bool isBroadcast = (addressBits & invertedSubnetBits) == invertedSubnetBits;
                     if (isBroadcast)
                     {
                         return true;

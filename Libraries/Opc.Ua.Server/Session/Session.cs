@@ -462,7 +462,7 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
-                return (m_secureChannelId == secureChannelId);
+                return m_secureChannelId == secureChannelId;
             }
         }
 

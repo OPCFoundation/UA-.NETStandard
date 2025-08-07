@@ -55,26 +55,26 @@ namespace Opc.Ua
     /// <br/></item>
     /// <item><b>10 - 13</b>:<br/>
     /// Reserved for future use. Must always be zero.</item>
-    /// <item><b>14</b>: 
+    /// <item><b>14</b>:
     /// Indicates that the semantics of the associated data value have changed. Clients should not process the data value until they re-read the metadata associated with the Variable.
     /// Servers should set this bit if the metadata has changed in way that could case application errors if the Client does not re-read the metadata. For example, a change to the engineering units could create problems if the Client uses the value to perform calculations.
-    /// [UA Part 8] defines the conditions where a Server must set this bit for a DA Variable. Other specifications may define additional conditions. A Server may define other conditions that cause this bit to be set. 
+    /// [UA Part 8] defines the conditions where a Server must set this bit for a DA Variable. Other specifications may define additional conditions. A Server may define other conditions that cause this bit to be set.
     /// This bit only has meaning for status codes returned as part of a data change Notification. Status codes used in other contexts must always set this bit to zero.</item>
     /// <item><b>15</b>:<br/>
-    /// Indicates that the structure of the associated data value has changed since the last Notification. Clients should not process the data value unless they re-read the metadata. 
+    /// Indicates that the structure of the associated data value has changed since the last Notification. Clients should not process the data value unless they re-read the metadata.
     /// Servers must set this bit if the DataTypeEncoding used for a Variable changes. Clause 7.14 describes how the DataTypeEncoding is specified for a Variable.
     /// The bit is also set if the data type Attribute of the Variable changes. A Variable with data type BaseDataType does not require the bit to be set when the data type changes.
     /// Servers must also set this bit if the length of a fixed length array Variable changes.
-    /// This bit is provided to warn Clients that parse complex data values that their parsing routines could fail because the serialized form of the data value has changed. 
+    /// This bit is provided to warn Clients that parse complex data values that their parsing routines could fail because the serialized form of the data value has changed.
     /// This bit only has meaning for status codes returned as part of a data change Notification. Status codes used in other contexts must always set this bit to zero.</item>
-    /// <item><b>16 - 27</b>:<br/> 
-    /// The code is a numeric value assigned to represent different conditions. 
-    /// Each code has a symbolic name and a numeric value. All descriptions in the UA specification refer 
+    /// <item><b>16 - 27</b>:<br/>
+    /// The code is a numeric value assigned to represent different conditions.
+    /// Each code has a symbolic name and a numeric value. All descriptions in the UA specification refer
     /// to the symbolic name. [UA Part 6] maps the symbolic names onto a numeric value.</item>
-    /// <item><b>28 - 29</b>:<br/> 
+    /// <item><b>28 - 29</b>:<br/>
     /// Reserved for future use. Must always be zero.</item>
     /// <item><b>30 - 31</b>:<br/>
-    /// Indicates whether the status code represents a good, bad or uncertain condition. 
+    /// Indicates whether the status code represents a good, bad or uncertain condition.
     /// These bits have the following meanings:<br/>
     ///     <list type="bullet">
     ///         <item>Binary Representation <b>00</b>:<br/>
@@ -105,7 +105,7 @@ namespace Opc.Ua
         /// <param name="code">The numeric code to apply to this status code</param>
         public StatusCode(uint code)
         {
-            m_code = code;
+            Code = code;
         }
 
         /// <summary>
@@ -122,11 +122,11 @@ namespace Opc.Ua
         {
             if (e is ServiceResultException sre)
             {
-                m_code = sre.StatusCode;
+                Code = sre.StatusCode;
             }
             else
             {
-                m_code = defaultCode;
+                Code = defaultCode;
             }
         }
         #endregion
@@ -138,23 +138,19 @@ namespace Opc.Ua
         /// </summary>
         /// <remarks>
         /// The entire 32-bit status value.
-        /// </remarks>        
+        /// </remarks>
         [DataMember(Name = "Code", Order = 1, IsRequired = false)]
-        public uint Code
-        {
-            get { return m_code; }
-            set { m_code = value; }
-        }
+        public uint Code { get; set; }
         #endregion
 
         #region public uint CodeBits
         /// <summary>
-        /// The 16 code bits of the status code. 
+        /// The 16 code bits of the status code.
         /// </summary>
         /// <remarks>
-        /// The 16 code bits of the status code. 
+        /// The 16 code bits of the status code.
         /// </remarks>
-        public uint CodeBits => m_code & 0xFFFF0000;
+        public uint CodeBits => Code & 0xFFFF0000;
 
         /// <summary>
         /// Returns a copy of the status code with the Code bits set.
@@ -163,8 +159,8 @@ namespace Opc.Ua
         /// <returns>The status code with the Code bits set to the specified values.</returns>
         public StatusCode SetCodeBits(uint bits)
         {
-            m_code &= 0x0000FFFF;
-            m_code |= (bits & 0xFFFF0000);
+            Code &= 0x0000FFFF;
+            Code |= bits & 0xFFFF0000;
 
             return this;
         }
@@ -172,12 +168,12 @@ namespace Opc.Ua
 
         #region public uint FlagBits
         /// <summary>
-        /// The 16 flag bits of the status code. 
+        /// The 16 flag bits of the status code.
         /// </summary>
         /// <remarks>
-        /// The 16 flag bits of the status code. 
+        /// The 16 flag bits of the status code.
         /// </remarks>
-        public uint FlagBits => m_code & 0x0000FFFF;
+        public uint FlagBits => Code & 0x0000FFFF;
 
         /// <summary>
         /// Returns a copy of the status code with the Flag bits set.
@@ -186,8 +182,8 @@ namespace Opc.Ua
         /// <returns>The status code with the Flag bits set to the specified values.</returns>
         public StatusCode SetFlagBits(uint bits)
         {
-            m_code &= 0xFFFF0000;
-            m_code |= (bits & 0x0000FFFF);
+            Code &= 0xFFFF0000;
+            Code |= bits & 0x0000FFFF;
 
             return this;
         }
@@ -195,15 +191,15 @@ namespace Opc.Ua
 
         #region public uint SubCode
         /// <summary>
-        /// The sub-code portion of the status code. 
+        /// The sub-code portion of the status code.
         /// </summary>
         /// <remarks>
-        /// The sub-code portion of the status code. 
+        /// The sub-code portion of the status code.
         /// </remarks>
         public uint SubCode
         {
-            get { return m_code & 0x0FFF0000; }
-            set { m_code = 0x0FFF0000 & value; }
+            get { return Code & 0x0FFF0000; }
+            set { Code = 0x0FFF0000 & value; }
         }
         #endregion
 
@@ -217,17 +213,17 @@ namespace Opc.Ua
         [XmlIgnore()]
         public bool StructureChanged
         {
-            get { return (m_code & s_StructureChangedBit) != 0; }
+            get { return (Code & s_StructureChangedBit) != 0; }
 
             set
             {
                 if (value)
                 {
-                    m_code |= s_StructureChangedBit;
+                    Code |= s_StructureChangedBit;
                 }
                 else
                 {
-                    m_code &= ~s_StructureChangedBit;
+                    Code &= ~s_StructureChangedBit;
                 }
             }
         }
@@ -254,17 +250,17 @@ namespace Opc.Ua
         [XmlIgnore()]
         public bool SemanticsChanged
         {
-            get { return (m_code & s_SemanticsChangedBit) != 0; }
+            get { return (Code & s_SemanticsChangedBit) != 0; }
 
             set
             {
                 if (value)
                 {
-                    m_code |= s_SemanticsChangedBit;
+                    Code |= s_SemanticsChangedBit;
                 }
                 else
                 {
-                    m_code &= ~s_SemanticsChangedBit;
+                    Code &= ~s_SemanticsChangedBit;
                 }
             }
         }
@@ -291,18 +287,18 @@ namespace Opc.Ua
         [XmlIgnore()]
         public bool HasDataValueInfo
         {
-            get { return (m_code & s_DataValueInfoType) != 0; }
+            get { return (Code & s_DataValueInfoType) != 0; }
 
             set
             {
                 if (value)
                 {
-                    m_code |= s_DataValueInfoType;
+                    Code |= s_DataValueInfoType;
                 }
                 else
                 {
-                    m_code &= ~s_DataValueInfoType;
-                    m_code &= 0xFFFFFC00;
+                    Code &= ~s_DataValueInfoType;
+                    Code &= 0xFFFFFC00;
                 }
             }
         }
@@ -321,13 +317,13 @@ namespace Opc.Ua
         [XmlIgnore()]
         public LimitBits LimitBits
         {
-            get { return (LimitBits)(m_code & s_LimitBits); }
+            get { return (LimitBits)(Code & s_LimitBits); }
 
             set
             {
-                m_code |= s_DataValueInfoType;
-                m_code &= ~s_LimitBits;
-                m_code |= ((uint)value & s_LimitBits);
+                Code |= s_DataValueInfoType;
+                Code &= ~s_LimitBits;
+                Code |= (uint)value & s_LimitBits;
             }
         }
 
@@ -353,19 +349,19 @@ namespace Opc.Ua
         [XmlIgnore()]
         public bool Overflow
         {
-            get { return ((m_code & s_DataValueInfoType) != 0) && ((m_code & s_OverflowBit) != 0); }
+            get { return ((Code & s_DataValueInfoType) != 0) && ((Code & s_OverflowBit) != 0); }
 
             set
             {
-                m_code |= s_DataValueInfoType;
+                Code |= s_DataValueInfoType;
 
                 if (value)
                 {
-                    m_code |= s_OverflowBit;
+                    Code |= s_OverflowBit;
                 }
                 else
                 {
-                    m_code &= ~s_OverflowBit;
+                    Code &= ~s_OverflowBit;
                 }
             }
         }
@@ -393,13 +389,13 @@ namespace Opc.Ua
         [XmlIgnore()]
         public AggregateBits AggregateBits
         {
-            get { return (AggregateBits)(m_code & s_AggregateBits); }
+            get { return (AggregateBits)(Code & s_AggregateBits); }
 
             set
             {
-                m_code |= s_DataValueInfoType;
-                m_code &= ~s_AggregateBits;
-                m_code |= ((uint)value & s_AggregateBits);
+                Code |= s_DataValueInfoType;
+                Code &= ~s_AggregateBits;
+                Code |= (uint)value & s_AggregateBits;
             }
         }
 
@@ -429,7 +425,7 @@ namespace Opc.Ua
             // compare codes
             if (obj is StatusCode)
             {
-                return m_code.CompareTo(((StatusCode)obj).m_code);
+                return Code.CompareTo(((StatusCode)obj).Code);
             }
 
             // check for null.
@@ -441,7 +437,7 @@ namespace Opc.Ua
             // check for status code.
             if (obj is uint)
             {
-                return m_code.CompareTo((uint)obj);
+                return Code.CompareTo((uint)obj);
             }
 
             // objects not comparable.
@@ -458,7 +454,7 @@ namespace Opc.Ua
         public int CompareTo(StatusCode other)
         {
             // check for status code.
-            return m_code.CompareTo(other.Code);
+            return Code.CompareTo(other.Code);
         }
         #endregion
 
@@ -476,14 +472,14 @@ namespace Opc.Ua
         {
             if (format == null)
             {
-                string text = StatusCodes.GetBrowseName(m_code & 0xFFFF0000);
+                string text = StatusCodes.GetBrowseName(Code & 0xFFFF0000);
 
                 if (!string.IsNullOrEmpty(text))
                 {
                     return string.Format(formatProvider, "{0}", text);
                 }
 
-                return string.Format(formatProvider, "0x{0:X8}", m_code);
+                return string.Format(formatProvider, "0x{0:X8}", Code);
 
             }
 
@@ -524,7 +520,7 @@ namespace Opc.Ua
         /// </remarks>
         public override int GetHashCode()
         {
-            return m_code.GetHashCode();
+            return Code.GetHashCode();
         }
 
         /// <summary>
@@ -537,11 +533,11 @@ namespace Opc.Ua
         {
             var buffer = new StringBuilder();
 
-            buffer.Append(LookupSymbolicId(m_code));
+            buffer.Append(LookupSymbolicId(Code));
 
             if ((0x0000FFFF & Code) != 0)
             {
-                buffer.AppendFormat(CultureInfo.InvariantCulture, " [{0:X4}]", (0x0000FFFF & Code));
+                buffer.AppendFormat(CultureInfo.InvariantCulture, " [{0:X4}]", 0x0000FFFF & Code);
             }
 
             return buffer.ToString();
@@ -672,7 +668,7 @@ namespace Opc.Ua
         /// <param name="code">The code to check</param>
         public static bool IsGood(StatusCode code)
         {
-            return (code.m_code & 0xC0000000) == 0;
+            return (code.Code & 0xC0000000) == 0;
         }
 
         /// <summary>
@@ -684,7 +680,7 @@ namespace Opc.Ua
         /// <param name="code">The code to check</param>
         public static bool IsNotGood(StatusCode code)
         {
-            return (code.m_code & 0xC0000000) != 0;
+            return (code.Code & 0xC0000000) != 0;
         }
 
         /// <summary>
@@ -696,7 +692,7 @@ namespace Opc.Ua
         /// <param name="code">The code to check</param>
         public static bool IsUncertain(StatusCode code)
         {
-            return (code.m_code & 0x40000000) == 0x40000000;
+            return (code.Code & 0x40000000) == 0x40000000;
         }
 
         /// <summary>
@@ -708,7 +704,7 @@ namespace Opc.Ua
         /// <param name="code">The code to check</param>
         public static bool IsNotUncertain(StatusCode code)
         {
-            return (code.m_code & 0x40000000) != 0x40000000;
+            return (code.Code & 0x40000000) != 0x40000000;
         }
 
         /// <summary>
@@ -720,7 +716,7 @@ namespace Opc.Ua
         /// <param name="code">The code to check</param>
         public static bool IsBad(StatusCode code)
         {
-            return (code.m_code & 0x80000000) != 0;
+            return (code.Code & 0x80000000) != 0;
         }
 
         /// <summary>
@@ -732,12 +728,11 @@ namespace Opc.Ua
         /// <param name="code">The code to check</param>
         public static bool IsNotBad(StatusCode code)
         {
-            return (code.m_code & 0x80000000) == 0;
+            return (code.Code & 0x80000000) == 0;
         }
-        #endregion
 
-        #region Private Members
-        private uint m_code;
+#endregion
+#region Private Members
 
         private const uint s_AggregateBits = 0x001F;
         private const uint s_OverflowBit = 0x0080;

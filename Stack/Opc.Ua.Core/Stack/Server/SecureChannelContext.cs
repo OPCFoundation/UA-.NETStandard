@@ -31,7 +31,7 @@ namespace Opc.Ua
             EndpointDescription endpointDescription,
             RequestEncoding messageEncoding)
         {
-            m_secureChannelId = secureChannelId;
+            SecureChannelId = secureChannelId;
             m_endpointDescription = endpointDescription;
             m_messageEncoding = messageEncoding;
         }
@@ -45,7 +45,7 @@ namespace Opc.Ua
 
             if (context != null)
             {
-                m_secureChannelId = context.SecureChannelId;
+                SecureChannelId = context.SecureChannelId;
                 m_endpointDescription = context.EndpointDescription;
                 m_messageEncoding = context.MessageEncoding;
             }
@@ -57,10 +57,7 @@ namespace Opc.Ua
         /// TThe unique identifier for the secure channel.
         /// </summary>
         /// <value>The secure channel identifier.</value>
-        public string SecureChannelId
-        {
-            get { return m_secureChannelId; }
-        }
+        public string SecureChannelId { get; }
 
         /// <summary>
         /// The description of the endpoint used with the channel.
@@ -98,10 +95,9 @@ namespace Opc.Ua
                 s_Dataslot.Value = value;
             }
         }
-        #endregion
 
-        #region Private Fields
-        private readonly string m_secureChannelId;
+#endregion
+#region Private Fields
         private readonly EndpointDescription m_endpointDescription;
         private readonly RequestEncoding m_messageEncoding;
         private static readonly ThreadLocal<SecureChannelContext> s_Dataslot = new ThreadLocal<SecureChannelContext>();

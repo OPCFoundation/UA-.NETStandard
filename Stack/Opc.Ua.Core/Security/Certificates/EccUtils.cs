@@ -611,7 +611,7 @@ namespace Opc.Ua
                 encoder.WriteByteString(null, secret);
 
                 // add padding.
-                int paddingSize = (iv.Length - ((encoder.Position + 2) % iv.Length));
+                int paddingSize = iv.Length - ((encoder.Position + 2) % iv.Length);
                 paddingSize %= iv.Length;
 
                 if (secret.Length + paddingSize < iv.Length)
@@ -1005,7 +1005,7 @@ namespace Opc.Ua
 
             int length = message.Length - lengthPosition - 4;
 
-            message[lengthPosition++] = (byte)((length & 0xFF));
+            message[lengthPosition++] = (byte)(length & 0xFF);
             message[lengthPosition++] = (byte)((length & 0xFF00) >> 8);
             message[lengthPosition++] = (byte)((length & 0xFF0000) >> 16);
             message[lengthPosition++] = (byte)((length & 0xFF000000) >> 24);

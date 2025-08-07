@@ -14,7 +14,7 @@ using System;
 
 namespace Opc.Ua
 {
-    /// <summary> 
+    /// <summary>
     /// The base class for all object type nodes.
     /// </summary>
     public class BaseObjectTypeState : BaseTypeState
@@ -74,7 +74,7 @@ namespace Opc.Ua
         #endregion
     }
 
-    /// <summary> 
+    /// <summary>
     /// The base class for all object type nodes.
     /// </summary>
     public class FolderTypeState : BaseObjectTypeState

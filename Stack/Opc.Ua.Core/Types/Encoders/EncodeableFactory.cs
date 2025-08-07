@@ -33,7 +33,7 @@ namespace Opc.Ua
     /// Once the types exist within the factory, these types can be then easily queried.
     /// <br/></para>
     /// </remarks>
-    public class EncodeableFactory : IEncodeableFactory
+    public class EncodeableFactory : IEncodeableFactory, IDisposable
     {
         #region Constructors
         /// <summary>
@@ -45,7 +45,7 @@ namespace Opc.Ua
             AddEncodeableTypes(this.GetType().GetTypeInfo().Assembly);
 
 #if DEBUG
-            m_instanceId = Interlocked.Increment(ref m_globalInstanceCount);
+            InstanceId = Interlocked.Increment(ref m_globalInstanceCount);
 #endif
         }
 
@@ -58,7 +58,7 @@ namespace Opc.Ua
             AddEncodeableTypes(Utils.DefaultOpcUaCoreAssemblyFullName);
 
 #if DEBUG
-            m_instanceId = Interlocked.Increment(ref m_globalInstanceCount);
+            InstanceId = Interlocked.Increment(ref m_globalInstanceCount);
             m_shared = true;
 #endif
         }
@@ -71,7 +71,7 @@ namespace Opc.Ua
             m_encodeableTypes = new Dictionary<ExpandedNodeId, Type>();
 
 #if DEBUG
-            m_instanceId = Interlocked.Increment(ref m_globalInstanceCount);
+            InstanceId = Interlocked.Increment(ref m_globalInstanceCount);
 #endif
             if (factory != null)
             {
@@ -144,7 +144,7 @@ namespace Opc.Ua
 #if DEBUG
             if (m_shared)
             {
-                Utils.LogTrace("WARNING: Adding type '{0}' to shared Factory #{1}.", systemType.Name, m_instanceId);
+                Utils.LogTrace("WARNING: Adding type '{0}' to shared Factory #{1}.", systemType.Name, InstanceId);
             }
 #endif
 
@@ -234,10 +234,7 @@ namespace Opc.Ua
         /// <remarks>
         /// The default factory for the process.
         /// </remarks>
-        public static EncodeableFactory GlobalFactory
-        {
-            get { return s_globalFactory; }
-        }
+        public static EncodeableFactory GlobalFactory { get; } = new EncodeableFactory();
 
         /// <summary>
         /// Returns the xml qualified name for the specified system type id.
@@ -327,7 +324,7 @@ namespace Opc.Ua
         public int InstanceId
         {
 #if DEBUG
-            get { return m_instanceId; }
+            get;
 #else
             get { return 0; }
 #endif
@@ -362,7 +359,7 @@ namespace Opc.Ua
 #if DEBUG
                 if (m_shared)
                 {
-                    Utils.LogWarning("WARNING: Adding type '{0}' to shared Factory #{1}.", systemType.Name, m_instanceId);
+                    Utils.LogWarning("WARNING: Adding type '{0}' to shared Factory #{1}.", systemType.Name, InstanceId);
                 }
 #endif
                 m_readerWriterLockSlim.EnterWriteLock();
@@ -398,7 +395,7 @@ namespace Opc.Ua
 #if DEBUG
                 if (m_shared)
                 {
-                    Utils.LogWarning("WARNING: Adding types from assembly '{0}' to shared Factory #{1}.", assembly.FullName, m_instanceId);
+                    Utils.LogWarning("WARNING: Adding types from assembly '{0}' to shared Factory #{1}.", assembly.FullName, InstanceId);
                 }
 #endif
 
@@ -423,7 +420,7 @@ namespace Opc.Ua
                             {
                                 try
                                 {
-                                    string name = field.Name.Substring(0, field.Name.Length - jsonEncodingSuffix.Length);
+                                    string name = field.Name[..^jsonEncodingSuffix.Length];
                                     object value = field.GetValue(null);
 
                                     if (value is NodeId)
@@ -553,11 +550,9 @@ namespace Opc.Ua
         #region Private Fields
         private readonly ReaderWriterLockSlim m_readerWriterLockSlim = new ReaderWriterLockSlim();
         private readonly Dictionary<ExpandedNodeId, Type> m_encodeableTypes;
-        private static readonly EncodeableFactory s_globalFactory = new EncodeableFactory();
 
 #if DEBUG
         private readonly bool m_shared;
-        private readonly int m_instanceId;
         private static int m_globalInstanceCount;
 #endif
         #endregion

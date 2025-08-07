@@ -214,7 +214,7 @@ namespace Opc.Ua.PubSub.PublishedData
                                         {
                                             if (variant.Value is string strFieldValue && shouldBringToConstraints((uint)strFieldValue.Length))
                                             {
-                                                variant.Value = strFieldValue.Substring(0, (int)field.FieldMetaData.MaxStringLength);
+                                                variant.Value = strFieldValue[..(int)field.FieldMetaData.MaxStringLength];
                                                 dataValue.Value = variant;
                                             }
                                         }
@@ -227,7 +227,7 @@ namespace Opc.Ua.PubSub.PublishedData
                                                 {
                                                     if (shouldBringToConstraints((uint)valueArray[idx].Length))
                                                     {
-                                                        valueArray[idx] = valueArray[idx].Substring(0, (int)field.FieldMetaData.MaxStringLength);
+                                                        valueArray[idx] = valueArray[idx][..(int)field.FieldMetaData.MaxStringLength];
                                                     }
                                                 }
                                             }

@@ -409,7 +409,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
             lock (Lock)
             {
                 IEnumerable<Application> results = from x in Applications
-                              where ((int)startingRecordId == 0 || (int)startingRecordId <= x.ID)
+                              where (int)startingRecordId == 0 || (int)startingRecordId <= x.ID
                               select x;
 
                 lastCounterResetTime = queryCounterResetTime;

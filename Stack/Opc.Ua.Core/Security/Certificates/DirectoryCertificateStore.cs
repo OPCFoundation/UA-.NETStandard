@@ -65,6 +65,7 @@ namespace Opc.Ua
         public void Dispose()
         {
             Dispose(true);
+            GC.SuppressFinalize(this);
         }
 
         /// <summary>
@@ -544,7 +545,7 @@ namespace Opc.Ua
                                 continue;
                             }
 
-                            string fileRoot = file.Name.Substring(0, file.Name.Length - file.Extension.Length);
+                            string fileRoot = file.Name[..^file.Extension.Length];
 
                             StringBuilder filePath = new StringBuilder()
                                 .Append(m_privateKeySubdir.FullName)
@@ -937,7 +938,7 @@ namespace Opc.Ua
 
                             if (!NoPrivateKeys)
                             {
-                                string fileRoot = file.Name.Substring(0, entry.CertificateFile.Name.Length - entry.CertificateFile.Extension.Length);
+                                string fileRoot = file.Name[..(entry.CertificateFile.Name.Length - entry.CertificateFile.Extension.Length)];
 
                                 StringBuilder filePath = new StringBuilder()
                                     .Append(m_privateKeySubdir.FullName)
@@ -1029,7 +1030,7 @@ namespace Opc.Ua
             {
                 if (names[ii].StartsWith("CN=", StringComparison.Ordinal))
                 {
-                    commonName = names[ii].Substring(3).Trim();
+                    commonName = names[ii][3..].Trim();
                     break;
                 }
             }

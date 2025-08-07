@@ -51,7 +51,7 @@ namespace Opc.Ua
 
         #region Public Properties
 
-        /// <remarks />
+        /// <inheritdoc/>
         public PropertyState<bool> SupportsFilteredRetain
         {
             get
@@ -775,7 +775,7 @@ namespace Opc.Ua
         /// <returns>true if branch</returns>
         protected bool IsBranch()
         {
-            return !(this.BranchId.Value.IsNullNodeId);
+            return !this.BranchId.Value.IsNullNodeId;
         }
         #endregion
 

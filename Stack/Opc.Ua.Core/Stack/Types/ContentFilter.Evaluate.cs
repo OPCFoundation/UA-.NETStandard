@@ -34,11 +34,11 @@ namespace Opc.Ua
 
         #region Public functions
         /// <summary>
-        /// Evaluates the first element in the ContentFilter. If the first or any 
-        /// subsequent element has dependent elements, the dependent elements are 
-        /// evaluated before the root element (recursive descent). Elements which 
-        /// are not linked (directly or indirectly) to the first element will not 
-        /// be evaluated (they have no influence on the result). 
+        /// Evaluates the first element in the ContentFilter. If the first or any
+        /// subsequent element has dependent elements, the dependent elements are
+        /// evaluated before the root element (recursive descent). Elements which
+        /// are not linked (directly or indirectly) to the first element will not
+        /// be evaluated (they have no influence on the result).
         /// </summary>
         /// <param name="context">The context to use when evaluating the filter.</param>
         /// <param name="target">The target to use when evaluating elements that reference the type model.</param>
@@ -170,7 +170,7 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the operands for the element.
         /// </summary>
-        private FilterOperand[] GetOperands(ContentFilterElement element, int expectedCount)
+        private static FilterOperand[] GetOperands(ContentFilterElement element, int expectedCount)
         {
             var operands = new FilterOperand[element.FilterOperands.Count];
 
@@ -184,7 +184,7 @@ namespace Opc.Ua
                 }
 
 
-                if (!(extension.Body is FilterOperand operand))
+                if (extension.Body is not FilterOperand operand)
                 {
                     throw new ServiceResultException(StatusCodes.BadUnexpectedError, "FilterOperand is not supported.");
                 }
@@ -255,7 +255,7 @@ namespace Opc.Ua
             {
                 // AttributeOperands only supported in advanced filter targets.
 
-                if (!(target is IAdvancedFilterTarget advancedTarget))
+                if (target is not IAdvancedFilterTarget advancedTarget)
                 {
                     return false;
                 }
@@ -434,7 +434,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Returns true if the target string matches the UA pattern string. 
+        /// Returns true if the target string matches the UA pattern string.
         /// The pattern string may include UA wildcards %_\[]!
         /// </summary>
         /// <param name="target">String to check for a pattern match.</param>
@@ -492,10 +492,10 @@ namespace Opc.Ua
         /// <returns>true if the type is Integer, otherwise returns false</returns>
         private static bool isIntegerType(BuiltInType aType)
         {
-            if (aType == BuiltInType.Byte || aType == BuiltInType.SByte ||
-            aType == BuiltInType.Int16 || aType == BuiltInType.UInt16 ||
-            aType == BuiltInType.Int32 || aType == BuiltInType.UInt32 ||
-            aType == BuiltInType.Int64 || aType == BuiltInType.UInt64)
+            if (aType is BuiltInType.Byte or BuiltInType.SByte or
+            BuiltInType.Int16 or BuiltInType.UInt16 or
+            BuiltInType.Int32 or BuiltInType.UInt32 or
+            BuiltInType.Int64 or BuiltInType.UInt64)
             {
                 return true;
             }
@@ -1583,7 +1583,7 @@ namespace Opc.Ua
             bool? lhs = GetValue(context, operands[0], target) as bool?;
 
             // no need for further processing if first operand is false.
-            if (lhs != null && !lhs.Value)
+            if (lhs == false)
             {
                 return false;
             }
@@ -1592,7 +1592,7 @@ namespace Opc.Ua
 
             if (lhs == null)
             {
-                if (rhs == null || rhs == true)
+                if (rhs is null or true)
                 {
                     return null;
                 }
@@ -1604,7 +1604,7 @@ namespace Opc.Ua
 
             if (rhs == null)
             {
-                if (lhs == null || lhs == true)
+                if (lhs is null or true)
                 {
                     return null;
                 }
@@ -1627,7 +1627,7 @@ namespace Opc.Ua
             bool? lhs = GetValue(context, operands[0], target) as bool?;
 
             // no need for further processing if first operand is true.
-            if (lhs != null && lhs.Value)
+            if (lhs == true)
             {
                 return true;
             }
@@ -1636,7 +1636,7 @@ namespace Opc.Ua
 
             if (lhs == null)
             {
-                if (rhs == null || rhs == false)
+                if (rhs is null or false)
                 {
                     return null;
                 }
@@ -1648,7 +1648,7 @@ namespace Opc.Ua
 
             if (rhs == null)
             {
-                if (lhs == null || lhs == false)
+                if (lhs is null or false)
                 {
                     return null;
                 }
@@ -1971,7 +1971,7 @@ namespace Opc.Ua
         {
             // views only supported in advanced filter targets.
 
-            if (!(target is IAdvancedFilterTarget advancedFilter))
+            if (target is not IAdvancedFilterTarget advancedFilter)
             {
                 return false;
             }
@@ -2012,7 +2012,7 @@ namespace Opc.Ua
         {
             // RelatedTo only supported in advanced filter targets.
 
-            if (!(target is IAdvancedFilterTarget advancedTarget))
+            if (target is not IAdvancedFilterTarget advancedTarget)
             {
                 return false;
             }
@@ -2042,12 +2042,7 @@ namespace Opc.Ua
 
             if (hopsValue != null)
             {
-                hops = Cast(hopsValue, BuiltInType.Int32) as int?;
-
-                if (hops == null)
-                {
-                    hops = 1;
-                }
+                hops = Cast(hopsValue, BuiltInType.Int32) as int? ?? (int?)1;
             }
 
             // get whether to include type definition subtypes.
@@ -2057,12 +2052,7 @@ namespace Opc.Ua
 
             if (includeValue != null)
             {
-                includeTypeDefinitionSubtypes = Cast(includeValue, BuiltInType.Boolean) as bool?;
-
-                if (includeTypeDefinitionSubtypes == null)
-                {
-                    includeTypeDefinitionSubtypes = true;
-                }
+                includeTypeDefinitionSubtypes = Cast(includeValue, BuiltInType.Boolean) as bool? ?? (bool?)true;
             }
 
             // get whether to include reference type subtypes.
@@ -2072,12 +2062,7 @@ namespace Opc.Ua
 
             if (includeValue != null)
             {
-                includeReferenceTypeSubtypes = Cast(includeValue, BuiltInType.Boolean) as bool?;
-
-                if (includeReferenceTypeSubtypes == null)
-                {
-                    includeReferenceTypeSubtypes = true;
-                }
+                includeReferenceTypeSubtypes = Cast(includeValue, BuiltInType.Boolean) as bool? ?? (bool?)true;
             }
 
             NodeId targetTypeId = null;
@@ -2147,7 +2132,7 @@ namespace Opc.Ua
                 }
             }
 
-            // check the target.            
+            // check the target.
             try
             {
                 bool relatedTo = advancedTarget.IsRelatedTo(

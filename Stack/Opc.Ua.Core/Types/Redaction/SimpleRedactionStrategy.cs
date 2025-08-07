@@ -91,7 +91,7 @@ namespace Opc.Ua.Types.Redaction
 
             if (value is Exception exception)
             {
-                return RedactException(exception);
+                return SimpleRedactionStrategy.RedactException(exception);
             }
 
             string valueString = value.ToString();
@@ -109,7 +109,7 @@ namespace Opc.Ua.Types.Redaction
             return new string(kReplacementChar, m_maxLength);
         }
 
-        private string RedactException(Exception exception)
+        private static string RedactException(Exception exception)
         {
             return "An exception of type " + exception.GetType() + " was redacted because it may contain sensitive information.";
         }

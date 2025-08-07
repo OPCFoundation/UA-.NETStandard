@@ -106,8 +106,8 @@ namespace Opc.Ua.Gds.Client
 
                         if (index >= 0)
                         {
-                            string id = line.Substring(0, index).Trim();
-                            string description = line.Substring(index + 1).Trim();
+                            string id = line[..index].Trim();
+                            string description = line[(index + 1)..].Trim();
                             capabilities.Add(new ServerCapability() { Id = id, Description = description });
                         }
 

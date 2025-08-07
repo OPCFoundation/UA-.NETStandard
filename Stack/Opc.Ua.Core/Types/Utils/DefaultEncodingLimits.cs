@@ -50,7 +50,7 @@ namespace Opc.Ua
         public static readonly int MaxEncodingNestingLevels = 200;
 
         /// <summary>
-        /// The default number of times the decoder can recover from an error 
+        /// The default number of times the decoder can recover from an error
         /// caused by an encoded ExtensionObject before throwing a decoder error.
         /// </summary>
         public static readonly int MaxDecoderRecoveries = 0;

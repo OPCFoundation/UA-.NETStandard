@@ -173,7 +173,7 @@ namespace Opc.Ua.Gds.Client
                             name += ".";
                         }
 
-                        name += field.Substring(3);
+                        name += field[3..];
                     }
                 }
 

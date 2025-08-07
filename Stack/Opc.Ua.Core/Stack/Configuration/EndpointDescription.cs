@@ -107,7 +107,7 @@ namespace Opc.Ua
                     }
                     else if (
                         policy.SecurityPolicyUri != null && tokenSecurityPolicyUri != null &&
-                        (EccUtils.IsEccPolicy(policy.SecurityPolicyUri) && EccUtils.IsEccPolicy(tokenSecurityPolicyUri)) ||
+                        EccUtils.IsEccPolicy(policy.SecurityPolicyUri) && EccUtils.IsEccPolicy(tokenSecurityPolicyUri) ||
                         (!EccUtils.IsEccPolicy(policy.SecurityPolicyUri) && !EccUtils.IsEccPolicy(tokenSecurityPolicyUri))
                         )
                     {
@@ -169,7 +169,7 @@ namespace Opc.Ua
                     }
                     else if (
                         policy.SecurityPolicyUri != null && tokenSecurityPolicyUri != null &&
-                        (EccUtils.IsEccPolicy(policy.SecurityPolicyUri) && EccUtils.IsEccPolicy(tokenSecurityPolicyUri)) ||
+                        EccUtils.IsEccPolicy(policy.SecurityPolicyUri) && EccUtils.IsEccPolicy(tokenSecurityPolicyUri) ||
                         (!EccUtils.IsEccPolicy(policy.SecurityPolicyUri) && !EccUtils.IsEccPolicy(tokenSecurityPolicyUri))
                         )
                     {

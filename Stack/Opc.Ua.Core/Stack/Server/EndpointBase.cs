@@ -544,12 +544,7 @@ namespace Opc.Ua
             ServiceFault fault = CreateFault(request, exception);
 
             // get the error from the header.
-            ServiceResult error = fault.ResponseHeader.ServiceResult;
-
-            if (error == null)
-            {
-                error = ServiceResult.Create(StatusCodes.BadUnexpectedError, "An unknown error occurred.");
-            }
+            ServiceResult error = fault.ResponseHeader.ServiceResult ?? ServiceResult.Create(StatusCodes.BadUnexpectedError, "An unknown error occurred.");
 
             // construct the fault code and fault reason.
             string codeName = StatusCodes.GetBrowseName(error.Code);
@@ -561,40 +556,24 @@ namespace Opc.Ua
         /// Returns the message context used by the server associated with the endpoint.
         /// </summary>
         /// <value>The message context.</value>
-        protected IServiceMessageContext MessageContext
-        {
-            get { return m_messageContext; }
-            set { m_messageContext = value; }
-        }
+        protected IServiceMessageContext MessageContext { get; set; }
 
         /// <summary>
         /// Returns the description for the endpoint
         /// </summary>
         /// <value>The endpoint description.</value>
-        protected EndpointDescription EndpointDescription
-        {
-            get { return m_endpointDescription; }
-            set { m_endpointDescription = value; }
-        }
+        protected EndpointDescription EndpointDescription { get; set; }
 
         /// <summary>
         /// Returns the error of the server.
         /// </summary>
         /// <value>The server error.</value>
-        protected ServiceResult ServerError
-        {
-            get { return m_serverError; }
-            set { m_serverError = value; }
-        }
+        protected ServiceResult ServerError { get; set; }
 
         /// <summary>
         /// The types of services known to the server.
         /// </summary>
-        protected Dictionary<ExpandedNodeId, ServiceDefinition> SupportedServices
-        {
-            get { return m_supportedServices; }
-            set { m_supportedServices = value; }
-        }
+        protected Dictionary<ExpandedNodeId, ServiceDefinition> SupportedServices { get; set; }
 
         /// <summary>
         /// Sets the request context for the thread.
@@ -644,7 +623,7 @@ namespace Opc.Ua
                 Type requestType,
                 InvokeServiceEventHandler invokeMethod)
             {
-                m_requestType = requestType;
+                RequestType = requestType;
                 m_InvokeService = invokeMethod;
             }
 
@@ -652,10 +631,7 @@ namespace Opc.Ua
             /// The system type of the request object.
             /// </summary>
             /// <value>The type of the request.</value>
-            public Type RequestType
-            {
-                get { return m_requestType; }
-            }
+            public Type RequestType { get; }
 
             /// <summary>
             /// The system type of the request object.
@@ -663,7 +639,7 @@ namespace Opc.Ua
             /// <value>The type of the response.</value>
             public Type ResponseType
             {
-                get { return m_requestType; }
+                get { return RequestType; }
             }
 
             /// <summary>
@@ -676,8 +652,7 @@ namespace Opc.Ua
                 return m_InvokeService?.Invoke(request);
             }
 
-            #region Private Fields
-            private readonly Type m_requestType;
+#region Private Fields
             private readonly InvokeServiceEventHandler m_InvokeService;
             #endregion
         }
@@ -737,11 +712,7 @@ namespace Opc.Ua
             /// Gets or sets the call data associated with the request.
             /// </summary>
             /// <value>The call data.</value>
-            public object Calldata
-            {
-                get { return m_calldata; }
-                set { m_calldata = value; }
-            }
+            public object Calldata { get; set; }
 
             /// <summary>
             /// Used to call the default synchronous handler.
@@ -867,7 +838,7 @@ namespace Opc.Ua
             /// <returns>The response.</returns>
             public static IServiceResponse WaitForComplete(IAsyncResult ar, bool throwOnError)
             {
-                if (!(ar is ProcessRequestAsyncResult result))
+                if (ar is not ProcessRequestAsyncResult result)
                 {
                     throw new ArgumentException("End called with an invalid IAsyncResult object.", nameof(ar));
                 }
@@ -974,16 +945,11 @@ namespace Opc.Ua
             private IServiceResponse m_response;
             private ServiceDefinition m_service;
             private Exception m_error;
-            private object m_calldata;
             #endregion
         }
-        #endregion
 
-        #region Private Fields
-        private ServiceResult m_serverError;
-        private IServiceMessageContext m_messageContext;
-        private EndpointDescription m_endpointDescription;
-        private Dictionary<ExpandedNodeId, ServiceDefinition> m_supportedServices;
+#endregion
+#region Private Fields
         private IServiceHostBase m_host;
         private IServerBase m_server;
         private readonly string g_ImplementationString = "Opc.Ua.EndpointBase UA Service " + Utils.GetAssemblySoftwareVersion();

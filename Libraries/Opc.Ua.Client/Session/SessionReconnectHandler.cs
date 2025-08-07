@@ -256,7 +256,7 @@ namespace Opc.Ua.Client
             // The factors result in a jitter of 10%.
             const int jitterResolution = 1000;
             const int jitterFactor = 10;
-            int jitter = (reconnectPeriod * m_random.Next(-jitterResolution, jitterResolution)) /
+            int jitter = reconnectPeriod * m_random.Next(-jitterResolution, jitterResolution) /
                 (jitterResolution * jitterFactor);
             return reconnectPeriod + jitter;
         }

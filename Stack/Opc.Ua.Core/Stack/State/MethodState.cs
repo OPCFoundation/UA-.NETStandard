@@ -22,7 +22,7 @@ using System.Threading;
 
 namespace Opc.Ua
 {
-    /// <summary> 
+    /// <summary>
     /// The base class for all method nodes.
     /// </summary>
     public class MethodState : BaseInstanceState

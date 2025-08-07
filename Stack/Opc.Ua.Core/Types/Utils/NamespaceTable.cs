@@ -67,10 +67,7 @@ namespace Opc.Ua
         /// <summary>
         /// The synchronization object.
         /// </summary>
-        public object SyncRoot
-        {
-            get { return m_lock; }
-        }
+        public object SyncRoot { get; } = new object();
 
         /// <summary>
         /// Returns a unique identifier for the table instance. Used to debug problems with shared tables.
@@ -94,7 +91,7 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(strings));
             }
 
-            lock (m_lock)
+            lock (SyncRoot)
             {
                 m_strings = [.. strings];
 
@@ -127,7 +124,7 @@ namespace Opc.Ua
             }
 #endif
 
-            lock (m_lock)
+            lock (SyncRoot)
             {
                 m_strings.Add(value);
                 return m_strings.Count - 1;
@@ -139,7 +136,7 @@ namespace Opc.Ua
         /// </summary>
         public string GetString(uint index)
         {
-            lock (m_lock)
+            lock (SyncRoot)
             {
                 if (index < m_strings.Count)
                 {
@@ -155,7 +152,7 @@ namespace Opc.Ua
         /// </summary>
         public int GetIndex(string value)
         {
-            lock (m_lock)
+            lock (SyncRoot)
             {
                 if (string.IsNullOrEmpty(value))
                 {
@@ -176,7 +173,7 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(value));
             }
 
-            lock (m_lock)
+            lock (SyncRoot)
             {
                 int index = m_strings.IndexOf(value);
 
@@ -202,7 +199,7 @@ namespace Opc.Ua
         /// </summary>
         public string[] ToArray()
         {
-            lock (m_lock)
+            lock (SyncRoot)
             {
                 return m_strings.ToArray();
             }
@@ -215,7 +212,7 @@ namespace Opc.Ua
         {
             get
             {
-                lock (m_lock)
+                lock (SyncRoot)
                 {
                     return m_strings.Count;
                 }
@@ -259,10 +256,9 @@ namespace Opc.Ua
 
             return mapping;
         }
-        #endregion                        
 
-        #region Private Fields
-        private readonly object m_lock = new object();
+#endregion                        
+#region Private Fields
         private List<string> m_strings;
 
 #if DEBUG

@@ -73,7 +73,7 @@ namespace Opc.Ua
         /// Sets the LogLevel for the TraceEventLogger.
         /// </summary>
         /// <remarks>
-        /// The setting is ignored if ILogger is replaced. 
+        /// The setting is ignored if ILogger is replaced.
         /// </remarks>
         public static void SetLogLevel(LogLevel logLevel)
         {

@@ -552,7 +552,7 @@ namespace Opc.Ua.PubSub.Encoding
                 catch (Exception ex)
                 {
                     Utils.Trace(ex, "JsonDataSetMessage - Error reading element for RawData.");
-                    return (StatusCodes.BadDecodingError);
+                    return StatusCodes.BadDecodingError;
                 }
             }
             return null;

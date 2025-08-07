@@ -638,7 +638,7 @@ namespace Opc.Ua.Gds.Server.Database
                         return targetIndex + 1;
                     }
 
-                    match |= (inverse && target[targetIndex] == token[ii]);
+                    match |= inverse && target[targetIndex] == token[ii];
                 }
 
                 if (inverse && !match)
@@ -649,7 +649,7 @@ namespace Opc.Ua.Gds.Server.Database
                 return -1;
             }
 
-            if (target.Substring(targetIndex).StartsWith(token, StringComparison.Ordinal))
+            if (target[targetIndex..].StartsWith(token, StringComparison.Ordinal))
             {
                 return targetIndex + token.Length;
             }

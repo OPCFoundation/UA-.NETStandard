@@ -157,12 +157,23 @@ namespace Opc.Ua.Server
             }
             return false;
         }
-        /// <summary>
-        /// Dispose the queue
-        /// </summary>
+
+        /// <inheritdoc/>
         public void Dispose()
         {
-            Utils.SilentDispose(m_eventQueue);
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        /// <summary>
+        /// An overrideable version of the Dispose.
+        /// </summary>
+        protected virtual void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                Utils.SilentDispose(m_eventQueue);
+            }
         }
 
         /// <summary>

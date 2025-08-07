@@ -34,7 +34,7 @@ namespace Opc.Ua
             Initialize();
 
             m_destination = new StringBuilder();
-            m_context = context;
+            Context = context;
             m_nestingLevel = 0;
 
             XmlWriterSettings settings = Utils.DefaultXmlWriterSettings();
@@ -74,7 +74,7 @@ namespace Opc.Ua
             }
 
             Initialize(root.Name, root.Namespace);
-            m_context = context;
+            Context = context;
             m_nestingLevel = 0;
         }
 
@@ -137,16 +137,16 @@ namespace Opc.Ua
         {
             m_namespaceMappings = null;
 
-            if (namespaceUris != null && m_context.NamespaceUris != null)
+            if (namespaceUris != null && Context.NamespaceUris != null)
             {
-                m_namespaceMappings = namespaceUris.CreateMapping(m_context.NamespaceUris, false);
+                m_namespaceMappings = namespaceUris.CreateMapping(Context.NamespaceUris, false);
             }
 
             m_serverMappings = null;
 
-            if (serverUris != null && m_context.ServerUris != null)
+            if (serverUris != null && Context.ServerUris != null)
             {
-                m_serverMappings = serverUris.CreateMapping(m_context.ServerUris, false);
+                m_serverMappings = serverUris.CreateMapping(Context.ServerUris, false);
             }
         }
 
@@ -271,7 +271,7 @@ namespace Opc.Ua
         /// <summary>
         /// The message context associated with the encoder.
         /// </summary>
-        public IServiceMessageContext Context => m_context;
+        public IServiceMessageContext Context { get; }
 
         /// <summary>
         /// Xml Encoder always produces reversible encoding.
@@ -457,7 +457,7 @@ namespace Opc.Ua
             if (BeginField(fieldName, value == null, true, isArrayElement))
             {
                 // check the length.
-                if (m_context.MaxStringLength > 0 && m_context.MaxStringLength < value.Length)
+                if (Context.MaxStringLength > 0 && Context.MaxStringLength < value.Length)
                 {
                     throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
@@ -540,7 +540,7 @@ namespace Opc.Ua
             if (BeginField(fieldName, value == null, true, false))
             {
                 // check the length.
-                if (m_context.MaxByteStringLength > 0 && m_context.MaxByteStringLength < value.Length)
+                if (Context.MaxByteStringLength > 0 && Context.MaxByteStringLength < value.Length)
                 {
                     throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
@@ -557,7 +557,7 @@ namespace Opc.Ua
             if (BeginField(fieldName, value == null, true, isArrayElement))
             {
                 // check the length.
-                if (m_context.MaxByteStringLength > 0 && m_context.MaxByteStringLength < count)
+                if (Context.MaxByteStringLength > 0 && Context.MaxByteStringLength < count)
                 {
                     throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
@@ -855,7 +855,7 @@ namespace Opc.Ua
                     }
                 }
 
-                var localTypeId = ExpandedNodeId.ToNodeId(typeId, m_context.NamespaceUris);
+                var localTypeId = ExpandedNodeId.ToNodeId(typeId, Context.NamespaceUris);
 
                 if (NodeId.IsNull(localTypeId) && !NodeId.IsNull(typeId))
                 {
@@ -948,7 +948,7 @@ namespace Opc.Ua
             if (BeginField(fieldName, values == null, true, true))
             {
                 // check the length.
-                if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
+                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
                 {
                     throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
@@ -977,7 +977,7 @@ namespace Opc.Ua
             if (BeginField(fieldName, values == null, true, true))
             {
                 // check the length.
-                if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
+                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
                 {
                     throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
@@ -1006,7 +1006,7 @@ namespace Opc.Ua
             if (BeginField(fieldName, values == null, true, true))
             {
                 // check the length.
-                if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
+                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
                 {
                     throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
@@ -1035,7 +1035,7 @@ namespace Opc.Ua
             if (BeginField(fieldName, values == null, true, true))
             {
                 // check the length.
-                if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
+                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
                 {
                     throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
@@ -1064,7 +1064,7 @@ namespace Opc.Ua
             if (BeginField(fieldName, values == null, true, true))
             {
                 // check the length.
-                if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
+                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
                 {
                     throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
@@ -1093,7 +1093,7 @@ namespace Opc.Ua
             if (BeginField(fieldName, values == null, true, true))
             {
                 // check the length.
-                if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
+                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
                 {
                     throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
@@ -1122,7 +1122,7 @@ namespace Opc.Ua
             if (BeginField(fieldName, values == null, true, true))
             {
                 // check the length.
-                if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
+                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
                 {
                     throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
@@ -1151,7 +1151,7 @@ namespace Opc.Ua
             if (BeginField(fieldName, values == null, true, true))
             {
                 // check the length.
-                if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
+                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
                 {
                     throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
@@ -1180,7 +1180,7 @@ namespace Opc.Ua
             if (BeginField(fieldName, values == null, true, true))
             {
                 // check the length.
-                if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
+                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
                 {
                     throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
@@ -1209,7 +1209,7 @@ namespace Opc.Ua
             if (BeginField(fieldName, values == null, true, true))
             {
                 // check the length.
-                if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
+                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
                 {
                     throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
@@ -1238,7 +1238,7 @@ namespace Opc.Ua
             if (BeginField(fieldName, values == null, true, true))
             {
                 // check the length.
-                if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
+                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
                 {
                     throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
@@ -1267,7 +1267,7 @@ namespace Opc.Ua
             if (BeginField(fieldName, values == null, true, true))
             {
                 // check the length.
-                if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
+                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
                 {
                     throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
@@ -1296,7 +1296,7 @@ namespace Opc.Ua
             if (BeginField(fieldName, values == null, true, true))
             {
                 // check the length.
-                if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
+                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
                 {
                     throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
@@ -1325,7 +1325,7 @@ namespace Opc.Ua
             if (BeginField(fieldName, values == null, true, true))
             {
                 // check the length.
-                if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
+                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
                 {
                     throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
@@ -1354,7 +1354,7 @@ namespace Opc.Ua
             if (BeginField(fieldName, values == null, true, true))
             {
                 // check the length.
-                if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
+                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
                 {
                     throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
@@ -1383,7 +1383,7 @@ namespace Opc.Ua
             if (BeginField(fieldName, values == null, true, true))
             {
                 // check the length.
-                if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
+                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
                 {
                     throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
@@ -1412,7 +1412,7 @@ namespace Opc.Ua
             if (BeginField(fieldName, values == null, true, true))
             {
                 // check the length.
-                if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
+                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
                 {
                     throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
@@ -1441,7 +1441,7 @@ namespace Opc.Ua
             if (BeginField(fieldName, values == null, true, true))
             {
                 // check the length.
-                if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
+                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
                 {
                     throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
@@ -1470,7 +1470,7 @@ namespace Opc.Ua
             if (BeginField(fieldName, values == null, true, true))
             {
                 // check the length.
-                if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
+                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
                 {
                     throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
@@ -1499,7 +1499,7 @@ namespace Opc.Ua
             if (BeginField(fieldName, values == null, true, true))
             {
                 // check the length.
-                if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
+                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
                 {
                     throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
@@ -1528,7 +1528,7 @@ namespace Opc.Ua
             if (BeginField(fieldName, values == null, true, true))
             {
                 // check the length.
-                if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
+                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
                 {
                     throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
@@ -1557,7 +1557,7 @@ namespace Opc.Ua
             if (BeginField(fieldName, values == null, true, true))
             {
                 // check the length.
-                if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
+                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
                 {
                     throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
@@ -1586,7 +1586,7 @@ namespace Opc.Ua
             if (BeginField(fieldName, values == null, true, true))
             {
                 // check the length.
-                if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
+                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
                 {
                     throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
@@ -1615,7 +1615,7 @@ namespace Opc.Ua
             if (BeginField(fieldName, values == null, true, true))
             {
                 // check the length.
-                if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
+                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
                 {
                     throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
@@ -1644,7 +1644,7 @@ namespace Opc.Ua
             if (BeginField(fieldName, values == null, true, true))
             {
                 // check the length.
-                if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
+                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
                 {
                     throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
@@ -1673,7 +1673,7 @@ namespace Opc.Ua
             if (BeginField(fieldName, values == null, true, true))
             {
                 // check the length.
-                if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
+                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
                 {
                     throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
@@ -1702,18 +1702,13 @@ namespace Opc.Ua
             if (BeginField(fieldName, values == null, true, true))
             {
                 // check the length.
-                if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
+                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
                 {
                     throw ServiceResultException.Create(StatusCodes.BadEncodingLimitsExceeded, "Encodeable Array length={0}", values.Count);
                 }
 
                 // get name for type being encoded.
-                XmlQualifiedName xmlName = EncodeableFactory.GetXmlName(systemType);
-
-                if (xmlName == null)
-                {
-                    xmlName = new XmlQualifiedName("IEncodeable", Namespaces.OpcUaXsd);
-                }
+                XmlQualifiedName xmlName = EncodeableFactory.GetXmlName(systemType) ?? new XmlQualifiedName("IEncodeable", Namespaces.OpcUaXsd);
 
                 PushNamespace(xmlName.Namespace);
 
@@ -1749,18 +1744,13 @@ namespace Opc.Ua
             if (BeginField(fieldName, values == null, true, true))
             {
                 // check the length.
-                if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Length)
+                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Length)
                 {
                     throw ServiceResultException.Create(StatusCodes.BadEncodingLimitsExceeded, "Enumerated Array length={0}", values.Length);
                 }
 
                 // get name for type being encoded.
-                XmlQualifiedName xmlName = EncodeableFactory.GetXmlName(systemType);
-
-                if (xmlName == null)
-                {
-                    xmlName = new XmlQualifiedName("Enumerated", Namespaces.OpcUaXsd);
-                }
+                XmlQualifiedName xmlName = EncodeableFactory.GetXmlName(systemType) ?? new XmlQualifiedName("Enumerated", Namespaces.OpcUaXsd);
 
                 PushNamespace(xmlName.Namespace);
 
@@ -1983,7 +1973,7 @@ namespace Opc.Ua
             if (BeginField(fieldName, values == null, true, true))
             {
                 // check the length.
-                if (values != null && m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
+                if (values != null && Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
                 {
                     throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
@@ -2231,12 +2221,12 @@ namespace Opc.Ua
         /// </summary>
         private void CheckAndIncrementNestingLevel()
         {
-            if (m_nestingLevel > m_context.MaxEncodingNestingLevels)
+            if (m_nestingLevel > Context.MaxEncodingNestingLevels)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadEncodingLimitsExceeded,
                     "Maximum nesting level of {0} was exceeded",
-                    m_context.MaxEncodingNestingLevels);
+                    Context.MaxEncodingNestingLevels);
             }
             m_nestingLevel++;
         }
@@ -2247,7 +2237,6 @@ namespace Opc.Ua
         private XmlWriter m_writer;
         private Stack<string> m_namespaces;
         private XmlQualifiedName m_root;
-        private readonly IServiceMessageContext m_context;
         private ushort[] m_namespaceMappings;
         private ushort[] m_serverMappings;
         private uint m_nestingLevel;

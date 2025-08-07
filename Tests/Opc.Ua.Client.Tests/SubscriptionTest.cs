@@ -1234,7 +1234,7 @@ namespace Opc.Ua.Client.Tests
             OutputSubscriptionInfo(TestContext.Out, subscription);
 
             // expect at least half number of keep alive notifications
-            Assert.LessOrEqual((delay / subscription.PublishingInterval) / 2, numOfKeepAliveNotifications);
+            Assert.LessOrEqual(delay / subscription.PublishingInterval / 2, numOfKeepAliveNotifications);
             Assert.AreEqual(1, numOfDataChangeNotifications);
 
             TestContext.Out.WriteLine("Call ResendData.");

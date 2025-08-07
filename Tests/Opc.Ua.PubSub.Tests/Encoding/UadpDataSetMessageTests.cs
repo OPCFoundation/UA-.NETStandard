@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -126,7 +126,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             // Arrange
             UadpDataSetMessage uadpDataSetMessage = GetFirstDataSetMessage(dataSetFieldContentMask);
 
-            // Act  
+            // Act
             // change network message mask
             for (uint dataSetMessageContentMask = 0; dataSetMessageContentMask < kMessageContentMask; dataSetMessageContentMask++)
             {
@@ -158,7 +158,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             // Arrange
             UadpDataSetMessage uadpDataSetMessage = GetFirstDataSetMessage(dataSetFieldContentMask);
 
-            // Act  
+            // Act
             uadpDataSetMessage.SetMessageContentMask(UadpDataSetMessageContentMask.Timestamp);
             uadpDataSetMessage.Timestamp = DateTime.UtcNow;
 
@@ -187,7 +187,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             // Arrange
             UadpDataSetMessage uadpDataSetMessage = GetFirstDataSetMessage(dataSetFieldContentMask);
 
-            // Act  
+            // Act
             uadpDataSetMessage.SetMessageContentMask(UadpDataSetMessageContentMask.PicoSeconds);
             uadpDataSetMessage.PicoSeconds = 10;
 
@@ -211,7 +211,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             // Arrange
             UadpDataSetMessage uadpDataSetMessage = GetFirstDataSetMessage(DataSetFieldContentMask.None);
 
-            // Act  
+            // Act
             uadpDataSetMessage.SetMessageContentMask(messageContentMask | UadpDataSetMessageContentMask.Status);
             uadpDataSetMessage.Status = statusCode;
 
@@ -242,7 +242,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             // Arrange
             UadpDataSetMessage uadpDataSetMessage = GetFirstDataSetMessage(dataSetFieldContentMask);
 
-            // Act  
+            // Act
             uadpDataSetMessage.SetMessageContentMask(UadpDataSetMessageContentMask.MajorVersion | UadpDataSetMessageContentMask.MinorVersion);
             uadpDataSetMessage.MetaDataVersion.MajorVersion = versionValue;
             uadpDataSetMessage.MetaDataVersion.MinorVersion = versionValue * 10;
@@ -302,7 +302,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             // Arrange
             UadpDataSetMessage uadpDataSetMessage = GetFirstDataSetMessage(dataSetFieldContentMask);
 
-            // Act  
+            // Act
             uadpDataSetMessage.SetMessageContentMask(UadpDataSetMessageContentMask.MajorVersion | UadpDataSetMessageContentMask.MinorVersion);
             uadpDataSetMessage.MetaDataVersion.MajorVersion = VersionValue;
             uadpDataSetMessage.MetaDataVersion.MinorVersion = VersionValue * 10;
@@ -362,7 +362,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             // Arrange
             UadpDataSetMessage uadpDataSetMessage = GetFirstDataSetMessage(dataSetFieldContentMask);
 
-            // Act  
+            // Act
             uadpDataSetMessage.SetMessageContentMask(UadpDataSetMessageContentMask.MajorVersion | UadpDataSetMessageContentMask.MinorVersion);
             uadpDataSetMessage.MetaDataVersion.MajorVersion = VersionValue;
             uadpDataSetMessage.MetaDataVersion.MinorVersion = VersionValue * 10;
@@ -419,7 +419,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             // Arrange
             UadpDataSetMessage uadpDataSetMessage = GetFirstDataSetMessage(dataSetFieldContentMask);
 
-            // Act  
+            // Act
             uadpDataSetMessage.SetMessageContentMask(UadpDataSetMessageContentMask.MajorVersion | UadpDataSetMessageContentMask.MinorVersion);
             uadpDataSetMessage.MetaDataVersion.MajorVersion = versionValue;
             uadpDataSetMessage.MetaDataVersion.MinorVersion = versionValue * 10;
@@ -475,7 +475,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             // Arrange
             UadpDataSetMessage uadpDataSetMessage = GetFirstDataSetMessage(dataSetFieldContentMask);
 
-            // Act  
+            // Act
             uadpDataSetMessage.SetMessageContentMask(UadpDataSetMessageContentMask.SequenceNumber);
             uadpDataSetMessage.SequenceNumber = 1000;
 
@@ -483,7 +483,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             CompareEncodeDecode(uadpDataSetMessage);
         }
 
-        #region Private Methods        
+        #region Private Methods
 
         /// <summary>
         /// Load Variant data type into datasets
@@ -520,12 +520,12 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         }
 
         /// <summary>
-        /// 
+        /// Get first data set message
         /// </summary>
         /// <param name="fieldContentMask"> a DataSetFieldContentMask specifying what type of encoding is chosen for field values
         /// If none of the flags are set, the fields are represented as Variant.
         /// If the RawData flag is set, the fields are represented as RawData and all other bits are ignored.
-        /// If one of the bits StatusCode, SourceTimestamp, ServerTimestamp, SourcePicoSeconds, ServerPicoSeconds is set, 
+        /// If one of the bits StatusCode, SourceTimestamp, ServerTimestamp, SourcePicoSeconds, ServerPicoSeconds is set,
         ///    the fields are represented as DataValue.
         /// </param>
         /// <returns></returns>
@@ -595,7 +595,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
 
         /// <summary>
-        /// Compare dataset messages options 
+        /// Compare dataset messages options
         /// </summary>
         /// <param name="uadpDataSetMessageEncode"></param>
         /// <param name="uadpDataSetMessageDecoded"></param>

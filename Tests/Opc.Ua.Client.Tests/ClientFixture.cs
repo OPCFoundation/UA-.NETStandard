@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -78,9 +78,22 @@ namespace Opc.Ua.Client.Tests
         }
 
         #region Public Methods
+        /// <inheritdoc/>
         public void Dispose()
         {
-            StopActivityListener();
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        /// <summary>
+        /// An overrideable version of the Dispose.
+        /// </summary>
+        protected virtual void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                StopActivityListener();
+            }
         }
 
         /// <summary>
@@ -225,7 +238,7 @@ namespace Opc.Ua.Client.Tests
             {
                 getEndpointsUrl = CoreClientUtils.GetDiscoveryUrl(uri);
             }
-            
+
             return await ConnectAsync(await GetEndpointAsync(getEndpointsUrl, securityProfile, endpoints).ConfigureAwait(false), userIdentity).ConfigureAwait(false);
         }
 
@@ -263,9 +276,9 @@ namespace Opc.Ua.Client.Tests
         /// </summary>
         /// <param name="endpoint">The configured endpoint</param>
         /// <returns></returns>
-        public async Task<ITransportChannel> CreateChannelAsync(ConfiguredEndpoint endpoint, bool updateBeforeConnect = true)
+        public Task<ITransportChannel> CreateChannelAsync(ConfiguredEndpoint endpoint, bool updateBeforeConnect = true)
         {
-            return await SessionFactory.CreateChannelAsync(Config, null, endpoint, updateBeforeConnect, checkDomain: false).ConfigureAwait(false);
+            return SessionFactory.CreateChannelAsync(Config, null, endpoint, updateBeforeConnect, checkDomain: false);
         }
 
         /// <summary>
@@ -315,7 +328,7 @@ namespace Opc.Ua.Client.Tests
         {
             EndpointDescription selectedEndpoint = null;
 
-            // select the best endpoint to use based on the selected URL and the UseSecurity checkbox. 
+            // select the best endpoint to use based on the selected URL and the UseSecurity checkbox.
             foreach (EndpointDescription endpoint in endpoints)
             {
                 // check for a match on the URL scheme.
@@ -399,7 +412,7 @@ namespace Opc.Ua.Client.Tests
             {
                 // Create an instance of ActivityListener without logging
                 ActivityListener = new ActivityListener() {
-                    ShouldListenTo = (source) => (source.Name == (TraceableSession.ActivitySourceName)),
+                    ShouldListenTo = (source) => source.Name == TraceableSession.ActivitySourceName,
 
                     // Sample all data and recorded activities
                     Sample = (ref ActivityCreationOptions<ActivityContext> options) => ActivitySamplingResult.AllDataAndRecorded,
@@ -412,7 +425,7 @@ namespace Opc.Ua.Client.Tests
             {
                 // Create an instance of ActivityListener and configure its properties with logging
                 ActivityListener = new ActivityListener() {
-                    ShouldListenTo = (source) => (source.Name == (TraceableSession.ActivitySourceName)),
+                    ShouldListenTo = (source) => source.Name == TraceableSession.ActivitySourceName,
 
                     // Sample all data and recorded activities
                     Sample = (ref ActivityCreationOptions<ActivityContext> options) => ActivitySamplingResult.AllDataAndRecorded,

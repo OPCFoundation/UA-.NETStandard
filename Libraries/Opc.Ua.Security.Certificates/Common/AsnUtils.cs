@@ -173,7 +173,7 @@ namespace Opc.Ua.Security.Certificates
                     newStart--;
                 }
 
-                integer = integer.Slice(newStart);
+                integer = integer[newStart..];
             }
 
             writer.WriteIntegerUnsigned(integer);
@@ -189,7 +189,7 @@ namespace Opc.Ua.Security.Certificates
             try
             {
                 var x509Reader = new AsnReader(blob, AsnEncodingRules.DER);
-                ReadOnlyMemory<byte> peekBlob = blob.Slice(0, x509Reader.PeekContentBytes().Length + 4);
+                ReadOnlyMemory<byte> peekBlob = blob[..(x509Reader.PeekContentBytes().Length + 4)];
                 AsnReader seqReader = x509Reader.ReadSequence(Asn1Tag.Sequence);
                 if (seqReader != null)
                 {

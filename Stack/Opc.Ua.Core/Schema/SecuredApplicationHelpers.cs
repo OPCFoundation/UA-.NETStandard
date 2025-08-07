@@ -23,7 +23,7 @@ namespace Opc.Ua.Security
     public partial class SecuredApplication
     {
         /// <summary>
-        /// Casts a ApplicationType value. 
+        /// Casts a ApplicationType value.
         /// </summary>
         public static Opc.Ua.ApplicationType FromApplicationType(Opc.Ua.Security.ApplicationType input)
         {
@@ -31,7 +31,7 @@ namespace Opc.Ua.Security
         }
 
         /// <summary>
-        /// Casts a ApplicationType value. 
+        /// Casts a ApplicationType value.
         /// </summary>
         public static Opc.Ua.Security.ApplicationType ToApplicationType(Opc.Ua.ApplicationType input)
         {
@@ -39,7 +39,7 @@ namespace Opc.Ua.Security
         }
 
         /// <summary>
-        /// Creates a CertificateIdentifier object. 
+        /// Creates a CertificateIdentifier object.
         /// </summary>
         public static CertificateIdentifier ToCertificateIdentifier(Opc.Ua.CertificateIdentifier input)
         {
@@ -62,7 +62,7 @@ namespace Opc.Ua.Security
         }
 
         /// <summary>
-        /// Creates a CertificateIdentifier object. 
+        /// Creates a CertificateIdentifier object.
         /// </summary>
         public static Opc.Ua.CertificateIdentifier FromCertificateIdentifier(CertificateIdentifier input)
         {
@@ -81,7 +81,7 @@ namespace Opc.Ua.Security
         }
 
         /// <summary>
-        /// Creates a CertificateStoreIdentifier object. 
+        /// Creates a CertificateStoreIdentifier object.
         /// </summary>
         public static CertificateStoreIdentifier ToCertificateStoreIdentifier(Opc.Ua.CertificateStoreIdentifier input)
         {
@@ -100,7 +100,7 @@ namespace Opc.Ua.Security
         }
 
         /// <summary>
-        /// Creates a CertificateTrustList object. 
+        /// Creates a CertificateTrustList object.
         /// </summary>
         public static Opc.Ua.CertificateTrustList FromCertificateStoreIdentifierToTrustList(CertificateStoreIdentifier input)
         {
@@ -117,7 +117,7 @@ namespace Opc.Ua.Security
         }
 
         /// <summary>
-        /// Creates a CertificateStoreIdentifier object. 
+        /// Creates a CertificateStoreIdentifier object.
         /// </summary>
         public static Opc.Ua.CertificateStoreIdentifier FromCertificateStoreIdentifier(CertificateStoreIdentifier input)
         {
@@ -134,7 +134,7 @@ namespace Opc.Ua.Security
         }
 
         /// <summary>
-        /// Creates a CertificateTrustList object. 
+        /// Creates a CertificateTrustList object.
         /// </summary>
         public static Opc.Ua.CertificateTrustList ToCertificateTrustList(CertificateStoreIdentifier input)
         {
@@ -151,7 +151,7 @@ namespace Opc.Ua.Security
         }
 
         /// <summary>
-        /// Creates a CertificateList object. 
+        /// Creates a CertificateList object.
         /// </summary>
         public static CertificateList ToCertificateList(Opc.Ua.CertificateIdentifierCollection input)
         {
@@ -172,7 +172,7 @@ namespace Opc.Ua.Security
         }
 
         /// <summary>
-        /// Creates a CertificateIdentifierCollection object. 
+        /// Creates a CertificateIdentifierCollection object.
         /// </summary>
         public static Opc.Ua.CertificateIdentifierCollection FromCertificateList(CertificateList input)
         {
@@ -190,7 +190,7 @@ namespace Opc.Ua.Security
         }
 
         /// <summary>
-        /// Creates a ListOfBaseAddresses object. 
+        /// Creates a ListOfBaseAddresses object.
         /// </summary>
         public static ListOfBaseAddresses ToListOfBaseAddresses(ServerBaseConfiguration configuration)
         {
@@ -219,7 +219,7 @@ namespace Opc.Ua.Security
         }
 
         /// <summary>
-        /// Creates a ListOfBaseAddresses object. 
+        /// Creates a ListOfBaseAddresses object.
         /// </summary>
         public static void FromListOfBaseAddresses(ServerBaseConfiguration configuration, ListOfBaseAddresses addresses)
         {
@@ -256,7 +256,7 @@ namespace Opc.Ua.Security
         }
 
         /// <summary>
-        /// Creates a ListOfSecurityProfiles object. 
+        /// Creates a ListOfSecurityProfiles object.
         /// </summary>
         public static ListOfSecurityProfiles ToListOfSecurityProfiles(ServerSecurityPolicyCollection policies)
         {
@@ -286,7 +286,7 @@ namespace Opc.Ua.Security
         }
 
         /// <summary>
-        /// Creates a ServerSecurityPolicyCollection object. 
+        /// Creates a ServerSecurityPolicyCollection object.
         /// </summary>
         public static ServerSecurityPolicyCollection FromListOfSecurityProfiles(ListOfSecurityProfiles profiles)
         {
@@ -417,7 +417,7 @@ namespace Opc.Ua.Security
         }
 
         /// <summary>
-        ///  TODO: Holds the application certificates but should be generated and the Opc.Ua.Security namespace automatically 
+        ///  TODO: Holds the application certificates but should be generated and the Opc.Ua.Security namespace automatically
         ///  TODO: Should replace ApplicationCertificateField in the generated Opc.Ua.Security.SecuredApplication class
         /// </summary>
         public CertificateList ApplicationCertificates
@@ -434,19 +434,19 @@ namespace Opc.Ua.Security
         /// <summary>
         /// Gets the certificate associated with the identifier.
         /// </summary>
-        public async Task<X509Certificate2> Find()
+        public Task<X509Certificate2> Find()
         {
             Opc.Ua.CertificateIdentifier output = SecuredApplication.FromCertificateIdentifier(this);
-            return await output.Find(false).ConfigureAwait(false);
+            return output.Find(false);
         }
 
         /// <summary>
         /// Gets the certificate associated with the identifier.
         /// </summary>
-        public async Task<X509Certificate2> Find(bool needPrivateKey)
+        public Task<X509Certificate2> Find(bool needPrivateKey)
         {
             Opc.Ua.CertificateIdentifier output = SecuredApplication.FromCertificateIdentifier(this);
-            return await output.Find(needPrivateKey).ConfigureAwait(false);
+            return output.Find(needPrivateKey);
         }
 
         /// <summary>

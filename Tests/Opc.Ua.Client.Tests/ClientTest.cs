@@ -562,7 +562,7 @@ namespace Opc.Ua.Client.Tests
         [Theory, Order(230)]
         public async Task ReconnectJWT(string securityPolicy)
         {
-            UserIdentity CreateUserIdentity(string tokenData)
+            static UserIdentity CreateUserIdentity(string tokenData)
             {
                 var issuedToken = new IssuedIdentityToken() {
                     IssuedTokenType = IssuedTokenType.JWT,

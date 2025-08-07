@@ -40,15 +40,15 @@ namespace Opc.Ua.Bindings
             {
                 if (disposing)
                 {
-                    Utils.SilentDispose(m_clientHmac);
-                    Utils.SilentDispose(m_serverHmac);
-                    Utils.SilentDispose(m_clientEncryptor);
-                    Utils.SilentDispose(m_serverEncryptor);
+                    Utils.SilentDispose(ClientHmac);
+                    Utils.SilentDispose(ServerHmac);
+                    Utils.SilentDispose(ClientEncryptor);
+                    Utils.SilentDispose(ServerEncryptor);
                 }
-                m_clientHmac = null;
-                m_serverHmac = null;
-                m_clientEncryptor = null;
-                m_serverEncryptor = null;
+                ClientHmac = null;
+                ServerHmac = null;
+                ClientEncryptor = null;
+                ServerEncryptor = null;
                 m_disposed = true;
             }
         }
@@ -77,48 +77,28 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// The id assigned to the channel that the token belongs to.
         /// </summary>
-        public uint ChannelId
-        {
-            get { return m_channelId; }
-            set { m_channelId = value; }
-        }
+        public uint ChannelId { get; set; }
 
         /// <summary>
         /// The id assigned to the token.
         /// </summary>
-        public uint TokenId
-        {
-            get { return m_tokenId; }
-            set { m_tokenId = value; }
-        }
+        public uint TokenId { get; set; }
 
         /// <summary>
         /// When the token was created by the server (refers to the server's clock).
         /// </summary>
-        public DateTime CreatedAt
-        {
-            get { return m_createdAt; }
-            set { m_createdAt = value; }
-        }
+        public DateTime CreatedAt { get; set; }
 
         /// <summary>
         /// When the token was created (refers to the local tick count).
         /// Used for calculation of renewals. Uses <see cref="Opc.Ua.HiResClock.TickCount"/>.
         /// </summary>
-        public int CreatedAtTickCount
-        {
-            get { return m_createdAtTickCount; }
-            set { m_createdAtTickCount = value; }
-        }
+        public int CreatedAtTickCount { get; set; }
 
         /// <summary>
         /// The lifetime of the token in milliseconds.
         /// </summary>
-        public int Lifetime
-        {
-            get { return m_lifetime; }
-            set { m_lifetime = value; }
-        }
+        public int Lifetime { get; set; }
 
         /// <summary>
         /// Whether the token has expired.
@@ -127,7 +107,7 @@ namespace Opc.Ua.Bindings
         {
             get
             {
-                return (HiResClock.TickCount - m_createdAtTickCount) > m_lifetime;
+                return (HiResClock.TickCount - CreatedAtTickCount) > Lifetime;
             }
         }
 
@@ -138,7 +118,7 @@ namespace Opc.Ua.Bindings
         {
             get
             {
-                return (HiResClock.TickCount - m_createdAtTickCount) > (int)Math.Round(m_lifetime * TcpMessageLimits.TokenActivationPeriod);
+                return (HiResClock.TickCount - CreatedAtTickCount) > (int)Math.Round(Lifetime * TcpMessageLimits.TokenActivationPeriod);
             }
         }
 
@@ -146,137 +126,72 @@ namespace Opc.Ua.Bindings
         /// The nonce provided by the client.
         /// </summary>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1819:PropertiesShouldNotReturnArrays")]
-        public byte[] ClientNonce
-        {
-            get { return m_clientNonce; }
-            set { m_clientNonce = value; }
-        }
+        public byte[] ClientNonce { get; set; }
 
         /// <summary>
         /// The nonce provided by the server.
         /// </summary>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1819:PropertiesShouldNotReturnArrays")]
-        public byte[] ServerNonce
-        {
-            get { return m_serverNonce; }
-            set { m_serverNonce = value; }
-        }
+        public byte[] ServerNonce { get; set; }
 
         /// <summary>
         /// The key used to sign messages sent by the client.
         /// </summary>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1819:PropertiesShouldNotReturnArrays")]
-        public byte[] ClientSigningKey
-        {
-            get { return m_clientSigningKey; }
-            set { m_clientSigningKey = value; }
-        }
+        public byte[] ClientSigningKey { get; set; }
 
         /// <summary>
         /// The key used to encrypt messages sent by the client.
         /// </summary>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1819:PropertiesShouldNotReturnArrays")]
-        public byte[] ClientEncryptingKey
-        {
-            get { return m_clientEncryptingKey; }
-            set { m_clientEncryptingKey = value; }
-        }
+        public byte[] ClientEncryptingKey { get; set; }
 
         /// <summary>
         /// The initialization vector by the client when encrypting a message.
         /// </summary>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1819:PropertiesShouldNotReturnArrays")]
-        public byte[] ClientInitializationVector
-        {
-            get { return m_clientInitializationVector; }
-            set { m_clientInitializationVector = value; }
-        }
+        public byte[] ClientInitializationVector { get; set; }
 
         /// <summary>
         /// The key used to sign messages sent by the server.
         /// </summary>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1819:PropertiesShouldNotReturnArrays")]
-        public byte[] ServerSigningKey
-        {
-            get { return m_serverSigningKey; }
-            set { m_serverSigningKey = value; }
-        }
+        public byte[] ServerSigningKey { get; set; }
 
         /// <summary>
         /// The key used to encrypt messages sent by the server.
         /// </summary>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1819:PropertiesShouldNotReturnArrays")]
-        public byte[] ServerEncryptingKey
-        {
-            get { return m_serverEncryptingKey; }
-            set { m_serverEncryptingKey = value; }
-        }
+        public byte[] ServerEncryptingKey { get; set; }
 
         /// <summary>
         /// The initialization vector by the server when encrypting a message.
         /// </summary>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1819:PropertiesShouldNotReturnArrays")]
-        public byte[] ServerInitializationVector
-        {
-            get { return m_serverInitializationVector; }
-            set { m_serverInitializationVector = value; }
-        }
+        public byte[] ServerInitializationVector { get; set; }
 
         /// <summary>
         /// The SymmetricAlgorithm object used by the client to encrypt messages.
         /// </summary>
-        public SymmetricAlgorithm ClientEncryptor
-        {
-            get { return m_clientEncryptor; }
-            set { m_clientEncryptor = value; }
-        }
+        public SymmetricAlgorithm ClientEncryptor { get; set; }
 
         /// <summary>
         /// The SymmetricAlgorithm object used by the server to encrypt messages.
         /// </summary>
-        public SymmetricAlgorithm ServerEncryptor
-        {
-            get { return m_serverEncryptor; }
-            set { m_serverEncryptor = value; }
-        }
+        public SymmetricAlgorithm ServerEncryptor { get; set; }
 
         /// <summary>
         /// The HMAC object used by the client to sign messages.
         /// </summary>
-        public HMAC ClientHmac
-        {
-            get { return m_clientHmac; }
-            set { m_clientHmac = value; }
-        }
+        public HMAC ClientHmac { get; set; }
 
         /// <summary>
         /// The HMAC object used by the server to sign messages.
         /// </summary>
-        public HMAC ServerHmac
-        {
-            get { return m_serverHmac; }
-            set { m_serverHmac = value; }
-        }
-        #endregion
+        public HMAC ServerHmac { get; set; }
 
-        #region Private Fields
-        private uint m_channelId;
-        private uint m_tokenId;
-        private DateTime m_createdAt;
-        private int m_createdAtTickCount;
-        private int m_lifetime;
-        private byte[] m_clientNonce;
-        private byte[] m_serverNonce;
-        private byte[] m_clientSigningKey;
-        private byte[] m_clientEncryptingKey;
-        private byte[] m_clientInitializationVector;
-        private byte[] m_serverSigningKey;
-        private byte[] m_serverEncryptingKey;
-        private byte[] m_serverInitializationVector;
-        private HMAC m_clientHmac;
-        private HMAC m_serverHmac;
-        private SymmetricAlgorithm m_clientEncryptor;
-        private SymmetricAlgorithm m_serverEncryptor;
+#endregion
+#region Private Fields
         private bool m_disposed;
         #endregion
     }

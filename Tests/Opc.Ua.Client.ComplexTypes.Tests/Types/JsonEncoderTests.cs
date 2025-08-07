@@ -103,7 +103,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             {   BuiltInType.Byte, (byte)88, "88", null },
             {   BuiltInType.SByte, (sbyte)0, "0", null, null, "0"},
             {   BuiltInType.UInt16, (ushort)12345, "12345", null },
-            {   BuiltInType.Int16, (short)(-12345), "-12345", null },
+            {   BuiltInType.Int16, (short)-12345, "-12345", null },
             {   BuiltInType.UInt32, (uint)1234567, "1234567", null },
             {   BuiltInType.Int32, -12345678, "-12345678", null },
             {   BuiltInType.Int64, kInt64Value, Quotes(kInt64Value.ToString(CultureInfo.InvariantCulture)), null },

@@ -954,7 +954,7 @@ namespace Opc.Ua.Sample
 
                 if (values[8] != null && values[9] != null)
                 {
-                    metadata.Executable = (((bool)values[8]) && ((bool)values[9]));
+                    metadata.Executable = ((bool)values[8]) && ((bool)values[9]);
                 }
 
                 // get instance references.
@@ -1190,7 +1190,7 @@ namespace Opc.Ua.Sample
                     null,
                     relativePath.ReferenceTypeId,
                     relativePath.IncludeSubtypes,
-                    (relativePath.IsInverse) ? BrowseDirection.Inverse : BrowseDirection.Forward,
+                    relativePath.IsInverse ? BrowseDirection.Inverse : BrowseDirection.Forward,
                     relativePath.TargetName,
                     null,
                     false);

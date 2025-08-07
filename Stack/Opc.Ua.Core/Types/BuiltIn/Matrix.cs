@@ -34,16 +34,16 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(value));
             }
 
-            m_elements = value;
-            m_dimensions = new int[value.Rank];
+            Elements = value;
+            Dimensions = new int[value.Rank];
 
-            for (int ii = 0; ii < m_dimensions.Length; ii++)
+            for (int ii = 0; ii < Dimensions.Length; ii++)
             {
-                m_dimensions[ii] = value.GetLength(ii);
+                Dimensions[ii] = value.GetLength(ii);
             }
 
-            m_elements = Utils.FlattenArray(value);
-            m_typeInfo = new TypeInfo(builtInType, m_dimensions.Length);
+            Elements = Utils.FlattenArray(value);
+            TypeInfo = new TypeInfo(builtInType, Dimensions.Length);
         }
 
         /// <summary>
@@ -56,8 +56,8 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(elements));
             }
 
-            m_elements = elements;
-            m_dimensions = dimensions;
+            Elements = elements;
+            Dimensions = dimensions;
 
             if (dimensions != null && dimensions.Length > 0)
             {
@@ -70,12 +70,12 @@ namespace Opc.Ua
             }
             else
             {
-                m_dimensions = new int[] { elements.Length };
+                Dimensions = new int[] { elements.Length };
             }
 
-            m_typeInfo = new TypeInfo(builtInType, m_dimensions.Length);
+            TypeInfo = new TypeInfo(builtInType, Dimensions.Length);
 
-            SanityCheckArrayElements(m_elements, builtInType);
+            SanityCheckArrayElements(Elements, builtInType);
         }
         #endregion
 
@@ -84,20 +84,20 @@ namespace Opc.Ua
         /// The elements of the matrix.
         /// </summary>
         /// <value>An array of elements.</value>
-        public Array Elements => m_elements;
+        public Array Elements { get; }
 
         /// <summary>
         /// The dimensions of the matrix.
         /// </summary>
         /// <value>The dimensions of the array.</value>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1819:PropertiesShouldNotReturnArrays")]
-        public int[] Dimensions => m_dimensions;
+        public int[] Dimensions { get; }
 
         /// <summary>
         /// The type information for the matrix.
         /// </summary>
         /// <value>The type information.</value>
-        public TypeInfo TypeInfo => m_typeInfo;
+        public TypeInfo TypeInfo { get; }
 
         /// <summary>
         /// Returns the flattened array as a multi-dimensional array.
@@ -106,19 +106,19 @@ namespace Opc.Ua
         {
             try
             {
-                var array = Array.CreateInstance(m_elements.GetType().GetElementType(), m_dimensions);
+                var array = Array.CreateInstance(Elements.GetType().GetElementType(), Dimensions);
 
-                int[] indexes = new int[m_dimensions.Length];
+                int[] indexes = new int[Dimensions.Length];
 
-                for (int ii = 0; ii < m_elements.Length; ii++)
+                for (int ii = 0; ii < Elements.Length; ii++)
                 {
-                    array.SetValue(m_elements.GetValue(ii), indexes);
+                    array.SetValue(Elements.GetValue(ii), indexes);
 
                     for (int jj = indexes.Length - 1; jj >= 0; jj--)
                     {
                         indexes[jj]++;
 
-                        if (indexes[jj] < m_dimensions[jj])
+                        if (indexes[jj] < Dimensions[jj])
                         {
                             break;
                         }
@@ -154,15 +154,15 @@ namespace Opc.Ua
 
             if (obj is Matrix matrix)
             {
-                if (!m_typeInfo.Equals(matrix.TypeInfo))
+                if (!TypeInfo.Equals(matrix.TypeInfo))
                 {
                     return false;
                 }
-                if (!Utils.IsEqual(m_dimensions, matrix.Dimensions))
+                if (!Utils.IsEqual(Dimensions, matrix.Dimensions))
                 {
                     return false;
                 }
-                return Utils.IsEqual(m_elements, matrix.Elements);
+                return Utils.IsEqual(Elements, matrix.Elements);
             }
 
             return false;
@@ -174,17 +174,17 @@ namespace Opc.Ua
         public override int GetHashCode()
         {
             var hash = new HashCode();
-            if (m_elements != null)
+            if (Elements != null)
             {
-                hash.Add(m_elements);
+                hash.Add(Elements);
             }
-            if (m_typeInfo != null)
+            if (TypeInfo != null)
             {
-                hash.Add(m_typeInfo);
+                hash.Add(TypeInfo);
             }
-            if (m_dimensions != null)
+            if (Dimensions != null)
             {
-                hash.Add(m_dimensions);
+                hash.Add(Dimensions);
             }
             return hash.ToHashCode();
         }
@@ -209,16 +209,16 @@ namespace Opc.Ua
             {
                 var buffer = new StringBuilder();
 
-                buffer.AppendFormat(formatProvider, "{0}[", m_elements.GetType().GetElementType().Name);
+                buffer.AppendFormat(formatProvider, "{0}[", Elements.GetType().GetElementType().Name);
 
-                for (int ii = 0; ii < m_dimensions.Length; ii++)
+                for (int ii = 0; ii < Dimensions.Length; ii++)
                 {
                     if (ii > 0)
                     {
                         buffer.Append(',');
                     }
 
-                    buffer.AppendFormat(formatProvider, "{0}", m_dimensions[ii]);
+                    buffer.AppendFormat(formatProvider, "{0}", Dimensions[ii]);
                 }
 
                 buffer.AppendFormat(formatProvider, "]");
@@ -245,7 +245,7 @@ namespace Opc.Ua
         /// </returns>
         public new object MemberwiseClone()
         {
-            return new Matrix((Array)Utils.Clone(m_elements), m_typeInfo.BuiltInType, (int[])Utils.Clone(m_dimensions));
+            return new Matrix((Array)Utils.Clone(Elements), TypeInfo.BuiltInType, (int[])Utils.Clone(Dimensions));
         }
         #endregion
 
@@ -267,12 +267,9 @@ namespace Opc.Ua
                 (builtInType == BuiltInType.Variant));
 #endif
         }
-        #endregion
 
-        #region Private Fields
-        private readonly Array m_elements;
-        private readonly int[] m_dimensions;
-        private readonly TypeInfo m_typeInfo;
+#endregion
+#region Private Fields
         #endregion
 
         #region Validation Methods

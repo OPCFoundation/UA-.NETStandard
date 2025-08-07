@@ -199,7 +199,7 @@ namespace Opc.Ua
         /// <param name="obj">The object being compared to *this* object</param>
         public override bool Equals(object obj)
         {
-            return (CompareTo(obj) == 0);
+            return CompareTo(obj) == 0;
         }
 
         /// <summary>
@@ -211,7 +211,7 @@ namespace Opc.Ua
         /// <param name="other">The object being compared to *this* object</param>
         public bool Equals(Uuid other)
         {
-            return (CompareTo(other) == 0);
+            return CompareTo(other) == 0;
         }
 
         /// <summary>

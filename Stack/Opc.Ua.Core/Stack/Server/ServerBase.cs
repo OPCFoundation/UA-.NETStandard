@@ -41,8 +41,8 @@ namespace Opc.Ua
         {
             m_messageContext = new ServiceMessageContext();
             m_serverError = new ServiceResult(StatusCodes.BadServerHalted);
-            m_hosts = new List<ServiceHost>();
-            m_listeners = new List<ITransportListener>();
+            ServiceHosts = new List<ServiceHost>();
+            TransportListeners = new List<ITransportListener>();
             m_endpoints = null;
             m_requestQueue = new RequestQueue(this, 10, 100, 1000);
             m_userTokenPolicyId = 0;
@@ -67,25 +67,25 @@ namespace Opc.Ua
             if (disposing)
             {
                 // dispose any listeners.
-                if (m_listeners != null)
+                if (TransportListeners != null)
                 {
-                    for (int ii = 0; ii < m_listeners.Count; ii++)
+                    for (int ii = 0; ii < TransportListeners.Count; ii++)
                     {
-                        Utils.SilentDispose(m_listeners[ii]);
+                        Utils.SilentDispose(TransportListeners[ii]);
                     }
 
-                    m_listeners.Clear();
+                    TransportListeners.Clear();
                 }
 
                 // dispose any hosts.
-                if (m_hosts != null)
+                if (ServiceHosts != null)
                 {
-                    for (int ii = 0; ii < m_hosts.Count; ii++)
+                    for (int ii = 0; ii < ServiceHosts.Count; ii++)
                     {
-                        Utils.SilentDispose(m_hosts[ii]);
+                        Utils.SilentDispose(ServiceHosts[ii]);
                     }
 
-                    m_hosts.Clear();
+                    ServiceHosts.Clear();
                 }
 
                 Utils.SilentDispose(m_requestQueue);
@@ -97,7 +97,7 @@ namespace Opc.Ua
         /// <summary>
         /// The message context to use with the service.
         /// </summary>
-        /// <value>The message context that stores context information associated with a UA 
+        /// <value>The message context that stores context information associated with a UA
         /// server that is used during message processing.
         /// </value>
         public IServiceMessageContext MessageContext
@@ -244,7 +244,7 @@ namespace Opc.Ua
         /// <summary>
         /// Starts the server.
         /// </summary>
-        /// <param name="configuration">The object that stores the configurable configuration information 
+        /// <param name="configuration">The object that stores the configurable configuration information
         /// for a UA application</param>
         /// <param name="baseAddresses">The array of Uri elements which contains base addresses.</param>
         /// <returns>Returns a host for a UA service.</returns>
@@ -296,12 +296,12 @@ namespace Opc.Ua
                 throw ServiceResultException.Create(StatusCodes.BadConfigurationError, "The UA server does not have a default host.");
             }
 
-            lock (m_hosts)
+            lock (ServiceHosts)
             {
                 for (int ii = 1; ii < hosts.Count; ii++)
                 {
                     hosts[ii].Open();
-                    m_hosts.Add(hosts[ii]);
+                    ServiceHosts.Add(hosts[ii]);
                 }
             }
 
@@ -311,8 +311,8 @@ namespace Opc.Ua
         /// <summary>
         /// Starts the server (called from a dedicated host process).
         /// </summary>
-        /// <param name="configuration">The object that stores the configurable configuration 
-        /// information for a UA application. 
+        /// <param name="configuration">The object that stores the configurable configuration
+        /// information for a UA application.
         /// </param>
         public void Start(ApplicationConfiguration configuration)
         {
@@ -354,12 +354,12 @@ namespace Opc.Ua
             StartApplication(configuration);
 
             // open the hosts.
-            lock (m_hosts)
+            lock (ServiceHosts)
             {
                 foreach (ServiceHost serviceHost in hosts)
                 {
                     serviceHost.Open();
-                    m_hosts.Add(serviceHost);
+                    ServiceHosts.Add(serviceHost);
                 }
             }
         }
@@ -552,7 +552,7 @@ namespace Opc.Ua
             }
 
             // close any listeners.
-            List<ITransportListener> listeners = m_listeners;
+            List<ITransportListener> listeners = TransportListeners;
 
             if (listeners != null)
             {
@@ -572,9 +572,9 @@ namespace Opc.Ua
             }
 
             // close the hosts.
-            lock (m_hosts)
+            lock (ServiceHosts)
             {
-                foreach (ServiceHost host in m_hosts)
+                foreach (ServiceHost host in ServiceHosts)
                 {
                     if (host.State == ServiceHostState.Opened)
                     {
@@ -707,18 +707,7 @@ namespace Opc.Ua
         /// The server's application instance certificate types provider.
         /// </summary>
         /// <value>The provider for the X.509 certificates.</value>
-        public CertificateTypesProvider InstanceCertificateTypesProvider
-        {
-            get
-            {
-                return m_instanceCertificateTypesProvider;
-            }
-
-            private set
-            {
-                m_instanceCertificateTypesProvider = value;
-            }
-        }
+        public CertificateTypesProvider InstanceCertificateTypesProvider { get; private set; }
 
         /// <summary>
         /// The non-configurable properties for the server.
@@ -775,10 +764,7 @@ namespace Opc.Ua
         /// Gets the list of service hosts used by the server instance.
         /// </summary>
         /// <value>The service hosts.</value>
-        protected List<ServiceHost> ServiceHosts
-        {
-            get { return m_hosts; }
-        }
+        protected List<ServiceHost> ServiceHosts { get; }
 
         /// <summary>
         /// Gets or set the capabilities for the server.
@@ -789,7 +775,7 @@ namespace Opc.Ua
         /// Gets the list of transport listeners used by the server instance.
         /// </summary>
         /// <value>The transport listeners.</value>
-        protected List<ITransportListener> TransportListeners => m_listeners;
+        protected List<ITransportListener> TransportListeners { get; }
         #endregion
 
         #region Protected Methods
@@ -1238,7 +1224,7 @@ namespace Opc.Ua
                         if (endpointUrl.Path.StartsWith(baseAddress.Url.PathAndQuery, StringComparison.Ordinal) &&
                             endpointUrl.Path.Length > baseAddress.Url.PathAndQuery.Length)
                         {
-                            string suffix = endpointUrl.Path.Substring(baseAddress.Url.PathAndQuery.Length);
+                            string suffix = endpointUrl.Path[baseAddress.Url.PathAndQuery.Length..];
                             translation.EndpointUrl += suffix;
                         }
 
@@ -1763,12 +1749,9 @@ namespace Opc.Ua
         private object m_messageContext;
         private object m_serverError;
         private object m_certificateValidator;
-        private CertificateTypesProvider m_instanceCertificateTypesProvider;
         private object m_serverProperties;
         private object m_configuration;
         private object m_serverDescription;
-        private readonly List<ServiceHost> m_hosts;
-        private readonly List<ITransportListener> m_listeners;
         private ReadOnlyList<EndpointDescription> m_endpoints;
         private RequestQueue m_requestQueue;
         // identifier for the UserTokenPolicy should be unique within the context of a single Server

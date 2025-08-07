@@ -153,7 +153,7 @@ namespace Opc.Ua.Client.Tests
         [Test, Order(200)]
         public void TestBoundaryCaseForReadingChunks()
         {
-            var theSession = ((Session)(((TraceableSession)Session).Session));
+            var theSession = (Session)((TraceableSession)Session).Session;
 
             int NamespaceIndex = theSession.NamespaceUris.GetIndex("http://opcfoundation.org/Quickstarts/ReferenceServer");
             var NodeId = new NodeId($"ns={NamespaceIndex};s=Scalar_Static_ByteString");
@@ -187,7 +187,7 @@ namespace Opc.Ua.Client.Tests
         [Test, Order(210)]
         public async Task TestBoundaryCaseForReadingChunksAsync()
         {
-            var theSession = ((Session)(((TraceableSession)Session).Session));
+            var theSession = (Session)((TraceableSession)Session).Session;
 
             int NamespaceIndex = theSession.NamespaceUris.GetIndex("http://opcfoundation.org/Quickstarts/ReferenceServer");
             var NodeId = new NodeId($"ns={NamespaceIndex};s=Scalar_Static_ByteString");

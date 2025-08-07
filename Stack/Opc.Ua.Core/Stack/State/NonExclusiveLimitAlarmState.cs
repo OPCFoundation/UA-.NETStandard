@@ -35,7 +35,7 @@ namespace Opc.Ua
         {
             if (this.HighState != null)
             {
-                UpdateState(this.HighState, ((limit & LimitAlarmStates.High) != 0 || (limit & LimitAlarmStates.HighHigh) != 0));
+                UpdateState(this.HighState, (limit & LimitAlarmStates.High) != 0 || (limit & LimitAlarmStates.HighHigh) != 0);
             }
 
             if (this.HighHighState != null)
@@ -45,7 +45,7 @@ namespace Opc.Ua
 
             if (this.LowState != null)
             {
-                UpdateState(this.LowState, ((limit & LimitAlarmStates.Low) != 0 || (limit & LimitAlarmStates.LowLow) != 0));
+                UpdateState(this.LowState, (limit & LimitAlarmStates.Low) != 0 || (limit & LimitAlarmStates.LowLow) != 0);
             }
 
             if (this.LowLowState != null)
@@ -104,7 +104,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="limit">The limit.</param>
         /// <param name="active">if set to <c>true</c> is the state is active.</param>
-        private void UpdateState(TwoStateVariableState limit, bool active)
+        private static void UpdateState(TwoStateVariableState limit, bool active)
         {
             TranslationInfo state = null;
 

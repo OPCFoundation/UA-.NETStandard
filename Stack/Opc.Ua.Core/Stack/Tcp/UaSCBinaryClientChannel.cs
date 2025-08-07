@@ -173,7 +173,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public void EndConnect(IAsyncResult result)
         {
-            if (!(result is WriteOperation operation))
+            if (result is not WriteOperation operation)
             {
                 throw new ArgumentNullException(nameof(result));
             }
@@ -199,7 +199,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public async Task EndConnectAsync(IAsyncResult result, CancellationToken ct = default)
         {
-            if (!(result is WriteOperation operation))
+            if (result is not WriteOperation operation)
             {
                 throw new ArgumentNullException(nameof(result));
             }
@@ -339,7 +339,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public IServiceResponse EndSendRequest(IAsyncResult result)
         {
-            if (!(result is WriteOperation operation))
+            if (result is not WriteOperation operation)
             {
                 throw new ArgumentNullException(nameof(result));
             }
@@ -361,7 +361,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public async Task<IServiceResponse> EndSendRequestAsync(IAsyncResult result, CancellationToken ct)
         {
-            if (!(result is WriteOperation operation))
+            if (result is not WriteOperation operation)
             {
                 throw new ArgumentNullException(nameof(result));
             }
@@ -476,13 +476,13 @@ namespace Opc.Ua.Bindings
                 }
 
                 // validate buffer sizes.
-                if (receiveBufferSize < TcpMessageLimits.MinBufferSize || receiveBufferSize > TcpMessageLimits.MaxBufferSize)
+                if (receiveBufferSize is < TcpMessageLimits.MinBufferSize or > TcpMessageLimits.MaxBufferSize)
                 {
                     m_handshakeOperation.Fault(StatusCodes.BadTcpNotEnoughResources, "Client receive buffer size is out of valid range ({0} bytes).", receiveBufferSize);
                     return false;
                 }
 
-                if (sendBufferSize < TcpMessageLimits.MinBufferSize || sendBufferSize > TcpMessageLimits.MaxBufferSize)
+                if (sendBufferSize is < TcpMessageLimits.MinBufferSize or > TcpMessageLimits.MaxBufferSize)
                 {
                     m_handshakeOperation.Fault(StatusCodes.BadTcpNotEnoughResources, "Client send buffer size is out of valid range ({0} bytes).", sendBufferSize);
                     return false;
@@ -553,7 +553,7 @@ namespace Opc.Ua.Bindings
             var request = new OpenSecureChannelRequest();
             request.RequestHeader.Timestamp = DateTime.UtcNow;
 
-            request.RequestType = (renew) ? SecurityTokenRequestType.Renew : SecurityTokenRequestType.Issue;
+            request.RequestType = renew ? SecurityTokenRequestType.Renew : SecurityTokenRequestType.Issue;
             request.SecurityMode = SecurityMode;
             request.ClientNonce = token.ClientNonce;
             request.RequestedLifetime = (uint)Quotas.SecurityTokenLifetime;
@@ -593,7 +593,7 @@ namespace Opc.Ua.Bindings
             Utils.LogTrace("ChannelId {0}: ProcessOpenSecureChannelResponse()", ChannelId);
 
             // validate the channel state.
-            if (State != TcpChannelState.Opening && State != TcpChannelState.Open)
+            if (State is not TcpChannelState.Opening and not TcpChannelState.Open)
             {
                 ForceReconnect(ServiceResult.Create(StatusCodes.BadTcpMessageTypeInvalid, "Server sent an unexpected OpenSecureChannel response."));
                 return false;
@@ -1038,7 +1038,7 @@ namespace Opc.Ua.Bindings
                     error = ServiceResult.Create(e, StatusCodes.BadUnexpectedError, "Unexpected error reconnecting or renewing a token.");
 
                     // check for expired channel or token.
-                    if (error.Code == StatusCodes.BadTcpSecureChannelUnknown || error.Code == StatusCodes.BadSecurityChecksFailed)
+                    if (error.Code is StatusCodes.BadTcpSecureChannelUnknown or StatusCodes.BadSecurityChecksFailed)
                     {
                         Utils.LogError("ChannelId {0}: Cannot Recover Channel", ChannelId);
                         Shutdown(error);

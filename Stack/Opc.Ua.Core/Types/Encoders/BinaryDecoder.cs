@@ -58,7 +58,7 @@ namespace Opc.Ua
         /// </summary>
         public BinaryDecoder(Stream stream, IServiceMessageContext context, bool leaveOpen = false)
         {
-            ValidateStreamRequirements(stream);
+            BinaryDecoder.ValidateStreamRequirements(stream);
             m_reader = new BinaryReader(stream, Encoding.UTF8, leaveOpen);
             Initialize(context);
         }
@@ -140,8 +140,8 @@ namespace Opc.Ua
                 {
                     throw new ServiceResultException(StatusCodes.BadDecodingError, "Stream does not support seeking.");
                 }
-                long position = (stream?.Position ?? 0);
-                if (position > int.MaxValue || position < int.MinValue)
+                long position = stream?.Position ?? 0;
+                if (position is > int.MaxValue or < int.MinValue)
                 {
                     throw new ServiceResultException(StatusCodes.BadDecodingError, "Stream Position exceeds int.MaxValue or int.MinValue.");
                 }
@@ -2140,7 +2140,7 @@ namespace Opc.Ua
                 return extension;
             }
 
-            if (encoding != (byte)ExtensionObjectEncoding.Binary && encoding != (byte)ExtensionObjectEncoding.Xml)
+            if (encoding is not ((byte)ExtensionObjectEncoding.Binary) and not ((byte)ExtensionObjectEncoding.Xml))
             {
                 throw ServiceResultException.Create(StatusCodes.BadDecodingError,
                     "Invalid encoding byte (0x{0:X2}) for ExtensionObject.", encoding);
@@ -2235,7 +2235,7 @@ namespace Opc.Ua
                     exception = eofStream;
                 }
                 catch (ServiceResultException sre) when
-                    ((sre.StatusCode == StatusCodes.BadEncodingLimitsExceeded) || (sre.StatusCode == StatusCodes.BadDecodingError))
+                    (sre.StatusCode is StatusCodes.BadEncodingLimitsExceeded or StatusCodes.BadDecodingError)
                 {
                     errorMessage = sre.Message;
                     exception = sre;
@@ -2617,7 +2617,7 @@ namespace Opc.Ua
             }
             catch (EndOfStreamException)
             {
-                throw CreateDecodingError(nameof(ReadBoolean), functionName);
+                throw BinaryDecoder.CreateDecodingError(nameof(ReadBoolean), functionName);
             }
         }
 
@@ -2634,7 +2634,7 @@ namespace Opc.Ua
             }
             catch (EndOfStreamException)
             {
-                throw CreateDecodingError(nameof(ReadSByte), functionName);
+                throw BinaryDecoder.CreateDecodingError(nameof(ReadSByte), functionName);
             }
         }
 
@@ -2651,7 +2651,7 @@ namespace Opc.Ua
             }
             catch (EndOfStreamException)
             {
-                throw CreateDecodingError(nameof(ReadByte), functionName);
+                throw BinaryDecoder.CreateDecodingError(nameof(ReadByte), functionName);
             }
         }
 
@@ -2668,7 +2668,7 @@ namespace Opc.Ua
             }
             catch (EndOfStreamException)
             {
-                throw CreateDecodingError(nameof(ReadInt16), functionName);
+                throw BinaryDecoder.CreateDecodingError(nameof(ReadInt16), functionName);
             }
         }
 
@@ -2685,7 +2685,7 @@ namespace Opc.Ua
             }
             catch (EndOfStreamException)
             {
-                throw CreateDecodingError(nameof(ReadUInt16), functionName);
+                throw BinaryDecoder.CreateDecodingError(nameof(ReadUInt16), functionName);
             }
         }
 
@@ -2702,7 +2702,7 @@ namespace Opc.Ua
             }
             catch (EndOfStreamException)
             {
-                throw CreateDecodingError(nameof(ReadInt32), functionName);
+                throw BinaryDecoder.CreateDecodingError(nameof(ReadInt32), functionName);
             }
         }
 
@@ -2719,7 +2719,7 @@ namespace Opc.Ua
             }
             catch (EndOfStreamException)
             {
-                throw CreateDecodingError(nameof(ReadUInt32), functionName);
+                throw BinaryDecoder.CreateDecodingError(nameof(ReadUInt32), functionName);
             }
         }
 
@@ -2736,7 +2736,7 @@ namespace Opc.Ua
             }
             catch (EndOfStreamException)
             {
-                throw CreateDecodingError(nameof(ReadInt64), functionName);
+                throw BinaryDecoder.CreateDecodingError(nameof(ReadInt64), functionName);
             }
         }
 
@@ -2753,7 +2753,7 @@ namespace Opc.Ua
             }
             catch (EndOfStreamException)
             {
-                throw CreateDecodingError(nameof(ReadUInt64), functionName);
+                throw BinaryDecoder.CreateDecodingError(nameof(ReadUInt64), functionName);
             }
         }
 
@@ -2770,7 +2770,7 @@ namespace Opc.Ua
             }
             catch (EndOfStreamException)
             {
-                throw CreateDecodingError(nameof(ReadFloat), functionName);
+                throw BinaryDecoder.CreateDecodingError(nameof(ReadFloat), functionName);
             }
         }
 
@@ -2787,7 +2787,7 @@ namespace Opc.Ua
             }
             catch (EndOfStreamException)
             {
-                throw CreateDecodingError(nameof(ReadDouble), functionName);
+                throw BinaryDecoder.CreateDecodingError(nameof(ReadDouble), functionName);
             }
         }
 
@@ -2797,7 +2797,7 @@ namespace Opc.Ua
         /// <param name="dataTypeName">The datatype which reached the end of the stream.</param>
         /// <param name="functionName">The property which tried to read the datatype.</param>
         /// <exception cref="ServiceResultException"> with <see cref="StatusCodes.BadDecodingError"/></exception>
-        ServiceResultException CreateDecodingError(string dataTypeName, string functionName)
+        static ServiceResultException CreateDecodingError(string dataTypeName, string functionName)
         {
             return ServiceResultException.Create(StatusCodes.BadDecodingError,
                 "Reading {0} in {1} reached end of stream.", dataTypeName, functionName);
@@ -2820,7 +2820,7 @@ namespace Opc.Ua
         /// Validate the stream requirements.
         /// </summary>
         /// <param name="stream">The stream used for decoding.</param>
-        private void ValidateStreamRequirements(Stream stream)
+        private static void ValidateStreamRequirements(Stream stream)
         {
             if (stream == null)
             {

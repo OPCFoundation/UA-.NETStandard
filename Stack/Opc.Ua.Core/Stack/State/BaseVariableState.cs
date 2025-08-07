@@ -20,7 +20,7 @@ using System.Globalization;
 
 namespace Opc.Ua
 {
-    /// <summary> 
+    /// <summary>
     /// The base class for all variable nodes.
     /// </summary>
     [DataContract(Namespace = Namespaces.OpcUaXsd)]
@@ -42,7 +42,7 @@ namespace Opc.Ua
             m_accessLevel = m_userAccessLevel = AccessLevels.CurrentRead;
             m_minimumSamplingInterval = MinimumSamplingIntervals.Continuous;
             m_historizing = false;
-            m_copyPolicy = VariableCopyPolicy.CopyOnRead;
+            CopyPolicy = VariableCopyPolicy.CopyOnRead;
             m_valueTouched = false;
         }
         #endregion
@@ -484,11 +484,7 @@ namespace Opc.Ua
         /// <summary>
         /// Whether the value can be set to null.
         /// </summary>
-        public bool IsValueType
-        {
-            get { return m_isValueType; }
-            set { m_isValueType = value; }
-        }
+        public bool IsValueType { get; set; }
 
         /// <summary>
         /// The value of the variable as a Variant.
@@ -559,11 +555,7 @@ namespace Opc.Ua
         /// <remarks>
         /// This value is ignored if the OnReadValue or OnWriteValue event handlers are provided.
         /// </remarks>
-        public VariableCopyPolicy CopyPolicy
-        {
-            get { return m_copyPolicy; }
-            set { m_copyPolicy = value; }
-        }
+        public VariableCopyPolicy CopyPolicy { get; set; }
 
         /// <summary>
         /// The data type for the variable value.
@@ -1587,7 +1579,7 @@ namespace Opc.Ua
             }
 
             // copy returned value.
-            if (m_copyPolicy == VariableCopyPolicy.CopyOnRead || m_copyPolicy == VariableCopyPolicy.Always)
+            if (CopyPolicy is VariableCopyPolicy.CopyOnRead or VariableCopyPolicy.Always)
             {
                 value = Utils.Clone(value);
             }
@@ -1995,7 +1987,7 @@ namespace Opc.Ua
             value = ExtractValueFromVariant(context, value, true);
 
             // copy passed in value.
-            if (m_copyPolicy == VariableCopyPolicy.CopyOnWrite || m_copyPolicy == VariableCopyPolicy.Always)
+            if (CopyPolicy is VariableCopyPolicy.CopyOnWrite or VariableCopyPolicy.Always)
             {
                 value = Utils.Clone(value);
             }
@@ -2051,7 +2043,6 @@ namespace Opc.Ua
 
         #region Private Fields
         private object m_value;
-        private bool m_isValueType;
         private DateTime m_timestamp;
         private bool m_valueTouched;
         private StatusCode m_statusCode;
@@ -2062,12 +2053,11 @@ namespace Opc.Ua
         private byte m_userAccessLevel;
         private double m_minimumSamplingInterval;
         private bool m_historizing;
-        private VariableCopyPolicy m_copyPolicy;
         private static readonly char[] s_commaSeparator = new char[] { ',' };
         #endregion
     }
 
-    /// <summary> 
+    /// <summary>
     /// A typed base class for all data variable nodes.
     /// </summary>
     [DataContract(Namespace = Namespaces.OpcUaXsd)]
@@ -2129,7 +2119,7 @@ namespace Opc.Ua
         #endregion
     }
 
-    /// <summary> 
+    /// <summary>
     /// A typed base class for all data variable nodes.
     /// </summary>
     [DataContract(Namespace = Namespaces.OpcUaXsd)]
@@ -2187,7 +2177,7 @@ namespace Opc.Ua
         #endregion
     }
 
-    /// <summary> 
+    /// <summary>
     /// A typed base class for all data variable nodes.
     /// </summary>
     [DataContract(Namespace = Namespaces.OpcUaXsd)]
@@ -2347,7 +2337,7 @@ namespace Opc.Ua
         #endregion
     }
 
-    /// <summary> 
+    /// <summary>
     /// A typed base class for all data variable nodes.
     /// </summary>
     [DataContract(Namespace = Namespaces.OpcUaXsd)]
@@ -2425,12 +2415,12 @@ namespace Opc.Ua
         /// </summary>
         public BaseVariableValue(object dataLock)
         {
-            m_lock = dataLock;
-            m_copyPolicy = VariableCopyPolicy.CopyOnRead;
+            Lock = dataLock;
+            CopyPolicy = VariableCopyPolicy.CopyOnRead;
 
-            if (m_lock == null)
+            if (Lock == null)
             {
-                m_lock = new object();
+                Lock = new object();
             }
         }
         #endregion
@@ -2439,44 +2429,29 @@ namespace Opc.Ua
         /// <summary>
         /// An object used to synchronize access to the value.
         /// </summary>
-        public object Lock
-        {
-            get { return m_lock; }
-        }
+        public object Lock { get; }
 
         /// <summary>
         /// The behavior to use when reading or writing all or part of the object.
         /// </summary>
-        public VariableCopyPolicy CopyPolicy
-        {
-            get { return m_copyPolicy; }
-            set { m_copyPolicy = value; }
-        }
+        public VariableCopyPolicy CopyPolicy { get; set; }
 
         /// <summary>
         /// Gets or sets the current error state.
         /// </summary>
-        public ServiceResult Error
-        {
-            get { return m_error; }
-            set { m_error = value; }
-        }
+        public ServiceResult Error { get; set; }
 
         /// <summary>
         /// Gets or sets the timestamp associated with the value.
         /// </summary>
-        public DateTime Timestamp
-        {
-            get { return m_timestamp; }
-            set { m_timestamp = value; }
-        }
+        public DateTime Timestamp { get; set; }
 
         /// <summary>
         /// Clears the change masks for all nodes in the update list.
         /// </summary>
         public void ChangesComplete(ISystemContext context)
         {
-            lock (m_lock)
+            lock (Lock)
             {
                 if (m_updateList != null)
                 {
@@ -2532,22 +2507,22 @@ namespace Opc.Ua
             ref StatusCode statusCode,
             ref DateTime timestamp)
         {
-            lock (m_lock)
+            lock (Lock)
             {
                 // ensure a value timestamp exists.
-                if (m_timestamp == DateTime.MinValue)
+                if (Timestamp == DateTime.MinValue)
                 {
-                    m_timestamp = DateTime.UtcNow;
+                    Timestamp = DateTime.UtcNow;
                 }
 
-                timestamp = m_timestamp;
+                timestamp = Timestamp;
 
                 // check for errors.
-                if (ServiceResult.IsBad(m_error))
+                if (ServiceResult.IsBad(Error))
                 {
                     value = null;
-                    statusCode = m_error.StatusCode;
-                    return m_error;
+                    statusCode = Error.StatusCode;
+                    return Error;
                 }
 
                 // apply the index range and encoding.
@@ -2564,7 +2539,7 @@ namespace Opc.Ua
                 }
 
                 // apply copy policy
-                if ((m_copyPolicy & VariableCopyPolicy.CopyOnRead) != 0)
+                if ((CopyPolicy & VariableCopyPolicy.CopyOnRead) != 0)
                 {
                     value = Utils.Clone(value);
                 }
@@ -2580,15 +2555,15 @@ namespace Opc.Ua
         /// </summary>
         protected ServiceResult Read(object currentValue, ref object valueToRead)
         {
-            lock (m_lock)
+            lock (Lock)
             {
-                if (ServiceResult.IsBad(m_error))
+                if (ServiceResult.IsBad(Error))
                 {
                     valueToRead = null;
-                    return m_error;
+                    return Error;
                 }
 
-                if ((m_copyPolicy & VariableCopyPolicy.CopyOnRead) != 0)
+                if ((CopyPolicy & VariableCopyPolicy.CopyOnRead) != 0)
                 {
                     valueToRead = Utils.Clone(currentValue);
                 }
@@ -2606,9 +2581,9 @@ namespace Opc.Ua
         /// </summary>
         protected object Write(object valueToWrite)
         {
-            lock (m_lock)
+            lock (Lock)
             {
-                if ((m_copyPolicy & VariableCopyPolicy.CopyOnWrite) != 0)
+                if ((CopyPolicy & VariableCopyPolicy.CopyOnWrite) != 0)
                 {
                     return Utils.Clone(valueToWrite);
                 }
@@ -2622,7 +2597,7 @@ namespace Opc.Ua
         /// </summary>
         protected void SetUpdateList(IList<BaseInstanceState> updateList)
         {
-            lock (m_lock)
+            lock (Lock)
             {
                 m_updateList = null;
 
@@ -2644,14 +2619,10 @@ namespace Opc.Ua
                 }
             }
         }
-        #endregion
 
-        #region Private Fields
-        private readonly object m_lock;
-        private VariableCopyPolicy m_copyPolicy;
+#endregion
+#region Private Fields
         private BaseInstanceState[] m_updateList;
-        private ServiceResult m_error;
-        private DateTime m_timestamp;
         #endregion
     }
     #endregion

@@ -70,15 +70,10 @@ namespace Opc.Ua
         /// </summary>
         /// <value>The file path.</value>
         [DataMember(IsRequired = true, Order = 0)]
-        public string FilePath
-        {
-            get { return m_filePath; }
-            set { m_filePath = value; }
-        }
-        #endregion
+        public string FilePath { get; set; }
 
+        #endregion
         #region Private Fields
-        private string m_filePath;
         #endregion
     }
 
@@ -441,7 +436,7 @@ namespace Opc.Ua
                 m_applicationUri = generateDefaultUri();
             }
 
-            if (applicationType == ApplicationType.Client || applicationType == ApplicationType.ClientAndServer)
+            if (applicationType is ApplicationType.Client or ApplicationType.ClientAndServer)
             {
                 if (ClientConfiguration == null)
                 {
@@ -451,7 +446,7 @@ namespace Opc.Ua
                 ClientConfiguration.Validate();
             }
 
-            if (applicationType == ApplicationType.Server || applicationType == ApplicationType.ClientAndServer)
+            if (applicationType is ApplicationType.Server or ApplicationType.ClientAndServer)
             {
                 if (ServerConfiguration == null)
                 {

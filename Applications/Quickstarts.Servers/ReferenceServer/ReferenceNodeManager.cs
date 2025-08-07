@@ -1694,7 +1694,7 @@ namespace Quickstarts.ReferenceServer
                 string newPath = string.Format(CultureInfo.InvariantCulture, "{0}/Mass/{1}", path, newName);
                 itemsCreated.Add(CreateDataItemVariable(parent, newPath, newName, dataType, valueRank));
             }//for i
-            return (itemsCreated.ToArray());
+            return itemsCreated.ToArray();
         }
 
         private ServiceResult OnWriteDataItem(
@@ -1736,12 +1736,12 @@ namespace Quickstarts.ReferenceServer
         /// </summary>
         private AnalogItemState CreateAnalogItemVariable(NodeState parent, string path, string name, BuiltInType dataType, int valueRank)
         {
-            return (CreateAnalogItemVariable(parent, path, name, dataType, valueRank, null));
+            return CreateAnalogItemVariable(parent, path, name, dataType, valueRank, null);
         }
 
         private AnalogItemState CreateAnalogItemVariable(NodeState parent, string path, string name, BuiltInType dataType, int valueRank, object initialValues)
         {
-            return (CreateAnalogItemVariable(parent, path, name, dataType, valueRank, initialValues, null));
+            return CreateAnalogItemVariable(parent, path, name, dataType, valueRank, initialValues, null);
         }
 
         private AnalogItemState CreateAnalogItemVariable(NodeState parent, string path, string name, BuiltInType dataType, int valueRank, object initialValues, Opc.Ua.Range customRange)
@@ -2262,7 +2262,7 @@ namespace Quickstarts.ReferenceServer
                 string newPath = string.Format(CultureInfo.InvariantCulture, "{0}_{1}", path, newName);
                 itemsCreated.Add(CreateVariable(newParentFolder, newPath, newName, dataType, valueRank));
             }
-            return (itemsCreated.ToArray());
+            return itemsCreated.ToArray();
         }
 
         /// <summary>
@@ -2302,7 +2302,7 @@ namespace Quickstarts.ReferenceServer
                 string newPath = string.Format(CultureInfo.InvariantCulture, "{0}_{1}", path, newName);
                 itemsCreated.Add(CreateDynamicVariable(newParentFolder, newPath, newName, dataType, valueRank));
             }//for i
-            return (itemsCreated.ToArray());
+            return itemsCreated.ToArray();
         }
 
         /// <summary>

@@ -36,7 +36,7 @@ namespace Opc.Ua
         {
             m_ostrm = new MemoryStream();
             m_writer = new BinaryWriter(m_ostrm);
-            m_context = context;
+            Context = context;
             m_leaveOpen = false;
             m_nestingLevel = 0;
         }
@@ -53,7 +53,7 @@ namespace Opc.Ua
 
             m_ostrm = new MemoryStream(buffer, start, count);
             m_writer = new BinaryWriter(m_ostrm);
-            m_context = context;
+            Context = context;
             m_leaveOpen = false;
             m_nestingLevel = 0;
         }
@@ -73,7 +73,7 @@ namespace Opc.Ua
 
             m_ostrm = stream;
             m_writer = new BinaryWriter(m_ostrm, Encoding.UTF8, leaveOpen);
-            m_context = context;
+            Context = context;
             m_leaveOpen = leaveOpen;
             m_nestingLevel = 0;
         }
@@ -122,16 +122,16 @@ namespace Opc.Ua
         {
             m_namespaceMappings = null;
 
-            if (namespaceUris != null && m_context.NamespaceUris != null)
+            if (namespaceUris != null && Context.NamespaceUris != null)
             {
-                m_namespaceMappings = namespaceUris.CreateMapping(m_context.NamespaceUris, false);
+                m_namespaceMappings = namespaceUris.CreateMapping(Context.NamespaceUris, false);
             }
 
             m_serverMappings = null;
 
-            if (serverUris != null && m_context.ServerUris != null)
+            if (serverUris != null && Context.ServerUris != null)
             {
-                m_serverMappings = serverUris.CreateMapping(m_context.ServerUris, false);
+                m_serverMappings = serverUris.CreateMapping(Context.ServerUris, false);
             }
         }
 
@@ -320,7 +320,7 @@ namespace Opc.Ua
             long start = m_ostrm.Position;
 
             // convert the namespace uri to an index.
-            var typeId = ExpandedNodeId.ToNodeId(message.BinaryEncodingId, m_context.NamespaceUris);
+            var typeId = ExpandedNodeId.ToNodeId(message.BinaryEncodingId, Context.NamespaceUris);
 
             // write the type id.
             WriteNodeId(null, typeId);
@@ -329,12 +329,12 @@ namespace Opc.Ua
             WriteEncodeable(null, message, message.GetType());
 
             // check that the max message size was not exceeded.
-            if (m_context.MaxMessageSize > 0 && m_context.MaxMessageSize < (int)(m_ostrm.Position - start))
+            if (Context.MaxMessageSize > 0 && Context.MaxMessageSize < (int)(m_ostrm.Position - start))
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadEncodingLimitsExceeded,
                     "MaxMessageSize {0} < {1}",
-                    m_context.MaxMessageSize,
+                    Context.MaxMessageSize,
                     (int)(m_ostrm.Position - start));
             }
         }
@@ -368,7 +368,7 @@ namespace Opc.Ua
         /// <summary>
         /// The message context associated with the encoder.
         /// </summary>
-        public IServiceMessageContext Context => m_context;
+        public IServiceMessageContext Context { get; }
 
         /// <summary>
         /// Binary Encoder always produces reversible encoding.
@@ -490,12 +490,12 @@ namespace Opc.Ua
                 return;
             }
 
-            if (m_context.MaxStringLength > 0 && m_context.MaxStringLength < value.Length)
+            if (Context.MaxStringLength > 0 && Context.MaxStringLength < value.Length)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadEncodingLimitsExceeded,
                     "MaxStringLength {0} < {1}",
-                    m_context.MaxStringLength,
+                    Context.MaxStringLength,
                     value.Length);
             }
 
@@ -609,12 +609,12 @@ namespace Opc.Ua
                 return;
             }
 
-            if (m_context.MaxByteStringLength > 0 && m_context.MaxByteStringLength < count)
+            if (Context.MaxByteStringLength > 0 && Context.MaxByteStringLength < count)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadEncodingLimitsExceeded,
                     "MaxByteStringLength {0} < {1}",
-                    m_context.MaxByteStringLength,
+                    Context.MaxByteStringLength,
                     count);
             }
 
@@ -635,12 +635,12 @@ namespace Opc.Ua
                 return;
             }
 
-            if (m_context.MaxByteStringLength > 0 && m_context.MaxByteStringLength < value.Length)
+            if (Context.MaxByteStringLength > 0 && Context.MaxByteStringLength < value.Length)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadEncodingLimitsExceeded,
                     "MaxByteStringLength {0} < {1}",
-                    m_context.MaxByteStringLength,
+                    Context.MaxByteStringLength,
                     value.Length);
             }
 
@@ -957,7 +957,7 @@ namespace Opc.Ua
                 }
             }
 
-            var localTypeId = ExpandedNodeId.ToNodeId(typeId, m_context.NamespaceUris);
+            var localTypeId = ExpandedNodeId.ToNodeId(typeId, Context.NamespaceUris);
 
             if (NodeId.IsNull(localTypeId) && !NodeId.IsNull(typeId))
             {
@@ -1039,7 +1039,7 @@ namespace Opc.Ua
             // must pre-encode and then write the bytes.
             else
             {
-                using (var encoder = new BinaryEncoder(this.m_context))
+                using (var encoder = new BinaryEncoder(this.Context))
                 {
                     encoder.WriteEncodeable(null, encodeable, null);
                     bytes = encoder.CloseAndReturnBuffer();
@@ -2075,12 +2075,12 @@ namespace Opc.Ua
                 return;
             }
 
-            if (m_context.MaxByteStringLength > 0 && m_context.MaxByteStringLength < value.Length)
+            if (Context.MaxByteStringLength > 0 && Context.MaxByteStringLength < value.Length)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadEncodingLimitsExceeded,
                     "MaxByteStringLength {0} < {1}",
-                    m_context.MaxByteStringLength,
+                    Context.MaxByteStringLength,
                     value.Length);
             }
 
@@ -2232,12 +2232,12 @@ namespace Opc.Ua
                 return true;
             }
 
-            if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
+            if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadEncodingLimitsExceeded,
                     "MaxArrayLength {0} < {1}",
-                    m_context.MaxArrayLength,
+                    Context.MaxArrayLength,
                     values.Count);
             }
 
@@ -2258,12 +2258,12 @@ namespace Opc.Ua
                 return true;
             }
 
-            if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Length)
+            if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Length)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadEncodingLimitsExceeded,
                     "MaxArrayLength {0} < {1}",
-                    m_context.MaxArrayLength,
+                    Context.MaxArrayLength,
                     values.Length);
             }
 
@@ -2284,12 +2284,12 @@ namespace Opc.Ua
                 return true;
             }
 
-            if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
+            if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadEncodingLimitsExceeded,
                     "MaxArrayLength {0} < {1} exceeded for array of type {2}",
-                    m_context.MaxArrayLength,
+                    Context.MaxArrayLength,
                     values.Count,
                     typeof(T).Name);
             }
@@ -2513,9 +2513,9 @@ namespace Opc.Ua
                     case BuiltInType.Enumeration:
                     {
                         // Check whether the value to encode is int array.
-                        if (!(valueToEncode is int[] ints))
+                        if (valueToEncode is not int[] ints)
                         {
-                            if (!(valueToEncode is Enum[] enums))
+                            if (valueToEncode is not Enum[] enums)
                             {
                                 throw new ServiceResultException(
                                     StatusCodes.BadEncodingError,
@@ -2577,12 +2577,12 @@ namespace Opc.Ua
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void CheckAndIncrementNestingLevel()
         {
-            if (m_nestingLevel > m_context.MaxEncodingNestingLevels)
+            if (m_nestingLevel > Context.MaxEncodingNestingLevels)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadEncodingLimitsExceeded,
                     "Maximum nesting level of {0} was exceeded",
-                    m_context.MaxEncodingNestingLevels);
+                    Context.MaxEncodingNestingLevels);
             }
             m_nestingLevel++;
         }
@@ -2592,7 +2592,6 @@ namespace Opc.Ua
         private Stream m_ostrm;
         private BinaryWriter m_writer;
         private readonly bool m_leaveOpen;
-        private readonly IServiceMessageContext m_context;
         private ushort[] m_namespaceMappings;
         private ushort[] m_serverMappings;
         private uint m_nestingLevel;

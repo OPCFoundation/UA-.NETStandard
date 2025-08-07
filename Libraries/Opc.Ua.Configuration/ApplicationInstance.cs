@@ -352,11 +352,11 @@ namespace Opc.Ua.Configuration
         /// <summary>
         /// Loads the application configuration.
         /// </summary>
-        public async Task<ApplicationConfiguration> LoadApplicationConfiguration(bool silent)
+        public Task<ApplicationConfiguration> LoadApplicationConfiguration(bool silent)
         {
             string filePath = ApplicationConfiguration.GetFilePathFromAppConfig(ConfigSectionName);
 
-            return await LoadApplicationConfiguration(filePath, silent).ConfigureAwait(false);
+            return LoadApplicationConfiguration(filePath, silent);
         }
 
         /// <summary>
@@ -410,10 +410,10 @@ namespace Opc.Ua.Configuration
         /// Checks for a valid application instance certificate.
         /// </summary>
         /// <param name="silent">if set to <c>true</c> no dialogs will be displayed.</param>
-        public async Task<bool> CheckApplicationInstanceCertificates(
+        public Task<bool> CheckApplicationInstanceCertificates(
             bool silent)
         {
-            return await CheckApplicationInstanceCertificates(silent, CertificateFactory.DefaultLifeTime).ConfigureAwait(false);
+            return CheckApplicationInstanceCertificates(silent, CertificateFactory.DefaultLifeTime);
         }
 
         /// <summary>

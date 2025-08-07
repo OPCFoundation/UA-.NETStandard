@@ -80,7 +80,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Parses a relative path formatted as a string. 
+        /// Parses a relative path formatted as a string.
         /// </summary>
         public static RelativePath Parse(string browsePath, ITypeTable typeTree)
         {
@@ -147,7 +147,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Parses a relative path formatted as a string. 
+        /// Parses a relative path formatted as a string.
         /// </summary>
         public static RelativePath Parse(
             string browsePath,
@@ -226,13 +226,13 @@ namespace Opc.Ua
         /// </summary>
         public RelativePathFormatter(RelativePath relativePath, ITypeTable typeTree)
         {
-            m_elements = new List<Element>();
+            Elements = new List<Element>();
 
             if (relativePath != null)
             {
                 foreach (RelativePathElement element in relativePath.Elements)
                 {
-                    m_elements.Add(new Element(element, typeTree));
+                    Elements.Add(new Element(element, typeTree));
                 }
             }
         }
@@ -242,7 +242,7 @@ namespace Opc.Ua
         /// </summary>
         public RelativePathFormatter()
         {
-            m_elements = new List<Element>();
+            Elements = new List<Element>();
         }
         #endregion
 
@@ -253,7 +253,7 @@ namespace Opc.Ua
         /// <remarks>
         /// The elements in the relative path.
         /// </remarks>
-        public List<Element> Elements => m_elements;
+        public List<Element> Elements { get; }
 
         /// <summary>
         /// Updates the namespace table with URI used in the relative path.
@@ -290,7 +290,7 @@ namespace Opc.Ua
             }
 
             // update each element.
-            foreach (Element element in m_elements)
+            foreach (Element element in Elements)
             {
                 // check reference type name.
                 QualifiedName qname = element.ReferenceTypeName;
@@ -347,7 +347,7 @@ namespace Opc.Ua
             }
 
             // update each element.
-            foreach (Element element in m_elements)
+            foreach (Element element in Elements)
             {
                 QualifiedName qname = element.ReferenceTypeName;
 
@@ -413,7 +413,7 @@ namespace Opc.Ua
             {
                 var path = new StringBuilder();
 
-                foreach (Element element in m_elements)
+                foreach (Element element in Elements)
                 {
                     path.AppendFormat(formatProvider, "{0}", element);
                 }
@@ -481,7 +481,7 @@ namespace Opc.Ua
                 while (reader.Peek() != -1)
                 {
                     var element = Element.Parse(reader);
-                    path.m_elements.Add(element);
+                    path.Elements.Add(element);
                 }
             }
             catch (Exception e)
@@ -519,34 +519,34 @@ namespace Opc.Ua
                     throw new ArgumentNullException(nameof(typeTree));
                 }
 
-                m_referenceTypeName = null;
-                m_targetName = element.TargetName;
-                m_elementType = RelativePathFormatter.ElementType.ForwardReference;
-                m_includeSubtypes = element.IncludeSubtypes;
+                ReferenceTypeName = null;
+                TargetName = element.TargetName;
+                ElementType = RelativePathFormatter.ElementType.ForwardReference;
+                IncludeSubtypes = element.IncludeSubtypes;
 
                 if (!element.IsInverse && element.IncludeSubtypes)
                 {
                     if (element.ReferenceTypeId == ReferenceTypeIds.HierarchicalReferences)
                     {
-                        m_elementType = RelativePathFormatter.ElementType.AnyHierarchical;
+                        ElementType = RelativePathFormatter.ElementType.AnyHierarchical;
                     }
                     else if (element.ReferenceTypeId == ReferenceTypeIds.Aggregates)
                     {
-                        m_elementType = RelativePathFormatter.ElementType.AnyComponent;
+                        ElementType = RelativePathFormatter.ElementType.AnyComponent;
                     }
                     else
                     {
-                        m_referenceTypeName = typeTree.FindReferenceTypeName(element.ReferenceTypeId);
+                        ReferenceTypeName = typeTree.FindReferenceTypeName(element.ReferenceTypeId);
                     }
                 }
                 else
                 {
                     if (element.IsInverse)
                     {
-                        m_elementType = RelativePathFormatter.ElementType.InverseReference;
+                        ElementType = RelativePathFormatter.ElementType.InverseReference;
                     }
 
-                    m_referenceTypeName = typeTree.FindReferenceTypeName(element.ReferenceTypeId);
+                    ReferenceTypeName = typeTree.FindReferenceTypeName(element.ReferenceTypeId);
                 }
             }
 
@@ -555,10 +555,10 @@ namespace Opc.Ua
             /// </summary>
             public Element()
             {
-                m_elementType = RelativePathFormatter.ElementType.AnyHierarchical;
-                m_referenceTypeName = null;
-                m_includeSubtypes = true;
-                m_targetName = null;
+                ElementType = RelativePathFormatter.ElementType.AnyHierarchical;
+                ReferenceTypeName = null;
+                IncludeSubtypes = true;
+                TargetName = null;
             }
             #endregion
 
@@ -566,38 +566,22 @@ namespace Opc.Ua
             /// <summary>
             /// The type of element.
             /// </summary>
-            public ElementType ElementType
-            {
-                get { return m_elementType; }
-                set { m_elementType = value; }
-            }
+            public ElementType ElementType { get; set; }
 
             /// <summary>
             /// The browse name of the reference type to follow.
             /// </summary>
-            public QualifiedName ReferenceTypeName
-            {
-                get { return m_referenceTypeName; }
-                set { m_referenceTypeName = value; }
-            }
+            public QualifiedName ReferenceTypeName { get; set; }
 
             /// <summary>
             /// Whether to include subtypes of the reference type.
             /// </summary>
-            public bool IncludeSubtypes
-            {
-                get { return m_includeSubtypes; }
-                set { m_includeSubtypes = value; }
-            }
+            public bool IncludeSubtypes { get; set; }
 
             /// <summary>
             /// The browse name of the target to find.
             /// </summary>
-            public QualifiedName TargetName
-            {
-                get { return m_targetName; }
-                set { m_targetName = value; }
-            }
+            public QualifiedName TargetName { get; set; }
             #endregion
 
             #region Overridden Members
@@ -624,7 +608,7 @@ namespace Opc.Ua
                     var path = new StringBuilder();
 
                     // write the reference type component.
-                    switch (m_elementType)
+                    switch (ElementType)
                     {
                         case ElementType.AnyHierarchical:
                         {
@@ -641,26 +625,26 @@ namespace Opc.Ua
                         case ElementType.ForwardReference:
                         case ElementType.InverseReference:
                         {
-                            if (m_referenceTypeName != null && !string.IsNullOrEmpty(m_referenceTypeName.Name))
+                            if (ReferenceTypeName != null && !string.IsNullOrEmpty(ReferenceTypeName.Name))
                             {
                                 path.Append('<');
 
-                                if (!m_includeSubtypes)
+                                if (!IncludeSubtypes)
                                 {
                                     path.Append('#');
                                 }
 
-                                if (m_elementType == ElementType.InverseReference)
+                                if (ElementType == ElementType.InverseReference)
                                 {
                                     path.Append('!');
                                 }
 
-                                if (m_referenceTypeName.NamespaceIndex != 0)
+                                if (ReferenceTypeName.NamespaceIndex != 0)
                                 {
-                                    path.AppendFormat(formatProvider, "{0}:", m_referenceTypeName.NamespaceIndex);
+                                    path.AppendFormat(formatProvider, "{0}:", ReferenceTypeName.NamespaceIndex);
                                 }
 
-                                EncodeName(path, m_referenceTypeName.Name);
+                                EncodeName(path, ReferenceTypeName.Name);
                                 path.Append('>');
                             }
 
@@ -669,14 +653,14 @@ namespace Opc.Ua
                     }
 
                     // write the target browse name component.
-                    if (m_targetName != null && !string.IsNullOrEmpty(m_targetName.Name))
+                    if (TargetName != null && !string.IsNullOrEmpty(TargetName.Name))
                     {
-                        if (m_targetName.NamespaceIndex != 0)
+                        if (TargetName.NamespaceIndex != 0)
                         {
-                            path.AppendFormat(formatProvider, "{0}:", m_targetName.NamespaceIndex);
+                            path.AppendFormat(formatProvider, "{0}:", TargetName.NamespaceIndex);
                         }
 
-                        EncodeName(path, m_targetName.Name);
+                        EncodeName(path, TargetName.Name);
                     }
 
                     return path.ToString();
@@ -799,7 +783,7 @@ namespace Opc.Ua
                     }
                     else
                     {
-                        if (next == '<' || next == '/' || next == '.')
+                        if (next is '<' or '/' or '.')
                         {
                             break;
                         }
@@ -817,7 +801,7 @@ namespace Opc.Ua
                         }
                         next = reader.Read();
 
-                        if (next == '!' || next == ':' || next == '<' || next == '>' || next == '/' || next == '.' || next == '#' || next == '&')
+                        if (next is '!' or ':' or '<' or '>' or '/' or '.' or '#' or '&')
                         {
                             buffer.Append((char)next);
                             continue;
@@ -831,7 +815,7 @@ namespace Opc.Ua
                     }
 
                     // check for invalid character.
-                    if (next == '!' || next == ':' || next == '<' || next == '>' || next == '/' || next == '.' || next == '#' || next == '&')
+                    if (next is '!' or ':' or '<' or '>' or '/' or '.' or '#' or '&')
                     {
                         throw new ServiceResultException(
                             StatusCodes.BadSyntaxError,
@@ -897,13 +881,9 @@ namespace Opc.Ua
                     path.Append(name[ii]);
                 }
             }
-            #endregion
 
-            #region Private Fields
-            private ElementType m_elementType;
-            private bool m_includeSubtypes;
-            private QualifiedName m_referenceTypeName;
-            private QualifiedName m_targetName;
+#endregion
+#region Private Fields
             #endregion
         }
         #endregion
@@ -935,10 +915,9 @@ namespace Opc.Ua
             /// </summary>
             InverseReference = 0x04
         }
-        #endregion
 
-        #region Private Fields
-        private readonly List<Element> m_elements;
+#endregion
+#region Private Fields
         #endregion
     }
 }

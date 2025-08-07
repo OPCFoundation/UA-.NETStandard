@@ -63,7 +63,7 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         protected CertificateBuilderBase(X500DistinguishedName subjectName)
         {
-            m_issuerName = m_subjectName = subjectName;
+            m_issuerName = SubjectName = subjectName;
             Initialize();
         }
 
@@ -72,7 +72,7 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         protected CertificateBuilderBase(string subjectName)
         {
-            m_issuerName = m_subjectName = new X500DistinguishedName(subjectName);
+            m_issuerName = SubjectName = new X500DistinguishedName(subjectName);
             Initialize();
         }
 
@@ -91,7 +91,7 @@ namespace Opc.Ua.Security.Certificates
 
         #region IX509Certificate Interface
         /// <inheritdoc/>
-        public X500DistinguishedName SubjectName => m_subjectName;
+        public X500DistinguishedName SubjectName { get; }
 
         /// <inheritdoc/>
         public X500DistinguishedName IssuerName => m_issuerName;
@@ -413,7 +413,6 @@ namespace Opc.Ua.Security.Certificates
         private DateTime m_notBefore;
         private DateTime m_notAfter;
         private HashAlgorithmName m_hashAlgorithmName;
-        private readonly X500DistinguishedName m_subjectName;
         private X500DistinguishedName m_issuerName;
         #endregion
     }

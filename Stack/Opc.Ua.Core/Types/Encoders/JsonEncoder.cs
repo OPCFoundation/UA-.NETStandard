@@ -47,7 +47,6 @@ namespace Opc.Ua
         private Stack<string> m_namespaces;
         private bool m_commaRequired;
         private bool m_inVariantWithEncoding;
-        private readonly IServiceMessageContext m_context;
         private ushort[] m_namespaceMappings;
         private ushort[] m_serverMappings;
         private uint m_nestingLevel;
@@ -125,7 +124,7 @@ namespace Opc.Ua
         {
             Initialize(encoding);
 
-            m_context = context;
+            Context = context;
             m_stream = stream;
             m_leaveOpen = leaveOpen;
             m_topLevelIsArray = topLevelIsArray;
@@ -155,7 +154,7 @@ namespace Opc.Ua
         {
             Initialize(encoding);
 
-            m_context = context;
+            Context = context;
             m_writer = writer;
             m_topLevelIsArray = topLevelIsArray;
 
@@ -183,7 +182,7 @@ namespace Opc.Ua
 
             // defaults for JSON encoding
             EncodingToUse = encoding;
-            if (encoding == JsonEncodingType.Reversible || encoding == JsonEncodingType.NonReversible)
+            if (encoding is JsonEncodingType.Reversible or JsonEncodingType.NonReversible)
             {
                 // defaults for reversible and non reversible JSON encoding
                 // -- encode namespace index for reversible encoding / uri for non reversible
@@ -318,7 +317,7 @@ namespace Opc.Ua
             }
 
             // convert the namespace uri to an index.
-            var typeId = ExpandedNodeId.ToNodeId(message.TypeId, m_context.NamespaceUris);
+            var typeId = ExpandedNodeId.ToNodeId(message.TypeId, Context.NamespaceUris);
 
             // write the type id.
             WriteNodeId("TypeId", typeId);
@@ -336,16 +335,16 @@ namespace Opc.Ua
         {
             m_namespaceMappings = null;
 
-            if (namespaceUris != null && m_context.NamespaceUris != null)
+            if (namespaceUris != null && Context.NamespaceUris != null)
             {
-                m_namespaceMappings = namespaceUris.CreateMapping(m_context.NamespaceUris, false);
+                m_namespaceMappings = namespaceUris.CreateMapping(Context.NamespaceUris, false);
             }
 
             m_serverMappings = null;
 
-            if (serverUris != null && m_context.ServerUris != null)
+            if (serverUris != null && Context.ServerUris != null)
             {
-                m_serverMappings = serverUris.CreateMapping(m_context.ServerUris, false);
+                m_serverMappings = serverUris.CreateMapping(Context.ServerUris, false);
             }
         }
 
@@ -580,7 +579,7 @@ namespace Opc.Ua
         /// <summary>
         /// The message context associated with the encoder.
         /// </summary>
-        public IServiceMessageContext Context => m_context;
+        public IServiceMessageContext Context { get; }
 
         /// <summary>
         /// The Json encoder to encoder namespace URI instead of
@@ -700,7 +699,7 @@ namespace Opc.Ua
         {
             if (lastOffset < index - 2)
             {
-                m_writer.Write(valueSpan.Slice(lastOffset, index - lastOffset));
+                m_writer.Write(valueSpan[lastOffset..index]);
             }
             else
             {
@@ -1119,7 +1118,7 @@ namespace Opc.Ua
         /// </summary>
         public void WriteByteString(string fieldName, byte[] value)
         {
-            WriteByteString(fieldName, value, 0, (value == null) ? 0 : value.Length);
+            WriteByteString(fieldName, value, 0, (value?.Length) ?? 0);
         }
 
         /// <summary>
@@ -1139,7 +1138,7 @@ namespace Opc.Ua
             }
 
             // check the length.
-            if (m_context.MaxByteStringLength > 0 && m_context.MaxByteStringLength < count)
+            if (Context.MaxByteStringLength > 0 && Context.MaxByteStringLength < count)
             {
                 throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
             }
@@ -1172,7 +1171,7 @@ namespace Opc.Ua
             }
 
             // check the length.
-            if (m_context.MaxByteStringLength > 0 && m_context.MaxByteStringLength < value.Length)
+            if (Context.MaxByteStringLength > 0 && Context.MaxByteStringLength < value.Length)
             {
                 throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
             }
@@ -1180,7 +1179,7 @@ namespace Opc.Ua
             if (value.Length > 0)
             {
                 const int maxStackLimit = 1024;
-                int length = ((value.Length + 2) / 3) * 4;
+                int length = (value.Length + 2) / 3 * 4;
                 char[] arrayPool = null;
                 Span<char> chars = length <= maxStackLimit ?
                     stackalloc char[length] :
@@ -1190,7 +1189,7 @@ namespace Opc.Ua
                     bool success = Convert.TryToBase64Chars(value, chars, out int charsWritten, Base64FormattingOptions.None);
                     if (success)
                     {
-                        WriteSimpleFieldAsSpan(fieldName, chars.Slice(0, charsWritten), EscapeOptions.Quotes | EscapeOptions.NoValueEscape);
+                        WriteSimpleFieldAsSpan(fieldName, chars[..charsWritten], EscapeOptions.Quotes | EscapeOptions.NoValueEscape);
                         return;
                     }
 
@@ -1229,12 +1228,12 @@ namespace Opc.Ua
 
             int count = xml.Length;
 
-            if (m_context.MaxStringLength > 0 && m_context.MaxStringLength < count)
+            if (Context.MaxStringLength > 0 && Context.MaxStringLength < count)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadEncodingLimitsExceeded,
                     "MaxStringLength {0} < {1}",
-                    m_context.MaxStringLength,
+                    Context.MaxStringLength,
                     count);
             }
 
@@ -1250,7 +1249,7 @@ namespace Opc.Ua
 
             if ((!UseReversibleEncoding || ForceNamespaceUri) && namespaceIndex > (ForceNamespaceUriForIndex1 ? 0 : 1))
             {
-                string uri = m_context.NamespaceUris.GetString(namespaceIndex);
+                string uri = Context.NamespaceUris.GetString(namespaceIndex);
                 if (!string.IsNullOrEmpty(uri))
                 {
                     WriteSimpleField(fieldName, uri, EscapeOptions.Quotes);
@@ -1341,7 +1340,7 @@ namespace Opc.Ua
 
             if (m_encodeNodeIdAsString)
             {
-                WriteSimpleField(fieldName, isNull ? "" : value.Format(m_context, ForceNamespaceUri), EscapeOptions.Quotes);
+                WriteSimpleField(fieldName, isNull ? "" : value.Format(Context, ForceNamespaceUri), EscapeOptions.Quotes);
                 return;
             }
 
@@ -1378,7 +1377,7 @@ namespace Opc.Ua
 
             if (m_encodeNodeIdAsString)
             {
-                WriteSimpleField(fieldName, isNull ? "" : value.Format(m_context, ForceNamespaceUri), EscapeOptions.Quotes);
+                WriteSimpleField(fieldName, isNull ? "" : value.Format(Context, ForceNamespaceUri), EscapeOptions.Quotes);
                 return;
             }
 
@@ -1400,7 +1399,7 @@ namespace Opc.Ua
                 {
                     if (EncodingToUse == JsonEncodingType.NonReversible)
                     {
-                        string uri = m_context.ServerUris.GetString(serverIndex);
+                        string uri = Context.ServerUris.GetString(serverIndex);
 
                         if (!string.IsNullOrEmpty(uri))
                         {
@@ -1455,7 +1454,7 @@ namespace Opc.Ua
 
             if (m_encodeNodeIdAsString)
             {
-                WriteSimpleField(fieldName, isNull ? "" : value.Format(m_context, ForceNamespaceUri), EscapeOptions.Quotes);
+                WriteSimpleField(fieldName, isNull ? "" : value.Format(Context, ForceNamespaceUri), EscapeOptions.Quotes);
                 return;
             }
 
@@ -1508,9 +1507,9 @@ namespace Opc.Ua
         /// </summary>
         public void WriteVariant(string fieldName, Variant value)
         {
-            bool isNull = (value.TypeInfo == null || value.TypeInfo.BuiltInType == BuiltInType.Null || value.Value == null);
+            bool isNull = value.TypeInfo == null || value.TypeInfo.BuiltInType == BuiltInType.Null || value.Value == null;
 
-            if (EncodingToUse == JsonEncodingType.Compact || EncodingToUse == JsonEncodingType.Verbose)
+            if (EncodingToUse is JsonEncodingType.Compact or JsonEncodingType.Verbose)
             {
                 if (fieldName != null && isNull && EncodingToUse == JsonEncodingType.Compact)
                 {
@@ -1597,7 +1596,7 @@ namespace Opc.Ua
             {
                 CheckAndIncrementNestingLevel();
 
-                bool isNull = (value.TypeInfo == null || value.TypeInfo.BuiltInType == BuiltInType.Null || value.Value == null);
+                bool isNull = value.TypeInfo == null || value.TypeInfo.BuiltInType == BuiltInType.Null || value.Value == null;
 
                 if (!isNull)
                 {
@@ -1659,7 +1658,7 @@ namespace Opc.Ua
             {
                 if (value.WrappedValue.TypeInfo != null && value.WrappedValue.TypeInfo.BuiltInType != BuiltInType.Null)
                 {
-                    if (EncodingToUse != JsonEncodingType.Compact && EncodingToUse != JsonEncodingType.Verbose)
+                    if (EncodingToUse is not JsonEncodingType.Compact and not JsonEncodingType.Verbose)
                     {
                         WriteVariant("Value", value.WrappedValue);
                     }
@@ -1745,7 +1744,7 @@ namespace Opc.Ua
             ExpandedNodeId typeId = (!NodeId.IsNull(value.TypeId)) ? value.TypeId : encodeable?.TypeId ?? NodeId.Null;
             var localTypeId = ExpandedNodeId.ToNodeId(typeId, Context.NamespaceUris);
 
-            if (EncodingToUse == JsonEncodingType.Compact || EncodingToUse == JsonEncodingType.Verbose)
+            if (EncodingToUse is JsonEncodingType.Compact or JsonEncodingType.Verbose)
             {
                 if (encodeable != null)
                 {
@@ -1767,7 +1766,7 @@ namespace Opc.Ua
                         }
 
                         string text = json.ToString(Newtonsoft.Json.Formatting.None);
-                        m_writer.Write(text.Substring(1, text.Length - 2));
+                        m_writer.Write(text[1..^1]);
                     }
                     else if (value.Encoding == ExtensionObjectEncoding.Binary)
                     {
@@ -1816,7 +1815,7 @@ namespace Opc.Ua
                 if (value.Body is JObject json)
                 {
                     string text = json.ToString(Newtonsoft.Json.Formatting.None);
-                    m_writer.Write(text.Substring(1, text.Length - 2));
+                    m_writer.Write(text[1..^1]);
                 }
                 else
                 {
@@ -1899,7 +1898,7 @@ namespace Opc.Ua
             int numeric = Convert.ToInt32(value, CultureInfo.InvariantCulture);
             string numericString = numeric.ToString(CultureInfo.InvariantCulture);
 
-            if (EncodingToUse == JsonEncodingType.Reversible || EncodingToUse == JsonEncodingType.Compact)
+            if (EncodingToUse is JsonEncodingType.Reversible or JsonEncodingType.Compact)
             {
                 WriteSimpleField(fieldName, numericString);
             }
@@ -1923,7 +1922,7 @@ namespace Opc.Ua
         /// </summary>
         public void WriteEnumerated(string fieldName, int numeric)
         {
-            bool writeNumber = EncodingToUse == JsonEncodingType.Reversible || EncodingToUse == JsonEncodingType.Compact;
+            bool writeNumber = EncodingToUse is JsonEncodingType.Reversible or JsonEncodingType.Compact;
             string numericString = numeric.ToString(CultureInfo.InvariantCulture);
             WriteSimpleField(fieldName, numericString, writeNumber ? EscapeOptions.None : EscapeOptions.Quotes);
         }
@@ -1941,7 +1940,7 @@ namespace Opc.Ua
             PushArray(fieldName);
 
             // check the length.
-            if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
+            if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
             {
                 throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
             }
@@ -1967,7 +1966,7 @@ namespace Opc.Ua
             PushArray(fieldName);
 
             // check the length.
-            if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
+            if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
             {
                 throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
             }
@@ -1993,7 +1992,7 @@ namespace Opc.Ua
             PushArray(fieldName);
 
             // check the length.
-            if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
+            if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
             {
                 throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
             }
@@ -2019,7 +2018,7 @@ namespace Opc.Ua
             PushArray(fieldName);
 
             // check the length.
-            if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
+            if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
             {
                 throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
             }
@@ -2045,7 +2044,7 @@ namespace Opc.Ua
             PushArray(fieldName);
 
             // check the length.
-            if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
+            if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
             {
                 throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
             }
@@ -2071,7 +2070,7 @@ namespace Opc.Ua
             PushArray(fieldName);
 
             // check the length.
-            if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
+            if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
             {
                 throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
             }
@@ -2097,7 +2096,7 @@ namespace Opc.Ua
             PushArray(fieldName);
 
             // check the length.
-            if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
+            if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
             {
                 throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
             }
@@ -2123,7 +2122,7 @@ namespace Opc.Ua
             PushArray(fieldName);
 
             // check the length.
-            if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
+            if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
             {
                 throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
             }
@@ -2149,7 +2148,7 @@ namespace Opc.Ua
             PushArray(fieldName);
 
             // check the length.
-            if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
+            if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
             {
                 throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
             }
@@ -2175,7 +2174,7 @@ namespace Opc.Ua
             PushArray(fieldName);
 
             // check the length.
-            if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
+            if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
             {
                 throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
             }
@@ -2201,7 +2200,7 @@ namespace Opc.Ua
             PushArray(fieldName);
 
             // check the length.
-            if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
+            if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
             {
                 throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
             }
@@ -2227,7 +2226,7 @@ namespace Opc.Ua
             PushArray(fieldName);
 
             // check the length.
-            if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
+            if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
             {
                 throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
             }
@@ -2253,7 +2252,7 @@ namespace Opc.Ua
             PushArray(fieldName);
 
             // check the length.
-            if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
+            if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
             {
                 throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
             }
@@ -2286,7 +2285,7 @@ namespace Opc.Ua
             PushArray(fieldName);
 
             // check the length.
-            if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
+            if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
             {
                 throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
             }
@@ -2312,7 +2311,7 @@ namespace Opc.Ua
             PushArray(fieldName);
 
             // check the length.
-            if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
+            if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
             {
                 throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
             }
@@ -2338,7 +2337,7 @@ namespace Opc.Ua
             PushArray(fieldName);
 
             // check the length.
-            if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
+            if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
             {
                 throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
             }
@@ -2364,7 +2363,7 @@ namespace Opc.Ua
             PushArray(fieldName);
 
             // check the length.
-            if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
+            if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
             {
                 throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
             }
@@ -2390,7 +2389,7 @@ namespace Opc.Ua
             PushArray(fieldName);
 
             // check the length.
-            if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
+            if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
             {
                 throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
             }
@@ -2416,7 +2415,7 @@ namespace Opc.Ua
             PushArray(fieldName);
 
             // check the length.
-            if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
+            if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
             {
                 throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
             }
@@ -2442,7 +2441,7 @@ namespace Opc.Ua
             PushArray(fieldName);
 
             // check the length.
-            if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
+            if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
             {
                 throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
             }
@@ -2476,7 +2475,7 @@ namespace Opc.Ua
             PushArray(fieldName);
 
             // check the length.
-            if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
+            if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
             {
                 throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
             }
@@ -2502,7 +2501,7 @@ namespace Opc.Ua
             PushArray(fieldName);
 
             // check the length.
-            if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
+            if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
             {
                 throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
             }
@@ -2528,7 +2527,7 @@ namespace Opc.Ua
             PushArray(fieldName);
 
             // check the length.
-            if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
+            if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
             {
                 throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
             }
@@ -2554,7 +2553,7 @@ namespace Opc.Ua
             PushArray(fieldName);
 
             // check the length.
-            if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
+            if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
             {
                 throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
             }
@@ -2586,7 +2585,7 @@ namespace Opc.Ua
             PushArray(fieldName);
 
             // check the length.
-            if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
+            if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
             {
                 throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
             }
@@ -2612,7 +2611,7 @@ namespace Opc.Ua
             PushArray(fieldName);
 
             // check the length.
-            if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
+            if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
             {
                 throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
             }
@@ -2666,7 +2665,7 @@ namespace Opc.Ua
                 PushArray(fieldName);
 
                 // check the length.
-                if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
+                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
                 {
                     throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
@@ -2694,7 +2693,7 @@ namespace Opc.Ua
             PushArray(fieldName);
 
             // check the length.
-            if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Length)
+            if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Length)
             {
                 throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
             }
@@ -2761,7 +2760,7 @@ namespace Opc.Ua
                     case BuiltInType.DiagnosticInfo: { WriteDiagnosticInfoArray(fieldName, (DiagnosticInfo[])array); return; }
                     case BuiltInType.Enumeration:
                     {
-                        if (!(array is Array enumArray))
+                        if (array is not Array enumArray)
                         {
                             throw ServiceResultException.Create(
                                 StatusCodes.BadEncodingError,
@@ -2821,7 +2820,7 @@ namespace Opc.Ua
             // write matrix.
             else if (valueRank > ValueRanks.OneDimension)
             {
-                if (!(array is Matrix matrix))
+                if (array is not Matrix matrix)
                 {
                     if (array is Array multiArray && multiArray.Rank == valueRank)
                     {
@@ -2838,7 +2837,7 @@ namespace Opc.Ua
 
                 if (matrix != null)
                 {
-                    if (EncodingToUse == JsonEncodingType.Compact || EncodingToUse == JsonEncodingType.Verbose)
+                    if (EncodingToUse is JsonEncodingType.Compact or JsonEncodingType.Verbose)
                     {
                         WriteArrayDimensionMatrix(fieldName, builtInType, matrix);
                     }
@@ -2875,7 +2874,7 @@ namespace Opc.Ua
                 m_commaRequired = false;
                 bool dimensionsInline = false;
 
-                if (mask != DataSetFieldContentMask.None && mask != DataSetFieldContentMask.RawData)
+                if (mask is not DataSetFieldContentMask.None and not DataSetFieldContentMask.RawData)
                 {
                     m_writer.Write(s_leftCurlyBrace);
                     m_writer.Write(s_quotation);
@@ -2891,7 +2890,7 @@ namespace Opc.Ua
 
                 WriteRawValueContents(field, dv, dimensionsInline);
 
-                if (mask != DataSetFieldContentMask.None && mask != DataSetFieldContentMask.RawData)
+                if (mask is not DataSetFieldContentMask.None and not DataSetFieldContentMask.RawData)
                 {
                     if ((mask & DataSetFieldContentMask.StatusCode) != 0 && dv.StatusCode != StatusCodes.Good)
                     {
@@ -3033,7 +3032,7 @@ namespace Opc.Ua
             }
 
             if (field.ValueRank == ValueRanks.Scalar)
-            {    
+            {
                 if (field.BuiltInType == (byte)BuiltInType.ExtensionObject)
                 {
                     WriteRawExtensionObject(value);
@@ -3218,7 +3217,7 @@ namespace Opc.Ua
 
             PushArray(fieldName);
 
-            if (values != null && m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
+            if (values != null && Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
             {
                 throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
             }
@@ -3296,7 +3295,7 @@ namespace Opc.Ua
             {
                 WriteUInt32("Code", value.Code);
 
-                if (EncodingToUse == JsonEncodingType.NonReversible || EncodingToUse == JsonEncodingType.Verbose)
+                if (EncodingToUse is JsonEncodingType.NonReversible or JsonEncodingType.Verbose)
                 {
                     string symbolicId = StatusCode.LookupSymbolicId(value.CodeBits);
 
@@ -3335,7 +3334,7 @@ namespace Opc.Ua
 #if NETSTANDARD2_1_OR_GREATER || NET6_0_OR_GREATER
                 Span<char> valueString = stackalloc char[DateTimeRoundTripKindLength];
                 ConvertUniversalTimeToString(value, valueString, out int charsWritten);
-                WriteSimpleFieldAsSpan(fieldName, valueString.Slice(0, charsWritten), escapeOptions | EscapeOptions.Quotes);
+                WriteSimpleFieldAsSpan(fieldName, valueString[..charsWritten], escapeOptions | EscapeOptions.Quotes);
 #else
                 WriteSimpleField(fieldName, ConvertUniversalTimeToString(value), escapeOptions | EscapeOptions.Quotes);
 #endif
@@ -3362,7 +3361,7 @@ namespace Opc.Ua
         /// </summary>
         private bool ThrowIfCompactOrVerbose(bool value)
         {
-            if (EncodingToUse == JsonEncodingType.Compact || EncodingToUse == JsonEncodingType.Verbose)
+            if (EncodingToUse is JsonEncodingType.Compact or JsonEncodingType.Verbose)
             {
                 throw new NotSupportedException($"This property can not be modified with {EncodingToUse} encoding.");
             }
@@ -3408,7 +3407,7 @@ namespace Opc.Ua
         /// </summary>
         private void WriteDiagnosticInfo(string fieldName, DiagnosticInfo value, int depth)
         {
-            bool isNull = (value == null || value.IsNullDiagnosticInfo);
+            bool isNull = value == null || value.IsNullDiagnosticInfo;
 
             if (fieldName != null && isNull && !IncludeDefaultValues)
             {
@@ -3560,12 +3559,12 @@ namespace Opc.Ua
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void CheckAndIncrementNestingLevel()
         {
-            if (m_nestingLevel > m_context.MaxEncodingNestingLevels)
+            if (m_nestingLevel > Context.MaxEncodingNestingLevels)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadEncodingLimitsExceeded,
                     "Maximum nesting level of {0} was exceeded",
-                    m_context.MaxEncodingNestingLevels);
+                    Context.MaxEncodingNestingLevels);
             }
             m_nestingLevel++;
         }

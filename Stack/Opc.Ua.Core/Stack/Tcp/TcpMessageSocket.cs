@@ -63,7 +63,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public TcpMessageSocketAsyncEventArgs()
         {
-            m_args = new SocketAsyncEventArgs {
+            Args = new SocketAsyncEventArgs {
                 UserToken = this
             };
         }
@@ -72,7 +72,19 @@ namespace Opc.Ua.Bindings
         /// <inheritdoc/>
         public void Dispose()
         {
-            m_args.Dispose();
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        /// <summary>
+        /// Overrideable version of the Dispose method.
+        /// </summary>
+        protected void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                Args.Dispose();
+            }
         }
         #endregion
 
@@ -82,14 +94,14 @@ namespace Opc.Ua.Bindings
         /// <inheritdoc/>
         public void SetBuffer(byte[] buffer, int offset, int count)
         {
-            m_args.SetBuffer(buffer, offset, count);
+            Args.SetBuffer(buffer, offset, count);
         }
 
         /// <inheritdoc/>
-        public bool IsSocketError => m_args.SocketError != SocketError.Success;
+        public bool IsSocketError => Args.SocketError != SocketError.Success;
 
         /// <inheritdoc/>
-        public string SocketErrorString => m_args.SocketError.ToString();
+        public string SocketErrorString => Args.SocketError.ToString();
 
         /// <inheritdoc/>
         public event EventHandler<IMessageSocketAsyncEventArgs> Completed
@@ -97,12 +109,12 @@ namespace Opc.Ua.Bindings
             add
             {
                 m_InternalComplete += value;
-                m_args.Completed += OnComplete;
+                Args.Completed += OnComplete;
             }
             remove
             {
                 m_InternalComplete -= value;
-                m_args.Completed -= OnComplete;
+                Args.Completed -= OnComplete;
             }
         }
 
@@ -118,31 +130,29 @@ namespace Opc.Ua.Bindings
         }
 
         /// <inheritdoc/>
-        public int BytesTransferred => m_args.BytesTransferred;
+        public int BytesTransferred => Args.BytesTransferred;
 
         /// <inheritdoc/>
-        public byte[] Buffer => m_args.Buffer;
+        public byte[] Buffer => Args.Buffer;
 
         /// <inheritdoc/>
         public BufferCollection BufferList
         {
-            get { return m_args.BufferList as BufferCollection; }
-            set { m_args.BufferList = value; }
+            get { return Args.BufferList as BufferCollection; }
+            set { Args.BufferList = value; }
         }
 
         /// <summary>
         /// The socket event args.
         /// </summary>
-        public SocketAsyncEventArgs Args => m_args;
-
-        private readonly SocketAsyncEventArgs m_args;
+        public SocketAsyncEventArgs Args { get; }
         private event EventHandler<IMessageSocketAsyncEventArgs> m_InternalComplete;
     }
 
     /// <summary>
     /// Handles async event callbacks only for the ConnectAsync method
     /// </summary>
-    public class TcpMessageSocketConnectAsyncEventArgs : IMessageSocketAsyncEventArgs
+    public sealed class TcpMessageSocketConnectAsyncEventArgs : IMessageSocketAsyncEventArgs
     {
         /// <summary>
         /// Create the async event args for a TCP message socket.
@@ -368,14 +378,14 @@ namespace Opc.Ua.Bindings
 
             // Get port
             int port = endpointUrl.Port;
-            if (port <= 0 || port > ushort.MaxValue)
+            if (port is <= 0 or > ushort.MaxValue)
             {
                 port = Utils.UaTcpDefaultPort;
             }
 
             var endpoint = new DnsEndPoint(endpointUrl.DnsSafeHost, port);
             error = BeginConnect(endpoint, doCallback);
-            if (error == SocketError.InProgress || error == SocketError.Success)
+            if (error is SocketError.InProgress or SocketError.Success)
             {
                 return true;
             }
@@ -433,7 +443,7 @@ namespace Opc.Ua.Bindings
                         m_receiveBuffer = m_bufferManager.TakeBuffer(m_receiveBufferSize, "ReadNextMessage");
                     }
 
-                    // read the first 8 bytes of the message which contains the message size.          
+                    // read the first 8 bytes of the message which contains the message size.
                     m_bytesReceived = 0;
                     m_bytesToReceive = TcpMessageLimits.MessageTypeAndSize;
                     m_incomingMessageSize = -1;
@@ -765,7 +775,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public bool SendAsync(IMessageSocketAsyncEventArgs args)
         {
-            if (!(args is TcpMessageSocketAsyncEventArgs eventArgs))
+            if (args is not TcpMessageSocketAsyncEventArgs eventArgs)
             {
                 throw new ArgumentNullException(nameof(args));
             }

@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -53,7 +53,7 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// Create new instance of <see cref="UaDataSetMessage"/>
         /// </summary>
-        public UaDataSetMessage()
+        protected UaDataSetMessage()
         {
             DecodeErrorReason = DataSetDecodeErrorReason.NoError;
             Timestamp = DateTime.UtcNow;
@@ -77,7 +77,7 @@ namespace Opc.Ua.PubSub
 
         /// <summary>
         /// Get DataSetFieldContentMask
-        /// This DataType defines flags to include DataSet field related information like status and 
+        /// This DataType defines flags to include DataSet field related information like status and
         /// timestamp in addition to the value in the DataSetMessage.
         /// </summary>
         public DataSetFieldContentMask FieldContentMask { get; protected set; }
@@ -122,7 +122,7 @@ namespace Opc.Ua.PubSub
 
         #region Methods
         /// <summary>
-        /// Set DataSetFieldContentMask 
+        /// Set DataSetFieldContentMask
         /// </summary>
         /// <param name="fieldContentMask">The new <see cref="DataSetFieldContentMask"/> for this dataset</param>
         public abstract void SetFieldContentMask(DataSetFieldContentMask fieldContentMask);

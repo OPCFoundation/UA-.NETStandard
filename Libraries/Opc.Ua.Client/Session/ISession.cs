@@ -326,7 +326,7 @@ namespace Opc.Ua.Client
         /// </summary>
         void Reconnect(ITransportChannel channel);
 
-#if (CLIENT_ASYNC)
+#if CLIENT_ASYNC
         /// <summary>
         /// Reconnects to the server after a network failure.
         /// </summary>
@@ -415,7 +415,7 @@ namespace Opc.Ua.Client
         /// </remarks>
         void FetchTypeTree(ExpandedNodeIdCollection typeIds);
 
-#if (CLIENT_ASYNC)
+#if CLIENT_ASYNC
         /// <summary>
         /// Updates the local copy of the server's namespace uri and server uri tables.
         /// </summary>
@@ -536,7 +536,7 @@ namespace Opc.Ua.Client
         /// <param name="errors">The errors reported by the server.</param>
         void FetchReferences(IList<NodeId> nodeIds, out IList<ReferenceDescriptionCollection> referenceDescriptions, out IList<ServiceResult> errors);
 
-#if (CLIENT_ASYNC)
+#if CLIENT_ASYNC
 
         /// <summary>
         /// Reads a byte string which is too large for the (server side) encoder to handle.
@@ -631,7 +631,7 @@ namespace Opc.Ua.Client
         /// </summary>
         void ReadDisplayName(IList<NodeId> nodeIds, out IList<string> displayNames, out IList<ServiceResult> errors);
 
-#if (CLIENT_ASYNC)
+#if CLIENT_ASYNC
         /// <summary>
         /// Establishes a session with the server.
         /// </summary>
@@ -749,7 +749,7 @@ namespace Opc.Ua.Client
         /// </summary>
         StatusCode Close(int timeout, bool closeChannel);
 
-#if (CLIENT_ASYNC)
+#if CLIENT_ASYNC
         /// <summary>
         /// Close the session with the server and optionally closes the channel.
         /// </summary>
@@ -808,7 +808,7 @@ namespace Opc.Ua.Client
         /// <param name="subscription">The subscription to remove.</param>
         bool RemoveTransferredSubscription(Subscription subscription);
 
-#if (CLIENT_ASYNC)
+#if CLIENT_ASYNC
         /// <summary>
         /// Removes a subscription from the session.
         /// </summary>
@@ -954,7 +954,7 @@ namespace Opc.Ua.Client
             out IList<ServiceResult> errors
             );
 
-#if (CLIENT_ASYNC)
+#if CLIENT_ASYNC
 
         /// <summary>
         /// Execute BrowseAsync and, if necessary, BrowseNextAsync, in one service call.

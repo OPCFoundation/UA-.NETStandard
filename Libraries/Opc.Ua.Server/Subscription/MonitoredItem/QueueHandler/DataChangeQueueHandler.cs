@@ -333,13 +333,22 @@ namespace Opc.Ua.Server
                 error = copy;
             }
         }
-        /// <summary>
-        /// Dispose the queue
-        /// </summary>
+        /// <inheritdoc/>
         public void Dispose()
         {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
 
-            Utils.SilentDispose(m_dataValueQueue);
+        /// <summary>
+        /// Overridable method to dispose of resources.
+        /// </summary>
+        protected virtual void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                Utils.SilentDispose(m_dataValueQueue);
+            }
         }
 
         private readonly IDataChangeMonitoredItemQueue m_dataValueQueue;

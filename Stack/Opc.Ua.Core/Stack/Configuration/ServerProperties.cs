@@ -25,14 +25,14 @@ namespace Opc.Ua
         /// </summary>
         public ServerProperties()
         {
-            m_productUri = string.Empty;
-            m_manufacturerName = string.Empty;
-            m_productName = string.Empty;
-            m_softwareVersion = string.Empty;
-            m_buildNumber = string.Empty;
-            m_buildDate = DateTime.MinValue;
-            m_datatypeAssemblies = new StringCollection();
-            m_softwareCertificates = new SignedSoftwareCertificateCollection();
+            ProductUri = string.Empty;
+            ManufacturerName = string.Empty;
+            ProductName = string.Empty;
+            SoftwareVersion = string.Empty;
+            BuildNumber = string.Empty;
+            BuildDate = DateTime.MinValue;
+            DatatypeAssemblies = new StringCollection();
+            SoftwareCertificates = new SignedSoftwareCertificateCollection();
         }
         #endregion
 
@@ -40,83 +40,45 @@ namespace Opc.Ua
         /// <summary>
         /// The unique identifier for the product.
         /// </summary>
-        public string ProductUri
-        {
-            get { return m_productUri; }
-            set { m_productUri = value; }
-        }
+        public string ProductUri { get; set; }
 
         /// <summary>
         /// The name of the product
         /// </summary>
-        public string ProductName
-        {
-            get { return m_productName; }
-            set { m_productName = value; }
-        }
+        public string ProductName { get; set; }
 
         /// <summary>
         /// The name of the manufacturer
         /// </summary>
-        public string ManufacturerName
-        {
-            get { return m_manufacturerName; }
-            set { m_manufacturerName = value; }
-        }
+        public string ManufacturerName { get; set; }
 
         /// <summary>
         /// The software version for the application
         /// </summary>
-        public string SoftwareVersion
-        {
-            get { return m_softwareVersion; }
-            set { m_softwareVersion = value; }
-        }
+        public string SoftwareVersion { get; set; }
 
         /// <summary>
         /// The build number for the application
         /// </summary>
-        public string BuildNumber
-        {
-            get { return m_buildNumber; }
-            set { m_buildNumber = value; }
-        }
+        public string BuildNumber { get; set; }
 
         /// <summary>
         /// When the application was built.
         /// </summary>
-        public DateTime BuildDate
-        {
-            get { return m_buildDate; }
-            set { m_buildDate = value; }
-        }
+        public DateTime BuildDate { get; set; }
 
         /// <summary>
         /// The assemblies that contain encodeable types that could be uses a variable values.
         /// </summary>
-        public StringCollection DatatypeAssemblies
-        {
-            get { return m_datatypeAssemblies; }
-        }
+        public StringCollection DatatypeAssemblies { get; }
 
         /// <summary>
         /// The software certificates granted to the server.
         /// </summary>
-        public SignedSoftwareCertificateCollection SoftwareCertificates
-        {
-            get { return m_softwareCertificates; }
-        }
-        #endregion
+        public SignedSoftwareCertificateCollection SoftwareCertificates { get; }
 
-        #region Private Members
-        private string m_productUri;
-        private string m_productName;
-        private string m_manufacturerName;
-        private string m_softwareVersion;
-        private string m_buildNumber;
-        private DateTime m_buildDate;
-        private readonly StringCollection m_datatypeAssemblies;
-        private readonly SignedSoftwareCertificateCollection m_softwareCertificates;
+#endregion
+#region Private Members
         #endregion
     }
 }

@@ -21,7 +21,7 @@ namespace Opc.Ua
     /// </summary>
     /// <remarks>
     /// <para>
-    /// The DiagnosticInfo BinaryEncoding is defined in <b>Part 6 - Mappings, Section 6.2.2.13</b>, titled 
+    /// The DiagnosticInfo BinaryEncoding is defined in <b>Part 6 - Mappings, Section 6.2.2.13</b>, titled
     /// <b>Mappings</b>.
     /// <br/></para>
     /// <para>
@@ -69,16 +69,16 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(value));
             }
 
-            m_symbolicId = value.m_symbolicId;
-            m_namespaceUri = value.m_namespaceUri;
-            m_locale = value.m_locale;
-            m_localizedText = value.m_localizedText;
-            m_additionalInfo = value.m_additionalInfo;
-            m_innerStatusCode = value.m_innerStatusCode;
+            SymbolicId = value.SymbolicId;
+            NamespaceUri = value.NamespaceUri;
+            Locale = value.Locale;
+            LocalizedText = value.LocalizedText;
+            AdditionalInfo = value.AdditionalInfo;
+            InnerStatusCode = value.InnerStatusCode;
 
-            if (value.m_innerDiagnosticInfo != null && depth < MaxInnerDepth)
+            if (value.InnerDiagnosticInfo != null && depth < MaxInnerDepth)
             {
-                m_innerDiagnosticInfo = new DiagnosticInfo(value.m_innerDiagnosticInfo, depth + 1);
+                InnerDiagnosticInfo = new DiagnosticInfo(value.InnerDiagnosticInfo, depth + 1);
             }
         }
 
@@ -97,11 +97,11 @@ namespace Opc.Ua
             int localizedText,
             string additionalInfo)
         {
-            m_symbolicId = symbolicId;
-            m_namespaceUri = namespaceUri;
-            m_locale = locale;
-            m_localizedText = localizedText;
-            m_additionalInfo = additionalInfo;
+            SymbolicId = symbolicId;
+            NamespaceUri = namespaceUri;
+            Locale = locale;
+            LocalizedText = localizedText;
+            AdditionalInfo = additionalInfo;
         }
 
         /// <summary>
@@ -192,13 +192,13 @@ namespace Opc.Ua
         /// </remarks>
         private void Initialize()
         {
-            m_symbolicId = -1;
-            m_namespaceUri = -1;
-            m_locale = -1;
-            m_localizedText = -1;
-            m_additionalInfo = null;
-            m_innerStatusCode = StatusCodes.Good;
-            m_innerDiagnosticInfo = null;
+            SymbolicId = -1;
+            NamespaceUri = -1;
+            Locale = -1;
+            LocalizedText = -1;
+            AdditionalInfo = null;
+            InnerStatusCode = StatusCodes.Good;
+            InnerDiagnosticInfo = null;
         }
 
         /// <summary>
@@ -228,21 +228,21 @@ namespace Opc.Ua
 
                 if (!string.IsNullOrEmpty(symbolicId))
                 {
-                    m_symbolicId = stringTable.GetIndex(result.SymbolicId);
+                    SymbolicId = stringTable.GetIndex(result.SymbolicId);
 
-                    if (m_symbolicId == -1)
+                    if (SymbolicId == -1)
                     {
-                        m_symbolicId = stringTable.Count;
+                        SymbolicId = stringTable.Count;
                         stringTable.Append(symbolicId);
                     }
 
                     if (!string.IsNullOrEmpty(namespaceUri))
                     {
-                        m_namespaceUri = stringTable.GetIndex(namespaceUri);
+                        NamespaceUri = stringTable.GetIndex(namespaceUri);
 
-                        if (m_namespaceUri == -1)
+                        if (NamespaceUri == -1)
                         {
-                            m_namespaceUri = stringTable.Count;
+                            NamespaceUri = stringTable.Count;
                             stringTable.Append(namespaceUri);
                         }
                     }
@@ -255,20 +255,20 @@ namespace Opc.Ua
                 {
                     if (!string.IsNullOrEmpty(result.LocalizedText.Locale))
                     {
-                        m_locale = stringTable.GetIndex(result.LocalizedText.Locale);
+                        Locale = stringTable.GetIndex(result.LocalizedText.Locale);
 
-                        if (m_locale == -1)
+                        if (Locale == -1)
                         {
-                            m_locale = stringTable.Count;
+                            Locale = stringTable.Count;
                             stringTable.Append(result.LocalizedText.Locale);
                         }
                     }
 
-                    m_localizedText = stringTable.GetIndex(result.LocalizedText.Text);
+                    LocalizedText = stringTable.GetIndex(result.LocalizedText.Text);
 
-                    if (m_localizedText == -1)
+                    if (LocalizedText == -1)
                     {
-                        m_localizedText = stringTable.Count;
+                        LocalizedText = stringTable.Count;
                         stringTable.Append(result.LocalizedText.Text);
                     }
                 }
@@ -277,14 +277,14 @@ namespace Opc.Ua
             if ((DiagnosticsMasks.ServiceAdditionalInfo & diagnosticsMask) != 0 &&
                 (DiagnosticsMasks.UserPermissionAdditionalInfo & diagnosticsMask) != 0)
             {
-                m_additionalInfo = result.AdditionalInfo;
+                AdditionalInfo = result.AdditionalInfo;
             }
 
             if (result.InnerResult != null)
             {
                 if ((DiagnosticsMasks.ServiceInnerStatusCode & diagnosticsMask) != 0)
                 {
-                    m_innerStatusCode = result.InnerResult.StatusCode;
+                    InnerStatusCode = result.InnerResult.StatusCode;
                 }
 
                 // recursively append the inner diagnostics.
@@ -292,7 +292,7 @@ namespace Opc.Ua
                 {
                     if (depth < MaxInnerDepth)
                     {
-                        m_innerDiagnosticInfo = new DiagnosticInfo(
+                        InnerDiagnosticInfo = new DiagnosticInfo(
                             result.InnerResult,
                             diagnosticsMask,
                             true,
@@ -315,71 +315,43 @@ namespace Opc.Ua
         /// The index of the symbolic id in the string table.
         /// </summary>
         [DataMember(Order = 1, IsRequired = false)]
-        public int SymbolicId
-        {
-            get { return m_symbolicId; }
-            set { m_symbolicId = value; }
-        }
+        public int SymbolicId { get; set; }
 
         /// <summary>
         /// The index of the namespace uri in the string table.
         /// </summary>
         [DataMember(Order = 2, IsRequired = false)]
-        public int NamespaceUri
-        {
-            get { return m_namespaceUri; }
-            set { m_namespaceUri = value; }
-        }
+        public int NamespaceUri { get; set; }
 
         /// <summary>
         /// The index of the locale associated with the localized text.
         /// </summary>
         [DataMember(Order = 3, IsRequired = false)]
-        public int Locale
-        {
-            get { return m_locale; }
-            set { m_locale = value; }
-        }
+        public int Locale { get; set; }
 
         /// <summary>
         /// The index of the localized text in the string table.
         /// </summary>
         [DataMember(Order = 4, IsRequired = false)]
-        public int LocalizedText
-        {
-            get { return m_localizedText; }
-            set { m_localizedText = value; }
-        }
+        public int LocalizedText { get; set; }
 
         /// <summary>
         /// The additional debugging or trace information.
         /// </summary>
         [DataMember(Order = 5, IsRequired = false, EmitDefaultValue = false)]
-        public string AdditionalInfo
-        {
-            get { return m_additionalInfo; }
-            set { m_additionalInfo = value; }
-        }
+        public string AdditionalInfo { get; set; }
 
         /// <summary>
         /// The status code returned from an underlying system.
         /// </summary>
         [DataMember(Order = 6, IsRequired = false)]
-        public StatusCode InnerStatusCode
-        {
-            get { return m_innerStatusCode; }
-            set { m_innerStatusCode = value; }
-        }
+        public StatusCode InnerStatusCode { get; set; }
 
         /// <summary>
         /// The diagnostic info returned from a underlying system.
         /// </summary>
         [DataMember(Order = 7, IsRequired = false, EmitDefaultValue = false)]
-        public DiagnosticInfo InnerDiagnosticInfo
-        {
-            get { return m_innerDiagnosticInfo; }
-            set { m_innerDiagnosticInfo = value; }
-        }
+        public DiagnosticInfo InnerDiagnosticInfo { get; set; }
 
         /// <summary>
         /// Whether the object represents a Null DiagnosticInfo.
@@ -388,13 +360,13 @@ namespace Opc.Ua
         {
             get
             {
-                if (m_symbolicId == -1 &&
-                    m_locale == -1 &&
-                    m_localizedText == -1 &&
-                    m_namespaceUri == -1 &&
-                    m_additionalInfo == null &&
-                    m_innerDiagnosticInfo == null &&
-                    m_innerStatusCode == StatusCodes.Good)
+                if (SymbolicId == -1 &&
+                    Locale == -1 &&
+                    LocalizedText == -1 &&
+                    NamespaceUri == -1 &&
+                    AdditionalInfo == null &&
+                    InnerDiagnosticInfo == null &&
+                    InnerStatusCode == StatusCodes.Good)
                 {
                     return true;
                 }
@@ -448,7 +420,7 @@ namespace Opc.Ua
         {
             if (format == null)
             {
-                return Utils.Format("{0}:{1}:{2}:{3}", m_symbolicId, m_namespaceUri, m_locale, m_localizedText);
+                return Utils.Format("{0}:{1}:{2}:{3}", SymbolicId, NamespaceUri, Locale, LocalizedText);
             }
 
             throw new FormatException(Utils.Format("Invalid format string: '{0}'.", format));
@@ -478,21 +450,21 @@ namespace Opc.Ua
         /// </summary>
         private void GetHashCode(ref HashCode hash, int depth)
         {
-            hash.Add(this.m_symbolicId);
-            hash.Add(this.m_namespaceUri);
-            hash.Add(this.m_locale);
-            hash.Add(this.m_localizedText);
+            hash.Add(this.SymbolicId);
+            hash.Add(this.NamespaceUri);
+            hash.Add(this.Locale);
+            hash.Add(this.LocalizedText);
 
-            if (this.m_additionalInfo != null)
+            if (this.AdditionalInfo != null)
             {
-                hash.Add(this.m_additionalInfo);
+                hash.Add(this.AdditionalInfo);
             }
 
-            hash.Add(this.m_innerStatusCode);
+            hash.Add(this.InnerStatusCode);
 
-            if (this.m_innerDiagnosticInfo != null && depth < MaxInnerDepth)
+            if (this.InnerDiagnosticInfo != null && depth < MaxInnerDepth)
             {
-                this.m_innerDiagnosticInfo.GetHashCode(ref hash, depth + 1);
+                this.InnerDiagnosticInfo.GetHashCode(ref hash, depth + 1);
             }
         }
 
@@ -516,41 +488,41 @@ namespace Opc.Ua
             if (obj is DiagnosticInfo value)
             {
 
-                if (this.m_symbolicId != value.m_symbolicId)
+                if (this.SymbolicId != value.SymbolicId)
                 {
                     return false;
                 }
 
-                if (this.m_namespaceUri != value.m_namespaceUri)
+                if (this.NamespaceUri != value.NamespaceUri)
                 {
                     return false;
                 }
 
-                if (this.m_locale != value.m_locale)
+                if (this.Locale != value.Locale)
                 {
                     return false;
                 }
 
-                if (this.m_localizedText != value.m_localizedText)
+                if (this.LocalizedText != value.LocalizedText)
                 {
                     return false;
                 }
 
-                if (this.m_additionalInfo != value.m_additionalInfo)
+                if (this.AdditionalInfo != value.AdditionalInfo)
                 {
                     return false;
                 }
 
-                if (this.m_innerStatusCode != value.m_innerStatusCode)
+                if (this.InnerStatusCode != value.InnerStatusCode)
                 {
                     return false;
                 }
 
-                if (this.m_innerDiagnosticInfo != null)
+                if (this.InnerDiagnosticInfo != null)
                 {
                     if (depth < MaxInnerDepth)
                     {
-                        return this.m_innerDiagnosticInfo.Equals(value.m_innerDiagnosticInfo, depth + 1);
+                        return this.InnerDiagnosticInfo.Equals(value.InnerDiagnosticInfo, depth + 1);
                     }
                     else
                     {
@@ -559,21 +531,14 @@ namespace Opc.Ua
                     }
                 }
 
-                return value.m_innerDiagnosticInfo == null;
+                return value.InnerDiagnosticInfo == null;
             }
 
             return false;
         }
-        #endregion
 
-        #region Private Members
-        private int m_symbolicId;
-        private int m_namespaceUri;
-        private int m_locale;
-        private int m_localizedText;
-        private string m_additionalInfo;
-        private StatusCode m_innerStatusCode;
-        private DiagnosticInfo m_innerDiagnosticInfo;
+#endregion
+#region Private Members
         #endregion
     }
 

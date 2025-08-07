@@ -1094,7 +1094,7 @@ namespace Opc.Ua.Server
 
                 if (values[8] != null && values[9] != null)
                 {
-                    metadata.Executable = (((bool)values[8]) && ((bool)values[9]));
+                    metadata.Executable = ((bool)values[8]) && ((bool)values[9]);
                 }
 
                 if (values[10] != null)
@@ -1499,7 +1499,7 @@ namespace Opc.Ua.Server
                     null,
                     relativePath.ReferenceTypeId,
                     relativePath.IncludeSubtypes,
-                    (relativePath.IsInverse) ? BrowseDirection.Inverse : BrowseDirection.Forward,
+                    relativePath.IsInverse ? BrowseDirection.Inverse : BrowseDirection.Forward,
                     relativePath.TargetName,
                     null,
                     false);

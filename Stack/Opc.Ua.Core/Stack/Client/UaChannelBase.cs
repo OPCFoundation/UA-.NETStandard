@@ -42,6 +42,7 @@ namespace Opc.Ua
         public void Dispose()
         {
             Dispose(true);
+            GC.SuppressFinalize(this);
         }
 
         /// <summary>
@@ -970,14 +971,14 @@ namespace Opc.Ua
                 object callbackData)
                 : base(callback, callbackData, 0)
             {
-                m_channel = channel;
+                Channel = channel;
             }
 
             /// <summary>
             /// Gets the wrapped channel.
             /// </summary>
             /// <value>The wrapped channel.</value>
-            public TChannel Channel => m_channel;
+            public TChannel Channel { get; }
 
             /// <summary>
             /// Called when asynchronous operation completes.
@@ -1012,7 +1013,7 @@ namespace Opc.Ua
             /// <returns>The oject that </returns>
             public static new UaChannelAsyncResult WaitForComplete(IAsyncResult ar)
             {
-                if (!(ar is UaChannelAsyncResult asyncResult))
+                if (ar is not UaChannelAsyncResult asyncResult)
                 {
                     throw new ArgumentException("End called with an invalid IAsyncResult object.", nameof(ar));
                 }
@@ -1024,8 +1025,6 @@ namespace Opc.Ua
 
                 return asyncResult;
             }
-
-            private readonly TChannel m_channel;
         }
         #endregion
 

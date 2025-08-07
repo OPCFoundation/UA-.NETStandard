@@ -586,7 +586,7 @@ namespace Opc.Ua.Client.Tests
                     ReferenceDescriptionCollection desiredReferences;
 
                     Session.Browse(null, null,
-                        ((NodeId)reference.NodeId),
+                        (NodeId)reference.NodeId,
                         0u, BrowseDirection.Forward,
                         ReferenceTypeIds.HierarchicalReferences,
                         true, 0,

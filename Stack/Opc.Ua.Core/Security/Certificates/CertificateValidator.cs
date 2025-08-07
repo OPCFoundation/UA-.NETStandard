@@ -943,7 +943,7 @@ namespace Opc.Ua
         /// <summary>
         /// Returns true if the certificate matches the criteria.
         /// </summary>
-        private bool Match(
+        private static bool Match(
             X509Certificate2 certificate,
             X500DistinguishedName subjectName,
             string serialNumber,
@@ -1214,12 +1214,7 @@ namespace Opc.Ua
                 chain.Build(certificate);
 
                 // check the chain results.
-                CertificateIdentifier target = trustedCertificate;
-
-                if (target == null)
-                {
-                    target = new CertificateIdentifier(certificate);
-                }
+                CertificateIdentifier target = trustedCertificate ?? new CertificateIdentifier(certificate);
 
                 foreach (X509ChainStatus chainStatus in chain.ChainStatus)
                 {
@@ -1317,7 +1312,7 @@ namespace Opc.Ua
                     {
                         foreach (X509ChainStatus status in element.ChainElementStatus)
                         {
-                            ServiceResult result = CheckChainStatus(status, target, issuer, (ii != 0));
+                            ServiceResult result = CheckChainStatus(status, target, issuer, ii != 0);
                             if (ServiceResult.IsBad(result))
                             {
                                 sresult = new ServiceResult(result, sresult);
@@ -1386,7 +1381,7 @@ namespace Opc.Ua
             }
 
             Uri endpointUrl = endpoint?.EndpointUrl;
-            if (endpointUrl != null && !FindDomain(certificate, endpointUrl))
+            if (endpointUrl != null && !CertificateValidator.FindDomain(certificate, endpointUrl))
             {
                 string message = Utils.Format(
                     "The domain '{0}' is not listed in the server certificate.",
@@ -1490,7 +1485,7 @@ namespace Opc.Ua
                     else if (kvp.Value.StatusCode == StatusCodes.BadCertificateIssuerRevocationUnknown)
                     {
                         //p4List[kvp.Key] = kvp.Value;
-                        string message = CertificateMessage("Certificate issuer revocation list not found.", kvp.Key);
+                        string message = CertificateValidator.CertificateMessage("Certificate issuer revocation list not found.", kvp.Key);
                         sresult = new ServiceResult(StatusCodes.BadCertificateIssuerRevocationUnknown,
                             null, null, message, null, sresult);
                     }
@@ -1498,7 +1493,7 @@ namespace Opc.Ua
                     {
                         if (StatusCode.IsBad(kvp.Value.StatusCode))
                         {
-                            string message = CertificateMessage("Unknown error while trying to determine the revocation status.", kvp.Key);
+                            string message = CertificateValidator.CertificateMessage("Unknown error while trying to determine the revocation status.", kvp.Key);
                             sresult = new ServiceResult(kvp.Value.StatusCode,
                                 null, null, message, null, sresult);
                         }
@@ -1510,7 +1505,7 @@ namespace Opc.Ua
             {
                 foreach (KeyValuePair<X509Certificate2, ServiceResultException> kvp in p3List)
                 {
-                    string message = CertificateMessage("Certificate revocation list not found.", kvp.Key);
+                    string message = CertificateValidator.CertificateMessage("Certificate revocation list not found.", kvp.Key);
                     sresult = new ServiceResult(StatusCodes.BadCertificateRevocationUnknown,
                         null, null, message, null, sresult);
                 }
@@ -1519,7 +1514,7 @@ namespace Opc.Ua
             {
                 foreach (KeyValuePair<X509Certificate2, ServiceResultException> kvp in p2List)
                 {
-                    string message = CertificateMessage("Certificate issuer is revoked.", kvp.Key);
+                    string message = CertificateValidator.CertificateMessage("Certificate issuer is revoked.", kvp.Key);
                     sresult = new ServiceResult(StatusCodes.BadCertificateIssuerRevoked,
                         null, null, message, null, sresult);
                 }
@@ -1528,7 +1523,7 @@ namespace Opc.Ua
             {
                 foreach (KeyValuePair<X509Certificate2, ServiceResultException> kvp in p1List)
                 {
-                    string message = CertificateMessage("Certificate is revoked.", kvp.Key);
+                    string message = CertificateValidator.CertificateMessage("Certificate is revoked.", kvp.Key);
                     sresult = new ServiceResult(StatusCodes.BadCertificateRevoked,
                         null, null, message, null, sresult);
                 }
@@ -1577,7 +1572,7 @@ namespace Opc.Ua
             }
 
             Uri endpointUrl = endpoint?.EndpointUrl;
-            if (endpointUrl != null && !FindDomain(serverCertificate, endpointUrl))
+            if (endpointUrl != null && !CertificateValidator.FindDomain(serverCertificate, endpointUrl))
             {
                 bool accept = false;
                 const string message = "The domain '{0}' is not listed in the server certificate.";
@@ -1678,7 +1673,7 @@ namespace Opc.Ua
                     }
 
                     return ServiceResult.Create(
-                        (isIssuer) ? StatusCodes.BadCertificateIssuerRevocationUnknown : StatusCodes.BadCertificateRevocationUnknown,
+                        isIssuer ? StatusCodes.BadCertificateIssuerRevocationUnknown : StatusCodes.BadCertificateRevocationUnknown,
                         "Certificate revocation status cannot be verified. {0}: {1}",
                         status.Status,
                         status.StatusInformation);
@@ -1687,7 +1682,7 @@ namespace Opc.Ua
                 case X509ChainStatusFlags.Revoked:
                 {
                     return ServiceResult.Create(
-                        (isIssuer) ? StatusCodes.BadCertificateIssuerRevoked : StatusCodes.BadCertificateRevoked,
+                        isIssuer ? StatusCodes.BadCertificateIssuerRevoked : StatusCodes.BadCertificateRevoked,
                         "Certificate has been revoked. {0}: {1}",
                         status.Status,
                         status.StatusInformation);
@@ -1721,7 +1716,7 @@ namespace Opc.Ua
                     }
 
                     return ServiceResult.Create(
-                        (isIssuer) ? StatusCodes.BadCertificateIssuerTimeInvalid : StatusCodes.BadCertificateTimeInvalid,
+                        isIssuer ? StatusCodes.BadCertificateIssuerTimeInvalid : StatusCodes.BadCertificateTimeInvalid,
                         "Certificate has expired or is not yet valid. {0}: {1}",
                         status.Status,
                         status.StatusInformation);
@@ -1745,18 +1740,18 @@ namespace Opc.Ua
         /// </summary>
         private static bool IsSHA1SignatureAlgorithm(Oid oid)
         {
-            return oid.Value == "1.3.14.3.2.29" ||     // sha1RSA
-                oid.Value == "1.2.840.10040.4.3" ||    // sha1DSA
-                oid.Value == Oids.ECDsaWithSha1 ||     // sha1ECDSA
-                oid.Value == "1.2.840.113549.1.1.5" || // sha1RSA
-                oid.Value == "1.3.14.3.2.13" ||        // sha1DSA
-                oid.Value == "1.3.14.3.2.27";          // dsaSHA1
+            return oid.Value is "1.3.14.3.2.29" or     // sha1RSA
+                "1.2.840.10040.4.3" or    // sha1DSA
+                Oids.ECDsaWithSha1 or     // sha1ECDSA
+                "1.2.840.113549.1.1.5" or // sha1RSA
+                "1.3.14.3.2.13" or        // sha1DSA
+                "1.3.14.3.2.27";          // dsaSHA1
         }
 
         /// <summary>
         /// Returns a certificate information message.
         /// </summary>
-        private string CertificateMessage(string error, X509Certificate2 certificate)
+        private static string CertificateMessage(string error, X509Certificate2 certificate)
         {
             StringBuilder message = new StringBuilder()
                 .AppendLine(error)
@@ -1821,7 +1816,7 @@ namespace Opc.Ua
         /// <param name="serverCertificate">The server certificate which is tested for domain names.</param>
         /// <param name="endpointUrl">The endpoint Url which was used to connect.</param>
         /// <returns>True if domain was found.</returns>
-        private bool FindDomain(X509Certificate2 serverCertificate, Uri endpointUrl)
+        private static bool FindDomain(X509Certificate2 serverCertificate, Uri endpointUrl)
         {
             bool domainFound = false;
 
@@ -1848,7 +1843,7 @@ namespace Opc.Ua
                 {   // dnsHostname is a IPv4 or IPv6 address
                     // normalize ip addresses, cert parser returns normalized addresses
                     hostname = Utils.NormalizedIPAddress(dnsHostName);
-                    if (hostname == "127.0.0.1" || hostname == "::1")
+                    if (hostname is "127.0.0.1" or "::1")
                     {
                         isLocalHost = true;
                     }
@@ -1965,8 +1960,8 @@ namespace Opc.Ua
         /// </summary>
         public CertificateValidationEventArgs(ServiceResult error, X509Certificate2 certificate)
         {
-            m_error = error;
-            m_certificate = certificate;
+            Error = error;
+            Certificate = certificate;
         }
         #endregion
 
@@ -1974,12 +1969,12 @@ namespace Opc.Ua
         /// <summary>
         /// The error that occurred.
         /// </summary>
-        public ServiceResult Error => m_error;
+        public ServiceResult Error { get; }
 
         /// <summary>
         /// The certificate.
         /// </summary>
-        public X509Certificate2 Certificate => m_certificate;
+        public X509Certificate2 Certificate { get; }
 
         /// <summary>
         /// Whether the current error reported for
@@ -1995,28 +1990,16 @@ namespace Opc.Ua
         /// Whether all the errors reported for
         /// a certificate should be accepted and suppressed.
         /// </summary>
-        public bool AcceptAll
-        {
-            get => m_acceptAll;
-            set => m_acceptAll = value;
-        }
+        public bool AcceptAll { get; set; }
 
         /// <summary>
         /// The custom error message from the application.
         /// </summary>
-        public string ApplicationErrorMsg
-        {
-            get { return m_applicationErrorMsg; }
-            set { m_applicationErrorMsg = value; }
-        }
-        #endregion
+        public string ApplicationErrorMsg { get; set; }
 
-        #region Private Fields
-        private readonly ServiceResult m_error;
-        private readonly X509Certificate2 m_certificate;
+#endregion
+#region Private Fields
         private bool m_accept;
-        private bool m_acceptAll;
-        private string m_applicationErrorMsg;
         #endregion
     }
 

@@ -80,7 +80,7 @@ namespace Opc.Ua.Security.Certificates
             ReadOnlySpan<byte> pemDataBlob)
         {
             var certificates = new X509Certificate2Collection();
-            string label = "CERTIFICATE";
+            const string label = "CERTIFICATE";
             string beginlabel = $"-----BEGIN {label}-----";
             string endlabel = $"-----END {label}-----";
             try
@@ -288,8 +288,6 @@ namespace Opc.Ua.Security.Certificates
         }
         #endregion
 
-        #region Private Methods
-        #endregion
     }
 }
 #endif

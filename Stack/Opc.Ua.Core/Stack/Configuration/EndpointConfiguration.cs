@@ -92,7 +92,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// The number of times the decoder can recover from an error 
+        /// The number of times the decoder can recover from an error
         /// caused by an encoded ExtensionObject before throwing a decoder error.
         /// </summary>
         public int MaxDecoderRecoveries

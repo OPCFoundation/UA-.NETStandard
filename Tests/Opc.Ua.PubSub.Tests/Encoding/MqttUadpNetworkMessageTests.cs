@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -96,7 +96,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             IUaPubSubConnection connection = publisherApplication.PubSubConnections.First();
             Assert.IsNotNull(connection, "Pubsub first connection should not be null");
 
-            // Act  
+            // Act
             Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration first connection should not be null");
             Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration  first writer group of first connection should not be null");
 
@@ -184,7 +184,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             IUaPubSubConnection connection = publisherApplication.PubSubConnections.First();
             Assert.IsNotNull(connection, "Pubsub first connection should not be null");
 
-            // Act  
+            // Act
             Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration first connection should not be null");
             Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration  first writer group of first connection should not be null");
 
@@ -259,7 +259,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             IUaPubSubConnection connection = publisherApplication.PubSubConnections.First();
             Assert.IsNotNull(connection, "Pubsub first connection should not be null");
 
-            // Act  
+            // Act
             Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration first connection should not be null");
             Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration  first writer group of first connection should not be null");
 
@@ -336,7 +336,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             IUaPubSubConnection connection = publisherApplication.PubSubConnections.First();
             Assert.IsNotNull(connection, "Pubsub first connection should not be null");
 
-            // Act  
+            // Act
             Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration first connection should not be null");
             Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration  first writer group of first connection should not be null");
 
@@ -413,7 +413,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             IUaPubSubConnection connection = publisherApplication.PubSubConnections.First();
             Assert.IsNotNull(connection, "Pubsub first connection should not be null");
 
-            // Act  
+            // Act
             Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration first connection should not be null");
             Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration  first writer group of first connection should not be null");
 
@@ -493,7 +493,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             IUaPubSubConnection connection = publisherApplication.PubSubConnections.First();
             Assert.IsNotNull(connection, "Pubsub first connection should not be null");
 
-            // Act  
+            // Act
             Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration first connection should not be null");
             Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration  first writer group of first connection should not be null");
 
@@ -572,7 +572,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             IUaPubSubConnection connection = publisherApplication.PubSubConnections.First();
             Assert.IsNotNull(connection, "Pubsub first connection should not be null");
 
-            // Act  
+            // Act
             Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration first connection should not be null");
             Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration  first writer group of first connection should not be null");
             var uaNetworkMessage = connection.CreateNetworkMessages(publisherConfiguration.Connections.First().WriterGroups.First(), new WriterGroupPublishState())[0] as
@@ -642,7 +642,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             IUaPubSubConnection connection = publisherApplication.PubSubConnections.First();
             Assert.IsNotNull(connection, "Pubsub first connection should not be null");
 
-            // Act  
+            // Act
             Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration first connection should not be null");
             Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration  first writer group of first connection should not be null");
 
@@ -719,7 +719,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             IUaPubSubConnection connection = publisherApplication.PubSubConnections.First();
             Assert.IsNotNull(connection, "Pubsub first connection should not be null");
 
-            // Act  
+            // Act
             Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration first connection should not be null");
             Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration  first writer group of first connection should not be null");
 
@@ -798,7 +798,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             IUaPubSubConnection connection = publisherApplication.PubSubConnections.First();
             Assert.IsNotNull(connection, "Pubsub first connection should not be null");
 
-            // Act  
+            // Act
             Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration first connection should not be null");
             Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration  first writer group of first connection should not be null");
 
@@ -874,7 +874,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             IUaPubSubConnection connection = publisherApplication.PubSubConnections.First();
             Assert.IsNotNull(connection, "Pubsub first connection should not be null");
 
-            // Act  
+            // Act
             Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration first connection should not be null");
             Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration  first writer group of first connection should not be null");
 
@@ -956,7 +956,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             var publishState = new WriterGroupPublishState();
 
-            // Act  
+            // Act
             Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration first connection should not be null");
             Assert.IsNotNull(publisherConfiguration.Connections.First().WriterGroups.First(), "publisherConfiguration  first writer group of first connection should not be null");
             IList<UaNetworkMessage> networkMessages = connection.CreateNetworkMessages(publisherConfiguration.Connections.First().WriterGroups.First(), publishState);
@@ -1013,7 +1013,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             var publishState = new WriterGroupPublishState();
 
-            // Act  
+            // Act
             Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration first connection should not be null");
             Assert.IsNotNull(publisherConfiguration.Connections.First().WriterGroups.First(), "publisherConfiguration  first writer group of first connection should not be null");
 
@@ -1089,7 +1089,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             var publishState = new WriterGroupPublishState();
 
-            // Act  
+            // Act
             Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration first connection should not be null");
             Assert.IsNotNull(publisherConfiguration.Connections.First().WriterGroups.First(), "publisherConfiguration  first writer group of first connection should not be null");
             IList<UaNetworkMessage> networkMessages = connection.CreateNetworkMessages(publisherConfiguration.Connections.First().WriterGroups.First(), publishState);
@@ -1194,7 +1194,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             WriterGroupDataType writerGroupDataType = publisherConfiguration.Connections.First().WriterGroups.First();
 
-            //Act 
+            //Act
             var mqttMetaDataPublisher = new MqttMetadataPublisher(mockConnection.Object, writerGroupDataType,
                 writerGroupDataType.DataSetWriters[0], metaDataUpdateTime);
             mqttMetaDataPublisher.Start();
@@ -1262,7 +1262,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         }
 
         /// <summary>
-        /// Compare network messages options 
+        /// Compare network messages options
         /// </summary>
         /// <param name="uadpNetworkMessageEncode"></param>
         /// <param name="uadpNetworkMessageDecoded"></param>
@@ -1362,7 +1362,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 var uadpDataSetMessage = uadpNetworkMessageEncode.DataSetMessages[i] as UadpDataSetMessage;
                 Assert.IsNotNull(uadpDataSetMessage, "DataSet [{0}] is missing from publisher datasets!", i);
 
-                // check payload data fields count 
+                // check payload data fields count
                 // get related dataset from subscriber DataSets
                 DataSet decodedDataSet = receivedDataSetMessages[i].DataSet;
                 Assert.IsNotNull(decodedDataSet, "DataSet '{0}' is missing from subscriber datasets!", uadpDataSetMessage?.DataSet.Name);
@@ -1402,7 +1402,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                         "Wrong: Fields[{0}].DataValue.Value; DataSetWriterId = {1}",
                         fieldName, uadpDataSetMessage.DataSetWriterId);
 
-                    // Checks just for DataValue type only 
+                    // Checks just for DataValue type only
                     if ((uadpDataSetMessage.FieldContentMask & DataSetFieldContentMask.StatusCode) ==
                         DataSetFieldContentMask.StatusCode)
                     {
@@ -1452,8 +1452,6 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         /// <summary>
         /// Invalid compare encoded/decoded network messages
         /// </summary>
-        /// <param name="uadpNetworkMessageEncode"></param>
-        /// <param name="uadpNetworkMessageDecoded"></param>
         private void InvalidCompareEncodeDecode(UadpNetworkMessage uadpNetworkMessage, IList<DataSetReaderDataType> dataSetReaders)
         {
             byte[] bytes = uadpNetworkMessage.Encode(ServiceMessageContext.GlobalContext);

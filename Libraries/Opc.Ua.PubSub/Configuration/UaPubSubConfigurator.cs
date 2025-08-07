@@ -1491,7 +1491,7 @@ namespace Opc.Ua.PubSub.Configuration
                     NewState = newState,
                     OldState = oldState
                 });
-                bool configurationObjectEnabled = (newState == PubSubState.Operational || newState == PubSubState.Paused);
+                bool configurationObjectEnabled = newState == PubSubState.Operational || newState == PubSubState.Paused;
                 //update the Enabled flag in config object
                 if (configurationObject is PubSubConfigurationDataType)
                 {

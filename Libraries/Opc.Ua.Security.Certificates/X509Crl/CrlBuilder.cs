@@ -83,10 +83,10 @@ namespace Opc.Ua.Security.Certificates
             NextUpdate = crl.NextUpdate;
             RawData = crl.RawData;
             m_revokedCertificates = [.. crl.RevokedCertificates];
-            m_crlExtensions = new X509ExtensionCollection();
+            CrlExtensions = new X509ExtensionCollection();
             foreach (X509Extension extension in crl.CrlExtensions)
             {
-                m_crlExtensions.Add(extension);
+                CrlExtensions.Add(extension);
             }
         }
 
@@ -119,7 +119,7 @@ namespace Opc.Ua.Security.Certificates
             ThisUpdate = DateTime.UtcNow;
             NextUpdate = DateTime.MinValue;
             m_revokedCertificates = new List<RevokedCertificate>();
-            m_crlExtensions = new X509ExtensionCollection();
+            CrlExtensions = new X509ExtensionCollection();
         }
         #endregion
 
@@ -143,7 +143,7 @@ namespace Opc.Ua.Security.Certificates
         public IList<RevokedCertificate> RevokedCertificates => m_revokedCertificates;
 
         /// <inheritdoc/>
-        public X509ExtensionCollection CrlExtensions => m_crlExtensions;
+        public X509ExtensionCollection CrlExtensions { get; }
 
         /// <inheritdoc/>
         public byte[] RawData { get; private set; }
@@ -242,7 +242,7 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         public CrlBuilder AddCRLExtension(X509Extension extension)
         {
-            m_crlExtensions.Add(extension);
+            CrlExtensions.Add(extension);
             return this;
         }
 
@@ -295,14 +295,15 @@ namespace Opc.Ua.Security.Certificates
         /// Constructs Certificate Revocation List raw data in X509 ASN format.
         /// </summary>
         /// <remarks>
-        /// CRL fields -- https://tools.ietf.org/html/rfc5280#section-5.1
-        /// 
+        /// <para>CRL fields -- https://tools.ietf.org/html/rfc5280#section-5.1</para>
+        /// <para>
         /// CertificateList  ::=  SEQUENCE  {
         ///    tbsCertList          TBSCertList,
         ///    signatureAlgorithm   AlgorithmIdentifier,
         ///    signatureValue       BIT STRING
         ///    }
-        ///
+        /// </para>
+        /// <para>
         /// TBSCertList  ::=  SEQUENCE  {
         ///    version                 Version OPTIONAL,
         ///                            -- if present, MUST be v2
@@ -319,6 +320,7 @@ namespace Opc.Ua.Security.Certificates
         ///    crlExtensions           [0]  EXPLICIT Extensions OPTIONAL
         ///                              -- if present, version MUST be v2
         ///                            }
+        /// </para>
         /// </remarks>
         internal byte[] Encode()
         {
@@ -427,7 +429,6 @@ namespace Opc.Ua.Security.Certificates
 
         #region Private Fields
         private readonly List<RevokedCertificate> m_revokedCertificates;
-        private readonly X509ExtensionCollection m_crlExtensions;
         #endregion
     }
 }

@@ -81,7 +81,7 @@ namespace Opc.Ua
                 return true;
             }
 
-            if (!(obj is CertificateIdentifier id))
+            if (obj is not CertificateIdentifier id)
             {
                 return false;
             }
@@ -200,7 +200,7 @@ namespace Opc.Ua
         /// <remarks>The certificate type is used to match the signature and public key type.</remarks>
         /// <param name="needPrivateKey">if set to <c>true</c> the returned certificate must contain the private key.</param>
         /// <param name="applicationUri">the application uri in the extensions of the certificate.</param>
-        /// <returns>An instance of the <see cref="X509Certificate2"/> that is embedded by this instance or find it in 
+        /// <returns>An instance of the <see cref="X509Certificate2"/> that is embedded by this instance or find it in
         /// the selected store pointed out by the <see cref="StorePath"/> using selected <see cref="SubjectName"/> or if specified applicationUri.</returns>
         public async Task<X509Certificate2> Find(bool needPrivateKey, string applicationUri = null)
         {
@@ -255,7 +255,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="certificate">The certificate.</param>
         /// <returns>
-        /// A string containg FriendlyName of the <see cref="X509Certificate2"/> or created using Subject of 
+        /// A string containg FriendlyName of the <see cref="X509Certificate2"/> or created using Subject of
         /// the <see cref="X509Certificate2"/>.
         /// </returns>
         private static string GetDisplayName(X509Certificate2 certificate)

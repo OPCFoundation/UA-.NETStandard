@@ -21,17 +21,17 @@ namespace Opc.Ua
     /// A list of trusted certificates.
     /// </summary>
     /// <remarks>
-    /// Administrators can create a list of trusted certificates by designating all certificates 
-    /// in a particular certificate store as trusted and/or by explictly specifying a list of 
+    /// Administrators can create a list of trusted certificates by designating all certificates
+    /// in a particular certificate store as trusted and/or by explictly specifying a list of
     /// individual certificates.
-    /// 
+    ///
     /// A trust list can contain either instance certificates or certification authority certificates.
     /// If the list contains instance certificates the application will trust peers that use the
     /// instance certificate (provided the ApplicationUri and HostName match the certificate).
-    /// 
+    ///
     /// If the list contains certification authority certificates then the application will trust
     /// peers that have certificates issued by one of the authorities.
-    /// 
+    ///
     /// Any certificate could be revoked by the issuer (CAs may issue certificates for other CAs).
     /// The RevocationMode specifies whether this check should be done each time a certificate
     /// in the list are used.

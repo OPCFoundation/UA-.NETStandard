@@ -34,7 +34,7 @@ namespace Opc.Ua
         /// </summary>
         public OAuth2Credential()
         {
-            Initialize();
+            OAuth2Credential.Initialize();
         }
 
         /// <summary>
@@ -43,13 +43,13 @@ namespace Opc.Ua
         [OnDeserializing()]
         private void Initialize(StreamingContext context)
         {
-            Initialize();
+            OAuth2Credential.Initialize();
         }
 
         /// <summary>
         /// Sets private members to default values.
         /// </summary>
-        private void Initialize()
+        private static void Initialize()
         {
         }
         #endregion
@@ -106,12 +106,7 @@ namespace Opc.Ua
 
                 if (list == null)
                 {
-                    list = configuration.ParseExtension<OAuth2CredentialCollection>();
-
-                    if (list == null)
-                    {
-                        list = new OAuth2CredentialCollection();
-                    }
+                    list = configuration.ParseExtension<OAuth2CredentialCollection>() ?? new OAuth2CredentialCollection();
 
                     configuration.Properties["OAuth2Credentials"] = list;
                 }

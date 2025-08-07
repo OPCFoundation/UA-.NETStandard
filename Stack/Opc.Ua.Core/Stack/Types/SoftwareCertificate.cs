@@ -25,13 +25,7 @@ namespace Opc.Ua
         /// <summary>
         /// The SignedSoftwareCertificate that contains the SoftwareCertificate
         /// </summary>
-        public X509Certificate2 SignedCertificate
-        {
-            get { return m_signedCertificate; }
-            set { m_signedCertificate = value; }
-        }
-
-        private X509Certificate2 m_signedCertificate;
+        public X509Certificate2 SignedCertificate { get; set; }
 
         /// <summary>
         /// Validates a software certificate.

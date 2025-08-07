@@ -175,6 +175,7 @@ namespace Opc.Ua.Bindings
         public void Dispose()
         {
             Dispose(true);
+            GC.SuppressFinalize(this);
         }
 
         /// <summary>
@@ -294,8 +295,8 @@ namespace Opc.Ua.Bindings
                 return retVal;
             }
         }
-    
-    
+
+
         /// <summary>
         /// Resets the sequence number after a connect.
         /// </summary>
@@ -634,7 +635,7 @@ namespace Opc.Ua.Bindings
             {
                 if (Encoding.UTF8.GetByteCount(reason) > TcpMessageLimits.MaxErrorReasonLength)
                 {
-                    reason = reason.Substring(0, TcpMessageLimits.MaxErrorReasonLength / Encoding.UTF8.GetMaxByteCount(1));
+                    reason = reason[..(TcpMessageLimits.MaxErrorReasonLength / Encoding.UTF8.GetMaxByteCount(1))];
                 }
             }
 
@@ -655,7 +656,7 @@ namespace Opc.Ua.Bindings
             // ensure the reason does not exceed the limits in the protocol.
             int reasonLength = decoder.ReadInt32(null);
 
-            if (reasonLength > 0 && reasonLength < TcpMessageLimits.MaxErrorReasonLength)
+            if (reasonLength is > 0 and < TcpMessageLimits.MaxErrorReasonLength)
             {
                 byte[] reasonBytes = new byte[reasonLength];
 
@@ -713,7 +714,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected static void UpdateMessageType(byte[] buffer, int offset, uint messageType)
         {
-            buffer[offset++] = (byte)((messageType & 0x000000FF));
+            buffer[offset++] = (byte)(messageType & 0x000000FF);
             buffer[offset++] = (byte)((messageType & 0x0000FF00) >> 8);
             buffer[offset++] = (byte)((messageType & 0x00FF0000) >> 16);
             buffer[offset] = (byte)((messageType & 0xFF000000) >> 24);
@@ -731,7 +732,7 @@ namespace Opc.Ua.Bindings
 
             offset += 4;
 
-            buffer[offset++] = (byte)((messageSize & 0x000000FF));
+            buffer[offset++] = (byte)(messageSize & 0x000000FF);
             buffer[offset++] = (byte)((messageSize & 0x0000FF00) >> 8);
             buffer[offset++] = (byte)((messageSize & 0x00FF0000) >> 16);
             buffer[offset] = (byte)((messageSize & 0xFF000000) >> 24);
@@ -874,31 +875,21 @@ namespace Opc.Ua.Bindings
             /// <summary>
             /// The request id associated with the operation.
             /// </summary>
-            public uint RequestId
-            {
-                get { return m_requestId; }
-                set { m_requestId = value; }
-            }
+            public uint RequestId { get; set; }
 
             /// <summary>
             /// The body of the request or response associated with the operation.
             /// </summary>
-            public IEncodeable MessageBody
-            {
-                get { return m_messageBody; }
-                set { m_messageBody = value; }
-            }
+            public IEncodeable MessageBody { get; set; }
 
-            #region Private Fields
-            private uint m_requestId;
-            private IEncodeable m_messageBody;
+#region Private Fields
             #endregion
         }
         #endregion
 
         #region Protected Methods
         /// <summary>
-        /// Calculate the chunk count which can be used for messages based on buffer size. 
+        /// Calculate the chunk count which can be used for messages based on buffer size.
         /// </summary>
         /// <param name="messageSize">The message size to be used.</param>
         /// <param name="bufferSize">The buffer available for a message.</param>

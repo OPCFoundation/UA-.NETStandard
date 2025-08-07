@@ -175,6 +175,6 @@ namespace Opc.Ua.Bindings
 
             return endpoints;
 
-        }    
-    } 
+        }
+    }
 }

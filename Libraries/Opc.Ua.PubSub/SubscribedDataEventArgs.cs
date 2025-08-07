@@ -32,7 +32,7 @@ using System;
 namespace Opc.Ua.PubSub
 {
     /// <summary>
-    /// <see cref="EventArgs"/> class for <see cref="UaPubSubApplication.DataReceived"/> event
+    /// <see cref="EventArgs"/> class for class for <see cref="UaPubSubApplication.DataReceived"/> event
     /// </summary>
     public class SubscribedDataEventArgs : EventArgs
     {

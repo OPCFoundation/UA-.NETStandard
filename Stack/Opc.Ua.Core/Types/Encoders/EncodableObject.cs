@@ -96,7 +96,7 @@ namespace Opc.Ua
                             }
 
 
-                            if (!(extensions[ii].Body is IEncodeable element))
+                            if (extensions[ii].Body is not IEncodeable element)
                             {
                                 return StatusCodes.BadTypeMismatch;
                             }
@@ -125,7 +125,7 @@ namespace Opc.Ua
 
                 if (encodeable == null)
                 {
-                    if (!(value is ExtensionObject extension))
+                    if (value is not ExtensionObject extension)
                     {
                         return StatusCodes.BadDataEncodingUnsupported;
                     }

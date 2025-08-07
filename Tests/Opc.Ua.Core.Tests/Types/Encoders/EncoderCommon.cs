@@ -1088,7 +1088,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             {
                 if (encodeable is DynamicEncodeable de)
                 {
-                    return (m_fields.OrderBy(kv => kv.Key).SequenceEqual(de.m_fields.OrderBy(kv => kv.Key)));
+                    return m_fields.OrderBy(kv => kv.Key).SequenceEqual(de.m_fields.OrderBy(kv => kv.Key));
                 }
 
                 return false;

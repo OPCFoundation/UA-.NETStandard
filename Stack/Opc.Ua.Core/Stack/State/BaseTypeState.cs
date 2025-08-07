@@ -22,7 +22,7 @@ using System.Threading;
 
 namespace Opc.Ua
 {
-    /// <summary> 
+    /// <summary>
     /// The base class for all type nodes.
     /// </summary>
     public class BaseTypeState : NodeState

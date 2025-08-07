@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -52,7 +52,7 @@ namespace Opc.Ua.Core.Tests
         /// </summary>
         private TemporaryCertValidator(bool rejectedStore)
         {
-            // pki directory root for test runs. 
+            // pki directory root for test runs.
             m_pkiRoot = Path.GetTempPath() + Path.GetRandomFileName() + Path.DirectorySeparatorChar;
             m_issuerStore = new DirectoryCertificateStore();
             m_issuerStore.Open(m_pkiRoot + "issuer", true);
@@ -70,15 +70,21 @@ namespace Opc.Ua.Core.Tests
         /// </summary>
         ~TemporaryCertValidator()
         {
-            Dispose();
+            Dispose(true);
+        }
+
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
         }
 
         /// <summary>
         /// Dispose the certificates and delete folders used.
         /// </summary>
-        public void Dispose()
+        protected virtual void Dispose(bool disposing)
         {
-            if (Interlocked.CompareExchange(ref m_disposed, 1, 0) == 0)
+            if (disposing && Interlocked.CompareExchange(ref m_disposed, 1, 0) == 0)
             {
                 CleanupValidatorAndStoresAsync(true).GetAwaiter().GetResult();
                 m_issuerStore = null;

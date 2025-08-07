@@ -2041,11 +2041,23 @@ namespace Opc.Ua.Server
             m_subscription?.QueueOverflowHandler();
         }
 
-        /// Disposes the durable monitoredItemQueue
+        /// <inheritdoc/>
         public void Dispose()
         {
-            Utils.SilentDispose(m_dataChangeQueueHandler);
-            Utils.SilentDispose(m_eventQueueHandler);
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        /// <summary>
+        /// An overrideable version of the Dispose.
+        /// </summary>
+        protected virtual void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                Utils.SilentDispose(m_dataChangeQueueHandler);
+                Utils.SilentDispose(m_eventQueueHandler);
+            }
         }
 
         #endregion

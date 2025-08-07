@@ -231,7 +231,7 @@ namespace Opc.Ua
             /// <param name="status">The status.</param>
             public Result(ServiceResult status)
             {
-                m_status = status;
+                Status = status;
             }
 
             /// <summary>
@@ -248,11 +248,7 @@ namespace Opc.Ua
             /// The result for the entire filter.
             /// </summary>
             /// <value>The status.</value>
-            public ServiceResult Status
-            {
-                get { return m_status; }
-                set { m_status = value; }
-            }
+            public ServiceResult Status { get; set; }
 
             /// <summary>
             /// The result for each element.
@@ -317,10 +313,9 @@ namespace Opc.Ua
 
                 return result;
             }
-            #endregion
 
-            #region Private Fields
-            private ServiceResult m_status;
+#endregion
+#region Private Fields
             private List<ElementResult> m_elementResults;
             #endregion
         }
@@ -339,7 +334,7 @@ namespace Opc.Ua
             /// <param name="status">The status.</param>
             public ElementResult(ServiceResult status)
             {
-                m_status = status;
+                Status = status;
             }
 
             /// <summary>
@@ -356,11 +351,7 @@ namespace Opc.Ua
             /// The result for the entire element.
             /// </summary>
             /// <value>The status.</value>
-            public ServiceResult Status
-            {
-                get { return m_status; }
-                set { m_status = value; }
-            }
+            public ServiceResult Status { get; set; }
 
             /// <summary>
             /// The result for each operand.
@@ -389,13 +380,13 @@ namespace Opc.Ua
             {
                 var result = new ContentFilterElementResult();
 
-                if (ServiceResult.IsGood(m_status))
+                if (ServiceResult.IsGood(Status))
                 {
                     result.StatusCode = StatusCodes.Good;
                     return result;
                 }
 
-                result.StatusCode = m_status.StatusCode;
+                result.StatusCode = Status.StatusCode;
 
                 if (m_operandResults.Count == 0)
                 {
@@ -419,10 +410,9 @@ namespace Opc.Ua
 
                 return result;
             }
-            #endregion
 
-            #region Private Fields
-            private ServiceResult m_status;
+#endregion
+#region Private Fields
             private List<ServiceResult> m_operandResults;
             #endregion
         }
@@ -613,7 +603,7 @@ namespace Opc.Ua
 
                 // check that the extension object contains a filter operand.
 
-                if (!(operand.Body is FilterOperand filterOperand))
+                if (operand.Body is not FilterOperand filterOperand)
                 {
                     operandResult = ServiceResult.Create(
                         StatusCodes.BadEventFilterInvalid,
@@ -668,7 +658,7 @@ namespace Opc.Ua
                 }
 
 
-                if (!(extension.Body is FilterOperand operand))
+                if (extension.Body is not FilterOperand operand)
                 {
                     continue;
                 }
@@ -1301,12 +1291,7 @@ namespace Opc.Ua
         /// <returns>LiteralOperand as a displayable string.</returns>
         public override string ToString(INodeTable nodeTable)
         {
-            var nodeId = Value.Value as ExpandedNodeId;
-
-            if (nodeId == null)
-            {
-                nodeId = Value.Value as NodeId;
-            }
+            var nodeId = Value.Value as ExpandedNodeId ?? (ExpandedNodeId)(Value.Value as NodeId);
 
             if (nodeId != null)
             {

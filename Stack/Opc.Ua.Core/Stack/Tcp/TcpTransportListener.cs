@@ -49,17 +49,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Time of the last recorded problematic action
         /// </summary>
-        public int LastActionTicks
-        {
-            get
-            {
-                return m_lastActionTicks;
-            }
-            set
-            {
-                m_lastActionTicks = value;
-            }
-        }
+        public int LastActionTicks { get; set; }
 
         /// <summary>
         /// Counter for number of recorded potential problematic actions
@@ -90,10 +80,9 @@ namespace Opc.Ua.Bindings
                 m_blockedUntilTicks = value;
             }
         }
-        #endregion
 
-        #region Private members
-        int m_lastActionTicks;
+#endregion
+#region Private members
         int m_actionCount;
         int m_blockedUntilTicks;
         #endregion
@@ -102,7 +91,7 @@ namespace Opc.Ua.Bindings
     /// <summary>
     /// Manages clients with potential problematic activities
     /// </summary>
-    public class ActiveClientTracker : IDisposable
+    public sealed class ActiveClientTracker : IDisposable
     {
         #region Public
         /// <summary>
@@ -217,7 +206,7 @@ namespace Opc.Ua.Bindings
                         m_kBlockDurationMs);
                 }
 
-                // Remove clients that haven't had any potential problematic actions in the last m_kEntryExpirationMs interval 
+                // Remove clients that haven't had any potential problematic actions in the last m_kEntryExpirationMs interval
                 int elapsedSinceBadActionTicks = currentTicks - rClient.LastActionTicks;
                 if (elapsedSinceBadActionTicks > m_kEntryExpirationMs)
                 {
@@ -238,13 +227,13 @@ namespace Opc.Ua.Bindings
         /// <param name="blockedUntilTicks"></param>
         /// <param name="currentTicks"></param>
         /// <returns></returns>
-        private bool IsBlockedTicks(int blockedUntilTicks, int currentTicks)
+        private static bool IsBlockedTicks(int blockedUntilTicks, int currentTicks)
         {
             if (blockedUntilTicks == 0)
             {
                 return false;
             }
-            // C# signed arithmetic 
+            // C# signed arithmetic
             int diff = blockedUntilTicks - currentTicks;
             // If currentTicks < blockedUntilTicks then it is still blocked
             // Works even if TickCount has wrapped around due to C# signed integer arithmetic
@@ -282,6 +271,7 @@ namespace Opc.Ua.Bindings
         public void Dispose()
         {
             Dispose(true);
+            GC.SuppressFinalize(this);
         }
 
         /// <summary>
@@ -413,7 +403,7 @@ namespace Opc.Ua.Bindings
         {
             try
             {
-                string channelIdString = globalChannelId.Substring(ListenerId.Length + 1);
+                string channelIdString = globalChannelId[(ListenerId.Length + 1)..];
                 uint channelId = Convert.ToUInt32(channelIdString, CultureInfo.InvariantCulture);
 
                 TcpListenerChannel channel = null;
@@ -569,13 +559,13 @@ namespace Opc.Ua.Bindings
                 // ensure a valid port.
                 int port = m_uri.Port;
 
-                if (port <= 0 || port > ushort.MaxValue)
+                if (port is <= 0 or > ushort.MaxValue)
                 {
                     port = Utils.UaTcpDefaultPort;
                 }
 
                 UriHostNameType hostType = Uri.CheckHostName(m_uri.Host);
-                bool bindToSpecifiedAddress = hostType != UriHostNameType.Dns && hostType != UriHostNameType.Unknown && hostType != UriHostNameType.Basic;
+                bool bindToSpecifiedAddress = hostType is not UriHostNameType.Dns and not UriHostNameType.Unknown and not UriHostNameType.Basic;
                 IPAddress ipAddress = bindToSpecifiedAddress ? IPAddress.Parse(m_uri.Host) : IPAddress.Any;
 
                 // create IPv4 or IPv6 socket.
@@ -785,7 +775,7 @@ namespace Opc.Ua.Bindings
                 repeatAccept = false;
                 lock (m_lock)
                 {
-                    if (!(e.UserToken is Socket listeningSocket))
+                    if (e.UserToken is not Socket listeningSocket)
                     {
                         Utils.LogError("OnAccept: Listensocket was null.");
                         e.Dispose();
@@ -1152,7 +1142,7 @@ namespace Opc.Ua.Bindings
     }
 
     /// <summary>
-    /// The Tcp specific arguments passed to the ConnectionWaiting event. 
+    /// The Tcp specific arguments passed to the ConnectionWaiting event.
     /// </summary>
     public class TcpConnectionWaitingEventArgs : ConnectionWaitingEventArgs
     {

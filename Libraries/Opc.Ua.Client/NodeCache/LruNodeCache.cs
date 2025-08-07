@@ -169,8 +169,8 @@ namespace Opc.Ua.Client
             ValueTask<DataValue> FindAsyncCore(NodeId nodeId, CancellationToken ct)
             {
                 return m_values.GetOrAddAsync(nodeId,
-                    async (nodeId, context) => await context.session.ReadValueAsync(
-                        nodeId, context.ct).ConfigureAwait(false),
+                    (nodeId, context) => context.session.ReadValueAsync(
+                        nodeId, context.ct),
                     (session: m_session, ct));
             }
         }

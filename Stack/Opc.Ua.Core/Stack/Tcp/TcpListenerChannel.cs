@@ -38,7 +38,7 @@ namespace Opc.Ua.Bindings
         :
             base(contextId, bufferManager, quotas, serverCertificateTypeProvider, endpoints, MessageSecurityMode.None, SecurityPolicies.None)
         {
-            m_listener = listener;
+            Listener = listener;
         }
         #endregion
 
@@ -61,7 +61,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// The TCP channel listener.
         /// </summary>
-        protected ITcpChannelListener Listener => m_listener;
+        protected ITcpChannelListener Listener { get; }
 
         /// <summary>
         /// Sets the callback used to receive notifications of new events.
@@ -147,13 +147,13 @@ namespace Opc.Ua.Bindings
             lock (DataLock)
             {
                 state = State;
-                if (state == TcpChannelState.Open || state == TcpChannelState.Connecting)
+                if (state is TcpChannelState.Open or TcpChannelState.Connecting)
                 {
                     state = State = TcpChannelState.Closing;
                 }
             }
 
-            if (state == TcpChannelState.Closing || state == TcpChannelState.Opening || state == TcpChannelState.Faulted)
+            if (state is TcpChannelState.Closing or TcpChannelState.Opening or TcpChannelState.Faulted)
             {
                 OnCleanup(new ServiceResult(StatusCodes.BadNoCommunication, "Channel closed due to inactivity."));
             }
@@ -163,22 +163,12 @@ namespace Opc.Ua.Bindings
         /// The time in milliseconds elapsed since the channel received or sent messages
         /// or received a keep alive.
         /// </summary>
-        public int ElapsedSinceLastActiveTime => (HiResClock.TickCount - LastActiveTickCount);
+        public int ElapsedSinceLastActiveTime => HiResClock.TickCount - LastActiveTickCount;
 
         /// <summary>
         /// Has the channel been used in a session
         /// </summary>
-        public bool UsedBySession
-        {
-            get
-            {
-                return m_usedBySession;
-            }
-            protected set
-            {
-                m_usedBySession = value;
-            }
-        }
+        public bool UsedBySession { get; protected set; }
         #endregion
 
         #region Socket Event Handlers
@@ -237,10 +227,10 @@ namespace Opc.Ua.Bindings
                 }
 
                 bool close = false;
-                if (State != TcpChannelState.Connecting && State != TcpChannelState.Opening)
+                if (State is not TcpChannelState.Connecting and not TcpChannelState.Opening)
                 {
                     int? socketHandle = Socket?.Handle;
-                    if (socketHandle != null && socketHandle != -1)
+                    if (socketHandle is not null and not (-1))
                     {
                         Utils.LogError(
                             "{0} ForceChannelFault Socket={1:X8}, ChannelId={2}, TokenId={3}, Reason={4}",
@@ -275,7 +265,7 @@ namespace Opc.Ua.Bindings
                     if ((SecurityPolicyUri == SecurityPolicies.Basic128Rsa15) &&
                         (reason.StatusCode == StatusCodes.BadSecurityChecksFailed || reason.StatusCode == StatusCodes.BadTcpMessageTypeInvalid))
                     {
-                        var tcpTransportListener = m_listener as TcpTransportListener;
+                        var tcpTransportListener = Listener as TcpTransportListener;
                         if (tcpTransportListener != null)
                         {
                             tcpTransportListener.MarkAsPotentialProblematic
@@ -301,13 +291,13 @@ namespace Opc.Ua.Bindings
             {
 
                 // nothing to do if the channel is now open or closed.
-                if (State == TcpChannelState.Closed || State == TcpChannelState.Open)
+                if (State is TcpChannelState.Closed or TcpChannelState.Open)
                 {
                     return;
                 }
 
                 // get reason for cleanup.
-                if (!(state is ServiceResult reason))
+                if (state is not ServiceResult reason)
                 {
                     reason = new ServiceResult(StatusCodes.BadTimeout);
                 }
@@ -315,7 +305,7 @@ namespace Opc.Ua.Bindings
                 Utils.LogInfo(
                     "{0} Cleanup Socket={1:X8}, ChannelId={2}, TokenId={3}, Reason={4}",
                     ChannelName,
-                    (Socket != null) ? Socket.Handle : 0,
+                    (Socket?.Handle) ?? 0,
                     (CurrentToken != null) ? CurrentToken.ChannelId : 0,
                     (CurrentToken != null) ? CurrentToken.TokenId : 0,
                     reason.ToString());
@@ -338,7 +328,7 @@ namespace Opc.Ua.Bindings
             finally
             {
                 State = TcpChannelState.Closed;
-                m_listener.ChannelClosed(ChannelId);
+                Listener.ChannelClosed(ChannelId);
 
                 // notify any monitors.
                 NotifyMonitors(new ServiceResult(StatusCodes.BadConnectionClosed), true);
@@ -358,7 +348,7 @@ namespace Opc.Ua.Bindings
             finally
             {
                 State = TcpChannelState.Faulted;
-                m_listener.ChannelClosed(ChannelId);
+                Listener.ChannelClosed(ChannelId);
             }
         }
 
@@ -458,7 +448,7 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
-        /// Called to indicate an error or success if the listener 
+        /// Called to indicate an error or success if the listener
         /// channel initiated a reverse hello connection.
         /// </summary>
         /// <remarks>
@@ -570,17 +560,15 @@ namespace Opc.Ua.Bindings
         /// The report certificate audit event handler.
         /// </summary>
         protected ReportAuditCertificateEventHandler ReportAuditCertificateEvent => m_reportAuditCertificateEvent;
-        #endregion
 
-        #region Private Fields
-        private readonly ITcpChannelListener m_listener;
+#endregion
+#region Private Fields
         private bool m_responseRequired;
         private TcpChannelRequestEventHandler m_requestReceived;
         private ReportAuditOpenSecureChannelEventHandler m_reportAuditOpenSecureChannelEvent;
         private ReportAuditCloseSecureChannelEventHandler m_reportAuditCloseSecureChannelEvent;
         private ReportAuditCertificateEventHandler m_reportAuditCertificateEvent;
         private long m_lastTokenId;
-        private bool m_usedBySession;
         #endregion
     }
 

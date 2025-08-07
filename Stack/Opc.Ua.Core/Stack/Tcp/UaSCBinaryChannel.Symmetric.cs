@@ -562,7 +562,7 @@ namespace Opc.Ua.Bindings
                                 chunkToProcess.Count,
                                 Quotas.MessageContext))
                             {
-                                WriteErrorMessageBody(errorEncoder, (isRequest) ? StatusCodes.BadRequestTooLarge : StatusCodes.BadResponseTooLarge);
+                                WriteErrorMessageBody(errorEncoder, isRequest ? StatusCodes.BadRequestTooLarge : StatusCodes.BadResponseTooLarge);
                                 int size = errorEncoder.Close();
                                 chunkToProcess = new ArraySegment<byte>(chunkToProcess.Array, chunkToProcess.Offset, size);
                             }
@@ -985,7 +985,7 @@ namespace Opc.Ua.Bindings
         private static byte[] SymmetricSign(ChannelToken token, ReadOnlySpan<byte> dataToSign, bool useClientKeys)
         {
             // get HMAC object.
-            HMAC hmac = (useClientKeys) ? token.ClientHmac : token.ServerHmac;
+            HMAC hmac = useClientKeys ? token.ClientHmac : token.ServerHmac;
 
             // compute hash.
             int hashSizeInBytes = hmac.HashSize >> 3;
@@ -1008,7 +1008,7 @@ namespace Opc.Ua.Bindings
         private static byte[] SymmetricSign(ChannelToken token, ArraySegment<byte> dataToSign, bool useClientKeys)
         {
             // get HMAC object.
-            HMAC hmac = (useClientKeys) ? token.ClientHmac : token.ServerHmac;
+            HMAC hmac = useClientKeys ? token.ClientHmac : token.ServerHmac;
             // compute hash.
             var istrm = new MemoryStream(dataToSign.Array, dataToSign.Offset, dataToSign.Count, false);
             byte[] signature = hmac.ComputeHash(istrm);
@@ -1030,7 +1030,7 @@ namespace Opc.Ua.Bindings
             bool useClientKeys)
         {
             // get HMAC object.
-            HMAC hmac = (useClientKeys) ? token.ClientHmac : token.ServerHmac;
+            HMAC hmac = useClientKeys ? token.ClientHmac : token.ServerHmac;
 
             // compute hash.
             int hashSizeInBytes = hmac.HashSize >> 3;
@@ -1055,7 +1055,7 @@ namespace Opc.Ua.Bindings
             bool useClientKeys)
         {
             // get HMAC object.
-            HMAC hmac = (useClientKeys) ? token.ClientHmac : token.ServerHmac;
+            HMAC hmac = useClientKeys ? token.ClientHmac : token.ServerHmac;
 
             var istrm = new MemoryStream(dataToVerify.Array, dataToVerify.Offset, dataToVerify.Count, false);
             byte[] computedSignature = hmac.ComputeHash(istrm);
@@ -1091,7 +1091,7 @@ namespace Opc.Ua.Bindings
             ArraySegment<byte> dataToEncrypt,
             bool useClientKeys)
         {
-            SymmetricAlgorithm encryptingKey = (useClientKeys) ? token.ClientEncryptor : token.ServerEncryptor;
+            SymmetricAlgorithm encryptingKey = useClientKeys ? token.ClientEncryptor : token.ServerEncryptor;
 
             if (encryptingKey == null)
             {
@@ -1122,7 +1122,7 @@ namespace Opc.Ua.Bindings
             bool useClientKeys)
         {
             // get the decrypting key.
-            SymmetricAlgorithm decryptingKey = (useClientKeys) ? token.ClientEncryptor : token.ServerEncryptor;
+            SymmetricAlgorithm decryptingKey = useClientKeys ? token.ClientEncryptor : token.ServerEncryptor;
 
             if (decryptingKey == null)
             {

@@ -41,13 +41,11 @@ namespace Opc.Ua.Security.Certificates
     /// The subject alternate name extension.
     /// </summary>
     /// <remarks>
-    /// 
-    /// id-ce-subjectAltName OBJECT IDENTIFIER::=  { id-ce 17 }
-    /// 
-    /// SubjectAltName::= GeneralNames
-    /// 
-    ///    GeneralNames::= SEQUENCE SIZE(1..MAX) OF GeneralName
-    /// 
+    ///
+    /// <para>id-ce-subjectAltName OBJECT IDENTIFIER::=  { id-ce 17 }</para>
+    /// <para>SubjectAltName::= GeneralNames</para>
+    /// <para>   GeneralNames::= SEQUENCE SIZE(1..MAX) OF GeneralName</para>
+    /// <para>
     ///    GeneralName ::= CHOICE {
     ///        otherName                       [0] OtherName,
     ///        rfc822Name[1]                   IA5String,
@@ -59,17 +57,20 @@ namespace Opc.Ua.Security.Certificates
     ///        iPAddress[7]                    OCTET STRING,
     ///        registeredID[8]                 OBJECT IDENTIFIER
     ///        }
-    /// 
+    /// </para>
+    /// <para>
     ///    OtherName::= SEQUENCE {
     ///        type-id                         OBJECT IDENTIFIER,
     ///        value[0] EXPLICIT ANY DEFINED BY type - id
     ///        }
-    /// 
+    /// </para>
+    /// <para>
     ///    EDIPartyName::= SEQUENCE {
     ///        nameAssigner[0]                 DirectoryString OPTIONAL,
     ///        partyName[1]                    DirectoryString
     ///        }
-    /// 
+    /// </para>
+    ///
     /// </remarks>
     public class X509SubjectAltNameExtension : X509Extension
     {

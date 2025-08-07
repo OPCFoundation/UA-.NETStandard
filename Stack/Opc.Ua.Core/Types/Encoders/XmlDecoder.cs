@@ -37,7 +37,7 @@ namespace Opc.Ua
             }
 
             Initialize();
-            m_context = context;
+            Context = context;
             m_nestingLevel = 0;
             m_reader = reader;
         }
@@ -54,7 +54,7 @@ namespace Opc.Ua
 
             Initialize();
             m_reader = XmlReader.Create(new StringReader(element.OuterXml), Utils.DefaultXmlReaderSettings());
-            m_context = context;
+            Context = context;
             m_nestingLevel = 0;
         }
 
@@ -66,7 +66,7 @@ namespace Opc.Ua
             Initialize();
 
             m_reader = reader;
-            m_context = context;
+            Context = context;
             m_nestingLevel = 0;
 
             string ns = null;
@@ -90,7 +90,7 @@ namespace Opc.Ua
 
             if (index != -1)
             {
-                name = name.Substring(index + 1);
+                name = name[(index + 1)..];
             }
 
             PushNamespace(ns);
@@ -277,157 +277,157 @@ namespace Opc.Ua
                 // process array types.
                 if (typeName.StartsWith("ListOf", StringComparison.Ordinal))
                 {
-                    switch (typeName.Substring("ListOf".Length))
+                    switch (typeName["ListOf".Length..])
                     {
                         case "Boolean":
                         {
                             typeInfo = TypeInfo.Arrays.Boolean;
                             BooleanCollection collection = ReadBooleanArray(typeName);
-                            return collection != null ? collection.ToArray() : (object)null;
+                            return collection?.ToArray();
                         }
                         case "SByte":
                         {
                             typeInfo = TypeInfo.Arrays.SByte;
                             SByteCollection collection = ReadSByteArray(typeName);
-                            return collection != null ? collection.ToArray() : (object)null;
+                            return collection?.ToArray();
                         }
                         case "Byte":
                         {
                             typeInfo = TypeInfo.Arrays.Byte;
                             ByteCollection collection = ReadByteArray(typeName);
-                            return collection != null ? collection.ToArray() : (object)null;
+                            return collection?.ToArray();
                         }
                         case "Int16":
                         {
                             typeInfo = TypeInfo.Arrays.Int16;
                             Int16Collection collection = ReadInt16Array(typeName);
-                            return collection != null ? collection.ToArray() : (object)null;
+                            return collection?.ToArray();
                         }
                         case "UInt16":
                         {
                             typeInfo = TypeInfo.Arrays.UInt16;
                             UInt16Collection collection = ReadUInt16Array(typeName);
-                            return collection != null ? collection.ToArray() : (object)null;
+                            return collection?.ToArray();
                         }
                         case "Int32":
                         {
                             typeInfo = TypeInfo.Arrays.Int32;
                             Int32Collection collection = ReadInt32Array(typeName);
-                            return collection != null ? collection.ToArray() : (object)null;
+                            return collection?.ToArray();
                         }
                         case "UInt32":
                         {
                             typeInfo = TypeInfo.Arrays.UInt32;
                             UInt32Collection collection = ReadUInt32Array(typeName);
-                            return collection != null ? collection.ToArray() : (object)null;
+                            return collection?.ToArray();
                         }
                         case "Int64":
                         {
                             typeInfo = TypeInfo.Arrays.Int64;
                             Int64Collection collection = ReadInt64Array(typeName);
-                            return collection != null ? collection.ToArray() : (object)null;
+                            return collection?.ToArray();
                         }
                         case "UInt64":
                         {
                             typeInfo = TypeInfo.Arrays.UInt64;
                             UInt64Collection collection = ReadUInt64Array(typeName);
-                            return collection != null ? collection.ToArray() : (object)null;
+                            return collection?.ToArray();
                         }
                         case "Float":
                         {
                             typeInfo = TypeInfo.Arrays.Float;
                             FloatCollection collection = ReadFloatArray(typeName);
-                            return collection != null ? collection.ToArray() : (object)null;
+                            return collection?.ToArray();
                         }
                         case "Double":
                         {
                             typeInfo = TypeInfo.Arrays.Double;
                             DoubleCollection collection = ReadDoubleArray(typeName);
-                            return collection != null ? collection.ToArray() : (object)null;
+                            return collection?.ToArray();
                         }
                         case "String":
                         {
                             typeInfo = TypeInfo.Arrays.String;
                             StringCollection collection = ReadStringArray(typeName);
-                            return collection != null ? collection.ToArray() : (object)null;
+                            return collection?.ToArray();
                         }
                         case "DateTime":
                         {
                             typeInfo = TypeInfo.Arrays.DateTime;
                             DateTimeCollection collection = ReadDateTimeArray(typeName);
-                            return collection != null ? collection.ToArray() : (object)null;
+                            return collection?.ToArray();
                         }
                         case "Guid":
                         {
                             typeInfo = TypeInfo.Arrays.Guid;
                             UuidCollection collection = ReadGuidArray(typeName);
-                            return collection != null ? collection.ToArray() : (object)null;
+                            return collection?.ToArray();
                         }
                         case "ByteString":
                         {
                             typeInfo = TypeInfo.Arrays.ByteString;
                             ByteStringCollection collection = ReadByteStringArray(typeName);
-                            return collection != null ? collection.ToArray() : (object)null;
+                            return collection?.ToArray();
                         }
                         case "XmlElement":
                         {
                             typeInfo = TypeInfo.Arrays.XmlElement;
                             XmlElementCollection collection = ReadXmlElementArray(typeName);
-                            return collection != null ? collection.ToArray() : (object)null;
+                            return collection?.ToArray();
                         }
                         case "NodeId":
                         {
                             typeInfo = TypeInfo.Arrays.NodeId;
                             NodeIdCollection collection = ReadNodeIdArray(typeName);
-                            return collection != null ? collection.ToArray() : (object)null;
+                            return collection?.ToArray();
                         }
                         case "ExpandedNodeId":
                         {
                             typeInfo = TypeInfo.Arrays.ExpandedNodeId;
                             ExpandedNodeIdCollection collection = ReadExpandedNodeIdArray(typeName);
-                            return collection != null ? collection.ToArray() : (object)null;
+                            return collection?.ToArray();
                         }
                         case "StatusCode":
                         {
                             typeInfo = TypeInfo.Arrays.StatusCode;
                             StatusCodeCollection collection = ReadStatusCodeArray(typeName);
-                            return collection != null ? collection.ToArray() : (object)null;
+                            return collection?.ToArray();
                         }
                         case "DiagnosticInfo":
                         {
                             typeInfo = TypeInfo.Arrays.DiagnosticInfo;
                             DiagnosticInfoCollection collection = ReadDiagnosticInfoArray(typeName);
-                            return collection != null ? collection.ToArray() : (object)null;
+                            return collection?.ToArray();
                         }
                         case "QualifiedName":
                         {
                             typeInfo = TypeInfo.Arrays.QualifiedName;
                             QualifiedNameCollection collection = ReadQualifiedNameArray(typeName);
-                            return collection != null ? collection.ToArray() : (object)null;
+                            return collection?.ToArray();
                         }
                         case "LocalizedText":
                         {
                             typeInfo = TypeInfo.Arrays.LocalizedText;
                             LocalizedTextCollection collection = ReadLocalizedTextArray(typeName);
-                            return collection != null ? collection.ToArray() : (object)null;
+                            return collection?.ToArray();
                         }
                         case "ExtensionObject":
                         {
                             typeInfo = TypeInfo.Arrays.ExtensionObject;
                             ExtensionObjectCollection collection = ReadExtensionObjectArray(typeName);
-                            return collection != null ? collection.ToArray() : (object)null;
+                            return collection?.ToArray();
                         }
                         case "DataValue":
                         {
                             typeInfo = TypeInfo.Arrays.DataValue;
                             DataValueCollection collection = ReadDataValueArray(typeName);
-                            return collection != null ? collection.ToArray() : (object)null;
+                            return collection?.ToArray();
                         }
                         case "Variant":
                         {
                             typeInfo = TypeInfo.Arrays.Variant;
                             VariantCollection collection = ReadVariantArray(typeName);
-                            return collection != null ? collection.ToArray() : (object)null;
+                            return collection?.ToArray();
                         }
                     }
                 }
@@ -509,7 +509,7 @@ namespace Opc.Ua
             }
 
             // lookup type.
-            Type systemType = m_context.Factory.GetSystemType(typeId);
+            Type systemType = Context.Factory.GetSystemType(typeId);
 
             // decode known type.
             if (systemType != null)
@@ -577,7 +577,7 @@ namespace Opc.Ua
         /// <summary>
         /// The message context associated with the decoder.
         /// </summary>
-        public IServiceMessageContext Context => m_context;
+        public IServiceMessageContext Context { get; }
 
         /// <summary>
         /// Pushes a namespace onto the namespace stack.
@@ -604,16 +604,16 @@ namespace Opc.Ua
         {
             m_namespaceMappings = null;
 
-            if (namespaceUris != null && m_context.NamespaceUris != null)
+            if (namespaceUris != null && Context.NamespaceUris != null)
             {
-                m_namespaceMappings = m_context.NamespaceUris.CreateMapping(namespaceUris, false);
+                m_namespaceMappings = Context.NamespaceUris.CreateMapping(namespaceUris, false);
             }
 
             m_serverMappings = null;
 
-            if (serverUris != null && m_context.ServerUris != null)
+            if (serverUris != null && Context.ServerUris != null)
             {
-                m_serverMappings = m_context.ServerUris.CreateMapping(serverUris, false);
+                m_serverMappings = Context.ServerUris.CreateMapping(serverUris, false);
             }
         }
 
@@ -635,7 +635,7 @@ namespace Opc.Ua
 
             if (index != -1)
             {
-                name = name.Substring(index + 1);
+                name = name[(index + 1)..];
             }
 
             PushNamespace(ns);
@@ -900,7 +900,7 @@ namespace Opc.Ua
                 string xml = SafeReadString();
 
                 // check the length.
-                if (m_context.MaxStringLength > 0 && m_context.MaxStringLength < xml.Length)
+                if (Context.MaxStringLength > 0 && Context.MaxStringLength < xml.Length)
                 {
                     throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
@@ -915,7 +915,7 @@ namespace Opc.Ua
                     }
                     catch (FormatException fe)
                     {
-                        throw CreateBadDecodingError(fieldName, fe);
+                        throw XmlDecoder.CreateBadDecodingError(fieldName, fe);
                     }
                 }
             }
@@ -942,7 +942,7 @@ namespace Opc.Ua
                 }
                 catch (FormatException fe)
                 {
-                    throw CreateBadDecodingError(fieldName, fe);
+                    throw XmlDecoder.CreateBadDecodingError(fieldName, fe);
                 }
 
                 EndField(fieldName);
@@ -965,7 +965,7 @@ namespace Opc.Ua
 
                     if (!string.IsNullOrEmpty(xml))
                     {
-                        value = SafeConvertFromBase64String(xml);
+                        value = XmlDecoder.SafeConvertFromBase64String(xml);
                     }
                     else
                     {
@@ -974,15 +974,15 @@ namespace Opc.Ua
                 }
                 catch (XmlException xe)
                 {
-                    throw CreateBadDecodingError(fieldName, xe);
+                    throw XmlDecoder.CreateBadDecodingError(fieldName, xe);
                 }
                 catch (InvalidOperationException ioe)
                 {
-                    throw CreateBadDecodingError(fieldName, ioe);
+                    throw XmlDecoder.CreateBadDecodingError(fieldName, ioe);
                 }
 
                 // check the length.
-                if (m_context.MaxByteStringLength > 0 && m_context.MaxByteStringLength < value.Length)
+                if (Context.MaxByteStringLength > 0 && Context.MaxByteStringLength < value.Length)
                 {
                     throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
@@ -1090,11 +1090,11 @@ namespace Opc.Ua
                 }
                 catch (ServiceResultException sre) when (sre.StatusCode == StatusCodes.BadNodeIdInvalid)
                 {
-                    throw CreateBadDecodingError(fieldName, sre);
+                    throw XmlDecoder.CreateBadDecodingError(fieldName, sre);
                 }
                 catch (ArgumentException ae)
                 {
-                    throw CreateBadDecodingError(fieldName, ae);
+                    throw XmlDecoder.CreateBadDecodingError(fieldName, ae);
                 }
 
                 EndField(fieldName);
@@ -1128,11 +1128,11 @@ namespace Opc.Ua
                 }
                 catch (ServiceResultException sre) when (sre.StatusCode == StatusCodes.BadNodeIdInvalid)
                 {
-                    throw CreateBadDecodingError(fieldName, sre);
+                    throw XmlDecoder.CreateBadDecodingError(fieldName, sre);
                 }
                 catch (ArgumentException ae)
                 {
-                    throw CreateBadDecodingError(fieldName, ae);
+                    throw XmlDecoder.CreateBadDecodingError(fieldName, ae);
                 }
 
                 EndField(fieldName);
@@ -1300,7 +1300,7 @@ namespace Opc.Ua
                             object contents = ReadVariantContents(out typeInfo);
                             value = new Variant(contents, typeInfo);
                         }
-                        catch (Exception ex) when (!(ex is ServiceResultException))
+                        catch (Exception ex) when (ex is not ServiceResultException)
                         {
                             Utils.LogError(ex, "XmlDecoder: Error reading variant. {0}", ex.Message);
                             value = new Variant((StatusCode)StatusCodes.BadDecodingError);
@@ -1365,7 +1365,7 @@ namespace Opc.Ua
             NodeId typeId = ReadNodeId("TypeId");
 
             // convert to absolute type id.
-            var absoluteId = NodeId.ToExpandedNodeId(typeId, m_context.NamespaceUris);
+            var absoluteId = NodeId.ToExpandedNodeId(typeId, Context.NamespaceUris);
 
             if (!NodeId.IsNull(typeId) && NodeId.IsNull(absoluteId))
             {
@@ -1495,7 +1495,7 @@ namespace Opc.Ua
                     {
                         if (index != -1)
                         {
-                            int numericValue = Convert.ToInt32(xml.Substring(index + 1), CultureInfo.InvariantCulture);
+                            int numericValue = Convert.ToInt32(xml[(index + 1)..], CultureInfo.InvariantCulture);
                             value = (Enum)Enum.ToObject(enumType, numericValue);
                         }
                         else
@@ -1503,9 +1503,9 @@ namespace Opc.Ua
                             value = (Enum)Enum.Parse(enumType, xml, false);
                         }
                     }
-                    catch (Exception ex) when (ex is ArgumentException || ex is FormatException || ex is OverflowException)
+                    catch (Exception ex) when (ex is ArgumentException or FormatException or OverflowException)
                     {
-                        throw CreateBadDecodingError(fieldName, ex);
+                        throw XmlDecoder.CreateBadDecodingError(fieldName, ex);
                     }
                 }
 
@@ -1532,7 +1532,7 @@ namespace Opc.Ua
                 }
 
                 // check the length.
-                if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
+                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
                 {
                     throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
@@ -1563,7 +1563,7 @@ namespace Opc.Ua
                 }
 
                 // check the length.
-                if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
+                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
                 {
                     throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
@@ -1594,7 +1594,7 @@ namespace Opc.Ua
                 }
 
                 // check the length.
-                if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
+                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
                 {
                     throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
@@ -1625,7 +1625,7 @@ namespace Opc.Ua
                 }
 
                 // check the length.
-                if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
+                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
                 {
                     throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
@@ -1656,7 +1656,7 @@ namespace Opc.Ua
                 }
 
                 // check the length.
-                if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
+                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
                 {
                     throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
@@ -1687,7 +1687,7 @@ namespace Opc.Ua
                 }
 
                 // check the length.
-                if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
+                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
                 {
                     throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
@@ -1718,7 +1718,7 @@ namespace Opc.Ua
                 }
 
                 // check the length.
-                if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
+                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
                 {
                     throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
@@ -1749,7 +1749,7 @@ namespace Opc.Ua
                 }
 
                 // check the length.
-                if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
+                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
                 {
                     throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
@@ -1780,7 +1780,7 @@ namespace Opc.Ua
                 }
 
                 // check the length.
-                if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
+                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
                 {
                     throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
@@ -1811,7 +1811,7 @@ namespace Opc.Ua
                 }
 
                 // check the length.
-                if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
+                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
                 {
                     throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
@@ -1842,7 +1842,7 @@ namespace Opc.Ua
                 }
 
                 // check the length.
-                if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
+                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
                 {
                     throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
@@ -1873,7 +1873,7 @@ namespace Opc.Ua
                 }
 
                 // check the length.
-                if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
+                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
                 {
                     throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
@@ -1904,7 +1904,7 @@ namespace Opc.Ua
                 }
 
                 // check the length.
-                if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
+                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
                 {
                     throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
@@ -1935,7 +1935,7 @@ namespace Opc.Ua
                 }
 
                 // check the length.
-                if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
+                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
                 {
                     throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
@@ -1966,7 +1966,7 @@ namespace Opc.Ua
                 }
 
                 // check the length.
-                if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
+                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
                 {
                     throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
@@ -1997,7 +1997,7 @@ namespace Opc.Ua
                 }
 
                 // check the length.
-                if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
+                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
                 {
                     throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
@@ -2028,7 +2028,7 @@ namespace Opc.Ua
                 }
 
                 // check the length.
-                if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
+                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
                 {
                     throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
@@ -2059,7 +2059,7 @@ namespace Opc.Ua
                 }
 
                 // check the length.
-                if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
+                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
                 {
                     throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
@@ -2090,7 +2090,7 @@ namespace Opc.Ua
                 }
 
                 // check the length.
-                if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
+                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
                 {
                     throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
@@ -2121,7 +2121,7 @@ namespace Opc.Ua
                 }
 
                 // check the length.
-                if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
+                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
                 {
                     throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
@@ -2152,7 +2152,7 @@ namespace Opc.Ua
                 }
 
                 // check the length.
-                if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
+                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
                 {
                     throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
@@ -2183,7 +2183,7 @@ namespace Opc.Ua
                 }
 
                 // check the length.
-                if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
+                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
                 {
                     throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
@@ -2214,7 +2214,7 @@ namespace Opc.Ua
                 }
 
                 // check the length.
-                if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
+                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
                 {
                     throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
@@ -2245,7 +2245,7 @@ namespace Opc.Ua
                 }
 
                 // check the length.
-                if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
+                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
                 {
                     throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
@@ -2276,7 +2276,7 @@ namespace Opc.Ua
                 }
 
                 // check the length.
-                if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
+                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
                 {
                     throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
@@ -2317,7 +2317,7 @@ namespace Opc.Ua
                 }
 
                 // check the length.
-                if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < encodeables.Count)
+                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < encodeables.Count)
                 {
                     throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
@@ -2364,7 +2364,7 @@ namespace Opc.Ua
                 }
 
                 // check the length.
-                if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < enums.Count)
+                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < enums.Count)
                 {
                     throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
@@ -2537,7 +2537,7 @@ namespace Opc.Ua
 
                     if (BeginField("Elements", true))
                     {
-                        typeInfo = MapElementTypeToTypeInfo(m_reader.LocalName);
+                        typeInfo = XmlDecoder.MapElementTypeToTypeInfo(m_reader.LocalName);
                         elements = ReadArray(null, typeInfo.ValueRank, typeInfo.BuiltInType, null);
                         EndField("Elements");
                     }
@@ -2580,7 +2580,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="elementTypeName">The name of the element type.</param>
         /// <returns>The corresponding TypeInfo.Arrays value.</returns>
-        private TypeInfo MapElementTypeToTypeInfo(string elementTypeName)
+        private static TypeInfo MapElementTypeToTypeInfo(string elementTypeName)
         {
             return elementTypeName switch {
                 "Boolean" => TypeInfo.Arrays.Boolean,
@@ -2638,27 +2638,27 @@ namespace Opc.Ua
                     case BuiltInType.Boolean:
                     {
                         BooleanCollection collection = ReadBooleanArray(fieldName);
-                        return collection != null ? collection.ToArray() : (Array)null;
+                        return collection?.ToArray();
                     }
                     case BuiltInType.SByte:
                     {
                         SByteCollection collection = ReadSByteArray(fieldName);
-                        return collection != null ? collection.ToArray() : (Array)null;
+                        return collection?.ToArray();
                     }
                     case BuiltInType.Byte:
                     {
                         ByteCollection collection = ReadByteArray(fieldName);
-                        return collection != null ? collection.ToArray() : (Array)null;
+                        return collection?.ToArray();
                     }
                     case BuiltInType.Int16:
                     {
                         Int16Collection collection = ReadInt16Array(fieldName);
-                        return collection != null ? collection.ToArray() : (Array)null;
+                        return collection?.ToArray();
                     }
                     case BuiltInType.UInt16:
                     {
                         UInt16Collection collection = ReadUInt16Array(fieldName);
-                        return collection != null ? collection.ToArray() : (Array)null;
+                        return collection?.ToArray();
                     }
                     case BuiltInType.Enumeration:
                     case BuiltInType.Int32:
@@ -2687,92 +2687,92 @@ namespace Opc.Ua
                     case BuiltInType.UInt32:
                     {
                         UInt32Collection collection = ReadUInt32Array(fieldName);
-                        return collection != null ? collection.ToArray() : (Array)null;
+                        return collection?.ToArray();
                     }
                     case BuiltInType.Int64:
                     {
                         Int64Collection collection = ReadInt64Array(fieldName);
-                        return collection != null ? collection.ToArray() : (Array)null;
+                        return collection?.ToArray();
                     }
                     case BuiltInType.UInt64:
                     {
                         UInt64Collection collection = ReadUInt64Array(fieldName);
-                        return collection != null ? collection.ToArray() : (Array)null;
+                        return collection?.ToArray();
                     }
                     case BuiltInType.Float:
                     {
                         FloatCollection collection = ReadFloatArray(fieldName);
-                        return collection != null ? collection.ToArray() : (Array)null;
+                        return collection?.ToArray();
                     }
                     case BuiltInType.Double:
                     {
                         DoubleCollection collection = ReadDoubleArray(fieldName);
-                        return collection != null ? collection.ToArray() : (Array)null;
+                        return collection?.ToArray();
                     }
                     case BuiltInType.String:
                     {
                         StringCollection collection = ReadStringArray(fieldName);
-                        return collection != null ? collection.ToArray() : (Array)null;
+                        return collection?.ToArray();
                     }
                     case BuiltInType.DateTime:
                     {
                         DateTimeCollection collection = ReadDateTimeArray(fieldName);
-                        return collection != null ? collection.ToArray() : (Array)null;
+                        return collection?.ToArray();
                     }
                     case BuiltInType.Guid:
                     {
                         UuidCollection collection = ReadGuidArray(fieldName);
-                        return collection != null ? collection.ToArray() : (Array)null;
+                        return collection?.ToArray();
                     }
                     case BuiltInType.ByteString:
                     {
                         ByteStringCollection collection = ReadByteStringArray(fieldName);
-                        return collection != null ? collection.ToArray() : (Array)null;
+                        return collection?.ToArray();
                     }
                     case BuiltInType.XmlElement:
                     {
                         XmlElementCollection collection = ReadXmlElementArray(fieldName);
-                        return collection != null ? collection.ToArray() : (Array)null;
+                        return collection?.ToArray();
                     }
                     case BuiltInType.NodeId:
                     {
                         NodeIdCollection collection = ReadNodeIdArray(fieldName);
-                        return collection != null ? collection.ToArray() : (Array)null;
+                        return collection?.ToArray();
                     }
                     case BuiltInType.ExpandedNodeId:
                     {
                         ExpandedNodeIdCollection collection = ReadExpandedNodeIdArray(fieldName);
-                        return collection != null ? collection.ToArray() : (Array)null;
+                        return collection?.ToArray();
                     }
                     case BuiltInType.StatusCode:
                     {
                         StatusCodeCollection collection = ReadStatusCodeArray(fieldName);
-                        return collection != null ? collection.ToArray() : (Array)null;
+                        return collection?.ToArray();
                     }
                     case BuiltInType.DiagnosticInfo:
                     {
                         DiagnosticInfoCollection collection = ReadDiagnosticInfoArray(fieldName);
-                        return collection != null ? collection.ToArray() : (Array)null;
+                        return collection?.ToArray();
                     }
                     case BuiltInType.QualifiedName:
                     {
                         QualifiedNameCollection collection = ReadQualifiedNameArray(fieldName);
-                        return collection != null ? collection.ToArray() : (Array)null;
+                        return collection?.ToArray();
                     }
                     case BuiltInType.LocalizedText:
                     {
                         LocalizedTextCollection collection = ReadLocalizedTextArray(fieldName);
-                        return collection != null ? collection.ToArray() : (Array)null;
+                        return collection?.ToArray();
                     }
                     case BuiltInType.ExtensionObject:
                     {
                         ExtensionObjectCollection collection = ReadExtensionObjectArray(fieldName);
-                        return collection != null ? collection.ToArray() : (Array)null;
+                        return collection?.ToArray();
                     }
                     case BuiltInType.DataValue:
                     {
                         DataValueCollection collection = ReadDataValueArray(fieldName);
-                        return collection != null ? collection.ToArray() : (Array)null;
+                        return collection?.ToArray();
                     }
                     case BuiltInType.Variant:
                     {
@@ -2782,7 +2782,7 @@ namespace Opc.Ua
                         }
 
                         VariantCollection collection = ReadVariantArray(fieldName);
-                        return collection != null ? collection.ToArray() : (Array)null;
+                        return collection?.ToArray();
                     }
                     default:
                     {
@@ -2816,10 +2816,10 @@ namespace Opc.Ua
                 // check the length.
                 if (value != null)
                 {
-                    if (m_context.MaxStringLength > 0 && m_context.MaxStringLength < value.Length)
+                    if (Context.MaxStringLength > 0 && Context.MaxStringLength < value.Length)
                     {
                         throw ServiceResultException.Create(StatusCodes.BadEncodingLimitsExceeded,
-                            "ReadString in {0} exceeds MaxStringLength: {1} > {2}", functionName, value.Length, m_context.MaxStringLength);
+                            "ReadString in {0} exceeds MaxStringLength: {1} > {2}", functionName, value.Length, Context.MaxStringLength);
                     }
                 }
 
@@ -2837,7 +2837,7 @@ namespace Opc.Ua
                 "Unable to read string of {0}: {1}", functionName, message);
         }
 
-        private byte[] SafeConvertFromBase64String(string s)
+        private static byte[] SafeConvertFromBase64String(string s)
         {
             try
             {
@@ -2968,7 +2968,7 @@ namespace Opc.Ua
         {
             while (!m_reader.IsStartElement())
             {
-                if (m_reader.NodeType == XmlNodeType.None || m_reader.NodeType == XmlNodeType.EndElement)
+                if (m_reader.NodeType is XmlNodeType.None or XmlNodeType.EndElement)
                 {
                     return false;
                 }
@@ -2981,7 +2981,7 @@ namespace Opc.Ua
                 return true;
             }
 
-            return (m_reader.LocalName == elementName && m_reader.NamespaceURI == m_namespaces.Peek());
+            return m_reader.LocalName == elementName && m_reader.NamespaceURI == m_namespaces.Peek();
         }
 
         /// <summary>
@@ -3004,10 +3004,10 @@ namespace Opc.Ua
         /// </summary>
         private void CheckAndIncrementNestingLevel([CallerMemberName] string functionName = null)
         {
-            if (m_nestingLevel > m_context.MaxEncodingNestingLevels)
+            if (m_nestingLevel > Context.MaxEncodingNestingLevels)
             {
                 throw ServiceResultException.Create(StatusCodes.BadEncodingLimitsExceeded,
-                    "Maximum nesting level of {0} in function {1} was exceeded", m_context.MaxEncodingNestingLevels, functionName);
+                    "Maximum nesting level of {0} in function {1} was exceeded", Context.MaxEncodingNestingLevels, functionName);
             }
             m_nestingLevel++;
         }
@@ -3015,7 +3015,7 @@ namespace Opc.Ua
         /// <summary>
         /// Helper to create a BadDecodingError exception.
         /// </summary>
-        private ServiceResultException CreateBadDecodingError(string fieldName, Exception ex, [CallerMemberName] string functionName = null)
+        private static ServiceResultException CreateBadDecodingError(string fieldName, Exception ex, [CallerMemberName] string functionName = null)
         {
             return ServiceResultException.Create(StatusCodes.BadDecodingError,
                 "Unable to read field {0} in function {1}: {2}", fieldName, functionName, ex.Message);
@@ -3035,11 +3035,11 @@ namespace Opc.Ua
             }
             catch (OverflowException ove)
             {
-                throw CreateBadDecodingError(fieldName, ove, functionName);
+                throw XmlDecoder.CreateBadDecodingError(fieldName, ove, functionName);
             }
             catch (FormatException fe)
             {
-                throw CreateBadDecodingError(fieldName, fe, functionName);
+                throw XmlDecoder.CreateBadDecodingError(fieldName, fe, functionName);
             }
         }
         #endregion
@@ -3047,7 +3047,6 @@ namespace Opc.Ua
         #region Private Fields
         private XmlReader m_reader;
         private Stack<string> m_namespaces;
-        private readonly IServiceMessageContext m_context;
         private ushort[] m_namespaceMappings;
         private ushort[] m_serverMappings;
         private uint m_nestingLevel;

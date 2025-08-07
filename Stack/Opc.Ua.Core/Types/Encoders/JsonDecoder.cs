@@ -43,7 +43,6 @@ namespace Opc.Ua
         private JsonTextReader m_reader;
         private readonly Dictionary<string, object> m_root;
         private readonly Stack<object> m_stack;
-        private readonly IServiceMessageContext m_context;
         private ushort[] m_namespaceMappings;
         private ushort[] m_serverMappings;
         private uint m_nestingLevel;
@@ -72,7 +71,7 @@ namespace Opc.Ua
 
             Initialize();
 
-            m_context = context;
+            Context = context;
             m_nestingLevel = 0;
             m_reader = new JsonTextReader(new StringReader(json));
             m_root = ReadObject();
@@ -90,7 +89,7 @@ namespace Opc.Ua
         {
             Initialize();
 
-            m_context = context;
+            Context = context;
             m_nestingLevel = 0;
             m_reader = reader;
             m_root = ReadObject();
@@ -176,8 +175,8 @@ namespace Opc.Ua
 
             if ((namespaceUris != null && namespaceUris.Count > 0) || (serverUris != null && serverUris.Count > 0))
             {
-                NamespaceTable namespaces = (namespaceUris == null || namespaceUris.Count == 0) ? m_context.NamespaceUris : new NamespaceTable(namespaceUris);
-                StringTable servers = (serverUris == null || serverUris.Count == 0) ? m_context.ServerUris : new StringTable(serverUris);
+                NamespaceTable namespaces = (namespaceUris == null || namespaceUris.Count == 0) ? Context.NamespaceUris : new NamespaceTable(namespaceUris);
+                StringTable servers = (serverUris == null || serverUris.Count == 0) ? Context.ServerUris : new StringTable(serverUris);
 
                 SetMappingTables(namespaces, servers);
             }
@@ -186,10 +185,10 @@ namespace Opc.Ua
             NodeId typeId = ReadNodeId("TypeId");
 
             // convert to absolute node id.
-            var absoluteId = NodeId.ToExpandedNodeId(typeId, m_context.NamespaceUris);
+            var absoluteId = NodeId.ToExpandedNodeId(typeId, Context.NamespaceUris);
 
             // lookup message type.
-            Type actualType = m_context.Factory.GetSystemType(absoluteId);
+            Type actualType = Context.Factory.GetSystemType(absoluteId);
 
             if (actualType == null)
             {
@@ -212,7 +211,7 @@ namespace Opc.Ua
         {
             m_namespaceMappings = null;
 
-            if (namespaceUris != null && m_context.NamespaceUris != null)
+            if (namespaceUris != null && Context.NamespaceUris != null)
             {
                 ushort[] namespaceMappings = new ushort[namespaceUris.Count];
 
@@ -222,11 +221,11 @@ namespace Opc.Ua
 
                     if (UpdateNamespaceTable)
                     {
-                        namespaceMappings[ii] = m_context.NamespaceUris.GetIndexOrAppend(uri);
+                        namespaceMappings[ii] = Context.NamespaceUris.GetIndexOrAppend(uri);
                     }
                     else
                     {
-                        int index = m_context.NamespaceUris.GetIndex(namespaceUris.GetString(ii));
+                        int index = Context.NamespaceUris.GetIndex(namespaceUris.GetString(ii));
                         namespaceMappings[ii] = (index >= 0) ? (ushort)index : ushort.MaxValue;
                     }
                 }
@@ -236,7 +235,7 @@ namespace Opc.Ua
 
             m_serverMappings = null;
 
-            if (serverUris != null && m_context.ServerUris != null)
+            if (serverUris != null && Context.ServerUris != null)
             {
                 ushort[] serverMappings = new ushort[serverUris.Count];
 
@@ -246,11 +245,11 @@ namespace Opc.Ua
 
                     if (UpdateNamespaceTable)
                     {
-                        serverMappings[ii] = m_context.ServerUris.GetIndexOrAppend(uri);
+                        serverMappings[ii] = Context.ServerUris.GetIndexOrAppend(uri);
                     }
                     else
                     {
-                        int index = m_context.ServerUris.GetIndex(serverUris.GetString(ii));
+                        int index = Context.ServerUris.GetIndex(serverUris.GetString(ii));
                         serverMappings[ii] = (index >= 0) ? (ushort)index : ushort.MaxValue;
                     }
                 }
@@ -324,7 +323,7 @@ namespace Opc.Ua
         /// <summary>
         /// The message context associated with the decoder.
         /// </summary>
-        public IServiceMessageContext Context => m_context;
+        public IServiceMessageContext Context { get; }
 
         /// <summary>
         /// Pushes a namespace onto the namespace stack.
@@ -509,7 +508,7 @@ namespace Opc.Ua
 
             if (value == null)
             {
-                return ReadEnumeratedString<int>(token, int.TryParse);
+                return JsonDecoder.ReadEnumeratedString<int>(token, int.TryParse);
             }
 
             if (value is < int.MinValue or > int.MaxValue)
@@ -536,7 +535,7 @@ namespace Opc.Ua
 
             if (value == null)
             {
-                return ReadEnumeratedString<uint>(token, uint.TryParse);
+                return JsonDecoder.ReadEnumeratedString<uint>(token, uint.TryParse);
             }
 
             if (value is < uint.MinValue or > uint.MaxValue)
@@ -738,7 +737,7 @@ namespace Opc.Ua
                 return null;
             }
 
-            if (m_context.MaxStringLength > 0 && m_context.MaxStringLength < value.Length)
+            if (Context.MaxStringLength > 0 && Context.MaxStringLength < value.Length)
             {
                 throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
             }
@@ -829,9 +828,9 @@ namespace Opc.Ua
                 return Array.Empty<byte>();
             }
 
-            byte[] bytes = SafeConvertFromBase64String(value);
+            byte[] bytes = JsonDecoder.SafeConvertFromBase64String(value);
 
-            if (m_context.MaxByteStringLength > 0 && m_context.MaxByteStringLength < bytes.Length)
+            if (Context.MaxByteStringLength > 0 && Context.MaxByteStringLength < bytes.Length)
             {
                 throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
             }
@@ -892,7 +891,7 @@ namespace Opc.Ua
                 try
                 {
                     nodeId = NodeId.Parse(
-                        m_context,
+                        Context,
                         text,
                         new NodeIdParsingOptions() {
                             UpdateTables = UpdateNamespaceTable,
@@ -974,7 +973,7 @@ namespace Opc.Ua
                         }
                     }
                 }
-                return DefaultNodeId(idType, namespaceIndex);
+                return JsonDecoder.DefaultNodeId(idType, namespaceIndex);
             }
             finally
             {
@@ -1001,7 +1000,7 @@ namespace Opc.Ua
                 try
                 {
                     nodeId = ExpandedNodeId.Parse(
-                        m_context,
+                        Context,
                         text,
                         new NodeIdParsingOptions() {
                             UpdateTables = UpdateNamespaceTable,
@@ -1116,7 +1115,7 @@ namespace Opc.Ua
                     }
                 }
 
-                return new ExpandedNodeId(DefaultNodeId(idType, namespaceIndex), namespaceUri, serverIndex);
+                return new ExpandedNodeId(JsonDecoder.DefaultNodeId(idType, namespaceIndex), namespaceUri, serverIndex);
             }
             finally
             {
@@ -1190,7 +1189,7 @@ namespace Opc.Ua
 
                 try
                 {
-                    qn = QualifiedName.Parse(m_context, text, UpdateNamespaceTable);
+                    qn = QualifiedName.Parse(Context, text, UpdateNamespaceTable);
 
                     if (qn.NamespaceIndex != 0)
                     {
@@ -1366,7 +1365,7 @@ namespace Opc.Ua
             try
             {
                 m_stack.Push(value);
-                BuiltInType builtInType = (value.ContainsKey("UaType")) ? (BuiltInType)ReadByte("UaType") : (BuiltInType)ReadByte("Type");
+                BuiltInType builtInType = value.ContainsKey("UaType") ? (BuiltInType)ReadByte("UaType") : (BuiltInType)ReadByte("Type");
 
                 if (value.ContainsKey("Value"))
                 {
@@ -1464,7 +1463,7 @@ namespace Opc.Ua
                 ExpandedNodeId absoluteId =
                     typeId.IsAbsolute ?
                     typeId :
-                    NodeId.ToExpandedNodeId(typeId.InnerNodeId, m_context.NamespaceUris);
+                    NodeId.ToExpandedNodeId(typeId.InnerNodeId, Context.NamespaceUris);
 
                 if (!NodeId.IsNull(typeId) && NodeId.IsNull(absoluteId))
                 {
@@ -1476,7 +1475,7 @@ namespace Opc.Ua
                 }
 
                 ExtensionObjectEncoding encoding = 0;
-                string encodingFieldName = (inlineValues) ? "UaEncoding" : "Encoding";
+                string encodingFieldName = inlineValues ? "UaEncoding" : "Encoding";
 
                 encoding = (ExtensionObjectEncoding)ReadByte(encodingFieldName);
 
@@ -1492,13 +1491,13 @@ namespace Opc.Ua
 
                 if (encoding == ExtensionObjectEncoding.Binary)
                 {
-                    byte[] bytes = ReadByteString((inlineValues) ? "UaBody" : "Body");
+                    byte[] bytes = ReadByteString(inlineValues ? "UaBody" : "Body");
                     return new ExtensionObject(typeId, bytes ?? Array.Empty<byte>());
                 }
 
                 if (encoding == ExtensionObjectEncoding.Xml)
                 {
-                    XmlElement xml = ReadXmlElement((inlineValues) ? "UaBody" : "Body");
+                    XmlElement xml = ReadXmlElement(inlineValues ? "UaBody" : "Body");
                     if (xml == null)
                     {
                         return extension;
@@ -1508,7 +1507,7 @@ namespace Opc.Ua
 
                 if (encoding == ExtensionObjectEncoding.Json)
                 {
-                    string json = ReadString((inlineValues) ? "UaBody" : "Body");
+                    string json = ReadString(inlineValues ? "UaBody" : "Body");
                     if (string.IsNullOrEmpty(json))
                     {
                         return extension;
@@ -1516,7 +1515,7 @@ namespace Opc.Ua
                     return new ExtensionObject(typeId, json);
                 }
 
-                Type systemType = m_context.Factory.GetSystemType(typeId);
+                Type systemType = Context.Factory.GetSystemType(typeId);
 
                 if (systemType != null)
                 {
@@ -1642,7 +1641,7 @@ namespace Opc.Ua
             {
                 int index = text.LastIndexOf('_');
 
-                if (index > 0 && long.TryParse(text.Substring(index + 1), out code))
+                if (index > 0 && long.TryParse(text[(index + 1)..], out code))
                 {
                     return (Enum)Enum.ToObject(enumType, code);
                 }
@@ -1724,7 +1723,7 @@ namespace Opc.Ua
             string value = ReadString(fieldName);
             if (value != null)
             {
-                return SafeConvertFromBase64String(value);
+                return JsonDecoder.SafeConvertFromBase64String(value);
             }
 
             if (!ReadArrayField(fieldName, out token))
@@ -2951,7 +2950,7 @@ namespace Opc.Ua
         #region Private Methods
         private ushort ToNamespaceIndex(string uri)
         {
-            int index = m_context.NamespaceUris.GetIndex(uri);
+            int index = Context.NamespaceUris.GetIndex(uri);
 
             if (index < 0)
             {
@@ -2961,7 +2960,7 @@ namespace Opc.Ua
                 }
                 else
                 {
-                    index = m_context.NamespaceUris.GetIndexOrAppend(uri);
+                    index = Context.NamespaceUris.GetIndexOrAppend(uri);
                 }
             }
 
@@ -2985,7 +2984,7 @@ namespace Opc.Ua
 
         private ushort ToServerIndex(string uri)
         {
-            int index = m_context.ServerUris.GetIndex(uri);
+            int index = Context.ServerUris.GetIndex(uri);
 
             if (index < 0)
             {
@@ -2995,7 +2994,7 @@ namespace Opc.Ua
                 }
                 else
                 {
-                    index = m_context.ServerUris.GetIndexOrAppend(uri);
+                    index = Context.ServerUris.GetIndexOrAppend(uri);
                 }
             }
 
@@ -3029,7 +3028,7 @@ namespace Opc.Ua
         /// <param name="token"></param>
         /// <param name="handler"></param>
         /// <returns>The parsed number or 0.</returns>
-        private T ReadEnumeratedString<T>(object token, TryParseHandler<T> handler) where T : struct
+        private static T ReadEnumeratedString<T>(object token, TryParseHandler<T> handler) where T : struct
         {
             T number = default;
             if (token is string text)
@@ -3042,7 +3041,7 @@ namespace Opc.Ua
                         int lastIndex = text.LastIndexOf('_');
                         if (lastIndex != -1)
                         {
-                            text = text.Substring(lastIndex + 1);
+                            text = text[(lastIndex + 1)..];
                             retry = true;
                         }
                     }
@@ -3426,7 +3425,7 @@ namespace Opc.Ua
         /// Get Default value for NodeId for diferent IdTypes
         /// </summary>
         /// <returns>new NodeId</returns>
-        private NodeId DefaultNodeId(IdType idType, ushort namespaceIndex)
+        private static NodeId DefaultNodeId(IdType idType, ushort namespaceIndex)
         {
             switch (idType)
             {
@@ -3514,7 +3513,7 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < array.Count)
+            if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < array.Count)
             {
                 throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
             }
@@ -3525,7 +3524,7 @@ namespace Opc.Ua
         /// <summary>
         /// Safe Convert function which throws a BadDecodingError if unsuccessful.
         /// </summary>
-        private byte[] SafeConvertFromBase64String(string s)
+        private static byte[] SafeConvertFromBase64String(string s)
         {
             try
             {
@@ -3542,12 +3541,12 @@ namespace Opc.Ua
         /// </summary>
         private void CheckAndIncrementNestingLevel()
         {
-            if (m_nestingLevel > m_context.MaxEncodingNestingLevels)
+            if (m_nestingLevel > Context.MaxEncodingNestingLevels)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadEncodingLimitsExceeded,
                     "Maximum nesting level of {0} was exceeded",
-                    m_context.MaxEncodingNestingLevels);
+                    Context.MaxEncodingNestingLevels);
             }
             m_nestingLevel++;
         }

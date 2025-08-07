@@ -15,7 +15,7 @@ using System.Collections.Generic;
 
 namespace Opc.Ua
 {
-    /// <summary> 
+    /// <summary>
     /// The base class for all view nodes.
     /// </summary>
     public class ViewState : NodeState

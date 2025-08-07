@@ -479,7 +479,7 @@ namespace Opc.Ua
     public class NodeStateFactory
     {
         /// <summary>
-        /// Creates a new instance. 
+        /// Creates a new instance.
         /// </summary>
         /// <param name="context">The current context.</param>
         /// <param name="parent">The parent.</param>

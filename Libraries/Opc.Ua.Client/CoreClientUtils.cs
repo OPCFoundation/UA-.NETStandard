@@ -93,7 +93,7 @@ namespace Opc.Ua.Client
                         // The URL without this prefix should be the base URL for the server. 
                         if (discoveryUrl.EndsWith(ConfiguredEndpoint.DiscoverySuffix, StringComparison.OrdinalIgnoreCase))
                         {
-                            discoveryUrl = discoveryUrl.Substring(0, discoveryUrl.Length - ConfiguredEndpoint.DiscoverySuffix.Length);
+                            discoveryUrl = discoveryUrl[..^ConfiguredEndpoint.DiscoverySuffix.Length];
                         }
 
                         // ensure duplicates do not get added.

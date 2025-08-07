@@ -50,7 +50,7 @@ namespace Opc.Ua.Security.Certificates
     /// <summary>
     /// Builds a Certificate.
     /// </summary>
-    public class CertificateBuilder : CertificateBuilderBase
+    public sealed class CertificateBuilder : CertificateBuilderBase
     {
         #region Constructors
         /// <summary>
@@ -291,8 +291,7 @@ namespace Opc.Ua.Security.Certificates
                 m_ecdsaPublicKey = ECDsa.Create();
 #if NET472_OR_GREATER
 
-                var asymmetricPubKeyParameters = Org.BouncyCastle.Security.PublicKeyFactory.CreateKey(publicKey) as Org.BouncyCastle.Crypto.Parameters.ECPublicKeyParameters;
-                if (asymmetricPubKeyParameters == null)
+                if (!(Org.BouncyCastle.Security.PublicKeyFactory.CreateKey(publicKey) is Org.BouncyCastle.Crypto.Parameters.ECPublicKeyParameters asymmetricPubKeyParameters))
                 {
                     throw new ArgumentException("Invalid public key format or key type.");
                 }
@@ -301,7 +300,7 @@ namespace Opc.Ua.Security.Certificates
                 var publicKeyInfo = SubjectPublicKeyInfo.GetInstance(asn1Obj);
                 Asn1Encodable algParams = publicKeyInfo.Algorithm.Parameters;
                 var x962Params = X962Parameters.GetInstance(algParams);
-                    
+
                 var ecParameters = new ECParameters();
 
                 Org.BouncyCastle.Crypto.Parameters.ECDomainParameters domainParameters = asymmetricPubKeyParameters.Parameters;
@@ -409,7 +408,7 @@ namespace Opc.Ua.Security.Certificates
         private void CreateX509Extensions(CertificateRequest request, bool forECDsa)
         {
             // Basic Constraints
-            if (X509Extensions.FindExtension<X509BasicConstraintsExtension>(m_extensions) == null)
+            if (m_extensions.FindExtension<X509BasicConstraintsExtension>() == null)
             {
                 X509BasicConstraintsExtension bc = GetBasicContraints();
                 request.CertificateExtensions.Add(bc);
@@ -420,16 +419,16 @@ namespace Opc.Ua.Security.Certificates
                 request.PublicKey,
                 X509SubjectKeyIdentifierHashAlgorithm.Sha1,
                 false);
-            if (X509Extensions.FindExtension<X509SubjectKeyIdentifierExtension>(m_extensions) == null)
+            if (m_extensions.FindExtension<X509SubjectKeyIdentifierExtension>() == null)
             {
                 request.CertificateExtensions.Add(ski);
             }
 
             // Authority Key Identifier
-            if (X509Extensions.FindExtension<X509AuthorityKeyIdentifierExtension>(m_extensions) == null)
+            if (m_extensions.FindExtension<X509AuthorityKeyIdentifierExtension>() == null)
             {
                 System.Security.Cryptography.X509Certificates.X509Extension authorityKeyIdentifier = IssuerCAKeyCert != null
-                    ? X509Extensions.BuildAuthorityKeyIdentifier(IssuerCAKeyCert)
+                    ? IssuerCAKeyCert.BuildAuthorityKeyIdentifier()
                     : new X509AuthorityKeyIdentifierExtension(
                         ski.SubjectKeyIdentifier.FromHexString(),
                         IssuerName,
@@ -438,7 +437,7 @@ namespace Opc.Ua.Security.Certificates
             }
 
             // Key usage extensions
-            if (X509Extensions.FindExtension<X509KeyUsageExtension>(m_extensions) == null)
+            if (m_extensions.FindExtension<X509KeyUsageExtension>() == null)
             {
                 X509KeyUsageFlags keyUsageFlags;
                 if (m_isCA)
@@ -474,7 +473,7 @@ namespace Opc.Ua.Security.Certificates
 
             if (!m_isCA && !forECDsa)
             {
-                if (X509Extensions.FindExtension<X509EnhancedKeyUsageExtension>(m_extensions) == null)
+                if (m_extensions.FindExtension<X509EnhancedKeyUsageExtension>() == null)
                 {
                     // Enhanced key usage 
                     request.CertificateExtensions.Add(
@@ -516,8 +515,6 @@ namespace Opc.Ua.Security.Certificates
         }
         #endregion
 
-        #region Private Fields
-        #endregion
     }
 }
 #endif

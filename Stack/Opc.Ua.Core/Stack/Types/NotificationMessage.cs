@@ -79,7 +79,7 @@ namespace Opc.Ua
                 }
 
 
-                if (!(extension.Body is DataChangeNotification notification))
+                if (extension.Body is not DataChangeNotification notification)
                 {
                     continue;
                 }
@@ -129,7 +129,7 @@ namespace Opc.Ua
                     continue;
                 }
 
-                if (!(extension.Body is EventNotificationList notification))
+                if (extension.Body is not EventNotificationList notification)
                 {
                     continue;
                 }

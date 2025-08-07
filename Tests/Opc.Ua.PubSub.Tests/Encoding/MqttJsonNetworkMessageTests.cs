@@ -2106,7 +2106,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 catch (Exception ex)
                 {
                     Assert.Warn($"JsonDataSetMessage - Error reading element for RawData. {ex.Message}");
-                    return (StatusCodes.BadDecodingError);
+                    return StatusCodes.BadDecodingError;
                 }
             }
             return null;

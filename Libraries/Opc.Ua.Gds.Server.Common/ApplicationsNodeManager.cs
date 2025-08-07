@@ -929,7 +929,7 @@ namespace Opc.Ua.Gds.Server
                 {
                     if (certificateGroup.Id == m_defaultHttpsGroupId)
                     {
-                        ServiceResult error = CheckHttpsDomain(application, field.Substring(3));
+                        ServiceResult error = CheckHttpsDomain(application, field[3..]);
 
                         if (StatusCode.IsBad(error.StatusCode))
                         {
@@ -940,7 +940,7 @@ namespace Opc.Ua.Gds.Server
                     }
                 }
 
-                contextFound |= (field.StartsWith("DC=", StringComparison.Ordinal) || field.StartsWith("O=", StringComparison.Ordinal));
+                contextFound |= field.StartsWith("DC=", StringComparison.Ordinal) || field.StartsWith("O=", StringComparison.Ordinal);
 
                 builder.Append(field);
             }

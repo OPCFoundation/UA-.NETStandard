@@ -588,7 +588,7 @@ namespace Alarms
                 if (name.EndsWith(AlarmDefines.TRIGGER_EXTENSION) || name.EndsWith(AlarmDefines.ALARM_EXTENSION))
                 {
                     int lastDot = name.LastIndexOf(".");
-                    mapName = name.Substring(0, lastDot);
+                    mapName = name[..lastDot];
                 }
 
                 if (m_alarms.ContainsKey(mapName))
@@ -746,7 +746,7 @@ namespace Alarms
                 bool ackConfirmMethod = ackMethod || confirmMethod || commentMethod;
 
                 // Need to try to capture any calls to ConditionType::Acknowledge
-                if (methodToCall.ObjectId.Equals(ObjectTypeIds.ConditionType) && (ackConfirmMethod))
+                if (methodToCall.ObjectId.Equals(ObjectTypeIds.ConditionType) && ackConfirmMethod)
                 {
                     // Mantis Issue 6944 which is a duplicate of 5544 - result is Confirm should be Bad_NodeIdInvalid
                     // Override any other errors that may be there, even if this is 'Processed'

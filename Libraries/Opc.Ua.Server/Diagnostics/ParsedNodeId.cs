@@ -161,7 +161,7 @@ namespace Opc.Ua.Server
 
             if (end < identifier.Length)
             {
-                parsedNodeId.ComponentPath = identifier.Substring(end);
+                parsedNodeId.ComponentPath = identifier[end..];
             }
 
             return parsedNodeId;

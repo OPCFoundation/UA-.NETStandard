@@ -178,7 +178,7 @@ namespace Opc.Ua.Bindings
         #endregion
 
         #region Asymmetric Cryptography Functions
-        
+
         /// <summary>
         /// Validates the nonce.
         /// </summary>

@@ -85,7 +85,7 @@ namespace Opc.Ua
         /// </summary>
         public TranslationInfo(string key, LocalizedText text)
         {
-            m_key = key;
+            Key = key;
 
             if (text != null)
             {
@@ -95,11 +95,11 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Stores the arguments for uses with a SymbolicId that is used to look up default text. 
+        /// Stores the arguments for uses with a SymbolicId that is used to look up default text.
         /// </summary>
         public TranslationInfo(System.Xml.XmlQualifiedName symbolicId, params object[] args)
         {
-            m_key = symbolicId.ToString();
+            Key = symbolicId.ToString();
             m_locale = string.Empty;
             m_text = string.Empty;
             m_args = args;
@@ -110,7 +110,7 @@ namespace Opc.Ua
         /// </summary>
         public TranslationInfo(string key, string locale, string text)
         {
-            m_key = key;
+            Key = key;
             m_locale = locale;
             m_text = text;
         }
@@ -120,7 +120,7 @@ namespace Opc.Ua
         /// </summary>
         public TranslationInfo(string key, string locale, string format, params object[] args)
         {
-            m_key = key;
+            Key = key;
             m_locale = locale;
             m_text = format;
             m_args = args;
@@ -131,11 +131,7 @@ namespace Opc.Ua
         /// <summary>
         /// The key used to look up translations.
         /// </summary>
-        public string Key
-        {
-            get { return m_key; }
-            set { m_key = value; }
-        }
+        public string Key { get; set; }
 
         /// <summary>
         /// The default locale for the text.
@@ -164,10 +160,9 @@ namespace Opc.Ua
             get { return m_args; }
             set { m_args = value; }
         }
-        #endregion
 
-        #region Private Fields
-        private string m_key;
+#endregion
+#region Private Fields
         private string m_locale;
         private string m_text;
         private object[] m_args;

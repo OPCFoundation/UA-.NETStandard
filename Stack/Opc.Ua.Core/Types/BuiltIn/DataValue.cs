@@ -35,22 +35,22 @@ namespace Opc.Ua
     /// </remarks>
     /// <example>
     /// <code lang="C#">
-    /// 
+    ///
     /// //define a new DataValue first where:
     /// //  (a) the value is a string, which is "abc123"
     /// //  (b) the statuscode is 0 (zero)
     /// //  (c) the timestamp is 'now'
     /// DataValue dv = new DataValue(new Variant("abc123"), new StatusCode(0), DateTime.Now);
-    /// 
+    ///
     /// </code>
     /// <code lang="Visual Basic">
-    /// 
+    ///
     /// 'define a new DataValue first where:
     /// '  (a) the value is a string, which is "abc123"
     /// '  (b) the statuscode is 0 (zero)
     /// '  (c) the timestamp is 'now'
     /// Dim dv As DataValue = New DataValue(New Variant("abc123"), New StatusCode(0), DateTime.Now);
-    /// 
+    ///
     /// </code>
     /// </example>
     /// <seealso cref="Variant"/>
@@ -87,11 +87,11 @@ namespace Opc.Ua
             }
 
             m_value.Value = Utils.Clone(value.m_value.Value);
-            m_statusCode = value.m_statusCode;
-            m_sourceTimestamp = value.m_sourceTimestamp;
-            m_sourcePicoseconds = value.m_sourcePicoseconds;
-            m_serverTimestamp = value.m_serverTimestamp;
-            m_serverPicoseconds = value.m_serverPicoseconds;
+            StatusCode = value.StatusCode;
+            SourceTimestamp = value.SourceTimestamp;
+            SourcePicoseconds = value.SourcePicoseconds;
+            ServerTimestamp = value.ServerTimestamp;
+            ServerPicoseconds = value.ServerPicoseconds;
         }
 
         /// <summary>
@@ -118,7 +118,7 @@ namespace Opc.Ua
         public DataValue(StatusCode statusCode)
         {
             Initialize();
-            m_statusCode = statusCode;
+            StatusCode = statusCode;
         }
 
         /// <summary>
@@ -132,8 +132,8 @@ namespace Opc.Ua
         public DataValue(StatusCode statusCode, DateTime serverTimestamp)
         {
             Initialize();
-            m_statusCode = statusCode;
-            m_serverTimestamp = serverTimestamp;
+            StatusCode = statusCode;
+            ServerTimestamp = serverTimestamp;
         }
 
         /// <summary>
@@ -149,7 +149,7 @@ namespace Opc.Ua
             Initialize();
 
             m_value = value;
-            m_statusCode = statusCode;
+            StatusCode = statusCode;
         }
 
         /// <summary>
@@ -166,8 +166,8 @@ namespace Opc.Ua
             Initialize();
 
             m_value = value;
-            m_statusCode = statusCode;
-            m_sourceTimestamp = sourceTimestamp;
+            StatusCode = statusCode;
+            SourceTimestamp = sourceTimestamp;
         }
 
         /// <summary>
@@ -185,9 +185,9 @@ namespace Opc.Ua
             Initialize();
 
             m_value = value;
-            m_statusCode = statusCode;
-            m_sourceTimestamp = sourceTimestamp;
-            m_serverTimestamp = serverTimestamp;
+            StatusCode = statusCode;
+            SourceTimestamp = sourceTimestamp;
+            ServerTimestamp = serverTimestamp;
         }
 
         /// <summary>
@@ -196,9 +196,9 @@ namespace Opc.Ua
         private void Initialize()
         {
             m_value = Variant.Null;
-            m_statusCode = StatusCodes.Good;
-            m_sourceTimestamp = DateTime.MinValue;
-            m_serverTimestamp = DateTime.MinValue;
+            StatusCode = StatusCodes.Good;
+            SourceTimestamp = DateTime.MinValue;
+            ServerTimestamp = DateTime.MinValue;
         }
         #endregion
 
@@ -220,27 +220,27 @@ namespace Opc.Ua
 
             if (obj is DataValue value)
             {
-                if (this.m_statusCode != value.m_statusCode)
+                if (this.StatusCode != value.StatusCode)
                 {
                     return false;
                 }
 
-                if (this.m_serverTimestamp != value.m_serverTimestamp)
+                if (this.ServerTimestamp != value.ServerTimestamp)
                 {
                     return false;
                 }
 
-                if (this.m_sourceTimestamp != value.m_sourceTimestamp)
+                if (this.SourceTimestamp != value.SourceTimestamp)
                 {
                     return false;
                 }
 
-                if (this.m_serverPicoseconds != value.m_serverPicoseconds)
+                if (this.ServerPicoseconds != value.ServerPicoseconds)
                 {
                     return false;
                 }
 
-                if (this.m_sourcePicoseconds != value.m_sourcePicoseconds)
+                if (this.SourcePicoseconds != value.SourcePicoseconds)
                 {
                     return false;
                 }
@@ -267,27 +267,27 @@ namespace Opc.Ua
 
             if (other != null)
             {
-                if (this.m_statusCode != other.m_statusCode)
+                if (this.StatusCode != other.StatusCode)
                 {
                     return false;
                 }
 
-                if (this.m_serverTimestamp != other.m_serverTimestamp)
+                if (this.ServerTimestamp != other.ServerTimestamp)
                 {
                     return false;
                 }
 
-                if (this.m_sourceTimestamp != other.m_sourceTimestamp)
+                if (this.SourceTimestamp != other.SourceTimestamp)
                 {
                     return false;
                 }
 
-                if (this.m_serverPicoseconds != other.m_serverPicoseconds)
+                if (this.ServerPicoseconds != other.ServerPicoseconds)
                 {
                     return false;
                 }
 
-                if (this.m_sourcePicoseconds != other.m_sourcePicoseconds)
+                if (this.SourcePicoseconds != other.SourcePicoseconds)
                 {
                     return false;
                 }
@@ -311,7 +311,7 @@ namespace Opc.Ua
                 return this.m_value.Value.GetHashCode();
             }
 
-            return this.m_statusCode.GetHashCode();
+            return this.StatusCode.GetHashCode();
         }
 
         /// <summary>
@@ -400,11 +400,7 @@ namespace Opc.Ua
         /// The status code associated with the value.
         /// </remarks>
         [DataMember(Order = 2, IsRequired = false)]
-        public StatusCode StatusCode
-        {
-            get { return m_statusCode; }
-            set { m_statusCode = value; }
-        }
+        public StatusCode StatusCode { get; set; }
 
         /// <summary>
         /// The source timestamp associated with the value.
@@ -413,11 +409,7 @@ namespace Opc.Ua
         /// The source timestamp associated with the value.
         /// </remarks>
         [DataMember(Order = 3, IsRequired = false)]
-        public DateTime SourceTimestamp
-        {
-            get { return m_sourceTimestamp; }
-            set { m_sourceTimestamp = value; }
-        }
+        public DateTime SourceTimestamp { get; set; }
 
         /// <summary>
         /// Additional resolution for the source timestamp.
@@ -426,11 +418,7 @@ namespace Opc.Ua
         /// Additional resolution for the source timestamp.
         /// </remarks>
         [DataMember(Order = 4, IsRequired = false)]
-        public ushort SourcePicoseconds
-        {
-            get { return m_sourcePicoseconds; }
-            set { m_sourcePicoseconds = value; }
-        }
+        public ushort SourcePicoseconds { get; set; }
 
         /// <summary>
         /// The server timestamp associated with the value.
@@ -439,11 +427,7 @@ namespace Opc.Ua
         /// The server timestamp associated with the value.
         /// </remarks>
         [DataMember(Order = 5, IsRequired = false)]
-        public DateTime ServerTimestamp
-        {
-            get { return m_serverTimestamp; }
-            set { m_serverTimestamp = value; }
-        }
+        public DateTime ServerTimestamp { get; set; }
 
         /// <summary>
         /// Additional resolution for the server timestamp.
@@ -452,11 +436,7 @@ namespace Opc.Ua
         /// Additional resolution for the server timestamp.
         /// </remarks>
         [DataMember(Order = 6, IsRequired = false)]
-        public ushort ServerPicoseconds
-        {
-            get { return m_serverPicoseconds; }
-            set { m_serverPicoseconds = value; }
-        }
+        public ushort ServerPicoseconds { get; set; }
         #endregion
 
         #region Static Methods
@@ -471,7 +451,7 @@ namespace Opc.Ua
         {
             if (value != null)
             {
-                return StatusCode.IsGood(value.m_statusCode);
+                return StatusCode.IsGood(value.StatusCode);
             }
 
             return false;
@@ -488,7 +468,7 @@ namespace Opc.Ua
         {
             if (value != null)
             {
-                return StatusCode.IsNotGood(value.m_statusCode);
+                return StatusCode.IsNotGood(value.StatusCode);
             }
 
             return true;
@@ -505,7 +485,7 @@ namespace Opc.Ua
         {
             if (value != null)
             {
-                return StatusCode.IsUncertain(value.m_statusCode);
+                return StatusCode.IsUncertain(value.StatusCode);
             }
 
             return false;
@@ -522,7 +502,7 @@ namespace Opc.Ua
         {
             if (value != null)
             {
-                return StatusCode.IsNotUncertain(value.m_statusCode);
+                return StatusCode.IsNotUncertain(value.StatusCode);
             }
 
             return false;
@@ -539,7 +519,7 @@ namespace Opc.Ua
         {
             if (value != null)
             {
-                return StatusCode.IsBad(value.m_statusCode);
+                return StatusCode.IsBad(value.StatusCode);
             }
 
             return true;
@@ -556,14 +536,14 @@ namespace Opc.Ua
         {
             if (value != null)
             {
-                return StatusCode.IsNotBad(value.m_statusCode);
+                return StatusCode.IsNotBad(value.StatusCode);
             }
 
             return false;
         }
 
         /// <summary>
-        /// Ensures the data value contains a value with the specified type. 
+        /// Ensures the data value contains a value with the specified type.
         /// </summary>
         public object GetValue(Type expectedType)
         {
@@ -601,7 +581,7 @@ namespace Opc.Ua
         /// <remarks>
         /// Checks the StatusCode and returns default value for bad status.
         /// Extracts the body from an ExtensionObject value if it has the correct type.
-        /// Throws exception only if there is a type mismatch; 
+        /// Throws exception only if there is a type mismatch;
         /// </remarks>
         public T GetValueOrDefault<T>()
         {
@@ -674,11 +654,6 @@ namespace Opc.Ua
 
         #region Private Fields
         private Variant m_value;
-        private StatusCode m_statusCode;
-        private DateTime m_sourceTimestamp;
-        private ushort m_sourcePicoseconds;
-        private DateTime m_serverTimestamp;
-        private ushort m_serverPicoseconds;
         #endregion
     }
 

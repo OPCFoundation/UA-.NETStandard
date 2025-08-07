@@ -16,7 +16,7 @@ using System.Collections.Generic;
 namespace Opc.Ua
 {
     /// <summary>
-    /// This interface is used by ContentFilterOperation to get values from the 
+    /// This interface is used by ContentFilterOperation to get values from the
     /// NodeSet for use by the various filter operators. All NodeSets used in a
     /// ContentFilter must implement this interface.
     /// </summary>
@@ -54,7 +54,7 @@ namespace Opc.Ua
     }
 
     /// <summary>
-    /// This interface is used by ContentFilterOperation to get values from the 
+    /// This interface is used by ContentFilterOperation to get values from the
     /// NodeSet for use by the various filter operators. All NodeSets used in a
     /// ContentFilter must implement this interface.
     /// </summary>
@@ -139,8 +139,8 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(typeTree));
             }
 
-            m_namespaceUris = namespaceUris;
-            m_typeTree = typeTree;
+            NamespaceUris = namespaceUris;
+            TypeTree = typeTree;
             m_context = context;
         }
 
@@ -173,8 +173,8 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(typeTree));
             }
 
-            m_namespaceUris = namespaceUris;
-            m_typeTree = typeTree;
+            NamespaceUris = namespaceUris;
+            TypeTree = typeTree;
             m_context = null;
             m_preferredLocales = preferredLocales;
         }
@@ -185,19 +185,13 @@ namespace Opc.Ua
         /// The namespace table to use when evaluating filters.
         /// </summary>
         /// <value>The namespace URIs.</value>
-        public NamespaceTable NamespaceUris
-        {
-            get { return m_namespaceUris; }
-        }
+        public NamespaceTable NamespaceUris { get; }
 
         /// <summary>
         /// The type tree to use when evaluating filters.
         /// </summary>
         /// <value>The type tree.</value>
-        public ITypeTable TypeTree
-        {
-            get { return m_typeTree; }
-        }
+        public ITypeTable TypeTree { get; }
         #endregion
 
         #region IOperationContext Members
@@ -336,11 +330,9 @@ namespace Opc.Ua
                 return null;
             }
         }
-        #endregion
 
-        #region Private Fields
-        private readonly NamespaceTable m_namespaceUris;
-        private readonly ITypeTable m_typeTree;
+#endregion
+#region Private Fields
         private readonly IOperationContext m_context;
         private readonly IList<string> m_preferredLocales;
         #endregion

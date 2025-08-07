@@ -68,6 +68,7 @@ namespace Opc.Ua.Server
         public void Dispose()
         {
             Dispose(true);
+            GC.SuppressFinalize(this);
         }
 
         /// <summary>
@@ -89,7 +90,7 @@ namespace Opc.Ua.Server
             return Translate(preferredLocales, null, new TranslationInfo(key, string.Empty, text, args));
         }
 
-        /// <virtual cref="ITranslationManager.Translate(IList{string}, LocalizedText)" />
+        /// <inheritdoc/>
         public LocalizedText Translate(IList<string> preferredLocales, LocalizedText text)
         {
             return Translate(preferredLocales, text, text.TranslationInfo);
@@ -525,7 +526,7 @@ namespace Opc.Ua.Server
 
                 if (index != -1)
                 {
-                    language = language.Substring(0, index);
+                    language = language[..index];
                 }
 
                 // search for translation.

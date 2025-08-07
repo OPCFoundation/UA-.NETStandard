@@ -16,7 +16,7 @@ using System.Collections.Generic;
 namespace Opc.Ua
 {
     /// <summary>
-    /// A lightweight snapshot of an instance node. 
+    /// A lightweight snapshot of an instance node.
     /// </summary>
     public class InstanceStateSnapshot : IFilterTarget
     {
@@ -25,11 +25,7 @@ namespace Opc.Ua
         /// Gets or sets a handled associated with the snapshot.
         /// </summary>
         /// <value>The handle.</value>
-        public object Handle
-        {
-            get { return m_handle; }
-            set { m_handle = value; }
-        }
+        public object Handle { get; set; }
 
         /// <summary>
         /// Initializes the snapshot from an instance.
@@ -42,7 +38,7 @@ namespace Opc.Ua
         {
             m_typeDefinitionId = state.TypeDefinitionId;
             m_snapshot = CreateChildNode(context, state);
-            m_handle = state;
+            Handle = state;
         }
 
         /// <summary>
@@ -56,7 +52,7 @@ namespace Opc.Ua
             NodeClass nodeClass,
             object value)
         {
-            SetChildValue(m_snapshot, browseName, nodeClass, value);
+            InstanceStateSnapshot.SetChildValue(m_snapshot, browseName, nodeClass, value);
         }
         #endregion
 
@@ -108,7 +104,7 @@ namespace Opc.Ua
                 }
             }
 
-            object value = GetAttributeValue(
+            object value = InstanceStateSnapshot.GetAttributeValue(
                 m_snapshot,
                 relativePath,
                 0,
@@ -149,7 +145,7 @@ namespace Opc.Ua
         /// <param name="browseName">The BrowseName.</param>
         /// <param name="nodeClass">The node class.</param>
         /// <param name="value">The value.</param>
-        private void SetChildValue(
+        private static void SetChildValue(
             ChildNode node,
             QualifiedName browseName,
             NodeClass nodeClass,
@@ -257,7 +253,7 @@ namespace Opc.Ua
         /// <param name="index">The index.</param>
         /// <param name="attributeId">The attribute id.</param>
         /// <returns>The value of the attribute for the specified child.</returns>
-        private object GetAttributeValue(
+        private static object GetAttributeValue(
             ChildNode node,
             IList<QualifiedName> relativePath,
             int index,
@@ -292,7 +288,7 @@ namespace Opc.Ua
             {
                 if (node.Children[ii].BrowseName == relativePath[index])
                 {
-                    return GetAttributeValue(node.Children[ii], relativePath, index + 1, attributeId);
+                    return InstanceStateSnapshot.GetAttributeValue(node.Children[ii], relativePath, index + 1, attributeId);
                 }
             }
 
@@ -303,7 +299,6 @@ namespace Opc.Ua
         #region Private Fields
         private NodeId m_typeDefinitionId;
         private ChildNode m_snapshot;
-        private object m_handle;
         #endregion
     }
 }

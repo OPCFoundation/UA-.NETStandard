@@ -46,7 +46,7 @@ namespace Opc.Ua
             Exception exception);
 
         /// <summary>
-        /// Report certificate audit event. 
+        /// Report certificate audit event.
         /// </summary>
         /// <param name="clientCertificate">The client certificate.</param>
         /// <param name="exception">The Exception that triggers a certificate audit event.</param>

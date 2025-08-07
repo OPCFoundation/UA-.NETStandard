@@ -53,7 +53,7 @@ namespace Opc.Ua
         /// <returns>The immediate supertype idnetyfier for <paramref name="typeId"/></returns>
         NodeId FindSuperType(NodeId typeId);
 
-#if (NET_STANDARD_ASYNC)
+#if NET_STANDARD_ASYNC
         /// <summary>
         /// Returns the immediate supertype for the type.
         /// </summary>

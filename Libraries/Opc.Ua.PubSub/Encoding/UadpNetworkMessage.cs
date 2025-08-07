@@ -728,10 +728,10 @@ namespace Opc.Ua.PubSub.Encoding
 
             // ExtendedFlags1: Bit 4: Security enabled
             // Disable security for now
-            ExtendedFlags1 &= ~(ExtendedFlags1EncodingMask.Security);
+            ExtendedFlags1 &= ~ExtendedFlags1EncodingMask.Security;
 
             // The security footer size shall be omitted if bit 2 of the SecurityFlags is false.
-            SecurityFlags &= ~(SecurityFlagsEncodingMask.SecurityFooter);
+            SecurityFlags &= ~SecurityFlagsEncodingMask.SecurityFooter;
 
             #endregion
         }

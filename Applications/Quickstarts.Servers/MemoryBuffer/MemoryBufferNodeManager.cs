@@ -215,7 +215,7 @@ namespace MemoryBuffer
                         return null;
                     }
 
-                    string bufferName = id.Substring(0, index);
+                    string bufferName = id[..index];
 
                     // verify the buffer.
                     if (!m_buffers.TryGetValue(bufferName, out buffer))
