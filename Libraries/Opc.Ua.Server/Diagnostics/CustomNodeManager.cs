@@ -3090,14 +3090,14 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Asynchronously calls a method on an object.
         /// </summary>
-        protected virtual async ValueTask<ServiceResult> CallAsync(
+        protected virtual ValueTask<ServiceResult> CallAsync(
             ISystemContext context,
             CallMethodRequest methodToCall,
             MethodState method,
             CallMethodResult result,
             CancellationToken cancellationToken = default)
         {
-            return await CallInternalAsync(context, methodToCall, method, result, sync: false, cancellationToken).ConfigureAwait(false);
+            return CallInternalAsync(context, methodToCall, method, result, sync: false, cancellationToken);
         }
 
         /// <summary>

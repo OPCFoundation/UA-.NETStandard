@@ -614,7 +614,7 @@ namespace Opc.Ua
         /// <param name="outputArguments">The output arguments.</param>
         /// <param name="cancellationToken">The cancellation token.</param>
         /// <returns>The result of the method call.</returns>
-        public virtual async ValueTask<ServiceResult> CallAsync(
+        public virtual ValueTask<ServiceResult> CallAsync(
             ISystemContext context,
             NodeId objectId,
             IList<Variant> inputArguments,
@@ -622,7 +622,7 @@ namespace Opc.Ua
             IList<Variant> outputArguments,
             CancellationToken cancellationToken = default)
         {
-            return await CallAsyncInternal(context, objectId, inputArguments, argumentErrors, outputArguments, sync: false, cancellationToken).ConfigureAwait(false);
+            return CallAsyncInternal(context, objectId, inputArguments, argumentErrors, outputArguments, sync: false, cancellationToken);
         }
 
         /// <summary>
