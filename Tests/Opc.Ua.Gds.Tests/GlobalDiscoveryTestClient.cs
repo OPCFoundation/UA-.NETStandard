@@ -222,7 +222,7 @@ namespace Opc.Ua.Gds.Tests
 
         private void FinishKeyPair(ApplicationTestData ownApplicationTestData, out byte[] certificate, out byte[] privateKey)
         {
-            m_client.Connect(m_client.EndpointUrl).Wait();
+            m_client.ConnectAsync(m_client.EndpointUrl).Wait();
             //get cert
             certificate = m_client.FinishRequest(
              ownApplicationTestData.ApplicationRecord.ApplicationId,
@@ -235,7 +235,7 @@ namespace Opc.Ua.Gds.Tests
 
         private NodeId StartNewKeyPair(ApplicationTestData ownApplicationTestData)
         {
-            m_client.Connect(m_client.EndpointUrl).Wait();
+            m_client.ConnectAsync(m_client.EndpointUrl).Wait();
             //request new Cert
             var req_id = m_client.StartNewKeyPairRequest(
              ownApplicationTestData.ApplicationRecord.ApplicationId,
@@ -253,7 +253,7 @@ namespace Opc.Ua.Gds.Tests
 
         private NodeId Register(ApplicationTestData ownApplicationTestData)
         {
-            m_client.Connect(m_client.EndpointUrl).Wait();
+            m_client.ConnectAsync(m_client.EndpointUrl).Wait();
             var id = m_client.RegisterApplication(ownApplicationTestData.ApplicationRecord);
             m_client.Disconnect();
             return id;

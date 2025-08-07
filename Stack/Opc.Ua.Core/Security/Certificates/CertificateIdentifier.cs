@@ -147,24 +147,50 @@ namespace Opc.Ua
         #endregion
 
         #region Public Methods
+
         /// <summary>
         /// Finds a certificate in a store.
         /// </summary>
+        [Obsolete("Use FindAsync instead")]
         public Task<X509Certificate2> Find(string applicationUri = null)
         {
-            return Find(false, applicationUri);
+            return FindAsync(applicationUri);
         }
+        /// <summary>
+        /// Finds a certificate in a store.
+        /// </summary>
+        public Task<X509Certificate2> FindAsync(string applicationUri = null)
+        {
+            return FindAsync(false, applicationUri);
+        }
+
 
         /// <summary>
         /// Loads the private key for the certificate with an optional password.
         /// </summary>
+        [Obsolete("Use LoadPrivateKeyAsync instead")]
         public Task<X509Certificate2> LoadPrivateKey(string password, string applicationUri = null)
-            => LoadPrivateKeyEx(password != null ? new CertificatePasswordProvider(password) : null, applicationUri);
+            => LoadPrivateKeyExAsync(password != null ? new CertificatePasswordProvider(password) : null, applicationUri);
+
+        /// <summary>
+        /// Loads the private key for the certificate with an optional password.
+        /// </summary>
+        public Task<X509Certificate2> LoadPrivateKeyAsync(string password, string applicationUri = null)
+            => LoadPrivateKeyExAsync(password != null ? new CertificatePasswordProvider(password) : null, applicationUri);
 
         /// <summary>
         /// Loads the private key for the certificate with an optional password provider.
         /// </summary>
-        public async Task<X509Certificate2> LoadPrivateKeyEx(ICertificatePasswordProvider passwordProvider, string applicationUri = null)
+        [Obsolete("Use LoadPrivateKeyExAsync instead")]
+        public Task<X509Certificate2> LoadPrivateKeyEx(ICertificatePasswordProvider passwordProvider, string applicationUri = null)
+        {
+            return LoadPrivateKeyExAsync(passwordProvider, applicationUri);
+        }
+
+        /// <summary>
+        /// Loads the private key for the certificate with an optional password provider.
+        /// </summary>
+        public async Task<X509Certificate2> LoadPrivateKeyExAsync(ICertificatePasswordProvider passwordProvider, string applicationUri = null)
         {
             if (this.StoreType != CertificateStoreType.X509Store)
             {
@@ -187,7 +213,7 @@ namespace Opc.Ua
                 }
                 return null;
             }
-            return await Find(true).ConfigureAwait(false);
+            return await FindAsync(true).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -198,7 +224,21 @@ namespace Opc.Ua
         /// <param name="applicationUri">the application uri in the extensions of the certificate.</param>
         /// <returns>An instance of the <see cref="X509Certificate2"/> that is embedded by this instance or find it in 
         /// the selected store pointed out by the <see cref="StorePath"/> using selected <see cref="SubjectName"/> or if specified applicationUri.</returns>
-        public async Task<X509Certificate2> Find(bool needPrivateKey, string applicationUri = null)
+        [Obsolete("Use FindAsync instead")]
+        public Task<X509Certificate2> Find(bool needPrivateKey, string applicationUri = null)
+        {
+            return FindAsync(needPrivateKey, applicationUri);
+        }
+
+        /// <summary>
+        /// Finds a certificate in a store.
+        /// </summary>
+        /// <remarks>The certificate type is used to match the signature and public key type.</remarks>
+        /// <param name="needPrivateKey">if set to <c>true</c> the returned certificate must contain the private key.</param>
+        /// <param name="applicationUri">the application uri in the extensions of the certificate.</param>
+        /// <returns>An instance of the <see cref="X509Certificate2"/> that is embedded by this instance or find it in 
+        /// the selected store pointed out by the <see cref="StorePath"/> using selected <see cref="SubjectName"/> or if specified applicationUri.</returns>
+        public async Task<X509Certificate2> FindAsync(bool needPrivateKey, string applicationUri = null)
         {
             X509Certificate2 certificate = null;
 
@@ -794,7 +834,7 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < this.Count; ii++)
             {
-                X509Certificate2 certificate = await this[ii].Find(false).ConfigureAwait(false);
+                X509Certificate2 certificate = await this[ii].FindAsync(false).ConfigureAwait(false);
 
                 if (certificate != null)
                 {
@@ -812,7 +852,7 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < this.Count; ii++)
             {
-                X509Certificate2 current = await this[ii].Find(false).ConfigureAwait(false);
+                X509Certificate2 current = await this[ii].FindAsync(false).ConfigureAwait(false);
 
                 if (current != null && current.Thumbprint == certificate.Thumbprint)
                 {
@@ -837,7 +877,7 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < this.Count; ii++)
             {
-                X509Certificate2 certificate = await this[ii].Find(false).ConfigureAwait(false);
+                X509Certificate2 certificate = await this[ii].FindAsync(false).ConfigureAwait(false);
 
                 if (certificate != null && certificate.Thumbprint == thumbprint)
                 {
@@ -859,7 +899,7 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < this.Count; ii++)
             {
-                X509Certificate2 certificate = await this[ii].Find(false).ConfigureAwait(false);
+                X509Certificate2 certificate = await this[ii].FindAsync(false).ConfigureAwait(false);
 
                 if (certificate != null && certificate.Thumbprint == thumbprint)
                 {

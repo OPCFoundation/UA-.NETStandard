@@ -181,7 +181,7 @@ namespace Quickstarts
                             using (var cts = new CancellationTokenSource(30_000))
                             using (var linkedCTS = CancellationTokenSource.CreateLinkedTokenSource(ct, cts.Token))
                             {
-                                connection = await m_reverseConnectManager.WaitForConnection(new Uri(serverUrl), null, linkedCTS.Token).ConfigureAwait(false);
+                                connection = await m_reverseConnectManager.WaitForConnectionAsync(new Uri(serverUrl), null, linkedCTS.Token).ConfigureAwait(false);
                                 if (connection == null)
                                 {
                                     throw new ServiceResultException(StatusCodes.BadTimeout, "Waiting for a reverse connection timed out.");

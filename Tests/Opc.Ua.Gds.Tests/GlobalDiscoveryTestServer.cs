@@ -139,7 +139,7 @@ namespace Opc.Ua.Gds.Tests
                 applicationsDatabase,
                 new CertificateGroup(),
                 usersDatabase);
-            await Application.Start(m_server).ConfigureAwait(false);
+            await Application.StartAsync(m_server).ConfigureAwait(false);
 
             ServerState serverState = Server.CurrentState;
             if (serverState != ServerState.Running)

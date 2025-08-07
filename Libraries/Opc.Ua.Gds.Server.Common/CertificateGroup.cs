@@ -101,7 +101,7 @@ namespace Opc.Ua.Gds.Server
         }
 
         #region ICertificateGroupProvider
-        public virtual async Task Init()
+        public virtual async Task InitAsync()
         {
             Utils.LogInfo("InitializeCertificateGroup: {0}", SubjectName);
 
@@ -246,12 +246,12 @@ namespace Opc.Ua.Gds.Server
             if (crl != null)
             {
                 var certificateStoreIdentifier = new CertificateStoreIdentifier(Configuration.TrustedListPath);
-                await UpdateAuthorityCertInCertificateStore(certificateStoreIdentifier).ConfigureAwait(false);
+                await UpdateAuthorityCertInCertificateStoreAsync(certificateStoreIdentifier).ConfigureAwait(false);
 
                 //Also update TrustedIssuerCertificates Store
                 if (IssuerCertificatesStore != null)
                 {
-                    await UpdateAuthorityCertInCertificateStore(IssuerCertificatesStore).ConfigureAwait(false);
+                    await UpdateAuthorityCertInCertificateStoreAsync(IssuerCertificatesStore).ConfigureAwait(false);
                 }
             }
 
@@ -439,12 +439,12 @@ namespace Opc.Ua.Gds.Server
             {
                 // TODO: make CA trust selectable
                 var certificateStoreIdentifier = new CertificateStoreIdentifier(Configuration.TrustedListPath);
-                await UpdateAuthorityCertInCertificateStore(certificateStoreIdentifier).ConfigureAwait(false);
+                await UpdateAuthorityCertInCertificateStoreAsync(certificateStoreIdentifier).ConfigureAwait(false);
 
                 // Update TrustedIssuerCertificates Store
                 if (IssuerCertificatesStore != null)
                 {
-                    await UpdateAuthorityCertInCertificateStore(IssuerCertificatesStore).ConfigureAwait(false);
+                    await UpdateAuthorityCertInCertificateStoreAsync(IssuerCertificatesStore).ConfigureAwait(false);
                 }
             }
 
@@ -466,7 +466,7 @@ namespace Opc.Ua.Gds.Server
                 StorePath = AuthoritiesStore.StorePath,
                 StoreType = AuthoritiesStore.StoreType
             };
-            return await certIdentifier.LoadPrivateKey(signingKeyPassword).ConfigureAwait(false);
+            return await certIdentifier.LoadPrivateKeyAsync(signingKeyPassword).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -528,7 +528,7 @@ namespace Opc.Ua.Gds.Server
                     StorePath = store.StorePath,
                     StoreType = store.StoreType
                 };
-                X509Certificate2 certCAWithPrivateKey = await certCAIdentifier.LoadPrivateKey(issuerKeyFilePassword).ConfigureAwait(false);
+                X509Certificate2 certCAWithPrivateKey = await certCAIdentifier.LoadPrivateKeyAsync(issuerKeyFilePassword).ConfigureAwait(false);
 
                 if (certCAWithPrivateKey == null)
                 {
@@ -610,7 +610,7 @@ namespace Opc.Ua.Gds.Server
         /// </summary>
         /// <param name="trustedOrIssuerStoreIdentifier">The store which contains the authority ceritificate. (trusted or issuer)</param>
         /// <returns></returns>
-        protected async Task UpdateAuthorityCertInCertificateStore(CertificateStoreIdentifier trustedOrIssuerStoreIdentifier)
+        protected async Task UpdateAuthorityCertInCertificateStoreAsync(CertificateStoreIdentifier trustedOrIssuerStoreIdentifier)
         {
             ICertificateStore authorityStore = AuthoritiesStore.OpenStore();
             ICertificateStore trustedOrIssuerStore = trustedOrIssuerStoreIdentifier.OpenStore();

@@ -128,7 +128,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     StorePath = storePath,
                     StoreType = CertificateStoreType.X509Store
                 };
-                var privateKey = await id.LoadPrivateKey(null).ConfigureAwait(false);
+                var privateKey = await id.LoadPrivateKeyAsync(null).ConfigureAwait(false);
                 Assert.NotNull(privateKey);
                 Assert.True(privateKey.HasPrivateKey);
 
@@ -176,23 +176,23 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
                 {
                     // check no password fails to load
-                    var nullKey = await id.LoadPrivateKey(null).ConfigureAwait(false);
+                    var nullKey = await id.LoadPrivateKeyAsync(null).ConfigureAwait(false);
                     Assert.IsNull(nullKey);
                 }
 
                 {
                     // check invalid password fails to load
-                    var nullKey = await id.LoadPrivateKey("123").ConfigureAwait(false);
+                    var nullKey = await id.LoadPrivateKeyAsync("123").ConfigureAwait(false);
                     Assert.IsNull(nullKey);
                 }
 
                 {
                     // check invalid password fails to load
-                    var nullKey = await id.LoadPrivateKeyEx(new CertificatePasswordProvider("123")).ConfigureAwait(false);
+                    var nullKey = await id.LoadPrivateKeyExAsync(new CertificatePasswordProvider("123")).ConfigureAwait(false);
                     Assert.IsNull(nullKey);
                 }
 
-                var privateKey = await id.LoadPrivateKeyEx(new CertificatePasswordProvider(password)).ConfigureAwait(false);
+                var privateKey = await id.LoadPrivateKeyExAsync(new CertificatePasswordProvider(password)).ConfigureAwait(false);
 
                 Assert.NotNull(privateKey);
                 Assert.True(privateKey.HasPrivateKey);
