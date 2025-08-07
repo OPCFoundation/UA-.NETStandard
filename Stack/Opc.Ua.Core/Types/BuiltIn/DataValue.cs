@@ -142,8 +142,8 @@ namespace Opc.Ua
         /// <remarks>
         /// Initializes the object with a value and a status code.
         /// </remarks>
-        /// <param name="statusCode">The status code to set</param>
         /// <param name="value">The value to set</param>
+        /// <param name="statusCode">The status code to set</param>
         public DataValue(Variant value, StatusCode statusCode)
         {
             Initialize();
@@ -158,9 +158,9 @@ namespace Opc.Ua
         /// <remarks>
         /// Initializes the object with a value, a status code and a source timestamp
         /// </remarks>
-        /// <param name="sourceTimestamp">The timestamp to set</param>
-        /// <param name="statusCode">The status code to set</param>
         /// <param name="value">The variant value to set</param>
+        /// <param name="statusCode">The status code to set</param>
+        /// <param name="sourceTimestamp">The timestamp to set</param>
         public DataValue(Variant value, StatusCode statusCode, DateTime sourceTimestamp)
         {
             Initialize();
@@ -176,10 +176,10 @@ namespace Opc.Ua
         /// <remarks>
         /// Initializes the object with a value, a status code, a source timestamp and a server timestamp
         /// </remarks>
-        /// <param name="serverTimestamp">The servers timestamp to set</param>
-        /// <param name="sourceTimestamp">The source timestamp to set</param>
-        /// <param name="statusCode">The status code to set</param>
         /// <param name="value">The variant value to set</param>
+        /// <param name="statusCode">The status code to set</param>
+        /// <param name="sourceTimestamp">The source timestamp to set</param>
+        /// <param name="serverTimestamp">The servers timestamp to set</param>
         public DataValue(Variant value, StatusCode statusCode, DateTime sourceTimestamp, DateTime serverTimestamp)
         {
             Initialize();
@@ -216,7 +216,6 @@ namespace Opc.Ua
             {
                 return true;
             }
-
 
             if (obj is DataValue value)
             {
@@ -557,7 +556,6 @@ namespace Opc.Ua
                     return null;
                 }
 
-
                 if (value is ExtensionObject extension)
                 {
                     value = extension.Body;
@@ -639,13 +637,9 @@ namespace Opc.Ua
                 return (T)this.Value;
             }
 
-
-            if (this.Value is ExtensionObject extension)
+            if (this.Value is ExtensionObject extension && typeof(T).IsInstanceOfType(extension.Body))
             {
-                if (typeof(T).IsInstanceOfType(extension.Body))
-                {
-                    return (T)extension.Body;
-                }
+                return (T)extension.Body;
             }
 
             return defaultValue;
@@ -665,7 +659,7 @@ namespace Opc.Ua
     /// A strongly-typed collection of DataValues.
     /// </remarks>
     [CollectionDataContract(Name = "ListOfDataValue", Namespace = Namespaces.OpcUaXsd, ItemName = "DataValue")]
-    public partial class DataValueCollection : List<DataValue>, ICloneable
+    public class DataValueCollection : List<DataValue>, ICloneable
     {
         /// <summary>
         /// Initializes an empty collection.

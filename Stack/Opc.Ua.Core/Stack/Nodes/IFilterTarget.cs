@@ -298,7 +298,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// The current status of the the operation (bad if the operation has been aborted).
+        /// The current status of the operation (bad if the operation has been aborted).
         /// </summary>
         /// <value>The operation status.</value>
         public StatusCode OperationStatus

@@ -175,12 +175,9 @@ namespace Opc.Ua.Security.Certificates
 
             if (m_serialNumber != null && m_serialNumber.Length > 0)
             {
-                if (buffer.Length > 0)
+                if (buffer.Length > 0 && !multiLine)
                 {
-                    if (!multiLine)
-                    {
-                        buffer.Append(", ");
-                    }
+                    buffer.Append(", ");
                 }
 
                 buffer.Append(kSerialNumber);
@@ -282,7 +279,6 @@ namespace Opc.Ua.Security.Certificates
             writer.PopSequence();
             return writer.Encode();
         }
-
 
         private void Decode(byte[] data)
         {

@@ -363,27 +363,22 @@ namespace Opc.Ua
                 switch (idType)
                 {
                     case 'i':
-                    {
                         if (uint.TryParse(text, out uint number))
                         {
                             return new NodeId(number, (ushort)namespaceIndex);
                         }
 
                         break;
-                    }
 
                     case 's':
-                    {
                         if (!string.IsNullOrWhiteSpace(text))
                         {
                             return new NodeId(text, (ushort)namespaceIndex);
                         }
 
                         break;
-                    }
 
                     case 'b':
-                    {
                         try
                         {
                             byte[] bytes = Convert.FromBase64String(text);
@@ -395,17 +390,14 @@ namespace Opc.Ua
                         }
 
                         break;
-                    }
 
                     case 'g':
-                    {
                         if (Guid.TryParse(text, out Guid guid))
                         {
                             return new NodeId(guid, (ushort)namespaceIndex);
                         }
 
                         break;
-                    }
                 }
             }
 
@@ -457,33 +449,25 @@ namespace Opc.Ua
             switch (m_identifierType)
             {
                 case IdType.Numeric:
-                {
                     buffer.Append("i=");
                     buffer.Append((uint)m_identifier);
                     break;
-                }
 
-                default:
                 case IdType.String:
-                {
+                default:
                     buffer.Append("s=");
                     buffer.Append(m_identifier.ToString());
                     break;
-                }
 
                 case IdType.Guid:
-                {
                     buffer.Append("g=");
                     buffer.Append((Guid)m_identifier);
                     break;
-                }
 
                 case IdType.Opaque:
-                {
                     buffer.Append("b=");
                     buffer.Append(Convert.ToBase64String((byte[])m_identifier));
                     break;
-                }
             }
 
             return buffer.ToString();
@@ -932,28 +916,20 @@ namespace Opc.Ua
             switch (identifierType)
             {
                 case IdType.Numeric:
-                {
                     buffer.Append("i=");
                     break;
-                }
 
                 case IdType.String:
-                {
                     buffer.Append("s=");
                     break;
-                }
 
                 case IdType.Guid:
-                {
                     buffer.Append("g=");
                     break;
-                }
 
                 case IdType.Opaque:
-                {
                     buffer.Append("b=");
                     break;
-                }
             }
 
             // add identifier.
@@ -1025,22 +1001,16 @@ namespace Opc.Ua
             switch (idType)
             {
                 case IdType.Opaque:
-                {
                     m_identifier = Utils.Clone(value);
                     break;
-                }
 
                 case IdType.Guid:
-                {
                     m_identifier = (Guid)value;
                     break;
-                }
 
                 default:
-                {
                     m_identifier = value;
                     break;
-                }
             }
         }
 
@@ -1197,7 +1167,6 @@ namespace Opc.Ua
                 switch (idType)
                 {
                     case IdType.String:
-                    {
                         string stringId = id as string;
 
                         if (stringId.Length == 0)
@@ -1206,10 +1175,8 @@ namespace Opc.Ua
                         }
 
                         break;
-                    }
 
                     case IdType.Opaque:
-                    {
                         byte[] opaqueId = id as byte[];
 
                         if (opaqueId.Length == 0)
@@ -1218,10 +1185,8 @@ namespace Opc.Ua
                         }
 
                         break;
-                    }
 
                     case IdType.Numeric:
-                    {
                         uint? numericId = id as uint?;
 
                         if (numericId.Value == 0)
@@ -1230,7 +1195,6 @@ namespace Opc.Ua
                         }
 
                         break;
-                    }
                 }
 
                 return -1;
@@ -1242,7 +1206,6 @@ namespace Opc.Ua
                 switch (idType)
                 {
                     case IdType.String:
-                    {
                         string stringId = m_identifier as string;
 
                         if (stringId.Length == 0)
@@ -1251,10 +1214,8 @@ namespace Opc.Ua
                         }
 
                         break;
-                    }
 
                     case IdType.Opaque:
-                    {
                         byte[] opaqueId = m_identifier as byte[];
 
                         if (opaqueId.Length == 0)
@@ -1263,10 +1224,8 @@ namespace Opc.Ua
                         }
 
                         break;
-                    }
 
                     case IdType.Numeric:
-                    {
                         uint? numericId = m_identifier as uint?;
 
                         if (numericId.Value == 0)
@@ -1275,7 +1234,6 @@ namespace Opc.Ua
                         }
 
                         break;
-                    }
                 }
 
                 return +1;
@@ -1555,8 +1513,9 @@ namespace Opc.Ua
                 {
                     switch (m_identifierType)
                     {
-                        case IdType.Numeric: { return (uint)0; }
-                        case IdType.Guid: { return Guid.Empty; }
+                        case IdType.Numeric: return (uint)0;
+
+                        case IdType.Guid: return Guid.Empty;
                     }
                 }
 
@@ -1586,44 +1545,36 @@ namespace Opc.Ua
                     switch (m_identifierType)
                     {
                         case IdType.Numeric:
-                        {
                             if (!m_identifier.Equals((uint)0))
                             {
                                 return false;
                             }
 
                             break;
-                        }
 
                         case IdType.String:
-                        {
                             if (!string.IsNullOrEmpty((string)m_identifier))
                             {
                                 return false;
                             }
 
                             break;
-                        }
 
                         case IdType.Guid:
-                        {
                             if (!m_identifier.Equals(Guid.Empty))
                             {
                                 return false;
                             }
 
                             break;
-                        }
 
                         case IdType.Opaque:
-                        {
                             if (m_identifier != null && ((byte[])m_identifier).Length > 0)
                             {
                                 return false;
                             }
 
                             break;
-                        }
                     }
                 }
 
@@ -1662,49 +1613,40 @@ namespace Opc.Ua
                 switch (idType1)
                 {
                     case IdType.Numeric:
-                    {
                         if (nonNull is uint && (uint)nonNull == 0)
                         {
                             return 0;
                         }
 
                         break;
-                    }
 
                     case IdType.Guid:
-                    {
                         if (nonNull is Guid && (Guid)nonNull == Guid.Empty)
                         {
                             return 0;
                         }
 
                         break;
-                    }
 
                     case IdType.String:
-                    {
                         if (nonNull is string text && text.Length == 0)
                         {
                             return 0;
                         }
 
                         break;
-                    }
 
                     case IdType.Opaque:
-                    {
                         if (nonNull is byte[] bytes && bytes.Length == 0)
                         {
                             return 0;
                         }
 
                         break;
-                    }
                 }
 
                 return (id1 == null) ? -1 : +1;
             }
-
 
             if (id1 is byte[] bytes1)
             {
@@ -1731,7 +1673,6 @@ namespace Opc.Ua
                 // both arrays are equal.
                 return 0;
             }
-
 
             if (id1 is IComparable comparable1)
             {
@@ -1835,7 +1776,6 @@ namespace Opc.Ua
             switch (identifierType)
             {
                 case IdType.Numeric:
-                {
                     if (identifier == null)
                     {
                         buffer.Append('0');
@@ -1844,16 +1784,12 @@ namespace Opc.Ua
 
                     buffer.AppendFormat(formatProvider, "{0}", identifier);
                     break;
-                }
 
                 case IdType.String:
-                {
                     buffer.AppendFormat(formatProvider, "{0}", identifier);
                     break;
-                }
 
                 case IdType.Guid:
-                {
                     if (identifier == null)
                     {
                         buffer.Append(Guid.Empty);
@@ -1862,16 +1798,13 @@ namespace Opc.Ua
 
                     buffer.AppendFormat(formatProvider, "{0}", identifier);
                     break;
-                }
 
                 case IdType.Opaque:
-                {
                     if (identifier != null)
                     {
                         buffer.AppendFormat(formatProvider, "{0}", Convert.ToBase64String((byte[])identifier));
                     }
                     break;
-                }
             }
         }
 
@@ -1920,7 +1853,7 @@ namespace Opc.Ua
     /// Provides a strongly-typed collection of <see cref="NodeId"/>.
     /// </remarks>
     [CollectionDataContract(Name = "ListOfNodeId", Namespace = Namespaces.OpcUaXsd, ItemName = "NodeId")]
-    public partial class NodeIdCollection : List<NodeId>, ICloneable
+    public class NodeIdCollection : List<NodeId>, ICloneable
     {
         #region CTORs
 
@@ -2057,12 +1990,7 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (x == y)
-            {
-                return true;
-            }
-
-            return false;
+            return x == y;
         }
 
         /// <inheritdoc/>

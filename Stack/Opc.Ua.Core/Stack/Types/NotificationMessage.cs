@@ -51,14 +51,9 @@ namespace Opc.Ua
         {
             get
             {
-                if (SequenceNumber == 0 &&
+                return SequenceNumber == 0 &&
                     PublishTime == DateTime.MinValue &&
-                    NotificationData.Count == 0)
-                {
-                    return true;
-                }
-
-                return false;
+                    NotificationData.Count == 0;
             }
         }
 
@@ -77,7 +72,6 @@ namespace Opc.Ua
                 {
                     continue;
                 }
-
 
                 if (extension.Body is not DataChangeNotification notification)
                 {

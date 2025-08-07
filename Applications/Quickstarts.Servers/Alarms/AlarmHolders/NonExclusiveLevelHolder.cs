@@ -75,13 +75,5 @@ namespace Alarms
         {
             m_supportsBranching = value;
         }
-
-
-        private NonExclusiveLevelAlarmState GetAlarm()
-        {
-            return (NonExclusiveLevelAlarmState)m_alarm;
-        }
-
-
     }
 }

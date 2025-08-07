@@ -72,7 +72,6 @@ namespace Opc.Ua.Server.UserDatabase
             }
             catch
             {
-
             }
             return new JsonUserDatabase(fileName);
         }

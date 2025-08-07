@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -117,8 +116,8 @@ namespace Opc.Ua.Security.Certificates.Tests
         }
 
         public ECCurve Curve { get; private set; }
-        public ushort HashSize { get; private set; }
-        public HashAlgorithmName HashAlgorithmName { get; private set; }
+        public ushort HashSize { get; }
+        public HashAlgorithmName HashAlgorithmName { get; }
 
         public string ToString(string format, IFormatProvider formatProvider)
         {

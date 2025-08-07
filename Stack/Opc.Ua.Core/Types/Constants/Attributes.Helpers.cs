@@ -41,9 +41,7 @@ namespace Opc.Ua
 		/// </summary>
         public static string GetBrowseName(uint identifier)
         {
-            FieldInfo[] fields = typeof(Attributes).GetFields(BindingFlags.Public | BindingFlags.Static);
-
-            foreach (FieldInfo field in fields)
+            foreach (FieldInfo field in typeof(Attributes).GetFields(BindingFlags.Public | BindingFlags.Static))
             {
                 if (identifier == (uint)field.GetValue(typeof(Attributes)))
                 {
@@ -78,9 +76,7 @@ namespace Opc.Ua
         /// </summary>
         public static uint GetIdentifier(string browseName)
         {
-            FieldInfo[] fields = typeof(Attributes).GetFields(BindingFlags.Public | BindingFlags.Static);
-
-            foreach (FieldInfo field in fields)
+            foreach (FieldInfo field in typeof(Attributes).GetFields(BindingFlags.Public | BindingFlags.Static))
             {
                 if (field.Name == browseName)
                 {
@@ -320,58 +316,40 @@ namespace Opc.Ua
                 case RolePermissions:
                 case UserRolePermissions:
                 case AccessRestrictions:
-                {
                     return true;
-                }
 
                 case Value:
                 case DataType:
                 case ValueRank:
                 case ArrayDimensions:
-                {
                     return (nodeClass & (Opc.Ua.NodeClass.VariableType | Opc.Ua.NodeClass.Variable)) != 0;
-                }
 
                 case IsAbstract:
-                {
                     return (nodeClass & (Opc.Ua.NodeClass.VariableType | Opc.Ua.NodeClass.ObjectType | Opc.Ua.NodeClass.ReferenceType | Opc.Ua.NodeClass.DataType)) != 0;
-                }
 
                 case Symmetric:
                 case InverseName:
-                {
                     return (nodeClass & Opc.Ua.NodeClass.ReferenceType) != 0;
-                }
 
                 case ContainsNoLoops:
-                {
                     return (nodeClass & Opc.Ua.NodeClass.View) != 0;
-                }
 
                 case EventNotifier:
-                {
                     return (nodeClass & (Opc.Ua.NodeClass.Object | Opc.Ua.NodeClass.View)) != 0;
-                }
 
                 case AccessLevel:
                 case UserAccessLevel:
                 case MinimumSamplingInterval:
                 case Historizing:
                 case AccessLevelEx:
-                {
                     return (nodeClass & Opc.Ua.NodeClass.Variable) != 0;
-                }
 
                 case Executable:
                 case UserExecutable:
-                {
                     return (nodeClass & Opc.Ua.NodeClass.Method) != 0;
-                }
 
                 case DataTypeDefinition:
-                {
                     return (nodeClass & Opc.Ua.NodeClass.DataType) != 0;
-                }
             }
 
             return false;

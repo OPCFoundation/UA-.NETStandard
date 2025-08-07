@@ -57,11 +57,10 @@ namespace TestData
         {
             get
             {
-                var nameSpaces = new StringCollection {
+                return new StringCollection {
                     Namespaces.TestData,
                     Namespaces.TestData + "Instance"
                 };
-                return nameSpaces;
             }
         }
     }
@@ -85,13 +84,9 @@ namespace TestData
             Server.Factory.AddEncodeableTypes(typeof(TestDataNodeManager).Assembly.GetExportedTypes().Where(t => t.FullName.StartsWith(typeof(TestDataNodeManager).Namespace)));
 
             // get the configuration for the node manager.
-            m_configuration = configuration.ParseExtension<TestDataNodeManagerConfiguration>();
+            m_configuration = configuration.ParseExtension<TestDataNodeManagerConfiguration>() ?? new TestDataNodeManagerConfiguration();
 
             // use suitable defaults if no configuration exists.
-            if (m_configuration == null)
-            {
-                m_configuration = new TestDataNodeManagerConfiguration();
-            }
 
             m_lastUsedId = m_configuration.NextUnusedId - 1;
 
@@ -156,7 +151,7 @@ namespace TestData
         /// <remarks>
         /// The externalReferences is an out parameter that allows the node manager to link to nodes
         /// in other node managers. For example, the 'Objects' node is managed by the CoreNodeManager and
-        /// should have a reference to the root folder node(s) exposed by this node manager.  
+        /// should have a reference to the root folder node(s) exposed by this node manager.
         /// </remarks>
         public override void CreateAddressSpace(IDictionary<NodeId, IList<IReference>> externalReferences)
         {
@@ -486,9 +481,7 @@ namespace TestData
                 return null;
             }
 
-            var reader = context.OperationContext.Session.RestoreHistoryContinuationPoint(continuationPoint) as HistoryDataReader;
-
-            if (reader == null)
+            if (!(context.OperationContext.Session.RestoreHistoryContinuationPoint(continuationPoint) is HistoryDataReader reader))
             {
                 return null;
             }
@@ -625,9 +618,7 @@ namespace TestData
             }
 
             // only care about variables and properties.
-            var source = monitoredNode.Node as BaseVariableState;
-
-            if (source == null)
+            if (!(monitoredNode.Node is BaseVariableState source))
             {
                 return false;
             }
@@ -663,15 +654,12 @@ namespace TestData
             NodeHandle handle,
             MonitoredItem monitoredItem)
         {
-            if (SystemScanRequired(handle.MonitoredNode, monitoredItem))
+            if (SystemScanRequired(handle.MonitoredNode, monitoredItem) && monitoredItem.MonitoringMode != MonitoringMode.Disabled)
             {
-                if (monitoredItem.MonitoringMode != MonitoringMode.Disabled)
-                {
-                    m_system.StartMonitoringValue(
-                        monitoredItem.Id,
-                        monitoredItem.SamplingInterval,
-                        handle.Node as BaseVariableState);
-                }
+                m_system.StartMonitoringValue(
+                    monitoredItem.Id,
+                    monitoredItem.SamplingInterval,
+                    handle.Node as BaseVariableState);
             }
         }
 
@@ -686,14 +674,11 @@ namespace TestData
             NodeHandle handle,
             MonitoredItem monitoredItem)
         {
-            if (SystemScanRequired(handle.MonitoredNode, monitoredItem))
+            if (SystemScanRequired(handle.MonitoredNode, monitoredItem) && monitoredItem.MonitoringMode != MonitoringMode.Disabled)
             {
-                if (monitoredItem.MonitoringMode != MonitoringMode.Disabled)
-                {
-                    var source = handle.Node as BaseVariableState;
-                    m_system.StopMonitoringValue(monitoredItem.Id);
-                    m_system.StartMonitoringValue(monitoredItem.Id, monitoredItem.SamplingInterval, source);
-                }
+                var source = handle.Node as BaseVariableState;
+                m_system.StopMonitoringValue(monitoredItem.Id);
+                m_system.StartMonitoringValue(monitoredItem.Id, monitoredItem.SamplingInterval, source);
             }
         }
 

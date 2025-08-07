@@ -125,7 +125,7 @@ namespace Opc.Ua.Bindings
                 ? ArrayPool<byte>.Shared
                 : ArrayPool<byte>.Create(maxBufferSize + kCookieLength, 4);
             m_maxBufferSize = maxBufferSize;
-            MaxSuggestedBufferSize = DetermineSuggestedBufferSize(maxBufferSize);
+            MaxSuggestedBufferSize = BufferManager.DetermineSuggestedBufferSize(maxBufferSize);
         }
         #endregion
 
@@ -342,7 +342,7 @@ namespace Opc.Ua.Bindings
         /// Returns the suggested max rent size for data in the buffers.
         /// </summary>
         /// <param name="maxBufferSize">The max buffer size configured.</param>
-        private int DetermineSuggestedBufferSize(int maxBufferSize)
+        private static int DetermineSuggestedBufferSize(int maxBufferSize)
         {
             int bufferArrayPoolSize = BufferManager.RoundUpToPowerOfTwo(maxBufferSize);
             int maxDataRentSize = BufferManager.RoundUpToPowerOfTwo(maxBufferSize + kCookieLength);

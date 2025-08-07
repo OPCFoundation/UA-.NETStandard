@@ -415,7 +415,7 @@ namespace Opc.Ua.Client
         /// </summary>
         internal BrowserEventArgs(ReferenceDescriptionCollection references)
         {
-            m_references = references;
+            References = references;
         }
         #endregion
 
@@ -423,32 +423,19 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Whether the browse operation should be cancelled.
         /// </summary>
-        public bool Cancel
-        {
-            get { return m_cancel; }
-            set { m_cancel = value; }
-        }
+        public bool Cancel { get; set; }
 
         /// <summary>
         /// Whether subsequent continuation points should be processed automatically.
         /// </summary>
-        public bool ContinueUntilDone
-        {
-            get { return m_continueUntilDone; }
-            set { m_continueUntilDone = value; }
-        }
+        public bool ContinueUntilDone { get; set; }
 
         /// <summary>
         /// The references that have been fetched so far.
         /// </summary>
-        public ReferenceDescriptionCollection References => m_references;
-        #endregion
+        public ReferenceDescriptionCollection References { get; }
 
-        #region Private Fields
-        private bool m_cancel;
-        private bool m_continueUntilDone;
-        private readonly ReferenceDescriptionCollection m_references;
-        #endregion
+#endregion
     }
 
     /// <summary>

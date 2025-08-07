@@ -104,7 +104,7 @@ namespace Opc.Ua.Bindings
         public IServiceMessageContext MessageContext => m_quotas.MessageContext;
 
         /// <summary>
-        ///  Gets the the channel's current security token.
+        ///  Gets the channel's current security token.
         /// </summary>
         public ChannelToken CurrentToken
         {

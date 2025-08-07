@@ -164,7 +164,6 @@ namespace Opc.Ua.Core.Tests
             await TestUtils.CleanupTrustListAsync(m_rejectedStore, dispose).ConfigureAwait(false);
         }
 
-
         #region Private Fields
         private int m_disposed;
         private CertificateValidator m_certificateValidator;

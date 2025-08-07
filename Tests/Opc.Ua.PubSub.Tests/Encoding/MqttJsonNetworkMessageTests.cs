@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -194,7 +194,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             IUaPubSubConnection connection = publisherApplication.PubSubConnections.First();
             Assert.IsNotNull(connection, "Pubsub first connection should not be null");
 
-            // Act  
+            // Act
             Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration first connection should not be null");
             Assert.IsNotNull(publisherConfiguration.Connections.First().WriterGroups.First(), "publisherConfiguration first writer group of first connection should not be null");
             IList<UaNetworkMessage> networkMessages = connection.CreateNetworkMessages(publisherConfiguration.Connections.First().WriterGroups.First(), new WriterGroupPublishState());
@@ -325,7 +325,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             IUaPubSubConnection connection = publisherApplication.PubSubConnections.First();
             Assert.IsNotNull(connection, "Pubsub first connection should not be null");
 
-            // Act  
+            // Act
             Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration first connection should not be null");
             Assert.IsNotNull(publisherConfiguration.Connections.First().WriterGroups.First(), "publisherConfiguration  first writer group of first connection should not be null");
             IList<UaNetworkMessage> networkMessages = connection.CreateNetworkMessages(publisherConfiguration.Connections.First().WriterGroups.First(), new WriterGroupPublishState());
@@ -440,7 +440,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             IUaPubSubConnection connection = publisherApplication.PubSubConnections.First();
             Assert.IsNotNull(connection, "Pubsub first connection should not be null");
 
-            // Act  
+            // Act
             Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration first connection should not be null");
             Assert.IsNotNull(publisherConfiguration.Connections.First().WriterGroups.First(), "publisherConfiguration  first writer group of first connection should not be null");
             IList<UaNetworkMessage> networkMessages = connection.CreateNetworkMessages(publisherConfiguration.Connections.First().WriterGroups.First(), new WriterGroupPublishState());
@@ -554,7 +554,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             IUaPubSubConnection connection = publisherApplication.PubSubConnections.First();
             Assert.IsNotNull(connection, "Pubsub first connection should not be null");
 
-            // Act  
+            // Act
             Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration first connection should not be null");
             Assert.IsNotNull(publisherConfiguration.Connections.First().WriterGroups.First(), "publisherConfiguration  first writer group of first connection should not be null");
             IList<UaNetworkMessage> networkMessages = connection.CreateNetworkMessages(publisherConfiguration.Connections.First().WriterGroups.First(), new WriterGroupPublishState());
@@ -664,7 +664,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             IUaPubSubConnection connection = publisherApplication.PubSubConnections.First();
             Assert.IsNotNull(connection, "Pubsub first connection should not be null");
 
-            // Act  
+            // Act
             Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration first connection should not be null");
             Assert.IsNotNull(publisherConfiguration.Connections.First().WriterGroups.First(), "publisherConfiguration  first writer group of first connection should not be null");
             IList<UaNetworkMessage> networkMessages = connection.CreateNetworkMessages(publisherConfiguration.Connections.First().WriterGroups.First(), new WriterGroupPublishState());
@@ -696,7 +696,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             List<DataSetReaderDataType> dataSetReaders = subscriberApplication.PubSubConnections.First().GetOperationalDataSetReaders();
             Assert.IsNotNull(dataSetReaders, "dataSetReaders should not be null");
 
-            // Assert 
+            // Assert
             foreach (PubSubEncoding.JsonNetworkMessage uaDataNetworkMessage in uaNetworkMessages)
             {
                 CompareEncodeDecode(uaDataNetworkMessage, dataSetReaders);
@@ -785,7 +785,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             IUaPubSubConnection connection = publisherApplication.PubSubConnections.First();
             Assert.IsNotNull(connection, "Pubsub first connection should not be null");
 
-            // Act  
+            // Act
             Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration first connection should not be null");
             Assert.IsNotNull(publisherConfiguration.Connections.First().WriterGroups.First(), "publisherConfiguration  first writer group of first connection should not be null");
             IList<UaNetworkMessage> networkMessages = connection.CreateNetworkMessages(publisherConfiguration.Connections.First().WriterGroups.First(), new WriterGroupPublishState());
@@ -867,7 +867,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             var publishState = new WriterGroupPublishState();
 
-            // Act  
+            // Act
             Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration first connection should not be null");
             Assert.IsNotNull(publisherConfiguration.Connections.First().WriterGroups.First(), "publisherConfiguration  first writer group of first connection should not be null");
             IList<UaNetworkMessage> networkMessages = connection.CreateNetworkMessages(publisherConfiguration.Connections.First().WriterGroups.First(), publishState);
@@ -920,7 +920,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             var publishState = new WriterGroupPublishState();
 
-            // Act  
+            // Act
             Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration first connection should not be null");
             Assert.IsNotNull(publisherConfiguration.Connections.First().WriterGroups.First(), "publisherConfiguration  first writer group of first connection should not be null");
 
@@ -992,7 +992,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             var publishState = new WriterGroupPublishState();
 
-            // Act  
+            // Act
             Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration first connection should not be null");
             Assert.IsNotNull(publisherConfiguration.Connections.First().WriterGroups.First(), "publisherConfiguration  first writer group of first connection should not be null");
             IList<UaNetworkMessage> networkMessages = connection.CreateNetworkMessages(publisherConfiguration.Connections.First().WriterGroups.First(), publishState);
@@ -1094,7 +1094,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             WriterGroupDataType writerGroupDataType = publisherConfiguration.Connections.First().WriterGroups.First();
 
-            //Act 
+            //Act
             var mqttMetaDataPublisher = new MqttMetadataPublisher(mockConnection.Object, writerGroupDataType,
                 writerGroupDataType.DataSetWriters[0], metaDataUpdateTime);
             mqttMetaDataPublisher.Start();
@@ -1319,7 +1319,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 jsonNetworkMessage.PublisherId = "1";
                 jsonNetworkMessage.DataSetClassId = "1";
 
-                foreach (PubSubEncoding.JsonDataSetMessage jsonDataSetMessage in jsonNetworkMessage.DataSetMessages)
+                foreach (PubSubEncoding.JsonDataSetMessage jsonDataSetMessage in jsonNetworkMessage.DataSetMessages.OfType<PubSubEncoding.JsonDataSetMessage>())
                 {
                     switch (jsonDataSetMessageContentMask)
                     {
@@ -1394,12 +1394,12 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             // compare uaNetworkMessage with uaNetworkMessageDecoded
             CompareData(jsonNetworkMessage, uaNetworkMessageDecoded);
 
-            // validate network message data 
+            // validate network message data
             ValidateDataEncoding(jsonNetworkMessage);
         }
 
         /// <summary>
-        /// Compare network messages options 
+        /// Compare network messages options
         /// </summary>
         /// <param name="jsonNetworkMessageEncode"></param>
         /// <param name="jsonNetworkMessageDecoded"></param>
@@ -1452,7 +1452,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             {
                 var jsonDataSetMessage = jsonNetworkMessageEncode.DataSetMessages[i] as PubSubEncoding.JsonDataSetMessage;
                 Assert.IsNotNull(jsonDataSetMessage, "DataSet [{0}] is missing from publisher datasets!", i);
-                // check payload data fields count 
+                // check payload data fields count
                 // get related dataset from subscriber DataSets
                 DataSet decodedDataSet = receivedDataSetMessages[i].DataSet;
                 Assert.IsNotNull(decodedDataSet, "DataSet '{0}' is missing from subscriber datasets!", jsonDataSetMessage.DataSet.Name);
@@ -1493,7 +1493,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                         "Wrong: Fields[{0}].DataValue.Value; DataSetWriterId = {1}",
                         fieldName, jsonDataSetMessage.DataSetWriterId);
 
-                    // Checks just for DataValue type only 
+                    // Checks just for DataValue type only
                     if ((jsonDataSetMessage.FieldContentMask & DataSetFieldContentMask.StatusCode) ==
                         DataSetFieldContentMask.StatusCode)
                     {
@@ -1840,7 +1840,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 messagesList = messagesToken as List<object>;
                 if (messagesList == null)
                 {
-                    // this is a SingleDataSetMessage encoded as the content of Messages 
+                    // this is a SingleDataSetMessage encoded as the content of Messages
                     jsonDecoder.PushStructure(NetworkMessageMessages);
                 }
                 else
@@ -1852,7 +1852,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             {
                 messagesListName = JsonDecoder.RootArrayName;
             }
-            // else this is a SingleDataSetMessage encoded as the content json 
+            // else this is a SingleDataSetMessage encoded as the content json
             if (!string.IsNullOrEmpty(messagesListName))
             {
                 int index = 0;
@@ -1958,7 +1958,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                                                 {
                                                     if (wasPushed2 && jsonDecoder.ReadField("Value", out token))
                                                     {
-                                                        // the Value was encoded using the non reversible json encoding 
+                                                        // the Value was encoded using the non reversible json encoding
                                                         token = DecodeFieldData(jsonDecoder, field.FieldMetaData, "Value");
                                                         dataValue = new DataValue(new Variant(token));
                                                     }

@@ -68,7 +68,6 @@ namespace Opc.Ua.Bindings
             MessageSecurityMode securityMode,
             string securityPolicyUri)
         {
-
             if (bufferManager == null)
             {
                 throw new ArgumentNullException(nameof(bufferManager));
@@ -164,7 +163,6 @@ namespace Opc.Ua.Bindings
             m_maxResponseChunkCount = CalculateChunkCount(m_maxResponseMessageSize, TcpMessageLimits.MinBufferSize);
 
             CalculateSymmetricKeySizes();
-
         }
         #endregion
 
@@ -252,9 +250,7 @@ namespace Opc.Ua.Bindings
             TcpChannelStateEventHandler stateChanged = m_StateChanged;
             if (stateChanged != null)
             {
-                Task.Run(() => {
-                    stateChanged?.Invoke(this, state, reason);
-                });
+                Task.Run(() => stateChanged?.Invoke(this, state, reason));
             }
         }
 
@@ -296,7 +292,6 @@ namespace Opc.Ua.Bindings
             }
         }
 
-
         /// <summary>
         /// Resets the sequence number after a connect.
         /// </summary>
@@ -310,7 +305,6 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected bool VerifySequenceNumber(uint sequenceNumber, string context)
         {
-
             // Accept the first sequence number depending on security policy
             if (m_firstReceivedSequenceNumber &&
                 (!EccUtils.IsEccPolicy(SecurityPolicyUri) ||
@@ -631,12 +625,9 @@ namespace Opc.Ua.Bindings
             string reason = error.LocalizedText?.Text;
 
             // check that length is not exceeded.
-            if (reason != null)
+            if (reason != null && Encoding.UTF8.GetByteCount(reason) > TcpMessageLimits.MaxErrorReasonLength)
             {
-                if (Encoding.UTF8.GetByteCount(reason) > TcpMessageLimits.MaxErrorReasonLength)
-                {
-                    reason = reason[..(TcpMessageLimits.MaxErrorReasonLength / Encoding.UTF8.GetMaxByteCount(1))];
-                }
+                reason = reason[..(TcpMessageLimits.MaxErrorReasonLength / Encoding.UTF8.GetMaxByteCount(1))];
             }
 
             encoder.WriteStatusCode(null, error.StatusCode);
@@ -881,9 +872,6 @@ namespace Opc.Ua.Bindings
             /// The body of the request or response associated with the operation.
             /// </summary>
             public IEncodeable MessageBody { get; set; }
-
-#region Private Fields
-            #endregion
         }
         #endregion
 
@@ -953,7 +941,9 @@ namespace Opc.Ua.Bindings
         private int m_maxResponseChunkCount;
         private readonly string m_contextId;
 
-        // treat TcpChannelState as int to use Interlocked
+        /// <summary>
+        /// treat TcpChannelState as int to use Interlocked
+        /// </summary>
         private int m_state;
         private uint m_channelId;
         private string m_globalChannelId;

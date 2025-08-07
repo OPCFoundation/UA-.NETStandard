@@ -385,13 +385,7 @@ namespace Opc.Ua.Bindings
 
             var endpoint = new DnsEndPoint(endpointUrl.DnsSafeHost, port);
             error = BeginConnect(endpoint, doCallback);
-            if (error is SocketError.InProgress or SocketError.Success)
-            {
-                return true;
-            }
-
-
-            return false;
+            return error is SocketError.InProgress or SocketError.Success;
         }
 
         /// <summary>
@@ -486,7 +480,6 @@ namespace Opc.Ua.Bindings
                     {
                         while (ReadNext())
                         {
-                            ;
                         }
                     }
                 }
@@ -678,7 +671,7 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
-        /// Helper to read read next block or message based on current state.
+        /// Helper to read next block or message based on current state.
         /// </summary>
         private bool ReadNext()
         {
@@ -735,13 +728,10 @@ namespace Opc.Ua.Bindings
 
             lock (m_socketLock)
             {
-                if (!m_closed && m_socket == null)
+                if (!m_closed && m_socket == null && args.SocketError == SocketError.Success)
                 {
-                    if (args.SocketError == SocketError.Success)
-                    {
-                        m_socket = socket;
-                        success = true;
-                    }
+                    m_socket = socket;
+                    success = true;
                 }
             }
 
@@ -820,7 +810,7 @@ namespace Opc.Ua.Bindings
             ReadComplete = 4,
             NotConnected = 5,
             Error = 0xff
-        };
+        }
         private readonly object m_readLock = new object();
         private byte[] m_receiveBuffer;
         private int m_bytesReceived;

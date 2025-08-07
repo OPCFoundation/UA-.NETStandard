@@ -30,7 +30,7 @@
 
   <!-- Polyfills for .NET Standard 2.0 and .net 4.8 -->
   <ItemGroup>
-      <PackageReference Include="PolySharp" PrivateAssets="All" />
+    <PackageReference Include="PolySharp" PrivateAssets="All" />
   </ItemGroup>
   <PropertyGroup>
       <PolySharpUsePublicAccessibilityForGeneratedTypes>true</PolySharpUsePublicAccessibilityForGeneratedTypes>

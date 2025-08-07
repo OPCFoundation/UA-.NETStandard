@@ -424,12 +424,9 @@ namespace Opc.Ua.Test
                         return ReportError(attribute1.Value, value2.GetNamespaceOfPrefix(prefix));
                     }
                 }
-                else
+                else if (attribute2.Value != attribute1.Value)
                 {
-                    if (attribute2.Value != attribute1.Value)
-                    {
-                        return ReportError(attribute2.Value, attribute1.Value);
-                    }
+                    return ReportError(attribute2.Value, attribute1.Value);
                 }
             }
 
@@ -534,12 +531,7 @@ namespace Opc.Ua.Test
 
             if (value1 == null || value2 == null)
             {
-                if (value1 != value2)
-                {
-                    return false;
-                }
-
-                return true;
+                return value1 == value2;
             }
 
             if (value1 != value2)
@@ -652,26 +644,12 @@ namespace Opc.Ua.Test
         {
             if (value1 == null)
             {
-                if (value2 == null || value2 == QualifiedName.Null)
-                {
-                    return true;
-                }
-                else
-                {
-                    return false;
-                }
+                return value2 == null || value2 == QualifiedName.Null;
             }
 
             if (value2 == null)
             {
-                if (value1 == null || value1 == QualifiedName.Null)
-                {
-                    return true;
-                }
-                else
-                {
-                    return false;
-                }
+                return value1 == null || value1 == QualifiedName.Null;
             }
 
             if (!value1.Equals(value2))
@@ -694,26 +672,12 @@ namespace Opc.Ua.Test
         {
             if (value1 == null)
             {
-                if (value2 == null || value2 == LocalizedText.Null)
-                {
-                    return true;
-                }
-                else
-                {
-                    return false;
-                }
+                return value2 == null || value2 == LocalizedText.Null;
             }
 
             if (value2 == null)
             {
-                if (value1 == null || value1 == LocalizedText.Null)
-                {
-                    return true;
-                }
-                else
-                {
-                    return false;
-                }
+                return value1 == null || value1 == LocalizedText.Null;
             }
 
             if (!value1.Equals(value2))
@@ -919,7 +883,9 @@ namespace Opc.Ua.Test
             }
         }
 
-        // It stores encodeable types of the executing assembly.       
+        /// <summary>
+        /// It stores encodeable types of the executing assembly.
+        /// </summary>
         private static IEncodeableFactory s_Factory = new EncodeableFactory();
 
         /// <summary>
@@ -930,7 +896,6 @@ namespace Opc.Ua.Test
         public static object GetExtensionObjectBody(ExtensionObject value)
         {
             object body = value.Body;
-
 
             if (body is IEncodeable encodeable)
             {
@@ -948,7 +913,6 @@ namespace Opc.Ua.Test
                 Factory = EncodeableFactory
             };
 
-
             if (body is XmlElement xml)
             {
                 XmlQualifiedName xmlName = Opc.Ua.EncodeableFactory.GetXmlName(expectedType);
@@ -962,7 +926,6 @@ namespace Opc.Ua.Test
 
                 return (IEncodeable)body;
             }
-
 
             if (body is byte[] bytes)
             {
@@ -1046,12 +1009,9 @@ namespace Opc.Ua.Test
                 return true;
             }
 
-            if (value1 is IEncodeable encodeable1 && value2 is IEncodeable encodeable2)
+            if (value1 is IEncodeable encodeable1 && value2 is IEncodeable encodeable2 && encodeable1.IsEqual(encodeable2))
             {
-                if (encodeable1.IsEqual(encodeable2))
-                {
-                    return true;
-                }
+                return true;
             }
 
             return false;
@@ -1076,26 +1036,12 @@ namespace Opc.Ua.Test
         {
             if (value1 == null)
             {
-                if (value2 == null || value2.GetEnumerator().MoveNext() == false)
-                {
-                    return true;
-                }
-                else
-                {
-                    return false;
-                }
+                return value2 == null || !value2.GetEnumerator().MoveNext();
             }
 
             if (value2 == null)
             {
-                if (value1 == null || value1.GetEnumerator().MoveNext() == false)
-                {
-                    return true;
-                }
-                else
-                {
-                    return false;
-                }
+                return value1 == null || !value1.GetEnumerator().MoveNext();
             }
 
             IEnumerator<T> enumerator1 = value1.GetEnumerator();

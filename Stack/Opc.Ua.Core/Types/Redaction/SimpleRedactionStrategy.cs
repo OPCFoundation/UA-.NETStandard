@@ -45,7 +45,6 @@ namespace Opc.Ua.Types.Redaction
         private readonly int m_minLength;
         private readonly int m_maxLength;
 
-
         /// <summary>
         /// Creates a new instance of the <see cref="SimpleRedactionStrategy"/> with default lengths.
         /// </summary>

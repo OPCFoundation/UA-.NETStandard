@@ -34,8 +34,11 @@ using System.Security.Cryptography.X509Certificates;
 namespace Opc.Ua.Client.Tests
 {
     #region Namespace Declarations
-    /// <remarks />
-    public static partial class Namespaces
+
+    /// <summary>
+    /// Namespaces
+    /// </summary>
+    public static class Namespaces
     {
         /// <summary>
         /// The URI for the OpcUaClient namespace (.NET code namespace is 'Opc.Ua.Client').
@@ -119,7 +122,7 @@ namespace Opc.Ua.Client.Tests
         protected override void UpdateRequestHeader(IServiceRequest request, bool useDefaults, string serviceName)
         {
             base.UpdateRequestHeader(request, useDefaults, serviceName);
-            request.RequestHeader.Timestamp = request.RequestHeader.Timestamp + TimestampOffset;
+            request.RequestHeader.Timestamp += TimestampOffset;
         }
 
         /// <inheritdoc/>
@@ -160,7 +163,7 @@ namespace Opc.Ua.Client.Tests
         public TestableSubscription(Subscription template, bool copyEventHandlers)
             : base(template, copyEventHandlers)
         {
-            Initialize();
+            TestableSubscription.Initialize();
         }
 
         /// <summary>
@@ -170,13 +173,13 @@ namespace Opc.Ua.Client.Tests
         protected new void Initialize(StreamingContext context)
         {
             base.Initialize(context);
-            Initialize();
+            TestableSubscription.Initialize();
         }
 
         /// <summary>
         /// Sets the private members to default values.
         /// </summary>
-        private void Initialize()
+        private static void Initialize()
         {
         }
         #endregion
@@ -209,7 +212,6 @@ namespace Opc.Ua.Client.Tests
         public TestableMonitoredItem(MonitoredItem template)
             : this(template, false, false)
         {
-
         }
 
         /// <summary>
@@ -227,13 +229,13 @@ namespace Opc.Ua.Client.Tests
         protected new void Initialize(StreamingContext context)
         {
             base.Initialize(context);
-            Initialize();
+            TestableMonitoredItem.Initialize();
         }
 
         /// <summary>
         /// Sets the private members to default values.
         /// </summary>
-        private void Initialize()
+        private static void Initialize()
         {
         }
         #endregion
@@ -244,5 +246,4 @@ namespace Opc.Ua.Client.Tests
             return new TestableMonitoredItem(this, copyEventHandlers, copyClientHandle);
         }
     }
-
 }

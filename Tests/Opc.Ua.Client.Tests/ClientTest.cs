@@ -44,7 +44,6 @@ using Opc.Ua.Configuration;
 using Opc.Ua.Server.Tests;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
-
 using Opc.Ua.Security.Certificates.Tests;
 using System.Security.Cryptography;
 using System.Runtime.InteropServices;
@@ -379,7 +378,7 @@ namespace Opc.Ua.Client.Tests
         [Test, Order(202)]
         public async Task ConnectAndCloseAsyncReadAfterClose()
         {
-            string securityPolicy = SecurityPolicies.Basic256Sha256;
+            const string securityPolicy = SecurityPolicies.Basic256Sha256;
             using (ISession session = await ClientFixture.ConnectAsync(ServerUrl, securityPolicy, Endpoints).ConfigureAwait(false))
             {
                 Assert.NotNull(session);
@@ -403,7 +402,7 @@ namespace Opc.Ua.Client.Tests
         [Test, Order(204)]
         public async Task ConnectAndCloseAsyncReadAfterCloseSessionReconnectAsync()
         {
-            string securityPolicy = SecurityPolicies.Basic256Sha256;
+            const string securityPolicy = SecurityPolicies.Basic256Sha256;
             using (ISession session = await ClientFixture.ConnectAsync(ServerUrl, securityPolicy, Endpoints).ConfigureAwait(false))
             {
                 Assert.NotNull(session);
@@ -436,10 +435,9 @@ namespace Opc.Ua.Client.Tests
         [Test, Order(206)]
         public async Task ConnectCloseSessionCloseChannel()
         {
-            string securityPolicy = SecurityPolicies.Basic256Sha256;
+            const string securityPolicy = SecurityPolicies.Basic256Sha256;
             using (ISession session = await ClientFixture.ConnectAsync(ServerUrl, securityPolicy, Endpoints).ConfigureAwait(false))
             {
-
                 Assert.NotNull(session);
                 Session.SessionClosing += Session_Closing;
 
@@ -474,10 +472,10 @@ namespace Opc.Ua.Client.Tests
             Assert.NotNull(session);
 
             int sessionConfigChanged = 0;
-            session.SessionConfigurationChanged += (object sender, EventArgs e) => { sessionConfigChanged++; };
+            session.SessionConfigurationChanged += (object sender, EventArgs e) => sessionConfigChanged++;
 
             int sessionClosing = 0;
-            session.SessionClosing += (object sender, EventArgs e) => { sessionClosing++; };
+            session.SessionClosing += (object sender, EventArgs e) => sessionClosing++;
 
             var quitEvent = new ManualResetEvent(false);
             var reconnectHandler = new SessionReconnectHandler(reconnectAbort, useMaxReconnectPeriod ? MaxTimeout : -1);
@@ -536,7 +534,7 @@ namespace Opc.Ua.Client.Tests
         [Theory, Order(220)]
         public async Task ConnectJWT(string securityPolicy)
         {
-            string identityToken = "fakeTokenString";
+            const string identityToken = "fakeTokenString";
 
             var issuedToken = new IssuedIdentityToken() {
                 IssuedTokenType = IssuedTokenType.JWT,
@@ -573,7 +571,7 @@ namespace Opc.Ua.Client.Tests
                 return new UserIdentity(issuedToken);
             }
 
-            string identityToken = "fakeTokenString";
+            const string identityToken = "fakeTokenString";
             UserIdentity userIdentity = CreateUserIdentity(identityToken);
 
             ISession session = await ClientFixture.ConnectAsync(ServerUrl, securityPolicy, Endpoints, userIdentity).ConfigureAwait(false);
@@ -583,10 +581,8 @@ namespace Opc.Ua.Client.Tests
             string receivedToken = Encoding.UTF8.GetString(TokenValidator.LastIssuedToken.DecryptedTokenData);
             Assert.AreEqual(identityToken, receivedToken);
 
-            string newIdentityToken = "fakeTokenStringNew";
-            session.RenewUserIdentity += (s, i) => {
-                return CreateUserIdentity(newIdentityToken);
-            };
+            const string newIdentityToken = "fakeTokenStringNew";
+            session.RenewUserIdentity += (s, i) => CreateUserIdentity(newIdentityToken);
 
             session.Reconnect();
             receivedToken = Encoding.UTF8.GetString(TokenValidator.LastIssuedToken.DecryptedTokenData);
@@ -624,7 +620,6 @@ namespace Opc.Ua.Client.Tests
             session2.Close(closeChannel: false);
             session2.DetachChannel();
             session2.Dispose();
-
 
             //Recreate session using same channel
             ISession session3 = await ClientFixture.SessionFactory.RecreateAsync(session1, channel).ConfigureAwait(false);
@@ -729,7 +724,7 @@ namespace Opc.Ua.Client.Tests
             sre = Assert.Throws<ServiceResultException>(() => session1.ReadValue(VariableIds.Server_ServerStatus, typeof(ServerStatusDataType)));
 
             // TODO: Both channel should return BadNotConnected
-            if (!(StatusCodes.BadSecureChannelClosed == sre.StatusCode))
+            if (StatusCodes.BadSecureChannelClosed != sre.StatusCode)
             {
                 if (endpoint.EndpointUrl.ToString().StartsWith(Utils.UriSchemeOpcTcp, StringComparison.Ordinal))
                 {
@@ -814,9 +809,7 @@ namespace Opc.Ua.Client.Tests
             bool success = session2.ApplySessionConfiguration(sessionConfiguration);
 
             // hook callback to renew the user identity
-            session2.RenewUserIdentity += (session, identity) => {
-                return userIdentity;
-            };
+            session2.RenewUserIdentity += (session, identity) => userIdentity;
 
             // activate the session from saved session secrets on the new channel
             if (asyncReconnect)
@@ -888,9 +881,7 @@ namespace Opc.Ua.Client.Tests
             Assert.NotNull(value1);
 
             // hook callback to renew the user identity
-            session1.RenewUserIdentity += (session, identity) => {
-                return userIdentityPW;
-            };
+            session1.RenewUserIdentity += (session, identity) => userIdentityPW;
 
             Client.Session session2;
             if (async)
@@ -910,7 +901,6 @@ namespace Opc.Ua.Client.Tests
             if (async)
             {
                 session3 = await Client.Session.RecreateAsync((Session)((TraceableSession)session1).Session, channel2).ConfigureAwait(false);
-
             }
             else
             {
@@ -925,7 +915,6 @@ namespace Opc.Ua.Client.Tests
 
             var value2 = (ServerStatusDataType)session2.ReadValue(VariableIds.Server_ServerStatus, typeof(ServerStatusDataType));
             Assert.NotNull(value2);
-
 
             session1.DeleteSubscriptionsOnClose = true;
             session1.Close(1000);
@@ -945,18 +934,18 @@ namespace Opc.Ua.Client.Tests
         {
             base.GetOperationLimits();
 
-            ValidateOperationLimit(OperationLimits.MaxNodesPerRead, Session.OperationLimits.MaxNodesPerRead);
-            ValidateOperationLimit(OperationLimits.MaxNodesPerHistoryReadData, Session.OperationLimits.MaxNodesPerHistoryReadData);
-            ValidateOperationLimit(OperationLimits.MaxNodesPerHistoryReadEvents, Session.OperationLimits.MaxNodesPerHistoryReadEvents);
-            ValidateOperationLimit(OperationLimits.MaxNodesPerBrowse, Session.OperationLimits.MaxNodesPerBrowse);
-            ValidateOperationLimit(OperationLimits.MaxMonitoredItemsPerCall, Session.OperationLimits.MaxMonitoredItemsPerCall);
-            ValidateOperationLimit(OperationLimits.MaxNodesPerHistoryUpdateData, Session.OperationLimits.MaxNodesPerHistoryUpdateData);
-            ValidateOperationLimit(OperationLimits.MaxNodesPerHistoryUpdateEvents, Session.OperationLimits.MaxNodesPerHistoryUpdateEvents);
-            ValidateOperationLimit(OperationLimits.MaxNodesPerMethodCall, Session.OperationLimits.MaxNodesPerMethodCall);
-            ValidateOperationLimit(OperationLimits.MaxNodesPerNodeManagement, Session.OperationLimits.MaxNodesPerNodeManagement);
-            ValidateOperationLimit(OperationLimits.MaxNodesPerRegisterNodes, Session.OperationLimits.MaxNodesPerRegisterNodes);
-            ValidateOperationLimit(OperationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds, Session.OperationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds);
-            ValidateOperationLimit(OperationLimits.MaxNodesPerWrite, Session.OperationLimits.MaxNodesPerWrite);
+            ClientTest.ValidateOperationLimit(OperationLimits.MaxNodesPerRead, Session.OperationLimits.MaxNodesPerRead);
+            ClientTest.ValidateOperationLimit(OperationLimits.MaxNodesPerHistoryReadData, Session.OperationLimits.MaxNodesPerHistoryReadData);
+            ClientTest.ValidateOperationLimit(OperationLimits.MaxNodesPerHistoryReadEvents, Session.OperationLimits.MaxNodesPerHistoryReadEvents);
+            ClientTest.ValidateOperationLimit(OperationLimits.MaxNodesPerBrowse, Session.OperationLimits.MaxNodesPerBrowse);
+            ClientTest.ValidateOperationLimit(OperationLimits.MaxMonitoredItemsPerCall, Session.OperationLimits.MaxMonitoredItemsPerCall);
+            ClientTest.ValidateOperationLimit(OperationLimits.MaxNodesPerHistoryUpdateData, Session.OperationLimits.MaxNodesPerHistoryUpdateData);
+            ClientTest.ValidateOperationLimit(OperationLimits.MaxNodesPerHistoryUpdateEvents, Session.OperationLimits.MaxNodesPerHistoryUpdateEvents);
+            ClientTest.ValidateOperationLimit(OperationLimits.MaxNodesPerMethodCall, Session.OperationLimits.MaxNodesPerMethodCall);
+            ClientTest.ValidateOperationLimit(OperationLimits.MaxNodesPerNodeManagement, Session.OperationLimits.MaxNodesPerNodeManagement);
+            ClientTest.ValidateOperationLimit(OperationLimits.MaxNodesPerRegisterNodes, Session.OperationLimits.MaxNodesPerRegisterNodes);
+            ClientTest.ValidateOperationLimit(OperationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds, Session.OperationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds);
+            ClientTest.ValidateOperationLimit(OperationLimits.MaxNodesPerWrite, Session.OperationLimits.MaxNodesPerWrite);
         }
 
         [Test]
@@ -1060,7 +1049,7 @@ namespace Opc.Ua.Client.Tests
         {
             // Test Read a DataType Node
             INode node = Session.ReadNode(DataTypeIds.ProgramDiagnosticDataType);
-            ValidateDataTypeDefinition(node);
+            ClientTest.ValidateDataTypeDefinition(node);
         }
 
         [Test]
@@ -1068,7 +1057,7 @@ namespace Opc.Ua.Client.Tests
         {
             // Test Read a DataType Node
             INode node = await Session.ReadNodeAsync(DataTypeIds.ProgramDiagnosticDataType).ConfigureAwait(false);
-            ValidateDataTypeDefinition(node);
+            ClientTest.ValidateDataTypeDefinition(node);
         }
 
         [Test]
@@ -1076,7 +1065,7 @@ namespace Opc.Ua.Client.Tests
         {
             // Test Read a DataType Node, the nodeclass is known
             INode node = Session.ReadNode(DataTypeIds.ProgramDiagnosticDataType, NodeClass.DataType, false);
-            ValidateDataTypeDefinition(node);
+            ClientTest.ValidateDataTypeDefinition(node);
         }
 
         [Test]
@@ -1084,7 +1073,7 @@ namespace Opc.Ua.Client.Tests
         {
             // Test Read a DataType Node, the nodeclass is known
             INode node = await Session.ReadNodeAsync(DataTypeIds.ProgramDiagnosticDataType, NodeClass.DataType, false).ConfigureAwait(false);
-            ValidateDataTypeDefinition(node);
+            ClientTest.ValidateDataTypeDefinition(node);
         }
 
         [Test]
@@ -1092,7 +1081,7 @@ namespace Opc.Ua.Client.Tests
         {
             // Test Read a DataType Node, the nodeclass is known
             Session.ReadNodes(new NodeIdCollection() { DataTypeIds.ProgramDiagnosticDataType }, NodeClass.DataType, out IList<Node> nodes, out IList<ServiceResult> errors, false);
-            ValidateDataTypeDefinition(nodes[0]);
+            ClientTest.ValidateDataTypeDefinition(nodes[0]);
         }
 
         [Test]
@@ -1101,11 +1090,10 @@ namespace Opc.Ua.Client.Tests
             // Test Read a DataType Node, the nodeclass is known
             (IList<Node> nodes, IList<ServiceResult> errors) = await Session.ReadNodesAsync(new NodeIdCollection() { DataTypeIds.ProgramDiagnosticDataType }, NodeClass.DataType, false).ConfigureAwait(false);
             Assert.AreEqual(nodes.Count, errors.Count);
-            ValidateDataTypeDefinition(nodes[0]);
+            ClientTest.ValidateDataTypeDefinition(nodes[0]);
         }
 
-
-        private void ValidateDataTypeDefinition(INode node)
+        private static void ValidateDataTypeDefinition(INode node)
         {
             Assert.NotNull(node);
             var dataTypeNode = (DataTypeNode)node;
@@ -1204,7 +1192,6 @@ namespace Opc.Ua.Client.Tests
             var clientTestServices = new ClientTestServices(Session);
             CommonTestWorkers.SubscriptionTest(clientTestServices, requestHeader);
         }
-
 
         [Test, Order(550)]
         public async Task ReadNode()
@@ -1462,7 +1449,9 @@ namespace Opc.Ua.Client.Tests
             }
         }
 
-        // Test class for testing protected methods in TraceableRequestHeaderClientSession
+        /// <summary>
+        /// Test class for testing protected methods in TraceableRequestHeaderClientSession
+        /// </summary>
         public class TestableTraceableRequestHeaderClientSession : TraceableRequestHeaderClientSession
         {
             public TestableTraceableRequestHeaderClientSession(
@@ -1473,7 +1462,11 @@ namespace Opc.Ua.Client.Tests
             {
             }
 
-            // Expose the protected method for testing
+            /// <summary>
+            /// Expose the protected method for testing
+            /// </summary>
+            /// <param name="request"></param>
+            /// <param name="useDefaults"></param>
             public void TestableUpdateRequestHeader(IServiceRequest request, bool useDefaults)
             {
                 base.UpdateRequestHeader(request, useDefaults);
@@ -1624,7 +1617,6 @@ namespace Opc.Ua.Client.Tests
                     SecurityPolicies.ECC_brainpoolP256r1,
                     SecurityPolicies.ECC_brainpoolP384r1)] string securityPolicy)
         {
-
             if (!RuntimeInformation.IsOSPlatform(OSPlatform.OSX) ||
                 (securityPolicy != SecurityPolicies.ECC_brainpoolP256r1) ||
                 (securityPolicy != SecurityPolicies.ECC_brainpoolP384r1))
@@ -1650,7 +1642,6 @@ namespace Opc.Ua.Client.Tests
                 var value1 = (ServerStatusDataType)session1.ReadValue(VariableIds.Server_ServerStatus, typeof(ServerStatusDataType));
                 Assert.NotNull(value1);
             }
-
         }
 
         /// <summary>
@@ -1663,13 +1654,12 @@ namespace Opc.Ua.Client.Tests
                     SecurityPolicies.ECC_brainpoolP256r1,
                     SecurityPolicies.ECC_brainpoolP384r1)] string securityPolicy)
         {
-
             if (!RuntimeInformation.IsOSPlatform(OSPlatform.OSX) ||
                 (securityPolicy != SecurityPolicies.ECC_brainpoolP256r1) ||
                 (securityPolicy != SecurityPolicies.ECC_brainpoolP384r1))
 
             {
-                string identityToken = "fakeTokenString";
+                const string identityToken = "fakeTokenString";
 
                 var issuedToken = new IssuedIdentityToken() {
                     IssuedTokenType = IssuedTokenType.JWT,
@@ -1711,7 +1701,6 @@ namespace Opc.Ua.Client.Tests
                     SecurityPolicies.ECC_brainpoolP256r1,
                     SecurityPolicies.ECC_brainpoolP384r1)] string securityPolicy)
         {
-
             var eccCurveHashPairs = new ECCurveHashPairCollection {
                 { ECCurve.NamedCurves.nistP256, HashAlgorithmName.SHA256 },
                 { ECCurve.NamedCurves.nistP384, HashAlgorithmName.SHA384 } };
@@ -1767,7 +1756,7 @@ namespace Opc.Ua.Client.Tests
         [Test, Order(11000)]
         public void SetSubscriptionDurable_Success()
         {
-            uint expectedRevised = 5;
+            const uint expectedRevised = 5;
 
             var outputParameters = new List<object>();
             outputParameters.Add(expectedRevised);
@@ -1782,7 +1771,7 @@ namespace Opc.Ua.Client.Tests
                 ))
                 .Returns(outputParameters);
 
-            Subscription subscription = MockOutSubscriptionSession(sessionMock);
+            Subscription subscription = ClientTest.MockOutSubscriptionSession(sessionMock);
 
             if (subscription.SetSubscriptionDurable(1, out uint revised))
             {
@@ -1810,7 +1799,7 @@ namespace Opc.Ua.Client.Tests
                 ))
                 .Throws(new ServiceResultException(StatusCodes.BadSubscriptionIdInvalid));
 
-            Subscription subscription = MockOutSubscriptionSession(sessionMock);
+            Subscription subscription = ClientTest.MockOutSubscriptionSession(sessionMock);
 
             Assert.IsFalse(subscription.SetSubscriptionDurable(1, out uint revised));
         }
@@ -1834,7 +1823,7 @@ namespace Opc.Ua.Client.Tests
                 ))
                 .Returns(outputParameters);
 
-            Subscription subscription = MockOutSubscriptionSession(sessionMock);
+            Subscription subscription = ClientTest.MockOutSubscriptionSession(sessionMock);
 
             Assert.IsFalse(subscription.SetSubscriptionDurable(1, out uint revised));
         }
@@ -1858,7 +1847,7 @@ namespace Opc.Ua.Client.Tests
                 ))
                 .Returns(outputParameters);
 
-            Subscription subscription = MockOutSubscriptionSession(sessionMock);
+            Subscription subscription = ClientTest.MockOutSubscriptionSession(sessionMock);
 
             Assert.IsFalse(subscription.SetSubscriptionDurable(1, out uint revised));
         }
@@ -1870,7 +1859,7 @@ namespace Opc.Ua.Client.Tests
         [Test, Order(11040)]
         public void SetSubscriptionDurable_TooManyOutputParameters()
         {
-            uint expectedRevised = 5;
+            const uint expectedRevised = 5;
 
             var outputParameters = new List<object>();
             outputParameters.Add(expectedRevised);
@@ -1886,7 +1875,7 @@ namespace Opc.Ua.Client.Tests
                 ))
                 .Returns(outputParameters);
 
-            Subscription subscription = MockOutSubscriptionSession(sessionMock);
+            Subscription subscription = ClientTest.MockOutSubscriptionSession(sessionMock);
 
             Assert.IsFalse(subscription.SetSubscriptionDurable(1, out uint revised));
         }
@@ -1910,7 +1899,7 @@ namespace Opc.Ua.Client.Tests
                 ))
                 .Returns(outputParameters);
 
-            Subscription subscription = MockOutSubscriptionSession(sessionMock);
+            Subscription subscription = ClientTest.MockOutSubscriptionSession(sessionMock);
 
             UInt32Collection serverHandles;
             UInt32Collection clientHandles;
@@ -1934,7 +1923,7 @@ namespace Opc.Ua.Client.Tests
                 ))
                 .Throws(new ServiceResultException(StatusCodes.BadSubscriptionIdInvalid));
 
-            Subscription subscription = MockOutSubscriptionSession(sessionMock);
+            Subscription subscription = ClientTest.MockOutSubscriptionSession(sessionMock);
 
             Assert.IsFalse(subscription.GetMonitoredItems(
                 out UInt32Collection serverHandles,
@@ -1959,7 +1948,7 @@ namespace Opc.Ua.Client.Tests
                 ))
                 .Returns(outputParameters);
 
-            Subscription subscription = MockOutSubscriptionSession(sessionMock);
+            Subscription subscription = ClientTest.MockOutSubscriptionSession(sessionMock);
 
             Assert.IsFalse(subscription.GetMonitoredItems(
                 out UInt32Collection serverHandles,
@@ -1984,7 +1973,7 @@ namespace Opc.Ua.Client.Tests
                 ))
                 .Returns(outputParameters);
 
-            Subscription subscription = MockOutSubscriptionSession(sessionMock);
+            Subscription subscription = ClientTest.MockOutSubscriptionSession(sessionMock);
 
             Assert.IsFalse(subscription.GetMonitoredItems(
                 out UInt32Collection serverHandles,
@@ -2012,13 +2001,12 @@ namespace Opc.Ua.Client.Tests
                 ))
                 .Returns(outputParameters);
 
-            Subscription subscription = MockOutSubscriptionSession(sessionMock);
+            Subscription subscription = ClientTest.MockOutSubscriptionSession(sessionMock);
 
             Assert.IsFalse(subscription.GetMonitoredItems(
                 out UInt32Collection serverHandles,
                 out UInt32Collection clientHandles));
         }
-
 
         #endregion
 
@@ -2034,7 +2022,7 @@ namespace Opc.Ua.Client.Tests
         #endregion
 
         #region Private Methods
-        void ValidateOperationLimit(uint serverLimit, uint clientLimit)
+        static void ValidateOperationLimit(uint serverLimit, uint clientLimit)
         {
             if (serverLimit != 0)
             {
@@ -2043,7 +2031,7 @@ namespace Opc.Ua.Client.Tests
             }
         }
 
-        private Subscription MockOutSubscriptionSession(Moq.Mock<ISession> sessionMock)
+        private static Subscription MockOutSubscriptionSession(Moq.Mock<ISession> sessionMock)
         {
             var subscription = new Subscription();
             Type subscriptionType = subscription.GetType();

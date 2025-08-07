@@ -82,11 +82,9 @@ namespace MemoryBuffer
         {
             lock (DataLock)
             {
-                IReference reference = null;
-
                 // enumerate pre-defined references.
                 // always call first to ensure any pushed-back references are returned first.
-                reference = base.Next();
+                IReference reference = base.Next();
 
                 if (reference != null)
                 {
@@ -155,7 +153,7 @@ namespace MemoryBuffer
 
                 for (int ii = 0; ii < name.Length; ii++)
                 {
-                    if ("0123456789ABCDEF".IndexOf(name[ii], StringComparison.Ordinal) == -1)
+                    if (!"0123456789ABCDEF".Contains(name[ii], StringComparison.Ordinal))
                     {
                         return null;
                     }

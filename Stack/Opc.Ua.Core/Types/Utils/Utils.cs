@@ -727,12 +727,9 @@ namespace Opc.Ua
                 {
                     buffer.Append(value);
                 }
-                else
+                else if (folder == "LocalFolder")
                 {
-                    if (folder == "LocalFolder")
-                    {
-                        buffer.Append(DefaultLocalFolder);
-                    }
+                    buffer.Append(DefaultLocalFolder);
                 }
 #if !NETSTANDARD1_4 && !NETSTANDARD1_3
             }
@@ -1210,7 +1207,7 @@ namespace Opc.Ua
             }
 
             // check if the string localhost is specified.
-            string localhost = "localhost";
+            const string localhost = "localhost";
             int index = uri.IndexOf(localhost, StringComparison.OrdinalIgnoreCase);
 
             if (index == -1)
@@ -1250,7 +1247,7 @@ namespace Opc.Ua
             }
 
             // check if the string DC=localhost is specified.
-            string dclocalhost = "DC=localhost";
+            const string dclocalhost = "DC=localhost";
             int index = subjectName.IndexOf(dclocalhost, StringComparison.OrdinalIgnoreCase);
 
             if (index == -1)
@@ -1289,16 +1286,12 @@ namespace Opc.Ua
                     {
                         case ';':
                         case '%':
-                        {
                             buffer.AppendFormat(CultureInfo.InvariantCulture, "%{0:X2}", Convert.ToInt16(ch));
                             break;
-                        }
 
                         default:
-                        {
                             buffer.Append(ch);
                             break;
-                        }
                     }
                 }
                 return buffer.ToString();
@@ -1384,12 +1377,7 @@ namespace Opc.Ua
                     domain2 = GetHostName();
                 }
 
-                if (AreDomainsEqual(domain1, domain2))
-                {
-                    return true;
-                }
-
-                return false;
+                return AreDomainsEqual(domain1, domain2);
             }
             catch (Exception)
             {
@@ -1410,12 +1398,7 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (string.Equals(domain1, domain2, StringComparison.OrdinalIgnoreCase))
-            {
-                return true;
-            }
-
-            return false;
+            return string.Equals(domain1, domain2, StringComparison.OrdinalIgnoreCase);
         }
 
         /// <summary>
@@ -2296,12 +2279,9 @@ namespace Opc.Ua
                     return true;
                 }
             }
-            else
+            else if (string.Equals(target, pattern, StringComparison.OrdinalIgnoreCase))
             {
-                if (string.Equals(target, pattern, StringComparison.OrdinalIgnoreCase))
-                {
-                    return true;
-                }
+                return true;
             }
 
             char c;
@@ -2324,7 +2304,6 @@ namespace Opc.Ua
                 {
                     // match zero or more char.
                     case '*':
-                    {
                         while (tIndex < target.Length)
                         {
                             if (Match(target[tIndex++..], pattern[pIndex..], caseSensitive))
@@ -2334,11 +2313,9 @@ namespace Opc.Ua
                         }
 
                         return Match(target, pattern[pIndex..], caseSensitive);
-                    }
 
                     // match any one char.
                     case '?':
-                    {
                         // check if end of string when looking for a single character.
                         if (tIndex >= target.Length)
                         {
@@ -2353,11 +2330,9 @@ namespace Opc.Ua
 
                         tIndex++;
                         break;
-                    }
 
                     // match char set
                     case '[':
-                    {
                         c = ConvertCase(target[tIndex++], caseSensitive);
 
                         if (tIndex > target.Length)
@@ -2455,11 +2430,9 @@ namespace Opc.Ua
                         }
 
                         break;
-                    }
 
                     // match digit.
                     case '#':
-                    {
                         c = target[tIndex++];
 
                         if (!char.IsDigit(c))
@@ -2468,11 +2441,9 @@ namespace Opc.Ua
                         }
 
                         break;
-                    }
 
                     // match exact char.
                     default:
-                    {
                         c = ConvertCase(target[tIndex++], caseSensitive);
 
                         if (c != p) // check for exact char
@@ -2487,7 +2458,6 @@ namespace Opc.Ua
                         }
 
                         break;
-                    }
                 }
             }
 
@@ -2499,7 +2469,12 @@ namespace Opc.Ua
             return true;
         }
 
-        // ConvertCase
+        /// <summary>
+        /// ConvertCase
+        /// </summary>
+        /// <param name="c"></param>
+        /// <param name="caseSensitive"></param>
+        /// <returns></returns>
         private static char ConvertCase(char c, bool caseSensitive)
         {
             return caseSensitive ? c : char.ToUpperInvariant(c);
@@ -2655,12 +2630,7 @@ namespace Opc.Ua
             // add new element.
             if (value != null)
             {
-                if (extensions == null)
-                {
-                    extensions = new XmlElementCollection();
-                }
-
-                extensions.Add(document.DocumentElement);
+                (extensions ??= new XmlElementCollection()).Add(document.DocumentElement);
             }
         }
 #endregion
@@ -2716,9 +2686,7 @@ namespace Opc.Ua
         /// </summary>
         public static uint GetIdentifier(string name, Type constants)
         {
-            FieldInfo[] fields = constants.GetFields(BindingFlags.Public | BindingFlags.Static);
-
-            foreach (FieldInfo field in fields)
+            foreach (FieldInfo field in constants.GetFields(BindingFlags.Public | BindingFlags.Static))
             {
                 if (field.Name == name)
                 {
@@ -2937,7 +2905,6 @@ namespace Opc.Ua
             return certificateChain;
         }
 
-
         /// <summary>
         /// Creates a DER blob from a X509Certificate2Collection.
         /// </summary>
@@ -3024,7 +2991,6 @@ namespace Opc.Ua
         {
             return PSHA(hmac, label, data, offset, length);
         }
-
 
         /// <summary>
         /// Generates a Pseudo random sequence of bits using the HMAC algorithm.
@@ -3114,7 +3080,6 @@ namespace Opc.Ua
             // return random data.
             return output;
         }
-
 
         /// <summary>
         /// Creates an HMAC.
@@ -3235,9 +3200,7 @@ namespace Opc.Ua
         /// <summary>
         /// Lazy helper to allow runtime check for Mono.
         /// </summary>
-        private static readonly Lazy<bool> s_isRunningOnMonoValue = new Lazy<bool>(() => {
-            return Type.GetType("Mono.Runtime") != null;
-        });
+        private static readonly Lazy<bool> s_isRunningOnMonoValue = new Lazy<bool>(() => Type.GetType("Mono.Runtime") != null);
 
         /// <summary>
         /// Determine if assembly uses mono runtime.

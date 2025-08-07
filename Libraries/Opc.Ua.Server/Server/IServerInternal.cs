@@ -81,7 +81,7 @@ namespace Opc.Ua.Server
         /// <value>The type tree.</value>
         /// <remarks>
         /// The type tree table is a global object that all components of a server have access to.
-        /// Node managers must populate this table with all types that they define. 
+        /// Node managers must populate this table with all types that they define.
         /// This object is thread safe.
         /// </remarks>
         TypeTable TypeTree { get; }

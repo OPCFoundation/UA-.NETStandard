@@ -124,9 +124,7 @@ namespace Opc.Ua.Bindings
                 case ReverseHello:
                 case Acknowledge:
                 case Error:
-                {
                     return true;
-                }
             }
 
             uint chunkTypeMask = messageType & ChunkTypeMask;
@@ -140,14 +138,10 @@ namespace Opc.Ua.Bindings
                 case Message:
                 case Open:
                 case Close:
-                {
                     break;
-                }
 
                 default:
-                {
                     return false;
-                }
             }
 
             return true;
@@ -321,7 +315,7 @@ namespace Opc.Ua.Bindings
         /// </remarks>
         public static int AlignRoundMaxMessageSize(int value)
         {
-            int alignmentMask = MinBufferSize - 1;
+            const int alignmentMask = MinBufferSize - 1;
             return (value + alignmentMask) & ~alignmentMask;
         }
     }

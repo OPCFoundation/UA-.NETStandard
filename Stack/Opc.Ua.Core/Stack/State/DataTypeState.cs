@@ -59,7 +59,6 @@ namespace Opc.Ua
         }
         #endregion
 
-
         /// <summary>
         /// The abstract definition of the data type.
         /// </summary>
@@ -201,7 +200,6 @@ namespace Opc.Ua
             switch (attributeId)
             {
                 case Attributes.DataTypeDefinition:
-                {
                     ExtensionObject dataTypeDefinition = m_dataTypeDefinition;
 
                     NodeAttributeEventHandler<ExtensionObject> onReadDataTypeDefinition = OnReadDataTypeDefinition;
@@ -229,7 +227,6 @@ namespace Opc.Ua
                     }
 
                     return result;
-                }
             }
 
             return base.ReadNonValueAttribute(context, attributeId, ref value);
@@ -250,7 +247,6 @@ namespace Opc.Ua
             switch (attributeId)
             {
                 case Attributes.DataTypeDefinition:
-                {
                     var dataTypeDefinition = value as ExtensionObject;
 
                     if ((WriteMask & AttributeWriteMask.DataTypeDefinition) == 0)
@@ -271,7 +267,6 @@ namespace Opc.Ua
                     }
 
                     return result;
-                }
             }
 
             return base.WriteNonValueAttribute(context, attributeId, value);

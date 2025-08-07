@@ -27,7 +27,6 @@ using Microsoft.AspNetCore.Server.Kestrel.Https;
 using Microsoft.Extensions.Hosting;
 using Opc.Ua.Security.Certificates;
 
-
 namespace Opc.Ua.Bindings
 {
     /// <summary>
@@ -122,7 +121,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public HttpsTransportListener(string uriScheme)
         {
-            m_uriScheme = uriScheme;
+            UriScheme = uriScheme;
         }
         #endregion
 
@@ -154,7 +153,7 @@ namespace Opc.Ua.Bindings
 
         #region ITransportListener Members
         /// <inheritdoc/>
-        public string UriScheme => m_uriScheme;
+        public string UriScheme { get; }
 
         /// <inheritdoc/>
         public string ListenerId => m_listenerId;
@@ -308,21 +307,13 @@ namespace Opc.Ua.Bindings
                 hostType == UriHostNameType.Basic)
             {
                 // bind to any address
-                m_hostBuilder.UseKestrel(options => {
-                    options.ListenAnyIP(m_uri.Port, listenOptions => {
-                        listenOptions.UseHttps(httpsOptions);
-                    });
-                });
+                m_hostBuilder.UseKestrel(options => options.ListenAnyIP(m_uri.Port, listenOptions => listenOptions.UseHttps(httpsOptions)));
             }
             else
             {
                 // bind to specific address
                 var ipAddress = IPAddress.Parse(m_uri.Host);
-                m_hostBuilder.UseKestrel(options => {
-                    options.Listen(ipAddress, m_uri.Port, listenOptions => {
-                        listenOptions.UseHttps(httpsOptions);
-                    });
-                });
+                m_hostBuilder.UseKestrel(options => options.Listen(ipAddress, m_uri.Port, listenOptions => listenOptions.UseHttps(httpsOptions)));
             }
 
             m_hostBuilder.UseContentRoot(Directory.GetCurrentDirectory());
@@ -396,17 +387,14 @@ namespace Opc.Ua.Bindings
                 }
 
                 if (NodeId.IsNull(input.RequestHeader.AuthenticationToken) &&
-                    input.TypeId != DataTypeIds.CreateSessionRequest)
+                    input.TypeId != DataTypeIds.CreateSessionRequest && context.Request.Headers.TryGetValue(kAuthorizationKey, out Microsoft.Extensions.Primitives.StringValues keys))
                 {
-                    if (context.Request.Headers.TryGetValue(kAuthorizationKey, out Microsoft.Extensions.Primitives.StringValues keys))
+                    foreach (string value in keys)
                     {
-                        foreach (string value in keys)
+                        if (value.StartsWith(kBearerKey, StringComparison.OrdinalIgnoreCase))
                         {
-                            if (value.StartsWith(kBearerKey, StringComparison.OrdinalIgnoreCase))
-                            {
-                                // note: use NodeId(string, uint) to avoid the NodeId.Parse call.
-                                input.RequestHeader.AuthenticationToken = new NodeId(value[(kBearerKey.Length + 1)..].Trim(), 0);
-                            }
+                            // note: use NodeId(string, uint) to avoid the NodeId.Parse call.
+                            input.RequestHeader.AuthenticationToken = new NodeId(value[(kBearerKey.Length + 1)..].Trim(), 0);
                         }
                     }
                 }
@@ -421,12 +409,9 @@ namespace Opc.Ua.Bindings
                 {
                     if (Utils.IsUriHttpsScheme(ep.EndpointUrl))
                     {
-                        if (!string.IsNullOrEmpty(header))
+                        if (!string.IsNullOrEmpty(header) && !string.Equals(ep.SecurityPolicyUri, header, StringComparison.Ordinal))
                         {
-                            if (!string.Equals(ep.SecurityPolicyUri, header, StringComparison.Ordinal))
-                            {
-                                continue;
-                            }
+                            continue;
                         }
 
                         endpoint = ep;
@@ -481,8 +466,6 @@ namespace Opc.Ua.Bindings
 
             await WriteResponseAsync(context.Response, message, HttpStatusCode.InternalServerError).ConfigureAwait(false);
         }
-
-
 
         /// <summary>
         /// Called when a UpdateCertificate event occured.
@@ -574,7 +557,6 @@ namespace Opc.Ua.Bindings
         private string m_listenerId;
         private Uri m_uri;
         private string m_discovery;
-        private readonly string m_uriScheme;
         private EndpointDescriptionCollection m_descriptions;
         private ChannelQuotas m_quotas;
         private ITransportListenerCallback m_callback;

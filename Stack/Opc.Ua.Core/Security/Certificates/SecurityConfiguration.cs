@@ -39,7 +39,6 @@ namespace Opc.Ua
         public ICertificatePasswordProvider CertificatePasswordProvider { get; set; }
         #endregion
 
-
         #region Public Methods
         /// <summary>
         /// Adds a certificate as a trusted peer.
@@ -93,7 +92,6 @@ namespace Opc.Ua
                 throw ServiceResultException.Create(StatusCodes.BadConfigurationError, "Either none or both of UserIssuerCertificates & TrustedUserCertificates stores must be specified.");
             }
 
-
             // replace subjectName DC=localhost with DC=hostname
             foreach (CertificateIdentifier applicationCertificate in m_applicationCertificates)
             {
@@ -133,8 +131,7 @@ namespace Opc.Ua
         /// <param name="privateKey"></param>
         public async Task<X509Certificate2> FindApplicationCertificateAsync(string securityPolicy, bool privateKey)
         {
-            IList<NodeId> certificateTypes = CertificateIdentifier.MapSecurityPolicyToCertificateTypes(securityPolicy);
-            foreach (NodeId certType in certificateTypes)
+            foreach (NodeId certType in CertificateIdentifier.MapSecurityPolicyToCertificateTypes(securityPolicy))
             {
                 CertificateIdentifier id = ApplicationCertificates.FirstOrDefault(certId => certId.CertificateType == certType);
                 if (id == null)

@@ -42,13 +42,19 @@ namespace Opc.Ua.Core.Tests.Stack.Bindings
     [BenchmarkCategory("BufferManager")]
     public class BufferManagerBenchmarks
     {
-        //[Params(8192, 65535, 1024 * 1024 - 1)]
+        /// <summary>
+        /// [Params(8192, 65535, 1024 * 1024 - 1)]
+        /// </summary>
         public int BufferSize { get; set; } = TcpMessageLimits.DefaultMaxBufferSize;
 
-        //[Params( /*8,*/ 64, 256, 1024)]
+        /// <summary>
+        /// [Params( /*8,*/ 64, 256, 1024)]
+        /// </summary>
         public int Allocations { get; set; } = 256;
 
-        //[Params(4, 32, 256)]
+        /// <summary>
+        /// [Params(4, 32, 256)]
+        /// </summary>
         public int BucketSize { get; set; } = 32;
 
         /// <summary>

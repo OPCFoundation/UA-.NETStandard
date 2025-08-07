@@ -147,28 +147,20 @@ namespace Opc.Ua
             switch (this.NodeClass)
             {
                 case NodeClass.ObjectType:
-                {
                     ((ObjectTypeNode)node).IsAbstract = IsAbstract;
                     break;
-                }
 
                 case NodeClass.VariableType:
-                {
                     ((VariableTypeNode)node).IsAbstract = IsAbstract;
                     break;
-                }
 
                 case NodeClass.DataType:
-                {
                     ((DataTypeNode)node).IsAbstract = IsAbstract;
                     break;
-                }
 
                 case NodeClass.ReferenceType:
-                {
                     ((ReferenceTypeNode)node).IsAbstract = IsAbstract;
                     break;
-                }
             }
         }
 
@@ -299,7 +291,6 @@ namespace Opc.Ua
             switch (attributeId)
             {
                 case Attributes.IsAbstract:
-                {
                     bool isAbstract = m_isAbstract;
 
                     NodeAttributeEventHandler<bool> onReadIsAbstract = OnReadIsAbstract;
@@ -315,7 +306,6 @@ namespace Opc.Ua
                     }
 
                     return result;
-                }
             }
 
             return base.ReadNonValueAttribute(context, attributeId, ref value);
@@ -336,7 +326,6 @@ namespace Opc.Ua
             switch (attributeId)
             {
                 case Attributes.IsAbstract:
-                {
                     bool? isAbstractRef = value as bool?;
 
                     if (isAbstractRef == null)
@@ -364,7 +353,6 @@ namespace Opc.Ua
                     }
 
                     return result;
-                }
             }
 
             return base.WriteNonValueAttribute(context, attributeId, value);
@@ -383,27 +371,21 @@ namespace Opc.Ua
 
             NodeId superTypeId = m_superTypeId;
 
-            if (!NodeId.IsNull(superTypeId))
+            if (!NodeId.IsNull(superTypeId) && browser.IsRequired(ReferenceTypeIds.HasSubtype, true))
             {
-                if (browser.IsRequired(ReferenceTypeIds.HasSubtype, true))
-                {
-                    browser.Add(ReferenceTypeIds.HasSubtype, true, superTypeId);
-                }
+                browser.Add(ReferenceTypeIds.HasSubtype, true, superTypeId);
             }
 
             NodeId nodeId = this.NodeId;
 
             // use the type table to find the subtypes.
-            if (context.TypeTable != null && nodeId != null)
+            if (context.TypeTable != null && nodeId != null && browser.IsRequired(ReferenceTypeIds.HasSubtype, false))
             {
-                if (browser.IsRequired(ReferenceTypeIds.HasSubtype, false))
-                {
-                    IList<NodeId> subtypeIds = context.TypeTable.FindSubTypes(nodeId);
+                IList<NodeId> subtypeIds = context.TypeTable.FindSubTypes(nodeId);
 
-                    for (int ii = 0; ii < subtypeIds.Count; ii++)
-                    {
-                        browser.Add(ReferenceTypeIds.HasSubtype, false, subtypeIds[ii]);
-                    }
+                for (int ii = 0; ii < subtypeIds.Count; ii++)
+                {
+                    browser.Add(ReferenceTypeIds.HasSubtype, false, subtypeIds[ii]);
                 }
             }
         }

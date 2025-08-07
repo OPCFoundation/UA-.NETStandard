@@ -45,7 +45,7 @@ namespace Quickstarts.Servers
             Converters = { new ExtensionObjectConverter(), new NumericRangeConverter() },
         };
         private static readonly string s_storage_path = Path.Combine(Environment.CurrentDirectory, "Durable Subscriptions");
-        private static readonly string s_filename = "subscriptionsStore.txt";
+        private const string s_filename = "subscriptionsStore.txt";
         private readonly DurableMonitoredItemQueueFactory m_durableMonitoredItemQueueFactory;
 
         public SubscriptionStore(IServerInternal server)
@@ -99,7 +99,7 @@ namespace Quickstarts.Servers
             {
                 Opc.Ua.Utils.LogWarning(ex, "Failed to restore subscriptions");
             }
-            
+
             return new RestoreSubscriptionResult(false, null);
         }
 

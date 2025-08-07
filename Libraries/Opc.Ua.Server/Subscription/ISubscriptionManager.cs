@@ -256,7 +256,6 @@ namespace Opc.Ua.Server
         void ConditionRefresh2(OperationContext context, uint subscriptionId, uint monitoredItemId);
     }
 
-
     /// <summary>
     /// The delegate for functions used to receive subscription related events.
     /// </summary>

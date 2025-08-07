@@ -19,7 +19,6 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
     [Parallelizable]
     public class MessageSocketTests
     {
-
         #region Test Setup
         [OneTimeSetUp]
         protected void OneTimeSetUp()
@@ -34,7 +33,6 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         [SetUp]
         protected void SetUp()
         {
-
         }
 
         [TearDown]

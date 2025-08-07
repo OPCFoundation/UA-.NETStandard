@@ -156,12 +156,9 @@ namespace Opc.Ua
             else
             {
                 // update shelving state if one shot mode.
-                if (this.ShelvingState != null)
+                if (this.ShelvingState != null && m_oneShot)
                 {
-                    if (m_oneShot)
-                    {
-                        SetShelvingState(context, false, false, 0);
-                    }
+                    SetShelvingState(context, false, false, 0);
                 }
 
                 state = new TranslationInfo(
@@ -325,12 +322,9 @@ namespace Opc.Ua
             {
                 retainState = base.GetRetainState();
 
-                if (!IsBranch())
+                if (!IsBranch() && this.ActiveState.Id.Value)
                 {
-                    if (this.ActiveState.Id.Value)
-                    {
-                        retainState = true;
-                    }
+                    retainState = true;
                 }
             }
 
@@ -348,17 +342,13 @@ namespace Opc.Ua
         /// It is possible to call ShelvingState Methods by using only the ConditionId (1.04 Part 9 5.8.10.4).
         /// Look to the Shelving State object for the method if it cannot be found by the normal mechanism.
         /// </remarks>
-
         public override MethodState FindMethod(ISystemContext context, NodeId methodId)
         {
             MethodState method = base.FindMethod(context, methodId);
 
-            if (method == null)
+            if (method == null && this.ShelvingState != null)
             {
-                if (this.ShelvingState != null)
-                {
-                    method = this.ShelvingState.FindMethod(context, methodId);
-                }
+                method = this.ShelvingState.FindMethod(context, methodId);
             }
 
             return method;
@@ -427,20 +417,14 @@ namespace Opc.Ua
 
             LocalizedText suppressedState = null;
 
-            if (this.SuppressedState != null)
+            if (this.SuppressedState != null && this.SuppressedState.Id.Value)
             {
-                if (this.SuppressedState.Id.Value)
-                {
-                    suppressedState = this.SuppressedState.Value;
-                }
+                suppressedState = this.SuppressedState.Value;
             }
 
-            if (this.ShelvingState != null)
+            if (this.ShelvingState != null && this.ShelvingState.CurrentState.Id.Value != ObjectIds.ShelvedStateMachineType_Unshelved)
             {
-                if (this.ShelvingState.CurrentState.Id.Value != ObjectIds.ShelvedStateMachineType_Unshelved)
-                {
-                    suppressedState = this.ShelvingState.CurrentState.Value;
-                }
+                suppressedState = this.ShelvingState.CurrentState.Value;
             }
 
             if (suppressedState != null)
@@ -451,20 +435,14 @@ namespace Opc.Ua
 
             LocalizedText ackState = null;
 
-            if (ConfirmedState != null)
+            if (ConfirmedState != null && !this.ConfirmedState.Id.Value)
             {
-                if (!this.ConfirmedState.Id.Value)
-                {
-                    ackState = this.ConfirmedState.Value;
-                }
+                ackState = this.ConfirmedState.Value;
             }
 
-            if (AckedState != null)
+            if (AckedState != null && !this.AckedState.Id.Value)
             {
-                if (!this.AckedState.Id.Value)
-                {
-                    ackState = this.AckedState.Value;
-                }
+                ackState = this.AckedState.Value;
             }
 
             if (ackState != null)

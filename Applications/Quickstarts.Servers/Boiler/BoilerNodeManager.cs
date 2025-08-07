@@ -52,11 +52,10 @@ namespace Boiler
         {
             get
             {
-                var nameSpaces = new StringCollection {
+                return new StringCollection {
                     Namespaces.Boiler,
                     Namespaces.Boiler + "Instance"
                 };
-                return nameSpaces;
             }
         }
     }
@@ -207,9 +206,7 @@ namespace Boiler
         /// </summary>
         protected override NodeState AddBehaviourToPredefinedNode(ISystemContext context, NodeState predefinedNode)
         {
-            var passiveNode = predefinedNode as BaseObjectState;
-
-            if (passiveNode == null)
+            if (!(predefinedNode is BaseObjectState passiveNode))
             {
                 return predefinedNode;
             }
@@ -224,7 +221,6 @@ namespace Boiler
             switch ((uint)typeId.Identifier)
             {
                 case ObjectTypes.BoilerType:
-                {
                     if (passiveNode is BoilerState)
                     {
                         break;
@@ -247,7 +243,6 @@ namespace Boiler
                     start.Call(context, activeNode.NodeId, inputArguments, errors, outputArguments);
 
                     return activeNode;
-                }
             }
 
             return predefinedNode;

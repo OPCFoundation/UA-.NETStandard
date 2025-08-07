@@ -10,7 +10,6 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
-
 using System;
 using System.Diagnostics;
 
@@ -19,7 +18,7 @@ namespace Opc.Ua
     /// <summary>
     /// Produces high resolution timestamps.
     /// </summary>
-    public class HiResClock
+    public sealed class HiResClock
     {
         /// <summary>
         /// Returns the current UTC time with a high resolution.
@@ -179,5 +178,4 @@ namespace Opc.Ua
         private readonly bool m_disabled;
         private bool m_initialized;
     }
-
 }

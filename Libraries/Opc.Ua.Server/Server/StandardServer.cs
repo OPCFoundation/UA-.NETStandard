@@ -44,7 +44,7 @@ namespace Opc.Ua.Server
     /// The standard implementation of a UA server.
     /// </summary>
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Maintainability", "CA1506:AvoidExcessiveClassCoupling")]
-    public partial class StandardServer : SessionServerBase
+    public class StandardServer : SessionServerBase
     {
         #region Constructors
         /// <summary>
@@ -117,7 +117,7 @@ namespace Opc.Ua.Server
 
             ValidateRequest(requestHeader);
 
-            lock (m_lock)
+            lock (Lock)
             {
                 // parse the url provided by the client.
                 IList<BaseAddress> baseAddresses = BaseAddresses;
@@ -150,12 +150,9 @@ namespace Opc.Ua.Server
                     }
 
                     // check client is filtering by server uri.
-                    if (serverUris != null && serverUris.Count > 0)
+                    if (serverUris != null && serverUris.Count > 0 && !serverUris.Contains(server.ApplicationUri))
                     {
-                        if (!serverUris.Contains(server.ApplicationUri))
-                        {
-                            continue;
-                        }
+                        continue;
                     }
 
                     // localize the application name if requested.
@@ -205,7 +202,7 @@ namespace Opc.Ua.Server
 
             ValidateRequest(requestHeader);
 
-            lock (m_lock)
+            lock (Lock)
             {
                 // filter by profile.
                 IList<BaseAddress> baseAddresses = FilterByProfile(profileUris, BaseAddresses);
@@ -353,12 +350,9 @@ namespace Opc.Ua.Server
             try
             {
                 // check the server uri.
-                if (!string.IsNullOrEmpty(serverUri))
+                if (!string.IsNullOrEmpty(serverUri) && serverUri != this.Configuration.ApplicationUri)
                 {
-                    if (serverUri != this.Configuration.ApplicationUri)
-                    {
-                        throw new ServiceResultException(StatusCodes.BadServerUriInvalid);
-                    }
+                    throw new ServiceResultException(StatusCodes.BadServerUriInvalid);
                 }
 
                 bool requireEncryption = ServerBase.RequireEncryption(context?.ChannelContext?.EndpointDescription);
@@ -480,7 +474,7 @@ namespace Opc.Ua.Server
                     parameters = CreateSessionProcessAdditionalParameters(session, parameters);
                 }
 #endif
-                lock (m_lock)
+                lock (Lock)
                 {
                     // return the application instance certificate for the server.
                     if (requireEncryption)
@@ -606,7 +600,7 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Process additional parameters during ECC session activation 
+        /// Process additional parameters during ECC session activation
         /// </summary>
         /// <param name="session">The session</param>
         /// <param name="parameters">The additional parameters for the session</param>
@@ -627,7 +621,6 @@ namespace Opc.Ua.Server
         }
 
 #endif
-
 
         /// <summary>
         /// Invokes the ActivateSession service.
@@ -821,9 +814,7 @@ namespace Opc.Ua.Server
                 case StatusCodes.BadCertificateHostNameInvalid:
                 case StatusCodes.BadCertificatePolicyCheckFailed:
                 case StatusCodes.BadApplicationSignatureInvalid:
-                {
                     return true;
-                }
             }
 
             return false;
@@ -2315,7 +2306,7 @@ namespace Opc.Ua.Server
         {
             get
             {
-                lock (m_lock)
+                lock (Lock)
                 {
                     if (m_serverInternal == null)
                     {
@@ -2334,7 +2325,7 @@ namespace Opc.Ua.Server
         [Obsolete("No longer thread safe. To read the value use CurrentState, to write use CurrentInstance.UpdateServerStatus.")]
         public ServerStatusDataType GetStatus()
         {
-            lock (m_lock)
+            lock (Lock)
             {
                 if (m_serverInternal == null)
                 {
@@ -2480,9 +2471,7 @@ namespace Opc.Ua.Server
 
             foreach (string domain in X509Utils.GetDomainsFromCertificate(e.Certificate))
             {
-                System.Net.IPAddress[] actualAddresses = Utils.GetHostAddresses(domain);
-
-                foreach (System.Net.IPAddress actualAddress in actualAddresses)
+                foreach (System.Net.IPAddress actualAddress in Utils.GetHostAddresses(domain))
                 {
                     foreach (System.Net.IPAddress targetAddress in targetAddresses)
                     {
@@ -2565,7 +2554,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// The synchronization object.
         /// </summary>
-        protected object Lock => m_lock;
+        protected object Lock { get; } = new object();
 
         /// <summary>
         /// The state object associated with the server.
@@ -2617,7 +2606,7 @@ namespace Opc.Ua.Server
         /// <param name="state">The state.</param>
         protected virtual void SetServerState(ServerState state)
         {
-            lock (m_lock)
+            lock (Lock)
             {
                 if (ServiceResult.IsBad(ServerError))
                 {
@@ -2641,7 +2630,7 @@ namespace Opc.Ua.Server
         /// <param name="error">The error.</param>
         protected virtual void SetServerError(ServiceResult error)
         {
-            lock (m_lock)
+            lock (Lock)
             {
                 ServerError = error;
             }
@@ -2807,7 +2796,7 @@ namespace Opc.Ua.Server
         /// <param name="context">The operation context.</param>
         protected virtual void OnRequestComplete(OperationContext context)
         {
-            lock (m_lock)
+            lock (Lock)
             {
                 if (m_serverInternal == null)
                 {
@@ -2852,7 +2841,7 @@ namespace Opc.Ua.Server
         /// </remarks>
         protected override void OnUpdateConfiguration(ApplicationConfiguration configuration)
         {
-            lock (m_lock)
+            lock (Lock)
             {
                 // update security configuration.
                 configuration.SecurityConfiguration.Validate();
@@ -2864,12 +2853,7 @@ namespace Opc.Ua.Server
                 Configuration.CertificateValidator.UpdateAsync(Configuration.SecurityConfiguration).Wait();
 
                 // update trace configuration.
-                Configuration.TraceConfiguration = configuration.TraceConfiguration;
-
-                if (Configuration.TraceConfiguration == null)
-                {
-                    Configuration.TraceConfiguration = new TraceConfiguration();
-                }
+                Configuration.TraceConfiguration = configuration.TraceConfiguration ?? new TraceConfiguration();
 
                 Configuration.TraceConfiguration.ApplySettings();
             }
@@ -2881,7 +2865,7 @@ namespace Opc.Ua.Server
         /// <param name="configuration">The configuration.</param>
         protected override void OnServerStarting(ApplicationConfiguration configuration)
         {
-            lock (m_lock)
+            lock (Lock)
             {
                 base.OnServerStarting(configuration);
 
@@ -2944,9 +2928,7 @@ namespace Opc.Ua.Server
             IList<EndpointDescription> endpointsForHost = null;
 
             StringCollection baseAddresses = configuration.ServerConfiguration.BaseAddresses;
-            IEnumerable<string> requiredSchemes = Utils.DefaultUriSchemes.Where(scheme => baseAddresses.Any(a => a.StartsWith(scheme, StringComparison.Ordinal)));
-
-            foreach (string scheme in requiredSchemes)
+            foreach (string scheme in Utils.DefaultUriSchemes.Where(scheme => baseAddresses.Any(a => a.StartsWith(scheme, StringComparison.Ordinal))))
             {
                 ITransportListenerFactory binding = bindingFactory.GetBinding(scheme);
                 if (binding != null)
@@ -2999,7 +2981,7 @@ namespace Opc.Ua.Server
         {
             base.StartApplication(configuration);
 
-            lock (m_lock)
+            lock (Lock)
             {
                 try
                 {
@@ -3166,7 +3148,7 @@ namespace Opc.Ua.Server
                 }
                 catch (Exception e)
                 {
-                    string message = "Unexpected error starting application";
+                    const string message = "Unexpected error starting application";
                     Utils.LogCritical(TraceMasks.StartStop, e, message);
                     m_serverInternal = null;
                     var error = ServiceResult.Create(e, StatusCodes.BadInternalError, message);
@@ -3198,7 +3180,6 @@ namespace Opc.Ua.Server
             // attempt graceful shutdown the server.
             try
             {
-
                 if (m_maxRegistrationInterval > 0 && m_registeredWithDiscoveryServer)
                 {
                     // unregister from Discovery Server if registered before
@@ -3206,7 +3187,7 @@ namespace Opc.Ua.Server
                     RegisterWithDiscoveryServer();
                 }
 
-                lock (m_lock)
+                lock (Lock)
                 {
                     if (m_serverInternal != null)
                     {
@@ -3265,7 +3246,6 @@ namespace Opc.Ua.Server
 
                 if (currentessions.Count > 0)
                 {
-
                     // provide some time for the connected clients to detect the shutdown state.
                     ServerInternal.UpdateServerStatus((status) => {
                         // set the shutdown reason and state.
@@ -3534,10 +3514,9 @@ namespace Opc.Ua.Server
 
         #region Private Properties
         private OperationLimitsState OperationLimits => ServerInternal.ServerObject.ServerCapabilities.OperationLimits;
-        #endregion
 
-        #region Private Fields
-        private readonly object m_lock = new object();
+#endregion
+#region Private Fields
         private readonly object m_registrationLock = new object();
         private IServerInternal m_serverInternal;
         private ConfigurationWatcher m_configurationWatcher;

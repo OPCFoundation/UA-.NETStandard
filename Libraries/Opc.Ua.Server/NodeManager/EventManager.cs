@@ -190,7 +190,12 @@ namespace Opc.Ua.Server
             }
         }
 
-        //calculates a revised queue size based on the application confiugration limits
+        /// <summary>
+        /// calculates a revised queue size based on the application confiugration limits
+        /// </summary>
+        /// <param name="isDurable"></param>
+        /// <param name="queueSize"></param>
+        /// <returns></returns>
         private uint CalculateRevisedQueueSize(bool isDurable, uint queueSize)
         {
             if (queueSize > m_maxEventQueueSize && !isDurable)
@@ -223,7 +228,6 @@ namespace Opc.Ua.Server
                 {
                     return;
                 }
-
 
                 // limit the queue size.
                 uint revisedQueueSize = CalculateRevisedQueueSize(monitoredItem.IsDurable, itemToModify.RequestedParameters.QueueSize);

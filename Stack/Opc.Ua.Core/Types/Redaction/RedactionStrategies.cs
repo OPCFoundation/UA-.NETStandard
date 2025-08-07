@@ -45,7 +45,7 @@ namespace Opc.Ua.Redaction
     /// The redaction is off by default and can be enabled by implementing <see cref="IRedactionStrategy"/>
     /// and setting it via <see cref="SetStrategy(IRedactionStrategy)"/>.
     /// </remarks>
-    public static partial class RedactionStrategies
+    public static class RedactionStrategies
     {
         private static readonly IRedactionStrategy s_fallbackStrategy = new FallbackRedactionStrategy();
 

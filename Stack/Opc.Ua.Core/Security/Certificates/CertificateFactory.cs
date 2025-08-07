@@ -10,7 +10,6 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
-
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -113,13 +112,10 @@ namespace Opc.Ua
                     return certificate;
                 }
 
-                if (ensurePrivateKeyAccessible)
+                if (ensurePrivateKeyAccessible && !X509Utils.VerifyKeyPair(certificate, certificate))
                 {
-                    if (!X509Utils.VerifyKeyPair(certificate, certificate))
-                    {
-                        Utils.LogWarning("Trying to add certificate to cache with invalid private key.");
-                        return null;
-                    }
+                    Utils.LogWarning("Trying to add certificate to cache with invalid private key.");
+                    return null;
                 }
 
                 // update the cache.
@@ -213,7 +209,7 @@ namespace Opc.Ua
             {
                 foreach (X509CRL issuerCrl in issuerCrls)
                 {
-                    X509CrlNumberExtension extension = X509Extensions.FindExtension<X509CrlNumberExtension>(issuerCrl.CrlExtensions);
+                    X509CrlNumberExtension extension = issuerCrl.CrlExtensions.FindExtension<X509CrlNumberExtension>();
                     if (extension != null &&
                         extension.CrlNumber > crlSerialNumber)
                     {
@@ -236,8 +232,7 @@ namespace Opc.Ua
                 {
                     if (!crlRevokedList.ContainsKey(cert.SerialNumber))
                     {
-                        var entry = new RevokedCertificate(cert.SerialNumber, CRLReason.PrivilegeWithdrawn);
-                        crlRevokedList[cert.SerialNumber] = entry;
+                        crlRevokedList[cert.SerialNumber] = new RevokedCertificate(cert.SerialNumber, CRLReason.PrivilegeWithdrawn);
                     }
                 }
             }
@@ -246,7 +241,7 @@ namespace Opc.Ua
                 .AddRevokedCertificates(crlRevokedList.Values.ToList())
                 .SetThisUpdate(thisUpdate)
                 .SetNextUpdate(nextUpdate)
-                .AddCRLExtension(X509Extensions.BuildAuthorityKeyIdentifier(issuerCertificate))
+                .AddCRLExtension(issuerCertificate.BuildAuthorityKeyIdentifier())
                 .AddCRLExtension(X509Extensions.BuildCRLNumber(crlSerialNumber + 1));
 
             if (X509PfxUtils.IsECDsaSignature(issuerCertificate))
@@ -292,8 +287,8 @@ namespace Opc.Ua
                 ECDsa eCDsaPublicKey = certificate.GetECDsaPublicKey();
                 request = new CertificateRequest(certificate.SubjectName, eCDsaPublicKey, Oids.GetHashAlgorithmName(certificate.SignatureAlgorithm.Value));
             }
-            X509SubjectAltNameExtension alternateName = X509Extensions.FindExtension<X509SubjectAltNameExtension>(certificate);
-            domainNames = domainNames ?? new List<string>();
+            X509SubjectAltNameExtension alternateName = certificate.FindExtension<X509SubjectAltNameExtension>();
+            domainNames ??= new List<string>();
             if (alternateName != null)
             {
                 foreach (string name in alternateName.DomainNames)
@@ -334,7 +329,6 @@ namespace Opc.Ua
                 }
             }
         }
-
 
         /// <summary>
         /// Create a X509Certificate2 with a private key by combining
@@ -387,14 +381,14 @@ namespace Opc.Ua
                 using (ECDsa ecdsaPrivateKey = PEMReader.ImportECDsaPrivateKeyFromPEM(pemDataBlob, password))
                 {
                     return X509CertificateLoader.LoadCertificate(certificate.RawData).CopyWithPrivateKey(ecdsaPrivateKey);
-                };
+                }
             }
             else
             {
                 using (RSA rsaPrivateKey = PEMReader.ImportRsaPrivateKeyFromPEM(pemDataBlob, password))
                 {
                     return X509CertificateLoader.LoadCertificate(certificate.RawData).CopyWithPrivateKey(rsaPrivateKey);
-                };
+                }
             }
         }
 #else

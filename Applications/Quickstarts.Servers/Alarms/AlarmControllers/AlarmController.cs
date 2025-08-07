@@ -42,22 +42,20 @@ namespace Alarms
     {
         #region Variables
         const int kDefaultCycleTime = 180;
-        protected BaseDataVariableState m_variable = null;
-        protected int m_value = 0;
+        protected BaseDataVariableState m_variable;
+        protected int m_value;
         protected bool m_increment = true;
         protected DateTime m_nextTime = DateTime.Now;
         protected DateTime m_stopTime = DateTime.Now;
-        protected int m_interval = 0;
-        protected bool m_isBoolean = false;
-        protected bool m_allowChanges = false;
-        protected bool m_reset = false;
+        protected int m_interval;
+        protected bool m_isBoolean;
+        protected bool m_allowChanges;
+        protected bool m_reset;
         protected DateTime m_lastMaxValue = new DateTime();
-        protected bool m_validLastMaxValue = false;
-        private int m_branchCount = 0;
-        private bool m_supportsBranching = false;
+        protected bool m_validLastMaxValue;
+        private int m_branchCount;
         protected int m_midpoint = AlarmDefines.NORMAL_START_VALUE;
         #endregion
-
 
         public AlarmController(BaseDataVariableState variable, int interval, bool isBoolean)
         {
@@ -150,17 +148,14 @@ namespace Alarms
                     Utils.LogError("AlarmController Received out of range manual write of {0}", value);
                 }
             }
+            else if ((bool)value)
+            {
+                m_value = 70;
+                m_increment = true;
+            }
             else
             {
-                if ((bool)value)
-                {
-                    m_value = 70;
-                    m_increment = true;
-                }
-                else
-                {
-                    m_value = m_midpoint;
-                }
+                m_value = m_midpoint;
             }
         }
 
@@ -189,17 +184,13 @@ namespace Alarms
 
         protected virtual void GetValue(ref int intValue, ref bool boolValue)
         {
-            int maxValue = 100;
-            int minValue = 0;
+            const int maxValue = 100;
+            const int minValue = 0;
 
             TypicalGetValue(minValue, maxValue, ref intValue, ref boolValue);
         }
 
-        public bool SupportsBranching
-        {
-            get { return m_supportsBranching; }
-            set { m_supportsBranching = value; }
-        }
+        public bool SupportsBranching { get; set; } = false;
 
         public virtual void SetBranchCount(int count)
         {
@@ -284,7 +275,7 @@ namespace Alarms
              *
              */
 
-            double twoPi = Math.PI * 2;
+            const double twoPi = Math.PI * 2;
 
             double normalSpan = maxValue - minValue;
             double amplitude = normalSpan / 2;
@@ -295,8 +286,8 @@ namespace Alarms
 
             double reducedPeriod = percentageOfRange / 2;
 
-            double period = twoPi; // this would relate to the interval.  Ignore for now.
-            double phase = -0.25; // phaseShift;
+            const double period = twoPi; // this would relate to the interval.  Ignore for now.
+            const double phase = -0.25; // phaseShift;
             double verticalShift = median; // amplitude
 
             double calculated = (amplitude * Math.Sin(period * (reducedPeriod + phase))) + verticalShift;
@@ -322,17 +313,14 @@ namespace Alarms
 
         public virtual void OnAddComment()
         {
-
         }
 
         public virtual void OnAcknowledge()
         {
-
         }
 
         public virtual void OnConfirm()
         {
-
         }
     }
 }

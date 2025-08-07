@@ -51,8 +51,8 @@ namespace Opc.Ua
             public ElementInfo(uint id, string name, uint number)
             {
                 Id = id;
-                m_name = name;
-                m_number = number;
+                Name = name;
+                Number = number;
             }
 
             /// <summary>
@@ -63,20 +63,12 @@ namespace Opc.Ua
             /// <summary>
             /// The browse name of the element.
             /// </summary>
-            public string Name
-            {
-                get { return m_name; }
-            }
+            public string Name { get; }
 
             /// <summary>
             /// A number assigned to the element.
             /// </summary>
-            public uint Number
-            {
-                get { return m_number; }
-            }
-            private readonly string m_name;
-            private readonly uint m_number;
+            public uint Number { get; }
         }
         #endregion
 
@@ -632,7 +624,6 @@ namespace Opc.Ua
             {
                 Utils.LogError(ex, "Error while reporting AuditProgramTransitionEvent event.");
             }
-
         }
         /// <summary>
         /// Updates the state machine to reflect the successful processing of a method.
@@ -659,12 +650,7 @@ namespace Opc.Ua
             }
 
             // save the last state.
-            if (m_lastState == null)
-            {
-                m_lastState = new FiniteStateVariableState(this);
-            }
-
-            m_lastState.SetChildValue(context, null, CurrentState, false);
+            (m_lastState ??= new FiniteStateVariableState(this)).SetChildValue(context, null, CurrentState, false);
 
             // update state and transition variables.
             UpdateStateVariable(context, newState, CurrentState);
@@ -690,12 +676,9 @@ namespace Opc.Ua
             }
 
             // check the cause permissions.
-            if (causeId != 0)
+            if (causeId != 0 && !IsCausePermitted(context, causeId, true))
             {
-                if (!IsCausePermitted(context, causeId, true))
-                {
-                    return StatusCodes.BadUserAccessDenied;
-                }
+                return StatusCodes.BadUserAccessDenied;
             }
 
             // do any pre-transition processing.
@@ -714,12 +697,7 @@ namespace Opc.Ua
             }
 
             // save the last state.
-            if (m_lastState == null)
-            {
-                m_lastState = new FiniteStateVariableState(this);
-            }
-
-            m_lastState.SetChildValue(context, null, CurrentState, false);
+            (m_lastState ??= new FiniteStateVariableState(this)).SetChildValue(context, null, CurrentState, false);
 
             // update state and transition variables.
             UpdateStateVariable(context, newState, CurrentState);

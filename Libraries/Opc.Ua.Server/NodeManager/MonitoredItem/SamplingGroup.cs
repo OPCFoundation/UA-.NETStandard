@@ -139,9 +139,7 @@ namespace Opc.Ua.Server
             {
                 m_shutdownEvent.Reset();
 
-                m_samplingTask = Task.Factory.StartNew(() => {
-                    SampleMonitoredItems(m_samplingInterval);
-                }, TaskCreationOptions.LongRunning | TaskCreationOptions.DenyChildAttach);
+                m_samplingTask = Task.Factory.StartNew(() => SampleMonitoredItems(m_samplingInterval), TaskCreationOptions.LongRunning | TaskCreationOptions.DenyChildAttach);
             }
         }
 
@@ -247,14 +245,9 @@ namespace Opc.Ua.Server
                 {
                     ISampledDataChangeMonitoredItem monitoredItem = m_itemsToAdd[ii];
 
-                    if (!m_items.ContainsKey(monitoredItem.Id))
+                    if (m_items.TryAdd(monitoredItem.Id, monitoredItem) && monitoredItem.MonitoringMode != MonitoringMode.Disabled)
                     {
-                        m_items.Add(monitoredItem.Id, monitoredItem);
-
-                        if (monitoredItem.MonitoringMode != MonitoringMode.Disabled)
-                        {
-                            itemsToSample.Add(monitoredItem);
-                        }
+                        itemsToSample.Add(monitoredItem);
                     }
                 }
 
@@ -263,9 +256,7 @@ namespace Opc.Ua.Server
                 // collect first sample.
                 if (itemsToSample.Count > 0)
                 {
-                    Task.Run(() => {
-                        DoSample(itemsToSample);
-                    });
+                    Task.Run(() => DoSample(itemsToSample));
                 }
 
                 // remove items.
@@ -335,14 +326,8 @@ namespace Opc.Ua.Server
                 }
             }
 
-
             // check the diagnostics marks.
-            if (m_diagnosticsMask != (context.DiagnosticsMask & DiagnosticsMasks.OperationAll))
-            {
-                return false;
-            }
-
-            return true;
+            return m_diagnosticsMask == (context.DiagnosticsMask & DiagnosticsMasks.OperationAll);
         }
 
         /// <summary>
@@ -447,7 +432,7 @@ namespace Opc.Ua.Server
 
                     if (delay > sleepCycle)
                     {
-                        timeToWait = 2 * sleepCycle - delay;
+                        timeToWait = (2 * sleepCycle) - delay;
 
                         if (timeToWait < 0)
                         {

@@ -37,7 +37,6 @@ using NUnit.Framework;
 using Opc.Ua.Server.Tests;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
-
 namespace Opc.Ua.Client.Tests
 {
     /// <summary>
@@ -264,7 +263,7 @@ namespace Opc.Ua.Client.Tests
                 {
                     if (sre.StatusCode == StatusCodes.BadUserAccessDenied)
                     {
-                        TestContext.Out.WriteLine($"Access denied: Skipped node.");
+                        TestContext.Out.WriteLine("Access denied: Skipped node.");
                     }
                 }
                 nodesToBrowse = new ExpandedNodeIdCollection(nextNodesToBrowse.Distinct());
@@ -442,7 +441,7 @@ namespace Opc.Ua.Client.Tests
         [Test, Order(910)]
         public async Task FetchAllReferenceTypesAsync()
         {
-            BindingFlags bindingFlags =
+            const BindingFlags bindingFlags =
                 BindingFlags.Instance |
                 BindingFlags.Static |
                 BindingFlags.Public;
@@ -604,7 +603,7 @@ namespace Opc.Ua.Client.Tests
             }
 
             var random = new Random(62541);
-            var testSetAll = ReferenceDescriptions.OrderBy(o => random.Next()).Where(r => r.NodeClass == NodeClass.Variable).Select(r => r.NodeId).ToList();
+            var testSetAll = ReferenceDescriptions.Where(r => r.NodeClass == NodeClass.Variable).OrderBy(o => random.Next()).Select(r => r.NodeId).ToList();
             var testSet1 = testSetAll.Take(kTestSetSize).ToList();
             var testSet2 = testSetAll.Skip(kTestSetSize).Take(kTestSetSize).ToList();
             var testSet3 = testSetAll.Skip(kTestSetSize * 2).Take(kTestSetSize).ToList();
@@ -741,7 +740,6 @@ namespace Opc.Ua.Client.Tests
                                 break;
                         }
                     } while ((DateTime.UtcNow - start).TotalMilliseconds < testCaseRunTime);
-
                 });
                 taskList.Add(t);
             }
@@ -754,9 +752,6 @@ namespace Opc.Ua.Client.Tests
                 await Task.WhenAll(taskList.ToArray()).ConfigureAwait(false);
             }
         }
-        #endregion
-
-        #region Benchmarks
         #endregion
 
         #region Private Methods

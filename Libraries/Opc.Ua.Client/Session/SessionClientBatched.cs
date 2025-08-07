@@ -61,14 +61,7 @@ namespace Opc.Ua
             get => m_operationLimits;
             protected internal set
             {
-                if (value == null)
-                {
-                    m_operationLimits = new OperationLimits();
-                }
-                else
-                {
-                    m_operationLimits = value;
-                };
+                m_operationLimits = value ?? new OperationLimits();
             }
         }
         #endregion

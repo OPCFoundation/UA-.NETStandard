@@ -32,12 +32,12 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// The bindings for transport channels (client).
         /// </summary>
-        public static TransportChannelBindings Channels { get; private set; }
+        public static TransportChannelBindings Channels { get; }
 
         /// <summary>
         /// The bindings for transport listeners (server).
         /// </summary>
-        public static TransportListenerBindings Listeners { get; private set; }
+        public static TransportListenerBindings Listeners { get; }
     }
 
     /// <summary>

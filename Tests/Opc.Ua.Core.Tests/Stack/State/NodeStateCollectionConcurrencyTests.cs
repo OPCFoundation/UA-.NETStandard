@@ -39,12 +39,10 @@ namespace Opc.Ua.Core.Tests.Stack.State
 
             int originalReferenceCount = references.Count;
 
-
             uint index = 0;
             var referenceTargets = new BlockingCollection<ExpandedNodeId>();
 
             var task = Task.Run(() => {
-
                 DateTime utcNow = DateTime.UtcNow;
 
                 while (DateTime.UtcNow - utcNow < TimeSpan.FromSeconds(3))
@@ -55,7 +53,6 @@ namespace Opc.Ua.Core.Tests.Stack.State
                 }
 
                 referenceTargets.CompleteAdding();
-
             }, cancellationToken);
 
             foreach (ExpandedNodeId target in referenceTargets.GetConsumingEnumerable(cancellationToken))
@@ -70,7 +67,6 @@ namespace Opc.Ua.Core.Tests.Stack.State
             testNodeState.GetReferences(systemContext, references);
 
             Assert.AreEqual(originalReferenceCount, references.Count);
-
         }
 
         [Test]
@@ -95,12 +91,10 @@ namespace Opc.Ua.Core.Tests.Stack.State
 
             int originalNotifierCount = notifiers.Count;
 
-
             uint index = 0;
             var notifierTargets = new BlockingCollection<NodeState>();
 
             var task = Task.Run(() => {
-
                 DateTime utcNow = DateTime.UtcNow;
 
                 while (DateTime.UtcNow - utcNow < TimeSpan.FromSeconds(3))
@@ -120,7 +114,6 @@ namespace Opc.Ua.Core.Tests.Stack.State
                 }
 
                 notifierTargets.CompleteAdding();
-
             }, cancellationToken);
 
             foreach(NodeState target in notifierTargets.GetConsumingEnumerable(cancellationToken))
@@ -134,7 +127,6 @@ namespace Opc.Ua.Core.Tests.Stack.State
             testNodeState.GetNotifiers(systemContext, notifiers);
 
             Assert.AreEqual(originalNotifierCount, notifiers.Count);
-
         }
 
         [Test]
@@ -159,12 +151,10 @@ namespace Opc.Ua.Core.Tests.Stack.State
 
             int originalNotifierCount = children.Count;
 
-
             uint index = 0;
             var childrenCollection = new BlockingCollection<BaseInstanceState>();
 
             var task = Task.Run(() => {
-
                 DateTime utcNow = DateTime.UtcNow;
 
                 while (DateTime.UtcNow - utcNow < TimeSpan.FromSeconds(3))
@@ -184,7 +174,6 @@ namespace Opc.Ua.Core.Tests.Stack.State
                 }
 
                 childrenCollection.CompleteAdding();
-
             }, cancellationToken);
 
             foreach (BaseInstanceState child in childrenCollection.GetConsumingEnumerable(cancellationToken))
@@ -198,7 +187,6 @@ namespace Opc.Ua.Core.Tests.Stack.State
             testNodeState.GetChildren(systemContext, children);
 
             Assert.AreEqual(originalNotifierCount, children.Count);
-
         }
     }
 }

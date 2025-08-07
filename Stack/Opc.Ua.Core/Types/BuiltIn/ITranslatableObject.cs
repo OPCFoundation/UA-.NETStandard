@@ -89,8 +89,8 @@ namespace Opc.Ua
 
             if (text != null)
             {
-                m_text = text.Text;
-                m_locale = text.Locale;
+                Text = text.Text;
+                Locale = text.Locale;
             }
         }
 
@@ -100,9 +100,9 @@ namespace Opc.Ua
         public TranslationInfo(System.Xml.XmlQualifiedName symbolicId, params object[] args)
         {
             Key = symbolicId.ToString();
-            m_locale = string.Empty;
-            m_text = string.Empty;
-            m_args = args;
+            Locale = string.Empty;
+            Text = string.Empty;
+            Args = args;
         }
 
         /// <summary>
@@ -111,8 +111,8 @@ namespace Opc.Ua
         public TranslationInfo(string key, string locale, string text)
         {
             Key = key;
-            m_locale = locale;
-            m_text = text;
+            Locale = locale;
+            Text = text;
         }
 
         /// <summary>
@@ -121,9 +121,9 @@ namespace Opc.Ua
         public TranslationInfo(string key, string locale, string format, params object[] args)
         {
             Key = key;
-            m_locale = locale;
-            m_text = format;
-            m_args = args;
+            Locale = locale;
+            Text = format;
+            Args = args;
         }
         #endregion
 
@@ -136,37 +136,19 @@ namespace Opc.Ua
         /// <summary>
         /// The default locale for the text.
         /// </summary>
-        public string Locale
-        {
-            get { return m_locale; }
-            set { m_locale = value; }
-        }
+        public string Locale { get; set; }
 
         /// <summary>
         /// The text to translate.
         /// </summary>
-        public string Text
-        {
-            get { return m_text; }
-            set { m_text = value; }
-        }
+        public string Text { get; set; }
 
         /// <summary>
         /// The arguments that are used when formatting the text after translation.
         /// </summary>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1819:PropertiesShouldNotReturnArrays")]
-        public object[] Args
-        {
-            get { return m_args; }
-            set { m_args = value; }
-        }
+        public object[] Args { get; set; }
 
-#endregion
-#region Private Fields
-        private string m_locale;
-        private string m_text;
-        private object[] m_args;
         #endregion
     }
-
 }

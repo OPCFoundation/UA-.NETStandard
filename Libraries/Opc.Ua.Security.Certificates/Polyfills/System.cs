@@ -55,6 +55,22 @@ namespace System
         }
 
         /// <summary>
+        /// Starts with a character in a string
+        /// </summary>
+        public static bool StartsWith(this string target, char value)
+        {
+            return target.Length != 0 && target[0] == value;
+        }
+
+        /// <summary>
+        /// Ends with a character in a string
+        /// </summary>
+        public static bool EndsWith(this string target, char value)
+        {
+            return target.Length != 0 && target[target.Length - 1] == value;
+        }
+
+        /// <summary>
         /// Index of a character in a string using a specified comparison type.
         /// </summary>
         public static int IndexOf(this string target, char value, StringComparison comparisonType)

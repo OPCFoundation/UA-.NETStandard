@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-
 using System.IO;
 using System.Numerics;
 using System.Security.Cryptography.X509Certificates;
@@ -61,7 +60,7 @@ namespace Opc.Ua.Security.Certificates.Tests
                 Assert.NotNull(x509Cert);
                 TestContext.Out.WriteLine("CertificateAsset:");
                 TestContext.Out.WriteLine(x509Cert);
-                X509SubjectAltNameExtension altName = X509Extensions.FindExtension<X509SubjectAltNameExtension>(x509Cert);
+                X509SubjectAltNameExtension altName = x509Cert.FindExtension<X509SubjectAltNameExtension>();
                 if (altName != null)
                 {
                     TestContext.Out.WriteLine("X509SubjectAltNameExtension:");
@@ -69,7 +68,7 @@ namespace Opc.Ua.Security.Certificates.Tests
                     var ext = new X509Extension(altName.Oid, altName.RawData, altName.Critical);
                     TestContext.Out.WriteLine(ext.Format(true));
                 }
-                X509AuthorityKeyIdentifierExtension authority = X509Extensions.FindExtension<X509AuthorityKeyIdentifierExtension>(x509Cert);
+                X509AuthorityKeyIdentifierExtension authority = x509Cert.FindExtension<X509AuthorityKeyIdentifierExtension>();
                 if (authority != null)
                 {
                     TestContext.Out.WriteLine("X509AuthorityKeyIdentifierExtension:");
@@ -100,7 +99,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             TestContext.Out.WriteLine(aki.Format(true));
             Assert.AreEqual(authorityName, aki.Issuer);
             Assert.AreEqual(serialNumber, aki.GetSerialNumber());
-            Assert.AreEqual(AsnUtils.ToHexString(serialNumber, true), aki.SerialNumber);
+            Assert.AreEqual(serialNumber.ToHexString(true), aki.SerialNumber);
             Assert.AreEqual(subjectKeyIdentifier, aki.GetKeyIdentifier());
             var akidecoded = new X509AuthorityKeyIdentifierExtension(aki.Oid, aki.RawData, aki.Critical);
             TestContext.Out.WriteLine("Decoded:");
@@ -108,7 +107,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             Assert.AreEqual(aki.RawData, akidecoded.RawData);
             Assert.AreEqual(authorityName.ToString(), akidecoded.Issuer.ToString());
             Assert.AreEqual(serialNumber, akidecoded.GetSerialNumber());
-            Assert.AreEqual(AsnUtils.ToHexString(serialNumber, true), akidecoded.SerialNumber);
+            Assert.AreEqual(serialNumber.ToHexString(true), akidecoded.SerialNumber);
             Assert.AreEqual(subjectKeyIdentifier, akidecoded.GetKeyIdentifier());
             akidecoded = new X509AuthorityKeyIdentifierExtension(aki.Oid.Value, aki.RawData, aki.Critical);
             TestContext.Out.WriteLine("Decoded2:");
@@ -116,7 +115,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             Assert.AreEqual(aki.RawData, akidecoded.RawData);
             Assert.AreEqual(authorityName.ToString(), akidecoded.Issuer.ToString());
             Assert.AreEqual(serialNumber, akidecoded.GetSerialNumber());
-            Assert.AreEqual(AsnUtils.ToHexString(serialNumber, true), akidecoded.SerialNumber);
+            Assert.AreEqual(serialNumber.ToHexString(true), akidecoded.SerialNumber);
             Assert.AreEqual(subjectKeyIdentifier, akidecoded.GetKeyIdentifier());
         }
 
@@ -153,14 +152,13 @@ namespace Opc.Ua.Security.Certificates.Tests
             Assert.AreEqual(subjectKeyIdentifier, akidecoded.GetKeyIdentifier());
         }
 
-
         /// <summary>
         /// Verify encode and decode of authority key identifier.
         /// </summary>
         [Test]
         public void VerifyX509SubjectAlternateNameExtension()
         {
-            string applicationUri = "urn:opcfoundation.org";
+            const string applicationUri = "urn:opcfoundation.org";
             string[] domainNames = { "mypc.mydomain.com", "192.168.100.100", "1234:5678::1" };
             TestContext.Out.WriteLine("Encoded:");
             var san = new X509SubjectAltNameExtension(applicationUri, domainNames);
@@ -202,5 +200,4 @@ namespace Opc.Ua.Security.Certificates.Tests
 
         #endregion
     }
-
 }

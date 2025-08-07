@@ -10,7 +10,6 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
-
 using System;
 using System.Net;
 using System.Threading;
@@ -107,7 +106,6 @@ namespace Opc.Ua.Bindings
         void OnReceiveError(IMessageSocket source, ServiceResult result);
     }
 
-
     /// <summary>
     /// This is an interface to a message socket which supports a factory
     /// </summary>
@@ -127,7 +125,6 @@ namespace Opc.Ua.Bindings
         /// </summary>
         /// <value>The implementation string.</value>
         string Implementation { get; }
-
     }
 
     /// <summary>

@@ -17,7 +17,7 @@ namespace Opc.Ua
     /// <summary>
     /// Defines the default names for the condition states.
     /// </summary>
-    public static partial class ConditionStateNames
+    public static class ConditionStateNames
     {
         /// <summary>
         /// The name of the Disabled state.

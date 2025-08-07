@@ -47,19 +47,14 @@ namespace Opc.Ua.Configuration
         IApplicationConfigurationBuilderSecurityOptions,
         IApplicationConfigurationBuilderSecurityOptionStores,
         IApplicationConfigurationBuilderServerPolicies,
-        IApplicationConfigurationBuilderCreate
-    {
-    };
-
+        IApplicationConfigurationBuilderCreate;
     /// <summary>
     /// The client or server configuration types to choose.
     /// </summary>
     public interface IApplicationConfigurationBuilderTypes :
         IApplicationConfigurationBuilderTransportQuotas,
         IApplicationConfigurationBuilderServer,
-        IApplicationConfigurationBuilderClient
-    {
-    }
+        IApplicationConfigurationBuilderClient;
 
     /// <summary>
     /// The set transport quota state.
@@ -130,9 +125,7 @@ namespace Opc.Ua.Configuration
     /// </summary>
     public interface IApplicationConfigurationBuilderTransportQuotasSet :
         IApplicationConfigurationBuilderServer,
-        IApplicationConfigurationBuilderClient
-    {
-    }
+        IApplicationConfigurationBuilderClient;
 
     /// <summary>
     /// The interfaces to implement if a server is selected.
@@ -141,9 +134,7 @@ namespace Opc.Ua.Configuration
         IApplicationConfigurationBuilderServerPolicies,
         IApplicationConfigurationBuilderServerOptions,
         IApplicationConfigurationBuilderClient,
-        IApplicationConfigurationBuilderSecurity
-    {
-    }
+        IApplicationConfigurationBuilderSecurity;
 
     /// <summary>
     /// The options which can be set if a server is selected.
@@ -281,7 +272,6 @@ namespace Opc.Ua.Configuration
 
         /// <inheritdoc cref="ServerConfiguration.MaxDurableSubscriptionLifetimeInHours"/>
         IApplicationConfigurationBuilderServerOptions SetMaxDurableSubscriptionLifetime(int maxDurableSubscriptionLifetimeInHours);
-
     }
 
     /// <summary>
@@ -289,9 +279,7 @@ namespace Opc.Ua.Configuration
     /// </summary>
     public interface IApplicationConfigurationBuilderClientSelected :
         IApplicationConfigurationBuilderClientOptions,
-        IApplicationConfigurationBuilderSecurity
-    {
-    }
+        IApplicationConfigurationBuilderSecurity;
 
     /// <summary>
     /// The options to set if a client is selected.
@@ -404,14 +392,13 @@ namespace Opc.Ua.Configuration
         /// </summary>
         /// <param name="userTokenPolicy">The user token policy to add.</param>
         IApplicationConfigurationBuilderServerSelected AddUserTokenPolicy(UserTokenPolicy userTokenPolicy);
-
     }
 
     /// <summary>
     /// Add the security configuration (mandatory).
     /// </summary>
     public interface IApplicationConfigurationBuilderSecurity
-    {        
+    {
         /// <summary>
         /// Add the security configuration.
         /// </summary>
@@ -431,7 +418,7 @@ namespace Opc.Ua.Configuration
             string appRoot = null,
             string rejectedRoot = null
             );
-        
+
         /// <summary>
         /// Add the security configuration.
         /// </summary>
@@ -443,7 +430,6 @@ namespace Opc.Ua.Configuration
         /// <param name="certIdList">A list of Certificate identifiers</param>
         /// <param name="pkiRoot">The path to the pki root. By default all cert stores use the pki root.</param>
         /// <param name="rejectedRoot">The path to the rejected certificate store.</param>
-
         IApplicationConfigurationBuilderSecurityOptions AddSecurityConfiguration(
             CertificateIdentifierCollection certIdList,
             string pkiRoot = null,
@@ -643,4 +629,3 @@ namespace Opc.Ua.Configuration
         Task<ApplicationConfiguration> Create();
     }
 }
-

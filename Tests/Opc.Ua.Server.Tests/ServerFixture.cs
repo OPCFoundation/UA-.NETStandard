@@ -74,7 +74,6 @@ namespace Opc.Ua.Server.Tests
 
         public ServerFixture()
         {
-
         }
 
         public async Task LoadConfiguration(string pkiRoot = null)
@@ -85,7 +84,7 @@ namespace Opc.Ua.Server.Tests
             };
 
             // create the application configuration. Use temp path for cert stores.
-            pkiRoot = pkiRoot ?? Path.GetTempPath() + Path.GetRandomFileName();
+            pkiRoot ??= Path.GetTempPath() + Path.GetRandomFileName();
             string endpointUrl = $"{UriScheme}://localhost:0/" + typeof(T).Name;
             IApplicationConfigurationBuilderServerSelected serverConfig = Application.Build(
                 "urn:localhost:UA:" + typeof(T).Name,
@@ -150,7 +149,7 @@ namespace Opc.Ua.Server.Tests
                     RejectTimeout = ReverseConnectTimeout / 4
                 });
             }
-            
+
             CertificateIdentifierCollection applicationCerts = ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
                 "CN=" + typeof(T).Name + ", C=US, S=Arizona, O=OPC Foundation, DC=localhost",
                 CertificateStoreType.Directory,
@@ -206,13 +205,9 @@ namespace Opc.Ua.Server.Tests
                 {
                     await InternalStartServerAsync(writer, testPort).ConfigureAwait(false);
                 }
-                catch (ServiceResultException sre)
+                catch (ServiceResultException sre) when (serverStartRetries > 0 &&
+                        sre.StatusCode == StatusCodes.BadNoCommunication)
                 {
-                    if (serverStartRetries <= 0 ||
-                        sre.StatusCode != StatusCodes.BadNoCommunication)
-                    {
-                        throw;
-                    }
                     serverStartRetries--;
                     testPort = random.Next(ServerFixtureUtils.MinTestPort, ServerFixtureUtils.MaxTestPort);
                     retryStartServer = true;
@@ -308,7 +303,6 @@ namespace Opc.Ua.Server.Tests
             }
             ActivitySource.AddActivityListener(ActivityListener);
         }
-
 
         /// <summary>
         /// Stop the server.

@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-
 using System;
 using System.IO;
 using System.Text;
@@ -35,7 +34,6 @@ using System.Xml;
 using NUnit.Framework;
 using Opc.Ua.Tests;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
-
 
 namespace Opc.Ua.Core.Tests.Stack.Client
 {
@@ -61,7 +59,6 @@ namespace Opc.Ua.Core.Tests.Stack.Client
         [SetUp]
         protected void SetUp()
         {
-
         }
 
         [TearDown]
@@ -105,7 +102,6 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                     ApplicationCertificate = new CertificateIdentifier(),
                     TrustedPeerCertificates = new CertificateTrustList { StorePath = "Test" },
                     TrustedIssuerCertificates = new CertificateTrustList { StorePath = "Test" },
-
                 }
             };
             Assert.DoesNotThrow(() => appConfig.Validate(ApplicationType.Client).GetAwaiter().GetResult());

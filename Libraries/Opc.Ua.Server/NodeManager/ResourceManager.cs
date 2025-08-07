@@ -143,15 +143,13 @@ namespace Opc.Ua.Server
             }
 
             // construct new service result.
-            var translatedResult = new ServiceResult(
+            return new ServiceResult(
                 result.StatusCode,
                 result.SymbolicId,
                 result.NamespaceUri,
                 translatedText,
                 result.AdditionalInfo,
                 Translate(preferredLocales, result.InnerResult));
-
-            return translatedResult;
         }
         #endregion
 
@@ -295,9 +293,7 @@ namespace Opc.Ua.Server
         /// </summary>
         public void LoadDefaultText()
         {
-            System.Reflection.FieldInfo[] fields = typeof(StatusCodes).GetFields(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static);
-
-            foreach (System.Reflection.FieldInfo field in fields)
+            foreach (System.Reflection.FieldInfo field in typeof(StatusCodes).GetFields(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static))
             {
                 uint? id = field.GetValue(typeof(StatusCodes)) as uint?;
 
@@ -318,7 +314,7 @@ namespace Opc.Ua.Server
         {
             defaultText = defaultText?.FilterByPreferredLocales(preferredLocales);
 
-            bool isMultilanguageRequested = preferredLocales?.Count > 0 ? preferredLocales[0].ToLowerInvariant() is "mul" or "qst" : false;
+            bool isMultilanguageRequested = preferredLocales?.Count > 0 && preferredLocales[0].ToLowerInvariant() is "mul" or "qst";
 
             // check for trivial case.
             if (info == null || (string.IsNullOrEmpty(info.Text) && string.IsNullOrEmpty(info.Key)))
@@ -426,18 +422,15 @@ namespace Opc.Ua.Server
                     }
 
                     // get a culture to use for formatting
-                    if (culture == null)
+                    if (culture == null && info.Args?.Length > 0 && !string.IsNullOrEmpty(info.Locale))
                     {
-                        if (info.Args?.Length > 0 && !string.IsNullOrEmpty(info.Locale))
+                        try
                         {
-                            try
-                            {
-                                culture = new CultureInfo(info.Locale);
-                            }
-                            catch
-                            {
-                                culture = CultureInfo.InvariantCulture;
-                            }
+                            culture = new CultureInfo(info.Locale);
+                        }
+                        catch
+                        {
+                            culture = CultureInfo.InvariantCulture;
                         }
                     }
                 }
@@ -537,13 +530,10 @@ namespace Opc.Ua.Server
                     TranslationTable translationTable = m_translationTables[ii];
 
                     // all done if exact match found.
-                    if (translationTable.Locale.Name == preferredLocales[jj])
+                    if (translationTable.Locale.Name == preferredLocales[jj] && translationTable.Translations.TryGetValue(key, out translatedText))
                     {
-                        if (translationTable.Translations.TryGetValue(key, out translatedText))
-                        {
-                            culture = translationTable.Locale;
-                            return translatedText;
-                        }
+                        culture = translationTable.Locale;
+                        return translatedText;
                     }
 
                     // check for matching language but different region.

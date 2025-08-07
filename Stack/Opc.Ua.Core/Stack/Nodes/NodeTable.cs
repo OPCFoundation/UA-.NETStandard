@@ -12,6 +12,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Opc.Ua
 {
@@ -154,7 +155,6 @@ namespace Opc.Ua
                 return null;
             }
 
-
             // can't follow references for remote nodes.
             if (source is not ILocalNode sourceNode)
             {
@@ -211,7 +211,6 @@ namespace Opc.Ua
                 return nodes;
             }
 
-
             // can't follow references for remote nodes.
             if (source is not ILocalNode sourceNode)
             {
@@ -252,15 +251,9 @@ namespace Opc.Ua
         {
             var list = new List<INode>(Count);
 
-            foreach (INode node in m_localNodes.Values)
-            {
-                list.Add(node);
-            }
+            list.AddRange(m_localNodes.Values);
 
-            foreach (INode node in m_remoteNodes.Values)
-            {
-                list.Add(node);
-            }
+            list.AddRange(m_remoteNodes.Values);
 
             return list.GetEnumerator();
         }
@@ -518,7 +511,7 @@ namespace Opc.Ua
             if (node is Node serializedNode && serializedNode.References.Count > 0 && serializedNode.ReferenceTable.Count == 0)
             {
                 // index references.
-                foreach (ReferenceNode reference in node.References)
+                foreach (ReferenceNode reference in node.References.OfType<ReferenceNode>())
                 {
                     // ignore invalid references.
                     if (NodeId.IsNull(reference.ReferenceTypeId) || NodeId.IsNull(reference.TargetId))
@@ -585,7 +578,6 @@ namespace Opc.Ua
                 return false;
             }
 
-
             // can only directly remove local nodes.
             if (source is not ILocalNode sourceNode)
             {
@@ -614,7 +606,7 @@ namespace Opc.Ua
                     continue;
                 }
 
-                // remote inverse references.                  
+                // remote inverse references.
 
                 if (target is ILocalNode targetNode)
                 {
@@ -719,7 +711,6 @@ namespace Opc.Ua
                 return null;
             }
 
-
             // convert to locale node id.
             var localId = ExpandedNodeId.ToNodeId(nodeId, NamespaceUris);
 
@@ -756,9 +747,9 @@ namespace Opc.Ua
             {
                 NodeId = nodeId;
                 m_refs = 0;
-                m_nodeClass = NodeClass.Unspecified;
-                m_browseName = new QualifiedName("(Unknown)");
-                m_displayName = new LocalizedText(m_browseName.Name);
+                NodeClass = NodeClass.Unspecified;
+                BrowseName = new QualifiedName("(Unknown)");
+                DisplayName = new LocalizedText(BrowseName.Name);
                 TypeDefinitionId = null;
             }
 
@@ -803,37 +794,22 @@ namespace Opc.Ua
             /// The node class.
             /// </summary>
             /// <value>The node class.</value>
-            public NodeClass NodeClass
-            {
-                get { return m_nodeClass; }
-                internal set { m_nodeClass = value; }
-            }
+            public NodeClass NodeClass { get; internal set; }
 
             /// <summary>
             /// The locale independent browse name.
             /// </summary>
             /// <value>The name of the browse.</value>
-            public QualifiedName BrowseName
-            {
-                get { return m_browseName; }
-                internal set { m_browseName = value; }
-            }
+            public QualifiedName BrowseName { get; internal set; }
 
             /// <summary>
             /// The localized display name.
             /// </summary>
             /// <value>The display name.</value>
-            public LocalizedText DisplayName
-            {
-                get { return m_displayName; }
-                internal set { m_displayName = value; }
-            }
+            public LocalizedText DisplayName { get; internal set; }
 
-#endregion
-#region Private Fields
-            private NodeClass m_nodeClass;
-            private QualifiedName m_browseName;
-            private LocalizedText m_displayName;
+            #endregion
+            #region Private Fields
             private int m_refs;
             #endregion
         }

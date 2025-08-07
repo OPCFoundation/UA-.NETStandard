@@ -28,17 +28,14 @@ namespace Opc.Ua.Server.Tests
     [MemoryDiagnoser]
     public class FilterRetainTests
     {
-        private SystemContext m_systemContext = null;
-        private FilterContext m_filterContext = null;
+        private SystemContext m_systemContext;
+        private FilterContext m_filterContext;
 
         private readonly LocalizedText InService = new LocalizedText("en", "In Service");
         private readonly LocalizedText OutOfService = new LocalizedText("en", "Out of Service");
-
-        private readonly LocalizedText Suppressed = new LocalizedText("en-US", "Suppressed");
         private readonly LocalizedText Unsuppressed = new LocalizedText("en-US", "Unsuppressed");
 
         private readonly LocalizedText Active = new LocalizedText("en-US", "Active");
-        private readonly LocalizedText Inactive = new LocalizedText("en-US", "Inactive");
 
         [Test]
         [TestCase(false, Description = "Should not pass filter")]
@@ -223,11 +220,10 @@ namespace Opc.Ua.Server.Tests
 
             alarm.SetSuppressedState(systemContext, suppressed: false);
             alarm.OutOfServiceState.Value = InService;
-        
 
             FilterContext filterContext = GetFilterContext();
             var filter = new EventFilter();
-            filter.SelectClauses = GetSelectFields();
+            filter.SelectClauses = FilterRetainTests.GetSelectFields();
             filter.WhereClause = GetStateFilter();
             filter.Validate(filterContext);
 
@@ -348,7 +344,7 @@ namespace Opc.Ua.Server.Tests
             var eventSnapshot = new InstanceStateSnapshot();
             eventSnapshot.Initialize(systemContext, alarm);
 
-            BindingFlags eFlags = BindingFlags.Instance | BindingFlags.NonPublic;
+            const BindingFlags eFlags = BindingFlags.Instance | BindingFlags.NonPublic;
             MethodInfo methodInfo = typeof(MonitoredItem).GetMethod("CanSendFilteredAlarm", eFlags);
             Debug.WriteLine("Expecting " + expected.ToString());
             object result = methodInfo.Invoke(monitoredItem, new object[] { context, filter, eventSnapshot });
@@ -380,7 +376,7 @@ namespace Opc.Ua.Server.Tests
             return alarm;
         }
 
-        private SimpleAttributeOperandCollection GetSelectFields()
+        private static SimpleAttributeOperandCollection GetSelectFields()
         {
             var simpleAttributeOperands = new SimpleAttributeOperandCollection();
 
@@ -413,40 +409,19 @@ namespace Opc.Ua.Server.Tests
             return simpleAttributeOperands;
         }
 
-        private ContentFilter GetRealisticFilter()
-        {
-            var whereClause = new ContentFilter();
-
-            var eventLevel = new SimpleAttributeOperand() {
-                AttributeId = Attributes.Value,
-                TypeDefinitionId = ObjectTypeIds.ExclusiveLevelAlarmType,
-                BrowsePath = new QualifiedNameCollection(new QualifiedName[] {
-                    BrowseNames.LimitState,
-                    BrowseNames.CurrentState,
-                    BrowseNames.Id })
-            };
-
-            var desiredEventLevel = new LiteralOperand();
-            desiredEventLevel.Value = new Variant(new NodeId(Opc.Ua.Objects.ExclusiveLimitStateMachineType_High));
-
-            whereClause.Push(FilterOperator.Equals, new FilterOperand[] { eventLevel, desiredEventLevel });
-
-            return whereClause;
-        }
-
         private EventFilter GetHighOnlyEventFilter(bool addClauses)
         {
             var filter = new EventFilter();
             if (addClauses)
             {
-                filter.SelectClauses = GetSelectFields();
-                filter.WhereClause = GetHighOnlyFilter();
+                filter.SelectClauses = FilterRetainTests.GetSelectFields();
+                filter.WhereClause = FilterRetainTests.GetHighOnlyFilter();
             }
             filter.Validate(GetFilterContext());
             return filter;
         }
 
-        private ContentFilter GetHighOnlyFilter()
+        private static ContentFilter GetHighOnlyFilter()
         {
             var whereClause = new ContentFilter();
 
@@ -543,44 +518,6 @@ namespace Opc.Ua.Server.Tests
             return whereClause;
         }
 
-
-        private ContentFilter GetComplexFilter()
-        {
-            var whereClause = new ContentFilter();
-
-            var existingEventType = new SimpleAttributeOperand() {
-                AttributeId = Attributes.Value,
-                TypeDefinitionId = ObjectTypeIds.ExclusiveLevelAlarmType,
-                BrowsePath = new QualifiedNameCollection(new QualifiedName[] { "EventType" })
-            };
-            var desiredEventType = new LiteralOperand();
-            desiredEventType.Value = new Variant(Opc.Ua.ObjectTypeIds.ExclusiveLevelAlarmType);
-
-            whereClause.Push(FilterOperator.Equals, new FilterOperand[] { existingEventType, desiredEventType });
-
-            var eventLevel = new SimpleAttributeOperand() {
-                AttributeId = Attributes.Value,
-                TypeDefinitionId = null,
-                BrowsePath = new QualifiedNameCollection(new QualifiedName[] {
-                    BrowseNames.LimitState,
-                    BrowseNames.CurrentState,
-                    BrowseNames.Id })
-            };
-
-            var desiredEventLevel = new LiteralOperand();
-            desiredEventLevel.Value = new Variant(new NodeId(Opc.Ua.Objects.ExclusiveLimitStateMachineType_High));
-
-            whereClause.Push(FilterOperator.Equals, new FilterOperand[] { eventLevel, desiredEventLevel });
-
-            // There is some sense to This.  Currently the operands are 0, and 1,
-            // then the push will modify them to 1, and 2.
-            whereClause.Push(FilterOperator.And, new ElementOperand[] {
-                new ElementOperand(0),
-                new ElementOperand(1) });
-
-            return whereClause;
-        }
-
         private SystemContext GetSystemContext()
         {
             if (m_systemContext == null)
@@ -612,7 +549,6 @@ namespace Opc.Ua.Server.Tests
                 m_filterContext = new FilterContext(
                     systemContext.NamespaceUris,
                     systemContext.TypeTable);
-
             }
 
             return m_filterContext;
@@ -649,6 +585,5 @@ namespace Opc.Ua.Server.Tests
                 1000
                 );
         }
-
     }
 }

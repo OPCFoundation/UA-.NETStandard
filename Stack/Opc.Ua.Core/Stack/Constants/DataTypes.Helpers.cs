@@ -27,9 +27,7 @@ namespace Opc.Ua
 		/// </summary>
         public static string GetBrowseName(int identifier)
         {
-            FieldInfo[] fields = typeof(DataTypes).GetFields(BindingFlags.Public | BindingFlags.Static);
-
-            foreach (FieldInfo field in fields)
+            foreach (FieldInfo field in typeof(DataTypes).GetFields(BindingFlags.Public | BindingFlags.Static))
             {
                 if (identifier == (uint)field.GetValue(typeof(DataTypes)))
                 {
@@ -64,9 +62,7 @@ namespace Opc.Ua
         /// </summary>
         public static uint GetIdentifier(string browseName)
         {
-            FieldInfo[] fields = typeof(DataTypes).GetFields(BindingFlags.Public | BindingFlags.Static);
-
-            foreach (FieldInfo field in fields)
+            foreach (FieldInfo field in typeof(DataTypes).GetFields(BindingFlags.Public | BindingFlags.Static))
             {
                 if (field.Name == browseName)
                 {

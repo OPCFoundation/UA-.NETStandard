@@ -841,7 +841,6 @@ namespace Opc.Ua.Bindings
                 // get the chunks to process.
                 chunksToProcess = GetSavedChunks(requestId, messageBody, true);
 
-
                 if (!(BinaryDecoder.DecodeMessage(
                     new ArraySegmentStream(chunksToProcess),
                     typeof(CloseSecureChannelRequest),
@@ -889,7 +888,6 @@ namespace Opc.Ua.Bindings
         /// </summary>
         private bool ProcessRequestMessage(uint messageType, ArraySegment<byte> messageChunk)
         {
-
             // Communication is active on the channel
             UpdateLastActiveTime();
 
@@ -930,8 +928,7 @@ namespace Opc.Ua.Bindings
                 return false;
             }
 
-            const int ChannelCloseCount = 5;
-            int countForDisconnect = ChannelCloseCount;
+            int countForDisconnect = 5;
             while (ChannelFull && countForDisconnect > 0)
             {
                 Utils.LogInfo("Channel {0}: full -- delay processing.", Id);
@@ -986,12 +983,9 @@ namespace Opc.Ua.Bindings
                 }
 
                 // Utils.LogTrace("ChannelId {0}: ProcessRequestMessage RequestId {1}", ChannelId, requestId);
-                if (DiscoveryOnly && GetSavedChunksTotalSize() == 0)
+                if (DiscoveryOnly && GetSavedChunksTotalSize() == 0 && !ValidateDiscoveryServiceCall(token, requestId, messageBody, out chunksToProcess))
                 {
-                    if (!ValidateDiscoveryServiceCall(token, requestId, messageBody, out chunksToProcess))
-                    {
-                        return true;
-                    }
+                    return true;
                 }
 
                 // get the chunks to process.
@@ -1005,13 +999,10 @@ namespace Opc.Ua.Bindings
                 }
 
                 // ensure that only discovery requests come through unsecured.
-                if (DiscoveryOnly)
+                if (DiscoveryOnly && request is not (GetEndpointsRequest or FindServersRequest or FindServersOnNetworkRequest))
                 {
-                    if (request is not (GetEndpointsRequest or FindServersRequest or FindServersOnNetworkRequest))
-                    {
-                        SendServiceFault(token, requestId, ServiceResult.Create(StatusCodes.BadSecurityPolicyRejected, "Channel can only be used for discovery."));
-                        return true;
-                    }
+                    SendServiceFault(token, requestId, ServiceResult.Create(StatusCodes.BadSecurityPolicyRejected, "Channel can only be used for discovery."));
+                    return true;
                 }
 
                 // hand the request to the server.
@@ -1075,7 +1066,6 @@ namespace Opc.Ua.Bindings
                         response,
                         false,
                         out limitsExceeded);
-
                 }
                 catch (Exception e)
                 {

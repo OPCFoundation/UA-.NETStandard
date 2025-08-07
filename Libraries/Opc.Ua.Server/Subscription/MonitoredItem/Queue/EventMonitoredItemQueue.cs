@@ -51,13 +51,13 @@ namespace Opc.Ua.Server
                 throw new ArgumentException("DataChangeMonitoredItemQueue does not support durable Queues", nameof(createDurable));
             }
             m_events = new List<EventFieldList>();
-            m_monitoredItemId = monitoredItemId;
+            MonitoredItemId = monitoredItemId;
             QueueSize = 0;
         }
 
         #region Public Methods
         /// <inheritdoc/>
-        public uint MonitoredItemId => m_monitoredItemId;
+        public uint MonitoredItemId { get; }
 
         /// <inheritdoc/>
         public virtual bool IsDurable => false;
@@ -72,9 +72,9 @@ namespace Opc.Ua.Server
         public bool Dequeue(out EventFieldList value)
         {
             value = null;
-            if (m_events.Any())
+            if (m_events.Count != 0)
             {
-                value = m_events.First();
+                value = m_events[0];
                 m_events.RemoveAt(0);
                 return true;
             }
@@ -119,12 +119,9 @@ namespace Opc.Ua.Server
 
             for (int i = 0; i < maxCount; i++)
             {
-                if (m_events[i] is EventFieldList processedEvent)
+                if (m_events[i] is EventFieldList processedEvent && ReferenceEquals(instance, processedEvent.Handle))
                 {
-                    if (ReferenceEquals(instance, processedEvent.Handle))
-                    {
-                        return true;
-                    }
+                    return true;
                 }
             }
             return false;
@@ -154,8 +151,6 @@ namespace Opc.Ua.Server
         /// the contained in the queue
         /// </summary>
         protected List<EventFieldList> m_events;
-        private readonly uint m_monitoredItemId;
         #endregion
     }
-
 }

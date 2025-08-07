@@ -57,7 +57,7 @@ namespace Opc.Ua.Server
         {
             public NodeId AggregateId { get; set; }
             public QualifiedName AggregateName { get; set; }
-            public Type Calculator { get; set; } 
+            public Type Calculator { get; set; }
         }
 
         /// <summary>
@@ -65,7 +65,7 @@ namespace Opc.Ua.Server
         /// </summary>
         private static readonly FactoryMapping[] s_Mappings = new FactoryMapping[]
         {
-            new FactoryMapping() { AggregateId = ObjectIds.AggregateFunction_Interpolative, AggregateName = BrowseNames.AggregateFunction_Interpolative, Calculator = typeof(AggregateCalculator) },        
+            new FactoryMapping() { AggregateId = ObjectIds.AggregateFunction_Interpolative, AggregateName = BrowseNames.AggregateFunction_Interpolative, Calculator = typeof(AggregateCalculator) },
             new FactoryMapping() { AggregateId = ObjectIds.AggregateFunction_Average, AggregateName = BrowseNames.AggregateFunction_Average, Calculator = typeof(AverageAggregateCalculator) },
             new FactoryMapping() { AggregateId = ObjectIds.AggregateFunction_TimeAverage, AggregateName = BrowseNames.AggregateFunction_TimeAverage, Calculator = typeof(AverageAggregateCalculator) },
             new FactoryMapping() { AggregateId = ObjectIds.AggregateFunction_TimeAverage2, AggregateName = BrowseNames.AggregateFunction_TimeAverage2, Calculator = typeof(AverageAggregateCalculator) },
@@ -150,7 +150,7 @@ namespace Opc.Ua.Server
             DateTime endTime,
             double processingInterval,
             bool stepped,
-            AggregateConfiguration configuration) 
+            AggregateConfiguration configuration)
         {
             for (int ii = 0; ii < s_Mappings.Length; ii++)
             {
@@ -158,11 +158,11 @@ namespace Opc.Ua.Server
                 {
                     return (IAggregateCalculator)Activator.CreateInstance(
                         s_Mappings[ii].Calculator,
-                        aggregateId, 
-                        startTime, 
-                        endTime, 
-                        processingInterval, 
-                        stepped, 
+                        aggregateId,
+                        startTime,
+                        endTime,
+                        processingInterval,
+                        stepped,
                         configuration);
                 }
             }

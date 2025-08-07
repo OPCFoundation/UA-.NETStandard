@@ -36,7 +36,7 @@ namespace Opc.Ua.Server.Tests
     /// <summary>
     /// A NUnit trace logger replacement.
     /// </summary>
-    public class NUnitTraceLogger
+    public sealed class NUnitTraceLogger
     {
         private TextWriter m_writer;
         private readonly int m_traceMasks;

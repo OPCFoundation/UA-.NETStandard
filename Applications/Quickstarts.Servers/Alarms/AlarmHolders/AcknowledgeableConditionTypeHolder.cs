@@ -32,9 +32,7 @@ using System.Collections.Generic;
 
 using Opc.Ua;
 
-
 #pragma warning disable CS1591
-
 
 namespace Alarms
 {
@@ -99,8 +97,6 @@ namespace Alarms
             alarm.Confirm = new AddCommentMethodState(alarm);
         }
 
-
-
         #region Overrides 
 
         public override void SetValue(string message = "")
@@ -116,7 +112,6 @@ namespace Alarms
                     Log("AcknowledgeableConditionTypeHolder", "Setting Acked State to false");
                     alarm.SetAcknowledgedState(SystemContext, acknowledged: false);
                     alarm.Retain.Value = true;
-
                 }
                 else
                 {
@@ -135,17 +130,13 @@ namespace Alarms
             AcknowledgeableConditionState alarm = GetAlarm();
 
             bool retainState = true;
-            if (alarm.AckedState.Id.Value)
+            if (alarm.AckedState.Id.Value && alarm.ConfirmedState.Id.Value)
             {
-                if (alarm.ConfirmedState.Id.Value)
-                {
-                    retainState = false;
-                }
+                retainState = false;
             }
 
             return retainState;
         }
-
 
         #endregion
 
@@ -172,9 +163,6 @@ namespace Alarms
             }
             return alarmOrBranch;
         }
-
-
-
 
         #endregion
 
@@ -230,14 +218,12 @@ namespace Alarms
             return ServiceResult.Good;
         }
 
-
         private ServiceResult OnConfirm(
             ISystemContext context,
             ConditionState condition,
             byte[] eventId,
             LocalizedText comment)
         {
-
             string eventIdString = Utils.ToHexString(eventId);
 
             Log("OnConfirm", "Called with eventId " + eventIdString + " Comment " + comment?.Text ?? "(empty)");
@@ -277,8 +263,6 @@ namespace Alarms
         protected HashSet<string> m_confirmed = new HashSet<string>();
 
         #endregion
-
-
 
     }
 }

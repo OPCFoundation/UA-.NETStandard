@@ -161,7 +161,6 @@ namespace Opc.Ua
                 }
 
                 endpoint.Description.Server = (ApplicationDescription)server.Clone();
-
             }
 
             // remove invalid endpoints.
@@ -597,7 +596,7 @@ namespace Opc.Ua
 
             if (!string.IsNullOrEmpty(parameters))
             {
-                string[] fields = parameters.Split(new char[] { '-', '[', ':', ']' }, StringSplitOptions.RemoveEmptyEntries);
+                string[] fields = parameters.Split(separator, StringSplitOptions.RemoveEmptyEntries);
 
                 try
                 {
@@ -743,14 +742,7 @@ namespace Opc.Ua
 
             set
             {
-                if (value == null)
-                {
-                    m_discoveryUrls = new StringCollection(Utils.DiscoveryUrls);
-                }
-                else
-                {
-                    m_discoveryUrls = value;
-                }
+                m_discoveryUrls = value ?? new StringCollection(Utils.DiscoveryUrls);
             }
         }
 
@@ -758,6 +750,8 @@ namespace Opc.Ua
         /// The default configuration for new ConfiguredEndpoints.
         /// </summary>
         public EndpointConfiguration DefaultConfiguration => m_defaultConfiguration;
+
+        private static readonly char[] separator = new char[] { '-', '[', ':', ']' };
         #endregion
 
         #region Private Methods
@@ -823,13 +817,10 @@ namespace Opc.Ua
             {
                 string baseUrl = discoveryUrl;
 
-                if (baseUrl != null)
-                {
-                    if (Utils.IsUriHttpRelatedScheme(baseUrl) &&
+                if (baseUrl != null && Utils.IsUriHttpRelatedScheme(baseUrl) &&
                         baseUrl.EndsWith(DiscoverySuffix, StringComparison.Ordinal))
-                    {
-                        baseUrl = baseUrl[..^DiscoverySuffix.Length];
-                    }
+                {
+                    baseUrl = baseUrl[..^DiscoverySuffix.Length];
                 }
 
                 Uri url = Utils.ParseUri(baseUrl);
@@ -1026,12 +1017,9 @@ namespace Opc.Ua
             }
 
             // set the proxy url.
-            if (m_collection != null && m_description.EndpointUrl != null)
+            if (m_collection != null && m_description.EndpointUrl != null && m_description.EndpointUrl.StartsWith(Utils.UriSchemeOpcTcp, StringComparison.Ordinal))
             {
-                if (m_description.EndpointUrl.StartsWith(Utils.UriSchemeOpcTcp, StringComparison.Ordinal))
-                {
-                    m_description.ProxyUrl = m_collection.TcpProxyUrl;
-                }
+                m_description.ProxyUrl = m_collection.TcpProxyUrl;
             }
         }
 
@@ -1386,21 +1374,15 @@ namespace Opc.Ua
             foreach (EndpointDescription description in collection)
             {
                 // check for match on security policy.
-                if (!string.IsNullOrEmpty(securityPolicyUri))
+                if (!string.IsNullOrEmpty(securityPolicyUri) && securityPolicyUri != description.SecurityPolicyUri)
                 {
-                    if (securityPolicyUri != description.SecurityPolicyUri)
-                    {
-                        continue;
-                    }
+                    continue;
                 }
 
                 // check for match on security mode.
-                if (securityMode != MessageSecurityMode.Invalid)
+                if (securityMode != MessageSecurityMode.Invalid && securityMode != description.SecurityMode)
                 {
-                    if (securityMode != description.SecurityMode)
-                    {
-                        continue;
-                    }
+                    continue;
                 }
 
                 // add to list of matches.

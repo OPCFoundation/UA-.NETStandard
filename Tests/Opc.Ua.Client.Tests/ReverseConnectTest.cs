@@ -38,7 +38,6 @@ using Opc.Ua.Server.Tests;
 using Quickstarts.ReferenceServer;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
-
 namespace Opc.Ua.Client.Tests
 {
     /// <summary>
@@ -218,7 +217,7 @@ namespace Opc.Ua.Client.Tests
         [Theory, Order(301)]
         public async Task ReverseConnect2(bool updateBeforeConnect, bool checkDomain, ISessionFactory sessionFactory)
         {
-            string securityPolicy = SecurityPolicies.Basic256Sha256;
+            const string securityPolicy = SecurityPolicies.Basic256Sha256;
 
             // ensure endpoints are available
             await RequireEndpoints().ConfigureAwait(false);

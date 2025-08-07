@@ -80,7 +80,7 @@ namespace Opc.Ua.Server.UserDatabase
                 return false;
             }
 
-            string hash = Hash(password);
+            string hash = LinqUserDatabase.Hash(password);
 
             var user = new User { UserName = userName, Hash = hash, Roles = roles };
 
@@ -126,7 +126,7 @@ namespace Opc.Ua.Server.UserDatabase
                 return false;
             }
 
-            return Check(user.Hash, password);
+            return LinqUserDatabase.Check(user.Hash, password);
         }
         /// <inheritdoc/>
         public IEnumerable<Role> GetUserRoles(string userName)
@@ -167,10 +167,9 @@ namespace Opc.Ua.Server.UserDatabase
                 return false;
             }
 
-            if (Check(user.Hash, oldPassword))
+            if (LinqUserDatabase.Check(user.Hash, oldPassword))
             {
-                string newHash = Hash(newPassword);
-                user.Hash = newHash;
+                user.Hash = LinqUserDatabase.Hash(newPassword);
                 return true;
             }
             return false;
@@ -209,7 +208,7 @@ namespace Opc.Ua.Server.UserDatabase
         #endregion
 
         #region IPasswordHasher
-        private string Hash(string password)
+        private static string Hash(string password)
         {
 #if NETSTANDARD2_0 || NET462
 #pragma warning disable CA5379 // Ensure Key Derivation Function algorithm is sufficiently strong
@@ -234,7 +233,7 @@ namespace Opc.Ua.Server.UserDatabase
             }
         }
 
-        private bool Check(string hash, string password)
+        private static bool Check(string hash, string password)
         {
             char[] separator = new char[] { '.' };
             string[] parts = hash.Split(separator, 3);
@@ -267,9 +266,7 @@ namespace Opc.Ua.Server.UserDatabase
 #endif
                 byte[] keyToCheck = algorithm.GetBytes(kKeySize);
 
-                bool verified = keyToCheck.SequenceEqual(key);
-
-                return verified;
+                return keyToCheck.SequenceEqual(key);
             }
         }
 
@@ -289,17 +286,23 @@ namespace Opc.Ua.Server.UserDatabase
         internal object Lock = new object();
         [NonSerialized]
         internal DateTime queryCounterResetTime = DateTime.UtcNow;
+        /// <summary>
+        /// 128 bit
+        /// </summary>
         [NonSerialized]
-        private const int kSaltSize = 16; // 128 bit
+        private const int kSaltSize = 16;
+        /// <summary>
+        /// 10k
+        /// </summary>
         [NonSerialized]
-        private const int kIterations = 10000; // 10k
+        private const int kIterations = 10000;
+        /// <summary>
+        /// 256 bit
+        /// </summary>
         [NonSerialized]
-        private const int kKeySize = 32; // 256 bit
+        private const int kKeySize = 32;
         [JsonProperty]
         internal ICollection<User> Users = new HashSet<User>();
         #endregion
     }
-
-
 }
-

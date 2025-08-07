@@ -167,7 +167,6 @@ namespace Opc.Ua
         {
             base.Export(context, node);
 
-
             if (node is ViewNode viewNode)
             {
                 viewNode.EventNotifier = this.EventNotifier;
@@ -302,7 +301,6 @@ namespace Opc.Ua
             switch (attributeId)
             {
                 case Attributes.EventNotifier:
-                {
                     byte eventNotifier = m_eventNotifier;
 
                     NodeAttributeEventHandler<byte> onReadEventNotifier = OnReadEventNotifier;
@@ -318,10 +316,8 @@ namespace Opc.Ua
                     }
 
                     return result;
-                }
 
                 case Attributes.ContainsNoLoops:
-                {
                     bool containsNoLoops = m_containsNoLoops;
 
                     NodeAttributeEventHandler<bool> onReadContainsNoLoops = OnReadContainsNoLoops;
@@ -337,7 +333,6 @@ namespace Opc.Ua
                     }
 
                     return result;
-                }
             }
 
             return base.ReadNonValueAttribute(context, attributeId, ref value);
@@ -358,7 +353,6 @@ namespace Opc.Ua
             switch (attributeId)
             {
                 case Attributes.EventNotifier:
-                {
                     byte? eventNotifierRef = value as byte?;
 
                     if (eventNotifierRef == null)
@@ -386,10 +380,8 @@ namespace Opc.Ua
                     }
 
                     return result;
-                }
 
                 case Attributes.ContainsNoLoops:
-                {
                     bool? containsNoLoopsRef = value as bool?;
 
                     if (containsNoLoopsRef == null)
@@ -417,7 +409,6 @@ namespace Opc.Ua
                     }
 
                     return result;
-                }
             }
 
             return base.WriteNonValueAttribute(context, attributeId, value);

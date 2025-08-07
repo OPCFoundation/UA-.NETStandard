@@ -9,7 +9,8 @@ using NUnit.Framework;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Server.Tests
-{// <summary>
+{
+    /// <summary>
     /// Test ResourceManager
     /// </summary>
     [TestFixture, Category("ResourceManager")]
@@ -17,7 +18,6 @@ namespace Opc.Ua.Server.Tests
     [SetCulture("en-us"), SetUICulture("en-us")]
     public class ResourceManagerTests
     {
-
         [Test]
         public void TranslateSingleLanguageExactMatch()
         {

@@ -63,7 +63,6 @@ namespace Opc.Ua.Security
                     typeName);
             }
 
-
             if (!(Activator.CreateInstance(type) is ISecurityConfigurationManager configuration))
             {
                 throw ServiceResultException.Create(

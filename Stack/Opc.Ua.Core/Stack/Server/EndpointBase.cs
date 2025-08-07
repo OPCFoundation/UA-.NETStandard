@@ -282,13 +282,13 @@ namespace Opc.Ua
         /// <param name="request">Request.</param>
         /// <returns>Invoke service response message.</returns>
         public virtual InvokeServiceResponseMessage InvokeService(InvokeServiceMessage request)
-        {          
+        {
             IServiceRequest decodedRequest = null;
-            IServiceResponse  response = null;          
-            
+            IServiceResponse  response = null;
+
             // create context for request and reply.
             ServiceMessageContext context = MessageContext;
-            
+
             try
             {
                 // check for null.
@@ -296,13 +296,13 @@ namespace Opc.Ua
                 {
                     throw new ServiceResultException(StatusCodes.BadDecodingError, Utils.Format("Null message cannot be processed."));
                 }
-                
+
                 // decoding incoming message.
                 decodedRequest = BinaryDecoder.DecodeMessage(request.InvokeServiceRequest, null, context) as IServiceRequest;
 
                 // invoke service.
                 response = ProcessRequest(decodedRequest);
-                
+
                 // encode response.
                 InvokeServiceResponseMessage outgoing = new InvokeServiceResponseMessage();
                 outgoing.InvokeServiceResponse = BinaryEncoder.EncodeMessage(response, context);
@@ -312,7 +312,7 @@ namespace Opc.Ua
             {
                 // create fault.
                 ServiceFault fault = CreateFault(decodedRequest, e);
-                
+
                 // encode fault response.
                 if (context == null)
                 {
@@ -388,12 +388,7 @@ namespace Opc.Ua
         {
             get
             {
-                if (m_host == null)
-                {
-                    m_host = GetHostForContext();
-                }
-
-                return m_host;
+                return m_host ??= GetHostForContext();
             }
         }
 
@@ -416,12 +411,7 @@ namespace Opc.Ua
         {
             get
             {
-                if (m_server == null)
-                {
-                    m_server = GetServerForContext();
-                }
-
-                return m_server;
+                return m_server ??= GetServerForContext();
             }
         }
 
@@ -502,7 +492,6 @@ namespace Opc.Ua
 
             ServiceResult result = null;
 
-
             if (exception is ServiceResultException sre)
             {
                 result = new ServiceResult(sre);
@@ -544,12 +533,12 @@ namespace Opc.Ua
             ServiceFault fault = CreateFault(request, exception);
 
             // get the error from the header.
-            ServiceResult error = fault.ResponseHeader.ServiceResult ?? ServiceResult.Create(StatusCodes.BadUnexpectedError, "An unknown error occurred.");
+            StatusCode error = fault.ResponseHeader.ServiceResult;
 
             // construct the fault code and fault reason.
             string codeName = StatusCodes.GetBrowseName(error.Code);
 
-            return new ServiceResultException((uint)error.StatusCode, codeName, exception);
+            return new ServiceResultException(error.Code, codeName, exception);
         }
 
         /// <summary>
@@ -843,12 +832,9 @@ namespace Opc.Ua
                     throw new ArgumentException("End called with an invalid IAsyncResult object.", nameof(ar));
                 }
 
-                if (result.m_response == null)
+                if (result.m_response == null && !result.WaitForComplete())
                 {
-                    if (!result.WaitForComplete())
-                    {
-                        throw new TimeoutException();
-                    }
+                    throw new TimeoutException();
                 }
 
                 if (throwOnError && result.m_error != null)
@@ -936,7 +922,7 @@ namespace Opc.Ua
                 // report completion.
                 OperationCompleted();
             }
-            #endregion     
+            #endregion
 
             #region Private Fields
             private readonly EndpointBase m_endpoint;
@@ -952,7 +938,6 @@ namespace Opc.Ua
 #region Private Fields
         private IServiceHostBase m_host;
         private IServerBase m_server;
-        private readonly string g_ImplementationString = "Opc.Ua.EndpointBase UA Service " + Utils.GetAssemblySoftwareVersion();
         #endregion
     }
 }

@@ -50,12 +50,7 @@ namespace TestData
                 return false;
             }
 
-            if (x.NodeId == y.NodeId)
-            {
-                return true;
-            }
-
-            return false;
+            return x.NodeId == y.NodeId;
         }
 
         /// <inheritdoc/>

@@ -27,14 +27,12 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-
 using System;
 using System.Buffers;
 using System.Threading;
 
 namespace Opc.Ua.Buffers
 {
-
     /// <summary>
     /// Helper to build a ReadOnlySequence from a set of <see cref="ArrayPool{T}"/> allocated buffers.
     /// </summary>

@@ -121,7 +121,6 @@ namespace Opc.Ua.Server
         /// </summary>
         void ConditionRefresh2(uint monitoredItemId);
 
-
         /// <summary>
         /// Refreshes the conditions.
         /// </summary>
@@ -147,7 +146,6 @@ namespace Opc.Ua.Server
             UInt32Collection monitoredItemIds,
             out StatusCodeCollection results,
             out DiagnosticInfoCollection diagnosticInfos);
-
 
         /// <summary>
         /// Enables/disables publishing for the subscription.
@@ -254,7 +252,7 @@ namespace Opc.Ua.Server
         /// Transfers the subscription to a new session.
         /// </summary>
         /// <param name="context">The session to which the subscription is transferred.</param>
-        /// <param name="sendInitialValues">Whether the first Publish response shall contain current values.</param> 
+        /// <param name="sendInitialValues">Whether the first Publish response shall contain current values.</param>
         void TransferSession(OperationContext context, bool sendInitialValues);
 
         /// <summary>

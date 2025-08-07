@@ -18,9 +18,9 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
         public void WhenServerUrisAreLessThanNamespacesShouldNotThrowAndMustReturnCorrectServerUris()
         {
             //arrange
-            uint uriVersion = 1234;
+            const uint uriVersion = 1234;
             var namespaceTable = new NamespaceTable(new List<string> { Namespaces.OpcUa, "http://bar", "http://foo" });
-            string expectedServerUri = "http://foobar";
+            const string expectedServerUri = "http://foobar";
             var serverUris = new StringTable(new[] { Namespaces.OpcUa, expectedServerUri });
             var context = new ServiceMessageContext { NamespaceUris = namespaceTable, ServerUris = serverUris };
             string result;

@@ -286,9 +286,7 @@ namespace Opc.Ua
                 case Attributes.RolePermissions:
                 case Attributes.UserRolePermissions:
                 case Attributes.AccessRestrictions:
-                {
                     return true;
-                }
             }
 
             return false;
@@ -337,18 +335,13 @@ namespace Opc.Ua
             {
                 case Attributes.NodeId:
                 case Attributes.NodeClass:
-                {
                     return StatusCodes.BadNotWritable;
-                }
             }
 
             // check data type.
-            if (attributeId != Attributes.Value)
+            if (attributeId != Attributes.Value && Attributes.GetDataTypeId(attributeId) != TypeInfo.GetDataTypeId(value))
             {
-                if (Attributes.GetDataTypeId(attributeId) != TypeInfo.GetDataTypeId(value))
-                {
-                    return StatusCodes.BadTypeMismatch;
-                }
+                return StatusCodes.BadTypeMismatch;
             }
 
             return Write(attributeId, value.Value);
@@ -364,12 +357,7 @@ namespace Opc.Ua
         {
             get
             {
-                if (m_referenceTable == null)
-                {
-                    m_referenceTable = new ReferenceCollection();
-                }
-
-                return m_referenceTable;
+                return m_referenceTable ??= new ReferenceCollection();
             }
         }
 
@@ -480,19 +468,24 @@ namespace Opc.Ua
         {
             switch (attributeId)
             {
-                case Attributes.BrowseName: { m_browseName = (QualifiedName)value; break; }
-                case Attributes.DisplayName: { m_displayName = (LocalizedText)value; break; }
-                case Attributes.Description: { m_description = (LocalizedText)value; break; }
-                case Attributes.WriteMask: { m_writeMask = (uint)value; break; }
-                case Attributes.UserWriteMask: { m_userWriteMask = (uint)value; break; }
-                case Attributes.RolePermissions: { m_rolePermissions = (RolePermissionTypeCollection)value; break; }
-                case Attributes.UserRolePermissions: { m_userRolePermissions = (RolePermissionTypeCollection)value; break; }
-                case Attributes.AccessRestrictions: { m_accessRestrictions = (ushort)value; break; }
+                case Attributes.BrowseName: m_browseName = (QualifiedName)value; break;
+
+                case Attributes.DisplayName: m_displayName = (LocalizedText)value; break;
+
+                case Attributes.Description: m_description = (LocalizedText)value; break;
+
+                case Attributes.WriteMask: m_writeMask = (uint)value; break;
+
+                case Attributes.UserWriteMask: m_userWriteMask = (uint)value; break;
+
+                case Attributes.RolePermissions: m_rolePermissions = (RolePermissionTypeCollection)value; break;
+
+                case Attributes.UserRolePermissions: m_userRolePermissions = (RolePermissionTypeCollection)value; break;
+
+                case Attributes.AccessRestrictions: m_accessRestrictions = (ushort)value; break;
 
                 default:
-                {
                     return StatusCodes.BadAttributeIdInvalid;
-                }
             }
 
             return ServiceResult.Good;
@@ -500,7 +493,7 @@ namespace Opc.Ua
         #endregion
 
         #region Private Fields
-        private object m_handle = null;
+        private object m_handle;
         private ReferenceCollection m_referenceTable;
         #endregion
     }
@@ -670,9 +663,7 @@ namespace Opc.Ua
                 return 0;
             }
 
-            var reference = obj as ReferenceNode;
-
-            if (reference == null)
+            if (!(obj is ReferenceNode reference))
             {
                 return -1;
             }
@@ -756,7 +747,6 @@ namespace Opc.Ua
         {
             this.NodeClass = NodeClass.Variable;
 
-
             if (source is IVariable variable)
             {
                 this.DataType = variable.DataType;
@@ -839,19 +829,10 @@ namespace Opc.Ua
                 case Attributes.UserAccessLevel:
                 case Attributes.MinimumSamplingInterval:
                 case Attributes.Historizing:
-                {
                     return true;
-                }
 
                 case Attributes.ArrayDimensions:
-                {
-                    if (m_arrayDimensions == null || m_arrayDimensions.Count == 0)
-                    {
-                        return false;
-                    }
-
-                    return true;
-                }
+                    return m_arrayDimensions != null && m_arrayDimensions.Count != 0;
             }
 
             return base.SupportsAttribute(attributeId);
@@ -876,20 +857,16 @@ namespace Opc.Ua
 
                 // values are copied when the are written so then can be safely returned.
                 case Attributes.Value:
-                {
                     return m_value.Value;
-                }
 
                 // array dimensions attribute is not support if it is empty.
                 case Attributes.ArrayDimensions:
-                {
                     if (m_arrayDimensions == null || m_arrayDimensions.Count == 0)
                     {
                         return StatusCodes.BadAttributeIdInvalid;
                     }
 
                     return m_arrayDimensions.ToArray();
-                }
             }
 
             return base.Read(attributeId);
@@ -905,21 +882,22 @@ namespace Opc.Ua
         {
             switch (attributeId)
             {
-                case Attributes.AccessLevel: { m_accessLevel = (byte)value; return ServiceResult.Good; }
-                case Attributes.UserAccessLevel: { m_userAccessLevel = (byte)value; return ServiceResult.Good; }
-                case Attributes.AccessLevelEx: { m_accessLevelEx = (uint)value; return ServiceResult.Good; }
-                case Attributes.MinimumSamplingInterval: { m_minimumSamplingInterval = (int)value; return ServiceResult.Good; }
-                case Attributes.Historizing: { m_historizing = (bool)value; return ServiceResult.Good; }
+                case Attributes.AccessLevel: m_accessLevel = (byte)value; return ServiceResult.Good;
+
+                case Attributes.UserAccessLevel: m_userAccessLevel = (byte)value; return ServiceResult.Good;
+
+                case Attributes.AccessLevelEx: m_accessLevelEx = (uint)value; return ServiceResult.Good;
+
+                case Attributes.MinimumSamplingInterval: m_minimumSamplingInterval = (int)value; return ServiceResult.Good;
+
+                case Attributes.Historizing: m_historizing = (bool)value; return ServiceResult.Good;
 
                 // values are copied when the are written so then can be safely returned on read.
                 case Attributes.Value:
-                {
                     m_value = new Variant(Utils.Clone(value));
                     return ServiceResult.Good;
-                }
 
                 case Attributes.DataType:
-                {
                     var dataType = (NodeId)value;
 
                     // must ensure the value is of the correct datatype.
@@ -930,10 +908,8 @@ namespace Opc.Ua
 
                     m_dataType = dataType;
                     return ServiceResult.Good;
-                }
 
                 case Attributes.ValueRank:
-                {
                     int valueRank = (int)value;
 
                     if (valueRank != m_valueRank)
@@ -944,24 +920,18 @@ namespace Opc.Ua
                     m_valueRank = valueRank;
 
                     return ServiceResult.Good;
-                }
 
                 case Attributes.ArrayDimensions:
-                {
                     m_arrayDimensions = new UInt32Collection((uint[])value);
 
                     // ensure number of dimensions is correct.
-                    if (m_arrayDimensions.Count > 0)
+                    if (m_arrayDimensions.Count > 0 && m_arrayDimensions.Count != m_valueRank)
                     {
-                        if (m_arrayDimensions.Count != m_valueRank)
-                        {
-                            m_valueRank = m_arrayDimensions.Count;
-                            m_value = new Variant(TypeInfo.GetDefaultValue(m_dataType, m_valueRank));
-                        }
+                        m_valueRank = m_arrayDimensions.Count;
+                        m_value = new Variant(TypeInfo.GetDefaultValue(m_dataType, m_valueRank));
                     }
 
                     return ServiceResult.Good;
-                }
             }
 
             return base.Write(attributeId, value);
@@ -985,7 +955,6 @@ namespace Opc.Ua
         {
             this.NodeClass = NodeClass.Object;
 
-
             if (source is IObject node)
             {
                 this.EventNotifier = node.EventNotifier;
@@ -1004,9 +973,7 @@ namespace Opc.Ua
             switch (attributeId)
             {
                 case Attributes.EventNotifier:
-                {
                     return true;
-                }
             }
 
             return base.SupportsAttribute(attributeId);
@@ -1037,7 +1004,7 @@ namespace Opc.Ua
         {
             switch (attributeId)
             {
-                case Attributes.EventNotifier: { m_eventNotifier = (byte)value; return ServiceResult.Good; }
+                case Attributes.EventNotifier: m_eventNotifier = (byte)value; return ServiceResult.Good;
             }
 
             return base.Write(attributeId, value);
@@ -1061,7 +1028,6 @@ namespace Opc.Ua
         {
             this.NodeClass = NodeClass.ObjectType;
 
-
             if (source is IObjectType node)
             {
                 this.IsAbstract = node.IsAbstract;
@@ -1080,9 +1046,7 @@ namespace Opc.Ua
             switch (attributeId)
             {
                 case Attributes.IsAbstract:
-                {
                     return true;
-                }
             }
 
             return base.SupportsAttribute(attributeId);
@@ -1113,7 +1077,7 @@ namespace Opc.Ua
         {
             switch (attributeId)
             {
-                case Attributes.IsAbstract: { m_isAbstract = (bool)value; return ServiceResult.Good; }
+                case Attributes.IsAbstract: m_isAbstract = (bool)value; return ServiceResult.Good;
             }
 
             return base.Write(attributeId, value);
@@ -1136,7 +1100,6 @@ namespace Opc.Ua
         public VariableTypeNode(ILocalNode source) : base(source)
         {
             this.NodeClass = NodeClass.VariableType;
-
 
             if (source is IVariableType node)
             {
@@ -1207,26 +1170,15 @@ namespace Opc.Ua
             switch (attributeId)
             {
                 case Attributes.Value:
-                {
                     return m_value.Value != null;
-                }
 
                 case Attributes.ValueRank:
                 case Attributes.DataType:
                 case Attributes.IsAbstract:
-                {
                     return true;
-                }
 
                 case Attributes.ArrayDimensions:
-                {
-                    if (m_arrayDimensions == null || m_arrayDimensions.Count == 0)
-                    {
-                        return false;
-                    }
-
-                    return true;
-                }
+                    return m_arrayDimensions != null && m_arrayDimensions.Count != 0;
             }
 
             return base.SupportsAttribute(attributeId);
@@ -1246,19 +1198,15 @@ namespace Opc.Ua
 
                 // values are copied when the are written so then can be safely returned.
                 case Attributes.Value:
-                {
                     return m_value.Value;
-                }
 
                 case Attributes.ArrayDimensions:
-                {
                     if (m_arrayDimensions == null || m_arrayDimensions.Count == 0)
                     {
                         return StatusCodes.BadAttributeIdInvalid;
                     }
 
                     return m_arrayDimensions.ToArray();
-                }
             }
 
             return base.Read(attributeId);
@@ -1276,13 +1224,10 @@ namespace Opc.Ua
             {
                 // values are copied when the are written so then can be safely returned on read.
                 case Attributes.Value:
-                {
                     m_value = new Variant(Utils.Clone(value));
                     return ServiceResult.Good;
-                }
 
                 case Attributes.DataType:
-                {
                     var dataType = (NodeId)value;
 
                     // must ensure the value is of the correct datatype.
@@ -1293,10 +1238,8 @@ namespace Opc.Ua
 
                     m_dataType = dataType;
                     return ServiceResult.Good;
-                }
 
                 case Attributes.ValueRank:
-                {
                     int valueRank = (int)value;
 
                     if (valueRank != m_valueRank)
@@ -1307,24 +1250,18 @@ namespace Opc.Ua
                     m_valueRank = valueRank;
 
                     return ServiceResult.Good;
-                }
 
                 case Attributes.ArrayDimensions:
-                {
                     m_arrayDimensions = new UInt32Collection((uint[])value);
 
                     // ensure number of dimensions is correct.
-                    if (m_arrayDimensions.Count > 0)
+                    if (m_arrayDimensions.Count > 0 && m_valueRank != m_arrayDimensions.Count)
                     {
-                        if (m_valueRank != m_arrayDimensions.Count)
-                        {
-                            m_valueRank = m_arrayDimensions.Count;
-                            m_value = Variant.Null;
-                        }
+                        m_valueRank = m_arrayDimensions.Count;
+                        m_value = Variant.Null;
                     }
 
                     return ServiceResult.Good;
-                }
             }
 
             return base.Write(attributeId, value);
@@ -1348,7 +1285,6 @@ namespace Opc.Ua
         {
             this.NodeClass = NodeClass.ReferenceType;
 
-
             if (source is IReferenceType node)
             {
                 this.IsAbstract = node.IsAbstract;
@@ -1371,9 +1307,7 @@ namespace Opc.Ua
                 case Attributes.IsAbstract:
                 case Attributes.InverseName:
                 case Attributes.Symmetric:
-                {
                     return true;
-                }
             }
 
             return base.SupportsAttribute(attributeId);
@@ -1406,9 +1340,11 @@ namespace Opc.Ua
         {
             switch (attributeId)
             {
-                case Attributes.IsAbstract: { m_isAbstract = (bool)value; return ServiceResult.Good; }
-                case Attributes.InverseName: { m_inverseName = (LocalizedText)value; return ServiceResult.Good; }
-                case Attributes.Symmetric: { m_symmetric = (bool)value; return ServiceResult.Good; }
+                case Attributes.IsAbstract: m_isAbstract = (bool)value; return ServiceResult.Good;
+
+                case Attributes.InverseName: m_inverseName = (LocalizedText)value; return ServiceResult.Good;
+
+                case Attributes.Symmetric: m_symmetric = (bool)value; return ServiceResult.Good;
             }
 
             return base.Write(attributeId, value);
@@ -1432,7 +1368,6 @@ namespace Opc.Ua
         {
             this.NodeClass = NodeClass.Method;
 
-
             if (source is IMethod node)
             {
                 this.Executable = node.Executable;
@@ -1453,9 +1388,7 @@ namespace Opc.Ua
             {
                 case Attributes.Executable:
                 case Attributes.UserExecutable:
-                {
                     return true;
-                }
             }
 
             return base.SupportsAttribute(attributeId);
@@ -1487,8 +1420,9 @@ namespace Opc.Ua
         {
             switch (attributeId)
             {
-                case Attributes.Executable: { m_executable = (bool)value; return ServiceResult.Good; }
-                case Attributes.UserExecutable: { m_userExecutable = (bool)value; return ServiceResult.Good; }
+                case Attributes.Executable: m_executable = (bool)value; return ServiceResult.Good;
+
+                case Attributes.UserExecutable: m_userExecutable = (bool)value; return ServiceResult.Good;
             }
 
             return base.Write(attributeId, value);
@@ -1512,7 +1446,6 @@ namespace Opc.Ua
         {
             this.NodeClass = NodeClass.View;
 
-
             if (source is IView node)
             {
                 this.EventNotifier = node.EventNotifier;
@@ -1533,9 +1466,7 @@ namespace Opc.Ua
             {
                 case Attributes.EventNotifier:
                 case Attributes.ContainsNoLoops:
-                {
                     return true;
-                }
             }
 
             return base.SupportsAttribute(attributeId);
@@ -1567,8 +1498,9 @@ namespace Opc.Ua
         {
             switch (attributeId)
             {
-                case Attributes.EventNotifier: { m_eventNotifier = (byte)value; return ServiceResult.Good; }
-                case Attributes.ContainsNoLoops: { m_containsNoLoops = (bool)value; return ServiceResult.Good; }
+                case Attributes.EventNotifier: m_eventNotifier = (byte)value; return ServiceResult.Good;
+
+                case Attributes.ContainsNoLoops: m_containsNoLoops = (bool)value; return ServiceResult.Good;
             }
 
             return base.Write(attributeId, value);
@@ -1592,7 +1524,6 @@ namespace Opc.Ua
         {
             this.NodeClass = NodeClass.DataType;
 
-
             if (source is IDataType node)
             {
                 this.IsAbstract = node.IsAbstract;
@@ -1612,9 +1543,7 @@ namespace Opc.Ua
             {
                 case Attributes.IsAbstract:
                 case Attributes.DataTypeDefinition:
-                {
                     return true;
-                }
             }
 
             return base.SupportsAttribute(attributeId);
@@ -1646,8 +1575,9 @@ namespace Opc.Ua
         {
             switch (attributeId)
             {
-                case Attributes.IsAbstract: { m_isAbstract = (bool)value; return ServiceResult.Good; }
-                case Attributes.DataTypeDefinition: { m_dataTypeDefinition = (ExtensionObject)value; return ServiceResult.Good; }
+                case Attributes.IsAbstract: m_isAbstract = (bool)value; return ServiceResult.Good;
+
+                case Attributes.DataTypeDefinition: m_dataTypeDefinition = (ExtensionObject)value; return ServiceResult.Good;
             }
 
             return base.Write(attributeId, value);

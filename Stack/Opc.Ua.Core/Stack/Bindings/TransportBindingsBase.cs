@@ -48,7 +48,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Dictionary of bindings.
         /// </summary>
-        protected Dictionary<string, T> Bindings { get; private set; }
+        protected Dictionary<string, T> Bindings { get; }
         #endregion
 
         #region ITransportBindings
@@ -71,11 +71,7 @@ namespace Opc.Ua.Bindings
         public bool HasBinding(string uriScheme)
         {
             T binding;
-            if (Bindings.TryGetValue(uriScheme, out binding))
-            {
-                return true;
-            }
-            return false;
+            return Bindings.TryGetValue(uriScheme, out binding);
         }
 
         /// <inheritdoc/>

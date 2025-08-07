@@ -35,7 +35,6 @@ using System.Xml;
 using NUnit.Framework;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
-
 namespace Opc.Ua.Core.Tests.Types.Encoders
 {
     /// <summary>
@@ -107,8 +106,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 }
             }
 
-            string objectName = "Array";
-            BuiltInType builtInType = BuiltInType.Variant;
+            const string objectName = "Array";
+            const BuiltInType builtInType = BuiltInType.Variant;
 
             byte[] buffer;
             using (MemoryStream encoderStream = CreateEncoderMemoryStream(memoryStreamType))
@@ -181,8 +180,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 }
             }
 
-            string objectName = "Matrix";
-            BuiltInType builtInType = BuiltInType.Variant;
+            const string objectName = "Matrix";
+            const BuiltInType builtInType = BuiltInType.Variant;
 
             var matrix = new Matrix(array, builtInType, dimensions);
 

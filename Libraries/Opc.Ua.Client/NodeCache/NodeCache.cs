@@ -231,8 +231,7 @@ namespace Opc.Ua.Client
             QualifiedName browseName)
         {
             // find the source.
-            var source = Find(sourceId) as Node;
-            if (source == null)
+            if (!(Find(sourceId) is Node source))
             {
                 return null;
             }
@@ -249,7 +248,6 @@ namespace Opc.Ua.Client
             {
                 m_cacheLock.ExitReadLock();
             }
-
 
             foreach (IReference reference in references)
             {
@@ -280,9 +278,7 @@ namespace Opc.Ua.Client
             var hits = new List<INode>();
 
             // find the source.
-            var source = Find(sourceId) as Node;
-
-            if (source == null)
+            if (!(Find(sourceId) is Node source))
             {
                 return hits;
             }
@@ -298,7 +294,6 @@ namespace Opc.Ua.Client
             {
                 m_cacheLock.ExitReadLock();
             }
-
 
             foreach (IReference reference in references)
             {
@@ -378,7 +373,6 @@ namespace Opc.Ua.Client
             {
                 m_cacheLock.ExitReadLock();
             }
-
         }
 
         /// <inheritdoc/>
@@ -400,7 +394,6 @@ namespace Opc.Ua.Client
             {
                 m_cacheLock.ExitReadLock();
             }
-
         }
 
         /// <inheritdoc/>
@@ -445,9 +438,7 @@ namespace Opc.Ua.Client
                 return true;
             }
 
-            var subtype = Find(subTypeId) as ILocalNode;
-
-            if (subtype == null)
+            if (!(Find(subTypeId) is ILocalNode subtype))
             {
                 return false;
             }
@@ -487,9 +478,7 @@ namespace Opc.Ua.Client
                 return true;
             }
 
-            var subtype = Find(subTypeId) as ILocalNode;
-
-            if (subtype == null)
+            if (!(Find(subTypeId) is ILocalNode subtype))
             {
                 return false;
             }
@@ -552,9 +541,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public bool IsEncodingOf(ExpandedNodeId encodingId, ExpandedNodeId datatypeId)
         {
-            var encoding = Find(encodingId) as ILocalNode;
-
-            if (encoding == null)
+            if (!(Find(encodingId) is ILocalNode encoding))
             {
                 return false;
             }
@@ -599,9 +586,7 @@ namespace Opc.Ua.Client
             }
 
             // find the encoding.
-            var encoding = Find(value.TypeId) as ILocalNode;
-
-            if (encoding == null)
+            if (!(Find(value.TypeId) is ILocalNode encoding))
             {
                 return false;
             }
@@ -694,9 +679,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public NodeId FindDataTypeId(ExpandedNodeId encodingId)
         {
-            var encoding = Find(encodingId) as ILocalNode;
-
-            if (encoding == null)
+            if (!(Find(encodingId) is ILocalNode encoding))
             {
                 return NodeId.Null;
             }
@@ -724,9 +707,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public NodeId FindDataTypeId(NodeId encodingId)
         {
-            var encoding = Find(encodingId) as ILocalNode;
-
-            if (encoding == null)
+            if (!(Find(encodingId) is ILocalNode encoding))
             {
                 return NodeId.Null;
             }
@@ -770,9 +751,7 @@ namespace Opc.Ua.Client
             {
                 for (int ii = 0; ii < predefinedNodes.Count; ii++)
                 {
-                    var type = predefinedNodes[ii] as BaseTypeState;
-
-                    if (type == null)
+                    if (!(predefinedNodes[ii] is BaseTypeState type))
                     {
                         continue;
                     }
@@ -885,9 +864,7 @@ namespace Opc.Ua.Client
                 if (!ServiceResult.IsBad(fetchErrors[ii]))
                 {
                     // fetch references from server.
-                    ReferenceDescriptionCollection references = referenceCollectionList[ii];
-
-                    foreach (ReferenceDescription reference in references)
+                    foreach (ReferenceDescription reference in referenceCollectionList[ii])
                     {
                         m_cacheLock.EnterUpgradeableReadLock();
                         try
@@ -926,9 +903,7 @@ namespace Opc.Ua.Client
         public void FetchSuperTypes(ExpandedNodeId nodeId)
         {
             // find the target node,
-            var source = Find(nodeId) as ILocalNode;
-
-            if (source == null)
+            if (!(Find(nodeId) is ILocalNode source))
             {
                 return;
             }
@@ -960,9 +935,7 @@ namespace Opc.Ua.Client
         {
             IList<INode> targets = new List<INode>();
 
-            var source = Find(nodeId) as Node;
-
-            if (source == null)
+            if (!(Find(nodeId) is Node source))
             {
                 return targets;
             }
@@ -982,9 +955,7 @@ namespace Opc.Ua.Client
             var targetIds = new ExpandedNodeIdCollection(
                 references.Select(reference => reference.TargetId));
 
-            IList<INode> result = Find(targetIds);
-
-            foreach (INode target in result)
+            foreach (INode target in Find(targetIds))
             {
                 if (target != null)
                 {
@@ -1007,8 +978,7 @@ namespace Opc.Ua.Client
                 return targets;
             }
             var targetIds = new ExpandedNodeIdCollection();
-            IList<INode> sources = Find(nodeIds);
-            foreach (INode source in sources)
+            foreach (INode source in Find(nodeIds))
             {
                 if (!(source is Node node))
                 {
@@ -1034,8 +1004,7 @@ namespace Opc.Ua.Client
                 }
             }
 
-            IList<INode> result = Find(targetIds);
-            foreach (INode target in result)
+            foreach (INode target in Find(targetIds))
             {
                 if (target != null)
                 {
@@ -1056,9 +1025,7 @@ namespace Opc.Ua.Client
             }
 
             // check for remote node.
-            var target = node as Node;
-
-            if (target == null)
+            if (!(node is Node target))
             {
                 return node.ToString();
             }

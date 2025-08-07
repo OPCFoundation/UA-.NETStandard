@@ -204,7 +204,7 @@ namespace Opc.Ua.Bindings
         /// <inheritdoc/>
         public override int ReadByte()
         {
-            do
+            while (true)
             {
                 // check for end of stream.
                 if (m_currentBuffer.Array == null)
@@ -226,8 +226,7 @@ namespace Opc.Ua.Bindings
 
                 // move to next buffer.
                 SetCurrentBuffer(m_bufferIndex + 1);
-
-            } while (true);
+            }
         }
 
 #if STREAM_WITH_SPAN_SUPPORT
@@ -381,7 +380,7 @@ namespace Opc.Ua.Bindings
         /// <inheritdoc/>
         public override void WriteByte(byte value)
         {
-            do
+            while (true)
             {
                 // allocate new buffer if necessary
                 CheckEndOfStream();
@@ -403,8 +402,7 @@ namespace Opc.Ua.Bindings
 
                 // move to next buffer.
                 SetCurrentBuffer(m_bufferIndex + 1);
-
-            } while (true);
+            }
         }
 
 #if STREAM_WITH_SPAN_SUPPORT
@@ -519,12 +517,9 @@ namespace Opc.Ua.Bindings
         {
             m_currentPosition += count;
 
-            if (m_bufferIndex == m_buffers.Count - 1)
+            if (m_bufferIndex == m_buffers.Count - 1 && m_endOfLastBuffer < m_currentPosition)
             {
-                if (m_endOfLastBuffer < m_currentPosition)
-                {
-                    m_endOfLastBuffer = m_currentPosition;
-                }
+                m_endOfLastBuffer = m_currentPosition;
             }
         }
 

@@ -32,8 +32,8 @@ namespace Opc.Ua
             RequestEncoding messageEncoding)
         {
             SecureChannelId = secureChannelId;
-            m_endpointDescription = endpointDescription;
-            m_messageEncoding = messageEncoding;
+            EndpointDescription = endpointDescription;
+            MessageEncoding = messageEncoding;
         }
 
         /// <summary>
@@ -46,8 +46,8 @@ namespace Opc.Ua
             if (context != null)
             {
                 SecureChannelId = context.SecureChannelId;
-                m_endpointDescription = context.EndpointDescription;
-                m_messageEncoding = context.MessageEncoding;
+                EndpointDescription = context.EndpointDescription;
+                MessageEncoding = context.MessageEncoding;
             }
         }
         #endregion
@@ -63,19 +63,13 @@ namespace Opc.Ua
         /// The description of the endpoint used with the channel.
         /// </summary>
         /// <value>The endpoint description.</value>
-        public EndpointDescription EndpointDescription
-        {
-            get { return m_endpointDescription; }
-        }
+        public EndpointDescription EndpointDescription { get; }
 
         /// <summary>
         /// The encoding used with the channel.
         /// </summary>
         /// <value>The message encoding.</value>
-        public RequestEncoding MessageEncoding
-        {
-            get { return m_messageEncoding; }
-        }
+        public RequestEncoding MessageEncoding { get; }
         #endregion
 
         #region Static Members
@@ -98,8 +92,6 @@ namespace Opc.Ua
 
 #endregion
 #region Private Fields
-        private readonly EndpointDescription m_endpointDescription;
-        private readonly RequestEncoding m_messageEncoding;
         private static readonly ThreadLocal<SecureChannelContext> s_Dataslot = new ThreadLocal<SecureChannelContext>();
         #endregion
     }

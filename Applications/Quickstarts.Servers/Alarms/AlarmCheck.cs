@@ -51,6 +51,5 @@ namespace Alarms
         /// ModellingRule Exists
         /// </summary>
         public bool Exists { get; set; }
-
     }
 }

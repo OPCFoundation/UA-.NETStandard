@@ -119,9 +119,7 @@ namespace Opc.Ua.Server
                 // start thread to monitor sessions.
                 m_shutdownEvent.Reset();
 
-                Task.Factory.StartNew(() => {
-                    MonitorSessions(m_minSessionTimeout);
-                }, TaskCreationOptions.LongRunning | TaskCreationOptions.DenyChildAttach);
+                Task.Factory.StartNew(() => MonitorSessions(m_minSessionTimeout), TaskCreationOptions.LongRunning | TaskCreationOptions.DenyChildAttach);
             }
         }
 
@@ -192,12 +190,9 @@ namespace Opc.Ua.Server
 
                 // can assign a simple identifier if secured.
                 authenticationToken = null;
-                if (!string.IsNullOrEmpty(context.ChannelContext.SecureChannelId))
+                if (!string.IsNullOrEmpty(context.ChannelContext.SecureChannelId) && context.ChannelContext.EndpointDescription.SecurityMode != MessageSecurityMode.None)
                 {
-                    if (context.ChannelContext.EndpointDescription.SecurityMode != MessageSecurityMode.None)
-                    {
-                        authenticationToken = new NodeId(Utils.IncrementIdentifier(ref m_lastSessionId));
-                    }
+                    authenticationToken = new NodeId(Utils.IncrementIdentifier(ref m_lastSessionId));
                 }
 
                 // must assign a hard-to-guess id if not secured.
@@ -220,7 +215,6 @@ namespace Opc.Ua.Server
 
                 // create server nonce.
                 var serverNonceObject = Nonce.CreateNonce(context.ChannelContext.EndpointDescription.SecurityPolicyUri);
-
 
                 // assign client name.
                 if (string.IsNullOrEmpty(sessionName))
@@ -363,13 +357,8 @@ namespace Opc.Ua.Server
                     effectiveIdentity = identity;
                 }
             }
-            catch (Exception e)
+            catch (Exception e) when (e is not ServiceResultException)
             {
-                if (e is ServiceResultException)
-                {
-                    throw;
-                }
-
                 throw ServiceResultException.Create(
                     StatusCodes.BadIdentityTokenInvalid,
                     e,
@@ -450,7 +439,7 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <remarks>
         /// This method verifies that the session id is valid and that it uses secure channel id
-        /// associated with current thread. It also verifies that the timestamp is not too 
+        /// associated with current thread. It also verifies that the timestamp is not too
         /// and that the sequence number is not out of order (update requests only).
         /// </remarks>
         public virtual OperationContext ValidateRequest(RequestHeader requestHeader, RequestType requestType)
@@ -504,12 +493,9 @@ namespace Opc.Ua.Server
             {
                 var sre = e as ServiceResultException;
 
-                if (sre != null && sre.StatusCode == StatusCodes.BadSessionNotActivated)
+                if (sre != null && sre.StatusCode == StatusCodes.BadSessionNotActivated && session != null)
                 {
-                    if (session != null)
-                    {
-                        CloseSession(session.Id);
-                    }
+                    CloseSession(session.Id);
                 }
 
                 throw new ServiceResultException(e, StatusCodes.BadUnexpectedError);
@@ -538,7 +524,7 @@ namespace Opc.Ua.Server
             int maxRequestAge, // TBD - Remove unused parameter.
             int maxContinuationPoints) // TBD - Remove unused parameter.
         {
-            var session = new Session(
+            return new Session(
                 context,
                 m_server,
                 serverCertificate,
@@ -555,8 +541,6 @@ namespace Opc.Ua.Server
                 m_maxRequestAge,
                 m_maxBrowseContinuationPoints,
                 m_maxHistoryContinuationPoints);
-
-            return session;
         }
 
         /// <summary>
@@ -570,10 +554,13 @@ namespace Opc.Ua.Server
 
                 switch (reason)
                 {
-                    case SessionEventReason.Created: { handler = m_sessionCreated; break; }
-                    case SessionEventReason.Activated: { handler = m_sessionActivated; break; }
-                    case SessionEventReason.Closing: { handler = m_sessionClosing; break; }
-                    case SessionEventReason.ChannelKeepAlive: { handler = m_sessionChannelKeepAlive; break; }
+                    case SessionEventReason.Created: handler = m_sessionCreated; break;
+
+                    case SessionEventReason.Activated: handler = m_sessionActivated; break;
+
+                    case SessionEventReason.Closing: handler = m_sessionClosing; break;
+
+                    case SessionEventReason.ChannelKeepAlive: handler = m_sessionChannelKeepAlive; break;
                 }
 
                 if (handler != null)
@@ -603,7 +590,7 @@ namespace Opc.Ua.Server
 
                 int sleepCycle = Convert.ToInt32(data, CultureInfo.InvariantCulture);
 
-                do
+                while (true)
                 {
                     // enumerator is thread safe
                     foreach (KeyValuePair<NodeId, ISession> sessionKeyValue in m_sessions)
@@ -636,7 +623,6 @@ namespace Opc.Ua.Server
                         break;
                     }
                 }
-                while (true);
             }
             catch (Exception e)
             {
@@ -798,7 +784,6 @@ namespace Opc.Ua.Server
                 return [.. m_sessions.Values];
             }
         }
-
 
         /// <inheritdoc/>
         public ISession GetSession(NodeId authenticationToken)

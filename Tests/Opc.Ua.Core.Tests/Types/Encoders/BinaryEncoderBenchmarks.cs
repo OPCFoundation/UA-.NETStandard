@@ -58,7 +58,6 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             }
         }
 
-
         /// <summary>
         /// Test encoding with internal memory stream,
         /// uses reflection to get array from memory stream.

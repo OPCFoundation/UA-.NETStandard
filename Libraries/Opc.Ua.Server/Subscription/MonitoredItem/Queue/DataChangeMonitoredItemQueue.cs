@@ -46,7 +46,7 @@ namespace Opc.Ua.Server
                 Utils.LogError("DataChangeMonitoredItemQueue does not support durable queues, please provide full implementation of IDurableMonitoredItemQueue using Server.CreateDurableMonitoredItemQueueFactory to supply own factory");
                 throw new ArgumentException("DataChangeMonitoredItemQueue does not support durable Queues", nameof(createDurable));
             }
-            m_monitoredItemId = monitoredItemId;
+            MonitoredItemId = monitoredItemId;
             m_values = null;
             m_errors = null;
             m_start = -1;
@@ -55,7 +55,7 @@ namespace Opc.Ua.Server
 
         #region Public Methods
         /// <inheritdoc/>
-        public uint MonitoredItemId => m_monitoredItemId;
+        public uint MonitoredItemId { get; }
 
         /// <summary>
         /// Gets the current queue size.
@@ -95,7 +95,6 @@ namespace Opc.Ua.Server
         }
         /// <inheritdoc/>
         public virtual bool IsDurable => false;
-
 
         /// <summary>
         /// Adds the value to the queue.
@@ -278,10 +277,8 @@ namespace Opc.Ua.Server
             return m_values[m_start];
         }
 
-        #endregion
-
-        #region Private Fields
-        private readonly uint m_monitoredItemId;
+#endregion
+#region Private Fields
         /// <summary>
         /// the stored data values
         /// </summary>

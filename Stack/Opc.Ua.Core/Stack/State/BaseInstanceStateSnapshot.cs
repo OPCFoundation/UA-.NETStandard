@@ -67,15 +67,7 @@ namespace Opc.Ua
         /// </returns>
         public bool IsTypeOf(FilterContext context, NodeId typeDefinitionId)
         {
-            if (!NodeId.IsNull(typeDefinitionId))
-            {
-                if (!context.TypeTree.IsTypeOf(m_typeDefinitionId, typeDefinitionId))
-                {
-                    return false;
-                }
-            }
-
-            return true;
+            return NodeId.IsNull(typeDefinitionId) || context.TypeTree.IsTypeOf(m_typeDefinitionId, typeDefinitionId);
         }
 
         /// <summary>
@@ -96,12 +88,9 @@ namespace Opc.Ua
             uint attributeId,
             NumericRange indexRange)
         {
-            if (!NodeId.IsNull(typeDefinitionId))
+            if (!NodeId.IsNull(typeDefinitionId) && !context.TypeTree.IsTypeOf(m_typeDefinitionId, typeDefinitionId))
             {
-                if (!context.TypeTree.IsTypeOf(m_typeDefinitionId, typeDefinitionId))
-                {
-                    return null;
-                }
+                return null;
             }
 
             object value = InstanceStateSnapshot.GetAttributeValue(
@@ -196,15 +185,10 @@ namespace Opc.Ua
             node.NodeClass = state.NodeClass;
             node.BrowseName = state.BrowseName;
 
-
-            if (state is BaseVariableState variable)
+            if (state is BaseVariableState variable && !StatusCode.IsBad(variable.StatusCode))
             {
-                if (!StatusCode.IsBad(variable.StatusCode))
-                {
-                    node.Value = Utils.Clone(variable.Value);
-                }
+                node.Value = Utils.Clone(variable.Value);
             }
-
 
             if (state is BaseObjectState instance)
             {
@@ -217,7 +201,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Recursively stores the the current value for Object and Variable child nodes.
+        /// Recursively stores the current value for Object and Variable child nodes.
         /// </summary>
         /// <param name="context">The context.</param>
         /// <param name="state">The state.</param>

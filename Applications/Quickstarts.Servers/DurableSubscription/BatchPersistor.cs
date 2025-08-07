@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -46,7 +45,7 @@ namespace Quickstarts.Servers
     {
         private static readonly JsonSerializerSettings s_settings = new JsonSerializerSettings { TypeNameHandling = TypeNameHandling.All };
         private static readonly string s_storage_path = Path.Combine(Environment.CurrentDirectory, "Durable Subscriptions", "Batches");
-        private static readonly string s_baseFilename = "_batch.txt";
+        private const string s_baseFilename = "_batch.txt";
 
         #region IBatchPersistor Members
         /// <inheritdoc/>
@@ -79,7 +78,6 @@ namespace Quickstarts.Servers
                         batch.CancelBatchPersist?.Cancel();
                     }
                     return;
-
                 }
 
                 batch.RestoreInProgress = true;
@@ -190,7 +188,7 @@ namespace Quickstarts.Servers
                     var directory = new DirectoryInfo(s_storage_path);
 
                     // Create a single regex pattern that matches any of the batches to keep
-                    string pattern = string.Join("|", batchesToKeep.Select(batch => $@"{batch}_.*{s_baseFilename}$"));
+                    string pattern = string.Join("|", batchesToKeep.Select(batch => $"{batch}_.*{s_baseFilename}$"));
                     var regex = new Regex(pattern, RegexOptions.Compiled);
 
                     foreach (FileInfo file in directory.GetFiles())
@@ -206,7 +204,6 @@ namespace Quickstarts.Servers
             {
                 Opc.Ua.Utils.LogWarning(ex, "Failed to clean up batches");
             }
-
         }
 
         public void DeleteBatch(BatchBase batchToRemove)
@@ -216,7 +213,7 @@ namespace Quickstarts.Servers
                 if (Directory.Exists(s_storage_path))
                 {
                     var directory = new DirectoryInfo(s_storage_path);
-                    var regex = new Regex($@"{batchToRemove.MonitoredItemId}_.{batchToRemove.Id}._{s_baseFilename}$", RegexOptions.Compiled);
+                    var regex = new Regex($"{batchToRemove.MonitoredItemId}_.{batchToRemove.Id}._{s_baseFilename}$", RegexOptions.Compiled);
 
                     foreach (FileInfo file in directory.GetFiles())
                     {
@@ -232,7 +229,6 @@ namespace Quickstarts.Servers
             {
                 Opc.Ua.Utils.LogWarning(ex, "Failed to clean up single batch");
             }
-
         }
 
         private readonly ConcurrentDictionary<Guid, BatchBase> m_batchesToRestore = new ConcurrentDictionary<Guid, BatchBase>();

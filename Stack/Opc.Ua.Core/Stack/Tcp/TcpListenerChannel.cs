@@ -133,7 +133,6 @@ namespace Opc.Ua.Bindings
                 Utils.LogTrace("{0} SOCKET ATTACHED: {1:X8}, ChannelId={2}", ChannelName, Socket.Handle, ChannelId);
 
                 Socket.ReadNextMessage();
-
             }
         }
 
@@ -169,9 +168,6 @@ namespace Opc.Ua.Bindings
         /// Has the channel been used in a session
         /// </summary>
         public bool UsedBySession { get; protected set; }
-        #endregion
-
-        #region Socket Event Handlers
         #endregion
 
         #region Error Handling Functions
@@ -217,7 +213,6 @@ namespace Opc.Ua.Bindings
         {
             lock (DataLock)
             {
-
                 CompleteReverseHello(new ServiceResultException(reason));
 
                 // nothing to do if channel already in a faulted state.
@@ -248,12 +243,9 @@ namespace Opc.Ua.Bindings
                 }
 
                 // send error and close response.
-                if (Socket != null)
+                if (Socket != null && m_responseRequired)
                 {
-                    if (m_responseRequired)
-                    {
-                        SendErrorMessage(reason);
-                    }
+                    SendErrorMessage(reason);
                 }
 
                 State = TcpChannelState.Faulted;
@@ -289,7 +281,6 @@ namespace Opc.Ua.Bindings
         {
             lock (DataLock)
             {
-
                 // nothing to do if the channel is now open or closed.
                 if (State is TcpChannelState.Closed or TcpChannelState.Open)
                 {
@@ -596,5 +587,4 @@ namespace Opc.Ua.Bindings
     /// Used to report an open secure channel audit event.
     /// </summary>
     public delegate void ReportAuditCertificateEventHandler(X509Certificate2 clientCertificate, Exception exception);
-
 }

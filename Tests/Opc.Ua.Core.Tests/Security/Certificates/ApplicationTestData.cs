@@ -61,5 +61,4 @@ namespace Opc.Ua.Core.Tests
         public byte[] PrivateKey;
         public byte[][] IssuerCertificates;
     }
-
 }

@@ -142,7 +142,6 @@ namespace Opc.Ua
         {
             base.Export(context, node);
 
-
             if (node is ReferenceTypeNode referenceTypeNode)
             {
                 referenceTypeNode.InverseName = this.InverseName;
@@ -299,7 +298,6 @@ namespace Opc.Ua
             switch (attributeId)
             {
                 case Attributes.InverseName:
-                {
                     LocalizedText inverseName = m_inverseName;
 
                     NodeAttributeEventHandler<LocalizedText> onReadInverseName = OnReadInverseName;
@@ -322,10 +320,8 @@ namespace Opc.Ua
                     }
 
                     return result;
-                }
 
                 case Attributes.Symmetric:
-                {
                     bool symmetric = m_symmetric;
 
                     NodeAttributeEventHandler<bool> onReadSymmetric = OnReadSymmetric;
@@ -341,7 +337,6 @@ namespace Opc.Ua
                     }
 
                     return result;
-                }
             }
 
             return base.ReadNonValueAttribute(context, attributeId, ref value);
@@ -362,7 +357,6 @@ namespace Opc.Ua
             switch (attributeId)
             {
                 case Attributes.InverseName:
-                {
                     var inverseName = value as LocalizedText;
 
                     if (inverseName == null && value != null)
@@ -388,10 +382,8 @@ namespace Opc.Ua
                     }
 
                     return result;
-                }
 
                 case Attributes.Symmetric:
-                {
                     bool? symmetricRef = value as bool?;
 
                     if (symmetricRef == null)
@@ -419,7 +411,6 @@ namespace Opc.Ua
                     }
 
                     return result;
-                }
             }
 
             return base.WriteNonValueAttribute(context, attributeId, value);

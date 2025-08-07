@@ -75,10 +75,8 @@ namespace MemoryBuffer
             switch (dataType)
             {
                 case "Double":
-                {
                     elementType = BuiltInType.Double;
                     break;
-                }
             }
 
             CreateBuffer(elementType, count);
@@ -145,10 +143,8 @@ namespace MemoryBuffer
             switch (elementName)
             {
                 case "Double":
-                {
                     elementType = BuiltInType.Double;
                     break;
-                }
             }
 
             CreateBuffer(elementType, noOfElements);
@@ -169,16 +165,12 @@ namespace MemoryBuffer
                 switch (m_elementType)
                 {
                     case BuiltInType.UInt32:
-                    {
                         m_elementSize = 4;
                         break;
-                    }
 
                     case BuiltInType.Double:
-                    {
                         m_elementSize = 8;
                         break;
-                    }
                 }
 
                 m_lastScanTime = DateTime.UtcNow;
@@ -230,9 +222,7 @@ namespace MemoryBuffer
             ref StatusCode statusCode,
             ref DateTime timestamp)
         {
-            var tag = node as MemoryTagState;
-
-            if (tag == null)
+            if (!(node is MemoryTagState tag))
             {
                 return StatusCodes.BadNodeIdUnknown;
             }
@@ -282,9 +272,7 @@ namespace MemoryBuffer
             ref StatusCode statusCode,
             ref DateTime timestamp)
         {
-            var tag = node as MemoryTagState;
-
-            if (tag == null)
+            if (!(node is MemoryTagState tag))
             {
                 return StatusCodes.BadNodeIdUnknown;
             }
@@ -355,19 +343,14 @@ namespace MemoryBuffer
                     }
 
                     default:
-                    {
                         return StatusCodes.BadNodeIdUnknown;
-                    }
                 }
 
                 for (int ii = 0; ii < bytes.Length; ii++)
                 {
-                    if (!changed)
+                    if (!changed && m_buffer[offset + ii] != bytes[ii])
                     {
-                        if (m_buffer[offset + ii] != bytes[ii])
-                        {
-                            changed = true;
-                        }
+                        changed = true;
                     }
 
                     m_buffer[offset + ii] = bytes[ii];
@@ -402,14 +385,10 @@ namespace MemoryBuffer
                 switch (m_elementType)
                 {
                     case BuiltInType.UInt32:
-                    {
                         return new Variant(BitConverter.ToUInt32(m_buffer, offset));
-                    }
 
                     case BuiltInType.Double:
-                    {
                         return new Variant(BitConverter.ToDouble(m_buffer, offset));
-                    }
                 }
 
                 return Variant.Null;

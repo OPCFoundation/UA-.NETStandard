@@ -34,7 +34,7 @@ using System.Text;
 namespace Opc.Ua.Server
 {
     /// <summary>
-    /// Calculates the value of an aggregate. 
+    /// Calculates the value of an aggregate.
     /// </summary>
     public class AverageAggregateCalculator : AggregateCalculator
     {
@@ -55,7 +55,7 @@ namespace Opc.Ua.Server
             double processingInterval,
             bool stepped,
             AggregateConfiguration configuration)
-        : 
+        :
             base(aggregateId, startTime, endTime, processingInterval, stepped, configuration)
         {
             SetPartialBit = aggregateId != Opc.Ua.ObjectIds.AggregateFunction_Average;
@@ -75,29 +75,19 @@ namespace Opc.Ua.Server
                 switch (id.Value)
                 {
                     case Objects.AggregateFunction_Average:
-                    {
                         return ComputeAverage(slice);
-                    }
 
                     case Objects.AggregateFunction_TimeAverage:
-                    {
                         return ComputeTimeAverage(slice, false, 1);
-                    }
 
                     case Objects.AggregateFunction_Total:
-                    {
                         return ComputeTimeAverage(slice, false, 2);
-                    }
 
                     case Objects.AggregateFunction_TimeAverage2:
-                    {
                         return ComputeTimeAverage(slice, true, 1);
-                    }
 
                     case Objects.AggregateFunction_Total2:
-                    {
                         return ComputeTimeAverage(slice, true, 2);
-                    }
                 }
             }
 
@@ -219,8 +209,9 @@ namespace Opc.Ua.Server
 
             switch (valueType)
             {
-                case 1: { result = total/totalDuration; break; }
-                case 2: { result = total; break; }
+                case 1: result = total / totalDuration; break;
+
+                case 2: result = total; break;
             }
 
             // set the timestamp and status.

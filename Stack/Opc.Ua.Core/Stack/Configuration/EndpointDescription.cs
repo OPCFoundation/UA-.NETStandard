@@ -32,12 +32,9 @@ namespace Opc.Ua
 
             var parsedUrl = new UriBuilder(url);
 
-            if (Utils.IsUriHttpRelatedScheme(parsedUrl.Scheme))
+            if (Utils.IsUriHttpRelatedScheme(parsedUrl.Scheme) && !parsedUrl.Path.EndsWith(ConfiguredEndpoint.DiscoverySuffix, StringComparison.OrdinalIgnoreCase))
             {
-                if (!parsedUrl.Path.EndsWith(ConfiguredEndpoint.DiscoverySuffix, StringComparison.OrdinalIgnoreCase))
-                {
-                    parsedUrl.Path += ConfiguredEndpoint.DiscoverySuffix;
-                }
+                parsedUrl.Path += ConfiguredEndpoint.DiscoverySuffix;
             }
 
             Server.DiscoveryUrls.Add(parsedUrl.ToString());
@@ -68,9 +65,7 @@ namespace Opc.Ua
                 switch (TransportProfileUri)
                 {
                     case Profiles.HttpsBinaryTransport:
-                    {
                         return BinaryEncodingSupport.Required;
-                    }
                 }
 
                 return BinaryEncodingSupport.None;
@@ -106,8 +101,8 @@ namespace Opc.Ua
                         return policy;
                     }
                     else if (
-                        policy.SecurityPolicyUri != null && tokenSecurityPolicyUri != null &&
-                        EccUtils.IsEccPolicy(policy.SecurityPolicyUri) && EccUtils.IsEccPolicy(tokenSecurityPolicyUri) ||
+                        (policy.SecurityPolicyUri != null && tokenSecurityPolicyUri != null &&
+                        EccUtils.IsEccPolicy(policy.SecurityPolicyUri) && EccUtils.IsEccPolicy(tokenSecurityPolicyUri)) ||
                         (!EccUtils.IsEccPolicy(policy.SecurityPolicyUri) && !EccUtils.IsEccPolicy(tokenSecurityPolicyUri))
                         )
                     {
@@ -168,8 +163,8 @@ namespace Opc.Ua
                         return policy;
                     }
                     else if (
-                        policy.SecurityPolicyUri != null && tokenSecurityPolicyUri != null &&
-                        EccUtils.IsEccPolicy(policy.SecurityPolicyUri) && EccUtils.IsEccPolicy(tokenSecurityPolicyUri) ||
+                        (policy.SecurityPolicyUri != null && tokenSecurityPolicyUri != null &&
+                        EccUtils.IsEccPolicy(policy.SecurityPolicyUri) && EccUtils.IsEccPolicy(tokenSecurityPolicyUri)) ||
                         (!EccUtils.IsEccPolicy(policy.SecurityPolicyUri) && !EccUtils.IsEccPolicy(tokenSecurityPolicyUri))
                         )
                     {
@@ -194,7 +189,6 @@ namespace Opc.Ua
             }
             // The first token with unspecified security policy follows / no policy
             return unspecifiedSecPolicy;
-
         }
         #endregion
 

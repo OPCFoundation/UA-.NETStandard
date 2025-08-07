@@ -91,7 +91,5 @@ namespace Opc.Ua
         public IEncodeableFactory Factory { get; set; }
 
 #endregion
-#region Private Fields
-        #endregion
     }
 }

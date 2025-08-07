@@ -50,7 +50,7 @@ namespace Quickstarts.ReferenceServer
         /// Initializes the object during deserialization.
         /// </summary>
         [OnDeserializing()]
-        private void Initialize(StreamingContext context)
+        private static void Initialize(StreamingContext context)
         {
             Initialize();
         }
@@ -68,15 +68,8 @@ namespace Quickstarts.ReferenceServer
         /// Whether the user dialog for accepting invalid certificates should be displayed.
         /// </summary>
         [DataMember(Order = 1)]
-        public bool ShowCertificateValidationDialog
-        {
-            get { return m_showCertificateValidationDialog; }
-            set { m_showCertificateValidationDialog = value; }
-        }
-        #endregion
+        public bool ShowCertificateValidationDialog { get; set; }
 
-        #region Private Members
-        private bool m_showCertificateValidationDialog;
         #endregion
     }
 }

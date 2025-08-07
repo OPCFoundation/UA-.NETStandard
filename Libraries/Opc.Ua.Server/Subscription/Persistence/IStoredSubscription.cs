@@ -45,7 +45,7 @@ namespace Opc.Ua.Server
         /// </summary>
         bool IsDurable { get; set; }
         /// <summary>
-        /// The lifetime counter 
+        /// The lifetime counter
         /// </summary>
         uint LifetimeCounter { get; set; }
         /// <summary>

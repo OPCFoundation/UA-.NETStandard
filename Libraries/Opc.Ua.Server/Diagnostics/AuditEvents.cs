@@ -410,7 +410,6 @@ namespace Opc.Ua.Server
             {
                 Utils.LogError(ex, "Error while reporting AuditHistoryAtTimeDeleteEvent event.");
             }
-
         }
 
         /// <summary>
@@ -739,7 +738,7 @@ namespace Opc.Ua.Server
         /// <param name="auditEntryId">The audit entry id.</param>
         /// <param name="session">The session object that was created.</param>
         /// <param name="revisedSessionTimeout">The revised session timeout</param>
-        /// <param name="exception">The exception received during create session request</param> 
+        /// <param name="exception">The exception received during create session request</param>
         public static void ReportAuditCreateSessionEvent(
             this IAuditEventServer server,
             string auditEntryId,
@@ -801,7 +800,7 @@ namespace Opc.Ua.Server
         /// <param name="auditEntryId">The audit entry id.</param>
         /// <param name="session">The session that is activated.</param>
         /// <param name="softwareCertificates">The software certificates</param>
-        /// <param name="exception">The exception received during activate session request</param> 
+        /// <param name="exception">The exception received during activate session request</param>
         public static void ReportAuditActivateSessionEvent(
             this IAuditEventServer server,
             string auditEntryId,
@@ -870,7 +869,7 @@ namespace Opc.Ua.Server
         /// <param name="auditEntryId">The audit entry id.</param>
         /// <param name="session">The session object that was created.</param>
         /// <param name="revisedSessionTimeout">The revised session timeout</param>
-        /// <param name="endpointUrl">The invalid endpoint url</param> 
+        /// <param name="endpointUrl">The invalid endpoint url</param>
         public static void ReportAuditUrlMismatchEvent(
             this IAuditEventServer server,
             string auditEntryId,
@@ -1095,8 +1094,6 @@ namespace Opc.Ua.Server
                        "CertificateUpdateRequestedAuditEvent",
                        "en-US",
                        "CertificateUpdateRequestedAuditEvent.");
-
-
 
                 e.Initialize(
                    systemContext,
@@ -1389,7 +1386,7 @@ namespace Opc.Ua.Server
 
                 e.SetChildValue(systemContext, BrowseNames.SourceName, "SecureChannel/CloseSecureChannel", false);
 
-                string clientUserId = "System/CloseSecureChannel";
+                const string clientUserId = "System/CloseSecureChannel";
                 //operationContext.UserIdentity?.DisplayName, or ”System/CloseSecureChannel”
 
                 e.SetChildValue(systemContext, BrowseNames.ClientUserId, clientUserId, false);
@@ -1409,7 +1406,6 @@ namespace Opc.Ua.Server
                 Utils.LogError(ex, "Error while reporting AuditOpenSecureChannelEvent event.");
             }
         }
-
 
         /// <summary>
         /// Reports the AuditUpdateMethodEventType
@@ -1544,7 +1540,7 @@ namespace Opc.Ua.Server
                 var message = new TranslationInfo(
                    "TrustListUpdateRequestedAuditEvent",
                    "en-US",
-                   $"TrustListUpdateRequestedAuditEvent.");
+                   "TrustListUpdateRequestedAuditEvent.");
 
                 e.Initialize(
                    systemContext,

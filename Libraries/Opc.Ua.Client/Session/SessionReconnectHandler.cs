@@ -83,7 +83,7 @@ namespace Opc.Ua.Client
             /// The reconnect handler is disposed and can not be used for further reconnect attempts.
             /// </summary>
             Disposed = 4
-        };
+        }
 
         /// <summary>
         /// Create a reconnect handler.
@@ -459,11 +459,7 @@ namespace Opc.Ua.Client
                     ITransportWaitingConnection connection;
                     do
                     {
-                        EndpointDescription endpointDescription = m_session.Endpoint;
-                        if(endpointDescription == null)
-                        {
-                            endpointDescription = transportChannel.EndpointDescription;
-                        }
+                        EndpointDescription endpointDescription = m_session.Endpoint ?? transportChannel.EndpointDescription;
 
                         connection = await m_reverseConnectManager.WaitForConnection(
                                 new Uri(endpointDescription.EndpointUrl),
@@ -532,7 +528,7 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Reset the timer and enter ready state. 
+        /// Reset the timer and enter ready state.
         /// </summary>
         private void EnterReadyState()
         {

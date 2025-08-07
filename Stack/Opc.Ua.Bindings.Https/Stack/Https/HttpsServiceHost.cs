@@ -10,13 +10,11 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
-
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Security.Cryptography.X509Certificates;
 using Opc.Ua.Security.Certificates;
-
 
 namespace Opc.Ua.Bindings
 {
@@ -172,9 +170,7 @@ namespace Opc.Ua.Bindings
             // create the host.
             hosts[hostName] = serverBase.CreateServiceHost(serverBase, uris.ToArray());
 
-
             return endpoints;
-
         }
     }
 }

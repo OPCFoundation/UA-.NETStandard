@@ -193,8 +193,8 @@ namespace Opc.Ua
         /// Creates a new instance of the class while allowing you to specify both the
         /// node and the namespace.
         /// </remarks>
-        /// <param name="namespaceIndex">The numeric index of the namespace within the table, that this node belongs to</param>
         /// <param name="value">The string id/value of the node we are wrapping</param>
+        /// <param name="namespaceIndex">The numeric index of the namespace within the table, that this node belongs to</param>
         public ExpandedNodeId(string value, ushort namespaceIndex)
         {
             Initialize();
@@ -207,8 +207,8 @@ namespace Opc.Ua
         /// <remarks>
         /// Creates a new instance of the class while allowing you to specify both the node and namespace
         /// </remarks>
-        /// <param name="namespaceUri">The actual namespace URI that this node belongs to</param>
         /// <param name="value">The string value/id of the node we are wrapping</param>
+        /// <param name="namespaceUri">The actual namespace URI that this node belongs to</param>
         public ExpandedNodeId(string value, string namespaceUri)
         {
             Initialize();
@@ -435,12 +435,7 @@ namespace Opc.Ua
         {
             get
             {
-                if (!string.IsNullOrEmpty(m_namespaceUri) || m_serverIndex > 0)
-                {
-                    return true;
-                }
-
-                return false;
+                return !string.IsNullOrEmpty(m_namespaceUri) || m_serverIndex > 0;
             }
         }
 
@@ -656,7 +651,6 @@ namespace Opc.Ua
                 switch (ch)
                 {
                     case '%':
-                    {
                         if (ii + 2 >= index)
                         {
                             throw new ServiceResultException(StatusCodes.BadNodeIdInvalid, "Invalid escaped character in namespace uri.");
@@ -687,13 +681,10 @@ namespace Opc.Ua
 
                         buffer.Append(unencodedChar);
                         break;
-                    }
 
                     default:
-                    {
                         buffer.Append(ch);
                         break;
-                    }
                 }
             }
         }
@@ -728,12 +719,9 @@ namespace Opc.Ua
             }
 
             // just compare node ids.
-            if (!this.IsAbsolute)
+            if (!this.IsAbsolute && this.InnerNodeId != null)
             {
-                if (this.InnerNodeId != null)
-                {
-                    return this.InnerNodeId.CompareTo(obj);
-                }
+                return this.InnerNodeId.CompareTo(obj);
             }
 
             var nodeId = obj as NodeId;
@@ -1176,8 +1164,8 @@ namespace Opc.Ua
         /// <summary>
         /// Parses an absolute NodeId formatted as a string and converts it a local NodeId.
         /// </summary>
-        /// <param name="namespaceUris">The current namespace table.</param>
         /// <param name="text">The text to parse.</param>
+        /// <param name="namespaceUris">The current namespace table.</param>
         /// <returns>The local identifier.</returns>
         /// <exception cref="ServiceResultException">Thrown if the namespace URI is not in the namespace table.</exception>
         public static NodeId Parse(string text, NamespaceTable namespaceUris)
@@ -1334,10 +1322,9 @@ namespace Opc.Ua
             }
 
             // parse the node id.
-            var nodeId = NodeId.InternalParse(text, serverIndex != 0 || !string.IsNullOrEmpty(namespaceUri));
 
             // set the properties.
-            InnerNodeId = nodeId;
+            InnerNodeId = NodeId.InternalParse(text, serverIndex != 0 || !string.IsNullOrEmpty(namespaceUri));
             m_namespaceUri = namespaceUri;
             m_serverIndex = serverIndex;
         }
@@ -1354,7 +1341,7 @@ namespace Opc.Ua
     /// A collection of ExpandedNodeId objects.
     /// </summary>
     [CollectionDataContract(Name = "ListOfExpandedNodeId", Namespace = Namespaces.OpcUaXsd, ItemName = "ExpandedNodeId")]
-    public partial class ExpandedNodeIdCollection : List<ExpandedNodeId>, ICloneable
+    public class ExpandedNodeIdCollection : List<ExpandedNodeId>, ICloneable
     {
         /// <summary>
         /// Initializes an empty collection.

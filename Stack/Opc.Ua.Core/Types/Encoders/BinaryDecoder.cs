@@ -1460,7 +1460,6 @@ namespace Opc.Ua
                     case BuiltInType.UInt16:
                         return ReadUInt16Array(fieldName)?.ToArray();
                     case BuiltInType.Enumeration:
-                    {
                         DetermineIEncodeableSystemType(ref systemType, encodeableTypeId);
                         if (systemType?.IsEnum == true)
                         {
@@ -1468,7 +1467,7 @@ namespace Opc.Ua
                         }
                         // if system type is not known or not an enum, fall back to Int32
                         goto case BuiltInType.Int32;
-                    }
+
                     case BuiltInType.Int32:
                         return ReadInt32Array(fieldName)?.ToArray();
                     case BuiltInType.UInt32:
@@ -1504,26 +1503,23 @@ namespace Opc.Ua
                     case BuiltInType.DataValue:
                         return ReadDataValueArray(fieldName)?.ToArray();
                     case BuiltInType.Variant:
-                    {
                         if (DetermineIEncodeableSystemType(ref systemType, encodeableTypeId))
                         {
                             return ReadEncodeableArray(fieldName, systemType, encodeableTypeId);
                         }
                         return ReadVariantArray(fieldName)?.ToArray();
-                    }
+
                     case BuiltInType.ExtensionObject:
                         return ReadExtensionObjectArray(fieldName)?.ToArray();
                     case BuiltInType.DiagnosticInfo:
                         return ReadDiagnosticInfoArray(fieldName)?.ToArray();
                     default:
-                    {
                         if (DetermineIEncodeableSystemType(ref systemType, encodeableTypeId))
                         {
                             return ReadEncodeableArray(fieldName, systemType, encodeableTypeId);
                         }
                         throw ServiceResultException.Create(StatusCodes.BadDecodingError,
                             "Cannot decode unknown type in Array object with BuiltInType: {0}.", builtInType);
-                    }
                 }
             }
 
@@ -2024,10 +2020,8 @@ namespace Opc.Ua
                 }
 
                 default:
-                {
                     throw ServiceResultException.Create(StatusCodes.BadDecodingError,
-                        "Cannot decode unknown type in Variant object with BuiltInType: {0}.", builtInType);
-                }
+                            "Cannot decode unknown type in Variant object with BuiltInType: {0}.", builtInType);
             }
 
             return array;
@@ -2062,52 +2056,38 @@ namespace Opc.Ua
             switch ((NodeIdEncodingBits)(encodingByte & 0x3F))
             {
                 case NodeIdEncodingBits.TwoByte:
-                {
                     value.SetNamespaceIndex(0);
                     value.SetIdentifier(IdType.Numeric, (uint)SafeReadByte());
                     break;
-                }
 
                 case NodeIdEncodingBits.FourByte:
-                {
                     value.SetNamespaceIndex(SafeReadByte());
                     value.SetIdentifier(IdType.Numeric, (uint)SafeReadUInt16());
                     break;
-                }
 
                 case NodeIdEncodingBits.Numeric:
-                {
                     value.SetNamespaceIndex(SafeReadUInt16());
                     value.SetIdentifier(IdType.Numeric, SafeReadUInt32());
                     break;
-                }
 
                 case NodeIdEncodingBits.String:
-                {
                     value.SetNamespaceIndex(SafeReadUInt16());
                     value.SetIdentifier(IdType.String, ReadString(null));
                     break;
-                }
 
                 case NodeIdEncodingBits.Guid:
-                {
                     value.SetNamespaceIndex(SafeReadUInt16());
                     value.SetIdentifier(IdType.Guid, (Guid)ReadGuid(null));
                     break;
-                }
 
                 case NodeIdEncodingBits.ByteString:
-                {
                     value.SetNamespaceIndex(SafeReadUInt16());
                     value.SetIdentifier(IdType.Opaque, ReadByteString(null));
                     break;
-                }
 
                 default:
-                {
                     throw ServiceResultException.Create(StatusCodes.BadDecodingError,
-                        "Invalid encoding byte (0x{0:X2}) for NodeId.", encodingByte);
-                }
+                            "Invalid encoding byte (0x{0:X2}) for NodeId.", encodingByte);
             }
         }
 
@@ -2389,104 +2369,71 @@ namespace Opc.Ua
                 switch ((BuiltInType)encodingByte)
                 {
                     case BuiltInType.Null:
-                    {
                         value = new Variant((object)null);
                         break;
-                    }
 
                     case BuiltInType.Boolean:
-                    {
                         value = new Variant(SafeReadBoolean());
                         break;
-                    }
 
                     case BuiltInType.SByte:
-                    {
                         value = new Variant(SafeReadSByte());
                         break;
-                    }
 
                     case BuiltInType.Byte:
-                    {
                         value = new Variant(SafeReadByte());
                         break;
-                    }
 
                     case BuiltInType.Int16:
-                    {
                         value = new Variant(SafeReadInt16());
                         break;
-                    }
 
                     case BuiltInType.UInt16:
-                    {
                         value = new Variant(SafeReadUInt16());
                         break;
-                    }
 
                     case BuiltInType.Int32:
                     case BuiltInType.Enumeration:
-                    {
                         value = new Variant(SafeReadInt32());
                         break;
-                    }
 
                     case BuiltInType.UInt32:
-                    {
                         value = new Variant(SafeReadUInt32());
                         break;
-                    }
 
                     case BuiltInType.Int64:
-                    {
                         value = new Variant(SafeReadInt64());
                         break;
-                    }
 
                     case BuiltInType.UInt64:
-                    {
                         value = new Variant(SafeReadUInt64());
                         break;
-                    }
 
                     case BuiltInType.Float:
-                    {
                         value = new Variant(SafeReadFloat());
                         break;
-                    }
 
                     case BuiltInType.Double:
-                    {
                         value = new Variant(SafeReadDouble());
                         break;
-                    }
 
                     case BuiltInType.String:
-                    {
                         value = new Variant(ReadString(null));
                         break;
-                    }
 
                     case BuiltInType.DateTime:
-                    {
                         value = new Variant(ReadDateTime(null));
                         break;
-                    }
 
                     case BuiltInType.Guid:
-                    {
                         value = new Variant(ReadGuid(null));
                         break;
-                    }
 
                     case BuiltInType.ByteString:
-                    {
                         value = new Variant(ReadByteString(null));
                         break;
-                    }
 
                     case BuiltInType.XmlElement:
-                    {
                         try
                         {
                             value = new Variant(ReadXmlElement(null));
@@ -2502,55 +2449,38 @@ namespace Opc.Ua
                             value = new Variant(StatusCodes.BadDecodingError);
                         }
                         break;
-                    }
 
                     case BuiltInType.NodeId:
-                    {
                         value = new Variant(ReadNodeId(null));
                         break;
-                    }
 
                     case BuiltInType.ExpandedNodeId:
-                    {
                         value = new Variant(ReadExpandedNodeId(null));
                         break;
-                    }
 
                     case BuiltInType.StatusCode:
-                    {
                         value = new Variant(ReadStatusCode(null));
                         break;
-                    }
 
                     case BuiltInType.QualifiedName:
-                    {
                         value = new Variant(ReadQualifiedName(null));
                         break;
-                    }
 
                     case BuiltInType.LocalizedText:
-                    {
                         value = new Variant(ReadLocalizedText(null));
                         break;
-                    }
 
                     case BuiltInType.ExtensionObject:
-                    {
                         value = new Variant(ReadExtensionObject());
                         break;
-                    }
 
                     case BuiltInType.DataValue:
-                    {
                         value = new Variant(ReadDataValue(null));
                         break;
-                    }
 
                     default:
-                    {
                         throw ServiceResultException.Create(StatusCodes.BadDecodingError,
-                            "Cannot decode unknown type in Variant object (0x{0:X2}).", encodingByte);
-                    }
+                                "Cannot decode unknown type in Variant object (0x{0:X2}).", encodingByte);
                 }
             }
 

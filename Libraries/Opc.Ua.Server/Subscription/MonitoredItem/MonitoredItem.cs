@@ -93,26 +93,26 @@ namespace Opc.Ua.Server
             m_sourceSamplingInterval = (int)sourceSamplingInterval;
             m_calculator = null;
             m_nextSamplingTime = HiResClock.TickCount64;
-            m_alwaysReportUpdates = false;
+            AlwaysReportUpdates = false;
             m_monitoredItemQueueFactory = m_server.MonitoredItemQueueFactory;
             m_subscriptionStore = m_server.SubscriptionStore;
-            m_isDurable = createDurable;
+            IsDurable = createDurable;
 
-            if (!m_monitoredItemQueueFactory.SupportsDurableQueues && m_isDurable)
+            if (!m_monitoredItemQueueFactory.SupportsDurableQueues && IsDurable)
             {
                 Utils.LogError("Durable subscription was create but no MonitoredItemQueueFactory that supports durable queues was registered, monitored item with id {id} could not be created", id);
                 throw new ServiceResultException(StatusCodes.BadInternalError);
             }
 
-            m_typeMask = MonitoredItemTypeMask.DataChange;
+            MonitoredItemType = MonitoredItemTypeMask.DataChange;
 
             if (originalFilter is EventFilter)
             {
-                m_typeMask = MonitoredItemTypeMask.Events;
+                MonitoredItemType = MonitoredItemTypeMask.Events;
 
                 if (itemToMonitor.NodeId == Objects.Server)
                 {
-                    m_typeMask |= MonitoredItemTypeMask.AllEvents;
+                    MonitoredItemType |= MonitoredItemTypeMask.AllEvents;
                 }
             }
 
@@ -187,14 +187,14 @@ namespace Opc.Ua.Server
             m_sourceSamplingInterval = storedMonitoredItem.SourceSamplingInterval;
             m_calculator = null;
             m_nextSamplingTime = HiResClock.TickCount64;
-            m_alwaysReportUpdates = false;
+            AlwaysReportUpdates = false;
             m_monitoredItemQueueFactory = m_server.MonitoredItemQueueFactory;
             m_subscriptionStore = m_server.SubscriptionStore;
-            m_isDurable = storedMonitoredItem.IsDurable;
-            m_alwaysReportUpdates = storedMonitoredItem.AlwaysReportUpdates;
+            IsDurable = storedMonitoredItem.IsDurable;
+            AlwaysReportUpdates = storedMonitoredItem.AlwaysReportUpdates;
             m_lastError = storedMonitoredItem.LastError;
             m_lastValue = storedMonitoredItem.LastValue;
-            m_typeMask = storedMonitoredItem.TypeMask;
+            MonitoredItemType = storedMonitoredItem.TypeMask;
 
             // create aggregate calculator.
             if (storedMonitoredItem.FilterToUse is ServerAggregateFilter aggregateFilter)
@@ -207,7 +207,6 @@ namespace Opc.Ua.Server
                     aggregateFilter.Stepped,
                     aggregateFilter.AggregateConfiguration);
             }
-
 
             // report change to item state.
             ServerUtils.ReportCreateMonitoredItem(
@@ -276,7 +275,7 @@ namespace Opc.Ua.Server
         /// Predefined bits are defined by the MonitoredItemTypeMasks class.
         /// NodeManagers may use the remaining bits.
         /// </remarks>
-        public int MonitoredItemType => m_typeMask;
+        public int MonitoredItemType { get; }
 
         /// <summary>
         /// Returns true if the item is ready to publish.
@@ -286,12 +285,9 @@ namespace Opc.Ua.Server
             get
             {
                 // check if aggregate interval has passed.
-                if (m_calculator != null)
+                if (m_calculator != null && m_calculator.HasEndTimePassed(DateTime.UtcNow))
                 {
-                    if (m_calculator.HasEndTimePassed(DateTime.UtcNow))
-                    {
-                        return true;
-                    }
+                    return true;
                 }
 
                 // check if not ready to publish in case it doesn't ResendData
@@ -377,7 +373,7 @@ namespace Opc.Ua.Server
             lock (m_lock)
             {
                 if (m_monitoringMode == MonitoringMode.Reporting &&
-                    (m_typeMask & MonitoredItemTypeMask.DataChange) != 0)
+                    (MonitoredItemType & MonitoredItemTypeMask.DataChange) != 0)
                 {
                     m_resendData = true;
                 }
@@ -557,11 +553,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Whether the monitored item should report a value without checking if it was changed.
         /// </summary>
-        public bool AlwaysReportUpdates
-        {
-            get => m_alwaysReportUpdates;
-            set => m_alwaysReportUpdates = value;
-        }
+        public bool AlwaysReportUpdates { get; set; }
 
         /// <summary>
         /// Returns a description of the item being monitored.
@@ -570,7 +562,7 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
-                var valueId = new ReadValueId {
+                return new ReadValueId {
                     NodeId = m_nodeId,
                     AttributeId = m_attributeId,
                     IndexRange = m_indexRange,
@@ -578,8 +570,6 @@ namespace Opc.Ua.Server
                     DataEncoding = m_encoding,
                     Handle = m_managerHandle
                 };
-
-                return valueId;
             }
         }
 
@@ -690,36 +680,24 @@ namespace Opc.Ua.Server
 
                     bool match = existingFilter != null;
 
-                    if (match)
+                    if (match && existingFilter.AggregateType != aggregateFilter.AggregateType)
                     {
-                        if (existingFilter.AggregateType != aggregateFilter.AggregateType)
-                        {
-                            match = false;
-                        }
+                        match = false;
                     }
 
-                    if (match)
+                    if (match && existingFilter.ProcessingInterval != aggregateFilter.ProcessingInterval)
                     {
-                        if (existingFilter.ProcessingInterval != aggregateFilter.ProcessingInterval)
-                        {
-                            match = false;
-                        }
+                        match = false;
                     }
 
-                    if (match)
+                    if (match && existingFilter.StartTime != aggregateFilter.StartTime)
                     {
-                        if (existingFilter.StartTime != aggregateFilter.StartTime)
-                        {
-                            match = false;
-                        }
+                        match = false;
                     }
 
-                    if (match)
+                    if (match && !existingFilter.AggregateConfiguration.IsEqual(aggregateFilter.AggregateConfiguration))
                     {
-                        if (!existingFilter.AggregateConfiguration.IsEqual(aggregateFilter.AggregateConfiguration))
-                        {
-                            match = false;
-                        }
+                        match = false;
                     }
 
                     if (!match)
@@ -866,7 +844,7 @@ namespace Opc.Ua.Server
             lock (m_lock)
             {
                 // this method should only be called for variables.
-                if ((m_typeMask & MonitoredItemTypeMask.DataChange) == 0)
+                if ((MonitoredItemType & MonitoredItemTypeMask.DataChange) == 0)
                 {
                     throw new ServiceResultException(StatusCodes.BadInternalError);
                 }
@@ -882,7 +860,7 @@ namespace Opc.Ua.Server
                 {
                     Utils.LogTrace(Utils.TraceMasks.OperationDetail, "RECEIVED VALUE[{0}] Value={1}", this.m_id, value.WrappedValue);
 
-                    var copy = new DataValue {
+                    value = new DataValue {
                         WrappedValue = value.WrappedValue,
                         StatusCode = value.StatusCode,
                         SourceTimestamp = value.SourceTimestamp,
@@ -890,8 +868,6 @@ namespace Opc.Ua.Server
                         ServerTimestamp = value.ServerTimestamp,
                         ServerPicoseconds = value.ServerPicoseconds
                     };
-
-                    value = copy;
 
                     // ensure the data value matches the error status code.
                     if (error != null && error.StatusCode.Code != 0)
@@ -901,15 +877,12 @@ namespace Opc.Ua.Server
                 }
 
                 // create empty value if none provided.
-                if (ServiceResult.IsBad(error))
+                if (ServiceResult.IsBad(error) && value == null)
                 {
-                    if (value == null)
-                    {
-                        value = new DataValue();
-                        value.StatusCode = error.StatusCode;
-                        value.SourceTimestamp = DateTime.UtcNow;
-                        value.ServerTimestamp = DateTime.UtcNow;
-                    }
+                    value = new DataValue();
+                    value.StatusCode = error.StatusCode;
+                    value.SourceTimestamp = DateTime.UtcNow;
+                    value.ServerTimestamp = DateTime.UtcNow;
                 }
 
                 // this should never happen.
@@ -939,13 +912,10 @@ namespace Opc.Ua.Server
                 }
 
                 // apply filter to incoming item.
-                if (!m_alwaysReportUpdates && !ignoreFilters)
+                if (!AlwaysReportUpdates && !ignoreFilters && !ApplyFilter(value, error))
                 {
-                    if (!ApplyFilter(value, error))
-                    {
-                        ServerUtils.ReportFilteredValue(m_nodeId, m_id, value);
-                        return;
-                    }
+                    ServerUtils.ReportFilteredValue(m_nodeId, m_id, value);
+                    return;
                 }
 
                 ServerUtils.ReportQueuedValue(m_nodeId, m_id, value);
@@ -1049,7 +1019,7 @@ namespace Opc.Ua.Server
             lock (m_lock)
             {
                 // this method should only be called for objects or views.
-                if ((m_typeMask & MonitoredItemTypeMask.Events) == 0)
+                if ((MonitoredItemType & MonitoredItemTypeMask.Events) == 0)
                 {
                     throw new ServiceResultException(StatusCodes.BadInternalError);
                 }
@@ -1076,20 +1046,15 @@ namespace Opc.Ua.Server
                 var context = new FilterContext(m_server.NamespaceUris, m_server.TypeTree, Session?.PreferredLocales);
 
                 // event filter must be specified.
-                var filter = m_filterToUse as EventFilter;
-
-                if (filter == null)
+                if (!(m_filterToUse is EventFilter filter))
                 {
                     throw new ServiceResultException(StatusCodes.BadInternalError);
                 }
 
                 // apply filter.
-                if (!bypassFilter)
+                if (!bypassFilter && !CanSendFilteredAlarm(context, filter, instance))
                 {
-                    if (!CanSendFilteredAlarm(context, filter, instance))
-                    {
-                        return;
-                    }
+                    return;
                 }
 
                 // fetch the event fields.
@@ -1160,12 +1125,9 @@ namespace Opc.Ua.Server
                         conditionIds.Add(key);
                     }
                 }
-                else
+                else if (saved)
                 {
-                    if (saved)
-                    {
-                        canSend = true;
-                    }
+                    canSend = true;
                 }
             }
 
@@ -1174,12 +1136,7 @@ namespace Opc.Ua.Server
 
         private HashSet<string> GetFilteredRetainConditionIds()
         {
-            if (m_filteredRetainConditionIds == null)
-            {
-                m_filteredRetainConditionIds = new HashSet<string>();
-            }
-
-            return m_filteredRetainConditionIds;
+            return m_filteredRetainConditionIds ??= new HashSet<string>();
         }
 
         /// <summary>
@@ -1237,7 +1194,7 @@ namespace Opc.Ua.Server
             lock (m_lock)
             {
                 // check if the item reports events.
-                if ((m_typeMask & MonitoredItemTypeMask.Events) == 0)
+                if ((MonitoredItemType & MonitoredItemTypeMask.Events) == 0)
                 {
                     return false;
                 }
@@ -1349,7 +1306,7 @@ namespace Opc.Ua.Server
             lock (m_lock)
             {
                 // check if the item reports data changes.
-                if ((m_typeMask & MonitoredItemTypeMask.DataChange) == 0)
+                if ((MonitoredItemType & MonitoredItemTypeMask.DataChange) == 0)
                 {
                     return false;
                 }
@@ -1364,20 +1321,17 @@ namespace Opc.Ua.Server
                 else
                 {
                     // pull any unprocessed data.
-                    if (m_calculator != null)
+                    if (m_calculator != null && m_calculator.HasEndTimePassed(DateTime.UtcNow))
                     {
-                        if (m_calculator.HasEndTimePassed(DateTime.UtcNow))
+                        DataValue processedValue = m_calculator.GetProcessedValue(false);
+
+                        while (processedValue != null)
                         {
-                            DataValue processedValue = m_calculator.GetProcessedValue(false);
-
-                            while (processedValue != null)
-                            {
-                                AddValueToQueue(processedValue, null);
-                            }
-
-                            processedValue = m_calculator.GetProcessedValue(true);
                             AddValueToQueue(processedValue, null);
                         }
+
+                        processedValue = m_calculator.GetProcessedValue(true);
+                        AddValueToQueue(processedValue, null);
                     }
 
                     IncrementSampleTime();
@@ -1562,7 +1516,7 @@ namespace Opc.Ua.Server
             }
         }
         /// <inheritdoc/>
-        public bool IsDurable => m_isDurable;
+        public bool IsDurable { get; }
 
         /// <inheritdoc/>
         public IStoredMonitoredItem ToStorableMonitoredItem()
@@ -1572,12 +1526,12 @@ namespace Opc.Ua.Server
                 SourceSamplingInterval = m_sourceSamplingInterval,
                 SubscriptionId = m_subscriptionId,
                 QueueSize = m_queueSize,
-                AlwaysReportUpdates = m_alwaysReportUpdates,
+                AlwaysReportUpdates = AlwaysReportUpdates,
                 AttributeId = m_attributeId,
                 ClientHandle = m_clientHandle,
                 DiagnosticsMasks = m_diagnosticsMasks,
                 DiscardOldest = m_discardOldest,
-                IsDurable = m_isDurable,
+                IsDurable = IsDurable,
                 Encoding = m_encoding,
                 FilterToUse = m_filterToUse,
                 Id = m_id,
@@ -1589,7 +1543,7 @@ namespace Opc.Ua.Server
                 OriginalFilter = m_originalFilter,
                 Range = m_range,
                 TimestampsToReturn = m_timestampsToReturn,
-                TypeMask = m_typeMask,
+                TypeMask = MonitoredItemType,
                 ParsedIndexRange = m_parsedIndexRange
             };
         }
@@ -1606,15 +1560,13 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(value));
             }
 
-            bool changed = ValueChanged(
+            return ValueChanged(
                 value,
                 error,
                 m_lastValue,
                 m_lastError,
                 m_filterToUse as DataChangeFilter,
                 m_range);
-
-            return changed;
         }
 
         /// <summary>
@@ -1689,12 +1641,9 @@ namespace Opc.Ua.Server
             }
 
             // check if timestamp has changed.
-            if (trigger == DataChangeTrigger.StatusValueTimestamp)
+            if (trigger == DataChangeTrigger.StatusValueTimestamp && lastValue.SourceTimestamp != value.SourceTimestamp)
             {
-                if (lastValue.SourceTimestamp != value.SourceTimestamp)
-                {
-                    return true;
-                }
+                return true;
             }
 
             // check if value changes are ignored.
@@ -1757,7 +1706,6 @@ namespace Opc.Ua.Server
 
             if (array1 == null || array2 == null)
             {
-
                 var xmlElement1 = value1 as XmlElement;
                 var xmlElement2 = value2 as XmlElement;
 
@@ -1812,9 +1760,9 @@ namespace Opc.Ua.Server
         protected static bool ExceedsDeadband(object value1, object value2, DeadbandType deadbandType, double deadband, double range)
         {
             // cannot convert doubles safely to decimals.
-            if (value1 is double)
+            if (value1 is double x)
             {
-                return ExceedsDeadband((double)value1, (double)value2, deadbandType, deadband, range);
+                return ExceedsDeadband((double)x, (double)value2, deadbandType, deadband, range);
             }
 
             try
@@ -1828,12 +1776,9 @@ namespace Opc.Ua.Server
                     baseline = ((decimal)range) / 100;
                 }
 
-                if (baseline > 0)
+                if (baseline > 0 && Math.Abs((decimal1 - decimal2) / baseline) <= (decimal)deadband)
                 {
-                    if (Math.Abs((decimal1 - decimal2) / baseline) <= (decimal)deadband)
-                    {
-                        return false;
-                    }
+                    return false;
                 }
             }
             catch
@@ -1856,15 +1801,7 @@ namespace Opc.Ua.Server
                 baseline = range / 100;
             }
 
-            if (baseline > 0)
-            {
-                if (Math.Abs((value1 - value2) / baseline) <= deadband)
-                {
-                    return false;
-                }
-            }
-
-            return true;
+            return baseline <= 0 || Math.Abs((value1 - value2) / baseline) > deadband;
         }
 
         /// <summary>
@@ -1874,35 +1811,32 @@ namespace Opc.Ua.Server
         {
             switch (m_monitoringMode)
             {
-                default:
                 case MonitoringMode.Disabled:
-                {
+                default:
                     Utils.SilentDispose(m_eventQueueHandler);
                     m_eventQueueHandler = null;
                     Utils.SilentDispose(m_dataChangeQueueHandler);
                     m_dataChangeQueueHandler = null;
                     break;
-                }
 
                 case MonitoringMode.Reporting:
                 case MonitoringMode.Sampling:
-                {
                     // check if queuing is disabled.
                     if (m_queueSize == 0)
                     {
-                        if (m_typeMask == MonitoredItemTypeMask.DataChange)
+                        if (MonitoredItemType == MonitoredItemTypeMask.DataChange)
                         {
                             m_queueSize = 1;
                         }
 
-                        if ((m_typeMask & MonitoredItemTypeMask.Events) != 0)
+                        if ((MonitoredItemType & MonitoredItemTypeMask.Events) != 0)
                         {
                             m_queueSize = 1000;
                         }
                     }
 
                     // create data queue.
-                    if (m_typeMask == MonitoredItemTypeMask.DataChange)
+                    if (MonitoredItemType == MonitoredItemTypeMask.DataChange)
                     {
                         if (m_queueSize <= 1)
                         {
@@ -1929,15 +1863,10 @@ namespace Opc.Ua.Server
                     }
                     else // create event queue.
                     {
-                        if (m_eventQueueHandler == null)
-                        {
-                            m_eventQueueHandler = new EventQueueHandler(IsDurable, m_monitoredItemQueueFactory, Id);
-                        }
-                        m_eventQueueHandler.SetQueueSize(m_queueSize, m_discardOldest);
+                        (m_eventQueueHandler ??= new EventQueueHandler(IsDurable, m_monitoredItemQueueFactory, Id)).SetQueueSize(m_queueSize, m_discardOldest);
                     }
 
                     break;
-                }
             }
         }
 
@@ -1948,31 +1877,28 @@ namespace Opc.Ua.Server
         {
             switch (m_monitoringMode)
             {
-                default:
                 case MonitoringMode.Disabled:
-                {
+                default:
                     break;
-                }
 
                 case MonitoringMode.Reporting:
                 case MonitoringMode.Sampling:
-                {
                     // check if queuing is disabled.
                     if (m_queueSize == 0)
                     {
-                        if (m_typeMask == MonitoredItemTypeMask.DataChange)
+                        if (MonitoredItemType == MonitoredItemTypeMask.DataChange)
                         {
                             m_queueSize = 1;
                         }
 
-                        if ((m_typeMask & MonitoredItemTypeMask.Events) != 0)
+                        if ((MonitoredItemType & MonitoredItemTypeMask.Events) != 0)
                         {
                             m_queueSize = 1000;
                         }
                     }
 
                     // create data queue.
-                    if (m_typeMask == MonitoredItemTypeMask.DataChange)
+                    if (MonitoredItemType == MonitoredItemTypeMask.DataChange)
                     {
                         if (m_queueSize <= 1)
                         {
@@ -1987,7 +1913,6 @@ namespace Opc.Ua.Server
                         {
                             Utils.LogError(ex, "Failed to restore queue for monitored item with id {0}", Id);
                         }
-
 
                         if (restoredQueue != null)
                         {
@@ -2025,11 +1950,9 @@ namespace Opc.Ua.Server
                             m_eventQueueHandler = new EventQueueHandler(IsDurable, m_monitoredItemQueueFactory, Id);
                             m_eventQueueHandler.SetQueueSize(m_queueSize, m_discardOldest);
                         }
-
                     }
 
                     break;
-                }
             }
         }
 
@@ -2069,7 +1992,6 @@ namespace Opc.Ua.Server
         private object m_managerHandle;
         private uint m_subscriptionId;
         private uint m_id;
-        private readonly int m_typeMask;
         private NodeId m_nodeId;
         private uint m_attributeId;
         private string m_indexRange;
@@ -2086,8 +2008,6 @@ namespace Opc.Ua.Server
         private uint m_queueSize;
         private bool m_discardOldest;
         private int m_sourceSamplingInterval;
-        private bool m_alwaysReportUpdates;
-        private readonly bool m_isDurable;
         private DataValue m_lastValue;
         private ServiceResult m_lastError;
         private long m_nextSamplingTime;
@@ -2104,7 +2024,7 @@ namespace Opc.Ua.Server
         private IAggregateCalculator m_calculator;
         private bool m_triggered;
         private bool m_resendData;
-        private HashSet<string> m_filteredRetainConditionIds = null;
+        private HashSet<string> m_filteredRetainConditionIds;
         #endregion
     }
 }

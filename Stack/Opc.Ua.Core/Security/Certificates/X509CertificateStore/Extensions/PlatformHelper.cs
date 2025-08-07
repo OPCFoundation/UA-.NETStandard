@@ -36,7 +36,7 @@ namespace Opc.Ua.X509StoreExtensions
     /// </summary>
     internal static class PlatformHelper
     {
-        private static bool? _isWindowsWithCrlSupport = null;
+        private static bool? _isWindowsWithCrlSupport;
         /// <summary>
         /// True if OS Windows and Version >= Windows XP
         /// </summary>

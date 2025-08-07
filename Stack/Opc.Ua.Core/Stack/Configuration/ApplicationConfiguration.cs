@@ -26,7 +26,7 @@ namespace Opc.Ua
 	/// </summary>
 	public class ApplicationConfigurationSection
     {
-        #region IConfigurationSectionHandler Members	
+        #region IConfigurationSectionHandler Members
         /// <summary>
         /// Creates the configuration object from the configuration section.
         /// </summary>
@@ -51,8 +51,7 @@ namespace Opc.Ua
             using (var reader = XmlReader.Create(new StringReader(element.OuterXml), Utils.DefaultXmlReaderSettings()))
             {
                 var serializer = new DataContractSerializer(typeof(ConfigurationLocation));
-                var configuration = serializer.ReadObject(reader) as ConfigurationLocation;
-                return configuration;
+                return serializer.ReadObject(reader) as ConfigurationLocation;
             }
         }
         #endregion
@@ -72,8 +71,6 @@ namespace Opc.Ua
         [DataMember(IsRequired = true, Order = 0)]
         public string FilePath { get; set; }
 
-        #endregion
-        #region Private Fields
         #endregion
     }
 
@@ -334,7 +331,7 @@ namespace Opc.Ua
             ICertificatePasswordProvider certificatePasswordProvider = null)
         {
             ApplicationConfiguration configuration = null;
-            systemType = systemType ?? typeof(ApplicationConfiguration);
+            systemType ??= typeof(ApplicationConfiguration);
 
             try
             {
@@ -377,7 +374,7 @@ namespace Opc.Ua
         {
             // convert to absolute file path (expands environment strings).
             string absolutePath = Utils.GetAbsoluteFilePath(sectionName + ".Config.xml", true, false, false);
-            return (absolutePath != null) ? absolutePath : sectionName + ".Config.xml";
+            return absolutePath ?? sectionName + ".Config.xml";
         }
 
         /// <summary>
@@ -469,15 +466,9 @@ namespace Opc.Ua
             // toggle the state of the hi-res clock.
             HiResClock.Disabled = m_disableHiResClock;
 
-            if (HiResClock.Disabled)
+            if (HiResClock.Disabled && m_serverConfiguration != null && m_serverConfiguration.PublishingResolution < 50)
             {
-                if (m_serverConfiguration != null)
-                {
-                    if (m_serverConfiguration.PublishingResolution < 50)
-                    {
-                        m_serverConfiguration.PublishingResolution = 50;
-                    }
-                }
+                m_serverConfiguration.PublishingResolution = 50;
             }
 
             await m_certificateValidator.UpdateAsync(this.SecurityConfiguration).ConfigureAwait(false);
@@ -585,7 +576,7 @@ namespace Opc.Ua
         {
             Utils.UpdateExtension<T>(ref m_extensions, elementName, value);
         }
-        #endregion
+#endregion
     }
 
     #region TraceConfiguration Class

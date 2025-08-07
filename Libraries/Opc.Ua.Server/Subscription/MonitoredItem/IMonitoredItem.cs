@@ -32,8 +32,6 @@ using System.Collections.Generic;
 
 namespace Opc.Ua.Server
 {
-
-
     /// <summary>
     /// Manages a monitored item created by a client.
     /// Disposable to dispose unmanaged resources of durable queues

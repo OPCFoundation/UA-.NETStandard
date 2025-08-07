@@ -32,8 +32,6 @@ namespace Opc.Ua
         public bool Processed { get; set; }
         #endregion
 
-        #region Private Fields
-        #endregion
     }
     #endregion
 

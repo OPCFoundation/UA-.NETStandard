@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -51,7 +51,9 @@ namespace Opc.Ua.Server
     [EventSource(Name = "OPC-UA-Server", Guid = "86FF2AAB-8FF6-46CB-8CE3-E0211950B30C")]
     internal sealed class OpcUaServerEventSource : EventSource
     {
-        // client event ids
+        /// <summary>
+        /// client event ids
+        /// </summary>
         private const int kSendResponseId = 1;
         private const int kServerCallId = kSendResponseId + 1;
         private const int kSessionStateId = kServerCallId + 1;
@@ -140,14 +142,19 @@ namespace Opc.Ua.Server
         [NonEvent]
         public void ServerCallNative(RequestType requestType, uint requestId)
         {
+            string requestTypeString = Enum.GetName(
+#if !NET8_0_OR_GREATER
+                typeof(RequestType),
+#endif
+                requestType);
             if (IsEnabled())
             {
-                ServerCall(Enum.GetName(typeof(RequestType), requestType), requestId);
+                ServerCall(requestTypeString, requestId);
             }
             else if ((TraceMask & TraceMasks.ServiceDetail) != 0 &&
                 Logger.IsEnabled(LogLevel.Trace))
             {
-                LogTrace(m_serverCallEventId, kServerCallMessage, Enum.GetName(typeof(RequestType), requestType), requestId);
+                LogTrace(m_serverCallEventId, kServerCallMessage, requestTypeString, requestId);
             }
         }
 

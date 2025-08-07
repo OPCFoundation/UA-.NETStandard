@@ -89,7 +89,6 @@ namespace Opc.Ua.Security.Certificates
             return false;
         }
 
-
         /// <summary>
         /// Import multiple X509 certificates from PEM data.
         /// Supports a maximum of 99 certificates in the PEM data.
@@ -164,7 +163,6 @@ namespace Opc.Ua.Security.Certificates
             }
         }
 
-
         #endregion
 
         #region Private
@@ -175,7 +173,6 @@ namespace Opc.Ua.Security.Certificates
             byte[] pemDataBlob,
             string password = null)
         {
-
             Org.BouncyCastle.OpenSsl.PemReader pemReader;
             using (var pemStreamReader = new StreamReader(new MemoryStream(pemDataBlob), Encoding.UTF8, true))
             {
@@ -213,8 +210,7 @@ namespace Opc.Ua.Security.Certificates
                         // Check for an EC private key
                         if (pemObject is ECPrivateKeyParameters ecParams)
                         {
-                            ECDsa ecdsa = CreateECDsaFromECPrivateKey(ecParams);
-                            key = ecdsa;
+                            key = CreateECDsaFromECPrivateKey(ecParams);
                             break;
                         }
 #endif
@@ -255,7 +251,6 @@ namespace Opc.Ua.Security.Certificates
             x = X509Utils.PadWithLeadingZeros(x, keySizeBytes);
             y = X509Utils.PadWithLeadingZeros(y, keySizeBytes);
             d = X509Utils.PadWithLeadingZeros(d, keySizeBytes);
-
 
             var ecParams = new ECParameters {
                 Curve = curve,

@@ -252,7 +252,6 @@ namespace Opc.Ua.Security.Certificates
             return this;
         }
 
-
         /// <inheritdoc/>
         public abstract ICertificateBuilderCreateForECDsaAny SetECDsaPublicKey(byte[] publicKey);
 

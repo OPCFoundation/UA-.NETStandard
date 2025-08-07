@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -144,7 +144,7 @@ namespace Opc.Ua.PubSub
         }
 
         /// <summary>
-        ///  When overridden in a derived class, releases the unmanaged resources used by that class 
+        ///  When overridden in a derived class, releases the unmanaged resources used by that class
         ///  and optionally releases the managed resources.
         /// </summary>
         /// <param name="disposing"> true to release both managed and unmanaged resources; false to release only unmanaged resources.</param>
@@ -155,7 +155,7 @@ namespace Opc.Ua.PubSub
                 m_uaPubSubApplication.UaPubSubConfigurator.WriterGroupAdded -= UaPubSubConfigurator_WriterGroupAdded;
                 Stop();
                 // free managed resources
-                foreach (UaPublisher publisher in m_publishers)
+                foreach (UaPublisher publisher in m_publishers.OfType<UaPublisher>())
                 {
                     publisher.Dispose();
                 }
@@ -543,7 +543,7 @@ namespace Opc.Ua.PubSub
 
         #region Private Methods
         /// <summary>
-        /// Handler for <see cref="UaPubSubConfigurator.WriterGroupAdded"/> event. 
+        /// Handler for <see cref="UaPubSubConfigurator.WriterGroupAdded"/> event.
         /// </summary>
         private void UaPubSubConfigurator_WriterGroupAdded(object sender, WriterGroupEventArgs e)
         {

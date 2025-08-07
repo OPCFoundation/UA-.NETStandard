@@ -210,7 +210,6 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
             );
 
             return new ECPrivateKeyParameters(d, namedDomainParameters);
-
         }
 
         /// <summary>
@@ -231,7 +230,6 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
             byte[] nistP384AStart = new byte[] { 0xFF, 0xFF, 0xFF, 0xFF };
             byte[] nistP384BStart = new byte[] { 0xB3, 0x31, 0x2F, 0xA7 };
 
-
             if (a.Take(4).SequenceEqual(brainpoolP256AStart) && b.Take(4).SequenceEqual(brainpoolP256BStart))
             {
                 return ECCurve.NamedCurves.brainpoolP256r1;
@@ -250,7 +248,6 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
             }
 
             throw new ArgumentException("EccCurveByCoefficients cannot be identified");
-
         }
 
         private static readonly Dictionary<string, string> FriendlyNameToOidMap
@@ -318,7 +315,6 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
             var domainParameters = new ECDomainParameters(curve.Curve, curve.G, curve.N, curve.H, curve.GetSeed());
 
             return new ECPublicKeyParameters(q, domainParameters);
-
         }
 #endif
 
@@ -400,7 +396,6 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
             Buffer.BlockCopy(arrayToPad, 0, paddedArray, paddingLength, arrayToPad.Length);
 
             return paddedArray;
-
         }
 #endregion
     }

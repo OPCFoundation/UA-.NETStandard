@@ -63,7 +63,6 @@ namespace Opc.Ua.Security.Certificates
 #endif
         ;
 
-
     /// <summary>
     /// The interface to set key parameters.
     /// </summary>
@@ -73,7 +72,6 @@ namespace Opc.Ua.Security.Certificates
         , ICertificateBuilderECCParameter
 #endif
         ;
-
 
     /// <summary>
     /// The interface to create a certificate.
@@ -85,7 +83,6 @@ namespace Opc.Ua.Security.Certificates
 #endif
         ;
 
-
     /// <summary>
     /// The interface to use a signature generator.
     /// </summary>
@@ -95,7 +92,6 @@ namespace Opc.Ua.Security.Certificates
         , ICertificateBuilderCreateForECDsaGenerator
 #endif
         ;
-
 
     /// <summary>
     /// The interface to create a RSA based certificate.

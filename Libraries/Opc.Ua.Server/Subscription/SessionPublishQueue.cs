@@ -485,12 +485,9 @@ namespace Opc.Ua.Server
             ServiceResult error = request.Wait(Timeout.Infinite);
 
             // check for error.
-            if (ServiceResult.IsGood(error))
+            if (ServiceResult.IsGood(error) && StatusCode.IsBad(request.Error))
             {
-                if (StatusCode.IsBad(request.Error))
-                {
-                    error = request.Error;
-                }
+                error = request.Error;
             }
 
             // must reassign subscription on error.

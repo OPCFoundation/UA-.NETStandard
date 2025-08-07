@@ -45,7 +45,7 @@ namespace Opc.Ua
     /// <summary>
     /// A reference to a node.
     /// </summary>
-    public interface IReferenceCollection : ICollection<IReference>, IEnumerable<IReference>
+    public interface IReferenceCollection : ICollection<IReference>
     {
         /// <summary>
         /// Adds the reference to the node.
@@ -452,12 +452,9 @@ namespace Opc.Ua
 
             foreach (KeyValuePair<NodeId, ReferenceTypeEntry> entry in m_references)
             {
-                if (typeTree.IsTypeOf(entry.Key, reference.ReferenceTypeId))
+                if (typeTree.IsTypeOf(entry.Key, reference.ReferenceTypeId) && ContainsKey(entry.Value, reference))
                 {
-                    if (ContainsKey(entry.Value, reference))
-                    {
-                        return true;
-                    }
+                    return true;
                 }
             }
 
@@ -660,12 +657,7 @@ namespace Opc.Ua
         {
             KeyValuePair<IReference, T> target;
 
-            if (!TryGetEntry(key, out target))
-            {
-                return false;
-            }
-
-            return true;
+            return TryGetEntry(key, out target);
         }
 
         /// <inheritdoc/>
@@ -787,7 +779,6 @@ namespace Opc.Ua
             value = target.Value;
             return true;
         }
-
 
         /// <inheritdoc/>
         public ICollection<T> Values

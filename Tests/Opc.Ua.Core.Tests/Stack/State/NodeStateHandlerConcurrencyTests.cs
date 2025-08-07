@@ -6,7 +6,6 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
-
 namespace Opc.Ua.Core.Tests.Stack.State
 {
     /// <summary>
@@ -18,8 +17,9 @@ namespace Opc.Ua.Core.Tests.Stack.State
     [Parallelizable]
     public class NodeStateHandlerConcurrencyTests
     {
-
-        // This data tests all handlers in NodeState and BaseVariableState class
+        /// <summary>
+        /// This data tests all handlers in NodeState and BaseVariableState class
+        /// </summary>
         public static IEnumerable<TestCaseData> VariableHandlerTestCases
         {
             get
@@ -92,7 +92,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
                     state.OnWriteRolePermissions = NodeAttributeEventHandler;
                     state.OnWriteRolePermissions = null;
                 };
-                yield return new TestCaseData(Attributes.RolePermissions, new Variant(new ExtensionObject[] { }), action);
+                yield return new TestCaseData(Attributes.RolePermissions, new Variant(value), action);
 
                 // Test OnWriteAccessRestrictions
                 action = (BaseVariableState state) => {
@@ -152,7 +152,9 @@ namespace Opc.Ua.Core.Tests.Stack.State
             }
         }
 
-        // This test data test all handlers in BaseVariableTypeState and BaseTypeState class
+        /// <summary>
+        /// This test data test all handlers in BaseVariableTypeState and BaseTypeState class
+        /// </summary>
         public static IEnumerable<TestCaseData> VariableTypeHandlerTestCases
         {
             get
@@ -187,7 +189,9 @@ namespace Opc.Ua.Core.Tests.Stack.State
             }
         }
 
-        // This test data test all handlers in BaseObjectState class
+        /// <summary>
+        /// This test data test all handlers in BaseObjectState class
+        /// </summary>
         public static IEnumerable<TestCaseData> ObjectHandlerTestCases
         {
             get
@@ -198,11 +202,12 @@ namespace Opc.Ua.Core.Tests.Stack.State
                     state.OnWriteEventNotifier = null;
                 };
                 yield return new TestCaseData(Attributes.EventNotifier, new Variant(EventNotifiers.SubscribeToEvents), action);
-
             }
         }
 
-        // This test data test all handlers in MethodState class
+        /// <summary>
+        /// This test data test all handlers in MethodState class
+        /// </summary>
         public static IEnumerable<TestCaseData> MethodHandlerTestCases
         {
             get
@@ -220,11 +225,12 @@ namespace Opc.Ua.Core.Tests.Stack.State
                     state.OnWriteUserExecutable = null;
                 };
                 yield return new TestCaseData(Attributes.UserExecutable, new Variant(true), action);
-
             }
         }
 
-        // This test data test all handlers in ReferenceTypeState class
+        /// <summary>
+        /// This test data test all handlers in ReferenceTypeState class
+        /// </summary>
         public static IEnumerable<TestCaseData> ReferenceTypeHandlerTestCases
         {
             get
@@ -242,11 +248,12 @@ namespace Opc.Ua.Core.Tests.Stack.State
                     state.OnWriteSymmetric = null;
                 };
                 yield return new TestCaseData(Attributes.Symmetric, new Variant(true), action);
-
             }
         }
 
-        // This test data test all handlers in ViewState class
+        /// <summary>
+        /// This test data test all handlers in ViewState class
+        /// </summary>
         public static IEnumerable<TestCaseData> ViewHandlerTestCases
         {
             get
@@ -264,11 +271,12 @@ namespace Opc.Ua.Core.Tests.Stack.State
                     state.OnWriteContainsNoLoops = null;
                 };
                 yield return new TestCaseData(Attributes.ContainsNoLoops, new Variant(true), action);
-
             }
         }
 
-        // This test data test all handlers in DataTypeState class
+        /// <summary>
+        /// This test data test all handlers in DataTypeState class
+        /// </summary>
         public static IEnumerable<TestCaseData> DataTypeHandlerTestCases
         {
             get
@@ -279,9 +287,10 @@ namespace Opc.Ua.Core.Tests.Stack.State
                     state.OnWriteDataTypeDefinition = null;
                 };
                 yield return new TestCaseData(Attributes.DataTypeDefinition, new Variant(new ExtensionObject()), action);
-
             }
         }
+
+        private static readonly ExtensionObject[] value = new ExtensionObject[] { };
 
         [TestCaseSource(nameof(VariableHandlerTestCases))]
         [Parallelizable]
@@ -308,7 +317,6 @@ namespace Opc.Ua.Core.Tests.Stack.State
                 variant,
                 testNodeState,
                 concurrentTaskAction);
-
         }
 
         [TestCaseSource(nameof(VariableTypeHandlerTestCases))]
@@ -336,7 +344,6 @@ namespace Opc.Ua.Core.Tests.Stack.State
                 variant,
                 testNodeState,
                 concurrentTaskAction);
-
         }
 
         [TestCaseSource(nameof(ObjectHandlerTestCases))]
@@ -364,7 +371,6 @@ namespace Opc.Ua.Core.Tests.Stack.State
                 variant,
                 testNodeState,
                 concurrentTaskAction);
-
         }
 
         [TestCaseSource(nameof(MethodHandlerTestCases))]
@@ -392,7 +398,6 @@ namespace Opc.Ua.Core.Tests.Stack.State
                 variant,
                 testNodeState,
                 concurrentTaskAction);
-
         }
 
         [TestCaseSource(nameof(ReferenceTypeHandlerTestCases))]
@@ -420,7 +425,6 @@ namespace Opc.Ua.Core.Tests.Stack.State
                 variant,
                 testNodeState,
                 concurrentTaskAction);
-
         }
 
         [TestCaseSource(nameof(ViewHandlerTestCases))]
@@ -448,7 +452,6 @@ namespace Opc.Ua.Core.Tests.Stack.State
                 variant,
                 testNodeState,
                 concurrentTaskAction);
-
         }
 
         private void ExecuteNodeHandlerConcurrencyTest<T>(
@@ -458,7 +461,6 @@ namespace Opc.Ua.Core.Tests.Stack.State
             T node,
             Action<T> concurrentTaskAction) where T : NodeState
         {
-
             node.WriteMask = AttributeWriteMask.AccessLevel | AttributeWriteMask.ArrayDimensions | AttributeWriteMask.BrowseName | AttributeWriteMask.ContainsNoLoops | AttributeWriteMask.DataType |
                             AttributeWriteMask.Description | AttributeWriteMask.DisplayName | AttributeWriteMask.EventNotifier | AttributeWriteMask.Executable | AttributeWriteMask.Historizing | AttributeWriteMask.InverseName | AttributeWriteMask.IsAbstract |
                             AttributeWriteMask.MinimumSamplingInterval | AttributeWriteMask.NodeClass | AttributeWriteMask.NodeId | AttributeWriteMask.Symmetric | AttributeWriteMask.UserAccessLevel | AttributeWriteMask.UserExecutable |
@@ -522,5 +524,4 @@ namespace Opc.Ua.Core.Tests.Stack.State
             return ServiceResult.Good;
         }
     }
-
 }

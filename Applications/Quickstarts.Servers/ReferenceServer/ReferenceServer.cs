@@ -40,14 +40,17 @@ namespace Quickstarts.ReferenceServer
     /// Implements the Quickstart Reference Server.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// Each server instance must have one instance of a StandardServer object which is
     /// responsible for reading the configuration file, creating the endpoints and dispatching
     /// incoming requests to the appropriate handler.
-    /// 
+    /// </para>
+    /// <para>
     /// This sub-class specifies non-configurable metadata such as Product Name and initializes
     /// the EmptyNodeManager which provides access to the data exposed by the Server.
+    /// </para>
     /// </remarks>
-    public partial class ReferenceServer : ReverseConnectServer
+    public class ReferenceServer : ReverseConnectServer
     {
         #region Properties
         public ITokenValidator TokenValidator { get; set; }
@@ -56,14 +59,7 @@ namespace Quickstarts.ReferenceServer
         /// If true the ReferenceNodeManager is set to work with a sampling group mechanism
         /// for managing monitored items instead of a Monitored Node mechanism
         /// </summary>
-        public bool UseSamplingGroupsInReferenceNodeManager
-        {
-            get => m_useSamplingGroups;
-            set
-            {
-                m_useSamplingGroups = value;
-            }
-        }
+        public bool UseSamplingGroupsInReferenceNodeManager { get; set; }
 
         #endregion
 
@@ -126,7 +122,7 @@ namespace Quickstarts.ReferenceServer
         /// </remarks>
         protected override ServerProperties LoadServerProperties()
         {
-            var properties = new ServerProperties {
+            return new ServerProperties {
                 ManufacturerName = "OPC Foundation",
                 ProductName = "Quickstart Reference Server",
                 ProductUri = "http://opcfoundation.org/Quickstart/ReferenceServer/v1.04",
@@ -134,8 +130,6 @@ namespace Quickstarts.ReferenceServer
                 BuildNumber = Utils.GetAssemblyBuildNumber(),
                 BuildDate = Utils.GetAssemblyTimestamp()
             };
-
-            return properties;
         }
 
         /// <summary>
@@ -145,9 +139,7 @@ namespace Quickstarts.ReferenceServer
         {
             var resourceManager = new ResourceManager(server, configuration);
 
-            System.Reflection.FieldInfo[] fields = typeof(StatusCodes).GetFields(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static);
-
-            foreach (System.Reflection.FieldInfo field in fields)
+            foreach (System.Reflection.FieldInfo field in typeof(StatusCodes).GetFields(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static))
             {
                 uint? id = field.GetValue(typeof(StatusCodes)) as uint?;
 
@@ -164,7 +156,7 @@ namespace Quickstarts.ReferenceServer
         /// Initializes the server before it starts up.
         /// </summary>
         /// <remarks>
-        /// This method is called before any startup processing occurs. The sub-class may update the 
+        /// This method is called before any startup processing occurs. The sub-class may update the
         /// configuration object or do any other application specific startup tasks.
         /// </remarks>
         protected override void OnServerStarting(ApplicationConfiguration configuration)
@@ -197,7 +189,6 @@ namespace Quickstarts.ReferenceServer
             }
             catch
             { }
-
         }
 
         /// <summary>
@@ -214,17 +205,17 @@ namespace Quickstarts.ReferenceServer
             if (description.SecurityPolicyUri == SecurityPolicies.Aes256_Sha256_RsaPss &&
                 description.SecurityMode == MessageSecurityMode.SignAndEncrypt)
             {
-                policies = new UserTokenPolicyCollection(policies.Where(u => u.TokenType != UserTokenType.Certificate));
+                return new UserTokenPolicyCollection(policies.Where(u => u.TokenType != UserTokenType.Certificate));
             }
             else if (description.SecurityPolicyUri == SecurityPolicies.Aes128_Sha256_RsaOaep &&
                 description.SecurityMode == MessageSecurityMode.Sign)
             {
-                policies = new UserTokenPolicyCollection(policies.Where(u => u.TokenType != UserTokenType.Anonymous));
+                return new UserTokenPolicyCollection(policies.Where(u => u.TokenType != UserTokenType.Anonymous));
             }
             else if (description.SecurityPolicyUri == SecurityPolicies.Aes128_Sha256_RsaOaep &&
                 description.SecurityMode == MessageSecurityMode.SignAndEncrypt)
             {
-                policies = new UserTokenPolicyCollection(policies.Where(u => u.TokenType != UserTokenType.UserName));
+                return new UserTokenPolicyCollection(policies.Where(u => u.TokenType != UserTokenType.UserName));
             }
             return policies;
         }
@@ -461,7 +452,6 @@ namespace Quickstarts.ReferenceServer
 
         #region Private Fields
         private ICertificateValidator m_userCertificateValidator;
-        private bool m_useSamplingGroups;
         #endregion
     }
 }

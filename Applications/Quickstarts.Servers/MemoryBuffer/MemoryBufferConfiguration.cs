@@ -64,24 +64,17 @@ namespace MemoryBuffer
         /// </summary>
         private void Initialize()
         {
-            m_buffers = null;
+            Buffers = null;
         }
         #endregion
 
         #region Public Properties
         /// <summary>
-        /// The buffers exposed by the memory 
+        /// The buffers exposed by the memory
         /// </summary>
         [DataMember(Order = 1)]
-        public MemoryBufferInstanceCollection Buffers
-        {
-            get { return m_buffers; }
-            set { m_buffers = value; }
-        }
-        #endregion
+        public MemoryBufferInstanceCollection Buffers { get; set; }
 
-        #region Private Members
-        private MemoryBufferInstanceCollection m_buffers;
         #endregion
     }
 
@@ -114,9 +107,9 @@ namespace MemoryBuffer
         /// </summary>
         private void Initialize()
         {
-            m_name = null;
-            m_tagCount = 0;
-            m_dataType = null;
+            Name = null;
+            TagCount = 0;
+            DataType = null;
         }
         #endregion
 
@@ -125,37 +118,20 @@ namespace MemoryBuffer
         /// The browse name for the instance.
         /// </summary>
         [DataMember(Order = 1)]
-        public string Name
-        {
-            get { return m_name; }
-            set { m_name = value; }
-        }
+        public string Name { get; set; }
 
         /// <summary>
         /// The number of tags in the buffer.
         /// </summary>
         [DataMember(Order = 2)]
-        public int TagCount
-        {
-            get { return m_tagCount; }
-            set { m_tagCount = value; }
-        }
+        public int TagCount { get; set; }
 
         /// <summary>
         /// The data type of the tags in the buffer.
         /// </summary>
         [DataMember(Order = 3)]
-        public string DataType
-        {
-            get { return m_dataType; }
-            set { m_dataType = value; }
-        }
-        #endregion
+        public string DataType { get; set; }
 
-        #region Private Members
-        private string m_name;
-        private int m_tagCount;
-        private string m_dataType;
         #endregion
     }
 
@@ -164,8 +140,6 @@ namespace MemoryBuffer
     /// A collection of MemoryBufferInstances.
     /// </summary>
     [CollectionDataContract(Name = "ListOfMemoryBufferInstance", Namespace = Namespaces.MemoryBuffer, ItemName = "MemoryBufferInstance")]
-    public partial class MemoryBufferInstanceCollection : List<MemoryBufferInstance>
-    {
-    }
+    public class MemoryBufferInstanceCollection : List<MemoryBufferInstance>;
     #endregion
 }

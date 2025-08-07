@@ -66,7 +66,7 @@ namespace Opc.Ua.Client
         {
             cacheExpiry ??= TimeSpan.FromMinutes(5);
 
-            m_session = session;
+            Session = session;
             BitFaster.Caching.Lru.Builder.AtomicAsyncConcurrentLruBuilder<NodeId, INode> nodesBuilder = new ConcurrentLruBuilder<NodeId, INode>()
                    .WithAtomicGetOrAdd()
                    .AsAsyncCache()
@@ -114,7 +114,7 @@ namespace Opc.Ua.Client
         public ICacheMetrics? ReferencesMetrics => m_refs.Metrics.Value;
 
         /// <inheritdoc/>
-        public ISession Session => m_session;
+        public ISession Session { get; }
         #endregion
 
         #region Public Methods
@@ -129,7 +129,7 @@ namespace Opc.Ua.Client
                 return m_nodes.GetOrAddAsync(nodeId,
                     async (nodeId, context) => await context.session.ReadNodeAsync(
                         nodeId, context.ct).ConfigureAwait(false),
-                    (session: m_session, ct));
+                    (session: Session, ct));
             }
         }
 
@@ -171,7 +171,7 @@ namespace Opc.Ua.Client
                 return m_values.GetOrAddAsync(nodeId,
                     (nodeId, context) => context.session.ReadValueAsync(
                         nodeId, context.ct),
-                    (session: m_session, ct));
+                    (session: Session, ct));
             }
         }
 
@@ -460,7 +460,7 @@ namespace Opc.Ua.Client
                     }
                 }
                 return references;
-            }, (session: m_session, ct));
+            }, (session: Session, ct));
         }
 
         /// <summary>
@@ -477,7 +477,7 @@ namespace Opc.Ua.Client
 
             // fetch nodes and references from server.
             var localIds = new NodeIdCollection(remainingIds);
-            (IList<Node>? nodes, IList<ServiceResult>? readErrors) = await m_session.ReadNodesAsync(
+            (IList<Node>? nodes, IList<ServiceResult>? readErrors) = await Session.ReadNodesAsync(
                localIds, NodeClass.Unspecified, ct: ct).ConfigureAwait(false);
 
             Debug.Assert(nodes.Count == localIds.Count);
@@ -513,7 +513,7 @@ namespace Opc.Ua.Client
             Debug.Assert(result.Count(r => r == null) == remainingIds.Count);
 
             // fetch nodes and references from server.
-            (DataValueCollection? values, IList<ServiceResult>? readErrors) = await m_session.ReadValuesAsync(
+            (DataValueCollection? values, IList<ServiceResult>? readErrors) = await Session.ReadValuesAsync(
                 remainingIds, ct: ct).ConfigureAwait(false);
 
             Debug.Assert(values.Count == remainingIds.Count);
@@ -579,7 +579,7 @@ namespace Opc.Ua.Client
             return references
                 .Where(r => !r.IsForward &&
                     r.ReferenceTypeId == ReferenceTypeIds.HasSubtype)
-                .Select(r => ExpandedNodeId.ToNodeId(r.NodeId, m_session.NamespaceUris))
+                .Select(r => ExpandedNodeId.ToNodeId(r.NodeId, Session.NamespaceUris))
                 .DefaultIfEmpty(NodeId.Null)
                 .First();
         }
@@ -593,7 +593,7 @@ namespace Opc.Ua.Client
         private NodeId ToNodeId(ExpandedNodeId expandedNodeId)
         {
             return expandedNodeId.IsAbsolute ? NodeId.Null :
-                ExpandedNodeId.ToNodeId(expandedNodeId, m_session.NamespaceUris);
+                ExpandedNodeId.ToNodeId(expandedNodeId, Session.NamespaceUris);
         }
         #endregion
 
@@ -630,13 +630,12 @@ namespace Opc.Ua.Client
             /// <inheritdoc/>
             public int GetHashCode(NodeId obj)
             {
-                return obj is null ? 0 : obj.GetHashCode();
+                return (obj?.GetHashCode()) ?? 0;
             }
         }
-        #endregion
 
-        #region Private Fields
-        private readonly ISession m_session;
+#endregion
+#region Private Fields
         private readonly IAsyncCache<NodeId, INode> m_nodes;
         private readonly IAsyncCache<NodeId, List<ReferenceDescription>> m_refs;
         private readonly IAsyncCache<NodeId, DataValue> m_values;

@@ -141,7 +141,6 @@ namespace Opc.Ua
             {
                 byte[] dataToEncrypt = Utils.Append(m_decryptedPassword, receiverNonce);
 
-
                 EncryptedData encryptedData = SecurityPolicies.Encrypt(
                     receiverCertificate,
                     securityPolicyUri,
@@ -164,19 +163,16 @@ namespace Opc.Ua
                 secret.DoNotEncodeSenderCertificate = doNotEncodeSenderCertificate;
 
                 // check if the complete chain is included in the sender issuers.
-                if (senderIssuerCertificates != null && senderIssuerCertificates.Count > 0)
+                if (senderIssuerCertificates != null && senderIssuerCertificates.Count > 0 && senderIssuerCertificates[0].Thumbprint == senderCertificate.Thumbprint)
                 {
-                    if (senderIssuerCertificates[0].Thumbprint == senderCertificate.Thumbprint)
+                    var issuers = new X509Certificate2Collection();
+
+                    for (int ii = 1; ii < senderIssuerCertificates.Count; ii++)
                     {
-                        var issuers = new X509Certificate2Collection();
-
-                        for (int ii = 1; ii < senderIssuerCertificates.Count; ii++)
-                        {
-                            issuers.Add(senderIssuerCertificates[ii]);
-                        }
-
-                        senderIssuerCertificates = issuers;
+                        issuers.Add(senderIssuerCertificates[ii]);
                     }
+
+                    senderIssuerCertificates = issuers;
                 }
 
                 secret.SenderIssuerCertificates = senderIssuerCertificates;
@@ -375,7 +371,7 @@ namespace Opc.Ua
         /// Kerberos token.
         /// </summary>
         KerberosBinary
-    };
+    }
 
     /// <summary>
     /// The IssuedIdentityToken class.

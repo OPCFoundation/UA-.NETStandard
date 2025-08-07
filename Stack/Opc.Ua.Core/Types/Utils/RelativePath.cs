@@ -107,29 +107,21 @@ namespace Opc.Ua
                 switch (element.ElementType)
                 {
                     case RelativePathFormatter.ElementType.AnyHierarchical:
-                    {
                         parsedElement.ReferenceTypeId = ReferenceTypeIds.HierarchicalReferences;
                         break;
-                    }
 
                     case RelativePathFormatter.ElementType.AnyComponent:
-                    {
                         parsedElement.ReferenceTypeId = ReferenceTypeIds.Aggregates;
                         break;
-                    }
 
                     case RelativePathFormatter.ElementType.ForwardReference:
-                    {
                         parsedElement.ReferenceTypeId = typeTree.FindReferenceType(element.ReferenceTypeName);
                         break;
-                    }
 
                     case RelativePathFormatter.ElementType.InverseReference:
-                    {
                         parsedElement.ReferenceTypeId = typeTree.FindReferenceType(element.ReferenceTypeName);
                         parsedElement.IsInverse = true;
                         break;
-                    }
                 }
 
                 if (NodeId.IsNull(parsedElement.ReferenceTypeId))
@@ -174,20 +166,15 @@ namespace Opc.Ua
                 switch (element.ElementType)
                 {
                     case RelativePathFormatter.ElementType.AnyHierarchical:
-                    {
                         parsedElement.ReferenceTypeId = ReferenceTypeIds.HierarchicalReferences;
                         break;
-                    }
 
                     case RelativePathFormatter.ElementType.AnyComponent:
-                    {
                         parsedElement.ReferenceTypeId = ReferenceTypeIds.Aggregates;
                         break;
-                    }
 
                     case RelativePathFormatter.ElementType.ForwardReference:
                     case RelativePathFormatter.ElementType.InverseReference:
-                    {
                         if (typeTree == null)
                         {
                             throw new InvalidOperationException("Cannot parse path with reference names without a type table.");
@@ -196,7 +183,6 @@ namespace Opc.Ua
                         parsedElement.ReferenceTypeId = typeTree.FindReferenceType(element.ReferenceTypeName);
                         parsedElement.IsInverse = element.ElementType == RelativePathFormatter.ElementType.InverseReference;
                         break;
-                    }
                 }
 
                 if (NodeId.IsNull(parsedElement.ReferenceTypeId))
@@ -295,29 +281,17 @@ namespace Opc.Ua
                 // check reference type name.
                 QualifiedName qname = element.ReferenceTypeName;
 
-                if (qname != null && qname.NamespaceIndex > 1)
+                if (qname != null && qname.NamespaceIndex > 1 && qname.NamespaceIndex < mappings.Length && mappings[qname.NamespaceIndex] == -1)
                 {
-                    if (qname.NamespaceIndex < mappings.Length)
-                    {
-                        if (mappings[qname.NamespaceIndex] == -1)
-                        {
-                            mappings[qname.NamespaceIndex] = targetTable.GetIndexOrAppend(uris[qname.NamespaceIndex]);
-                        }
-                    }
+                    mappings[qname.NamespaceIndex] = targetTable.GetIndexOrAppend(uris[qname.NamespaceIndex]);
                 }
 
                 // check target name.
                 qname = element.TargetName;
 
-                if (qname != null && qname.NamespaceIndex > 1)
+                if (qname != null && qname.NamespaceIndex > 1 && qname.NamespaceIndex < mappings.Length && mappings[qname.NamespaceIndex] == -1)
                 {
-                    if (qname.NamespaceIndex < mappings.Length)
-                    {
-                        if (mappings[qname.NamespaceIndex] == -1)
-                        {
-                            mappings[qname.NamespaceIndex] = targetTable.GetIndexOrAppend(uris[qname.NamespaceIndex]);
-                        }
-                    }
+                    mappings[qname.NamespaceIndex] = targetTable.GetIndexOrAppend(uris[qname.NamespaceIndex]);
                 }
             }
         }
@@ -611,20 +585,15 @@ namespace Opc.Ua
                     switch (ElementType)
                     {
                         case ElementType.AnyHierarchical:
-                        {
                             path.Append('/');
                             break;
-                        }
 
                         case ElementType.AnyComponent:
-                        {
                             path.Append('.');
                             break;
-                        }
 
                         case ElementType.ForwardReference:
                         case ElementType.InverseReference:
-                        {
                             if (ReferenceTypeName != null && !string.IsNullOrEmpty(ReferenceTypeName.Name))
                             {
                                 path.Append('<');
@@ -649,7 +618,6 @@ namespace Opc.Ua
                             }
 
                             break;
-                        }
                     }
 
                     // write the target browse name component.
@@ -679,26 +647,19 @@ namespace Opc.Ua
             {
                 var element = new Element();
 
-                int next = reader.Peek();
-
-                switch (next)
+                switch (reader.Peek())
                 {
                     case '/':
-                    {
                         element.ElementType = ElementType.AnyHierarchical;
                         reader.Read();
                         break;
-                    }
 
                     case '.':
-                    {
                         element.ElementType = ElementType.AnyComponent;
                         reader.Read();
                         break;
-                    }
 
                     case '<':
-                    {
                         element.ElementType = ElementType.ForwardReference;
                         reader.Read();
 
@@ -716,13 +677,10 @@ namespace Opc.Ua
 
                         element.ReferenceTypeName = ParseName(reader, true);
                         break;
-                    }
 
                     default:
-                    {
                         element.ElementType = ElementType.AnyHierarchical;
                         break;
-                    }
                 }
 
                 element.TargetName = ParseName(reader, false);
@@ -781,12 +739,9 @@ namespace Opc.Ua
                             break;
                         }
                     }
-                    else
+                    else if (next is '<' or '/' or '.')
                     {
-                        if (next is '<' or '/' or '.')
-                        {
-                            break;
-                        }
+                        break;
                     }
 
                     // check for escape character.
@@ -828,14 +783,11 @@ namespace Opc.Ua
                 }
 
                 // check for enclosing bracket.
-                if (referenceName)
+                if (referenceName && last != '>')
                 {
-                    if (last != '>')
-                    {
-                        throw new ServiceResultException(
-                        StatusCodes.BadSyntaxError,
-                        Utils.Format("Missing closing '>' for reference type name in browse path."));
-                    }
+                    throw new ServiceResultException(
+                    StatusCodes.BadSyntaxError,
+                    Utils.Format("Missing closing '>' for reference type name in browse path."));
                 }
 
                 if (buffer.Length == 0)
@@ -872,10 +824,8 @@ namespace Opc.Ua
                         case ':':
                         case '!':
                         case '&':
-                        {
                             path.Append('&');
                             break;
-                        }
                     }
 
                     path.Append(name[ii]);
@@ -883,8 +833,6 @@ namespace Opc.Ua
             }
 
 #endregion
-#region Private Fields
-            #endregion
         }
         #endregion
 
@@ -917,7 +865,5 @@ namespace Opc.Ua
         }
 
 #endregion
-#region Private Fields
-        #endregion
     }
 }

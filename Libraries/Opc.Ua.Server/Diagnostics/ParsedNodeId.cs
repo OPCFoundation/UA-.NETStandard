@@ -40,7 +40,7 @@ namespace Opc.Ua.Server
     /// The NodeIds used by the samples are strings with an optional path appended.
     /// The RootType identifies the type of Root Node. The RootId is the unique identifier
     /// for the Root Node. The ComponentPath is constructed from the SymbolicNames
-    /// of one or more children of the Root Node. 
+    /// of one or more children of the Root Node.
     /// </remarks>
     public class ParsedNodeId
     {
@@ -48,38 +48,22 @@ namespace Opc.Ua.Server
         /// <summary>
         /// The namespace index that qualified the NodeId.
         /// </summary>
-        public ushort NamespaceIndex
-        {
-            get { return m_namespaceIndex; }
-            set { m_namespaceIndex = value; }
-        }
+        public ushort NamespaceIndex { get; set; }
 
         /// <summary>
         /// The identifier for the root of the NodeId.
         /// </summary>
-        public string RootId
-        {
-            get { return m_rootId; }
-            set { m_rootId = value; }
-        }
+        public string RootId { get; set; }
 
         /// <summary>
         /// The type of root node.
         /// </summary>
-        public int RootType
-        {
-            get { return m_rootType; }
-            set { m_rootType = value; }
-        }
+        public int RootType { get; set; }
 
         /// <summary>
         /// The relative path to the component identified by the NodeId.
         /// </summary>
-        public string ComponentPath
-        {
-            get { return m_componentPath; }
-            set { m_componentPath = value; }
-        }
+        public string ComponentPath { get; set; }
 
         /// <summary>
         /// Parses the specified node identifier.
@@ -166,7 +150,6 @@ namespace Opc.Ua.Server
 
             return parsedNodeId;
         }
-
 
         /// <summary>
         /// Constructs a node identifier from the component pieces.
@@ -282,9 +265,7 @@ namespace Opc.Ua.Server
             }
 
             // parent must have a string identifier.
-            string parentId = instance.Parent.NodeId.Identifier as string;
-
-            if (parentId == null)
+            if (!(instance.Parent.NodeId.Identifier is string parentId))
             {
                 return null;
             }
@@ -309,13 +290,7 @@ namespace Opc.Ua.Server
             // return the node identifier.
             return new NodeId(buffer.ToString(), namespaceIndex);
         }
-        #endregion
 
-        #region Private Fields
-        private ushort m_namespaceIndex;
-        private string m_rootId;
-        private int m_rootType;
-        private string m_componentPath;
-        #endregion
+#endregion
     }
 }

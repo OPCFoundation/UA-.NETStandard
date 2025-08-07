@@ -1020,7 +1020,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         [Theory]
         public async Task VerifySignedNotAfterInvalid(bool trusted)
         {
-            string subject = "CN=Signed App Test Cert, O=OPC Foundation";
+            const string subject = "CN=Signed App Test Cert, O=OPC Foundation";
             X509Certificate2 cert = CertificateFactory.CreateCertificate(
                 null, null, subject, null)
                 .SetNotBefore(DateTime.Today.AddDays(30))
@@ -1138,7 +1138,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         [Theory]
         public async Task TestInvalidKeyUsage(bool trusted)
         {
-            string subject = "CN=Invalid Signature Cert, O=OPC Foundation";
+            const string subject = "CN=Invalid Signature Cert, O=OPC Foundation";
             // self signed but key usage is not valid for app cert
             X509Certificate2 cert = CertificateFactory.CreateCertificate(null, null, subject, null)
                 .SetCAConstraint(0)
@@ -1671,7 +1671,6 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                             Assert.AreEqual(0, isPresentCertificateIssuerRevocationUnknown);
                             Assert.AreEqual(0, isPresentCertificateRevocationUnknown);
                         }
-
                     }
                 }
             }

@@ -193,17 +193,14 @@ namespace Opc.Ua
             switch (storeTypeName)
             {
                 case CertificateStoreType.X509Store:
-                {
                     store = new X509CertificateStore();
                     break;
-                }
+
                 case CertificateStoreType.Directory:
-                {
                     store = new DirectoryCertificateStore();
                     break;
-                }
+
                 default:
-                {
                     ICertificateStoreType storeType = CertificateStoreType.GetCertificateStoreTypeByName(storeTypeName);
                     if (storeType != null)
                     {
@@ -211,7 +208,6 @@ namespace Opc.Ua
                         break;
                     }
                     throw new ArgumentException($"Invalid store type name: {storeTypeName}");
-                }
             }
             return store;
         }

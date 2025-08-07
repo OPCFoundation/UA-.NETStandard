@@ -85,7 +85,6 @@ namespace TestData
                         variableChild.AccessLevel = variableChild.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
                     }
                 }
-
             }
 
             // set the EU range.
@@ -115,17 +114,12 @@ namespace TestData
         {
             try
             {
-
-                var euRange = node.FindChild(context, Opc.Ua.BrowseNames.EURange) as BaseVariableState;
-
-                if (euRange == null)
+                if (!(node.FindChild(context, Opc.Ua.BrowseNames.EURange) is BaseVariableState euRange))
                 {
                     return ServiceResult.Good;
                 }
 
-                var range = euRange.Value as Range;
-
-                if (range == null)
+                if (!(euRange.Value is Range range))
                 {
                     return ServiceResult.Good;
                 }
@@ -234,9 +228,7 @@ namespace TestData
             ref StatusCode statusCode,
             ref DateTime timestamp)
         {
-            var variable = node as BaseVariableState;
-
-            if (variable == null)
+            if (!(node is BaseVariableState variable))
             {
                 return ServiceResult.Good;
             }
@@ -246,9 +238,7 @@ namespace TestData
                 return ServiceResult.Good;
             }
 
-            var system = context.SystemHandle as TestDataSystem;
-
-            if (system == null)
+            if (!(context.SystemHandle is TestDataSystem system))
             {
                 return StatusCodes.BadOutOfService;
             }

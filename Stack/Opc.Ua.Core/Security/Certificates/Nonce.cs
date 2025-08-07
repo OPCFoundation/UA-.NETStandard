@@ -127,11 +127,16 @@ namespace Opc.Ua
 
                 byte[] output = new byte[length];
 
-                HMAC hmac = returnHMACInstance(secret, algorithm);
+                HMAC hmac = algorithm.Name switch
+                {
+                    "SHA256" => new HMACSHA256(secret),
+                    "SHA384" => new HMACSHA384(secret),
+                    _ => new HMACSHA256(secret),
+                };
 
                 byte counter = 1;
 
-                byte[] info = new byte[hmac.HashSize / 8 + salt.Length + 1];
+                byte[] info = new byte[(hmac.HashSize / 8) + salt.Length + 1];
                 Buffer.BlockCopy(salt, 0, info, 0, salt.Length);
                 info[salt.Length] = counter++;
 
@@ -165,7 +170,7 @@ namespace Opc.Ua
         }
 #endif
 
-#endregion
+        #endregion
 
         #region Factory Methods
         /// <summary>
@@ -180,15 +185,17 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(securityPolicyUri));
             }
 
-            Nonce nonce = null;
-
             switch (securityPolicyUri)
             {
 #if ECC_SUPPORT
-                case SecurityPolicies.ECC_nistP256: { return CreateNonce(ECCurve.NamedCurves.nistP256); }
-                case SecurityPolicies.ECC_nistP384: { return CreateNonce(ECCurve.NamedCurves.nistP384); }
-                case SecurityPolicies.ECC_brainpoolP256r1: { return CreateNonce(ECCurve.NamedCurves.brainpoolP256r1); }
-                case SecurityPolicies.ECC_brainpoolP384r1: { return CreateNonce(ECCurve.NamedCurves.brainpoolP384r1); }
+                case SecurityPolicies.ECC_nistP256: return CreateNonce(ECCurve.NamedCurves.nistP256);
+
+                case SecurityPolicies.ECC_nistP384: return CreateNonce(ECCurve.NamedCurves.nistP384);
+
+                case SecurityPolicies.ECC_brainpoolP256r1: return CreateNonce(ECCurve.NamedCurves.brainpoolP256r1);
+
+                case SecurityPolicies.ECC_brainpoolP384r1: return CreateNonce(ECCurve.NamedCurves.brainpoolP384r1);
+
 #endif
 #if CURVE25519
                 case SecurityPolicies.ECC_curve25519:
@@ -202,14 +209,10 @@ namespace Opc.Ua
                 }
 #endif
                 default:
-                {
                     uint rsaNonceLength = GetNonceLength(securityPolicyUri);
-                    nonce = new Nonce() {
+                    return new Nonce() {
                         Data = CreateRandomNonceData(rsaNonceLength)
                     };
-
-                    return nonce;
-                }
             }
         }
 
@@ -238,30 +241,28 @@ namespace Opc.Ua
             switch (securityPolicyUri)
             {
 #if ECC_SUPPORT
-                case SecurityPolicies.ECC_nistP256: { return CreateNonce(ECCurve.NamedCurves.nistP256, nonceData); }
-                case SecurityPolicies.ECC_nistP384: { return CreateNonce(ECCurve.NamedCurves.nistP384, nonceData); }
-                case SecurityPolicies.ECC_brainpoolP256r1: { return CreateNonce(ECCurve.NamedCurves.brainpoolP256r1, nonceData); }
-                case SecurityPolicies.ECC_brainpoolP384r1: { return CreateNonce(ECCurve.NamedCurves.brainpoolP384r1, nonceData); }
+                case SecurityPolicies.ECC_nistP256: return CreateNonce(ECCurve.NamedCurves.nistP256, nonceData);
+
+                case SecurityPolicies.ECC_nistP384: return CreateNonce(ECCurve.NamedCurves.nistP384, nonceData);
+
+                case SecurityPolicies.ECC_brainpoolP256r1: return CreateNonce(ECCurve.NamedCurves.brainpoolP256r1, nonceData);
+
+                case SecurityPolicies.ECC_brainpoolP384r1: return CreateNonce(ECCurve.NamedCurves.brainpoolP384r1, nonceData);
+
 #endif
                 case SecurityPolicies.ECC_curve25519:
-                {
                     return CreateNonceForCurve25519(nonceData);
-                }
 
                 case SecurityPolicies.ECC_curve448:
-                {
                     return CreateNonceForCurve448(nonceData);
-                }
 
                 default:
-                {
                     break;
-                }
             }
 
             return nonce;
         }
-#endregion
+        #endregion
 
         #region Utility Methods
 
@@ -326,36 +327,26 @@ namespace Opc.Ua
                 case SecurityPolicies.Aes128_Sha256_RsaOaep:
                 case SecurityPolicies.Aes256_Sha256_RsaPss:
                 case SecurityPolicies.ECC_curve25519:
-                {
                     return 32;
-                }
 
                 case SecurityPolicies.ECC_nistP256:
                 case SecurityPolicies.ECC_brainpoolP256r1:
-                {
                     // Q.X + Q.Y = 32 + 32 = 64
                     return 64;
-                }
 
                 case SecurityPolicies.ECC_nistP384:
                 case SecurityPolicies.ECC_brainpoolP384r1:
-                {
                     // Q.X + Q.Y = 48 + 48 = 96
                     return 96;
-                }
 
                 case SecurityPolicies.ECC_curve448:
-                {
                     // Q.X
                     return 56;
-                }
 
-                default:
                 case SecurityPolicies.None:
-                {
+                default:
                     // Minimum nonce length by default
                     return m_minNonceLength;
-                }
             }
         }
 
@@ -393,7 +384,7 @@ namespace Opc.Ua
         }
         #endregion
 
-#endregion
+        #endregion
 
         #region Private Methods
 
@@ -404,11 +395,9 @@ namespace Opc.Ua
         /// <returns>A new Nonce object.</returns>
         private static Nonce CreateNonceForCurve25519(byte[] nonceData)
         {
-            var nonce = new Nonce() {
+            return new Nonce() {
                 Data = nonceData,
             };
-
-            return nonce;
         }
 
         /// <summary>
@@ -418,11 +407,9 @@ namespace Opc.Ua
         /// <returns>A new Nonce instance.</returns>
         private static Nonce CreateNonceForCurve448(byte[] nonceData)
         {
-            var nonce = new Nonce() {
+            return new Nonce() {
                 Data = nonceData,
             };
-
-            return nonce;
         }
 #if ECC_SUPPORT
         /// <summary>
@@ -433,7 +420,6 @@ namespace Opc.Ua
         /// <returns>A new Nonce instance with the specified curve and nonce data.</returns>
         private static Nonce CreateNonce(ECCurve curve, byte[] nonceData)
         {
-
             var nonce = new Nonce() {
                 Data = nonceData
             };
@@ -475,7 +461,6 @@ namespace Opc.Ua
         /// <returns>A new Nonce instance.</returns>
         private static Nonce CreateNonce(ECCurve curve)
         {
-
             var ecdh = ECDiffieHellman.Create(curve);
             ECParameters ecdhParameters = ecdh.ExportParameters(false);
             int xLen = ecdhParameters.Q.X.Length;
@@ -485,34 +470,12 @@ namespace Opc.Ua
             Array.Copy(ecdhParameters.Q.X, senderNonce, xLen);
             Array.Copy(ecdhParameters.Q.Y, 0, senderNonce, xLen, yLen);
 
-            var nonce = new Nonce() {
+            return new Nonce() {
                 Data = senderNonce,
                 m_ecdh = ecdh
             };
-
-            return nonce;
         }
 #endif
-
-
-        /// <summary>
-        /// Return the HMAC instance depending on secret and algortihm
-        /// </summary>
-        /// <param name="secret"></param>
-        /// <param name="algorithm"></param>
-        /// <returns></returns>
-        private static HMAC returnHMACInstance(byte[] secret, HashAlgorithmName algorithm)
-        {
-            switch (algorithm.Name)
-            {
-                case "SHA256":
-                    return new HMACSHA256(secret);
-                case "SHA384":
-                    return new HMACSHA384(secret);
-                default:
-                    return new HMACSHA256(secret);
-            }
-        }
 
 #if CURVE25519
         /// <summary>
@@ -562,8 +525,7 @@ namespace Opc.Ua
         }
 #endif
 
-
-#endregion
+        #endregion
 
         #region Protected Methods
         /// <summary>
@@ -575,7 +537,6 @@ namespace Opc.Ua
         {
 #if ECC_SUPPORT
             string curveName = info.GetString("CurveName");
-
 
             if (curveName != null)
             {
@@ -593,7 +554,7 @@ namespace Opc.Ua
         }
         #endregion
 
-#region Private Members
+        #region Private Members
 
 #if ECC_SUPPORT
         private ECDiffieHellman m_ecdh;
@@ -604,7 +565,7 @@ namespace Opc.Ua
         private AsymmetricCipherKeyPair m_bcKeyPair;
 #endif
 
-#endregion
+        #endregion
 
         #region Private Static Members
         private static readonly RandomNumberGenerator m_rng = RandomNumberGenerator.Create();
@@ -612,7 +573,7 @@ namespace Opc.Ua
         private static uint m_minNonceLength = 32;
         #endregion
 
-#region IDisposable
+        #region IDisposable
 #if ECC_SUPPORT
         /// <summary>
         /// Frees any unmanaged resources.
@@ -628,17 +589,14 @@ namespace Opc.Ua
         /// </summary>
         protected virtual void Dispose(bool disposing)
         {
-            if (disposing)
+            if (disposing && m_ecdh != null)
             {
-                if (m_ecdh != null)
-                {
-                    m_ecdh.Dispose();
-                    m_ecdh = null;
-                }
+                m_ecdh.Dispose();
+                m_ecdh = null;
             }
         }
 #endif
-#endregion
+        #endregion
 
         #region ISerializable
 
@@ -667,6 +625,6 @@ namespace Opc.Ua
             info.AddValue("Data", Data);
         }
 
-#endregion
+        #endregion
     }
 }

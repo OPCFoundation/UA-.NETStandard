@@ -27,14 +27,13 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-
 namespace Alarms
 {
     #region Namespace Declarations
     /// <summary>
     /// Defines constants for all namespaces referenced by the model design.
     /// </summary>
-    public static partial class Namespaces
+    public static class Namespaces
     {
         /// <summary>
         /// The URI for the Alarms namespace (.NET code namespace is 'Alarms').

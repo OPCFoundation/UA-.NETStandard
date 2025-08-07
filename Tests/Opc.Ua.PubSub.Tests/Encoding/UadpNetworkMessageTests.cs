@@ -672,7 +672,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
                 // check if the encoded match the decoded DataSetWriterId's
 
-                foreach (UadpDataSetMessage uadpDataSetMessage in uadpNetworkMessageEncode.DataSetMessages)
+                foreach (UadpDataSetMessage uadpDataSetMessage in uadpNetworkMessageEncode.DataSetMessages.OfType<UadpDataSetMessage>())
                 {
                     var uadpDataSetMessageDecoded =
                         uadpNetworkMessageDecoded.DataSetMessages.FirstOrDefault(decoded =>

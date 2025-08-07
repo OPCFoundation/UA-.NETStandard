@@ -10,7 +10,6 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
-
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -65,7 +64,7 @@ namespace Opc.Ua
             }
 
             // extract the alternate domains from the subject alternate name extension.
-            X509SubjectAltNameExtension alternateName = X509Extensions.FindExtension<X509SubjectAltNameExtension>(certificate);
+            X509SubjectAltNameExtension alternateName = certificate.FindExtension<X509SubjectAltNameExtension>();
             if (alternateName != null)
             {
                 for (int ii = 0; ii < alternateName.DomainNames.Count; ii++)
@@ -154,7 +153,7 @@ namespace Opc.Ua
         public static string GetApplicationUriFromCertificate(X509Certificate2 certificate)
         {
             // extract the alternate domains from the subject alternate name extension.
-            X509SubjectAltNameExtension alternateName = X509Extensions.FindExtension<X509SubjectAltNameExtension>(certificate);
+            X509SubjectAltNameExtension alternateName = certificate.FindExtension<X509SubjectAltNameExtension>();
 
             // get the application uri.
             if (alternateName != null && alternateName.Uris.Count > 0)
@@ -173,12 +172,12 @@ namespace Opc.Ua
         public static bool HasApplicationURN(X509Certificate2 certificate)
         {
             // extract the alternate domains from the subject alternate name extension.
-            X509SubjectAltNameExtension alternateName = X509Extensions.FindExtension<X509SubjectAltNameExtension>(certificate);
+            X509SubjectAltNameExtension alternateName = certificate.FindExtension<X509SubjectAltNameExtension>();
 
             // find the application urn.
             if (alternateName != null && alternateName.Uris.Count > 0)
             {
-                string urn = "urn:";
+                const string urn = "urn:";
                 for (int i = 0; i < alternateName.Uris.Count; i++)
                 {
                     if (string.Compare(alternateName.Uris[i], 0, urn, 0, urn.Length, StringComparison.OrdinalIgnoreCase) == 0)
@@ -222,7 +221,7 @@ namespace Opc.Ua
         /// </summary>
         public static bool IsIssuerAllowed(X509Certificate2 certificate)
         {
-            X509BasicConstraintsExtension constraints = X509Extensions.FindExtension<X509BasicConstraintsExtension>(certificate);
+            X509BasicConstraintsExtension constraints = certificate.FindExtension<X509BasicConstraintsExtension>();
 
             if (constraints != null)
             {
@@ -237,7 +236,7 @@ namespace Opc.Ua
         /// </summary>
         public static bool IsCertificateAuthority(X509Certificate2 certificate)
         {
-            X509BasicConstraintsExtension constraints = X509Extensions.FindExtension<X509BasicConstraintsExtension>(certificate);
+            X509BasicConstraintsExtension constraints = certificate.FindExtension<X509BasicConstraintsExtension>();
             if (constraints != null)
             {
                 return constraints.CertificateAuthority;
@@ -484,7 +483,6 @@ namespace Opc.Ua
                     fields.Add(buffer.ToString());
                     buffer.Length = 0;
                 }
-
                 else
                 {
                     while (ii < name.Length)
@@ -700,7 +698,7 @@ namespace Opc.Ua
                 ICertificateStore store = storeIdentifier.OpenStore();
                 try
                 {
-                    if (store == null || store.NoPrivateKeys == true)
+                    if (store == null || store.NoPrivateKeys)
                     {
                         throw new ArgumentException("Invalid store type");
                     }
@@ -789,7 +787,6 @@ namespace Opc.Ua
             return certificate;
         }
 
-
         /// <summary>
         /// Get the hash algorithm from the hash size in bits.
         /// </summary>
@@ -823,6 +820,5 @@ namespace Opc.Ua
             byte[] tokenBuffer = Nonce.CreateRandomNonceData(kLength);
             return Convert.ToBase64String(tokenBuffer);
         }
-
     }
 }

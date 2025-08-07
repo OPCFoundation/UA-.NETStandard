@@ -67,7 +67,7 @@ namespace Opc.Ua.Client
             Stopped = 1,
             Started = 2,
             Errored = 3
-        };
+        }
 
         /// <summary>
         /// Internal state of the reverse connect host.
@@ -78,7 +78,7 @@ namespace Opc.Ua.Client
             Closed = 1,
             Open = 2,
             Errored = 3
-        };
+        }
 
         /// <summary>
         /// Specify the strategy for the reverse connect registration.
@@ -117,7 +117,6 @@ namespace Opc.Ua.Client
             /// always callback.
             /// </summary>
             AnyAlways = Any | Always
-
         }
 
         /// <summary>
@@ -729,12 +728,9 @@ namespace Opc.Ua.Client
                     }
                 }
 
-                if (callbackRegistration != null)
+                if (callbackRegistration != null && (callbackRegistration.ReverseConnectStrategy & ReverseConnectStrategy.Once) != 0)
                 {
-                    if ((callbackRegistration.ReverseConnectStrategy & ReverseConnectStrategy.Once) != 0)
-                    {
-                        m_registrations.Remove(callbackRegistration);
-                    }
+                    m_registrations.Remove(callbackRegistration);
                 }
             }
 

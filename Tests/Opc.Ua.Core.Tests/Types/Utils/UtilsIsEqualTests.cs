@@ -38,7 +38,6 @@ using BenchmarkDotNet.Attributes;
 using NUnit.Framework;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
-
 namespace Opc.Ua.Core.Tests.Types.UtilsTests
 {
     [TestFixture, Category("Utils")]
@@ -196,7 +195,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             Assert.AreEqual(Utils.IsEqual(null, (object)m_bufferB), Utils.IsEqual(null, (Array)m_bufferB));
             Assert.AreEqual(Utils.IsEqual(m_bufferA, (object)null), Utils.IsEqual(m_bufferA, (Array)null));
 
-            int i = 1;
+            const int i = 1;
             Assert.AreEqual(Utils.IsEqual(i, m_bufferB), Utils.IsEqual(i, m_bufferB));
         }
 

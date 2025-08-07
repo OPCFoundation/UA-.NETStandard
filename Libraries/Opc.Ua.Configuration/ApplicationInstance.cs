@@ -62,7 +62,7 @@ namespace Opc.Ua.Configuration
         public ApplicationInstance(ApplicationConfiguration applicationConfiguration)
             : this()
         {
-            m_applicationConfiguration = applicationConfiguration;
+            ApplicationConfiguration = applicationConfiguration;
         }
         #endregion
 
@@ -71,41 +71,25 @@ namespace Opc.Ua.Configuration
         /// Gets or sets the name of the application.
         /// </summary>
         /// <value>The name of the application.</value>
-        public string ApplicationName
-        {
-            get { return m_applicationName; }
-            set { m_applicationName = value; }
-        }
+        public string ApplicationName { get; set; }
 
         /// <summary>
         /// Gets or sets the type of the application.
         /// </summary>
         /// <value>The type of the application.</value>
-        public ApplicationType ApplicationType
-        {
-            get { return m_applicationType; }
-            set { m_applicationType = value; }
-        }
+        public ApplicationType ApplicationType { get; set; }
 
         /// <summary>
         /// Gets or sets the name of the config section containing the path to the application configuration file.
         /// </summary>
         /// <value>The name of the config section.</value>
-        public string ConfigSectionName
-        {
-            get { return m_configSectionName; }
-            set { m_configSectionName = value; }
-        }
+        public string ConfigSectionName { get; set; }
 
         /// <summary>
         /// Gets or sets the type of configuration file.
         /// </summary>
         /// <value>The type of configuration file.</value>
-        public Type ConfigurationType
-        {
-            get { return m_configurationType; }
-            set { m_configurationType = value; }
-        }
+        public Type ConfigurationType { get; set; }
 
         /// <summary>
         /// Gets the server.
@@ -117,11 +101,7 @@ namespace Opc.Ua.Configuration
         /// Gets the application configuration used when the Start() method was called.
         /// </summary>
         /// <value>The application configuration.</value>
-        public ApplicationConfiguration ApplicationConfiguration
-        {
-            get { return m_applicationConfiguration; }
-            set { m_applicationConfiguration = value; }
-        }
+        public ApplicationConfiguration ApplicationConfiguration { get; set; }
 
         /// <summary>
         /// Get or set the message dialog.
@@ -177,12 +157,12 @@ namespace Opc.Ua.Configuration
         {
             m_server = server;
 
-            if (m_applicationConfiguration == null)
+            if (ApplicationConfiguration == null)
             {
                 await LoadApplicationConfiguration(false).ConfigureAwait(false);
             }
 
-            server.Start(m_applicationConfiguration);
+            server.Start(ApplicationConfiguration);
         }
 
         /// <summary>
@@ -209,20 +189,13 @@ namespace Opc.Ua.Configuration
             try
             {
                 // load the configuration file.
-                ApplicationConfiguration configuration = await ApplicationConfiguration.Load(
+                return await ApplicationConfiguration.Load(
                     new System.IO.FileInfo(filePath),
                     applicationType,
                     configurationType,
                     applyTraceSettings,
                     certificatePasswordProvider)
                     .ConfigureAwait(false);
-
-                if (configuration == null)
-                {
-                    return null;
-                }
-
-                return configuration;
             }
             catch (Exception e)
             {
@@ -260,20 +233,13 @@ namespace Opc.Ua.Configuration
             try
             {
                 // load the configuration file.
-                ApplicationConfiguration configuration = await ApplicationConfiguration.Load(
+                return await ApplicationConfiguration.Load(
                     stream,
                     applicationType,
                     configurationType,
                     applyTraceSettings,
                     certificatePasswordProvider)
                     .ConfigureAwait(false);
-
-                if (configuration == null)
-                {
-                    return null;
-                }
-
-                return configuration;
             }
             catch (Exception e)
             {
@@ -317,7 +283,7 @@ namespace Opc.Ua.Configuration
                 throw ServiceResultException.Create(StatusCodes.BadConfigurationError, "Could not load configuration.");
             }
 
-            m_applicationConfiguration = FixupAppConfig(configuration);
+            ApplicationConfiguration = FixupAppConfig(configuration);
 
             return configuration;
         }
@@ -344,7 +310,7 @@ namespace Opc.Ua.Configuration
                 throw ServiceResultException.Create(StatusCodes.BadConfigurationError, "Could not load configuration file.");
             }
 
-            m_applicationConfiguration = FixupAppConfig(configuration);
+            ApplicationConfiguration = FixupAppConfig(configuration);
 
             return configuration;
         }
@@ -422,14 +388,14 @@ namespace Opc.Ua.Configuration
         public async Task DeleteApplicationInstanceCertificate(string[] profileIds = null, CancellationToken ct = default)
         {
             // TODO: delete only selected profiles
-            if (m_applicationConfiguration == null)
+            if (ApplicationConfiguration == null)
             {
                 throw new ArgumentException("Missing configuration.");
             }
 
-            foreach (CertificateIdentifier id in m_applicationConfiguration.SecurityConfiguration.ApplicationCertificates)
+            foreach (CertificateIdentifier id in ApplicationConfiguration.SecurityConfiguration.ApplicationCertificates)
             {
-                await DeleteApplicationInstanceCertificateAsync(m_applicationConfiguration, id, ct).ConfigureAwait(false);
+                await DeleteApplicationInstanceCertificateAsync(ApplicationConfiguration, id, ct).ConfigureAwait(false);
             }
         }
 
@@ -446,13 +412,13 @@ namespace Opc.Ua.Configuration
         {
             Utils.LogInfo("Checking application instance certificate.");
 
-            if (m_applicationConfiguration == null)
+            if (ApplicationConfiguration == null)
             {
                 await LoadApplicationConfiguration(silent).ConfigureAwait(false);
             }
 
             // find the existing certificates.
-            SecurityConfiguration securityConfiguration = m_applicationConfiguration.SecurityConfiguration;
+            SecurityConfiguration securityConfiguration = ApplicationConfiguration.SecurityConfiguration;
 
             if (securityConfiguration.ApplicationCertificates.Count == 0)
             {
@@ -489,7 +455,7 @@ namespace Opc.Ua.Configuration
             CancellationToken ct = default
             )
         {
-            ApplicationConfiguration configuration = m_applicationConfiguration;
+            ApplicationConfiguration configuration = ApplicationConfiguration;
 
             if (id == null)
             {
@@ -508,7 +474,7 @@ namespace Opc.Ua.Configuration
             if (certificate != null)
             {
                 Utils.LogCertificate("Check certificate:", certificate);
-                bool certificateValid = await CheckApplicationInstanceCertificateAsync(configuration, id, certificate, silent, minimumKeySize, ct).ConfigureAwait(false);
+                bool certificateValid = await ApplicationInstance.CheckApplicationInstanceCertificateAsync(configuration, id, certificate, silent, minimumKeySize, ct).ConfigureAwait(false);
 
                 if (!certificateValid)
                 {
@@ -593,13 +559,10 @@ namespace Opc.Ua.Configuration
                         );
                 }
             }
-            else
+            else if (configuration.SecurityConfiguration.AddAppCertToTrustedStore)
             {
-                if (configuration.SecurityConfiguration.AddAppCertToTrustedStore)
-                {
-                    // ensure it is trusted.
-                    await AddToTrustedStoreAsync(configuration, certificate, ct).ConfigureAwait(false);
-                }
+                // ensure it is trusted.
+                await AddToTrustedStoreAsync(configuration, certificate, ct).ConfigureAwait(false);
             }
 
             return true;
@@ -613,7 +576,7 @@ namespace Opc.Ua.Configuration
         /// <returns></returns>
         public async Task AddOwnCertificateToTrustedStoreAsync(X509Certificate2 certificate, CancellationToken ct)
         {
-            await AddToTrustedStoreAsync(m_applicationConfiguration, certificate, ct).ConfigureAwait(false);
+            await AddToTrustedStoreAsync(ApplicationConfiguration, certificate, ct).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -641,7 +604,7 @@ namespace Opc.Ua.Configuration
         /// <summary>
         /// Creates an application instance certificate if one does not already exist.
         /// </summary>
-        private async Task<bool> CheckApplicationInstanceCertificateAsync(
+        private static async Task<bool> CheckApplicationInstanceCertificateAsync(
             ApplicationConfiguration configuration,
             CertificateIdentifier id,
             X509Certificate2 certificate,
@@ -705,12 +668,9 @@ namespace Opc.Ua.Configuration
             }
 
             // check domains.
-            if (configuration.ApplicationType != ApplicationType.Client)
+            if (configuration.ApplicationType != ApplicationType.Client && !await ApplicationInstance.CheckDomainsInCertificateAsync(configuration, certificate, silent, ct).ConfigureAwait(false))
             {
-                if (!await ApplicationInstance.CheckDomainsInCertificateAsync(configuration, certificate, silent, ct).ConfigureAwait(false))
-                {
-                    return false;
-                }
+                return false;
             }
 
             // check uri.
@@ -718,7 +678,7 @@ namespace Opc.Ua.Configuration
 
             if (string.IsNullOrEmpty(applicationUri))
             {
-                string message = "The Application URI could not be read from the certificate. Use certificate anyway?";
+                const string message = "The Application URI could not be read from the certificate. Use certificate anyway?";
                 if (!await ApplicationInstance.ApproveMessageAsync(message, silent).ConfigureAwait(false))
                 {
                     return false;
@@ -1114,15 +1074,10 @@ namespace Opc.Ua.Configuration
                 return false;
             }
         }
-#endregion
 
-        #region Private Fields
-        private string m_applicationName;
-        private ApplicationType m_applicationType;
-        private string m_configSectionName;
-        private Type m_configurationType;
+#endregion
+#region Private Fields
         private ServerBase m_server;
-        private ApplicationConfiguration m_applicationConfiguration;
         #endregion
     }
 }

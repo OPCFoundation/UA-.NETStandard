@@ -152,7 +152,6 @@ namespace Opc.Ua.Security
             // copy the security settings.
             if (applicationConfiguration.SecurityConfiguration != null)
             {
-
                 if (applicationConfiguration.SecurityConfiguration.IsDeprecatedConfiguration)
                 {
 #pragma warning disable CS0618 // Type or member is obsolete
@@ -196,7 +195,6 @@ namespace Opc.Ua.Security
             {
                 serverConfiguration = applicationConfiguration.ServerConfiguration;
             }
-
             else if (applicationConfiguration.DiscoveryServerConfiguration != null)
             {
                 serverConfiguration = applicationConfiguration.DiscoveryServerConfiguration;
@@ -366,7 +364,6 @@ namespace Opc.Ua.Security
                     node.InnerXml = SetObject(typeof(ServerConfiguration), configuration);
                     continue;
                 }
-
                 else if (node.Name == "DiscoveryServerConfiguration" && node.NamespaceURI == Namespaces.OpcUaConfig)
                 {
                     var configuration = (DiscoveryServerConfiguration)GetObject(typeof(DiscoveryServerConfiguration), node);

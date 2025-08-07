@@ -61,7 +61,7 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(configuration));
             }
 
-            m_server = server;
+            Server = server;
             m_nodeManagers = new List<INodeManager>();
             m_maxContinuationPointsPerBrowse = (uint)configuration.ServerConfiguration.MaxBrowseContinuationPoints;
 
@@ -91,7 +91,7 @@ namespace Opc.Ua.Server
 
             // add the core node manager second because the diagnostics node manager takes priority.
             // always add the core node manager to the second of the list.
-            m_nodeManagers.Add(new CoreNodeManager(m_server, configuration, (ushort)dynamicNamespaceIndex));
+            m_nodeManagers.Add(new CoreNodeManager(Server, configuration, (ushort)dynamicNamespaceIndex));
 
             // register core node manager for default UA namespace.
             namespaceManagers[0].Add(m_nodeManagers[1]);
@@ -108,7 +108,7 @@ namespace Opc.Ua.Server
                 }
 
                 // build table from dictionary.
-                m_namespaceManagers = new INodeManager[m_server.NamespaceUris.Count][];
+                m_namespaceManagers = new INodeManager[Server.NamespaceUris.Count][];
 
                 for (int ii = 0; ii < m_namespaceManagers.Length; ii++)
                 {
@@ -136,11 +136,11 @@ namespace Opc.Ua.Server
                 foreach (string namespaceUri in nodeManager.NamespaceUris)
                 {
                     // look up the namespace uri.
-                    int index = m_server.NamespaceUris.GetIndex(namespaceUri);
+                    int index = Server.NamespaceUris.GetIndex(namespaceUri);
 
                     if (index == -1)
                     {
-                        index = m_server.NamespaceUris.Append(namespaceUri);
+                        index = Server.NamespaceUris.Append(namespaceUri);
                     }
 
                     // add manager to list for the namespace.
@@ -404,14 +404,16 @@ namespace Opc.Ua.Server
         /// <param name="namespaceUri">The URI of the namespace.</param>
         /// <param name="nodeManager">The NodeManager which owns node in the namespace.</param>
         /// <remarks>
+        /// <para>
         /// Multiple NodeManagers may register interest in a Namespace.
         /// The order in which this method is called determines the precedence if multiple NodeManagers exist.
         /// This method adds the namespaceUri to the Server's Namespace table if it does not already exist.
-        ///
-        /// This method is thread safe and can be called at anytime.
-        ///
+        /// </para>
+        /// <para>This method is thread safe and can be called at anytime.</para>
+        /// <para>
         /// This method does not have to be called for any namespaces that were in the NodeManager's
         /// NamespaceUri property when the MasterNodeManager was created.
+        /// </para>
         /// </remarks>
         /// <exception cref="ArgumentNullException">Throw if the namespaceUri or the nodeManager are null.</exception>
         public void RegisterNamespaceManager(string namespaceUri, INodeManager nodeManager)
@@ -427,15 +429,15 @@ namespace Opc.Ua.Server
             }
 
             // look up the namespace uri.
-            int index = m_server.NamespaceUris.GetIndex(namespaceUri);
+            int index = Server.NamespaceUris.GetIndex(namespaceUri);
 
             if (index < 0)
             {
-                index = m_server.NamespaceUris.Append(namespaceUri);
+                index = Server.NamespaceUris.Append(namespaceUri);
             }
 
             // allocate a new table (using arrays instead of collections because lookup efficiency is critical).
-            var namespaceManagers = new INodeManager[m_server.NamespaceUris.Count][];
+            var namespaceManagers = new INodeManager[Server.NamespaceUris.Count][];
 
             m_readWriterLockSlim.EnterWriteLock();
             try
@@ -468,7 +470,6 @@ namespace Opc.Ua.Server
 
                 // replace the table.
                 m_namespaceManagers = namespaceManagers;
-
             }
             finally
             {
@@ -496,7 +497,7 @@ namespace Opc.Ua.Server
             }
 
             // look up the namespace uri.
-            int namespaceIndex = m_server.NamespaceUris.GetIndex(namespaceUri);
+            int namespaceIndex = Server.NamespaceUris.GetIndex(namespaceUri);
             if (namespaceIndex < 0)
             {
                 return false;
@@ -510,7 +511,7 @@ namespace Opc.Ua.Server
             }
 
             // allocate a new table (using arrays instead of collections because lookup efficiency is critical).
-            var namespaceManagers = new INodeManager[m_server.NamespaceUris.Count][];
+            var namespaceManagers = new INodeManager[Server.NamespaceUris.Count][];
 
             m_readWriterLockSlim.EnterWriteLock();
             try
@@ -649,9 +650,9 @@ namespace Opc.Ua.Server
         /// </summary>
         public virtual void DeleteReferences(NodeId targetId, IList<IReference> references)
         {
-            foreach (ReferenceNode reference in references)
+            foreach (ReferenceNode reference in references.OfType<ReferenceNode>())
             {
-                var sourceId = ExpandedNodeId.ToNodeId(reference.TargetId, m_server.NamespaceUris);
+                var sourceId = ExpandedNodeId.ToNodeId(reference.TargetId, Server.NamespaceUris);
 
                 // find source node.
                 INodeManager nodeManager = null;
@@ -830,7 +831,7 @@ namespace Opc.Ua.Server
 
                     if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
                     {
-                        DiagnosticInfo diagnosticInfo = ServerUtils.CreateDiagnosticInfo(m_server, context, error);
+                        DiagnosticInfo diagnosticInfo = ServerUtils.CreateDiagnosticInfo(Server, context, error);
                         diagnosticInfos.Add(diagnosticInfo);
                         diagnosticsExist = true;
                     }
@@ -1212,7 +1213,7 @@ namespace Opc.Ua.Server
 
                     if (error != null && error.Code != StatusCodes.Good)
                     {
-                        diagnosticInfo = ServerUtils.CreateDiagnosticInfo(m_server, context, error);
+                        diagnosticInfo = ServerUtils.CreateDiagnosticInfo(Server, context, error);
                         diagnosticsExist = true;
                     }
 
@@ -1233,7 +1234,7 @@ namespace Opc.Ua.Server
         ///     ReadValueId used in the Read service</typeparam>
         /// <param name="nodesCollection">The collection of nodes on which the service operates uppon</param>
         /// <param name="uniqueNodesServiceAttributes">The resulting cache that holds the values of the AccessRestrictions and RolePermissions attributes needed for Read service</param>
-        private void PrepareValidationCache<T>(List<T> nodesCollection,
+        private static void PrepareValidationCache<T>(List<T> nodesCollection,
             out Dictionary<NodeId, List<object>> uniqueNodesServiceAttributes)
         {
             var uniqueNodes = new HashSet<NodeId>();
@@ -1252,10 +1253,7 @@ namespace Opc.Ua.Server
                     throw new ArgumentException("Provided List<T> nodesCollection is of wrong type, T should be type BrowseDescription, ReadValueId or CallMethodRequest", nameof(nodesCollection));
                 }
 
-                if (!uniqueNodes.Contains(nodeId))
-                {
-                    uniqueNodes.Add(nodeId);
-                }
+                uniqueNodes.Add(nodeId);
             }
             // uniqueNodesReadAttributes is the place where the attributes for each unique nodeId are kept on the services
             uniqueNodesServiceAttributes = new Dictionary<NodeId, List<object>>();
@@ -1391,7 +1389,7 @@ namespace Opc.Ua.Server
 
                     if (error != null && error.Code != StatusCodes.Good)
                     {
-                        diagnosticInfo = ServerUtils.CreateDiagnosticInfo(m_server, context, error);
+                        diagnosticInfo = ServerUtils.CreateDiagnosticInfo(Server, context, error);
                         diagnosticsExist = true;
                     }
 
@@ -1435,7 +1433,7 @@ namespace Opc.Ua.Server
                 return StatusCodes.BadNodeIdUnknown;
             }
 
-            if (!NodeId.IsNull(nodeToBrowse.ReferenceTypeId) && !m_server.TypeTree.IsKnown(nodeToBrowse.ReferenceTypeId))
+            if (!NodeId.IsNull(nodeToBrowse.ReferenceTypeId) && !Server.TypeTree.IsKnown(nodeToBrowse.ReferenceTypeId))
             {
                 return StatusCodes.BadReferenceTypeIdInvalid;
             }
@@ -1674,7 +1672,7 @@ namespace Opc.Ua.Server
                 nodesToRead.Count);
 
             Dictionary<NodeId, List<object>> uniqueNodesReadAttributes;
-            PrepareValidationCache(nodesToRead, out uniqueNodesReadAttributes);
+            MasterNodeManager.PrepareValidationCache(nodesToRead, out uniqueNodesReadAttributes);
 
             for (int ii = 0; ii < nodesToRead.Count; ii++)
             {
@@ -1744,7 +1742,7 @@ namespace Opc.Ua.Server
 
                     if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
                     {
-                        diagnosticInfos[ii] = ServerUtils.CreateDiagnosticInfo(m_server, context, errors[ii]);
+                        diagnosticInfos[ii] = ServerUtils.CreateDiagnosticInfo(Server, context, errors[ii]);
                         diagnosticsExist = true;
                     }
                 }
@@ -1783,9 +1781,7 @@ namespace Opc.Ua.Server
                 throw new ServiceResultException(StatusCodes.BadHistoryOperationInvalid);
             }
 
-            var details = historyReadDetails.Body as HistoryReadDetails;
-
-            if (details == null)
+            if (!(historyReadDetails.Body is HistoryReadDetails details))
             {
                 throw new ServiceResultException(StatusCodes.BadHistoryOperationInvalid);
             }
@@ -1823,7 +1819,7 @@ namespace Opc.Ua.Server
                     // add diagnostics if requested.
                     if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
                     {
-                        diagnosticInfo = ServerUtils.CreateDiagnosticInfo(m_server, context, errors[ii]);
+                        diagnosticInfo = ServerUtils.CreateDiagnosticInfo(Server, context, errors[ii]);
                         diagnosticsExist = true;
                     }
                 }
@@ -1879,7 +1875,7 @@ namespace Opc.Ua.Server
                         // add diagnostics if requested.
                         if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
                         {
-                            diagnosticInfos[ii] = ServerUtils.CreateDiagnosticInfo(m_server, context, errors[ii]);
+                            diagnosticInfos[ii] = ServerUtils.CreateDiagnosticInfo(Server, context, errors[ii]);
                             diagnosticsExist = true;
                         }
                     }
@@ -1935,7 +1931,7 @@ namespace Opc.Ua.Server
                     // add diagnostics if requested.
                     if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
                     {
-                        diagnosticInfo = ServerUtils.CreateDiagnosticInfo(m_server, context, error);
+                        diagnosticInfo = ServerUtils.CreateDiagnosticInfo(Server, context, error);
                         diagnosticsExist = true;
                     }
                 }
@@ -1979,7 +1975,7 @@ namespace Opc.Ua.Server
                         // add diagnostics if requested.
                         if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
                         {
-                            diagnosticInfos[ii] = ServerUtils.CreateDiagnosticInfo(m_server, context, errors[ii]);
+                            diagnosticInfos[ii] = ServerUtils.CreateDiagnosticInfo(Server, context, errors[ii]);
                             diagnosticsExist = true;
                         }
                     }
@@ -2061,7 +2057,7 @@ namespace Opc.Ua.Server
                     // add diagnostics if requested.
                     if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
                     {
-                        diagnosticInfo = ServerUtils.CreateDiagnosticInfo(m_server, context, error);
+                        diagnosticInfo = ServerUtils.CreateDiagnosticInfo(Server, context, error);
                         diagnosticsExist = true;
                     }
                 }
@@ -2115,7 +2111,7 @@ namespace Opc.Ua.Server
                         // add diagnostics if requested.
                         if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
                         {
-                            diagnosticInfos[ii] = ServerUtils.CreateDiagnosticInfo(m_server, context, errors[ii]);
+                            diagnosticInfos[ii] = ServerUtils.CreateDiagnosticInfo(Server, context, errors[ii]);
                             diagnosticsExist = true;
                         }
                     }
@@ -2173,7 +2169,7 @@ namespace Opc.Ua.Server
                     // add diagnostics if requested.
                     if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
                     {
-                        diagnosticInfos[ii] = ServerUtils.CreateDiagnosticInfo(m_server, context, errors[ii]);
+                        diagnosticInfos[ii] = ServerUtils.CreateDiagnosticInfo(Server, context, errors[ii]);
                         diagnosticsExist = true;
                     }
 
@@ -2220,7 +2216,7 @@ namespace Opc.Ua.Server
                     // add diagnostics if requested.
                     if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
                     {
-                        diagnosticInfos[ii] = ServerUtils.CreateDiagnosticInfo(m_server, context, errors[ii]);
+                        diagnosticInfos[ii] = ServerUtils.CreateDiagnosticInfo(Server, context, errors[ii]);
                         diagnosticsExist = true;
                     }
                 }
@@ -2387,9 +2383,7 @@ namespace Opc.Ua.Server
                     }
 
                     // all event subscriptions required an event filter.
-                    var filter = itemToCreate.RequestedParameters.Filter.Body as EventFilter;
-
-                    if (filter == null)
+                    if (!(itemToCreate.RequestedParameters.Filter.Body is EventFilter filter))
                     {
                         continue;
                     }
@@ -2418,7 +2412,7 @@ namespace Opc.Ua.Server
                     }
 
                     // validate the event filter.
-                    EventFilter.Result result = filter.Validate(new FilterContext(m_server.NamespaceUris, m_server.TypeTree, context)); ;
+                    EventFilter.Result result = filter.Validate(new FilterContext(Server.NamespaceUris, Server.TypeTree, context));
 
                     if (ServiceResult.IsBad(result.Status))
                     {
@@ -2449,7 +2443,7 @@ namespace Opc.Ua.Server
                     // create a globally unique identifier.
                     uint monitoredItemId = Utils.IncrementIdentifier(ref globalIdCounter);
 
-                    MonitoredItem monitoredItem = m_server.EventManager.CreateMonitoredItem(
+                    MonitoredItem monitoredItem = Server.EventManager.CreateMonitoredItem(
                         context,
                         nodeManager,
                         handle,
@@ -2484,7 +2478,7 @@ namespace Opc.Ua.Server
 
                         if (ServiceResult.IsBad(error))
                         {
-                            m_server.EventManager.DeleteMonitoredItem(monitoredItem.Id);
+                            Server.EventManager.DeleteMonitoredItem(monitoredItem.Id);
                             errors[ii] = error;
                             continue;
                         }
@@ -2495,7 +2489,6 @@ namespace Opc.Ua.Server
                 }
             }
         }
-
 
         /// <summary>
         /// Restore a set of monitored items after a Server Restart.
@@ -2515,7 +2508,7 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(monitoredItems));
             }
 
-            if (m_server.IsRunning)
+            if (Server.IsRunning)
             {
                 throw new InvalidOperationException("Subscription restore can only occur on startup");
             }
@@ -2551,9 +2544,7 @@ namespace Opc.Ua.Server
                 if (!item.IsRestored)
                 {
                     // all event subscriptions required an event filter.
-                    var filter = item.OriginalFilter as EventFilter;
-
-                    if (filter == null)
+                    if (!(item.OriginalFilter is EventFilter filter))
                     {
                         continue;
                     }
@@ -2570,7 +2561,7 @@ namespace Opc.Ua.Server
                         continue;
                     }
 
-                    MonitoredItem monitoredItem = m_server.EventManager.RestoreMonitoredItem(
+                    MonitoredItem monitoredItem = Server.EventManager.RestoreMonitoredItem(
                         nodeManager,
                         handle,
                         item);
@@ -2598,7 +2589,7 @@ namespace Opc.Ua.Server
 
                         if (ServiceResult.IsBad(error))
                         {
-                            m_server.EventManager.DeleteMonitoredItem(monitoredItem.Id);
+                            Server.EventManager.DeleteMonitoredItem(monitoredItem.Id);
                             continue;
                         }
                     }
@@ -2750,7 +2741,7 @@ namespace Opc.Ua.Server
                 }
 
                 // validate the event filter.
-                EventFilter.Result result = filter.Validate(new FilterContext(m_server.NamespaceUris, m_server.TypeTree, context));
+                EventFilter.Result result = filter.Validate(new FilterContext(Server.NamespaceUris, Server.TypeTree, context));
 
                 if (ServiceResult.IsBad(result.Status))
                 {
@@ -2760,7 +2751,7 @@ namespace Opc.Ua.Server
                 }
 
                 // modify the item.
-                m_server.EventManager.ModifyMonitoredItem(
+                Server.EventManager.ModifyMonitoredItem(
                     context,
                     monitoredItem,
                     timestampsToReturn,
@@ -2937,7 +2928,7 @@ namespace Opc.Ua.Server
                 }
 
                 // delete the item.
-                m_server.EventManager.DeleteMonitoredItem(monitoredItem.Id);
+                Server.EventManager.DeleteMonitoredItem(monitoredItem.Id);
 
                 // success.
                 errors[ii] = StatusCodes.Good;
@@ -3039,10 +3030,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// The server that the node manager belongs to.
         /// </summary>
-        protected IServerInternal Server
-        {
-            get { return m_server; }
-        }
+        protected IServerInternal Server { get; }
 
         /// <summary>
         /// The node managers being managed.
@@ -3069,14 +3057,9 @@ namespace Opc.Ua.Server
             }
 
             // check for known filter.
-            if (!ExtensionObject.IsNull(attributes.Filter))
+            if (!ExtensionObject.IsNull(attributes.Filter) && !(attributes.Filter.Body is MonitoringFilter filter))
             {
-                var filter = attributes.Filter.Body as MonitoringFilter;
-
-                if (filter == null)
-                {
-                    return new ServiceResult(StatusCodes.BadMonitoredItemFilterInvalid);
-                }
+                return new ServiceResult(StatusCodes.BadMonitoredItemFilterInvalid);
             }
 
             // passed basic validation.
@@ -3575,9 +3558,9 @@ namespace Opc.Ua.Server
                 // intersect role permissions from node and user
                 foreach (NodeId roleId in roleIdPermissions.Keys)
                 {
-                    if (roleIdPermissionsDefinedForUser.ContainsKey(roleId))
+                    if (roleIdPermissionsDefinedForUser.TryGetValue(roleId, out PermissionType value))
                     {
-                        commonRoleIdPermissions[roleId] = roleIdPermissions[roleId] & roleIdPermissionsDefinedForUser[roleId];
+                        commonRoleIdPermissions[roleId] = roleIdPermissions[roleId] & value;
                     }
                 }
             }
@@ -3590,7 +3573,7 @@ namespace Opc.Ua.Server
 
             foreach (NodeId currentRoleId in currentRoleIds)
             {
-                if (commonRoleIdPermissions.ContainsKey(currentRoleId) && commonRoleIdPermissions[currentRoleId] != PermissionType.None)
+                if (commonRoleIdPermissions.TryGetValue(currentRoleId, out PermissionType value) && value != PermissionType.None)
                 {
                     // there is one role that current session has na is listed in requested role
                     return StatusCodes.Good;
@@ -3605,7 +3588,6 @@ namespace Opc.Ua.Server
 
         #region Private Fields
         private readonly object m_lock = new object();
-        private readonly IServerInternal m_server;
         private readonly List<INodeManager> m_nodeManagers;
         private long m_lastMonitoredItemId;
         private INodeManager[][] m_namespaceManagers;
@@ -3629,48 +3611,31 @@ namespace Opc.Ua.Server
             bool isInverse,
             NodeId targetId)
         {
-            m_sourceId = sourceId;
-            m_referenceTypeId = referenceTypeId;
-            m_isInverse = isInverse;
-            m_targetId = targetId;
+            SourceId = sourceId;
+            ReferenceTypeId = referenceTypeId;
+            IsInverse = isInverse;
+            TargetId = targetId;
         }
 
         /// <summary>
         /// The source of the reference.
         /// </summary>
-        public NodeId SourceId
-        {
-            get { return m_sourceId; }
-        }
+        public NodeId SourceId { get; }
 
         /// <summary>
         /// The type of reference.
         /// </summary>
-        public NodeId ReferenceTypeId
-        {
-            get { return m_referenceTypeId; }
-        }
+        public NodeId ReferenceTypeId { get; }
 
         /// <summary>
         /// True if the reference is an inverse reference.
         /// </summary>
-        public bool IsInverse
-        {
-            get { return m_isInverse; }
-        }
+        public bool IsInverse { get; }
 
         /// <summary>
         /// The target of the reference.
         /// </summary>
-        public NodeId TargetId
-        {
-            get { return m_targetId; }
-        }
-
-        private readonly NodeId m_sourceId;
-        private readonly NodeId m_referenceTypeId;
-        private readonly bool m_isInverse;
-        private readonly NodeId m_targetId;
+        public NodeId TargetId { get; }
     }
     #endregion
 }

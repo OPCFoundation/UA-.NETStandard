@@ -56,13 +56,10 @@ namespace TestData
         /// </summary>
         protected virtual void Dispose(bool disposing)
         {
-            if (disposing)
+            if (disposing && m_updateTimer != null)
             {
-                if (m_updateTimer != null)
-                {
-                    m_updateTimer.Dispose();
-                    m_updateTimer = null;
-                }
+                m_updateTimer.Dispose();
+                m_updateTimer = null;
             }
         }
         #endregion
@@ -118,10 +115,8 @@ namespace TestData
                     switch (dataType)
                     {
                         case BuiltInType.Int32:
-                        {
                             entry.Value.Value = ii;
                             break;
-                        }
                     }
 
                     record.RawData.Add(entry);
@@ -171,11 +166,9 @@ namespace TestData
                         switch (record.DataType)
                         {
                             case BuiltInType.Int32:
-                            {
                                 int lastValue = (int)record.RawData[record.RawData.Count - 1].Value.Value;
                                 entry.Value.Value = lastValue + 1;
                                 break;
-                            }
                         }
 
                         record.RawData.Add(entry);

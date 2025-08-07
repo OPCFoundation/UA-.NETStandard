@@ -63,12 +63,7 @@ namespace Opc.Ua
                 return GetDisplayName(m_certificate);
             }
 
-            if (m_subjectName != null)
-            {
-                return m_subjectName;
-            }
-
-            return m_thumbprint;
+            return m_subjectName ?? m_thumbprint;
         }
 
         /// <summary>
@@ -435,7 +430,6 @@ namespace Opc.Ua
             }
         }
 
-
         /// <summary>
         /// Get the OPC UA CertificateType.
         /// </summary>
@@ -486,7 +480,6 @@ namespace Opc.Ua
                     {
                         return true;
                     }
-
 
                     // not needed: An end entity Certificate shall use P-256.
                     // http://opcfoundation.org/UA/SecurityPolicy#ECC_nistP256
@@ -565,7 +558,6 @@ namespace Opc.Ua
             return result;
         }
 
-
         /// <summary>
         /// Disposes and deletes the reference to the certificate.
         /// </summary>
@@ -625,12 +617,7 @@ namespace Opc.Ua
             {
                 length = octet & 0x7F;
 
-                if (2 + length < rawData.Length)
-                {
-                    return false;
-                }
-
-                return true;
+                return 2 + length >= rawData.Length;
             }
 
             // extract number of bytes for the length.
@@ -717,7 +704,6 @@ namespace Opc.Ua
     /// </summary>
     public partial class CertificateIdentifierCollection : ICertificateStore, ICloneable
     {
-
         #region ICloneable
         /// <inheritdoc/>
         public virtual object Clone()

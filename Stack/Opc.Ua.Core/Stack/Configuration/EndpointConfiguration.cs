@@ -26,7 +26,7 @@ namespace Opc.Ua
         /// </summary>
         public static EndpointConfiguration Create()
         {
-            var configuration = new EndpointConfiguration {
+            return new EndpointConfiguration {
                 // message defaults
                 OperationTimeout = TcpMessageLimits.DefaultOperationTimeout,
                 UseBinaryEncoding = true,
@@ -42,8 +42,6 @@ namespace Opc.Ua
                 MaxEncodingNestingLevels = DefaultEncodingLimits.MaxEncodingNestingLevels,
                 MaxDecoderRecoveries = DefaultEncodingLimits.MaxDecoderRecoveries,
             };
-
-            return configuration;
         }
 
         /// <summary>
@@ -56,7 +54,7 @@ namespace Opc.Ua
                 return Create();
             }
 
-            var configuration = new EndpointConfiguration {
+            return new EndpointConfiguration {
                 OperationTimeout = applicationConfiguration.TransportQuotas.OperationTimeout,
                 UseBinaryEncoding = true,
                 MaxArrayLength = applicationConfiguration.TransportQuotas.MaxArrayLength,
@@ -69,8 +67,6 @@ namespace Opc.Ua
                 ChannelLifetime = applicationConfiguration.TransportQuotas.ChannelLifetime,
                 SecurityTokenLifetime = applicationConfiguration.TransportQuotas.SecurityTokenLifetime
             };
-
-            return configuration;
         }
         #endregion
 

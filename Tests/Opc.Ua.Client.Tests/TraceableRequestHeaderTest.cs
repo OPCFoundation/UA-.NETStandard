@@ -7,7 +7,6 @@ using BenchmarkDotNet.Attributes;
 using NUnit.Framework;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
-
 namespace Opc.Ua.Client.Tests
 {
     public class TraceableRequestHeaderTest : ClientTestFramework
@@ -19,7 +18,7 @@ namespace Opc.Ua.Client.Tests
         [OneTimeSetUp]
         public Task OneTimeSetUpAsync()
         {
-            return base.OneTimeSetUpAsync(writer: null, securityNone: false, enableServerSideTracing: true, enableClientSideTracing: true);
+            return base.OneTimeSetUpAsync(writer: null, securityNone: false, enableClientSideTracing: true, enableServerSideTracing: true);
         }
 
         /// <summary>
@@ -59,7 +58,7 @@ namespace Opc.Ua.Client.Tests
         public new void GlobalSetup()
         {
             Console.WriteLine("GlobalSetup: Start Server");
-            OneTimeSetUpAsync(Console.Out, enableServerSideTracing: true, enableClientSideTracing: true, disableActivityLogging: true).GetAwaiter().GetResult();
+            OneTimeSetUpAsync(Console.Out, enableClientSideTracing: true, enableServerSideTracing: true, disableActivityLogging: true).GetAwaiter().GetResult();
             Console.WriteLine("GlobalSetup: Connecting");
             InitializeSession(ClientFixture.ConnectAsync(ServerUrl, SecurityPolicy).GetAwaiter().GetResult());
             Console.WriteLine("GlobalSetup: Ready");

@@ -107,8 +107,8 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the object with a ServiceResult.
         /// </summary>
-        /// <param name="diagnosticsMask">The bitmask describing the diagnostic data</param>
         /// <param name="result">The overall transaction result</param>
+        /// <param name="diagnosticsMask">The bitmask describing the diagnostic data</param>
         /// <param name="serviceLevel">The service level</param>
         /// <param name="stringTable">A table of strings carrying more diagnostic data</param>
         public DiagnosticInfo(
@@ -124,8 +124,8 @@ namespace Opc.Ua
         /// Initializes the object with a ServiceResult.
         /// Limits the recursion depth for the InnerDiagnosticInfo field.
         /// </summary>
-        /// <param name="diagnosticsMask">The bitmask describing the diagnostic data</param>
         /// <param name="result">The overall transaction result</param>
+        /// <param name="diagnosticsMask">The bitmask describing the diagnostic data</param>
         /// <param name="serviceLevel">The service level</param>
         /// <param name="stringTable">A table of strings carrying more diagnostic data</param>
         /// <param name="depth">The recursion depth of the inner diagnostics field</param>
@@ -151,8 +151,8 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the object with an exception.
         /// </summary>
-        /// <param name="diagnosticsMask">A bitmask describing the type of diagnostic data</param>
         /// <param name="exception">The exception to associated with the diagnostic data</param>
+        /// <param name="diagnosticsMask">A bitmask describing the type of diagnostic data</param>
         /// <param name="serviceLevel">The service level</param>
         /// <param name="stringTable">A table of strings that may contain additional diagnostic data</param>
         public DiagnosticInfo(
@@ -204,8 +204,8 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the object with a service result.
         /// </summary>
-        /// <param name="diagnosticsMask">The bitmask describing the type of diagnostic data</param>
         /// <param name="result">The transaction result</param>
+        /// <param name="diagnosticsMask">The bitmask describing the type of diagnostic data</param>
         /// <param name="stringTable">An array of strings that may be used to provide additional diagnostic details</param>
         /// <param name="depth">The depth of the inner diagnostics property</param>
         private void Initialize(
@@ -249,28 +249,25 @@ namespace Opc.Ua
                 }
             }
 
-            if ((DiagnosticsMasks.ServiceLocalizedText & diagnosticsMask) != 0)
+            if ((DiagnosticsMasks.ServiceLocalizedText & diagnosticsMask) != 0 && !Opc.Ua.LocalizedText.IsNullOrEmpty(result.LocalizedText))
             {
-                if (!Opc.Ua.LocalizedText.IsNullOrEmpty(result.LocalizedText))
+                if (!string.IsNullOrEmpty(result.LocalizedText.Locale))
                 {
-                    if (!string.IsNullOrEmpty(result.LocalizedText.Locale))
+                    Locale = stringTable.GetIndex(result.LocalizedText.Locale);
+
+                    if (Locale == -1)
                     {
-                        Locale = stringTable.GetIndex(result.LocalizedText.Locale);
-
-                        if (Locale == -1)
-                        {
-                            Locale = stringTable.Count;
-                            stringTable.Append(result.LocalizedText.Locale);
-                        }
+                        Locale = stringTable.Count;
+                        stringTable.Append(result.LocalizedText.Locale);
                     }
+                }
 
-                    LocalizedText = stringTable.GetIndex(result.LocalizedText.Text);
+                LocalizedText = stringTable.GetIndex(result.LocalizedText.Text);
 
-                    if (LocalizedText == -1)
-                    {
-                        LocalizedText = stringTable.Count;
-                        stringTable.Append(result.LocalizedText.Text);
-                    }
+                if (LocalizedText == -1)
+                {
+                    LocalizedText = stringTable.Count;
+                    stringTable.Append(result.LocalizedText.Text);
                 }
             }
 
@@ -360,17 +357,13 @@ namespace Opc.Ua
         {
             get
             {
-                if (SymbolicId == -1 &&
+                return SymbolicId == -1 &&
                     Locale == -1 &&
                     LocalizedText == -1 &&
                     NamespaceUri == -1 &&
                     AdditionalInfo == null &&
                     InnerDiagnosticInfo == null &&
-                    InnerStatusCode == StatusCodes.Good)
-                {
-                    return true;
-                }
-                return false;
+                    InnerStatusCode == StatusCodes.Good;
             }
         }
         #endregion
@@ -484,10 +477,8 @@ namespace Opc.Ua
                 return true;
             }
 
-
             if (obj is DiagnosticInfo value)
             {
-
                 if (this.SymbolicId != value.SymbolicId)
                 {
                     return false;
@@ -538,8 +529,6 @@ namespace Opc.Ua
         }
 
 #endregion
-#region Private Members
-        #endregion
     }
 
     #region DiagnosticInfoCollection Class
@@ -550,7 +539,7 @@ namespace Opc.Ua
     /// A strongly-typed collection of DiagnosticInfo objects.
     /// </remarks>
     [CollectionDataContract(Name = "ListOfDiagnosticInfo", Namespace = Namespaces.OpcUaXsd, ItemName = "DiagnosticInfo")]
-    public partial class DiagnosticInfoCollection : List<DiagnosticInfo>, ICloneable
+    public class DiagnosticInfoCollection : List<DiagnosticInfo>, ICloneable
     {
         /// <summary>
         /// Initializes an empty collection.

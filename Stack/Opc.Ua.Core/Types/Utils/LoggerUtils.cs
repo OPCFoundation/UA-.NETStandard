@@ -181,7 +181,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="eventId">The event id associated with the log.</param>
         /// <param name="exception">The exception to log.</param>
-        /// <param name="message">Format string of the log message in message template format. Example: <code>"User {User} logged in from {Address}"</code></param>
+        /// <param name="message">Format string of the log message in message template format. Example: <c>"User {User} logged in from {Address}"</c></param>
         /// <param name="args">An object array that contains zero or more objects to format.</param>
         /// <example>LogDebug(0, exception, "Error while processing request from {Address}", address)</example>
         [Conditional("DEBUG")]
@@ -194,7 +194,7 @@ namespace Opc.Ua
         /// Formats and writes a debug log message.
         /// </summary>
         /// <param name="eventId">The event id associated with the log.</param>
-        /// <param name="message">Format string of the log message in message template format. Example: <code>"User {User} logged in from {Address}"</code></param>
+        /// <param name="message">Format string of the log message in message template format. Example: <c>"User {User} logged in from {Address}"</c></param>
         /// <param name="args">An object array that contains zero or more objects to format.</param>
         /// <example>LogDebug(0, "Processing request from {Address}", address)</example>
         [Conditional("DEBUG")]
@@ -207,7 +207,7 @@ namespace Opc.Ua
         /// Formats and writes a debug log message.
         /// </summary>
         /// <param name="exception">The exception to log.</param>
-        /// <param name="message">Format string of the log message in message template format. Example: <code>"User {User} logged in from {Address}"</code></param>
+        /// <param name="message">Format string of the log message in message template format. Example: <c>"User {User} logged in from {Address}"</c></param>
         /// <param name="args">An object array that contains zero or more objects to format.</param>
         /// <example>LogDebug(exception, "Error while processing request from {Address}", address)</example>
         [Conditional("DEBUG")]
@@ -219,7 +219,7 @@ namespace Opc.Ua
         /// <summary>
         /// Formats and writes a debug log message.
         /// </summary>
-        /// <param name="message">Format string of the log message in message template format. Example: <code>"User {User} logged in from {Address}"</code></param>
+        /// <param name="message">Format string of the log message in message template format. Example: <c>"User {User} logged in from {Address}"</c></param>
         /// <param name="args">An object array that contains zero or more objects to format.</param>
         /// <example>LogDebug("Processing request from {Address}", address)</example>
         [Conditional("DEBUG")]
@@ -235,7 +235,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="eventId">The event id associated with the log.</param>
         /// <param name="exception">The exception to log.</param>
-        /// <param name="message">Format string of the log message in message template format. Example: <code>"User {User} logged in from {Address}"</code></param>
+        /// <param name="message">Format string of the log message in message template format. Example: <c>"User {User} logged in from {Address}"</c></param>
         /// <param name="args">An object array that contains zero or more objects to format.</param>
         /// <example>LogTrace(0, exception, "Error while processing request from {Address}", address)</example>
         public static void LogTrace(EventId eventId, Exception exception, string message, params object[] args)
@@ -254,7 +254,7 @@ namespace Opc.Ua
         /// Formats and writes a trace log message.
         /// </summary>
         /// <param name="eventId">The event id associated with the log.</param>
-        /// <param name="message">Format string of the log message in message template format. Example: <code>"User {User} logged in from {Address}"</code></param>
+        /// <param name="message">Format string of the log message in message template format. Example: <c>"User {User} logged in from {Address}"</c></param>
         /// <param name="args">An object array that contains zero or more objects to format.</param>
         /// <example>LogTrace(0, "Processing request from {Address}", address)</example>
         public static void LogTrace(EventId eventId, string message, params object[] args)
@@ -273,7 +273,7 @@ namespace Opc.Ua
         /// Formats and writes a trace log message.
         /// </summary>
         /// <param name="exception">The exception to log.</param>
-        /// <param name="message">Format string of the log message in message template format. Example: <code>"User {User} logged in from {Address}"</code></param>
+        /// <param name="message">Format string of the log message in message template format. Example: <c>"User {User} logged in from {Address}"</c></param>
         /// <param name="args">An object array that contains zero or more objects to format.</param>
         /// <example>LogTrace(exception, "Error while processing request from {Address}", address)</example>
         public static void LogTrace(Exception exception, string message, params object[] args)
@@ -291,7 +291,7 @@ namespace Opc.Ua
         /// <summary>
         /// Formats and writes a trace log message.
         /// </summary>
-        /// <param name="message">Format string of the log message in message template format. Example: <code>"User {User} logged in from {Address}"</code></param>
+        /// <param name="message">Format string of the log message in message template format. Example: <c>"User {User} logged in from {Address}"</c></param>
         /// <param name="args">An object array that contains zero or more objects to format.</param>
         /// <example>LogTrace("Processing request from {Address}", address)</example>
         public static void LogTrace(string message, params object[] args)
@@ -313,7 +313,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="eventId">The event id associated with the log.</param>
         /// <param name="exception">The exception to log.</param>
-        /// <param name="message">Format string of the log message in message template format. Example: <code>"User {User} logged in from {Address}"</code></param>
+        /// <param name="message">Format string of the log message in message template format. Example: <c>"User {User} logged in from {Address}"</c></param>
         /// <param name="args">An object array that contains zero or more objects to format.</param>
         /// <example>LogInformation(0, exception, "Error while processing request from {Address}", address)</example>
         public static void LogInfo(EventId eventId, Exception exception, string message, params object[] args)
@@ -325,7 +325,7 @@ namespace Opc.Ua
         /// Formats and writes an informational log message.
         /// </summary>
         /// <param name="eventId">The event id associated with the log.</param>
-        /// <param name="message">Format string of the log message in message template format. Example: <code>"User {User} logged in from {Address}"</code></param>
+        /// <param name="message">Format string of the log message in message template format. Example: <c>"User {User} logged in from {Address}"</c></param>
         /// <param name="args">An object array that contains zero or more objects to format.</param>
         /// <example>LogInformation(0, "Processing request from {Address}", address)</example>
         public static void LogInfo(EventId eventId, string message, params object[] args)
@@ -337,7 +337,7 @@ namespace Opc.Ua
         /// Formats and writes an informational log message.
         /// </summary>
         /// <param name="exception">The exception to log.</param>
-        /// <param name="message">Format string of the log message in message template format. Example: <code>"User {User} logged in from {Address}"</code></param>
+        /// <param name="message">Format string of the log message in message template format. Example: <c>"User {User} logged in from {Address}"</c></param>
         /// <param name="args">An object array that contains zero or more objects to format.</param>
         /// <example>LogInformation(exception, "Error while processing request from {Address}", address)</example>
         public static void LogInfo(Exception exception, string message, params object[] args)
@@ -348,7 +348,7 @@ namespace Opc.Ua
         /// <summary>
         /// Formats and writes an informational log message.
         /// </summary>
-        /// <param name="message">Format string of the log message in message template format. Example: <code>"User {User} logged in from {Address}"</code></param>
+        /// <param name="message">Format string of the log message in message template format. Example: <c>"User {User} logged in from {Address}"</c></param>
         /// <param name="args">An object array that contains zero or more objects to format.</param>
         /// <example>LogInformation("Processing request from {Address}", address)</example>
         public static void LogInfo(string message, params object[] args)
@@ -363,7 +363,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="eventId">The event id associated with the log.</param>
         /// <param name="exception">The exception to log.</param>
-        /// <param name="message">Format string of the log message in message template format. Example: <code>"User {User} logged in from {Address}"</code></param>
+        /// <param name="message">Format string of the log message in message template format. Example: <c>"User {User} logged in from {Address}"</c></param>
         /// <param name="args">An object array that contains zero or more objects to format.</param>
         /// <example>LogWarning(0, exception, "Error while processing request from {Address}", address)</example>
         public static void LogWarning(EventId eventId, Exception exception, string message, params object[] args)
@@ -375,7 +375,7 @@ namespace Opc.Ua
         /// Formats and writes a warning log message.
         /// </summary>
         /// <param name="eventId">The event id associated with the log.</param>
-        /// <param name="message">Format string of the log message in message template format. Example: <code>"User {User} logged in from {Address}"</code></param>
+        /// <param name="message">Format string of the log message in message template format. Example: <c>"User {User} logged in from {Address}"</c></param>
         /// <param name="args">An object array that contains zero or more objects to format.</param>
         /// <example>LogWarning(0, "Processing request from {Address}", address)</example>
         public static void LogWarning(EventId eventId, string message, params object[] args)
@@ -387,7 +387,7 @@ namespace Opc.Ua
         /// Formats and writes a warning log message.
         /// </summary>
         /// <param name="exception">The exception to log.</param>
-        /// <param name="message">Format string of the log message in message template format. Example: <code>"User {User} logged in from {Address}"</code></param>
+        /// <param name="message">Format string of the log message in message template format. Example: <c>"User {User} logged in from {Address}"</c></param>
         /// <param name="args">An object array that contains zero or more objects to format.</param>
         /// <example>LogWarning(exception, "Error while processing request from {Address}", address)</example>
         public static void LogWarning(Exception exception, string message, params object[] args)
@@ -398,7 +398,7 @@ namespace Opc.Ua
         /// <summary>
         /// Formats and writes a warning log message.
         /// </summary>
-        /// <param name="message">Format string of the log message in message template format. Example: <code>"User {User} logged in from {Address}"</code></param>
+        /// <param name="message">Format string of the log message in message template format. Example: <c>"User {User} logged in from {Address}"</c></param>
         /// <param name="args">An object array that contains zero or more objects to format.</param>
         /// <example>LogWarning("Processing request from {Address}", address)</example>
         public static void LogWarning(string message, params object[] args)
@@ -413,7 +413,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="eventId">The event id associated with the log.</param>
         /// <param name="exception">The exception to log.</param>
-        /// <param name="message">Format string of the log message in message template format. Example: <code>"User {User} logged in from {Address}"</code></param>
+        /// <param name="message">Format string of the log message in message template format. Example: <c>"User {User} logged in from {Address}"</c></param>
         /// <param name="args">An object array that contains zero or more objects to format.</param>
         /// <example>LogError(0, exception, "Error while processing request from {Address}", address)</example>
         public static void LogError(EventId eventId, Exception exception, string message, params object[] args)
@@ -425,7 +425,7 @@ namespace Opc.Ua
         /// Formats and writes an error log message.
         /// </summary>
         /// <param name="eventId">The event id associated with the log.</param>
-        /// <param name="message">Format string of the log message in message template format. Example: <code>"User {User} logged in from {Address}"</code></param>
+        /// <param name="message">Format string of the log message in message template format. Example: <c>"User {User} logged in from {Address}"</c></param>
         /// <param name="args">An object array that contains zero or more objects to format.</param>
         /// <example>LogError(0, "Processing request from {Address}", address)</example>
         public static void LogError(EventId eventId, string message, params object[] args)
@@ -437,7 +437,7 @@ namespace Opc.Ua
         /// Formats and writes an error log message.
         /// </summary>
         /// <param name="exception">The exception to log.</param>
-        /// <param name="message">Format string of the log message in message template format. Example: <code>"User {User} logged in from {Address}"</code></param>
+        /// <param name="message">Format string of the log message in message template format. Example: <c>"User {User} logged in from {Address}"</c></param>
         /// <param name="args">An object array that contains zero or more objects to format.</param>
         /// <example>LogError(exception, "Error while processing request from {Address}", address)</example>
         public static void LogError(Exception exception, string message, params object[] args)
@@ -448,7 +448,7 @@ namespace Opc.Ua
         /// <summary>
         /// Formats and writes an error log message.
         /// </summary>
-        /// <param name="message">Format string of the log message in message template format. Example: <code>"User {User} logged in from {Address}"</code></param>
+        /// <param name="message">Format string of the log message in message template format. Example: <c>"User {User} logged in from {Address}"</c></param>
         /// <param name="args">An object array that contains zero or more objects to format.</param>
         /// <example>LogError("Processing request from {Address}", address)</example>
         public static void LogError(string message, params object[] args)
@@ -463,7 +463,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="eventId">The event id associated with the log.</param>
         /// <param name="exception">The exception to log.</param>
-        /// <param name="message">Format string of the log message in message template format. Example: <code>"User {User} logged in from {Address}"</code></param>
+        /// <param name="message">Format string of the log message in message template format. Example: <c>"User {User} logged in from {Address}"</c></param>
         /// <param name="args">An object array that contains zero or more objects to format.</param>
         /// <example>LogCritical(0, exception, "Error while processing request from {Address}", address)</example>
         public static void LogCritical(EventId eventId, Exception exception, string message, params object[] args)
@@ -475,7 +475,7 @@ namespace Opc.Ua
         /// Formats and writes a critical log message.
         /// </summary>
         /// <param name="eventId">The event id associated with the log.</param>
-        /// <param name="message">Format string of the log message in message template format. Example: <code>"User {User} logged in from {Address}"</code></param>
+        /// <param name="message">Format string of the log message in message template format. Example: <c>"User {User} logged in from {Address}"</c></param>
         /// <param name="args">An object array that contains zero or more objects to format.</param>
         /// <example>LogCritical(0, "Processing request from {Address}", address)</example>
         public static void LogCritical(EventId eventId, string message, params object[] args)
@@ -487,7 +487,7 @@ namespace Opc.Ua
         /// Formats and writes a critical log message.
         /// </summary>
         /// <param name="exception">The exception to log.</param>
-        /// <param name="message">Format string of the log message in message template format. Example: <code>"User {User} logged in from {Address}"</code></param>
+        /// <param name="message">Format string of the log message in message template format. Example: <c>"User {User} logged in from {Address}"</c></param>
         /// <param name="args">An object array that contains zero or more objects to format.</param>
         /// <example>LogCritical(exception, "Error while processing request from {Address}", address)</example>
         public static void LogCritical(Exception exception, string message, params object[] args)
@@ -498,7 +498,7 @@ namespace Opc.Ua
         /// <summary>
         /// Formats and writes a critical log message.
         /// </summary>
-        /// <param name="message">Format string of the log message in message template format. Example: <code>"User {User} logged in from {Address}"</code></param>
+        /// <param name="message">Format string of the log message in message template format. Example: <c>"User {User} logged in from {Address}"</c></param>
         /// <param name="args">An object array that contains zero or more objects to format.</param>
         /// <example>LogCritical("Processing request from {Address}", address)</example>
         public static void LogCritical(string message, params object[] args)
@@ -600,7 +600,7 @@ namespace Opc.Ua
         /// <summary>
         /// Formats the message and creates a scope.
         /// </summary>
-        /// <param name="messageFormat">Format string of the log message in message template format. Example: <code>"User {User} logged in from {Address}"</code></param>
+        /// <param name="messageFormat">Format string of the log message in message template format. Example: <c>"User {User} logged in from {Address}"</c></param>
         /// <param name="args">An object array that contains zero or more objects to format.</param>
         /// <returns>A disposable scope object. Can be null.</returns>
         /// <example>

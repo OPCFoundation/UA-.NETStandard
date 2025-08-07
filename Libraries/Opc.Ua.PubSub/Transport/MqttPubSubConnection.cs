@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -165,7 +165,7 @@ namespace Opc.Ua.PubSub.Transport
             m_transportProtocol = TransportProtocol.MQTT;
             m_messageMapping = messageMapping;
 
-            // initialize the message creators for current message 
+            // initialize the message creators for current message
             if (m_messageMapping == MessageMapping.Json)
             {
                 m_messageCreator = new JsonMessageCreator(this);
@@ -219,7 +219,7 @@ namespace Opc.Ua.PubSub.Transport
             return null;
         }
 
-        /// <summary> 
+        /// <summary>
         /// Create and return the DataSetMetaData message for a DataSetWriter
         /// </summary>
         /// <returns></returns>
@@ -261,7 +261,7 @@ namespace Opc.Ua.PubSub.Transport
                             string queueName = null;
                             BrokerTransportQualityOfService qos = BrokerTransportQualityOfService.AtLeastOnce;
 
-                            // the network messages that have DataSetWriterId are either metaData messages or SingleDataSet messages and 
+                            // the network messages that have DataSetWriterId are either metaData messages or SingleDataSet messages and
                             if (networkMessage.DataSetWriterId != null)
                             {
                                 DataSetWriterDataType dataSetWriter = networkMessage.WriterGroupConfiguration.DataSetWriters
@@ -613,7 +613,7 @@ namespace Opc.Ua.PubSub.Transport
                     }
                 }
 
-                // At this point the message is accepted 
+                // At this point the message is accepted
                 // if ((topic.Length == queueName.Length) && (topic == queueName)) || (queueName == #)
                 dataSetReaders.Add(dsReader);
             }
@@ -655,7 +655,7 @@ namespace Opc.Ua.PubSub.Transport
                     networkMessage.Decode(MessageContext, eventArgs.ApplicationMessage.Payload.ToArray(), dataSetReaders);
 #endif
 
-                    // Handle the decoded message and raise the necessary event on UaPubSubApplication 
+                    // Handle the decoded message and raise the necessary event on UaPubSubApplication
                     ProcessDecodedNetworkMessage(networkMessage, topic);
                 }
             }
@@ -762,9 +762,12 @@ namespace Opc.Ua.PubSub.Transport
                     var x509Certificate2s = new List<X509Certificate2>();
                     if (mqttTlsOptions?.Certificates != null)
                     {
-                        foreach (X509Certificate2 x509cert in mqttTlsOptions?.Certificates.X509Certificates)
+                        foreach (X509Certificate x509cert in mqttTlsOptions?.Certificates.X509Certificates)
                         {
-                            x509Certificate2s.Add(X509CertificateLoader.LoadCertificate(x509cert.RawData));
+                            if (x509cert is X509Certificate2 x509Certificate2)
+                            {
+                                x509Certificate2s.Add(X509CertificateLoader.LoadCertificate(x509Certificate2.RawData));
+                            }
                         }
                     }
 
@@ -958,7 +961,7 @@ namespace Opc.Ua.PubSub.Transport
             public abstract IList<UaNetworkMessage> CreateNetworkMessages(WriterGroupDataType writerGroupConfiguration,
                 WriterGroupPublishState state);
 
-            /// <summary> 
+            /// <summary>
             /// Create and return the Json DataSetMetaData message for a DataSetWriter
             /// </summary>
             public abstract UaNetworkMessage CreateDataSetMetaDataNetworkMessage(WriterGroupDataType writerGroup, ushort dataSetWriterId,
@@ -1083,7 +1086,7 @@ namespace Opc.Ua.PubSub.Transport
                 return networkMessages;
             }
 
-            /// <summary> 
+            /// <summary>
             /// Create and return the Json DataSetMetaData message for a DataSetWriter
             /// </summary>
             public override UaNetworkMessage CreateDataSetMetaDataNetworkMessage(WriterGroupDataType writerGroup, ushort dataSetWriterId, DataSetMetaDataType dataSetMetaData)
@@ -1203,7 +1206,7 @@ namespace Opc.Ua.PubSub.Transport
             }
 
 
-            /// <summary> 
+            /// <summary>
             /// Create and return the Uadp DataSetMetaData message for a DataSetWriter
             /// </summary>
             public override UaNetworkMessage CreateDataSetMetaDataNetworkMessage(WriterGroupDataType writerGroup, ushort dataSetWriterId, DataSetMetaDataType dataSetMetaData)

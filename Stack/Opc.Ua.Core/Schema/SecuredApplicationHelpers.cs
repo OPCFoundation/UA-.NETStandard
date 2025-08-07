@@ -236,19 +236,13 @@ namespace Opc.Ua.Security
 
                     if (url != null)
                     {
-                        if (map.ContainsKey(url.Scheme))
+                        if (!map.TryAdd(url.Scheme, string.Empty))
                         {
-                            if (configuration.AlternateBaseAddresses == null)
-                            {
-                                configuration.AlternateBaseAddresses = new StringCollection();
-                            }
-
-                            configuration.AlternateBaseAddresses.Add(url.ToString());
+                            (configuration.AlternateBaseAddresses ??= new StringCollection()).Add(url.ToString());
                         }
                         else
                         {
                             configuration.BaseAddresses.Add(url.ToString());
-                            map.Add(url.Scheme, string.Empty);
                         }
                     }
                 }
@@ -329,17 +323,15 @@ namespace Opc.Ua.Security
             switch (policyUri)
             {
                 case SecurityPolicies.Basic128Rsa15:
-                {
                     Utils.LogWarning("Deprecated Security Policy Basic128Rsa15 requested - Not recommended.");
                     result = 2;
                     break;
-                }
+
                 case SecurityPolicies.Basic256:
-                {
                     Utils.LogWarning("Deprecated Security Policy Basic256 requested - Not rcommended.");
                     result = 4;
                     break;
-                }
+
                 case SecurityPolicies.Basic256Sha256: result = 6; break;
                 case SecurityPolicies.Aes128_Sha256_RsaOaep: result = 8; break;
                 case SecurityPolicies.Aes256_Sha256_RsaPss: result = 10; break;
@@ -376,10 +368,8 @@ namespace Opc.Ua.Security
                 switch (profileUri)
                 {
                     case SecurityPolicies.None:
-                    {
                         policy.SecurityMode = MessageSecurityMode.None;
                         break;
-                    }
 
                     case SecurityPolicies.Basic128Rsa15:
                     case SecurityPolicies.Basic256:
@@ -392,10 +382,8 @@ namespace Opc.Ua.Security
                     case SecurityPolicies.ECC_brainpoolP384r1:
                     case SecurityPolicies.ECC_curve25519:
                     case SecurityPolicies.ECC_curve448:
-                    {
                         policy.SecurityMode = MessageSecurityMode.SignAndEncrypt;
                         break;
-                    }
 
                     default:
                         break;

@@ -62,7 +62,7 @@ namespace Opc.Ua
     /// </para>
     /// </example>
     [DataContract(Namespace = Namespaces.OpcUaXsd)]
-    public partial class LocalizedText : ICloneable, IFormattable
+    public class LocalizedText : ICloneable, IFormattable
     {
         private const string kMulLocale = "mul";
         private const string kMulLocaleDictionaryKey = "t";
@@ -77,9 +77,8 @@ namespace Opc.Ua
         private LocalizedText()
         {
             XmlEncodedLocale = null;
-            m_text = null;
+            XmlEncodedText = null;
         }
-
 
         /// <summary>
         /// Formats the text with the arguments using the specified locale.
@@ -101,7 +100,7 @@ namespace Opc.Ua
             }
 
             XmlEncodedLocale = translationInfo.Locale;
-            m_text = translationInfo.Text;
+            XmlEncodedText = translationInfo.Text;
             TranslationInfo = translationInfo;
 
             if (TranslationInfo.Args == null || TranslationInfo.Args.Length == 0)
@@ -125,11 +124,11 @@ namespace Opc.Ua
 
             try
             {
-                m_text = string.Format(culture, TranslationInfo.Text, TranslationInfo.Args);
+                XmlEncodedText = string.Format(culture, TranslationInfo.Text, TranslationInfo.Args);
             }
             catch
             {
-                m_text = TranslationInfo.Text;
+                XmlEncodedText = TranslationInfo.Text;
             }
             m_translations = DecodeMulLocale();
         }
@@ -150,7 +149,7 @@ namespace Opc.Ua
             }
 
             XmlEncodedLocale = value.XmlEncodedLocale;
-            m_text = value.m_text;
+            XmlEncodedText = value.XmlEncodedText;
             m_translations = DecodeMulLocale();
         }
 
@@ -164,7 +163,7 @@ namespace Opc.Ua
         public LocalizedText(string text)
         {
             XmlEncodedLocale = null;
-            m_text = text;
+            XmlEncodedText = text;
         }
 
         /// <summary>
@@ -178,7 +177,7 @@ namespace Opc.Ua
         public LocalizedText(string locale, string text)
         {
             XmlEncodedLocale = locale;
-            m_text = text;
+            XmlEncodedText = text;
             m_translations = DecodeMulLocale();
         }
 
@@ -191,7 +190,7 @@ namespace Opc.Ua
         public LocalizedText(string key, string locale, string text)
         {
             XmlEncodedLocale = locale;
-            m_text = text;
+            XmlEncodedText = text;
 
             if (!string.IsNullOrEmpty(key))
             {
@@ -216,15 +215,15 @@ namespace Opc.Ua
         /// The dictionary must contain at least one entry.
         /// Results in a localized text using the "mul" locale.
         /// </summary>
-        /// <param name="translations">key = locale, value = text</param>
         /// <param name="key">A key used to look up the text for different locales</param>
+        /// <param name="translations">key = locale, value = text</param>
         public LocalizedText(string key, IReadOnlyDictionary<string, string> translations)
         {
             Translations = translations;
 
             if (!string.IsNullOrEmpty(key))
             {
-                TranslationInfo = new TranslationInfo(key, XmlEncodedLocale, m_text);
+                TranslationInfo = new TranslationInfo(key, XmlEncodedLocale, XmlEncodedText);
             }
         }
         #endregion
@@ -248,7 +247,7 @@ namespace Opc.Ua
         /// <remarks>
         /// The localized text.
         /// </remarks>
-        public string Text => m_text;
+        public string Text => XmlEncodedText;
 
         /// <summary>
         /// The decoded translations if the Localized Text is a mul locale.
@@ -262,7 +261,7 @@ namespace Opc.Ua
             {
                 if (m_translations == null && XmlEncodedLocale != null)
                 {
-                    return new ReadOnlyDictionary<string, string>(new Dictionary<string, string> { { XmlEncodedLocale, m_text } });
+                    return new ReadOnlyDictionary<string, string>(new Dictionary<string, string> { { XmlEncodedLocale, XmlEncodedText } });
                 }
                 return m_translations;
             }
@@ -280,7 +279,7 @@ namespace Opc.Ua
                     foreach (KeyValuePair<string, string> kvp in value)
                     {
                         XmlEncodedLocale = kvp.Key;
-                        m_text = kvp.Value;
+                        XmlEncodedText = kvp.Value;
                         m_translations = null;
                         return;
                     }
@@ -288,17 +287,13 @@ namespace Opc.Ua
                 //Encode the dictionary to a mul locale.
                 m_translations = value;
                 XmlEncodedLocale = kMulLocale;
-                m_text = EncodeMulLocale(m_translations);
+                XmlEncodedText = EncodeMulLocale(m_translations);
             }
         }
 
         /// <inheritdoc/>
         [DataMember(Name = "Text", Order = 2)]
-        internal string XmlEncodedText
-        {
-            get { return m_text; }
-            set { m_text = value; }
-        }
+        internal string XmlEncodedText { get; set; }
 
         /// <summary>
         /// A key that can be used to look to the localized text in different locales.
@@ -326,7 +321,7 @@ namespace Opc.Ua
                     return;
                 }
 
-                TranslationInfo = new TranslationInfo(value, XmlEncodedLocale, m_text);
+                TranslationInfo = new TranslationInfo(value, XmlEncodedLocale, XmlEncodedText);
             }
         }
 
@@ -356,22 +351,17 @@ namespace Opc.Ua
                 return true;
             }
 
-            var ltext = obj as LocalizedText;
-
-            if (ltext == null)
+            if (!(obj is LocalizedText ltext))
             {
                 return false;
             }
 
-            if (ltext.XmlEncodedLocale != XmlEncodedLocale)
+            if (ltext.XmlEncodedLocale != XmlEncodedLocale && !(string.IsNullOrEmpty(ltext.XmlEncodedLocale) && string.IsNullOrEmpty(XmlEncodedLocale)))
             {
-                if (!(string.IsNullOrEmpty(ltext.XmlEncodedLocale) && string.IsNullOrEmpty(XmlEncodedLocale)))
-                {
-                    return false;
-                }
+                return false;
             }
 
-            return ltext.m_text == m_text;
+            return ltext.XmlEncodedText == XmlEncodedText;
         }
 
         /// <summary>
@@ -419,9 +409,9 @@ namespace Opc.Ua
         public override int GetHashCode()
         {
             var hash = new HashCode();
-            if (m_text != null)
+            if (XmlEncodedText != null)
             {
-                hash.Add(m_text);
+                hash.Add(XmlEncodedText);
             }
 
             if (XmlEncodedLocale != null)
@@ -458,7 +448,7 @@ namespace Opc.Ua
         {
             if (format == null)
             {
-                return string.Format(formatProvider, "{0}", this.m_text);
+                return string.Format(formatProvider, "{0}", this.XmlEncodedText);
             }
 
             throw new FormatException(Utils.Format("Invalid format string: '{0}'.", format));
@@ -525,7 +515,7 @@ namespace Opc.Ua
                 return true;
             }
 
-            return string.IsNullOrEmpty(value.m_text);
+            return string.IsNullOrEmpty(value.XmlEncodedText);
         }
         #endregion
 
@@ -630,7 +620,7 @@ namespace Opc.Ua
         /// </summary>
         private IReadOnlyDictionary<string, string> DecodeMulLocale()
         {
-            if (!IsMultiLanguage || string.IsNullOrWhiteSpace(m_text))
+            if (!IsMultiLanguage || string.IsNullOrWhiteSpace(XmlEncodedText))
             {
                 return null;
             }
@@ -639,7 +629,7 @@ namespace Opc.Ua
             try
             {
                 // The expected JSON structure is defined in https://reference.opcfoundation.org/Core/Part3/v105/docs/8.5
-                Dictionary<string, object> json = JsonConvert.DeserializeObject<Dictionary<string, object>>(m_text);
+                Dictionary<string, object> json = JsonConvert.DeserializeObject<Dictionary<string, object>>(XmlEncodedText);
                 if (json != null && json.TryGetValue(kMulLocaleDictionaryKey, out object tValue) && tValue is Newtonsoft.Json.Linq.JArray tArray)
                 {
                     foreach (Newtonsoft.Json.Linq.JToken pairToken in tArray)
@@ -658,7 +648,7 @@ namespace Opc.Ua
             }
             catch
             {
-                Utils.Trace("Failed to parse mul locale JSON text: {0}", m_text);
+                Utils.Trace("Failed to parse mul locale JSON text: {0}", XmlEncodedText);
                 return null; // Return null if parsing fails
             }
             return new ReadOnlyDictionary<string, string>(result);
@@ -666,7 +656,6 @@ namespace Opc.Ua
 
 #endregion
 #region Private Fields
-        private string m_text;
         private IReadOnlyDictionary<string, string> m_translations;
         #endregion
     }
@@ -679,7 +668,7 @@ namespace Opc.Ua
     /// A strongly-typed collection of LocalizedText objects.
     /// </remarks>
     [CollectionDataContract(Name = "ListOfLocalizedText", Namespace = Namespaces.OpcUaXsd, ItemName = "LocalizedText")]
-    public partial class LocalizedTextCollection : List<LocalizedText>, ICloneable
+    public class LocalizedTextCollection : List<LocalizedText>, ICloneable
     {
         /// <summary>
         /// Initializes an empty collection.

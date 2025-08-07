@@ -110,8 +110,5 @@ namespace Opc.Ua.Bindings
     /// This is the transport channel factory interface for a binding (client).
     /// </summary>
     public interface ITransportChannelFactory :
-        ITransportBindingFactory<ITransportChannel>
-    {
-    }
-
+        ITransportBindingFactory<ITransportChannel>;
 }

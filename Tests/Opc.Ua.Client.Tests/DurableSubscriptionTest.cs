@@ -46,7 +46,6 @@ using Opc.Ua.Server.Tests;
 using Quickstarts.ReferenceServer;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
-
 namespace Opc.Ua.Client.Tests
 {
     /// <summary>
@@ -56,7 +55,6 @@ namespace Opc.Ua.Client.Tests
     [SetCulture("en-us"), SetUICulture("en-us")]
     public class DurableSubscriptionTest : ClientTestFramework
     {
-        private readonly string m_subscriptionTestXml = Path.Combine(Path.GetTempPath(), "SubscriptionTest.xml");
         public readonly uint MillisecondsPerHour = 3600 * 1000;
 
         #region Test Setup
@@ -112,7 +110,6 @@ namespace Opc.Ua.Client.Tests
             ReferenceServer.TokenValidator = this.TokenValidator;
             ServerFixturePort = ServerFixture.Port;
         }
-
 
         /// <summary>
         /// Tear down the Server and the Client.
@@ -248,19 +245,17 @@ namespace Opc.Ua.Client.Tests
                 };
             }
 
-
             subscription.AddItem(mi);
 
             IList<MonitoredItem> result = await subscription.CreateItemsAsync().ConfigureAwait(false);
-            Assert.That(ServiceResult.IsGood(result.First().Status.Error), Is.True);
-            Assert.That(result.First().Status.QueueSize, Is.EqualTo(expectedRevisedQueueSize));
+            Assert.That(ServiceResult.IsGood(result[0].Status.Error), Is.True);
+            Assert.That(result[0].Status.QueueSize, Is.EqualTo(expectedRevisedQueueSize));
 
             mi.QueueSize = queueSize + 1;
 
             IList<MonitoredItem> resultModify = await subscription.ModifyItemsAsync().ConfigureAwait(false);
-            Assert.That(ServiceResult.IsGood(resultModify.First().Status.Error), Is.True);
-            Assert.That(resultModify.First().Status.QueueSize, Is.EqualTo(expectedModifiedQueueSize));
-
+            Assert.That(ServiceResult.IsGood(resultModify[0].Status.Error), Is.True);
+            Assert.That(resultModify[0].Status.QueueSize, Is.EqualTo(expectedModifiedQueueSize));
 
             Assert.True(subscription.GetMonitoredItems(out _, out _));
 
@@ -295,7 +290,7 @@ namespace Opc.Ua.Client.Tests
             subscription.AddItem(mi);
 
             IList<MonitoredItem> result = subscription.CreateItems();
-            Assert.That(ServiceResult.IsGood(result.First().Status.Error), Is.True);
+            Assert.That(ServiceResult.IsGood(result[0].Status.Error), Is.True);
 
             Assert.Throws<ServiceResultException>(() => Session.Call(ObjectIds.Server,
                     MethodIds.Server_SetSubscriptionDurable,
@@ -336,12 +331,12 @@ namespace Opc.Ua.Client.Tests
                 Assert.Ignore("Timing on mac OS causes issues");
             }
 
-            int publishingInterval = 100;
-            uint keepAliveCount = 5;
-            uint lifetimeCount = 15;
-            uint requestedHours = 1;
-            uint expectedHours = 1;
-            uint expectedLifetime = 36000;
+            const int publishingInterval = 100;
+            const uint keepAliveCount = 5;
+            const uint lifetimeCount = 15;
+            const uint requestedHours = 1;
+            const uint expectedHours = 1;
+            const uint expectedLifetime = 36000;
 
             var subscription = new TestableSubscription(Session.DefaultSubscription);
 
@@ -350,9 +345,7 @@ namespace Opc.Ua.Client.Tests
             subscription.PublishingInterval = publishingInterval;
             subscription.MinLifetimeInterval = 1500;
 
-            subscription.StateChanged += (s, e) => {
-                TestContext.Out.WriteLine($"StateChanged: {s.Session.SessionId}-{s.Id}-{e.Status}");
-            };
+            subscription.StateChanged += (s, e) => TestContext.Out.WriteLine($"StateChanged: {s.Session.SessionId}-{s.Id}-{e.Status}");
 
             Assert.True(Session.AddSubscription(subscription));
             subscription.Create();
@@ -380,7 +373,6 @@ namespace Opc.Ua.Client.Tests
             var testSet = new List<NodeId>();
             testSet.AddRange(GetTestSetFullSimulation(Session.NamespaceUris));
             var valueTimeStamps = new Dictionary<NodeId, List<DateTime>>();
-
 
             var monitoredItemsList = new List<MonitoredItem>();
             foreach (NodeId nodeId in testSet)
@@ -455,12 +447,12 @@ namespace Opc.Ua.Client.Tests
 
                 subscription.SetPublishingMode(false);
 
-                double tolerance = 1500;
+                const double tolerance = 1500;
 
-                TestContext.Out.WriteLine("Session StartTime at {0}", DateTimeMs(startTime));
-                TestContext.Out.WriteLine("Session Closed at {0}", DateTimeMs(closeTime));
-                TestContext.Out.WriteLine("Restart at {0}", DateTimeMs(restartTime));
-                TestContext.Out.WriteLine("Completion at {0}", DateTimeMs(completionTime));
+                TestContext.Out.WriteLine("Session StartTime at {0}", DurableSubscriptionTest.DateTimeMs(startTime));
+                TestContext.Out.WriteLine("Session Closed at {0}", DurableSubscriptionTest.DateTimeMs(closeTime));
+                TestContext.Out.WriteLine("Restart at {0}", DurableSubscriptionTest.DateTimeMs(restartTime));
+                TestContext.Out.WriteLine("Completion at {0}", DurableSubscriptionTest.DateTimeMs(completionTime));
 
                 // Validate
                 foreach (KeyValuePair<NodeId, List<DateTime>> pair in valueTimeStamps)
@@ -472,13 +464,12 @@ namespace Opc.Ua.Client.Tests
                         DateTime timestamp = pair.Value[index];
 
                         TimeSpan timeSpan = timestamp - previous;
-                        TestContext.Out.WriteLine($"Node: {pair.Key} Index: {index} Time: {DateTimeMs(timestamp)} Previous: {DateTimeMs(previous)} Timespan {timeSpan.TotalMilliseconds.ToString("000.", CultureInfo.InvariantCulture)}");
+                        TestContext.Out.WriteLine($"Node: {pair.Key} Index: {index} Time: {DurableSubscriptionTest.DateTimeMs(timestamp)} Previous: {DurableSubscriptionTest.DateTimeMs(previous)} Timespan {timeSpan.TotalMilliseconds.ToString("000.", CultureInfo.InvariantCulture)}");
 
                         Assert.Less(Math.Abs(timeSpan.TotalMilliseconds), tolerance,
                             $"Node: {pair.Key} Index: {index} Timespan {timeSpan.TotalMilliseconds} ");
 
                         previous = timestamp;
-
 
                         if (index == pair.Value.Count - 1)
                         {
@@ -488,8 +479,6 @@ namespace Opc.Ua.Client.Tests
                         }
                     }
                 }
-
-
             }
             else if (setSubscriptionDurable)
             {
@@ -508,25 +497,6 @@ namespace Opc.Ua.Client.Tests
             Assert.AreEqual(expectedValue, Convert.ToUInt32(dataValue.Value, CultureInfo.InvariantCulture));
 
             return modifiedValues;
-        }
-
-        private void OnMonitoredItemNotification(MonitoredItem monitoredItem, MonitoredItemNotificationEventArgs e)
-        {
-            try
-            {
-                // Log MonitoredItem Notification event
-                var notification = e.NotificationValue as MonitoredItemNotification;
-                DateTime localTime = notification.Value.SourceTimestamp.ToLocalTime();
-                Debug.WriteLine("Notification: {0} \"{1}\" and Value = {2} at [{3}].",
-                    notification.Message.SequenceNumber,
-                    monitoredItem.ResolvedNodeId,
-                    notification.Value,
-                    localTime.ToLongTimeString());
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine("OnMonitoredItemNotification error: {0}", ex.Message);
-            }
         }
 
         #endregion
@@ -601,7 +571,6 @@ namespace Opc.Ua.Client.Tests
                         desiredReferences.Count
                     );
 
-
                     foreach (ReferenceDescription referenceDescription in desiredReferences)
                     {
                         NodeId recreated = null;
@@ -643,7 +612,6 @@ namespace Opc.Ua.Client.Tests
                             StringComparison.OrdinalIgnoreCase))
                         {
                             maxLifetimeCountNodeId = recreated;
-
                         }
                         else if (referenceDescription.BrowseName.Name.Equals("MaxKeepAliveCount",
                             StringComparison.OrdinalIgnoreCase))
@@ -708,7 +676,7 @@ namespace Opc.Ua.Client.Tests
                 }
             });
 
-            var mi = new MonitoredItem() {
+            return new MonitoredItem() {
                 AttributeId = Attributes.EventNotifier,
                 StartNodeId = ObjectIds.Server,
                 MonitoringMode = MonitoringMode.Reporting,
@@ -729,17 +697,13 @@ namespace Opc.Ua.Client.Tests
                 DiscardOldest = true,
                 QueueSize = queueSize
             };
-            return mi;
         }
 
-        private string DateTimeMs(DateTime dateTime)
+        private static string DateTimeMs(DateTime dateTime)
         {
-            string readable = dateTime.ToLongTimeString() + "." +
+            return dateTime.ToLongTimeString() + "." +
                 dateTime.Millisecond.ToString("D3", CultureInfo.InvariantCulture);
-
-            return readable;
         }
-
 
         #endregion
     }

@@ -31,13 +31,11 @@ namespace Opc.Ua.Server.Tests
 
                 var nodeManager = new TestableCustomNodeManger2(server.CurrentInstance, ns);
 
-
                 var baseObject = new BaseObjectState(null);
-                var nodeHandle = new NodeHandle(new NodeId((string)CommonTestWorkers.NodeIdTestSetStatic.First().Identifier, 0), baseObject);
+                var nodeHandle = new NodeHandle(new NodeId((string)CommonTestWorkers.NodeIdTestSetStatic[0].Identifier, 0), baseObject);
 
                 //Act
                 await RunTaskInParallel(() => UseComponentCacheAsync(nodeManager, baseObject, nodeHandle), 100).ConfigureAwait(false);
-
 
                 //Assert, that entry was deleted from cache after parallel operations on the same node
                 NodeState handleFromCache = nodeManager.LookupNodeInComponentCache(nodeManager.SystemContext, nodeHandle);
@@ -68,10 +66,9 @@ namespace Opc.Ua.Server.Tests
                 int index = server.CurrentInstance.NamespaceUris.GetIndex(ns);
 
                 var baseObject = new DataItemState(null);
-                var nodeId = new NodeId((string)CommonTestWorkers.NodeIdTestSetStatic.First().Identifier, (ushort)index);
+                var nodeId = new NodeId((string)CommonTestWorkers.NodeIdTestSetStatic[0].Identifier, (ushort)index);
 
                 baseObject.NodeId = nodeId;
-
 
                 //single threaded test
                 nodeManager.AddPredefinedNode(nodeManager.SystemContext, baseObject);
@@ -99,7 +96,6 @@ namespace Opc.Ua.Server.Tests
                 nodeManager.DeleteAddressSpace();
 
                 Assert.That(nodeManager.PredefinedNodes, Is.Empty);
-
 
                 //Act
                 await RunTaskInParallel(() => UsePredefinedNodesAsync(nodeManager, baseObject, nodeId), 100).ConfigureAwait(false);
@@ -183,11 +179,10 @@ namespace Opc.Ua.Server.Tests
                               {
                                   tasksCompletedCount++;
                               }
-
                           });
 
             int spinWaitCount = 0;
-            int maxSpinWaitCount = 100;
+            const int maxSpinWaitCount = 100;
             while (iterations > tasksCompletedCount && error is null && spinWaitCount < maxSpinWaitCount)
             {
                 await Task.Delay(TimeSpan.FromMilliseconds(100)).ConfigureAwait(false);
@@ -196,7 +191,6 @@ namespace Opc.Ua.Server.Tests
 
             return (error == null, error);
         }
-
     }
 
     public class TestableCustomNodeManger2 : CustomNodeManager2

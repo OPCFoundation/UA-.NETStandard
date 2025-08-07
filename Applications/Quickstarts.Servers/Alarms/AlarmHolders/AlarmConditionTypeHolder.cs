@@ -77,7 +77,6 @@ namespace Alarms
                     alarm.SuppressedState = new TwoStateVariableState(alarm);
                 }
 
-
                 if (alarm.OutOfServiceState == null)
                 {
                     alarm.OutOfServiceState = new TwoStateVariableState(alarm);
@@ -97,9 +96,7 @@ namespace Alarms
                     // Off normal does not create MaxTimeShelved.
                     alarm.MaxTimeShelved = new PropertyState<double>(alarm);
                 }
-
             }
-
 
             // Call the base class to set parameters
             base.Initialize(alarmTypeIdentifier, name);
@@ -122,8 +119,6 @@ namespace Alarms
 
                 alarm.LatchedState.Value = new LocalizedText("");
                 alarm.LatchedState.Id.Value = false;
-
-
             }
             else
             {
@@ -142,7 +137,6 @@ namespace Alarms
             bool setValue = false;
             AlarmConditionState alarm = GetAlarm();
 
-
             if (ShouldEvent())
             {
                 alarm.SetActiveState(SystemContext, IsActive());
@@ -152,17 +146,17 @@ namespace Alarms
 
             if (UpdateSuppression())
             {
-                if (message.Length <= 0)
+                if (message.Length == 0)
                 {
-                    message = "Updating due to Shelving State Update: " + alarm.ShelvingState.CurrentState.Value.ToString();
+                    message = "Updating due to Shelving State Update: " + alarm.ShelvingState.CurrentState.Value;
                 }
                 setValue = true;
             }
             else if (UpdateSuppression())
             {
-                if (message.Length <= 0)
+                if (message.Length == 0)
                 {
-                    message = "Updating due to Suppression Update: " + alarm.SuppressedState.Value.ToString();
+                    message = "Updating due to Suppression Update: " + alarm.SuppressedState.Value;
                 }
                 setValue = true;
             }
@@ -179,21 +173,18 @@ namespace Alarms
 
             bool retainState = true;
 
-            if (!alarm.ActiveState.Id.Value)
+            if (!alarm.ActiveState.Id.Value && alarm.AckedState.Id.Value)
             {
-                if (alarm.AckedState.Id.Value)
+                if (Optional)
                 {
-                    if (Optional)
-                    {
-                        if (alarm.ConfirmedState.Id.Value)
-                        {
-                            retainState = false;
-                        }
-                    }
-                    else
+                    if (alarm.ConfirmedState.Id.Value)
                     {
                         retainState = false;
                     }
+                }
+                else
+                {
+                    retainState = false;
                 }
             }
 
@@ -209,9 +200,7 @@ namespace Alarms
         protected override bool UpdateShelving()
         {
             // Don't have to worry about changing state to Unshelved, there is an SDK timer to deal with that.
-            bool update = false;
-
-            return update;
+            return false;
         }
 
         protected override bool UpdateSuppression()
@@ -248,7 +237,6 @@ namespace Alarms
             }
             return (AlarmConditionState)alarm;
         }
-
 
         #endregion
 

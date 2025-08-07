@@ -641,7 +641,10 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             }
         }
 
-        // create version of EscapeStringSpanCharsInline that references cosnt arrays
+        /// <summary>
+        /// create version of EscapeStringSpanCharsInline that references cosnt arrays
+        /// </summary>
+        /// <param name="value"></param>
         private void EscapeStringSpanCharsInlineConst(string value)
         {
             ReadOnlySpan<char> charSpan = value.AsSpan();
@@ -682,7 +685,6 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 WriteSpan(ref lastOffset, charSpan, charSpan.Length);
             }
         }
-
 
         private void EscapeStringSpanIndex(string value)
         {
@@ -816,7 +818,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         private readonly int m_streamSize = 1024;
         private static readonly string m_specialString = "\"\\\n\r\t\b\f";
 
-        // Declare static readonly characters for the special characters
+        /// <summary>
+        /// Declare static readonly characters for the special characters
+        /// </summary>
         private static readonly char sro_quotation = '\"';
         private static readonly char sro_backslash = '\\';
         private static readonly char sro_newline = '\n';
@@ -826,7 +830,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         private static readonly char sro_formfeed = '\f';
         private static readonly char[] m_specialChars = new char[] { sro_quotation, sro_backslash, sro_newline, sro_return, sro_tab, sro_backspace, sro_formfeed };
 
-        // Declare static readonly characters for the substitution characters
+        /// <summary>
+        /// Declare static readonly characters for the substitution characters
+        /// </summary>
         private static readonly char sro_quotationSub = '\"';
         private static readonly char sro_backslashSub = '\\';
         private static readonly char sro_newlineSub = 'n';
@@ -836,7 +842,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         private static readonly char sro_formfeedSub = 'f';
         private static readonly char[] m_substitution = new char[] { sro_quotationSub, sro_backslashSub, sro_newlineSub, sro_returnSub, sro_tabSub, sro_backspaceSub, sro_formfeedSub };
 
-        // Special characters as const
+        /// <summary>
+        /// Special characters as const
+        /// </summary>
         private const char s_quotation = '\"';
         private const char s_backslash = '\\';
         private const char s_newline = '\n';
@@ -847,7 +855,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
         private static readonly char[] m_specialCharsConst = new char[] { s_quotation, s_backslash, s_newline, s_return, s_tab, s_backspace, s_formfeed };
 
-        // Substitution as const
+        /// <summary>
+        /// Substitution as const
+        /// </summary>
         private const char s_quotationSub = '\"';
         private const char s_backslashSub = '\\';
         private const char s_newlineSub = 'n';

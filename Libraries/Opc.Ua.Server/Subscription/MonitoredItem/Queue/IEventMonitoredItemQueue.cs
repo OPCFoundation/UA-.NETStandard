@@ -75,7 +75,6 @@ namespace Opc.Ua.Server
         /// <returns>true if event already in queue</returns>
         bool IsEventContainedInQueue(IFilterTarget instance);
 
-
         /// <summary>
         /// Adds the value to the queue.
         /// </summary>
@@ -89,5 +88,4 @@ namespace Opc.Ua.Server
         /// <returns>True if a value was found. False if the queue is empty.</returns>
         bool Dequeue(out EventFieldList value);
     }
-
 }

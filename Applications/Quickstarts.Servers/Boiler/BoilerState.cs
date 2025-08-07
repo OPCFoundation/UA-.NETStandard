@@ -55,13 +55,10 @@ namespace Boiler
         /// </summary>
         protected override void Dispose(bool disposing)
         {
-            if (disposing)
+            if (disposing && m_simulationTimer != null)
             {
-                if (m_simulationTimer != null)
-                {
-                    m_simulationTimer.Dispose();
-                    m_simulationTimer = null;
-                }
+                m_simulationTimer.Dispose();
+                m_simulationTimer = null;
             }
         }
         #endregion
@@ -81,7 +78,6 @@ namespace Boiler
             switch (causeId)
             {
                 case Opc.Ua.Methods.ProgramStateMachineType_Start:
-                {
                     if (m_simulationTimer != null)
                     {
                         m_simulationTimer.Dispose();
@@ -99,11 +95,9 @@ namespace Boiler
                     m_simulationContext = context;
                     m_simulationTimer = new Timer(DoSimulation, null, (int)updateRate, (int)updateRate);
                     break;
-                }
 
                 case Opc.Ua.Methods.ProgramStateMachineType_Halt:
                 case Opc.Ua.Methods.ProgramStateMachineType_Suspend:
-                {
                     if (m_simulationTimer != null)
                     {
                         m_simulationTimer.Dispose();
@@ -112,10 +106,8 @@ namespace Boiler
 
                     m_simulationContext = context;
                     break;
-                }
 
                 case Opc.Ua.Methods.ProgramStateMachineType_Reset:
-                {
                     if (m_simulationTimer != null)
                     {
                         m_simulationTimer.Dispose();
@@ -124,7 +116,6 @@ namespace Boiler
 
                     m_simulationContext = context;
                     break;
-                }
             }
 
             return ServiceResult.Good;
@@ -146,7 +137,7 @@ namespace Boiler
 
                 if (offsetToApply == offset)
                 {
-                    offsetToApply -= 1;
+                    offsetToApply--;
                 }
             }
 
@@ -157,21 +148,20 @@ namespace Boiler
             perturbedValue += (m_random.NextDouble() - 0.5) * 5;
 
             // restore original exponent.
-            perturbedValue = Math.Round(perturbedValue) * Math.Pow(10.0, -offsetToApply);
 
             // return value.
-            return perturbedValue;
+            return Math.Round(perturbedValue) * Math.Pow(10.0, -offsetToApply);
         }
 
         /// <summary>
         /// Moves the value towards the target.
         /// </summary>
-        private double Adjust(double value, double target, double step, Opc.Ua.Range range)
+        private static double Adjust(double value, double target, double step, Opc.Ua.Range range)
         {
             // convert percentage step to an absolute step if range is specified.
             if (range != null)
             {
-                step = step * range.Magnitude;
+                step *= range.Magnitude;
             }
 
             double difference = target - value;
@@ -201,7 +191,7 @@ namespace Boiler
         /// <summary>
         /// Returns the value as a percentage of the range.
         /// </summary>
-        private double GetPercentage(AnalogItemState<double> value)
+        private static double GetPercentage(AnalogItemState<double> value)
         {
             double percentage = value.Value;
             Opc.Ua.Range range = value.EURange.Value;
@@ -222,7 +212,7 @@ namespace Boiler
         /// <summary>
         /// Returns the value as a percentage of the range.
         /// </summary>
-        private double GetValue(double value, Opc.Ua.Range range)
+        private static double GetValue(double value, Opc.Ua.Range range)
         {
             if (range != null)
             {
@@ -240,7 +230,7 @@ namespace Boiler
             try
             {
                 // adjust level.
-                m_drum.LevelIndicator.Output.Value = Adjust(
+                m_drum.LevelIndicator.Output.Value = BoilerState.Adjust(
                     m_drum.LevelIndicator.Output.Value,
                     m_levelController.SetPoint.Value,
                     0.1,
@@ -248,22 +238,22 @@ namespace Boiler
 
                 // calculate inputs for custom controller. 
                 m_customController.Input1.Value = m_levelController.UpdateMeasurement(m_drum.LevelIndicator.Output);
-                m_customController.Input2.Value = GetPercentage(m_inputPipe.FlowTransmitter1.Output);
-                m_customController.Input3.Value = GetPercentage(m_outputPipe.FlowTransmitter2.Output);
+                m_customController.Input2.Value = BoilerState.GetPercentage(m_inputPipe.FlowTransmitter1.Output);
+                m_customController.Input3.Value = BoilerState.GetPercentage(m_outputPipe.FlowTransmitter2.Output);
 
                 // calculate output for custom controller. 
                 m_customController.ControlOut.Value = (m_customController.Input1.Value + m_customController.Input3.Value - m_customController.Input2.Value) / 2;
 
                 // update flow controller set point.
-                m_flowController.SetPoint.Value = GetValue((m_customController.ControlOut.Value + 1) / 2, m_inputPipe.FlowTransmitter1.Output.EURange.Value);
+                m_flowController.SetPoint.Value = BoilerState.GetValue((m_customController.ControlOut.Value + 1) / 2, m_inputPipe.FlowTransmitter1.Output.EURange.Value);
 
                 double error = m_flowController.UpdateMeasurement(m_inputPipe.FlowTransmitter1.Output);
 
                 // adjust the input valve.
-                m_inputPipe.Valve.Input.Value = Adjust(m_inputPipe.Valve.Input.Value, (error > 0) ? 100 : 0, 10, null);
+                m_inputPipe.Valve.Input.Value = BoilerState.Adjust(m_inputPipe.Valve.Input.Value, (error > 0) ? 100 : 0, 10, null);
 
                 // adjust the input flow.
-                m_inputPipe.FlowTransmitter1.Output.Value = Adjust(
+                m_inputPipe.FlowTransmitter1.Output.Value = BoilerState.Adjust(
                     m_inputPipe.FlowTransmitter1.Output.Value,
                     m_flowController.SetPoint.Value,
                     0.6,

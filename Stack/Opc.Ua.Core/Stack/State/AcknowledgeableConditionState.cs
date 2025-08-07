@@ -113,13 +113,10 @@ namespace Opc.Ua
                 return;
             }
 
-            if (SupportsConfirm())
+            if (SupportsConfirm() && !this.ConfirmedState.Id.Value)
             {
-                if (!this.ConfirmedState.Id.Value)
-                {
-                    SetEffectiveSubState(context, this.ConfirmedState.Value, DateTime.MinValue);
-                    return;
-                }
+                SetEffectiveSubState(context, this.ConfirmedState.Value, DateTime.MinValue);
+                return;
             }
 
             if (this.AckedState != null)
@@ -180,7 +177,6 @@ namespace Opc.Ua
                 }
 
                 UpdateRetainState();
-
             }
 
             if (EventsMonitored())
@@ -488,8 +484,8 @@ namespace Opc.Ua
             {
                 canSetComment = true;
 
-                bool emptyComment = comment.Text == null || comment.Text.Length == 0;
-                bool emptyLocale = comment.Locale == null || comment.Locale.Length == 0;
+                bool emptyComment = string.IsNullOrEmpty(comment.Text);
+                bool emptyLocale = string.IsNullOrEmpty(comment.Locale);
 
                 if (emptyComment && emptyLocale)
                 {
@@ -561,26 +557,16 @@ namespace Opc.Ua
                 {
                     retainState = true;
                 }
-                else
+                else if (SupportsConfirm() && !this.ConfirmedState.Id.Value)
                 {
-                    if (SupportsConfirm() && !this.ConfirmedState.Id.Value)
-                    {
-                        retainState = true;
-                    }
+                    retainState = true;
                 }
             }
 
             return retainState;
         }
 
-
-
         #endregion
 
-        #region Public Interface
-        #endregion
-
-        #region Private Fields
-        #endregion
     }
 }

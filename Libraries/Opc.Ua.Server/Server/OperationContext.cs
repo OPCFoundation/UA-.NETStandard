@@ -52,21 +52,21 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(requestHeader));
             }
 
-            m_channelContext    = SecureChannelContext.Current;
-            m_session           = null;
-            m_identity          = identity;
-            m_preferredLocales  = Array.Empty<string>();
-            m_diagnosticsMask   = (DiagnosticsMasks)requestHeader.ReturnDiagnostics;
-            m_stringTable       = new StringTable();
-            m_auditLogEntryId   = requestHeader.AuditEntryId;
-            m_requestId         = Utils.IncrementIdentifier(ref s_lastRequestId);
-            m_requestType       = requestType;
-            m_clientHandle      = requestHeader.RequestHandle;
-            m_operationDeadline = DateTime.MaxValue;
+            ChannelContext = SecureChannelContext.Current;
+            Session = null;
+            UserIdentity = identity;
+            PreferredLocales = Array.Empty<string>();
+            DiagnosticsMask = (DiagnosticsMasks)requestHeader.ReturnDiagnostics;
+            StringTable = new StringTable();
+            AuditEntryId = requestHeader.AuditEntryId;
+            RequestId = Utils.IncrementIdentifier(ref s_lastRequestId);
+            RequestType = requestType;
+            ClientHandle = requestHeader.RequestHandle;
+            OperationDeadline = DateTime.MaxValue;
 
             if (requestHeader.TimeoutHint > 0)
             {
-                m_operationDeadline = DateTime.UtcNow.AddMilliseconds(requestHeader.TimeoutHint);
+                OperationDeadline = DateTime.UtcNow.AddMilliseconds(requestHeader.TimeoutHint);
             }
         }
 
@@ -88,21 +88,21 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(session));
             }
 
-            m_channelContext     = SecureChannelContext.Current;
-            m_session            = session;
-            m_identity           = session.EffectiveIdentity;
-            m_preferredLocales   = session.PreferredLocales;
-            m_diagnosticsMask    = (DiagnosticsMasks)requestHeader.ReturnDiagnostics;
-            m_stringTable        = new StringTable();
-            m_auditLogEntryId    = requestHeader.AuditEntryId;
-            m_requestId          = Utils.IncrementIdentifier(ref s_lastRequestId);
-            m_requestType        = requestType;
-            m_clientHandle       = requestHeader.RequestHandle;
-            m_operationDeadline  = DateTime.MaxValue;
+            ChannelContext = SecureChannelContext.Current;
+            Session = session;
+            UserIdentity = session.EffectiveIdentity;
+            PreferredLocales = session.PreferredLocales;
+            DiagnosticsMask = (DiagnosticsMasks)requestHeader.ReturnDiagnostics;
+            StringTable = new StringTable();
+            AuditEntryId = requestHeader.AuditEntryId;
+            RequestId = Utils.IncrementIdentifier(ref s_lastRequestId);
+            RequestType = requestType;
+            ClientHandle = requestHeader.RequestHandle;
+            OperationDeadline = DateTime.MaxValue;
 
             if (requestHeader.TimeoutHint > 0)
             {
-                m_operationDeadline = DateTime.UtcNow.AddMilliseconds(requestHeader.TimeoutHint);
+                OperationDeadline = DateTime.UtcNow.AddMilliseconds(requestHeader.TimeoutHint);
             }
         }
 
@@ -118,17 +118,17 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(session));
             }
 
-            m_channelContext    = null;
-            m_session           = session;
-            m_identity          = session.EffectiveIdentity;
-            m_preferredLocales  = session.PreferredLocales;
-            m_diagnosticsMask   = diagnosticsMasks;
-            m_stringTable       = new StringTable();
-            m_auditLogEntryId   = null;
-            m_requestId         = 0;
-            m_requestType       = RequestType.Unknown;
-            m_clientHandle      = 0;
-            m_operationDeadline = DateTime.MaxValue;
+            ChannelContext = null;
+            Session = session;
+            UserIdentity = session.EffectiveIdentity;
+            PreferredLocales = session.PreferredLocales;
+            DiagnosticsMask = diagnosticsMasks;
+            StringTable = new StringTable();
+            AuditEntryId = null;
+            RequestId = 0;
+            RequestType = RequestType.Unknown;
+            ClientHandle = 0;
+            OperationDeadline = DateTime.MaxValue;
         }
 
         /// <summary>
@@ -142,44 +142,38 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(monitoredItem));
             }
 
-            m_channelContext = null;
-            m_identity = monitoredItem.EffectiveIdentity;
-            m_session = monitoredItem.Session;
+            ChannelContext = null;
+            UserIdentity = monitoredItem.EffectiveIdentity;
+            Session = monitoredItem.Session;
 
-            if (m_session != null)
+            if (Session != null)
             {
-                m_identity = m_session.Identity;
-                m_preferredLocales  = m_session.PreferredLocales;
-            }                
-                
-            m_diagnosticsMask   = DiagnosticsMasks.SymbolicId;
-            m_stringTable       = new StringTable();
-            m_auditLogEntryId   = null;
-            m_requestId         = 0;
-            m_requestType       = RequestType.Unknown;
-            m_clientHandle      = 0;
-            m_operationDeadline = DateTime.MaxValue;
+                UserIdentity = Session.Identity;
+                PreferredLocales = Session.PreferredLocales;
+            }
+
+            DiagnosticsMask = DiagnosticsMasks.SymbolicId;
+            StringTable = new StringTable();
+            AuditEntryId = null;
+            RequestId = 0;
+            RequestType = RequestType.Unknown;
+            ClientHandle = 0;
+            OperationDeadline = DateTime.MaxValue;
         }
         #endregion   
-                
+
         #region Public Properties
         /// <summary>
         /// The context for the secure channel used to send the request.
         /// </summary>
         /// <value>The channel context.</value>
-        public SecureChannelContext ChannelContext
-        {
-            get { return m_channelContext; }
-        }
+        public SecureChannelContext ChannelContext { get; }
 
         /// <summary>
         /// The session associated with the context.
         /// </summary>
         /// <value>The session.</value>
-        public ISession Session
-        {
-            get { return m_session; }
-        }
+        public ISession Session { get; }
 
         /// <summary>
         /// The security policy used for the secure channel.
@@ -187,43 +181,34 @@ namespace Opc.Ua.Server
         /// <value>The security policy URI.</value>
         public string SecurityPolicyUri
         {
-            get 
-            { 
-                if (m_channelContext != null && m_channelContext.EndpointDescription != null)
+            get
+            {
+                if (ChannelContext != null && ChannelContext.EndpointDescription != null)
                 {
-                    return m_channelContext.EndpointDescription.SecurityPolicyUri;
+                    return ChannelContext.EndpointDescription.SecurityPolicyUri;
                 }
 
                 return null;
             }
         }
-        
+
         /// <summary>
         /// The type of request.
         /// </summary>
         /// <value>The type of the request.</value>
-        public RequestType RequestType
-        {
-            get { return m_requestType; }
-        }
+        public RequestType RequestType { get; }
 
         /// <summary>
         /// A unique identifier assigned to the request by the server.
         /// </summary>
         /// <value>The request id.</value>
-        public uint RequestId
-        {
-            get { return m_requestId; }
-        }
+        public uint RequestId { get; }
 
         /// <summary>
         /// The handle assigned by the client to the request.
         /// </summary>
         /// <value>The client handle.</value>
-        public uint ClientHandle
-        {
-            get { return m_clientHandle; }
-        }
+        public uint ClientHandle { get; }
 
         /// <summary>
         /// Updates the status code (thread safe).
@@ -242,11 +227,11 @@ namespace Opc.Ua.Server
         /// <value>The session id.</value>
         public NodeId SessionId
         {
-            get 
-            { 
-                if (m_session != null)
+            get
+            {
+                if (Session != null)
                 {
-                    return m_session.Id;
+                    return Session.Id;
                 }
 
                 return null;
@@ -257,28 +242,19 @@ namespace Opc.Ua.Server
         /// The identity context to use when processing the request.
         /// </summary>
         /// <value>The user identity.</value>
-        public IUserIdentity UserIdentity
-        {
-            get { return m_identity; }
-        }
+        public IUserIdentity UserIdentity { get; }
 
         /// <summary>
         /// The locales to use for the operation.
         /// </summary>
         /// <value>The preferred locales.</value>
-        public IList<string> PreferredLocales
-        {
-            get { return m_preferredLocales; }
-        }
+        public IList<string> PreferredLocales { get; }
 
         /// <summary>
         /// The diagnostics mask specified with the request.
         /// </summary>
         /// <value>The diagnostics mask.</value>
-        public DiagnosticsMasks DiagnosticsMask
-        {
-            get { return m_diagnosticsMask; }
-        }
+        public DiagnosticsMasks DiagnosticsMask { get; }
 
         /// <summary>
         /// A table of diagnostics strings to return in the response.
@@ -287,19 +263,13 @@ namespace Opc.Ua.Server
         /// <remarks>
         /// This object is thread safe.
         /// </remarks>
-        public StringTable StringTable
-        {
-            get { return m_stringTable; }
-        }
+        public StringTable StringTable { get; }
 
         /// <summary>
         /// When the request times out.
         /// </summary>
         /// <value>The operation deadline.</value>
-        public DateTime OperationDeadline
-        {
-            get { return m_operationDeadline; }
-        }
+        public DateTime OperationDeadline { get; }
 
         /// <summary>
         /// The current status of the request (used to check for timeouts/client cancel requests).
@@ -314,24 +284,10 @@ namespace Opc.Ua.Server
         /// The audit log entry id provided by the client which must be included in an audit events generated by the server.
         /// </summary>
         /// <value>The audit entry id.</value>
-        public string AuditEntryId
-        {
-            get { return m_auditLogEntryId; }
-        }
-        #endregion
+        public string AuditEntryId { get; }
 
-        #region Private Fields
-        private readonly SecureChannelContext m_channelContext;
-        private readonly ISession m_session;
-        private readonly IUserIdentity m_identity;
-        private readonly IList<string> m_preferredLocales;
-        private readonly DiagnosticsMasks m_diagnosticsMask;
-        private readonly StringTable m_stringTable;
-        private readonly string m_auditLogEntryId;
-        private readonly uint m_requestId;        
-        private readonly RequestType m_requestType;
-        private readonly uint m_clientHandle;
-        private readonly DateTime m_operationDeadline;
+#endregion
+#region Private Fields
         private long m_operationStatus;
         private static long s_lastRequestId;
         #endregion

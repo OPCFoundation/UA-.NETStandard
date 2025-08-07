@@ -58,7 +58,9 @@ namespace Opc.Ua.Server.Tests
             new ExpandedNodeId("Scalar_Static_Variant", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
         };
 
-        // static variables from namespace TestData
+        /// <summary>
+        /// static variables from namespace TestData
+        /// </summary>
         public static readonly ExpandedNodeId[] NodeIdTestDataSetStatic =
         {
             new ExpandedNodeId(TestData.Variables.Data_Static_Scalar_Int16Value, TestData.Namespaces.TestData),
@@ -67,7 +69,9 @@ namespace Opc.Ua.Server.Tests
             new ExpandedNodeId(TestData.Variables.Data_Static_Scalar_UInt32Value, TestData.Namespaces.TestData),
         };
 
-        // CTT simulation data
+        /// <summary>
+        /// CTT simulation data
+        /// </summary>
         public static readonly ExpandedNodeId[] NodeIdTestSetSimulation =
         {
             new ExpandedNodeId("Scalar_Simulation_SByte", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
@@ -124,11 +128,11 @@ namespace Opc.Ua.Server.Tests
             BrowseDescription browseDescription = null,
             bool outputResult = false)
         {
-            operationLimits = operationLimits ?? new OperationLimits();
+            operationLimits ??= new OperationLimits();
             requestHeader.Timestamp = DateTime.UtcNow;
 
             // Browse template
-            uint startingNode = Objects.RootFolder;
+            const uint startingNode = Objects.RootFolder;
             BrowseDescription browseTemplate = browseDescription ?? new BrowseDescription {
                 NodeId = startingNode,
                 BrowseDirection = BrowseDirection.Forward,
@@ -200,20 +204,13 @@ namespace Opc.Ua.Server.Tests
 
                         allResults.AddRange(browseResultCollection);
                     }
-                    catch (ServiceResultException sre)
-                    {
-                        if (sre.StatusCode == StatusCodes.BadEncodingLimitsExceeded ||
+                    catch (ServiceResultException sre) when (sre.StatusCode == StatusCodes.BadEncodingLimitsExceeded ||
                             sre.StatusCode == StatusCodes.BadResponseTooLarge)
-                        {
-                            // try to address by overriding operation limit
-                            maxNodesPerBrowse = maxNodesPerBrowse == 0 ?
-                                (uint)browseCollection.Count / 2 : maxNodesPerBrowse / 2;
-                            repeatBrowse = true;
-                        }
-                        else
-                        {
-                            throw;
-                        }
+                    {
+                        // try to address by overriding operation limit
+                        maxNodesPerBrowse = maxNodesPerBrowse == 0 ?
+                            (uint)browseCollection.Count / 2 : maxNodesPerBrowse / 2;
+                        repeatBrowse = true;
                     }
                 } while (repeatBrowse);
 
@@ -275,7 +272,7 @@ namespace Opc.Ua.Server.Tests
             OperationLimits operationLimits)
         {
             // Browse template
-            uint startingNode = Objects.RootFolder;
+            const uint startingNode = Objects.RootFolder;
             requestHeader.Timestamp = DateTime.UtcNow;
 
             // TranslateBrowsePath
@@ -335,13 +332,13 @@ namespace Opc.Ua.Server.Tests
             requestHeader.Timestamp = DateTime.UtcNow;
 
             // create subscription
-            double publishingInterval = 1000.0;
-            uint lifetimeCount = 60;
-            uint maxKeepAliveCount = 2;
-            uint maxNotificationPerPublish = 0;
-            byte priority = 128;
+            const double publishingInterval = 1000.0;
+            const uint lifetimeCount = 60;
+            const uint maxKeepAliveCount = 2;
+            const uint maxNotificationPerPublish = 0;
+            const byte priority = 128;
             bool enabled = false;
-            uint queueSize = 5;
+            const uint queueSize = 5;
 
             ResponseHeader response = services.CreateSubscription(requestHeader,
                 publishingInterval, lifetimeCount, maxKeepAliveCount,
@@ -402,7 +399,7 @@ namespace Opc.Ua.Server.Tests
                     new MonitoredItemModifyRequest() {
                         MonitoredItemId = itemCreated.MonitoredItemId
                     });
-            };
+            }
             response = services.ModifyMonitoredItems(requestHeader, id, TimestampsToReturn.Both, itemsToModify,
                         out MonitoredItemModifyResultCollection modifyResults, out diagnosticInfos);
             ServerFixtureUtils.ValidateResponse(response, modifyResults, itemsToModify);
@@ -462,7 +459,6 @@ namespace Opc.Ua.Server.Tests
                     SubscriptionId = id,
                     SequenceNumber = notificationMessage.SequenceNumber
                 });
-
             } while (acknowledgements.Count > 0 && --loopCounter > 0);
 
             // republish
@@ -655,12 +651,12 @@ namespace Opc.Ua.Server.Tests
             requestHeader.Timestamp = DateTime.UtcNow;
 
             // create subscription
-            double publishingInterval = 1000.0;
-            uint lifetimeCount = 60;
-            uint maxKeepAliveCount = 2;
-            uint maxNotificationPerPublish = 0;
-            byte priority = 128;
-            bool enabled = false;
+            const double publishingInterval = 1000.0;
+            const uint lifetimeCount = 60;
+            const uint maxKeepAliveCount = 2;
+            const uint maxNotificationPerPublish = 0;
+            const byte priority = 128;
+            const bool enabled = false;
 
             ResponseHeader response = services.CreateSubscription(requestHeader,
                 publishingInterval, lifetimeCount, maxKeepAliveCount,
@@ -717,7 +713,7 @@ namespace Opc.Ua.Server.Tests
                 }
             });
 
-            var mi = new MonitoredItemCreateRequest() {
+            return new MonitoredItemCreateRequest() {
                 ItemToMonitor = new ReadValueId() {
                     AttributeId = Attributes.EventNotifier,
                     NodeId = ObjectIds.Server
@@ -742,7 +738,6 @@ namespace Opc.Ua.Server.Tests
                     QueueSize = queueSize
                 }
             };
-            return mi;
         }
         #endregion
 

@@ -45,6 +45,14 @@ namespace System.IO
         {
             target.Write(value.ToString());
         }
+
+        /// <summary>
+        /// Contains a character in a string using a specified comparison type.
+        /// </summary>
+        public static void Write(this BinaryWriter target, ReadOnlySpan<byte> value)
+        {
+            target.Write(value.ToArray());
+        }
 #endif
     }
 }

@@ -24,7 +24,6 @@ using System.Threading.Tasks;
 
 namespace Opc.Ua.Bindings
 {
-
     /// <summary>
     /// Creates a new HttpsTransportChannel with ITransportChannel interface.
     /// </summary>
@@ -71,7 +70,9 @@ namespace Opc.Ua.Bindings
     /// </summary>
     public class HttpsTransportChannel : ITransportChannel
     {
-        // limit the number of concurrent service requests on the server
+        /// <summary>
+        /// limit the number of concurrent service requests on the server
+        /// </summary>
         private const int kMaxConnectionsPerServer = 64;
 
         /// <summary>
@@ -343,8 +344,7 @@ namespace Opc.Ua.Bindings
         /// <inheritdoc/>
         public IServiceResponse EndSendRequest(IAsyncResult result)
         {
-            var result2 = result as HttpsAsyncResult;
-            if (result2 == null)
+            if (!(result is HttpsAsyncResult result2))
             {
                 throw new ArgumentException("Invalid result object passed.", nameof(result));
             }

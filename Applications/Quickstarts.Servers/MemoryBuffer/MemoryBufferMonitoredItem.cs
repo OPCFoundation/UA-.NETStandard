@@ -84,7 +84,7 @@ namespace MemoryBuffer
                 minimumSamplingInterval,
                 createDurable)
         {
-            m_offset = offset;
+            Offset = offset;
         }
 
         /// <summary>
@@ -103,7 +103,7 @@ namespace MemoryBuffer
                 managerHandle,
                 storedMonitoredItem)
         {
-            m_offset = offset;
+            Offset = offset;
         }
 
         /// <summary>
@@ -129,14 +129,6 @@ namespace MemoryBuffer
         /// <summary>
         /// The offset in the memory buffer.
         /// </summary>
-        public uint Offset
-        {
-            get
-            {
-                return m_offset;
-            }
-        }
-
-        private readonly uint m_offset;
+        public uint Offset { get; }
     }
 }

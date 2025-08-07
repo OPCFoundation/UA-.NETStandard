@@ -74,7 +74,6 @@ namespace Opc.Ua.Client
 
             await CreateItemsAsync(ct).ConfigureAwait(false);
 
-
             // only enable publishing afer CreateSubscription is called to avoid race conditions with subscription cleanup.
             if (m_publishingEnabled)
             {
@@ -434,7 +433,7 @@ namespace Opc.Ua.Client
 
             // update results.
             var errors = new List<ServiceResult>();
-            bool noErrors = UpdateMonitoringMode(
+            bool noErrors = Subscription.UpdateMonitoringMode(
                 monitoredItems, errors, results,
                 response.DiagnosticInfos, response.ResponseHeader,
                 monitoringMode);

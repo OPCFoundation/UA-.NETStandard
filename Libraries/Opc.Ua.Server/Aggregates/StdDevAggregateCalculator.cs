@@ -34,7 +34,7 @@ using System.Text;
 namespace Opc.Ua.Server
 {
     /// <summary>
-    /// Calculates the value of an aggregate. 
+    /// Calculates the value of an aggregate.
     /// </summary>
     public class StdDevAggregateCalculator : AggregateCalculator
     {
@@ -55,7 +55,7 @@ namespace Opc.Ua.Server
             double processingInterval,
             bool stepped,
             AggregateConfiguration configuration)
-        : 
+        :
             base(aggregateId, startTime, endTime, processingInterval, stepped, configuration)
         {
             SetPartialBit = true;
@@ -80,24 +80,16 @@ namespace Opc.Ua.Server
                     // (this is a strange way to distinguish between sample and population)
 
                     case Objects.AggregateFunction_StandardDeviationPopulation:
-                    {
                         return ComputeStdDev(slice, false, 1);
-                    }
 
                     case Objects.AggregateFunction_StandardDeviationSample:
-                    {
                         return ComputeStdDev(slice, true, 1);
-                    }
 
                     case Objects.AggregateFunction_VariancePopulation:
-                    {
                         return ComputeStdDev(slice, false, 2);
-                    }
 
                     case Objects.AggregateFunction_VarianceSample:
-                    {
                         return ComputeStdDev(slice, true, 2);
-                    }
                 }
             }
 
@@ -176,16 +168,16 @@ namespace Opc.Ua.Server
                 xxAgv /= xData.Count;
                 xyAvg /= xData.Count;
 
-                regSlope = (xyAvg - xAvg * yAvg) / (xxAgv - xAvg * xAvg);
-                regConst = yAvg - regSlope * xAvg;
-                
+                regSlope = (xyAvg - (xAvg * yAvg)) / (xxAgv - (xAvg * xAvg));
+                regConst = yAvg - (regSlope * xAvg);
+
                 var errors = new List<double>();
 
                 double eAvg = 0;
 
                 for (int ii = 0; ii < xData.Count; ii++)
                 {
-                    double error = yData[ii] - regConst - regSlope * xData[ii];
+                    double error = yData[ii] - regConst - (regSlope * xData[ii]);
                     errors.Add(error);
                     eAvg += error;
                 }
@@ -209,11 +201,13 @@ namespace Opc.Ua.Server
 
             switch (valueType)
             {
-                case 1: { result = regSlope;  break; }
-                case 2: { result = regConst;  break; }
-                case 3: { result = regStdDev; break; }
+                case 1: result = regSlope; break;
+
+                case 2: result = regConst; break;
+
+                case 3: result = regStdDev; break;
             }
-            
+
             // set the timestamp and status.
             var value = new DataValue();
             value.WrappedValue = new Variant(result, TypeInfo.Scalars.Double);
@@ -296,7 +290,7 @@ namespace Opc.Ua.Server
             {
                 // Spec part 13 v105 section 5.4.3.37 and subsequent
                 if (xData.Count <= 1)
-                {                    
+                {
                     variance = 0;
                 }
                 else
@@ -304,7 +298,7 @@ namespace Opc.Ua.Server
                     variance /= xData.Count - 1;
                 }
             }
-            
+
            // use the population variance if bounds are not included.
             else
             {
@@ -316,8 +310,9 @@ namespace Opc.Ua.Server
 
             switch (valueType)
             {
-                case 1: { result = Math.Sqrt(variance); break; }
-                case 2: { result = variance; break; }
+                case 1: result = Math.Sqrt(variance); break;
+
+                case 2: result = variance; break;
             }
 
             // set the timestamp and status.

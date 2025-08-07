@@ -28,7 +28,7 @@ namespace Opc.Ua
         /// The service host is in open state.
         /// </summary>
         Opened
-    };
+    }
 
     /// <summary>
     /// A host for a UA service.

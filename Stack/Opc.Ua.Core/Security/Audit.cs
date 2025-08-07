@@ -78,7 +78,6 @@ namespace Opc.Ua.Security
             }
         }
 
-
         /// <summary>
         /// Called when a secure channel is renewed by the client.
         /// </summary>

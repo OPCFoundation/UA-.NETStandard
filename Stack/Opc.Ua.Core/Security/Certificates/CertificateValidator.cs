@@ -30,7 +30,9 @@ namespace Opc.Ua
     /// </summary>
     public class CertificateValidator : ICertificateValidator
     {
-        // default number of rejected certificates for history
+        /// <summary>
+        /// default number of rejected certificates for history
+        /// </summary>
         const int kDefaultMaxRejectedCertificates = 5;
 
         #region Constructors
@@ -240,7 +242,6 @@ namespace Opc.Ua
                         }
                     }
                 }
-
             }
             finally
             {
@@ -901,12 +902,9 @@ namespace Opc.Ua
                 {
                     X509Certificate2 trusted = await m_trustedCertificateList[ii].Find(false).ConfigureAwait(false);
 
-                    if (trusted != null && trusted.Thumbprint == certificate.Thumbprint)
+                    if (trusted != null && trusted.Thumbprint == certificate.Thumbprint && Utils.IsEqual(trusted.RawData, certificate.RawData))
                     {
-                        if (Utils.IsEqual(trusted.RawData, certificate.RawData))
-                        {
-                            return m_trustedCertificateList[ii];
-                        }
+                        return m_trustedCertificateList[ii];
                     }
                 }
             }
@@ -976,7 +974,7 @@ namespace Opc.Ua
             // check for authority key id match.
             if (!string.IsNullOrEmpty(authorityKeyId))
             {
-                X509SubjectKeyIdentifierExtension subjectKeyId = X509Extensions.FindExtension<X509SubjectKeyIdentifierExtension>(certificate);
+                X509SubjectKeyIdentifierExtension subjectKeyId = certificate.FindExtension<X509SubjectKeyIdentifierExtension>();
 
                 if (subjectKeyId != null)
                 {
@@ -1012,7 +1010,7 @@ namespace Opc.Ua
             string serialNumber = null;
 
             // find the authority key identifier.
-            Security.Certificates.X509AuthorityKeyIdentifierExtension authority = X509Extensions.FindExtension<Security.Certificates.X509AuthorityKeyIdentifierExtension>(certificate);
+            Security.Certificates.X509AuthorityKeyIdentifierExtension authority = certificate.FindExtension<Security.Certificates.X509AuthorityKeyIdentifierExtension>();
             if (authority != null)
             {
                 keyId = authority.KeyIdentifier;
@@ -1162,12 +1160,9 @@ namespace Opc.Ua
             X509Certificate2 certificate2 = null;
 
             if (m_useValidatedCertificates &&
-                m_validatedCertificates.TryGetValue(certificate.Thumbprint, out certificate2))
+                m_validatedCertificates.TryGetValue(certificate.Thumbprint, out certificate2) && Utils.IsEqual(certificate2.RawData, certificate.RawData))
             {
-                if (Utils.IsEqual(certificate2.RawData, certificate.RawData))
-                {
-                    return;
-                }
+                return;
             }
 
             CertificateIdentifier trustedCertificate = await GetTrustedCertificateAsync(certificate).ConfigureAwait(false);
@@ -1178,7 +1173,7 @@ namespace Opc.Ua
 
             bool isIssuerTrusted = await GetIssuersNoExceptionsOnGetIssuer(certificates, issuers, validationErrors).ConfigureAwait(false);
 
-            ServiceResult sresult = PopulateSresultWithValidationErrors(validationErrors);
+            ServiceResult sresult = CertificateValidator.PopulateSresultWithValidationErrors(validationErrors);
 
             // setup policy chain
             var policy = new X509ChainPolicy() {
@@ -1337,19 +1332,16 @@ namespace Opc.Ua
                     chainIncomplete = true;
                 }
             }
-            else
+            else if (issuedByCA)
             {
-                if (issuedByCA)
-                {
-                    // no issuer found at all
-                    chainIncomplete = true;
-                }
+                // no issuer found at all
+                chainIncomplete = true;
             }
 
             // check if certificate issuer is trusted.
             if (issuedByCA && !isIssuerTrusted && trustedCertificate == null)
             {
-                string message = "Certificate Issuer is not trusted.";
+                const string message = "Certificate Issuer is not trusted.";
                 sresult = new ServiceResult(StatusCodes.BadCertificateUntrusted,
                     null, null, message, null, sresult);
             }
@@ -1374,7 +1366,7 @@ namespace Opc.Ua
 
                 if (m_applicationCertificates == null || !isApplicationCertificate)
                 {
-                    string message = "Certificate is not trusted.";
+                    const string message = "Certificate is not trusted.";
                     sresult = new ServiceResult(StatusCodes.BadCertificateUntrusted,
                     null, null, message, null, sresult);
                 }
@@ -1403,13 +1395,10 @@ namespace Opc.Ua
                         null, null, "Usage of ECDSA certificate is not allowed.", null, sresult);
                 }
             }
-            else
+            else if ((certificateKeyUsage & X509KeyUsageFlags.DataEncipherment) == 0)
             {
-                if ((certificateKeyUsage & X509KeyUsageFlags.DataEncipherment) == 0)
-                {
-                    sresult = new ServiceResult(StatusCodes.BadCertificateUseNotAllowed,
-                        null, null, "Usage of RSA certificate is not allowed.", null, sresult);
-                }
+                sresult = new ServiceResult(StatusCodes.BadCertificateUseNotAllowed,
+                    null, null, "Usage of RSA certificate is not allowed.", null, sresult);
             }
 
             // check if minimum requirements are met
@@ -1447,7 +1436,7 @@ namespace Opc.Ua
 
             if (issuedByCA && chainIncomplete)
             {
-                string message = "Certificate chain validation incomplete.";
+                const string message = "Certificate chain validation incomplete.";
                 sresult = new ServiceResult(StatusCodes.BadCertificateChainIncomplete,
                     null, null, message, null, sresult);
             }
@@ -1458,7 +1447,7 @@ namespace Opc.Ua
             }
         }
 
-        private ServiceResult PopulateSresultWithValidationErrors(Dictionary<X509Certificate2, ServiceResultException> validationErrors)
+        private static ServiceResult PopulateSresultWithValidationErrors(Dictionary<X509Certificate2, ServiceResultException> validationErrors)
         {
             var p1List = new Dictionary<X509Certificate2, ServiceResultException>();
             var p2List = new Dictionary<X509Certificate2, ServiceResultException>();
@@ -1489,14 +1478,11 @@ namespace Opc.Ua
                         sresult = new ServiceResult(StatusCodes.BadCertificateIssuerRevocationUnknown,
                             null, null, message, null, sresult);
                     }
-                    else
+                    else if (StatusCode.IsBad(kvp.Value.StatusCode))
                     {
-                        if (StatusCode.IsBad(kvp.Value.StatusCode))
-                        {
-                            string message = CertificateValidator.CertificateMessage("Unknown error while trying to determine the revocation status.", kvp.Key);
-                            sresult = new ServiceResult(kvp.Value.StatusCode,
-                                null, null, message, null, sresult);
-                        }
+                        string message = CertificateValidator.CertificateMessage("Unknown error while trying to determine the revocation status.", kvp.Key);
+                        sresult = new ServiceResult(kvp.Value.StatusCode,
+                            null, null, message, null, sresult);
                     }
                 }
             }
@@ -1559,16 +1545,10 @@ namespace Opc.Ua
         /// </exception>
         public void ValidateDomains(X509Certificate2 serverCertificate, ConfiguredEndpoint endpoint, bool serverValidation = false)
         {
-            if (!serverValidation)
+            if (!serverValidation && m_useValidatedCertificates &&
+                    m_validatedCertificates.TryGetValue(serverCertificate.Thumbprint, out X509Certificate2 certificate2) && Utils.IsEqual(certificate2.RawData, serverCertificate.RawData))
             {
-                if (m_useValidatedCertificates &&
-                    m_validatedCertificates.TryGetValue(serverCertificate.Thumbprint, out X509Certificate2 certificate2))
-                {
-                    if (Utils.IsEqual(certificate2.RawData, serverCertificate.RawData))
-                    {
-                        return;
-                    }
-                }
+                return;
             }
 
             Uri endpointUrl = endpoint?.EndpointUrl;
@@ -1614,25 +1594,20 @@ namespace Opc.Ua
             switch (status.Status)
             {
                 case X509ChainStatusFlags.NotValidForUsage:
-                {
                     return ServiceResult.Create(
-                        isIssuer ? StatusCodes.BadCertificateUseNotAllowed : StatusCodes.BadCertificateIssuerUseNotAllowed,
-                        "Certificate may not be used as an application instance certificate. {0}: {1}",
-                        status.Status,
-                        status.StatusInformation);
-                }
+                            isIssuer ? StatusCodes.BadCertificateUseNotAllowed : StatusCodes.BadCertificateIssuerUseNotAllowed,
+                            "Certificate may not be used as an application instance certificate. {0}: {1}",
+                            status.Status,
+                            status.StatusInformation);
 
                 case X509ChainStatusFlags.NoError:
                 case X509ChainStatusFlags.OfflineRevocation:
                 case X509ChainStatusFlags.InvalidBasicConstraints:
-                {
                     break;
-                }
 
                 case X509ChainStatusFlags.PartialChain:
                     goto case X509ChainStatusFlags.UntrustedRoot;
                 case X509ChainStatusFlags.UntrustedRoot:
-                {
                     // self signed cert signature validation
                     // .NET Core ChainStatus returns NotSignatureValid only on Windows,
                     // so we have to do the extra cert signature check on all platforms
@@ -1651,19 +1626,14 @@ namespace Opc.Ua
                         "Certificate chain validation failed. {0}: {1}",
                         status.Status,
                         status.StatusInformation);
-                }
 
                 case X509ChainStatusFlags.RevocationStatusUnknown:
-                {
-                    if (issuer != null)
+                    if (issuer != null && (issuer.ValidationOptions & CertificateValidationOptions.SuppressRevocationStatusUnknown) != 0)
                     {
-                        if ((issuer.ValidationOptions & CertificateValidationOptions.SuppressRevocationStatusUnknown) != 0)
-                        {
-                            Utils.LogWarning(Utils.TraceMasks.Security,
-                                "Error suppressed: {0}: {1}",
-                                status.Status, status.StatusInformation);
-                            break;
-                        }
+                        Utils.LogWarning(Utils.TraceMasks.Security,
+                            "Error suppressed: {0}: {1}",
+                            status.Status, status.StatusInformation);
+                        break;
                     }
 
                     // check for meaning less errors for self-signed certificates.
@@ -1677,19 +1647,15 @@ namespace Opc.Ua
                         "Certificate revocation status cannot be verified. {0}: {1}",
                         status.Status,
                         status.StatusInformation);
-                }
 
                 case X509ChainStatusFlags.Revoked:
-                {
                     return ServiceResult.Create(
-                        isIssuer ? StatusCodes.BadCertificateIssuerRevoked : StatusCodes.BadCertificateRevoked,
-                        "Certificate has been revoked. {0}: {1}",
-                        status.Status,
-                        status.StatusInformation);
-                }
+                            isIssuer ? StatusCodes.BadCertificateIssuerRevoked : StatusCodes.BadCertificateRevoked,
+                            "Certificate has been revoked. {0}: {1}",
+                            status.Status,
+                            status.StatusInformation);
 
                 case X509ChainStatusFlags.NotTimeNested:
-                {
                     if (id != null && ((id.ValidationOptions & CertificateValidationOptions.SuppressCertificateExpired) != 0))
                     {
                         Utils.LogWarning(Utils.TraceMasks.Security,
@@ -1703,10 +1669,8 @@ namespace Opc.Ua
                         "Issuer Certificate has expired or is not yet valid. {0}: {1}",
                         status.Status,
                         status.StatusInformation);
-                }
 
                 case X509ChainStatusFlags.NotTimeValid:
-                {
                     if (id != null && ((id.ValidationOptions & CertificateValidationOptions.SuppressCertificateExpired) != 0))
                     {
                         Utils.LogWarning(Utils.TraceMasks.Security,
@@ -1720,17 +1684,14 @@ namespace Opc.Ua
                         "Certificate has expired or is not yet valid. {0}: {1}",
                         status.Status,
                         status.StatusInformation);
-                }
 
                 case X509ChainStatusFlags.NotSignatureValid:
                 default:
-                {
                     return ServiceResult.Create(
-                        StatusCodes.BadCertificateInvalid,
-                        "Certificate validation failed. {0}: {1}",
-                        status.Status,
-                        status.StatusInformation);
-                }
+                            StatusCodes.BadCertificateInvalid,
+                            "Certificate validation failed. {0}: {1}",
+                            status.Status,
+                            status.StatusInformation);
             }
 
             return null;
@@ -1792,12 +1753,12 @@ namespace Opc.Ua
                     StatusCodes.BadCertificateUntrusted
                 });
 
+#if ECC_SUPPORT
         /// <summary>
         /// Dictionary of named curves and their bit sizes.
         /// </summary>
         private static readonly Dictionary<string, int> NamedCurveBitSizes = new Dictionary<string, int>
         {
-#if ECC_SUPPORT
             // NIST Curves
             { ECCurve.NamedCurves.nistP256.Oid.Value ?? "1.2.840.10045.3.1.7", 256 },    // NIST P-256
             { ECCurve.NamedCurves.nistP384.Oid.Value ?? "1.3.132.0.34"       , 384 },    // NIST P-384
@@ -1806,8 +1767,8 @@ namespace Opc.Ua
             // Brainpool Curves
             { ECCurve.NamedCurves.brainpoolP256r1.Oid.Value ?? "1.3.36.3.3.2.8.1.1.7", 256 },  // BrainpoolP256r1
             { ECCurve.NamedCurves.brainpoolP384r1.Oid.Value ?? "1.3.36.3.3.2.8.1.1.11", 384 },  // BrainpoolP384r1
-#endif
         };
+#endif
 
         /// <summary>
         /// Find the domain in a certificate in the
@@ -1867,6 +1828,7 @@ namespace Opc.Ua
             }
             return domainFound;
         }
+
 #if ECC_SUPPORT
         /// <summary>
         /// Returns if the certificate is secure enough for the profile.
@@ -1902,7 +1864,6 @@ namespace Opc.Ua
                     {
                         throw new NotSupportedException("Unsupported curve type.");
                     }
-
                 }
             }
         }
@@ -1923,7 +1884,7 @@ namespace Opc.Ua
             MinimumCertificateKeySize = 8,
             UseValidatedCertificates = 16,
             MaxRejectedCertificates = 32
-        };
+        }
         #endregion
 
         #region Private Fields
@@ -1980,11 +1941,7 @@ namespace Opc.Ua
         /// Whether the current error reported for
         /// a certificate should be accepted and suppressed.
         /// </summary>
-        public bool Accept
-        {
-            get => m_accept;
-            set => m_accept = value;
-        }
+        public bool Accept { get; set; }
 
         /// <summary>
         /// Whether all the errors reported for
@@ -1998,9 +1955,6 @@ namespace Opc.Ua
         public string ApplicationErrorMsg { get; set; }
 
 #endregion
-#region Private Fields
-        private bool m_accept;
-        #endregion
     }
 
     /// <summary>
@@ -2032,11 +1986,11 @@ namespace Opc.Ua
         /// <summary>
         /// The new security configuration.
         /// </summary>
-        public SecurityConfiguration SecurityConfiguration { get; private set; }
+        public SecurityConfiguration SecurityConfiguration { get; }
         /// <summary>
         /// The new certificate validator.
         /// </summary>
-        public ICertificateValidator CertificateValidator { get; private set; }
+        public ICertificateValidator CertificateValidator { get; }
 
         #endregion
     }

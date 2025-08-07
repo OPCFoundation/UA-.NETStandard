@@ -95,7 +95,6 @@ namespace Opc.Ua
                                 continue;
                             }
 
-
                             if (extensions[ii].Body is not IEncodeable element)
                             {
                                 return StatusCodes.BadTypeMismatch;

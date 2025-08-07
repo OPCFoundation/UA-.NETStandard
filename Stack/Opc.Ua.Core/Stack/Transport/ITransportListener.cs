@@ -16,7 +16,6 @@ using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua
 {
-
     /// <summary>
     /// The delegate for the async connection waiting handler.
     /// </summary>

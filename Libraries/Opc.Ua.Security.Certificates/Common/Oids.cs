@@ -208,6 +208,5 @@ namespace Opc.Ua.Security.Certificates
             }
             throw new CryptographicException($"Hash algorithm {oid} is not supported. ");
         }
-
     }
 }

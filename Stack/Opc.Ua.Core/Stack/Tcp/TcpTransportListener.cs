@@ -54,37 +54,13 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Counter for number of recorded potential problematic actions
         /// </summary>
-        public int ActiveActionCount
-        {
-            get
-            {
-                return m_actionCount;
-            }
-            set
-            {
-                m_actionCount = value;
-            }
-        }
+        public int ActiveActionCount { get; set; }
 
         /// <summary>
         /// Ticks until the client is Blocked
         /// </summary>
-        public int BlockedUntilTicks
-        {
-            get
-            {
-                return m_blockedUntilTicks;
-            }
-            set
-            {
-                m_blockedUntilTicks = value;
-            }
-        }
+        public int BlockedUntilTicks { get; set; }
 
-#endregion
-#region Private members
-        int m_actionCount;
-        int m_blockedUntilTicks;
         #endregion
     }
 
@@ -156,7 +132,6 @@ namespace Opc.Ua.Bindings
                                 m_kBlockDurationMs,
                                 m_kNrActionsTillBlock,
                                 m_kActionsIntervalMs);
-
                         }
                     }
                     else
@@ -240,7 +215,6 @@ namespace Opc.Ua.Bindings
             return diff > 0;
         }
 
-
         #endregion
         #region Private members
         private readonly ConcurrentDictionary<IPAddress, ActiveClient> m_activeClients = new ConcurrentDictionary<IPAddress, ActiveClient>();
@@ -248,9 +222,15 @@ namespace Opc.Ua.Bindings
         private const int m_kActionsIntervalMs = 10_000;
         private const int m_kNrActionsTillBlock = 3;
 
-        private const int m_kBlockDurationMs = 30_000; // 30 seconds
+        /// <summary>
+        /// 30 seconds
+        /// </summary>
+        private const int m_kBlockDurationMs = 30_000;
         private const int m_kCleanupIntervalMs = 15_000;
-        private const int m_kEntryExpirationMs = 600_000; // 10 minutes
+        /// <summary>
+        /// 10 minutes
+        /// </summary>
+        private const int m_kEntryExpirationMs = 600_000;
 
         private readonly Timer m_cleanupTimer;
         #endregion
@@ -261,7 +241,9 @@ namespace Opc.Ua.Bindings
     /// </summary>
     public class TcpTransportListener : ITransportListener, ITcpChannelListener
     {
-        // The limit of queued connections for the listener socket..
+        /// <summary>
+        /// The limit of queued connections for the listener socket..
+        /// </summary>
         const int kSocketBacklog = 10;
 
         #region IDisposable Members
@@ -722,8 +704,7 @@ namespace Opc.Ua.Bindings
                     X509Certificate2 serverCertificate = certificateTypesProvider.GetInstanceCertificate(description.SecurityPolicyUri);
                     if (certificateTypesProvider.SendCertificateChain)
                     {
-                        byte[] serverCertificateChainRaw = certificateTypesProvider.LoadCertificateChainRaw(serverCertificate);
-                        description.ServerCertificate = serverCertificateChainRaw;
+                        description.ServerCertificate = certificateTypesProvider.LoadCertificateChainRaw(serverCertificate);
                     }
                     else
                     {
@@ -752,7 +733,6 @@ namespace Opc.Ua.Bindings
         /// </summary>
         private void OnAccept(object sender, SocketAsyncEventArgs e)
         {
-
             TcpListenerChannel channel = null;
             bool repeatAccept = false;
             do
@@ -797,7 +777,7 @@ namespace Opc.Ua.Bindings
                             // Identify channels without established sessions
                             KeyValuePair<uint, TcpListenerChannel>[] nonSessionChannels = snapshot.Where(ch => !ch.Value.UsedBySession).ToArray();
 
-                            if (nonSessionChannels.Any())
+                            if (nonSessionChannels.Length != 0)
                             {
                                 KeyValuePair<uint, TcpListenerChannel> oldestIdChannel = nonSessionChannels.Aggregate((max, current) =>
                                     current.Value.ElapsedSinceLastActiveTime > max.Value.ElapsedSinceLastActiveTime ? current : max);
@@ -1036,29 +1016,21 @@ namespace Opc.Ua.Bindings
                     {
                         channel.SendResponse((uint)args[1], response);
                     }
-                    catch (ServiceResultException sre)
+                    catch (ServiceResultException sre) when (sre.StatusCode == StatusCodes.BadSecureChannelClosed)
                     {
-                        //handle only the case where the secure channel was closed
-                        if (sre.StatusCode != StatusCodes.BadSecureChannelClosed)
-                        {
-                            throw;
-                        }
                         //try to find the new channel id for the authentication token to send response over new channel
                         var request = (IServiceRequest)args[2];
                         NodeId AuthenticationToken = request.RequestHeader.AuthenticationToken;
 
-                        if (m_callback?.TryGetSecureChannelIdForAuthenticationToken(AuthenticationToken, out uint channelId) == true)
+                        if (m_callback?.TryGetSecureChannelIdForAuthenticationToken(AuthenticationToken, out uint channelId) == true && m_channels.TryGetValue(channelId, out TcpListenerChannel newChannel))
                         {
-                            if (m_channels.TryGetValue(channelId, out TcpListenerChannel newChannel))
-                            {
-                                var serverChannel = (TcpServerChannel)newChannel;
+                            var serverChannel = (TcpServerChannel)newChannel;
 
-                                // if the channel is not the same as the one we started with, send the response over the new channel
-                                if (serverChannel != channel)
-                                {
-                                    serverChannel.SendResponse((uint)args[1], response);
-                                    return;
-                                }
+                            // if the channel is not the same as the one we started with, send the response over the new channel
+                            if (serverChannel != channel)
+                            {
+                                serverChannel.SendResponse((uint)args[1], response);
+                                return;
                             }
                         }
                         // if we could not find a new channel, just log the error
@@ -1079,43 +1051,6 @@ namespace Opc.Ua.Bindings
         {
             // wraps at Int32.MaxValue back to 1
             return (uint)Utils.IncrementIdentifier(ref m_lastChannelId);
-        }
-
-        /// <summary>
-        /// Sets the URI for the listener.
-        /// </summary>
-        private void SetUri(Uri baseAddress, string relativeAddress)
-        {
-            if (baseAddress == null)
-            {
-                throw new ArgumentNullException(nameof(baseAddress));
-            }
-
-            // validate uri.
-            if (!baseAddress.IsAbsoluteUri)
-            {
-                throw new ArgumentException("Base address must be an absolute URI.", nameof(baseAddress));
-            }
-
-            if (!string.Equals(baseAddress.Scheme, Utils.UriSchemeOpcTcp, StringComparison.OrdinalIgnoreCase))
-            {
-                throw new ArgumentException($"Invalid URI scheme: {baseAddress.Scheme}.", nameof(baseAddress));
-            }
-
-            m_uri = baseAddress;
-
-            // append the relative path to the base address.
-            if (!string.IsNullOrEmpty(relativeAddress))
-            {
-                if (!baseAddress.AbsolutePath.EndsWith("/", StringComparison.Ordinal))
-                {
-                    var uriBuilder = new UriBuilder(baseAddress);
-                    uriBuilder.Path = uriBuilder.Path + "/";
-                    baseAddress = uriBuilder.Uri;
-                }
-
-                m_uri = new Uri(baseAddress, relativeAddress);
-            }
         }
         #endregion
 

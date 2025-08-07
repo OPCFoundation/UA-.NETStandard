@@ -191,7 +191,6 @@ namespace Opc.Ua.Bindings
                 case SecurityPolicies.Basic256Sha256:
                 case SecurityPolicies.Aes128_Sha256_RsaOaep:
                 case SecurityPolicies.Aes256_Sha256_RsaPss:
-                {
                     uint length = Nonce.GetNonceLength(SecurityPolicyUri);
 
                     if (length > 0)
@@ -200,7 +199,7 @@ namespace Opc.Ua.Bindings
                     }
 
                     break;
-                }
+
 #if ECC_SUPPORT
                 case SecurityPolicies.ECC_nistP256:
                 case SecurityPolicies.ECC_nistP384:
@@ -208,16 +207,13 @@ namespace Opc.Ua.Bindings
                 case SecurityPolicies.ECC_brainpoolP384r1:
                 case SecurityPolicies.ECC_curve25519:
                 case SecurityPolicies.ECC_curve448:
-                {
                     m_localNonce = Nonce.CreateNonce(SecurityPolicyUri);
                     return m_localNonce.Data;
-                }
+
 #endif
-                default:
                 case SecurityPolicies.None:
-                {
+                default:
                     return null;
-                }
             }
 
             return null;
@@ -247,7 +243,6 @@ namespace Opc.Ua.Bindings
                 case SecurityPolicies.Basic256Sha256:
                 case SecurityPolicies.Aes128_Sha256_RsaOaep:
                 case SecurityPolicies.Aes256_Sha256_RsaPss:
-                {
                     // try to catch programming errors by rejecting nonces with all zeros.
                     for (int ii = 0; ii < nonce.Length; ii++)
                     {
@@ -258,7 +253,7 @@ namespace Opc.Ua.Bindings
                     }
 
                     break;
-                }
+
 #if ECC_SUPPORT
                 case SecurityPolicies.ECC_nistP256:
                 case SecurityPolicies.ECC_nistP384:
@@ -266,16 +261,13 @@ namespace Opc.Ua.Bindings
                 case SecurityPolicies.ECC_brainpoolP384r1:
                 case SecurityPolicies.ECC_curve25519:
                 case SecurityPolicies.ECC_curve448:
-                {
                     m_remoteNonce = Nonce.CreateNonce(SecurityPolicyUri, nonce);
                     return true;
-                }
 #endif
             }
 
             return false;
         }
-
 
         /// <summary>
         /// Returns the plain text block size for key in the specified certificate.
@@ -287,19 +279,13 @@ namespace Opc.Ua.Bindings
                 case SecurityPolicies.Basic256:
                 case SecurityPolicies.Basic256Sha256:
                 case SecurityPolicies.Aes128_Sha256_RsaOaep:
-                {
                     return RsaUtils.GetPlainTextBlockSize(receiverCertificate, RsaUtils.Padding.OaepSHA1);
-                }
 
                 case SecurityPolicies.Aes256_Sha256_RsaPss:
-                {
                     return RsaUtils.GetPlainTextBlockSize(receiverCertificate, RsaUtils.Padding.OaepSHA256);
-                }
 
                 case SecurityPolicies.Basic128Rsa15:
-                {
                     return RsaUtils.GetPlainTextBlockSize(receiverCertificate, RsaUtils.Padding.Pkcs1);
-                }
 
                 case SecurityPolicies.ECC_nistP256:
                 case SecurityPolicies.ECC_nistP384:
@@ -307,15 +293,11 @@ namespace Opc.Ua.Bindings
                 case SecurityPolicies.ECC_brainpoolP384r1:
                 case SecurityPolicies.ECC_curve25519:
                 case SecurityPolicies.ECC_curve448:
-                {
                     return 1;
-                }
 
-                default:
                 case SecurityPolicies.None:
-                {
+                default:
                     return 1;
-                }
             }
         }
 
@@ -329,19 +311,13 @@ namespace Opc.Ua.Bindings
                 case SecurityPolicies.Basic256:
                 case SecurityPolicies.Basic256Sha256:
                 case SecurityPolicies.Aes128_Sha256_RsaOaep:
-                {
                     return RsaUtils.GetCipherTextBlockSize(receiverCertificate, RsaUtils.Padding.OaepSHA1);
-                }
 
                 case SecurityPolicies.Aes256_Sha256_RsaPss:
-                {
                     return RsaUtils.GetCipherTextBlockSize(receiverCertificate, RsaUtils.Padding.OaepSHA256);
-                }
 
                 case SecurityPolicies.Basic128Rsa15:
-                {
                     return RsaUtils.GetCipherTextBlockSize(receiverCertificate, RsaUtils.Padding.Pkcs1);
-                }
 
                 case SecurityPolicies.ECC_nistP256:
                 case SecurityPolicies.ECC_nistP384:
@@ -349,15 +325,11 @@ namespace Opc.Ua.Bindings
                 case SecurityPolicies.ECC_brainpoolP384r1:
                 case SecurityPolicies.ECC_curve25519:
                 case SecurityPolicies.ECC_curve448:
-                {
                     return 1;
-                }
 
-                default:
                 case SecurityPolicies.None:
-                {
+                default:
                     return 1;
-                }
             }
         }
 
@@ -450,9 +422,8 @@ namespace Opc.Ua.Bindings
                 case SecurityPolicies.Basic256Sha256:
                 case SecurityPolicies.Aes128_Sha256_RsaOaep:
                 case SecurityPolicies.Aes256_Sha256_RsaPss:
-                {
                     return RsaUtils.GetSignatureLength(senderCertificate);
-                }
+
 #if ECC_SUPPORT
                 case SecurityPolicies.ECC_nistP256:
                 case SecurityPolicies.ECC_nistP384:
@@ -460,15 +431,12 @@ namespace Opc.Ua.Bindings
                 case SecurityPolicies.ECC_brainpoolP384r1:
                 case SecurityPolicies.ECC_curve25519:
                 case SecurityPolicies.ECC_curve448:
-                {
                     return EccUtils.GetSignatureLength(senderCertificate);
-                }
+
 #endif
-                default:
                 case SecurityPolicies.None:
-                {
+                default:
                     return 0;
-                }
             }
         }
 
@@ -866,12 +834,9 @@ namespace Opc.Ua.Bindings
                     throw ServiceResultException.Create(StatusCodes.BadCertificateInvalid, e, "The sender's certificate could not be parsed.");
                 }
             }
-            else
+            else if (securityPolicyUri != SecurityPolicies.None)
             {
-                if (securityPolicyUri != SecurityPolicies.None)
-                {
-                    throw ServiceResultException.Create(StatusCodes.BadCertificateInvalid, "The sender's certificate was not specified.");
-                }
+                throw ServiceResultException.Create(StatusCodes.BadCertificateInvalid, "The sender's certificate was not specified.");
             }
 
             // verify receiver thumbprint.
@@ -891,7 +856,7 @@ namespace Opc.Ua.Bindings
                     throw ServiceResultException.Create(StatusCodes.BadCertificateInvalid, "The receiver has no matching certificate for the selected profile.");
                 }
 
-                if (receiverCertificate.Thumbprint.ToUpperInvariant() != GetThumbprintString(thumbprintData))
+                if (receiverCertificate.Thumbprint.Equals(GetThumbprintString(thumbprintData), StringComparison.OrdinalIgnoreCase))
                 {
                     throw ServiceResultException.Create(StatusCodes.BadCertificateInvalid, "The receiver's certificate thumbprint is not valid.");
                 }
@@ -901,12 +866,9 @@ namespace Opc.Ua.Bindings
                     m_serverCertificateChain = m_serverCertificateTypesProvider?.LoadCertificateChain(receiverCertificate);
                 }
             }
-            else
+            else if (securityPolicyUri != SecurityPolicies.None)
             {
-                if (securityPolicyUri != SecurityPolicies.None)
-                {
-                    throw ServiceResultException.Create(StatusCodes.BadCertificateInvalid, "The receiver's certificate thumbprint was not specified.");
-                }
+                throw ServiceResultException.Create(StatusCodes.BadCertificateInvalid, "The receiver's certificate thumbprint was not specified.");
             }
         }
 
@@ -1115,7 +1077,7 @@ namespace Opc.Ua.Bindings
                 if (X509Utils.GetRSAPublicKeySize(receiverCertificate) > TcpMessageLimits.KeySizeExtraPadding)
                 {
                     paddingEnd = plainText.Offset + plainText.Count - signatureSize - 1;
-                    paddingCount = plainText.Array[paddingEnd - 1] + plainText.Array[paddingEnd] * 256;
+                    paddingCount = plainText.Array[paddingEnd - 1] + (plainText.Array[paddingEnd] * 256);
 
                     //parse until paddingStart-1; the last one is actually the extrapaddingsize
                     for (int ii = paddingEnd - paddingCount; ii < paddingEnd; ii++)
@@ -1179,42 +1141,31 @@ namespace Opc.Ua.Bindings
         {
             switch (SecurityPolicyUri)
             {
-                default:
                 case SecurityPolicies.None:
-                {
+                default:
                     return null;
-                }
 
                 case SecurityPolicies.Basic256:
                 case SecurityPolicies.Basic128Rsa15:
-                {
                     return Rsa_Sign(dataToSign, senderCertificate, HashAlgorithmName.SHA1, RSASignaturePadding.Pkcs1);
-                }
 
                 case SecurityPolicies.Aes128_Sha256_RsaOaep:
                 case SecurityPolicies.Basic256Sha256:
-                {
                     return Rsa_Sign(dataToSign, senderCertificate, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
-                }
 
                 case SecurityPolicies.Aes256_Sha256_RsaPss:
-                {
                     return Rsa_Sign(dataToSign, senderCertificate, HashAlgorithmName.SHA256, RSASignaturePadding.Pss);
-                }
+
 #if ECC_SUPPORT
                 case SecurityPolicies.ECC_nistP256:
                 case SecurityPolicies.ECC_brainpoolP256r1:
                 case SecurityPolicies.ECC_curve25519:
                 case SecurityPolicies.ECC_curve448:
-                {
                     return EccUtils.Sign(dataToSign, senderCertificate, HashAlgorithmName.SHA256);
-                }
 
                 case SecurityPolicies.ECC_nistP384:
                 case SecurityPolicies.ECC_brainpoolP384r1:
-                {
                     return EccUtils.Sign(dataToSign, senderCertificate, HashAlgorithmName.SHA384);
-                }
 #endif
             }
         }
@@ -1236,45 +1187,33 @@ namespace Opc.Ua.Bindings
             switch (SecurityPolicyUri)
             {
                 case SecurityPolicies.None:
-                {
                     return true;
-                }
 
                 case SecurityPolicies.Basic128Rsa15:
                 case SecurityPolicies.Basic256:
-                {
                     return Rsa_Verify(dataToVerify, signature, senderCertificate, HashAlgorithmName.SHA1, RSASignaturePadding.Pkcs1);
-                }
 
                 case SecurityPolicies.Aes128_Sha256_RsaOaep:
                 case SecurityPolicies.Basic256Sha256:
-                {
                     return Rsa_Verify(dataToVerify, signature, senderCertificate, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
-                }
 
                 case SecurityPolicies.Aes256_Sha256_RsaPss:
-                {
                     return Rsa_Verify(dataToVerify, signature, senderCertificate, HashAlgorithmName.SHA256, RSASignaturePadding.Pss);
-                }
+
 #if ECC_SUPPORT
                 case SecurityPolicies.ECC_nistP256:
                 case SecurityPolicies.ECC_brainpoolP256r1:
                 case SecurityPolicies.ECC_curve25519:
                 case SecurityPolicies.ECC_curve448:
-                {
                     return EccUtils.Verify(dataToVerify, signature, senderCertificate, HashAlgorithmName.SHA256);
-                }
 
                 case SecurityPolicies.ECC_nistP384:
                 case SecurityPolicies.ECC_brainpoolP384r1:
-                {
                     return EccUtils.Verify(dataToVerify, signature, senderCertificate, HashAlgorithmName.SHA384);
-                }
+
 #endif
                 default:
-                {
                     return false;
-                }
             }
         }
 
@@ -1293,39 +1232,31 @@ namespace Opc.Ua.Bindings
         {
             switch (SecurityPolicyUri)
             {
-                default:
+                case SecurityPolicies.None:
                 case SecurityPolicies.ECC_nistP256:
                 case SecurityPolicies.ECC_nistP384:
                 case SecurityPolicies.ECC_brainpoolP256r1:
                 case SecurityPolicies.ECC_brainpoolP384r1:
                 case SecurityPolicies.ECC_curve25519:
                 case SecurityPolicies.ECC_curve448:
-                case SecurityPolicies.None:
-                {
+                default:
                     byte[] encryptedBuffer = BufferManager.TakeBuffer(SendBufferSize, "Encrypt");
 
                     Array.Copy(headerToCopy.Array, headerToCopy.Offset, encryptedBuffer, 0, headerToCopy.Count);
                     Array.Copy(dataToEncrypt.Array, dataToEncrypt.Offset, encryptedBuffer, headerToCopy.Count, dataToEncrypt.Count);
 
                     return new ArraySegment<byte>(encryptedBuffer, 0, dataToEncrypt.Count + headerToCopy.Count);
-                }
 
                 case SecurityPolicies.Basic256:
                 case SecurityPolicies.Aes128_Sha256_RsaOaep:
                 case SecurityPolicies.Basic256Sha256:
-                {
                     return Rsa_Encrypt(dataToEncrypt, headerToCopy, receiverCertificate, RsaUtils.Padding.OaepSHA1);
-                }
 
                 case SecurityPolicies.Aes256_Sha256_RsaPss:
-                {
                     return Rsa_Encrypt(dataToEncrypt, headerToCopy, receiverCertificate, RsaUtils.Padding.OaepSHA256);
-                }
 
                 case SecurityPolicies.Basic128Rsa15:
-                {
                     return Rsa_Encrypt(dataToEncrypt, headerToCopy, receiverCertificate, RsaUtils.Padding.Pkcs1);
-                }
             }
         }
 
@@ -1343,39 +1274,31 @@ namespace Opc.Ua.Bindings
         {
             switch (SecurityPolicyUri)
             {
-                default:
+                case SecurityPolicies.None:
                 case SecurityPolicies.ECC_nistP256:
                 case SecurityPolicies.ECC_nistP384:
                 case SecurityPolicies.ECC_brainpoolP256r1:
                 case SecurityPolicies.ECC_brainpoolP384r1:
                 case SecurityPolicies.ECC_curve25519:
                 case SecurityPolicies.ECC_curve448:
-                case SecurityPolicies.None:
-                {
+                default:
                     byte[] decryptedBuffer = BufferManager.TakeBuffer(SendBufferSize, "Decrypt");
 
                     Array.Copy(headerToCopy.Array, headerToCopy.Offset, decryptedBuffer, 0, headerToCopy.Count);
                     Array.Copy(dataToDecrypt.Array, dataToDecrypt.Offset, decryptedBuffer, headerToCopy.Count, dataToDecrypt.Count);
 
                     return new ArraySegment<byte>(decryptedBuffer, 0, dataToDecrypt.Count + headerToCopy.Count);
-                }
 
                 case SecurityPolicies.Basic256:
                 case SecurityPolicies.Aes128_Sha256_RsaOaep:
                 case SecurityPolicies.Basic256Sha256:
-                {
                     return Rsa_Decrypt(dataToDecrypt, headerToCopy, receiverCertificate, RsaUtils.Padding.OaepSHA1);
-                }
 
                 case SecurityPolicies.Aes256_Sha256_RsaPss:
-                {
                     return Rsa_Decrypt(dataToDecrypt, headerToCopy, receiverCertificate, RsaUtils.Padding.OaepSHA256);
-                }
 
                 case SecurityPolicies.Basic128Rsa15:
-                {
                     return Rsa_Decrypt(dataToDecrypt, headerToCopy, receiverCertificate, RsaUtils.Padding.Pkcs1);
-                }
             }
         }
         #endregion

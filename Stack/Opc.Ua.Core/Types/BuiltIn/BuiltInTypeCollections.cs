@@ -34,7 +34,7 @@ namespace Opc.Ua
     /// </code>
     /// </example>
     [CollectionDataContract(Name = "ListOfBoolean", Namespace = Namespaces.OpcUaXsd, ItemName = "Boolean")]
-    public partial class BooleanCollection : List<bool>, ICloneable
+    public class BooleanCollection : List<bool>, ICloneable
     {
         /// <summary>
         /// Initializes an empty collection.
@@ -118,7 +118,7 @@ namespace Opc.Ua
     /// Provides a strongly-typed list of <see cref="sbyte"/> values.
     /// </remarks>
     [CollectionDataContract(Name = "ListOfSByte", Namespace = Namespaces.OpcUaXsd, ItemName = "SByte")]
-    public partial class SByteCollection : List<sbyte>, ICloneable
+    public class SByteCollection : List<sbyte>, ICloneable
     {
         /// <summary>
         /// Initializes an empty collection.
@@ -202,7 +202,7 @@ namespace Opc.Ua
     /// Provides a strongly-typed list of <see cref="byte"/> values.
     /// </remarks>
     [CollectionDataContract(Name = "ListOfByte", Namespace = Namespaces.OpcUaXsd, ItemName = "Byte")]
-    public partial class ByteCollection : List<byte>, ICloneable
+    public class ByteCollection : List<byte>, ICloneable
     {
         /// <summary>
         /// Initializes an empty collection.
@@ -286,7 +286,7 @@ namespace Opc.Ua
     /// A strongly-typed collection of Int16 values.
     /// </remarks>
     [CollectionDataContract(Name = "ListOfInt16", Namespace = Namespaces.OpcUaXsd, ItemName = "Int16")]
-    public partial class Int16Collection : List<short>, ICloneable
+    public class Int16Collection : List<short>, ICloneable
     {
         /// <summary>
         /// Initializes an empty collection.
@@ -370,7 +370,7 @@ namespace Opc.Ua
     /// A collection of UInt16 values.
     /// </remarks>
     [CollectionDataContract(Name = "ListOfUInt16", Namespace = Namespaces.OpcUaXsd, ItemName = "UInt16")]
-    public partial class UInt16Collection : List<ushort>, ICloneable
+    public class UInt16Collection : List<ushort>, ICloneable
     {
         /// <summary>
         /// Initializes an empty collection.
@@ -451,7 +451,7 @@ namespace Opc.Ua
     /// A collection of Int32 values.
     /// </summary>
     [CollectionDataContract(Name = "ListOfInt32", Namespace = Namespaces.OpcUaXsd, ItemName = "Int32")]
-    public partial class Int32Collection : List<int>, ICloneable
+    public class Int32Collection : List<int>, ICloneable
     {
         /// <summary>
         /// Initializes an empty collection.
@@ -535,7 +535,7 @@ namespace Opc.Ua
     /// A collection of UInt32 values.
     /// </remarks>
     [CollectionDataContract(Name = "ListOfUInt32", Namespace = Namespaces.OpcUaXsd, ItemName = "UInt32")]
-    public partial class UInt32Collection : List<uint>, ICloneable
+    public class UInt32Collection : List<uint>, ICloneable
     {
         /// <summary>
         /// Initializes an empty collection.
@@ -707,7 +707,7 @@ namespace Opc.Ua
     /// A strongly-typed collection of UInt64 values.
     /// </remarks>
     [CollectionDataContract(Name = "ListOfUInt64", Namespace = Namespaces.OpcUaXsd, ItemName = "UInt64")]
-    public partial class UInt64Collection : List<ulong>, ICloneable
+    public class UInt64Collection : List<ulong>, ICloneable
     {
         /// <summary>
         /// Initializes an empty collection.
@@ -791,7 +791,7 @@ namespace Opc.Ua
     /// A strongly-typed collection of Float values.
     /// </remarks>
     [CollectionDataContract(Name = "ListOfFloat", Namespace = Namespaces.OpcUaXsd, ItemName = "Float")]
-    public partial class FloatCollection : List<float>, ICloneable
+    public class FloatCollection : List<float>, ICloneable
     {
         /// <summary>
         /// Initializes an empty collection.
@@ -875,7 +875,7 @@ namespace Opc.Ua
     /// A collection of Double values.
     /// </remarks>
     [CollectionDataContract(Name = "ListOfDouble", Namespace = Namespaces.OpcUaXsd, ItemName = "Double")]
-    public partial class DoubleCollection : List<double>, ICloneable
+    public class DoubleCollection : List<double>, ICloneable
     {
         /// <summary>
         /// Initializes an empty collection.
@@ -959,7 +959,7 @@ namespace Opc.Ua
     /// A strongly-typed collection of String values.
     /// </remarks>
     [CollectionDataContract(Name = "ListOfString", Namespace = Namespaces.OpcUaXsd, ItemName = "String")]
-    public partial class StringCollection : List<string>, ICloneable
+    public class StringCollection : List<string>, ICloneable
     {
         /// <summary>
         /// Initializes an empty collection.
@@ -1043,7 +1043,7 @@ namespace Opc.Ua
     /// A strongly-typed collection of DateTime values.
     /// </remarks>
     [CollectionDataContract(Name = "ListOfDateTime", Namespace = Namespaces.OpcUaXsd, ItemName = "DateTime")]
-    public partial class DateTimeCollection : List<DateTime>, ICloneable
+    public class DateTimeCollection : List<DateTime>, ICloneable
     {
         /// <summary>
         /// Initializes an empty collection.
@@ -1127,7 +1127,7 @@ namespace Opc.Ua
     /// A collection of ByteString values.
     /// </remarks>
     [CollectionDataContract(Name = "ListOfByteString", Namespace = Namespaces.OpcUaXsd, ItemName = "ByteString")]
-    public partial class ByteStringCollection : List<byte[]>, ICloneable
+    public class ByteStringCollection : List<byte[]>, ICloneable
     {
         /// <summary>
         /// Initializes an empty collection.
@@ -1218,7 +1218,7 @@ namespace Opc.Ua
     /// A strongly-typed collection of XmlElement values.
     /// </remarks>
     [CollectionDataContract(Name = "ListOfXmlElement", Namespace = Namespaces.OpcUaXsd, ItemName = "XmlElement")]
-    public partial class XmlElementCollection : List<XmlElement>, ICloneable
+    public class XmlElementCollection : List<XmlElement>, ICloneable
     {
         /// <summary>
         /// Initializes an empty collection.

@@ -119,7 +119,7 @@ namespace Opc.Ua.Server
                     Utils.SilentDispose(samplingGroup);
                 }
 
-                foreach (MonitoredItem monitoredItem in monitoredItems)
+                foreach (ISampledDataChangeMonitoredItem monitoredItem in monitoredItems)
                 {
                     Utils.SilentDispose(monitoredItem);
                 }
@@ -350,7 +350,6 @@ namespace Opc.Ua.Server
                 revisedQueueSize = monitoredItem.QueueSize;
             }
 
-
             // get filter.
             MonitoringFilter filter = null;
 
@@ -450,12 +449,9 @@ namespace Opc.Ua.Server
 
                 if (m_sampledItems.TryGetValue(monitoredItem, out samplingGroup))
                 {
-                    if (samplingGroup != null)
+                    if (samplingGroup != null && samplingGroup.ModifyMonitoring(context, monitoredItem))
                     {
-                        if (samplingGroup.ModifyMonitoring(context, monitoredItem))
-                        {
-                            return;
-                        }
+                        return;
                     }
 
                     m_sampledItems.Remove(monitoredItem);

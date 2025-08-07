@@ -53,7 +53,7 @@ namespace Opc.Ua
         internal QualifiedName()
         {
             XmlEncodedNamespaceIndex = 0;
-            m_name = null;
+            XmlEncodedName = null;
         }
 
         /// <summary>
@@ -71,7 +71,7 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(value));
             }
 
-            m_name = value.m_name;
+            XmlEncodedName = value.XmlEncodedName;
             XmlEncodedNamespaceIndex = value.XmlEncodedNamespaceIndex;
         }
 
@@ -85,7 +85,7 @@ namespace Opc.Ua
         public QualifiedName(string name)
         {
             XmlEncodedNamespaceIndex = 0;
-            m_name = name;
+            XmlEncodedName = name;
         }
 
         /// <summary>
@@ -99,7 +99,7 @@ namespace Opc.Ua
         public QualifiedName(string name, ushort namespaceIndex)
         {
             XmlEncodedNamespaceIndex = namespaceIndex;
-            m_name = name;
+            XmlEncodedName = name;
         }
         #endregion
 
@@ -122,17 +122,13 @@ namespace Opc.Ua
         /// <remarks>
         /// The unqualified name.
         /// </remarks>
-        public string Name => m_name;
+        public string Name => XmlEncodedName;
 
         /// <summary>
         /// Xml encoded name
         /// </summary>
         [DataMember(Name = "Name", Order = 2)]
-        internal string XmlEncodedName
-        {
-            get { return m_name; }
-            set { m_name = value; }
-        }
+        internal string XmlEncodedName { get; set; }
         #endregion
 
         #region IComparable Members
@@ -157,9 +153,7 @@ namespace Opc.Ua
                 return 0;
             }
 
-            var qname = obj as QualifiedName;
-
-            if (qname == null)
+            if (!(obj is QualifiedName qname))
             {
                 return typeof(QualifiedName).GetTypeInfo().GUID.CompareTo(obj.GetType().GetTypeInfo().GUID);
             }
@@ -169,9 +163,9 @@ namespace Opc.Ua
                 return XmlEncodedNamespaceIndex.CompareTo(qname.XmlEncodedNamespaceIndex);
             }
 
-            if (m_name != null)
+            if (XmlEncodedName != null)
             {
-                return string.CompareOrdinal(m_name, qname.m_name);
+                return string.CompareOrdinal(XmlEncodedName, qname.XmlEncodedName);
             }
 
             return 0;
@@ -217,9 +211,9 @@ namespace Opc.Ua
         public override int GetHashCode()
         {
             var hash = new HashCode();
-            if (m_name != null)
+            if (XmlEncodedName != null)
             {
-                hash.Add(m_name);
+                hash.Add(XmlEncodedName);
             }
 
             hash.Add(XmlEncodedNamespaceIndex);
@@ -246,9 +240,7 @@ namespace Opc.Ua
                 return true;
             }
 
-            var qname = obj as QualifiedName;
-
-            if (qname == null)
+            if (!(obj is QualifiedName qname))
             {
                 return false;
             }
@@ -258,7 +250,7 @@ namespace Opc.Ua
                 return false;
             }
 
-            return qname.m_name == m_name;
+            return qname.XmlEncodedName == XmlEncodedName;
         }
 
         /// <summary>
@@ -323,16 +315,16 @@ namespace Opc.Ua
         {
             if (format == null)
             {
-                int capacity = (m_name?.Length) ?? 0;
+                int capacity = (XmlEncodedName?.Length) ?? 0;
 
                 var builder = new StringBuilder(capacity + 10);
 
                 if (this.XmlEncodedNamespaceIndex == 0)
                 {
                     // prepend the namespace index if the name contains a colon.
-                    if (m_name != null)
+                    if (XmlEncodedName != null)
                     {
-                        int index = m_name.IndexOf(':', StringComparison.Ordinal);
+                        int index = XmlEncodedName.IndexOf(':', StringComparison.Ordinal);
 
                         if (index != -1)
                         {
@@ -346,9 +338,9 @@ namespace Opc.Ua
                     builder.Append(':');
                 }
 
-                if (m_name != null)
+                if (XmlEncodedName != null)
                 {
-                    builder.Append(m_name);
+                    builder.Append(XmlEncodedName);
                 }
 
                 return builder.ToString();
@@ -422,17 +414,14 @@ namespace Opc.Ua
         /// <returns>True if the name is value.</returns>
         public static bool IsValid(QualifiedName value, NamespaceTable namespaceUris)
         {
-            if (value == null || string.IsNullOrEmpty(value.m_name))
+            if (value == null || string.IsNullOrEmpty(value.XmlEncodedName))
             {
                 return false;
             }
 
-            if (namespaceUris != null)
+            if (namespaceUris != null && namespaceUris.GetString(value.XmlEncodedNamespaceIndex) == null)
             {
-                if (namespaceUris.GetString(value.XmlEncodedNamespaceIndex) == null)
-                {
-                    return false;
-                }
+                return false;
             }
 
             return true;
@@ -548,7 +537,7 @@ namespace Opc.Ua
         /// <returns>The formatted identifier.</returns>
         public string Format(IServiceMessageContext context, bool useNamespaceUri = false)
         {
-            if (string.IsNullOrEmpty(m_name))
+            if (string.IsNullOrEmpty(XmlEncodedName))
             {
                 return null;
             }
@@ -580,7 +569,7 @@ namespace Opc.Ua
                 }
             }
 
-            buffer.Append(m_name);
+            buffer.Append(XmlEncodedName);
 
             return buffer.ToString();
         }
@@ -593,7 +582,7 @@ namespace Opc.Ua
         {
             if (value != null)
             {
-                if (value.XmlEncodedNamespaceIndex != 0 || !string.IsNullOrEmpty(value.m_name))
+                if (value.XmlEncodedNamespaceIndex != 0 || !string.IsNullOrEmpty(value.XmlEncodedName))
                 {
                     return false;
                 }
@@ -632,9 +621,6 @@ namespace Opc.Ua
         public static QualifiedName Null { get; } = new QualifiedName();
 
 #endregion
-#region Private Fields
-        private string m_name;
-        #endregion
     }
 
     #region QualifiedNameCollection Class
@@ -645,7 +631,7 @@ namespace Opc.Ua
     /// A strongly-typed collection of QualifiedName objects.
     /// </remarks>
     [CollectionDataContract(Name = "ListOfQualifiedName", Namespace = Namespaces.OpcUaXsd, ItemName = "QualifiedName")]
-    public partial class QualifiedNameCollection : List<QualifiedName>, ICloneable
+    public class QualifiedNameCollection : List<QualifiedName>, ICloneable
     {
         /// <summary>
         /// Initializes an empty collection.

@@ -27,7 +27,7 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the object with the specified binding and endpoint address.
         /// </summary>
-        public UaChannelBase()
+        protected UaChannelBase()
         {
             m_messageContext = null;
             m_settings = null;
@@ -195,7 +195,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        ///  Gets the the channel's current security token.
+        ///  Gets the channel's current security token.
         /// </summary>
         public ChannelToken CurrentToken => null;
 
@@ -804,22 +804,16 @@ namespace Opc.Ua
             switch (description.TransportProfileUri)
             {
                 case Profiles.UaTcpTransport:
-                {
                     uriScheme = Utils.UriSchemeOpcTcp;
                     break;
-                }
 
                 case Profiles.HttpsBinaryTransport:
-                {
                     uriScheme = Utils.UriSchemeOpcHttps;
                     break;
-                }
 
                 case Profiles.UaWssTransport:
-                {
                     uriScheme = Utils.UriSchemeOpcWss;
                     break;
-                }
             }
 
             // initialize the channel which will be created with the server.

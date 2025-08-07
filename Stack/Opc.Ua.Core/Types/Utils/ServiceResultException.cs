@@ -94,14 +94,7 @@ namespace Opc.Ua
         /// </summary>
         public ServiceResultException(ServiceResult status) : base(GetMessage(status))
         {
-            if (status != null)
-            {
-                Result = status;
-            }
-            else
-            {
-                Result = new ServiceResult(StatusCodes.Bad);
-            }
+            Result = status ?? new ServiceResult(StatusCodes.Bad);
         }
         #endregion
 
@@ -213,8 +206,6 @@ namespace Opc.Ua
         }
 
 #endregion
-#region Private Fields
-        #endregion
 
         #region Private Constants
         /// <summary>

@@ -46,7 +46,5 @@ namespace Opc.Ua.Bindings
         public IServiceMessageContext MessageContext { get; set; }
 
         #endregion
-        #region Private Fields
-        #endregion
     }
 }

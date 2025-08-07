@@ -63,7 +63,6 @@ namespace Opc.Ua.Core.Tests.Stack.State
                     new LocalizedText("DataItemType"),
                     true);
 
-
             // The instance BaseAnalogState node is a subtype of BaseVariableState for
             // which valueRank attribute is tested
             var instanceNode = new BaseAnalogState(typeNode) {
@@ -81,4 +80,3 @@ namespace Opc.Ua.Core.Tests.Stack.State
         }
     }
 }
-

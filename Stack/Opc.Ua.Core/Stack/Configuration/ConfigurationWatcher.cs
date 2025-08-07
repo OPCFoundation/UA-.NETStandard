@@ -59,13 +59,10 @@ namespace Opc.Ua
         /// </summary>
         protected virtual void Dispose(bool disposing)
         {
-            if (disposing)
+            if (disposing && m_watcher != null)
             {
-                if (m_watcher != null)
-                {
-                    m_watcher.Dispose();
-                    m_watcher = null;
-                }
+                m_watcher.Dispose();
+                m_watcher = null;
             }
         }
         #endregion
@@ -120,8 +117,7 @@ namespace Opc.Ua
         #endregion
 
         #region Private Fields
-        private readonly object m_lock = new object();
-        private readonly ApplicationConfiguration m_configuration;
+                private readonly ApplicationConfiguration m_configuration;
         private System.Threading.Timer m_watcher;
         private DateTime m_lastWriteTime;
         private event EventHandler<ConfigurationWatcherEventArgs> m_Changed;
@@ -143,7 +139,7 @@ namespace Opc.Ua
             string filePath)
         {
             Configuration = configuration;
-            m_filePath = filePath;
+            FilePath = filePath;
         }
         #endregion
 
@@ -156,14 +152,8 @@ namespace Opc.Ua
         /// <summary>
         /// The path to the application configuration file.
         /// </summary>
-        public string FilePath
-        {
-            get { return m_filePath; }
-        }
+        public string FilePath { get; }
 
-#endregion
-#region Private Fields
-        private readonly string m_filePath;
         #endregion
     }
     #endregion

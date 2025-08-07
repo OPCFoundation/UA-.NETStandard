@@ -74,7 +74,7 @@ namespace Opc.Ua
             }
 
             nodeSet.NamespaceUris = (context.NamespaceUris?.ToArray().Where(x => x != Namespaces.OpcUa).ToArray());
-            nodeSet.ServerUris = (context.ServerUris != null) ? context.ServerUris.ToArray() : null;
+            nodeSet.ServerUris = (context.ServerUris?.ToArray());
 
             if (nodeSet.NamespaceUris != null && nodeSet.NamespaceUris.Length == 0)
             {

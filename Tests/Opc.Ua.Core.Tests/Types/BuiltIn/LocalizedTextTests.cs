@@ -98,6 +98,8 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             Assert.AreEqual("Bonjour", localizedText.Translations["fr-FR"]);
         }
 
+        private static readonly string[] preferredLocales = new[] { "en-US", "de-DE" };
+
         [Test]
         public void LocalizedText_MulLocale_ReturnsPreferredTranslations()
         {
@@ -112,7 +114,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             Assert.IsTrue(localizedText.IsMultiLanguage, "Should be mul locale");
 
             //found locale returned
-            LocalizedText singleUS = localizedText.FilterByPreferredLocales(new[] { "en-US", "de-DE" });
+            LocalizedText singleUS = localizedText.FilterByPreferredLocales(preferredLocales);
             Assert.AreEqual("en-US", singleUS.Locale, "Locale should be 'en-US'");
             Assert.AreEqual("Hello", singleUS.Text, "Text should be 'Hello'");
 
@@ -155,7 +157,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             Assert.IsFalse(localizedText.IsMultiLanguage, "Should be mul locale");
 
             //found locale returned
-            LocalizedText singleDE = localizedText.FilterByPreferredLocales(new[] { "en-US", "de-DE" });
+            LocalizedText singleDE = localizedText.FilterByPreferredLocales(preferredLocales);
             Assert.AreEqual("de-DE", singleDE.Locale, "Locale should be 'de-DE'");
             Assert.AreEqual("Hallo", singleDE.Text, "Text should be 'Hallo'");
 

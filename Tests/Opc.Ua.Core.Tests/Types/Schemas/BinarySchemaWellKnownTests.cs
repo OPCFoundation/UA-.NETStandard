@@ -33,7 +33,6 @@ using NUnit.Framework;
 using Opc.Ua.Schema.Binary;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
-
 namespace Opc.Ua.Core.Tests.Types.Schemas
 {
     /// <summary>
@@ -80,5 +79,4 @@ namespace Opc.Ua.Core.Tests.Types.Schemas
         }
         #endregion
     }
-
 }

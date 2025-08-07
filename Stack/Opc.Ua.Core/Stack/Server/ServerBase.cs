@@ -31,7 +31,7 @@ namespace Opc.Ua
     /// <summary>
     /// A base class for a UA server implementation.
     /// </summary>
-    public partial class ServerBase : IServerBase
+    public class ServerBase : IServerBase
     {
         #region Constructors
         /// <summary>
@@ -403,12 +403,7 @@ namespace Opc.Ua
 
                         if (alternateUrl.Scheme == address.Url.Scheme)
                         {
-                            if (address.AlternateUrls == null)
-                            {
-                                address.AlternateUrls = new List<Uri>();
-                            }
-
-                            address.AlternateUrls.Add(alternateUrl);
+                            (address.AlternateUrls ??= new List<Uri>()).Add(alternateUrl);
                         }
                     }
                 }
@@ -417,25 +412,19 @@ namespace Opc.Ua
                 {
                     case Utils.UriSchemeHttps:
                     case Utils.UriSchemeOpcHttps:
-                    {
                         address.ProfileUri = Profiles.HttpsBinaryTransport;
                         address.DiscoveryUrl = address.Url;
                         break;
-                    }
 
                     case Utils.UriSchemeOpcTcp:
-                    {
                         address.ProfileUri = Profiles.UaTcpTransport;
                         address.DiscoveryUrl = address.Url;
                         break;
-                    }
 
                     case Utils.UriSchemeOpcWss:
-                    {
                         address.ProfileUri = Profiles.UaWssTransport;
                         address.DiscoveryUrl = address.Url;
                         break;
-                    }
                 }
 
                 BaseAddresses.Add(address);
@@ -906,20 +895,17 @@ namespace Opc.Ua
             {
                 var clone = (UserTokenPolicy)policy.Clone();
 
-                if (string.IsNullOrEmpty(policy.SecurityPolicyUri))
+                if (string.IsNullOrEmpty(policy.SecurityPolicyUri) && description.SecurityMode == MessageSecurityMode.None)
                 {
-                    if (description.SecurityMode == MessageSecurityMode.None)
+                    if (clone.TokenType == UserTokenType.Anonymous)
                     {
-                        if (clone.TokenType == UserTokenType.Anonymous)
-                        {
-                            // no need for security with anonymous token
-                            clone.SecurityPolicyUri = SecurityPolicies.None;
-                        }
-                        else
-                        {
-                            // ensure a security policy is specified for user tokens.
-                            clone.SecurityPolicyUri = SecurityPolicies.Basic256Sha256;
-                        }
+                        // no need for security with anonymous token
+                        clone.SecurityPolicyUri = SecurityPolicies.None;
+                    }
+                    else
+                    {
+                        // ensure a security policy is specified for user tokens.
+                        clone.SecurityPolicyUri = SecurityPolicies.Basic256Sha256;
                     }
                 }
 
@@ -1248,7 +1234,7 @@ namespace Opc.Ua
                 }
             } while (matchPort && translations.Count == 0);
 
-            translations.Sort((ep1, ep2) => string.Compare(ep1.EndpointUrl, ep2.EndpointUrl, StringComparison.Ordinal));
+            translations.Sort((ep1, ep2) => string.CompareOrdinal(ep1.EndpointUrl, ep2.EndpointUrl));
 
             return translations;
         }
@@ -1754,8 +1740,10 @@ namespace Opc.Ua
         private object m_serverDescription;
         private ReadOnlyList<EndpointDescription> m_endpoints;
         private RequestQueue m_requestQueue;
-        // identifier for the UserTokenPolicy should be unique within the context of a single Server
-        private int m_userTokenPolicyId = 0;
+        /// <summary>
+        /// identifier for the UserTokenPolicy should be unique within the context of a single Server
+        /// </summary>
+        private int m_userTokenPolicyId;
         #endregion
     }
 }

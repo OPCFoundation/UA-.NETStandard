@@ -36,7 +36,6 @@ using System.Numerics;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 
-
 #if NET472_OR_GREATER
 using Org.BouncyCastle.Asn1;
 using Org.BouncyCastle.Asn1.X509;
@@ -209,7 +208,6 @@ namespace Opc.Ua.Security.Certificates
 
             byte[] serialNumber = m_serialNumber.Reverse().ToArray();
 
-
             X509Certificate2 cert;
             if (IssuerCAKeyCert != null)
             {
@@ -313,8 +311,7 @@ namespace Opc.Ua.Security.Certificates
                     // Named
                     var namedCurveOid = (DerObjectIdentifier)x962Params.Parameters;
                     string curveName = namedCurveOid.Id;
-                    var ecCurve = System.Security.Cryptography.ECCurve.CreateFromOid(new Oid(curveName));
-                    ecParameters.Curve = ecCurve;
+                    ecParameters.Curve = System.Security.Cryptography.ECCurve.CreateFromOid(new Oid(curveName));
                 }
                 else
                 {
@@ -471,18 +468,15 @@ namespace Opc.Ua.Security.Certificates
                                         true));
             }
 
-            if (!m_isCA && !forECDsa)
+            if (!m_isCA && !forECDsa && m_extensions.FindExtension<X509EnhancedKeyUsageExtension>() == null)
             {
-                if (m_extensions.FindExtension<X509EnhancedKeyUsageExtension>() == null)
-                {
-                    // Enhanced key usage 
-                    request.CertificateExtensions.Add(
-                    new X509EnhancedKeyUsageExtension(
-                        new OidCollection {
+                // Enhanced key usage 
+                request.CertificateExtensions.Add(
+                new X509EnhancedKeyUsageExtension(
+                    new OidCollection {
                             new Oid(Oids.ServerAuthentication),
                             new Oid(Oids.ClientAuthentication)
-                        }, true));
-                }
+                    }, true));
             }
 
             foreach (System.Security.Cryptography.X509Certificates.X509Extension extension in m_extensions)

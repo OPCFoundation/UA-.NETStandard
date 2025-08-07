@@ -20,7 +20,7 @@ namespace Opc.Ua
     /// <summary>
 	/// The client side interface with a UA server.
 	/// </summary>
-    public partial class ClientBase : IClientBase
+    public class ClientBase : IClientBase
     {
         #region Constructors
         /// <summary>
@@ -93,12 +93,9 @@ namespace Opc.Ua
             {
                 ITransportChannel channel = m_channel;
 
-                if (channel != null)
+                if (channel != null && m_disposed)
                 {
-                    if (m_disposed)
-                    {
-                        throw new ServiceResultException(StatusCodes.BadSecureChannelClosed, "Channel has been closed.");
-                    }
+                    throw new ServiceResultException(StatusCodes.BadSecureChannelClosed, "Channel has been closed.");
                 }
 
                 return channel;
@@ -532,16 +529,13 @@ namespace Opc.Ua
             }
 
             // check data type.
-            if (expectedType != null)
+            if (expectedType != null && !expectedType.IsInstanceOfType(value.Value))
             {
-                if (!expectedType.IsInstanceOfType(value.Value))
-                {
-                    return ServiceResult.Create(
-                        StatusCodes.BadUnexpectedError,
-                        "The server returned data value of type {0} when a value of type {1} was expected.",
-                        (value.Value != null) ? value.Value.GetType().Name : "(null)",
-                        expectedType.Name);
-                }
+                return ServiceResult.Create(
+                    StatusCodes.BadUnexpectedError,
+                    "The server returned data value of type {0} when a value of type {1} was expected.",
+                    (value.Value != null) ? value.Value.GetType().Name : "(null)",
+                    expectedType.Name);
             }
 
             return null;

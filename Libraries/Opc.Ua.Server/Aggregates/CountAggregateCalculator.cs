@@ -34,7 +34,7 @@ using System.Text;
 namespace Opc.Ua.Server
 {
     /// <summary>
-    /// Calculates the value of an aggregate. 
+    /// Calculates the value of an aggregate.
     /// </summary>
     public class CountAggregateCalculator : AggregateCalculator
     {
@@ -55,7 +55,7 @@ namespace Opc.Ua.Server
             double processingInterval,
             bool stepped,
             AggregateConfiguration configuration)
-        : 
+        :
             base(aggregateId, startTime, endTime, processingInterval, stepped, configuration)
         {
             SetPartialBit = true;
@@ -75,29 +75,19 @@ namespace Opc.Ua.Server
                 switch (id.Value)
                 {
                     case Objects.AggregateFunction_Count:
-                    {
                         return ComputeCount(slice);
-                    }
 
                     case Objects.AggregateFunction_AnnotationCount:
-                    {
                         return ComputeAnnotationCount(slice);
-                    }
 
                     case Objects.AggregateFunction_DurationInStateZero:
-                    {
                         return ComputeDurationInState(slice, false);
-                    }
 
                     case Objects.AggregateFunction_DurationInStateNonZero:
-                    {
                         return ComputeDurationInState(slice, true);
-                    }
 
                     case Objects.AggregateFunction_NumberOfTransitions:
-                    {
                         return ComputeNumberOfTransitions(slice);
-                    }
                 }
             }
 
@@ -135,7 +125,7 @@ namespace Opc.Ua.Server
             var value = new DataValue();
             value.WrappedValue = new Variant(count, TypeInfo.Scalars.Int32);
             value.SourceTimestamp = GetTimestamp(slice);
-            value.ServerTimestamp = GetTimestamp(slice);     
+            value.ServerTimestamp = GetTimestamp(slice);
             value.StatusCode = GetValueBasedStatusCode(slice, values, value.StatusCode);
 
             if (!StatusCode.IsBad(value.StatusCode))
@@ -213,12 +203,9 @@ namespace Opc.Ua.Server
                         duration += regions[ii].Duration;
                     }
                 }
-                else
+                else if (regions[ii].StartValue == 0)
                 {
-                    if (regions[ii].StartValue == 0)
-                    {
-                        duration += regions[ii].Duration;
-                    }
+                    duration += regions[ii].Duration;
                 }
             }
 
@@ -226,7 +213,7 @@ namespace Opc.Ua.Server
             var value = new DataValue();
             value.WrappedValue = new Variant(duration, TypeInfo.Scalars.Double);
             value.SourceTimestamp = GetTimestamp(slice);
-            value.ServerTimestamp = GetTimestamp(slice);            
+            value.ServerTimestamp = GetTimestamp(slice);
             value.StatusCode = GetTimeBasedStatusCode(regions, value.StatusCode);
             value.StatusCode = value.StatusCode.SetAggregateBits(AggregateBits.Calculated);
 
@@ -251,18 +238,15 @@ namespace Opc.Ua.Server
             // determine whether a transition occurs at the StartTime
             double lastValue = double.NaN;
 
-            if (slice.EarlyBound != null)
+            if (slice.EarlyBound != null && StatusCode.IsGood(slice.EarlyBound.Value.StatusCode))
             {
-                if (StatusCode.IsGood(slice.EarlyBound.Value.StatusCode))
+                try
                 {
-                    try
-                    {
-                        lastValue = CastToDouble(slice.EarlyBound.Value);
-                    }
-                    catch (Exception)
-                    {
-                        lastValue = double.NaN;
-                    }
+                    lastValue = CastToDouble(slice.EarlyBound.Value);
+                }
+                catch (Exception)
+                {
+                    lastValue = double.NaN;
                 }
             }
 
@@ -287,12 +271,9 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
-                if (!double.IsNaN(lastValue))
+                if (!double.IsNaN(lastValue) && lastValue != nextValue)
                 {
-                    if (lastValue != nextValue)
-                    {
-                        count++;
-                    }
+                    count++;
                 }
 
                 lastValue = nextValue;

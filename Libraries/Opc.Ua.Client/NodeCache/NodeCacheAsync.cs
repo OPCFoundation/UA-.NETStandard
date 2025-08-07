@@ -282,8 +282,7 @@ namespace Opc.Ua.Client
 
             // fetch nodes and references from server.
             (IList<Node> sourceNodes, IList<ServiceResult> readErrors) = await m_session.ReadNodesAsync(localIds, NodeClass.Unspecified, ct: ct).ConfigureAwait(false);
-            (IList<ReferenceDescriptionCollection> referenceCollectionList, IList<ServiceResult> fetchErrors) = await m_session.FetchReferencesAsync(localIds, ct).ConfigureAwait(false); ;
-
+            (IList<ReferenceDescriptionCollection> referenceCollectionList, IList<ServiceResult> fetchErrors) = await m_session.FetchReferencesAsync(localIds, ct).ConfigureAwait(false);
 
             int ii = 0;
             for (ii = 0; ii < count; ii++)
@@ -296,9 +295,7 @@ namespace Opc.Ua.Client
                 if (!ServiceResult.IsBad(fetchErrors[ii]))
                 {
                     // fetch references from server.
-                    ReferenceDescriptionCollection references = referenceCollectionList[ii];
-
-                    foreach (ReferenceDescription reference in references)
+                    foreach (ReferenceDescription reference in referenceCollectionList[ii])
                     {
                         m_cacheLock.EnterUpgradeableReadLock();
                         try
@@ -343,9 +340,7 @@ namespace Opc.Ua.Client
         {
             IList<INode> targets = new List<INode>();
 
-            var source = await FindAsync(nodeId, ct).ConfigureAwait(false) as Node;
-
-            if (source == null)
+            if (!(await FindAsync(nodeId, ct).ConfigureAwait(false) is Node source))
             {
                 return targets;
             }
@@ -434,9 +429,7 @@ namespace Opc.Ua.Client
         public async Task FetchSuperTypesAsync(ExpandedNodeId nodeId, CancellationToken ct)
         {
             // find the target node,
-            var source = await FindAsync(nodeId, ct).ConfigureAwait(false) as ILocalNode;
-
-            if (source == null)
+            if (!(await FindAsync(nodeId, ct).ConfigureAwait(false) is ILocalNode source))
             {
                 return;
             }

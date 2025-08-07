@@ -82,6 +82,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         static readonly byte[] OpaqueId2 = Utils.FromHexString("E41047609A9248318EB907991A66B7BEE6B60CB5114828");
         static readonly byte[] OpaqueId3 = Utils.FromHexString("FBD8F0DE652A479B");
         static readonly byte[][] OpaqueIds = new byte[][] { OpaqueId1, OpaqueId2, OpaqueId3 };
+        private static readonly string[] body = new string[] { "opc.tcp://localhost/" };
 
         private string Escape(string input)
         {
@@ -1286,7 +1287,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                             ApplicationUri = "urn:localhost:test.org:client",
                             ApplicationNames = new LocalizedText[] { new LocalizedText("en", "Test Client") },
                             ProductUri = "http://test.org/client",
-                            DiscoveryUrls = new string[] { "opc.tcp://localhost/" },
+                            DiscoveryUrls = body,
                         }))
                 );
 
@@ -1407,7 +1408,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                             ApplicationType = Opc.Ua.ApplicationType.Client,
                             ApplicationNames = new LocalizedText[] { new LocalizedText("en", "Test Client") },
                             ProductUri = "http://test.org/client",
-                            DiscoveryUrls = new string[] { "opc.tcp://localhost/" },
+                            DiscoveryUrls = body,
                         }))
                 );
 

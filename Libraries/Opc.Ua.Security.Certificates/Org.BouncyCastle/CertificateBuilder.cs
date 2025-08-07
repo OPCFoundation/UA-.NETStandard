@@ -53,7 +53,7 @@ namespace Opc.Ua.Security.Certificates
     /// <summary>
     /// Builds a Certificate.
     /// </summary>
-    public class CertificateBuilder : CertificateBuilderBase
+    public sealed class CertificateBuilder : CertificateBuilderBase
     {
         #region Constructors
         /// <summary>
@@ -144,7 +144,7 @@ namespace Opc.Ua.Security.Certificates
         }
 
         /// <summary>
-        /// Create a Pfx with a private key by combining 
+        /// Create a Pfx with a private key by combining
         /// an existing X509Certificate2 and a RSA private key.
         /// </summary>
         public static byte[] CreatePfxWithRSAPrivateKey(
@@ -213,11 +213,11 @@ namespace Opc.Ua.Security.Certificates
                     new Asn1SignatureFactory(X509Utils.GetRSAHashAlgorithm(X509Defaults.HashAlgorithmName), signingKey, random);
 
                 Asn1Set attributes = null;
-                X509SubjectAltNameExtension san = X509Extensions.FindExtension<X509SubjectAltNameExtension>(certificate);
+                X509SubjectAltNameExtension san = certificate.FindExtension<X509SubjectAltNameExtension>();
                 var alternateName = new X509SubjectAltNameExtension(san, san.Critical);
 
                 string applicationUri = null;
-                domainNames = domainNames ?? new List<string>();
+                domainNames ??= new List<string>();
                 if (alternateName != null)
                 {
                     if (alternateName.Uris.Count > 0)
@@ -250,7 +250,7 @@ namespace Opc.Ua.Security.Certificates
 
                 if (domainNames.Count > 0)
                 {
-                    generalNames.AddRange(BouncyCastle.X509Extensions.CreateSubjectAlternateNameDomains(domainNames));
+                    generalNames.AddRange(domainNames.CreateSubjectAlternateNameDomains());
                 }
 
                 if (generalNames.Count > 0)
@@ -332,7 +332,7 @@ namespace Opc.Ua.Security.Certificates
         /// <param name="subjectPublicKey">The public key to use for the extensions.</param>
         private void CreateExtensions(X509V3CertificateGenerator cg, AsymmetricKeyParameter subjectPublicKey)
         {
-            if (X509Extensions.FindExtension<X509SubjectKeyIdentifierExtension>(m_extensions) == null)
+            if (m_extensions.FindExtension<X509SubjectKeyIdentifierExtension>() == null)
             {
                 // Subject key identifier
                 cg.AddExtension(Org.BouncyCastle.Asn1.X509.X509Extensions.SubjectKeyIdentifier.Id, false,
@@ -352,7 +352,7 @@ namespace Opc.Ua.Security.Certificates
                 basicConstraints = new BasicConstraints(false);
             }
 
-            if (X509Extensions.FindExtension<X509BasicConstraintsExtension>(m_extensions) == null)
+            if (m_extensions.FindExtension<X509BasicConstraintsExtension>() == null)
             {
                 cg.AddExtension(Org.BouncyCastle.Asn1.X509.X509Extensions.BasicConstraints.Id, true, basicConstraints);
             }
@@ -372,7 +372,7 @@ namespace Opc.Ua.Security.Certificates
             }
 
             // Authority Key Identifier
-            if (X509Extensions.FindExtension<X509AuthorityKeyIdentifierExtension>(m_extensions) == null)
+            if (m_extensions.FindExtension<X509AuthorityKeyIdentifierExtension>() == null)
             {
                 cg.AddExtension(Org.BouncyCastle.Asn1.X509.X509Extensions.AuthorityKeyIdentifier.Id, false,
                     X509ExtensionUtilities.CreateAuthorityKeyIdentifier(issuerPublicKey,
@@ -389,14 +389,14 @@ namespace Opc.Ua.Security.Certificates
                     keyUsage |= KeyUsage.KeyCertSign;
                 }
 
-                if (X509Extensions.FindExtension<X509KeyUsageExtension>(m_extensions) == null)
+                if (m_extensions.FindExtension<X509KeyUsageExtension>() == null)
                 {
                     cg.AddExtension(Org.BouncyCastle.Asn1.X509.X509Extensions.KeyUsage, true,
                         new KeyUsage(keyUsage));
                 }
 
                 // Extended Key usage
-                if (X509Extensions.FindExtension<X509EnhancedKeyUsageExtension>(m_extensions) == null)
+                if (m_extensions.FindExtension<X509EnhancedKeyUsageExtension>() == null)
                 {
                     cg.AddExtension(Org.BouncyCastle.Asn1.X509.X509Extensions.ExtendedKeyUsage, true,
                     new ExtendedKeyUsage(new List<DerObjectIdentifier>() {
@@ -405,14 +405,11 @@ namespace Opc.Ua.Security.Certificates
                     }));
                 }
             }
-            else
+            else if (m_extensions.FindExtension<X509KeyUsageExtension>() == null)
             {
-                if (X509Extensions.FindExtension<X509KeyUsageExtension>(m_extensions) == null)
-                {
-                    // Key usage CA
-                    cg.AddExtension(Org.BouncyCastle.Asn1.X509.X509Extensions.KeyUsage, true,
-                    new KeyUsage(KeyUsage.CrlSign | KeyUsage.DigitalSignature | KeyUsage.KeyCertSign));
-                }
+                // Key usage CA
+                cg.AddExtension(Org.BouncyCastle.Asn1.X509.X509Extensions.KeyUsage, true,
+                new KeyUsage(KeyUsage.CrlSign | KeyUsage.DigitalSignature | KeyUsage.KeyCertSign));
             }
 
             foreach (System.Security.Cryptography.X509Certificates.X509Extension extension in m_extensions)

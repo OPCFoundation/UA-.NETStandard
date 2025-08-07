@@ -34,7 +34,7 @@ using System.Text;
 namespace Opc.Ua.Server
 {
     /// <summary>
-    /// Calculates the value of an aggregate. 
+    /// Calculates the value of an aggregate.
     /// </summary>
     public class MinMaxAggregateCalculator : AggregateCalculator
     {
@@ -55,7 +55,7 @@ namespace Opc.Ua.Server
             double processingInterval,
             bool stepped,
             AggregateConfiguration configuration)
-        : 
+        :
             base(aggregateId, startTime, endTime, processingInterval, stepped, configuration)
         {
             SetPartialBit = true;
@@ -75,54 +75,34 @@ namespace Opc.Ua.Server
                 switch (id.Value)
                 {
                     case Objects.AggregateFunction_Minimum:
-                    {
                         return ComputeMinMax(slice, 1, false);
-                    }
 
                     case Objects.AggregateFunction_MinimumActualTime:
-                    {
                         return ComputeMinMax(slice, 1, true);
-                    }
 
                     case Objects.AggregateFunction_Maximum:
-                    {
                         return ComputeMinMax(slice, 2, false);
-                    }
 
                     case Objects.AggregateFunction_MaximumActualTime:
-                    {
                         return ComputeMinMax(slice, 2, true);
-                    }
 
                     case Objects.AggregateFunction_Range:
-                    {
                         return ComputeMinMax(slice, 3, false);
-                    }
 
                     case Objects.AggregateFunction_Minimum2:
-                    {
                         return ComputeMinMax2(slice, 1, false);
-                    }
 
                     case Objects.AggregateFunction_MinimumActualTime2:
-                    {
                         return ComputeMinMax2(slice, 1, true);
-                    }
 
                     case Objects.AggregateFunction_Maximum2:
-                    {
                         return ComputeMinMax2(slice, 2, false);
-                    }
 
                     case Objects.AggregateFunction_MaximumActualTime2:
-                    {
                         return ComputeMinMax2(slice, 2, true);
-                    }
 
                     case Objects.AggregateFunction_Range2:
-                    {
                         return ComputeMinMax2(slice, 3, false);
-                    }
                 }
             }
 
@@ -264,7 +244,6 @@ namespace Opc.Ua.Server
                 uncertainValueExists = minimumGoodValue > minimumUncertainValue;
                 duplicatesExist = duplicatesMinimumsExist;
             }
-
             else if (valueType == 2)
             {
                 processedValue = maximumGoodValue;
@@ -273,7 +252,6 @@ namespace Opc.Ua.Server
                 uncertainValueExists = maximumGoodValue < maximumUncertainValue;
                 duplicatesExist = duplicatesMaximumsExist;
             }
-
             else if (valueType == 3)
             {
                 processedValue = Math.Abs(maximumGoodValue - minimumGoodValue);
@@ -375,12 +353,9 @@ namespace Opc.Ua.Server
                 }
 
                 // skip endpoint if stepped.
-                if (currentTime == slice.EndTime)
+                if (currentTime == slice.EndTime && Stepped)
                 {
-                    if (Stepped)
-                    {
-                        break;
-                    }
+                    break;
                 }
 
                 // check for new minimum.
@@ -445,7 +420,6 @@ namespace Opc.Ua.Server
                 processedType = minimumOriginalType;
                 duplicatesExist = duplicatesMinimumsExist;
             }
-
             else if (valueType == 2)
             {
                 processedValue = maximumGoodValue;
@@ -454,7 +428,6 @@ namespace Opc.Ua.Server
                 processedType = maximumOriginalType;
                 duplicatesExist = duplicatesMaximumsExist;
             }
-
             else if (valueType == 3)
             {
                 processedValue = Math.Abs(maximumGoodValue - minimumGoodValue);
@@ -508,13 +481,10 @@ namespace Opc.Ua.Server
                         value.StatusCode = value.StatusCode.SetAggregateBits(value.StatusCode.AggregateBits | AggregateBits.Interpolated);
                     }
                 }
-                else
+                else if (processedTimestamp == slice.EndTime)
                 {
-                    if (processedTimestamp == slice.EndTime)
-                    {
-                        processedTimestamp = processedTimestamp.AddMilliseconds(-1);
-                        value.StatusCode = value.StatusCode.SetAggregateBits(value.StatusCode.AggregateBits | AggregateBits.Interpolated);
-                    }
+                    processedTimestamp = processedTimestamp.AddMilliseconds(-1);
+                    value.StatusCode = value.StatusCode.SetAggregateBits(value.StatusCode.AggregateBits | AggregateBits.Interpolated);
                 }
 
                 value.SourceTimestamp = processedTimestamp;

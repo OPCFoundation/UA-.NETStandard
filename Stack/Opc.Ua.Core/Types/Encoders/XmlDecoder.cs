@@ -438,47 +438,66 @@ namespace Opc.Ua
                     switch (typeName)
                     {
                         case "Null":
-                        {
                             if (BeginField(typeName, true))
                             {
                                 EndField(typeName);
                             }
 
                             return null;
-                        }
 
-                        case "Boolean": { typeInfo = TypeInfo.Scalars.Boolean; return ReadBoolean(typeName); }
-                        case "SByte": { typeInfo = TypeInfo.Scalars.SByte; return ReadSByte(typeName); }
-                        case "Byte": { typeInfo = TypeInfo.Scalars.Byte; return ReadByte(typeName); }
-                        case "Int16": { typeInfo = TypeInfo.Scalars.Int16; return ReadInt16(typeName); }
-                        case "UInt16": { typeInfo = TypeInfo.Scalars.UInt16; return ReadUInt16(typeName); }
-                        case "Int32": { typeInfo = TypeInfo.Scalars.Int32; return ReadInt32(typeName); }
-                        case "UInt32": { typeInfo = TypeInfo.Scalars.UInt32; return ReadUInt32(typeName); }
-                        case "Int64": { typeInfo = TypeInfo.Scalars.Int64; return ReadInt64(typeName); }
-                        case "UInt64": { typeInfo = TypeInfo.Scalars.UInt64; return ReadUInt64(typeName); }
-                        case "Float": { typeInfo = TypeInfo.Scalars.Float; return ReadFloat(typeName); }
-                        case "Double": { typeInfo = TypeInfo.Scalars.Double; return ReadDouble(typeName); }
-                        case "String": { typeInfo = TypeInfo.Scalars.String; return ReadString(typeName); }
-                        case "DateTime": { typeInfo = TypeInfo.Scalars.DateTime; return ReadDateTime(typeName); }
-                        case "Guid": { typeInfo = TypeInfo.Scalars.Guid; return ReadGuid(typeName); }
-                        case "ByteString": { typeInfo = TypeInfo.Scalars.ByteString; return ReadByteString(typeName); }
-                        case "XmlElement": { typeInfo = TypeInfo.Scalars.XmlElement; return ReadXmlElement(typeName); }
-                        case "NodeId": { typeInfo = TypeInfo.Scalars.NodeId; return ReadNodeId(typeName); }
-                        case "ExpandedNodeId": { typeInfo = TypeInfo.Scalars.ExpandedNodeId; return ReadExpandedNodeId(typeName); }
-                        case "StatusCode": { typeInfo = TypeInfo.Scalars.StatusCode; return ReadStatusCode(typeName); }
-                        case "DiagnosticInfo": { typeInfo = TypeInfo.Scalars.DiagnosticInfo; return ReadDiagnosticInfo(typeName); }
-                        case "QualifiedName": { typeInfo = TypeInfo.Scalars.QualifiedName; return ReadQualifiedName(typeName); }
-                        case "LocalizedText": { typeInfo = TypeInfo.Scalars.LocalizedText; return ReadLocalizedText(typeName); }
-                        case "ExtensionObject": { typeInfo = TypeInfo.Scalars.ExtensionObject; return ReadExtensionObject(typeName); }
-                        case "DataValue": { typeInfo = TypeInfo.Scalars.DataValue; return ReadDataValue(typeName); }
+                        case "Boolean": typeInfo = TypeInfo.Scalars.Boolean; return ReadBoolean(typeName);
+
+                        case "SByte": typeInfo = TypeInfo.Scalars.SByte; return ReadSByte(typeName);
+
+                        case "Byte": typeInfo = TypeInfo.Scalars.Byte; return ReadByte(typeName);
+
+                        case "Int16": typeInfo = TypeInfo.Scalars.Int16; return ReadInt16(typeName);
+
+                        case "UInt16": typeInfo = TypeInfo.Scalars.UInt16; return ReadUInt16(typeName);
+
+                        case "Int32": typeInfo = TypeInfo.Scalars.Int32; return ReadInt32(typeName);
+
+                        case "UInt32": typeInfo = TypeInfo.Scalars.UInt32; return ReadUInt32(typeName);
+
+                        case "Int64": typeInfo = TypeInfo.Scalars.Int64; return ReadInt64(typeName);
+
+                        case "UInt64": typeInfo = TypeInfo.Scalars.UInt64; return ReadUInt64(typeName);
+
+                        case "Float": typeInfo = TypeInfo.Scalars.Float; return ReadFloat(typeName);
+
+                        case "Double": typeInfo = TypeInfo.Scalars.Double; return ReadDouble(typeName);
+
+                        case "String": typeInfo = TypeInfo.Scalars.String; return ReadString(typeName);
+
+                        case "DateTime": typeInfo = TypeInfo.Scalars.DateTime; return ReadDateTime(typeName);
+
+                        case "Guid": typeInfo = TypeInfo.Scalars.Guid; return ReadGuid(typeName);
+
+                        case "ByteString": typeInfo = TypeInfo.Scalars.ByteString; return ReadByteString(typeName);
+
+                        case "XmlElement": typeInfo = TypeInfo.Scalars.XmlElement; return ReadXmlElement(typeName);
+
+                        case "NodeId": typeInfo = TypeInfo.Scalars.NodeId; return ReadNodeId(typeName);
+
+                        case "ExpandedNodeId": typeInfo = TypeInfo.Scalars.ExpandedNodeId; return ReadExpandedNodeId(typeName);
+
+                        case "StatusCode": typeInfo = TypeInfo.Scalars.StatusCode; return ReadStatusCode(typeName);
+
+                        case "DiagnosticInfo": typeInfo = TypeInfo.Scalars.DiagnosticInfo; return ReadDiagnosticInfo(typeName);
+
+                        case "QualifiedName": typeInfo = TypeInfo.Scalars.QualifiedName; return ReadQualifiedName(typeName);
+
+                        case "LocalizedText": typeInfo = TypeInfo.Scalars.LocalizedText; return ReadLocalizedText(typeName);
+
+                        case "ExtensionObject": typeInfo = TypeInfo.Scalars.ExtensionObject; return ReadExtensionObject(typeName);
+
+                        case "DataValue": typeInfo = TypeInfo.Scalars.DataValue; return ReadDataValue(typeName);
 
                         case "Matrix":
-                        {
                             Matrix matrix = ReadMatrix(typeName);
                             typeInfo = matrix.TypeInfo;
                             // return Array for a one dimensional Matrix
                             return typeInfo.ValueRank == ValueRanks.OneDimension ? matrix.Elements : matrix;
-                        }
                     }
                 }
 
@@ -915,7 +934,7 @@ namespace Opc.Ua
                     }
                     catch (FormatException fe)
                     {
-                        throw XmlDecoder.CreateBadDecodingError(fieldName, fe);
+                        throw CreateBadDecodingError(fieldName, fe);
                     }
                 }
             }
@@ -942,7 +961,7 @@ namespace Opc.Ua
                 }
                 catch (FormatException fe)
                 {
-                    throw XmlDecoder.CreateBadDecodingError(fieldName, fe);
+                    throw CreateBadDecodingError(fieldName, fe);
                 }
 
                 EndField(fieldName);
@@ -965,7 +984,7 @@ namespace Opc.Ua
 
                     if (!string.IsNullOrEmpty(xml))
                     {
-                        value = XmlDecoder.SafeConvertFromBase64String(xml);
+                        value = SafeConvertFromBase64String(xml);
                     }
                     else
                     {
@@ -974,11 +993,11 @@ namespace Opc.Ua
                 }
                 catch (XmlException xe)
                 {
-                    throw XmlDecoder.CreateBadDecodingError(fieldName, xe);
+                    throw CreateBadDecodingError(fieldName, xe);
                 }
                 catch (InvalidOperationException ioe)
                 {
-                    throw XmlDecoder.CreateBadDecodingError(fieldName, ioe);
+                    throw CreateBadDecodingError(fieldName, ioe);
                 }
 
                 // check the length.
@@ -995,78 +1014,33 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Extracts the XML from the reader.
-        /// </summary>
-        private void ExtractXml(StringBuilder builder)
-        {
-            builder.Append('<');
-            builder.Append(m_reader.Prefix);
-            builder.Append(':');
-            builder.Append(m_reader.LocalName);
-
-            if (m_reader.HasAttributes)
-            {
-                for (int ii = 0; ii < m_reader.AttributeCount; ii++)
-                {
-                    m_reader.MoveToAttribute(ii);
-
-                    builder.Append(' ');
-                    builder.Append(m_reader.Name);
-                    builder.Append("='");
-                    builder.Append(m_reader.Value);
-                    builder.Append('\'');
-                }
-
-                m_reader.MoveToElement(); // Moves the reader back to the element node.
-            }
-
-            m_reader.MoveToContent();
-
-            while (m_reader.NodeType != XmlNodeType.EndElement)
-            {
-                if (m_reader.IsStartElement())
-                {
-                    ExtractXml(builder);
-                    continue;
-                }
-
-                builder.Append(m_reader.ReadContentAsString());
-            }
-
-            m_reader.ReadEndElement();
-        }
-
-        /// <summary>
         /// Reads an XmlElement from the stream.
         /// </summary>
         public XmlElement ReadXmlElement(string fieldName)
         {
-            if (BeginField(fieldName, true))
+            if (BeginField(fieldName, true) && MoveToElement(null))
             {
-                if (MoveToElement(null))
+                var document = new XmlDocument();
+                XmlElement value = document.CreateElement(m_reader.Prefix, m_reader.LocalName, m_reader.NamespaceURI);
+                document.AppendChild(value);
+
+                if (m_reader.MoveToFirstAttribute())
                 {
-                    var document = new XmlDocument();
-                    XmlElement value = document.CreateElement(m_reader.Prefix, m_reader.LocalName, m_reader.NamespaceURI);
-                    document.AppendChild(value);
-
-                    if (m_reader.MoveToFirstAttribute())
+                    do
                     {
-                        do
-                        {
-                            XmlAttribute attribute = document.CreateAttribute(m_reader.Name);
-                            attribute.Value = m_reader.Value;
-                            value.Attributes.Append(attribute);
-                        }
-                        while (m_reader.MoveToNextAttribute());
-
-                        m_reader.MoveToContent();
+                        XmlAttribute attribute = document.CreateAttribute(m_reader.Name);
+                        attribute.Value = m_reader.Value;
+                        value.Attributes.Append(attribute);
                     }
+                    while (m_reader.MoveToNextAttribute());
 
-                    value.InnerXml = m_reader.ReadInnerXml();
-
-                    EndField(fieldName);
-                    return value;
+                    m_reader.MoveToContent();
                 }
+
+                value.InnerXml = m_reader.ReadInnerXml();
+
+                EndField(fieldName);
+                return value;
             }
 
             return null;
@@ -1090,11 +1064,11 @@ namespace Opc.Ua
                 }
                 catch (ServiceResultException sre) when (sre.StatusCode == StatusCodes.BadNodeIdInvalid)
                 {
-                    throw XmlDecoder.CreateBadDecodingError(fieldName, sre);
+                    throw CreateBadDecodingError(fieldName, sre);
                 }
                 catch (ArgumentException ae)
                 {
-                    throw XmlDecoder.CreateBadDecodingError(fieldName, ae);
+                    throw CreateBadDecodingError(fieldName, ae);
                 }
 
                 EndField(fieldName);
@@ -1128,11 +1102,11 @@ namespace Opc.Ua
                 }
                 catch (ServiceResultException sre) when (sre.StatusCode == StatusCodes.BadNodeIdInvalid)
                 {
-                    throw XmlDecoder.CreateBadDecodingError(fieldName, sre);
+                    throw CreateBadDecodingError(fieldName, sre);
                 }
                 catch (ArgumentException ae)
                 {
-                    throw XmlDecoder.CreateBadDecodingError(fieldName, ae);
+                    throw CreateBadDecodingError(fieldName, ae);
                 }
 
                 EndField(fieldName);
@@ -1505,7 +1479,7 @@ namespace Opc.Ua
                     }
                     catch (Exception ex) when (ex is ArgumentException or FormatException or OverflowException)
                     {
-                        throw XmlDecoder.CreateBadDecodingError(fieldName, ex);
+                        throw CreateBadDecodingError(fieldName, ex);
                     }
                 }
 
@@ -2352,7 +2326,6 @@ namespace Opc.Ua
 
             var enums = new List<Enum>();
 
-
             if (BeginField(fieldName, true, out bool isNil))
             {
                 XmlQualifiedName xmlName = EncodeableFactory.GetXmlName(enumType);
@@ -2537,7 +2510,7 @@ namespace Opc.Ua
 
                     if (BeginField("Elements", true))
                     {
-                        typeInfo = XmlDecoder.MapElementTypeToTypeInfo(m_reader.LocalName);
+                        typeInfo = MapElementTypeToTypeInfo(m_reader.LocalName);
                         elements = ReadArray(null, typeInfo.ValueRank, typeInfo.BuiltInType, null);
                         EndField("Elements");
                     }
@@ -2785,7 +2758,6 @@ namespace Opc.Ua
                         return collection?.ToArray();
                     }
                     default:
-                    {
                         if (DetermineIEncodeableSystemType(ref systemType, encodeableTypeId))
                         {
                             return ReadEncodeableArray(fieldName, systemType, encodeableTypeId);
@@ -2794,7 +2766,6 @@ namespace Opc.Ua
                             StatusCodes.BadDecodingError,
                             "Cannot decode unknown type in Array object with BuiltInType: {0}.",
                             builtInType);
-                    }
                 }
             }
             finally
@@ -2814,13 +2785,10 @@ namespace Opc.Ua
                 string value = m_reader.ReadContentAsString();
 
                 // check the length.
-                if (value != null)
+                if (value != null && Context.MaxStringLength > 0 && Context.MaxStringLength < value.Length)
                 {
-                    if (Context.MaxStringLength > 0 && Context.MaxStringLength < value.Length)
-                    {
-                        throw ServiceResultException.Create(StatusCodes.BadEncodingLimitsExceeded,
-                            "ReadString in {0} exceeds MaxStringLength: {1} > {2}", functionName, value.Length, Context.MaxStringLength);
-                    }
+                    throw ServiceResultException.Create(StatusCodes.BadEncodingLimitsExceeded,
+                        "ReadString in {0} exceeds MaxStringLength: {1} > {2}", functionName, value.Length, Context.MaxStringLength);
                 }
 
                 return value;
@@ -2895,13 +2863,9 @@ namespace Opc.Ua
                 {
                     string nilValue = m_reader.GetAttribute("nil", Namespaces.XmlSchemaInstance);
 
-                    if (!string.IsNullOrEmpty(nilValue))
+                    if (!string.IsNullOrEmpty(nilValue) && SafeXmlConvert(fieldName, XmlConvert.ToBoolean, nilValue))
                     {
-
-                        if (SafeXmlConvert(fieldName, XmlConvert.ToBoolean, nilValue))
-                        {
-                            isNil = true;
-                        }
+                        isNil = true;
                     }
                 }
 
@@ -2914,13 +2878,10 @@ namespace Opc.Ua
                     m_reader.MoveToContent();
 
                     // check for an element with no children but not empty (due to whitespace).
-                    if (m_reader.NodeType == XmlNodeType.EndElement)
+                    if (m_reader.NodeType == XmlNodeType.EndElement && m_reader.LocalName == fieldName && m_reader.NamespaceURI == m_namespaces.Peek())
                     {
-                        if (m_reader.LocalName == fieldName && m_reader.NamespaceURI == m_namespaces.Peek())
-                        {
-                            m_reader.ReadEndElement();
-                            return false;
-                        }
+                        m_reader.ReadEndElement();
+                        return false;
                     }
                 }
 
@@ -3027,7 +2988,7 @@ namespace Opc.Ua
         /// and throws instead a <see cref="ServiceResultException"/> with
         /// StatusCode <see cref="StatusCodes.BadDecodingError"/>.
         /// </summary>
-        private T SafeXmlConvert<T>(string fieldName, Func<string, T> converter, string xml, [CallerMemberName] string functionName = null)
+        private static T SafeXmlConvert<T>(string fieldName, Func<string, T> converter, string xml, [CallerMemberName] string functionName = null)
         {
             try
             {
@@ -3035,11 +2996,11 @@ namespace Opc.Ua
             }
             catch (OverflowException ove)
             {
-                throw XmlDecoder.CreateBadDecodingError(fieldName, ove, functionName);
+                throw CreateBadDecodingError(fieldName, ove, functionName);
             }
             catch (FormatException fe)
             {
-                throw XmlDecoder.CreateBadDecodingError(fieldName, fe, functionName);
+                throw CreateBadDecodingError(fieldName, fe, functionName);
             }
         }
         #endregion

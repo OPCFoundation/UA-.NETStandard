@@ -36,6 +36,7 @@ using Quickstarts.ReferenceServer;
 namespace Opc.Ua.Client.Tests
 {
     /// <summary>
+    /// <para>
     /// Reference Server modification which allows to change the maximum number
     /// of (browse) continuation points during the execution of a test.
     /// This makes it easier to compare browse results without any restriction
@@ -44,9 +45,11 @@ namespace Opc.Ua.Client.Tests
     /// To make this work some other classes must be derived and modified, as
     /// well (see the ServerSessionWithLimits, SessionManagerWithLimits and
     /// MasterNodeManagerWithLimits classes).
-    ///
+    /// </para>
+    /// <para>
     /// Use with care. This class and especially its dedicated functionality
     /// should be used for test purposes only.
+    /// </para>
     /// </summary>
     public class ReferenceServerWithLimits : ReferenceServer
     {
@@ -70,15 +73,13 @@ namespace Opc.Ua.Client.Tests
                 out results,
                 out diagnosticInfos
                 );
-
         }
 
         public void SetMaxNumberOfContinuationPoints(uint maxNumberOfContinuationPoints)
         {
             Configuration.ServerConfiguration.MaxBrowseContinuationPoints = (int)maxNumberOfContinuationPoints;
             ((MasterNodeManagerWithLimits)MasterNodeManagerReference).MaxContinuationPointsPerBrowseForUnitTest = maxNumberOfContinuationPoints;
-            var theServerSideSessions = SessionManagerForTest.GetSessions().ToList();
-            foreach (Opc.Ua.Server.ISession session in theServerSideSessions)
+            foreach (Opc.Ua.Server.ISession session in SessionManagerForTest.GetSessions().ToList())
             {
                 try
                 {
@@ -86,7 +87,6 @@ namespace Opc.Ua.Client.Tests
                 }
                 catch { }
             }
-
         }
 
         protected override MasterNodeManager CreateMasterNodeManager(IServerInternal server, ApplicationConfiguration configuration)
@@ -183,6 +183,25 @@ namespace Opc.Ua.Client.Tests
             m_4TestMaxHistoryContinuationPoints = configuration.ServerConfiguration.MaxHistoryContinuationPoints;
         }
 
+        /// <summary>
+        /// TBD - Remove unused parameter.
+        /// </summary>
+        /// <param name="context"></param>
+        /// <param name="server"></param>
+        /// <param name="serverCertificate"></param>
+        /// <param name="sessionCookie"></param>
+        /// <param name="clientNonce"></param>
+        /// <param name="serverNonceObject"></param>
+        /// <param name="sessionName"></param>
+        /// <param name="clientDescription"></param>
+        /// <param name="endpointUrl"></param>
+        /// <param name="clientCertificate"></param>
+        /// <param name="clientCertificateChain"></param>
+        /// <param name="sessionTimeout"></param>
+        /// <param name="maxResponseMessageSize"></param>
+        /// <param name="maxRequestAge"></param>
+        /// <param name="maxContinuationPoints"></param>
+        /// <returns></returns>
         protected override Ua.Server.ISession CreateSession(
             OperationContext context,
             IServerInternal server,
@@ -198,9 +217,9 @@ namespace Opc.Ua.Client.Tests
             double sessionTimeout,
             uint maxResponseMessageSize,
             int maxRequestAge, // TBD - Remove unused parameter.
-            int maxContinuationPoints) // TBD - Remove unused parameter.
+            int maxContinuationPoints)
         {
-            var session = new ServerSessionWithLimits(
+            return new ServerSessionWithLimits(
                 context,
                 m_4TestServer,
                 serverCertificate,
@@ -217,8 +236,6 @@ namespace Opc.Ua.Client.Tests
                 m_4TestMaxRequestAge,
                 m_4TestMaxBrowseContinuationPoints,
                 m_4TestMaxHistoryContinuationPoints);
-
-            return session;
         }
     }
 
@@ -231,9 +248,7 @@ namespace Opc.Ua.Client.Tests
         public MasterNodeManagerWithLimits(IServerInternal server, ApplicationConfiguration configuration, string dynamicNamespaceUri, params INodeManager[] additionalManagers) : base(server, configuration, dynamicNamespaceUri, additionalManagers)
         {
         }
-
-        private uint m_maxContinuationPointsPerBrowseForUnitTest = 0;
-        public uint MaxContinuationPointsPerBrowseForUnitTest { get => m_maxContinuationPointsPerBrowseForUnitTest; set => m_maxContinuationPointsPerBrowseForUnitTest = value; }
+        public uint MaxContinuationPointsPerBrowseForUnitTest { get; set; }
 
         /// <summary>
         /// Returns the set of references that meet the filter criteria.
@@ -322,8 +337,8 @@ namespace Opc.Ua.Client.Tests
                         context,
                         view,
                         maxReferencesPerNode,
-                        m_maxContinuationPointsPerBrowseForUnitTest > 0 ?
-                            continuationPointsAssigned < m_maxContinuationPointsPerBrowseForUnitTest : true,
+                        MaxContinuationPointsPerBrowseForUnitTest <= 0 ||
+                            continuationPointsAssigned < MaxContinuationPointsPerBrowseForUnitTest,
                         nodeToBrowse,
                         result);
                 }
@@ -358,8 +373,5 @@ namespace Opc.Ua.Client.Tests
             // clear the diagnostics array if no diagnostics requested or no errors occurred.
             UpdateDiagnostics(context, diagnosticsExist, ref diagnosticInfos);
         }
-
-
     }
-
 }

@@ -107,13 +107,9 @@ namespace Alarms
             if (alarm != null)
             {
                 Dictionary<string, ConditionState> branches = alarm.GetBranches();
-                foreach (BaseEventState branch in branches.Values)
-                {
-                    events.Add(branch);
-                }
+                events.AddRange(branches.Values);
             }
         }
-
 
         protected virtual void CreateBranch()
         {
@@ -130,8 +126,7 @@ namespace Alarms
             var createQualifiedName = new QualifiedName(alarmName, NamespaceIndex);
             LocalizedText createLocalizedText = null;
 
-
-            bool isBranch = IsBranch(branchId);
+            bool isBranch = AlarmHolder.IsBranch(branchId);
             createNodeId = new NodeId(alarmNodeId, NamespaceIndex);
             createLocalizedText = new LocalizedText(alarmName);
 
@@ -143,16 +138,14 @@ namespace Alarms
                 createLocalizedText,
                 true);
 
-
             if (!isBranch)
             {
                 m_trigger.AddReference(ReferenceTypes.HasCondition, false, m_alarm.NodeId);
                 m_parent.AddChild(alarm);
             }
-
         }
 
-        private bool IsBranch(NodeId branchId)
+        private static bool IsBranch(NodeId branchId)
         {
             bool isBranch = false;
             if (branchId != null && !branchId.IsNullNodeId)
@@ -202,7 +195,6 @@ namespace Alarms
             Utils.Log(logLevel, "{0}: {1} EventId {2} {3}", caller, m_mapName, Utils.ToHexString(m_alarm.EventId.Value), message);
         }
 
-
         public virtual void SetValue(string message = "")
         {
             Utils.LogError("AlarmHolder.SetValue() - Should not be called");
@@ -234,7 +226,6 @@ namespace Alarms
 
         protected virtual void SetActive(BaseEventState state, bool activeState)
         {
-
         }
 
         #region Methods
@@ -250,7 +241,7 @@ namespace Alarms
             if (Trigger.Value != value)
             {
                 Trigger.Value = value;
-                SetValue("Manual Write to trigger " + value.ToString());
+                SetValue("Manual Write to trigger " + value);
             }
 
             return Opc.Ua.StatusCodes.Good;
@@ -320,12 +311,7 @@ namespace Alarms
 
         public virtual void SetBranching(bool value)
         {
-
         }
-
-
-
-
 
         #endregion
 
@@ -458,33 +444,30 @@ namespace Alarms
         /// <returns>ushort namespaceindex</returns>
         protected ushort GetNameSpaceIndex(uint alarmTypeIdentifier)
         {
-            ushort nameSpaceIndex = 0;
-
-            return nameSpaceIndex;
+            return 0;
         }
 
         #endregion
 
         #region Private Fields
-        protected AlarmNodeManager m_alarmNodeManager = null;
-        protected BaseEventState m_alarm = null;
-        protected Type m_alarmControllerType = null;
-        protected AlarmController m_alarmController = null;
-        protected BaseDataVariableState m_trigger = null;
+        protected AlarmNodeManager m_alarmNodeManager;
+        protected BaseEventState m_alarm;
+        protected Type m_alarmControllerType;
+        protected AlarmController m_alarmController;
+        protected BaseDataVariableState m_trigger;
         protected string m_alarmRootName = "";
         protected string m_mapName = "";
         protected bool m_analog = true;
-        protected bool m_optional = false;
-        protected int m_interval = 0;
-        protected uint m_branchCounter = 0;
-        protected bool m_supportsBranching = false;
-        protected FolderState m_parent = null;
-        protected uint m_alarmTypeIdentifier = 0;
+        protected bool m_optional;
+        protected int m_interval;
+        protected uint m_branchCounter;
+        protected bool m_supportsBranching;
+        protected FolderState m_parent;
+        protected uint m_alarmTypeIdentifier;
         protected string m_alarmTypeName = "";
-        protected SupportedAlarmConditionType m_alarmConditionType = null;
+        protected SupportedAlarmConditionType m_alarmConditionType;
         protected List<string> m_delayedMessages = new List<string>();
         #endregion
-
 
     }
 }

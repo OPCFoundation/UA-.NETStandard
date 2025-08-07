@@ -37,10 +37,9 @@ using System.Threading.Tasks;
 
 namespace Opc.Ua.Client
 {
-
     /// <summary>
     /// A subclass of a session to override some implementations from CleintBase
-    /// </summary> 
+    /// </summary>
     public class TraceableRequestHeaderClientSession : Session
     {
         #region Constructors

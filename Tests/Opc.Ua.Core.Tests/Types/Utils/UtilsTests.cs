@@ -38,7 +38,6 @@ using System.Xml;
 using NUnit.Framework;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
-
 namespace Opc.Ua.Core.Tests.Types.UtilsTests
 {
     /// <summary>
@@ -57,7 +56,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         public void ToHexFromHexLittleEndian()
         {
             byte[] blob = new byte[] { 0, 1, 2, 3, 4, 5, 6, 255 };
-            string hex = "00010203040506FF";
+            const string hex = "00010203040506FF";
             string hexutil = Utils.ToHexString(blob);
             Assert.AreEqual(hex, hexutil);
             byte[] byteblob = Utils.FromHexString(hex);
@@ -94,7 +93,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         public void ToHexBigEndian()
         {
             byte[] blob = new byte[] { 0, 1, 2, 3, 4, 5, 6, 255 };
-            string hex = "FF06050403020100";
+            const string hex = "FF06050403020100";
             string hexutil = Utils.ToHexString(blob, true);
             Assert.AreEqual(hex, hexutil);
         }
@@ -239,7 +238,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         public void RelativePathParseNumericStringNonDeep()
         {
             var typeTable = new TypeTable(new NamespaceTable());
-            string str = "/11";
+            const string str = "/11";
             Assert.AreEqual(str, RelativePath.Parse(str, typeTable).Format(typeTable));
         }
 
@@ -250,7 +249,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         public void RelativePathParseNumericStringDeepPath()
         {
             var typeTable = new TypeTable(new NamespaceTable());
-            string str = "/123/789";
+            const string str = "/123/789";
             Assert.AreEqual(str, RelativePath.Parse(str, typeTable).Format(typeTable));
         }
 
@@ -261,7 +260,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         public void RelativePathParseAlphanumericStringPath()
         {
             var typeTable = new TypeTable(new NamespaceTable());
-            string str = "/123A/78B9";
+            const string str = "/123A/78B9";
             Assert.AreEqual(str, RelativePath.Parse(str, typeTable).Format(typeTable));
         }
 
@@ -272,7 +271,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         public void RelativePathParseAlphanumericStringPath2()
         {
             var typeTable = new TypeTable(new NamespaceTable());
-            string str = "/AA123A/bb78B9";
+            const string str = "/AA123A/bb78B9";
             Assert.AreEqual(str, RelativePath.Parse(str, typeTable).Format(typeTable));
         }
 
@@ -283,7 +282,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         public void RelativePathParseAlphaStringPath()
         {
             var typeTable = new TypeTable(new NamespaceTable());
-            string str = "/abc/def";
+            const string str = "/abc/def";
             Assert.AreEqual(str, RelativePath.Parse(str, typeTable).Format(typeTable));
         }
 
@@ -294,7 +293,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         public void RelativePathParseAlphanumericWithNamespaceIndexStringPath()
         {
             var typeTable = new TypeTable(new NamespaceTable());
-            string str = "/1:abc/2:def";
+            const string str = "/1:abc/2:def";
             Assert.AreEqual(str, RelativePath.Parse(str, typeTable).Format(typeTable));
         }
 
@@ -315,7 +314,6 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             typeTable.AddReferenceSubtype(Opc.Ua.ReferenceTypeIds.HasChild, NodeId.Null, new QualifiedName("HasChild", 3));
             Assert.AreEqual(output, RelativePath.Parse(input, typeTable, currentTable, targetTable).Format(typeTable));
         }
-
 
         /// <summary>
         /// Parse path string containing two Namespaces with missing namespace indexes in either currentTable or targetTable.
@@ -345,7 +343,6 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             ServiceResultException sre = Assert.Throws<ServiceResultException>(() => RelativePath.Parse(path, typeTable, currentTable, targetTable).Format(typeTable));
             Assert.AreEqual((StatusCode)StatusCodes.BadIndexRangeInvalid, (StatusCode)sre.StatusCode);
         }
-
 
         /// <summary>
         /// Validate that XmlDocument DtdProcessing is protected against
@@ -408,7 +405,6 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
                 document.LoadInnerXml(xmlEEXX.ToString());
             });
             TestContext.Out.WriteLine(ex.Message);
-
         }
 
         /// <summary>
@@ -484,7 +480,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         public void RelativePathParseNonEscapedHash()
         {
             var typeTable = new TypeTable(new NamespaceTable());
-            string str = "/abc#def";
+            const string str = "/abc#def";
             Assert.Throws<ServiceResultException>(() => RelativePath.Parse(str, typeTable).Format(typeTable));
         }
 
@@ -495,8 +491,8 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         public void RelativePathParseEscapedHash()
         {
             var typeTable = new TypeTable(new NamespaceTable());
-            string str = "/abc&#def";
-            string expected = "/abc#def";
+            const string str = "/abc&#def";
+            const string expected = "/abc#def";
             Assert.AreEqual(expected, RelativePath.Parse(str, typeTable).Format(typeTable));
         }
 
@@ -507,7 +503,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         public void RelativePathParseEscapedHashFollowedByExclamation()
         {
             var typeTable = new TypeTable(new NamespaceTable());
-            string str = "/abc&#!def";
+            const string str = "/abc&#!def";
             Assert.Throws<ServiceResultException>(() => RelativePath.Parse(str, typeTable).Format(typeTable));
         }
 
@@ -518,7 +514,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         public void RelativePathParseEscapedHashFollowedByExclamationInReferenceType()
         {
             var typeTable = new TypeTable(new NamespaceTable());
-            string str = "<abc&#!def>";
+            const string str = "<abc&#!def>";
             Assert.Throws<ServiceResultException>(() => RelativePath.Parse(str, typeTable).Format(typeTable));
         }
 
@@ -529,10 +525,9 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         public void RelativePathParseInvalidEscapeSequence()
         {
             var typeTable = new TypeTable(new NamespaceTable());
-            string str = "/abc&$!def";
+            const string str = "/abc&$!def";
             Assert.Throws<ServiceResultException>(() => RelativePath.Parse(str, typeTable).Format(typeTable));
         }
         #endregion
     }
-
 }

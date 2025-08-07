@@ -197,7 +197,6 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                 SecurityPolicyUri = SecurityPolicies.Aes256_Sha256_RsaPss
             });
 
-
             // ensure at least one user token policy exists.
             var userTokenPolicyAnonymous = new UserTokenPolicy {
                 TokenType = UserTokenType.Anonymous,
@@ -280,7 +279,6 @@ namespace Opc.Ua.Core.Tests.Stack.Server
         [SetUp]
         protected void SetUp()
         {
-
         }
 
         [TearDown]

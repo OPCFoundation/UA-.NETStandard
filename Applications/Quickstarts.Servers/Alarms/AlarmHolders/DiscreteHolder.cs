@@ -31,9 +31,7 @@ using System;
 using System.Globalization;
 using Opc.Ua;
 
-#pragma warning disable CS0219
-
-#pragma warning disable CS1591
+#pragma warning disable CS0219, CS1591
 
 namespace Alarms
 {
@@ -79,7 +77,6 @@ namespace Alarms
 
         public override void SetValue(string message = "")
         {
-
             bool active = m_alarmController.IsBooleanActive();
             int value = m_alarmController.GetValue();
 
@@ -93,14 +90,5 @@ namespace Alarms
 
         #endregion
 
-        #region Helpers
-        private DiscreteAlarmState GetAlarm()
-        {
-            return (DiscreteAlarmState)m_alarm;
-        }
-
-        #endregion
     }
-
-
 }

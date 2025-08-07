@@ -19,7 +19,6 @@ using System.Xml.Serialization;
 
 namespace Opc.Ua
 {
-
     /// <summary>
     /// A numeric code that describes the result of a service or operation.
     /// </summary>
@@ -116,8 +115,8 @@ namespace Opc.Ua
         /// will be determined from the Exception if possible, otherwise the value passed in
         /// will be used.
         /// </remarks>
-        /// <param name="defaultCode">The default code to apply if the routine cannot determine the code from the Exception</param>
         /// <param name="e">The exception to convert to a status code</param>
+        /// <param name="defaultCode">The default code to apply if the routine cannot determine the code from the Exception</param>
         public StatusCode(Exception e, uint defaultCode)
         {
             if (e is ServiceResultException sre)
@@ -303,7 +302,6 @@ namespace Opc.Ua
             }
         }
 
-
         #endregion
 
         #region public LimitBits LimitBits
@@ -480,7 +478,6 @@ namespace Opc.Ua
                 }
 
                 return string.Format(formatProvider, "0x{0:X8}", Code);
-
             }
 
             throw new FormatException(Utils.Format("Invalid format string: '{0}'.", format));
@@ -768,7 +765,7 @@ namespace Opc.Ua
         /// <summary>
         /// The value is constant and cannot change.
         /// </summary>
-        Constant = 0x0300
+        Constant = Low | High
     }
     #endregion
 
@@ -797,7 +794,7 @@ namespace Opc.Ua
         /// <summary>
         /// A mask that selects the bit which identify the source of the value (raw, calculated, interpolated).
         /// </summary>
-        DataSourceMask = 0x03,
+        DataSourceMask = Calculated | Interpolated,
 
         /// <summary>
         /// A data value which was calculated with an incomplete interval.
@@ -821,7 +818,7 @@ namespace Opc.Ua
     /// A collection of StatusCodes.
     /// </summary>
     [CollectionDataContract(Name = "ListOfStatusCode", Namespace = Namespaces.OpcUaXsd, ItemName = "StatusCode")]
-    public partial class StatusCodeCollection : List<StatusCode>, ICloneable
+    public class StatusCodeCollection : List<StatusCode>, ICloneable
     {
         /// <summary>
         /// Initializes an empty collection.

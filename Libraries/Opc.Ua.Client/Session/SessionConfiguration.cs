@@ -79,8 +79,7 @@ namespace Opc.Ua.Client
             using (var reader = XmlReader.Create(stream, settings))
             {
                 var serializer = new DataContractSerializer(typeof(SessionConfiguration));
-                var sessionConfiguration = (SessionConfiguration)serializer.ReadObject(reader);
-                return sessionConfiguration;
+                return (SessionConfiguration)serializer.ReadObject(reader);
             }
         }
 
@@ -143,6 +142,5 @@ namespace Opc.Ua.Client
         /// </summary>
         [DataMember(IsRequired = false, Order = 100)]
         public Nonce ServerEccEphemeralKey { get; set; }
-
     }
 }

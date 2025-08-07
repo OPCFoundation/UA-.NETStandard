@@ -55,7 +55,6 @@ namespace Opc.Ua.Security.Certificates
             {
                 string pemText = Encoding.UTF8.GetString(pemDataBlob);
 
-
                 string[] valuesToCheck = {
                     "-----BEGIN PRIVATE KEY-----",
                     "-----BEGIN RSA PRIVATE KEY-----",

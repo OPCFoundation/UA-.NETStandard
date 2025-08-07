@@ -59,7 +59,7 @@ namespace Opc.Ua
         /// <summary>
         /// The message context to use.
         /// </summary>
-        public IServiceMessageContext MessageContext { get; private set; }
+        public IServiceMessageContext MessageContext { get; }
 
         /// <summary>
         /// Set the context for a specific using scope

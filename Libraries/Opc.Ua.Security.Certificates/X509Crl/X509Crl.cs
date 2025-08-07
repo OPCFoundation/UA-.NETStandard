@@ -233,15 +233,9 @@ namespace Opc.Ua.Security.Certificates
                     uint version = 0;
                     var intTag = new Asn1Tag(UniversalTagNumber.Integer);
                     Asn1Tag peekTag = seqReader.PeekTag();
-                    if (peekTag == intTag)
+                    if (peekTag == intTag && seqReader.TryReadUInt32(out version) && version != 1)
                     {
-                        if (seqReader.TryReadUInt32(out version))
-                        {
-                            if (version != 1)
-                            {
-                                throw new AsnContentException($"The CRL contains an incorrect version {version}");
-                            }
-                        }
+                        throw new AsnContentException($"The CRL contains an incorrect version {version}");
                     }
 
                     // Signature Algorithm Identifier
@@ -367,7 +361,7 @@ namespace Opc.Ua.Security.Certificates
         #endregion
 
         #region Private Fields
-        private bool m_decoded = false;
+        private bool m_decoded;
         private X509Signature m_signature;
         private X500DistinguishedName m_issuerName;
         private DateTime m_thisUpdate;

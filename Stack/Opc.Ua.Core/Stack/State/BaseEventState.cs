@@ -106,29 +106,9 @@ namespace Opc.Ua
     public enum EventSeverity : int
     {
         /// <summary>
-        /// The highest possible severity.
+        /// The lowest possible severity.
         /// </summary>
-        Max = 1000,
-
-        /// <summary>
-        /// The event has high severity.
-        /// </summary>
-        High = 900,
-
-        /// <summary>
-        /// The event has medium high severity.
-        /// </summary>
-        MediumHigh = 700,
-
-        /// <summary>
-        /// The event has medium severity.
-        /// </summary>
-        Medium = 500,
-
-        /// <summary>
-        /// The event has medium-low severity.
-        /// </summary>
-        MediumLow = 300,
+        Min = 1,
 
         /// <summary>
         /// The event has low severity.
@@ -136,8 +116,27 @@ namespace Opc.Ua
         Low = 100,
 
         /// <summary>
-        /// The lowest possible severity.
+        /// The event has medium-low severity.
         /// </summary>
-        Min = 1
+        MediumLow = 300,
+
+        /// <summary>
+        /// The event has medium severity.
+        /// </summary>
+        Medium = 500,
+
+        /// <summary>
+        /// The event has medium high severity.
+        /// </summary>
+        MediumHigh = 700,
+
+        /// <summary>
+        /// The event has high severity.
+        /// </summary>
+        High = 900,
+        /// <summary>
+        /// The highest possible severity.
+        /// </summary>
+        Max = 1000
     }
 }

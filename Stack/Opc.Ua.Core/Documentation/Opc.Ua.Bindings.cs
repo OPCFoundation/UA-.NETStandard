@@ -19,7 +19,5 @@ namespace Opc.Ua.Bindings
     /// </summary>
     ///<exclude/>
     [System.Runtime.CompilerServices.CompilerGeneratedAttribute()]
-    public class NamespaceDoc
-    {
-    }
+    public class NamespaceDoc;
 }

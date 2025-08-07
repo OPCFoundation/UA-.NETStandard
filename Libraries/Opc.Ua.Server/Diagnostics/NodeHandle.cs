@@ -38,8 +38,8 @@ namespace Opc.Ua.Server
     /// </summary>
     /// <remarks>
     /// A NodeHandle is created when GetManagerHandle is called and will only contain
-    /// information found by parsing the NodeId. The ValidateNode method is used to 
-    /// verify that the NodeId refers to a real Node and find a NodeState object that 
+    /// information found by parsing the NodeId. The ValidateNode method is used to
+    /// verify that the NodeId refers to a real Node and find a NodeState object that
     /// can be used to access the Node.
     /// </remarks>
     public class NodeHandle
@@ -64,7 +64,7 @@ namespace Opc.Ua.Server
             this.Node = node;
         }
         #endregion
-        
+
         #region Public Interface
         /// <summary>
         /// The NodeId provided by the client.

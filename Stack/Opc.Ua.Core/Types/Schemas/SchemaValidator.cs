@@ -85,12 +85,7 @@ namespace Opc.Ua.Schema
         /// </summary>
         protected static bool IsNull(XmlQualifiedName name)
         {
-            if (name != null && !string.IsNullOrEmpty(name.Name))
-            {
-                return false;
-            }
-
-            return true;
+            return name == null || string.IsNullOrEmpty(name.Name);
         }
 
         /// <summary>
@@ -276,7 +271,6 @@ namespace Opc.Ua.Schema
                     var serializer = new XmlSerializer(type);
                     return serializer.Deserialize(xmlReader);
                 }
-
             }
             catch (Exception e)
             {
@@ -312,7 +306,5 @@ namespace Opc.Ua.Schema
         }
 
 #endregion
-#region Private Fields
-        #endregion
     }
 }

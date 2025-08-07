@@ -166,5 +166,4 @@ namespace Opc.Ua.Core.Tests.Types.Nonce
 
         #endregion
     }
-
 }

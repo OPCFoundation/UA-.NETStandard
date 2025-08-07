@@ -58,11 +58,10 @@ namespace MemoryBuffer
         {
             get
             {
-                var nameSpaces = new StringCollection {
+                return new StringCollection {
                     Namespaces.MemoryBuffer,
                     Namespaces.MemoryBuffer + "/Instance"
                 };
-                return nameSpaces;
             }
         }
     }
@@ -85,13 +84,9 @@ namespace MemoryBuffer
             AddEncodeableNodeManagerTypes(typeof(MemoryBufferNodeManager).Assembly, typeof(MemoryBufferNodeManager).Namespace);
 
             // get the configuration for the node manager.
-            m_configuration = configuration.ParseExtension<MemoryBufferConfiguration>();
+            m_configuration = configuration.ParseExtension<MemoryBufferConfiguration>() ?? new MemoryBufferConfiguration();
 
             // use suitable defaults if no configuration exists.
-            if (m_configuration == null)
-            {
-                m_configuration = new MemoryBufferConfiguration();
-            }
 
             m_buffers = new Dictionary<string, MemoryBufferState>();
         }
@@ -277,10 +272,8 @@ namespace MemoryBuffer
             filterError = null;
             monitoredItem = null;
 
-            var tag = source as MemoryTagState;
-
             // use default behavior for non-tag sources.
-            if (tag == null)
+            if (!(source is MemoryTagState tag))
             {
                 return base.CreateMonitoredItem(
                     context,
@@ -340,9 +333,7 @@ namespace MemoryBuffer
             }
 
             // get the monitored node for the containing buffer.
-            var buffer = tag.Parent as MemoryBufferState;
-
-            if (buffer == null)
+            if (!(tag.Parent is MemoryBufferState buffer))
             {
                 return StatusCodes.BadInternalError;
             }
@@ -393,10 +384,8 @@ namespace MemoryBuffer
         {
             monitoredItem = null;
 
-            var tag = source as MemoryTagState;
-
             // use default behavior for non-tag sources.
-            if (tag == null)
+            if (!(source is MemoryTagState tag))
             {
                 return base.RestoreMonitoredItem(
                     context,
@@ -406,21 +395,18 @@ namespace MemoryBuffer
             }
 
             // get the monitored node for the containing buffer.
-            var buffer = tag.Parent as MemoryBufferState;
-
-            if (buffer == null)
+            if (!(tag.Parent is MemoryBufferState buffer))
             {
                 return false;
             }
 
             // create the item.
-            MemoryBufferMonitoredItem datachangeItem = buffer.RestoreDataChangeItem(
+
+            // update monitored item list.
+            monitoredItem = buffer.RestoreDataChangeItem(
                 context,
                 tag,
                 storedMonitoredItem);
-
-            // update monitored item list.
-            monitoredItem = datachangeItem;
 
             return true;
         }
@@ -439,9 +425,7 @@ namespace MemoryBuffer
             filterError = null;
 
             // check for valid handle.
-            var buffer = monitoredItem.ManagerHandle as MemoryBufferState;
-
-            if (buffer == null)
+            if (!(monitoredItem.ManagerHandle is MemoryBufferState buffer))
             {
                 return base.ModifyMonitoredItem(
                     context,
@@ -456,9 +440,7 @@ namespace MemoryBuffer
             itemToModify.Processed = true;
 
             // get the monitored item.
-            var datachangeItem = monitoredItem as MemoryBufferMonitoredItem;
-
-            if (datachangeItem == null)
+            if (!(monitoredItem is MemoryBufferMonitoredItem datachangeItem))
             {
                 return StatusCodes.BadMonitoredItemIdInvalid;
             }
@@ -495,9 +477,7 @@ namespace MemoryBuffer
             processed = false;
 
             // check for valid handle.
-            var buffer = monitoredItem.ManagerHandle as MemoryBufferState;
-
-            if (buffer == null)
+            if (!(monitoredItem.ManagerHandle is MemoryBufferState buffer))
             {
                 return base.DeleteMonitoredItem(
                     context,
@@ -509,9 +489,7 @@ namespace MemoryBuffer
             processed = true;
 
             // get the monitored item.
-            var datachangeItem = monitoredItem as MemoryBufferMonitoredItem;
-
-            if (datachangeItem == null)
+            if (!(monitoredItem is MemoryBufferMonitoredItem datachangeItem))
             {
                 return StatusCodes.BadMonitoredItemIdInvalid;
             }
@@ -534,9 +512,7 @@ namespace MemoryBuffer
             processed = false;
 
             // check for valid handle.
-            var buffer = monitoredItem.ManagerHandle as MemoryBufferState;
-
-            if (buffer == null)
+            if (!(monitoredItem.ManagerHandle is MemoryBufferState buffer))
             {
                 return base.SetMonitoringMode(
                     context,
@@ -549,9 +525,7 @@ namespace MemoryBuffer
             processed = true;
 
             // get the monitored item.
-            var datachangeItem = monitoredItem as MemoryBufferMonitoredItem;
-
-            if (datachangeItem == null)
+            if (!(monitoredItem is MemoryBufferMonitoredItem datachangeItem))
             {
                 return StatusCodes.BadMonitoredItemIdInvalid;
             }

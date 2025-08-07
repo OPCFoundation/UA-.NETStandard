@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -51,7 +50,7 @@ namespace Quickstarts.Servers
         public DurableDataChangeMonitoredItemQueue(bool createDurable, uint monitoredItemId, IBatchPersistor batchPersistor)
         {
             IsDurable = createDurable;
-            m_monitoredItemId = monitoredItemId;
+            MonitoredItemId = monitoredItemId;
             m_batchPersistor = batchPersistor;
             m_enqueueBatch = new DataChangeBatch(new List<(DataValue, ServiceResult)>(), kBatchSize, monitoredItemId);
             m_dequeueBatch = m_enqueueBatch;
@@ -64,7 +63,7 @@ namespace Quickstarts.Servers
         public DurableDataChangeMonitoredItemQueue(StorableDataChangeQueue queue, IBatchPersistor batchPersistor)
         {
             m_batchPersistor = batchPersistor;
-            m_monitoredItemId = queue.MonitoredItemId;
+            MonitoredItemId = queue.MonitoredItemId;
             IsDurable = queue.IsDurable;
             m_enqueueBatch = queue.EnqueueBatch;
             m_dequeueBatch = queue.DequeueBatch;
@@ -76,7 +75,7 @@ namespace Quickstarts.Servers
         #region Public Methods
 
         /// <inheritdoc/>
-        public uint MonitoredItemId => m_monitoredItemId;
+        public uint MonitoredItemId { get; }
 
         /// <summary>
         /// Gets the current queue size.
@@ -105,7 +104,6 @@ namespace Quickstarts.Servers
         /// <returns></returns>
         public StorableDataChangeQueue ToStorableQueue()
         {
-
             return new StorableDataChangeQueue {
                 IsDurable = IsDurable,
                 MonitoredItemId = MonitoredItemId,
@@ -154,25 +152,24 @@ namespace Quickstarts.Servers
                 // Special case: if the enqueue and dequeue batch are the same only one batch exists, so no storing is needed
                 if (m_dequeueBatch == m_enqueueBatch)
                 {
-                    m_dequeueBatch = new DataChangeBatch(m_enqueueBatch.Values, kBatchSize, m_monitoredItemId);
-                    m_enqueueBatch = new DataChangeBatch(new List<(DataValue, ServiceResult)>(), kBatchSize, m_monitoredItemId);
+                    m_dequeueBatch = new DataChangeBatch(m_enqueueBatch.Values, kBatchSize, MonitoredItemId);
+                    m_enqueueBatch = new DataChangeBatch(new List<(DataValue, ServiceResult)>(), kBatchSize, MonitoredItemId);
                 }
                 // persist the batch
                 else
                 {
-                    Opc.Ua.Utils.LogDebug("Storing batch for monitored item {0}", m_monitoredItemId);
+                    Opc.Ua.Utils.LogDebug("Storing batch for monitored item {0}", MonitoredItemId);
 
-                    var batchToStore = new DataChangeBatch(m_enqueueBatch.Values, kBatchSize, m_monitoredItemId);
+                    var batchToStore = new DataChangeBatch(m_enqueueBatch.Values, kBatchSize, MonitoredItemId);
                     m_dataChangeBatches.Add(batchToStore);
                     if (m_dataChangeBatches.Count > 1)
                     {
                         m_batchPersistor.RequestBatchPersist(m_dataChangeBatches[m_dataChangeBatches.Count - 2]);
                     }
 
-                    m_enqueueBatch = new DataChangeBatch(new List<(DataValue, ServiceResult)>(), kBatchSize, m_monitoredItemId);
+                    m_enqueueBatch = new DataChangeBatch(new List<(DataValue, ServiceResult)>(), kBatchSize, MonitoredItemId);
                 }
             }
-
         }
         /// <inheritdoc/>
         public void OverwriteLastValue(DataValue value, ServiceResult error)
@@ -187,7 +184,7 @@ namespace Quickstarts.Servers
             }
             else if (m_dataChangeBatches.Count > 0)
             {
-                DataChangeBatch batch = m_dataChangeBatches.Last();
+                DataChangeBatch batch = m_dataChangeBatches[^1];
                 batch.Values[batch.Values.Count - 1] = (value, error);
             }
             else
@@ -227,7 +224,7 @@ namespace Quickstarts.Servers
             }
             else if (m_dataChangeBatches.Count > 0)
             {
-                DataChangeBatch batch = m_dataChangeBatches.Last();
+                DataChangeBatch batch = m_dataChangeBatches[^1];
                 return batch.Values[batch.Values.Count - 1].Item1;
             }
             else
@@ -276,7 +273,7 @@ namespace Quickstarts.Servers
             // request a restore if the dequeue batch is half empty
             if (m_dequeueBatch.Values.Count <= kBatchSize / 2 && m_dataChangeBatches.Count > 0)
             {
-                m_batchPersistor.RequestBatchRestore(m_dataChangeBatches.First());
+                m_batchPersistor.RequestBatchRestore(m_dataChangeBatches[0]);
             }
 
             // if the dequeue batch is empty and there are stored batches, set the dequeue batch to the first stored batch
@@ -284,13 +281,13 @@ namespace Quickstarts.Servers
             {
                 if (m_dataChangeBatches.Count > 0)
                 {
-                    m_dequeueBatch = m_dataChangeBatches.First();
+                    m_dequeueBatch = m_dataChangeBatches[0];
                     m_dataChangeBatches.RemoveAt(0);
 
                     // Request a restore for the next batch if there is one
                     if (m_dataChangeBatches.Count > 0)
                     {
-                        m_batchPersistor.RequestBatchRestore(m_dataChangeBatches.First());
+                        m_batchPersistor.RequestBatchRestore(m_dataChangeBatches[0]);
                     }
                 }
                 else
@@ -327,13 +324,12 @@ namespace Quickstarts.Servers
         {
             if (disposing)
             {
-                Disposed?.Invoke(this, new EventArgs());
+                Disposed?.Invoke(this, EventArgs.Empty);
             }
         }
-        #endregion
 
-        #region Private Fields
-        private readonly uint m_monitoredItemId;
+#endregion
+#region Private Fields
         private DataChangeBatch m_enqueueBatch;
         private readonly List<DataChangeBatch> m_dataChangeBatches = new List<DataChangeBatch>();
         private DataChangeBatch m_dequeueBatch;

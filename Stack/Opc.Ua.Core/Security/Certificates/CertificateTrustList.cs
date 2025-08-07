@@ -21,20 +21,25 @@ namespace Opc.Ua
     /// A list of trusted certificates.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// Administrators can create a list of trusted certificates by designating all certificates
     /// in a particular certificate store as trusted and/or by explictly specifying a list of
     /// individual certificates.
-    ///
+    /// </para>
+    /// <para>
     /// A trust list can contain either instance certificates or certification authority certificates.
     /// If the list contains instance certificates the application will trust peers that use the
     /// instance certificate (provided the ApplicationUri and HostName match the certificate).
-    ///
+    /// </para>
+    /// <para>
     /// If the list contains certification authority certificates then the application will trust
     /// peers that have certificates issued by one of the authorities.
-    ///
+    /// </para>
+    /// <para>
     /// Any certificate could be revoked by the issuer (CAs may issue certificates for other CAs).
     /// The RevocationMode specifies whether this check should be done each time a certificate
     /// in the list are used.
+    /// </para>
     /// </remarks>
     public partial class CertificateTrustList : CertificateStoreIdentifier
     {
@@ -60,7 +65,6 @@ namespace Opc.Ua
                     }
 
                     collection = await store.Enumerate().ConfigureAwait(false);
-
                 }
                 catch (Exception)
                 {
@@ -70,7 +74,6 @@ namespace Opc.Ua
                 {
                     store?.Close();
                 }
-
             }
 
             foreach (CertificateIdentifier trustedCertificate in TrustedCertificates)

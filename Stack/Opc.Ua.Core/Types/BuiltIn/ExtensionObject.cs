@@ -399,27 +399,22 @@ namespace Opc.Ua
                 {
                     m_encoding = ExtensionObjectEncoding.None;
                 }
-
                 else if (m_body is IEncodeable)
                 {
                     m_encoding = ExtensionObjectEncoding.EncodeableObject;
                 }
-
                 else if (m_body is byte[])
                 {
                     m_encoding = ExtensionObjectEncoding.Binary;
                 }
-
                 else if (m_body is XmlElement)
                 {
                     m_encoding = ExtensionObjectEncoding.Xml;
                 }
-
                 else if (m_body is Newtonsoft.Json.Linq.JObject)
                 {
                     m_encoding = ExtensionObjectEncoding.Json;
                 }
-
                 else
                 {
                     throw new ServiceResultException(
@@ -449,7 +444,6 @@ namespace Opc.Ua
             {
                 return true;
             }
-
 
             if (obj is ExtensionObject value)
             {
@@ -535,9 +529,7 @@ namespace Opc.Ua
                 {
                     var body = new StringBuilder();
 
-                    PropertyInfo[] properties = m_body.GetType().GetProperties(BindingFlags.Public | BindingFlags.FlattenHierarchy | BindingFlags.Instance);
-
-                    foreach (PropertyInfo property in properties)
+                    foreach (PropertyInfo property in m_body.GetType().GetProperties(BindingFlags.Public | BindingFlags.FlattenHierarchy | BindingFlags.Instance))
                     {
                         object[] attributes = property.GetCustomAttributes(typeof(DataMemberAttribute), true).ToArray();
 
@@ -611,12 +603,7 @@ namespace Opc.Ua
         /// </remarks>
         public static bool IsNull(ExtensionObject extension)
         {
-            if (extension != null && extension.m_body != null)
-            {
-                return false;
-            }
-
-            return true;
+            return extension == null || extension.m_body == null;
         }
 
         /// <summary>
@@ -708,9 +695,8 @@ namespace Opc.Ua
         public static ExtensionObject Null { get; } = new ExtensionObject();
         #endregion
 
-        #region Private Members
         [DataMember(Name = "TypeId", Order = 1, IsRequired = false, EmitDefaultValue = true)]
-        private NodeId XmlEncodedTypeId
+        internal NodeId XmlEncodedTypeId
         {
             get
             {
@@ -737,7 +723,7 @@ namespace Opc.Ua
         }
 
         [DataMember(Name = "Body", Order = 2, IsRequired = false, EmitDefaultValue = true)]
-        private XmlElement XmlEncodedBody
+        internal XmlElement XmlEncodedBody
         {
             get
             {
@@ -748,13 +734,13 @@ namespace Opc.Ua
                 }
 
                 // create encoder.
-                using (var encoder = new XmlEncoder(m_context))
+                using (XmlEncoder encoder = new XmlEncoder(m_context))
                 {
                     // write body.
                     encoder.WriteExtensionObjectBody(m_body);
 
                     // create document from encoder.
-                    var document = new XmlDocument();
+                    XmlDocument document = new XmlDocument();
                     document.LoadInnerXml(encoder.CloseAndReturnText());
 
                     // return root element.
@@ -772,7 +758,7 @@ namespace Opc.Ua
                 }
 
                 // create decoder.
-                using (var decoder = new XmlDecoder(value, m_context))
+                using (XmlDecoder decoder = new XmlDecoder(value, m_context))
                 {
                     // read body.
                     Body = decoder.ReadExtensionObjectBody(TypeId);
@@ -799,8 +785,7 @@ namespace Opc.Ua
             }
         }
 
-#endregion
-#region Private Fields
+        #region Private Fields
         private ExtensionObjectEncoding m_encoding;
         private object m_body;
         private IServiceMessageContext m_context;

@@ -14,7 +14,6 @@ using System;
 
 namespace Opc.Ua
 {
-
 #if OPCUA_USE_SYNCHRONOUS_ENDPOINTS
     /// <summary>
 	/// The base interface for all services exposed by UA servers.

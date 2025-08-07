@@ -135,5 +135,5 @@ namespace Opc.Ua
         /// Removes a CRL from the store.
         /// </summary>
         Task<bool> DeleteCRL(X509CRL crl);
-    };
+    }
 }

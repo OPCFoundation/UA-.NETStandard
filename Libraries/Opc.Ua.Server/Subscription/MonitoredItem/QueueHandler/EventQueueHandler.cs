@@ -89,7 +89,7 @@ namespace Opc.Ua.Server
         /// Creates a new Queue
         /// </summary>
         /// <param name="createDurable">create a durable queue</param>
-        /// <param name="queueFactory">the factory for creating the the factory for <see cref="IEventMonitoredItemQueue"/></param>
+        /// <param name="queueFactory">the factory for creating the factory for <see cref="IEventMonitoredItemQueue"/></param>
         /// <param name="monitoredItemId">the id of the monitoredItem associated with the queue</param>
         public EventQueueHandler(bool createDurable, IMonitoredItemQueueFactory queueFactory, uint monitoredItemId)
         {
@@ -147,13 +147,10 @@ namespace Opc.Ua.Server
         /// <returns></returns>
         public bool SetQueueOverflowIfFull()
         {
-            if (m_eventQueue.ItemsInQueue >= m_eventQueue.QueueSize)
+            if (m_eventQueue.ItemsInQueue >= m_eventQueue.QueueSize && !m_discardOldest)
             {
-                if (!m_discardOldest)
-                {
-                    m_overflow = true;
-                    return true;
-                }
+                m_overflow = true;
+                return true;
             }
             return false;
         }

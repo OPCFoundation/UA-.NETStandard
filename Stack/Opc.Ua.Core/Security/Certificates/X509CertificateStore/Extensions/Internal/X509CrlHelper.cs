@@ -109,15 +109,13 @@ namespace Opc.Ua.X509StoreExtensions.Internal
             return crl;
         }
 
-
         /// <summary>
-        /// add a crl to to the provided store
+        /// add a crl to the provided store
         /// </summary>
         /// <param name="storeHandle">HCERTSTORE Handle to X509 Store</param>
         /// <param name="crl">the crl as Asn1 or PKCS7 encoded byte array</param>
         public static void AddCrl(IntPtr storeHandle, byte[] crl)
         {
-
             if (!PlatformHelper.IsWindowsWithCrlSupport())
             {
                 throw new PlatformNotSupportedException();
@@ -207,7 +205,6 @@ namespace Opc.Ua.X509StoreExtensions.Internal
                     if (crlContext != null)
                     {
                         byte[] storeCrl = ReadCrlFromCrlContext(crlContext);
-
 
                         if (crl != null && crl.SequenceEqual(storeCrl))
                         {

@@ -289,7 +289,7 @@ namespace Opc.Ua
     /// A collection of Uuids.
     /// </summary>
     [CollectionDataContract(Name = "ListOfGuid", Namespace = Namespaces.OpcUaXsd, ItemName = "Guid")]
-    public partial class UuidCollection : List<Uuid>, ICloneable
+    public class UuidCollection : List<Uuid>, ICloneable
     {
         /// <summary>
         /// Initializes an empty collection.

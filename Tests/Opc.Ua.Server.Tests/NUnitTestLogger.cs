@@ -36,7 +36,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Server.Tests
 {
-    public class NUnitTestLogger<T> : ILogger<T>
+    public sealed class NUnitTestLogger<T> : ILogger<T>
     {
         /// <summary>
         /// Create a nunit trace logger which replaces the default logging.
@@ -103,6 +103,4 @@ namespace Opc.Ua.Server.Tests
 
         private TextWriter m_outputWriter;
     }
-
-
 }

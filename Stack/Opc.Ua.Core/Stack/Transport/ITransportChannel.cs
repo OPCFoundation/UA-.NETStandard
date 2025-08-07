@@ -54,7 +54,7 @@ namespace Opc.Ua
         IServiceMessageContext MessageContext { get; }
 
         /// <summary>
-        /// Gets the the channel's current security token.
+        /// Gets the channel's current security token.
         /// </summary>
         ChannelToken CurrentToken { get; }
 

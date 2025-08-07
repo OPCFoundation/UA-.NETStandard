@@ -144,7 +144,7 @@ namespace Opc.Ua.Server
         OperationContext ValidateRequest(RequestHeader requestHeader, RequestType requestType);
     }
     /// <summary>
-    /// The possible reasons for a session related event. 
+    /// The possible reasons for a session related event.
     /// </summary>
     public enum SessionEventReason
     {
@@ -192,9 +192,9 @@ namespace Opc.Ua.Server
         /// </summary>
         public ImpersonateEventArgs(UserIdentityToken newIdentity, UserTokenPolicy userTokenPolicy, EndpointDescription endpointDescription = null)
         {
-            m_newIdentity = newIdentity;
-            m_userTokenPolicy = userTokenPolicy;
-            m_endpointDescription = endpointDescription;
+            NewIdentity = newIdentity;
+            UserTokenPolicy = userTokenPolicy;
+            EndpointDescription = endpointDescription;
         }
         #endregion
 
@@ -202,62 +202,33 @@ namespace Opc.Ua.Server
         /// <summary>
         /// The new user identity for the session.
         /// </summary>
-        public UserIdentityToken NewIdentity
-        {
-            get { return m_newIdentity; }
-        }
+        public UserIdentityToken NewIdentity { get; }
 
         /// <summary>
         /// The user token policy selected by the client.
         /// </summary>
-        public UserTokenPolicy UserTokenPolicy
-        {
-            get { return m_userTokenPolicy; }
-        }
+        public UserTokenPolicy UserTokenPolicy { get; }
 
         /// <summary>
         /// An application defined handle that can be used for access control operations.
         /// </summary>
-        public IUserIdentity Identity
-        {
-            get { return m_identity; }
-            set { m_identity = value; }
-        }
+        public IUserIdentity Identity { get; set; }
 
         /// <summary>
         /// An application defined handle that can be used for access control operations.
         /// </summary>
-        public IUserIdentity EffectiveIdentity
-        {
-            get { return m_effectiveIdentity; }
-            set { m_effectiveIdentity = value; }
-        }
+        public IUserIdentity EffectiveIdentity { get; set; }
 
         /// <summary>
         /// Set to indicate that an error occurred validating the identity and that it should be rejected.
         /// </summary>
-        public ServiceResult IdentityValidationError
-        {
-            get { return m_identityValidationError; }
-            set { m_identityValidationError = value; }
-        }
+        public ServiceResult IdentityValidationError { get; set; }
 
         /// <summary>
-        /// Get the EndpointDescription  
+        /// Get the EndpointDescription
         /// </summary>
-        public EndpointDescription EndpointDescription
-        {
-            get { return m_endpointDescription; }
-        }
-        #endregion
+        public EndpointDescription EndpointDescription { get; }
 
-        #region Private Fields
-        private readonly UserIdentityToken m_newIdentity;
-        private readonly UserTokenPolicy m_userTokenPolicy;
-        private ServiceResult m_identityValidationError;
-        private IUserIdentity m_identity;
-        private IUserIdentity m_effectiveIdentity;
-        private readonly EndpointDescription m_endpointDescription;
         #endregion
     }
 
@@ -288,12 +259,12 @@ namespace Opc.Ua.Server
         /// <summary>
         /// The request type for the request.
         /// </summary>
-        public RequestType RequestType { get; private set; }
+        public RequestType RequestType { get; }
 
         /// <summary>
         /// The new user identity for the session.
         /// </summary>
-        public NodeId AuthenticationToken { get; private set; }
+        public NodeId AuthenticationToken { get; }
 
         /// <summary>
         /// The identity to associate with the session-less request.

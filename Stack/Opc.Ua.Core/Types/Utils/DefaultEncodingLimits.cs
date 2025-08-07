@@ -53,6 +53,6 @@ namespace Opc.Ua
         /// The default number of times the decoder can recover from an error
         /// caused by an encoded ExtensionObject before throwing a decoder error.
         /// </summary>
-        public static readonly int MaxDecoderRecoveries = 0;
+        public static readonly int MaxDecoderRecoveries;
     }
 }

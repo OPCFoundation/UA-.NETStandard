@@ -125,7 +125,6 @@ namespace Opc.Ua
             { Methods.ProgramStateMachineType_Halt, Objects.ProgramStateMachineType_Ready, Objects.ProgramStateMachineType_ReadyToHalted }
         };
 
-
         /// <summary>
         /// Creates an instance of an audit event.
         /// </summary>
@@ -157,12 +156,9 @@ namespace Opc.Ua
                 result);
 
             // update program specific event fields.
-            if (ServiceResult.IsGood(result))
+            if (ServiceResult.IsGood(result) && e is ProgramTransitionAuditEventState e2)
             {
-                if (e is ProgramTransitionAuditEventState e2)
-                {
-                    e2.SetChildValue(context, BrowseNames.Transition, LastTransition, false);
-                }
+                e2.SetChildValue(context, BrowseNames.Transition, LastTransition, false);
             }
         }
 

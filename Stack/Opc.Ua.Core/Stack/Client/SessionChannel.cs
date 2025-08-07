@@ -58,15 +58,13 @@ namespace Opc.Ua
             IServiceMessageContext messageContext)
         {
             // create a UA binary channel.
-            ITransportChannel channel = CreateUaBinaryChannel(
+            return CreateUaBinaryChannel(
                 configuration,
                 description,
                 endpointConfiguration,
                 clientCertificate,
                 clientCertificateChain,
                 messageContext);
-
-            return channel;
         }
 
         /// <summary>
@@ -90,7 +88,7 @@ namespace Opc.Ua
             IServiceMessageContext messageContext)
         {
             // create a UA binary channel.
-            ITransportChannel channel = CreateUaBinaryChannel(
+            return CreateUaBinaryChannel(
                 configuration,
                 connection,
                 description,
@@ -98,8 +96,6 @@ namespace Opc.Ua
                 clientCertificate,
                 clientCertificateChain,
                 messageContext);
-
-            return channel;
         }
         #endregion
     }

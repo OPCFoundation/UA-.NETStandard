@@ -68,6 +68,5 @@ namespace Alarms
             // Call the base class to set parameters
             base.Initialize(alarmTypeIdentifier, name, maxTimeShelved, isLimit: false);
         }
-
     }
 }

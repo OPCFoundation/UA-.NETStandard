@@ -81,5 +81,4 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public NumericRange ParsedIndexRange { get; set; }
     }
-
 }

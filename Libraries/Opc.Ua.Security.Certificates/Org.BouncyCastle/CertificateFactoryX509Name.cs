@@ -37,7 +37,7 @@ using Org.BouncyCastle.Asn1.X509;
 namespace Opc.Ua.Security.Certificates.BouncyCastle
 {
     /// <summary>
-    /// A converter class to create a X509Name object 
+    /// A converter class to create a X509Name object
     /// from a X509Certificate subject.
     /// </summary>
     /// <remarks>

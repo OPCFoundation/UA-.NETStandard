@@ -36,10 +36,8 @@ using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 using Opc.Ua.Security.Certificates;
 
-
 namespace Opc.Ua.Server
 {
-
     /// <summary>
     /// Privileged identity which can access the system configuration.
     /// </summary>
@@ -83,7 +81,7 @@ namespace Opc.Ua.Server
             var defaultApplicationGroup = new ServerCertificateGroup {
                 NodeId = Opc.Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup,
                 BrowseName = Opc.Ua.BrowseNames.DefaultApplicationGroup,
-                CertificateTypes = new NodeId[] { },
+                CertificateTypes = Array.Empty<NodeId>(),
                 ApplicationCertificates = new CertificateIdentifierCollection(),
                 IssuerStore = new CertificateStoreIdentifier(configuration.SecurityConfiguration.TrustedIssuerCertificates.StorePath),
                 TrustedStore = new CertificateStoreIdentifier(configuration.SecurityConfiguration.TrustedPeerCertificates.StorePath)
@@ -95,7 +93,7 @@ namespace Opc.Ua.Server
                 var defaultUserGroup = new ServerCertificateGroup {
                     NodeId = Opc.Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultUserTokenGroup,
                     BrowseName = Opc.Ua.BrowseNames.DefaultUserTokenGroup,
-                    CertificateTypes = new NodeId[] { },
+                    CertificateTypes = Array.Empty<NodeId>(),
                     ApplicationCertificates = new CertificateIdentifierCollection(),
                     IssuerStore = new CertificateStoreIdentifier(configuration.SecurityConfiguration.UserIssuerCertificates.StorePath),
                     TrustedStore = new CertificateStoreIdentifier(configuration.SecurityConfiguration.TrustedUserCertificates.StorePath)
@@ -109,7 +107,7 @@ namespace Opc.Ua.Server
                 defaultHttpsGroup = new ServerCertificateGroup {
                     NodeId = Opc.Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultHttpsGroup,
                     BrowseName = Opc.Ua.BrowseNames.DefaultHttpsGroup,
-                    CertificateTypes = new NodeId[] { },
+                    CertificateTypes = Array.Empty<NodeId>(),
                     ApplicationCertificates = new CertificateIdentifierCollection(),
                     IssuerStore = new CertificateStoreIdentifier(configuration.SecurityConfiguration.HttpsIssuerCertificates.StorePath),
                     TrustedStore = new CertificateStoreIdentifier(configuration.SecurityConfiguration.TrustedHttpsCertificates.StorePath)
@@ -131,7 +129,6 @@ namespace Opc.Ua.Server
                     defaultHttpsGroup.ApplicationCertificates.Add(cert);
                 }
             }
-
         }
         #endregion
 
@@ -282,8 +279,6 @@ namespace Opc.Ua.Server
             }
         }
 
-
-
         /// <summary>
         /// Gets and returns the <see cref="NamespaceMetadataState"/> node associated with the specified NamespaceUri
         /// </summary>
@@ -296,9 +291,9 @@ namespace Opc.Ua.Server
                 return null;
             }
 
-            if (m_namespaceMetadataStates.ContainsKey(namespaceUri))
+            if (m_namespaceMetadataStates.TryGetValue(namespaceUri, out NamespaceMetadataState value))
             {
-                return m_namespaceMetadataStates[namespaceUri];
+                return value;
             }
 
             NamespaceMetadataState namespaceMetadataState = FindNamespaceMetadataState(namespaceUri);
@@ -359,7 +354,6 @@ namespace Opc.Ua.Server
             HasApplicationSecureAdminAccess(context, null);
         }
 
-
         /// <summary>
         /// Determine if the impersonated user has admin access.
         /// </summary>
@@ -383,7 +377,6 @@ namespace Opc.Ua.Server
                 {
                     throw new ServiceResultException(StatusCodes.BadUserAccessDenied, "Security Admin Role required to access this item.");
                 }
-
             }
         }
         #endregion
@@ -458,7 +451,6 @@ namespace Opc.Ua.Server
                     throw new ServiceResultException(StatusCodes.BadInvalidArgument, "No existing certificate found for the specified certificate type and subject name.");
                 }
 
-
                 var newIssuerCollection = new X509Certificate2Collection();
 
                 try
@@ -472,7 +464,6 @@ namespace Opc.Ua.Server
                             newIssuerCollection.Add(newIssuerCert);
                         }
                     }
-
                 }
                 catch
                 {
@@ -539,10 +530,8 @@ namespace Opc.Ua.Server
                             break;
                         }
                         case "PEM":
-                        {
                             updateCertificate.CertificateWithPrivateKey = CertificateFactory.CreateCertificateWithPEMPrivateKey(newCert, privateKey, passwordProvider?.GetPassword(existingCertIdentifier));
                             break;
-                        }
                     }
                     //dispose temporary new private key as it is no longer needed
                     certificateGroup.TemporaryApplicationCertificate?.Dispose();
@@ -674,7 +663,6 @@ namespace Opc.Ua.Server
 
             return ServiceResult.Good;
         }
-
 
         private X509Certificate2 GenerateTemporaryApplicationCertificate(NodeId certificateTypeId, ServerCertificateGroup certificateGroup, string subjectName)
         {
@@ -828,7 +816,6 @@ namespace Opc.Ua.Server
             return ServiceResult.Good;
         }
 
-
         private ServerCertificateGroup VerifyGroupAndTypeId(
             NodeId certificateGroupId,
             NodeId certificateTypeId
@@ -884,9 +871,7 @@ namespace Opc.Ua.Server
                 foreach (BaseInstanceState namespacesReference in serverNamespacesChildren)
                 {
                     // Find NamespaceMetadata node of NamespaceUri in Namespaces children
-                    var namespaceMetadata = namespacesReference as NamespaceMetadataState;
-
-                    if (namespaceMetadata == null)
+                    if (!(namespacesReference is NamespaceMetadataState namespaceMetadata))
                     {
                         continue;
                     }
@@ -906,13 +891,11 @@ namespace Opc.Ua.Server
 
                 foreach (IReference serverNamespacesReference in serverNamespacesReferencs)
                 {
-                    if (serverNamespacesReference.IsInverse == false)
+                    if (!serverNamespacesReference.IsInverse)
                     {
                         // Find NamespaceMetadata node of NamespaceUri in Namespaces references
                         var nameSpaceNodeId = ExpandedNodeId.ToNodeId(serverNamespacesReference.TargetId, Server.NamespaceUris);
-                        var namespaceMetadata = FindNodeInAddressSpace(nameSpaceNodeId) as NamespaceMetadataState;
-
-                        if (namespaceMetadata == null)
+                        if (!(FindNodeInAddressSpace(nameSpaceNodeId) is NamespaceMetadataState namespaceMetadata))
                         {
                             continue;
                         }

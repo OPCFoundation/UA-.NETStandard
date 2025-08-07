@@ -755,7 +755,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void TestWriteSingleEncodeableWithName()
         {
-            string expected = "{\"bar_1\":{\"Foo\":\"bar_1\"}}";
+            const string expected = "{\"bar_1\":{\"Foo\":\"bar_1\"}}";
             TestContext.Out.WriteLine("Expected:");
             _ = PrettifyAndValidateJson(expected);
 
@@ -784,7 +784,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void TestWriteSingleDynamicEncodeableWithName()
         {
-            string expected = "{\"bar_1\":{\"Foo\":\"bar_1\"}}";
+            const string expected = "{\"bar_1\":{\"Foo\":\"bar_1\"}}";
             TestContext.Out.WriteLine("Expected:");
             _ = PrettifyAndValidateJson(expected);
 
@@ -813,7 +813,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void TestExtensionObjectWithDynamicEncodeable()
         {
-            string expectedJson = "{\"TypeId\":{\"IdType\":1,\"Id\":\"test_dyn2_typeid\"},\"Body\":{\"Foo\":\"bar_1\",\"Foo2\":\"bar_2\"}}";
+            const string expectedJson = "{\"TypeId\":{\"IdType\":1,\"Id\":\"test_dyn2_typeid\"},\"Body\":{\"Foo\":\"bar_1\",\"Foo2\":\"bar_2\"}}";
             string expectedXml = "<uax:ExtensionObject xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">"
                 + "  <uax:TypeId><uax:Identifier>s=test_dyn2_xmlencodingid</uax:Identifier></uax:TypeId>"
                 + "  <uax:Body><FooXml  xmlns=\"urn:dynamic_encoder_test\"><Foo>bar_1</Foo><Foo2>bar_2</Foo2></FooXml></uax:Body></uax:ExtensionObject>";
@@ -875,13 +875,11 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 TestContext.Out.WriteLine("Expected Json:");
                 _ = PrettifyAndValidateJson(expectedJson);
 
-
                 TestContext.Out.WriteLine("Encoded Json:");
                 TestContext.Out.WriteLine(encodedJson);
 
                 TestContext.Out.WriteLine("Formatted Encoded Json:");
                 _ = PrettifyAndValidateJson(encodedJson);
-
             }
             Assert.That(encodedJson, Is.EqualTo(expectedJson));
 
@@ -890,11 +888,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             using (var decoder = new JsonDecoder(encodedJson, dynamicContext))
             {
                 extensionObjectFromJson = decoder.ReadExtensionObject(null);
-
             }
             Assert.That(encodeable.IsEqual(extensionObjectFromJson.Body as IEncodeable), Is.True);
         }
-
 
         /// <summary>
         /// A single encodeable in an array cannot have a fieldname.
@@ -975,7 +971,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void TestWriteMultipleEncodeablesWithFieldNames()
         {
-            string expected = "{\"bar_1\":{\"Foo\":\"bar_1\"},\"bar_2\":{\"Foo\":\"bar_2\"},\"bar_3\":{\"Foo\":\"bar_3\"}}";
+            const string expected = "{\"bar_1\":{\"Foo\":\"bar_1\"},\"bar_2\":{\"Foo\":\"bar_2\"},\"bar_3\":{\"Foo\":\"bar_3\"}}";
 
             TestContext.Out.WriteLine("Expected:");
             _ = PrettifyAndValidateJson(expected);
@@ -1200,8 +1196,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void NotWellFormedUriInExpandedNodeId2String()
         {
-            string namespaceUri = "KEPServerEX";
-            string nodeName = "Data Type Examples.16 Bit Device.K Registers.Double3";
+            const string namespaceUri = "KEPServerEX";
+            const string nodeName = "Data Type Examples.16 Bit Device.K Registers.Double3";
             string expectedNodeIdString = $"nsu={namespaceUri};s={nodeName}";
             var expandedNodeId = new ExpandedNodeId(expectedNodeIdString);
 

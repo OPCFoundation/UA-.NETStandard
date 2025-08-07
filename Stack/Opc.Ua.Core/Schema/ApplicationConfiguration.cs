@@ -266,7 +266,6 @@ namespace Opc.Ua
             set { m_disableHiResClock = value; }
         }
 
-
         #endregion
 
         #region Private Fields
@@ -382,7 +381,6 @@ namespace Opc.Ua
         [DataMember(IsRequired = false, Order = 5)]
         public int MaxBufferSize { get; set; }
 
-
         /// <summary>
         /// The maximum nesting level accepted while encoding or decoding objects.
         /// </summary>
@@ -411,8 +409,6 @@ namespace Opc.Ua
         public int SecurityTokenLifetime { get; set; }
 
 #endregion
-#region Private Fields
-        #endregion
     }
     #endregion
 
@@ -530,7 +526,7 @@ namespace Opc.Ua
         public TransportConfiguration(string urlScheme, Type type)
         {
             UriScheme = urlScheme;
-            m_typeName = type.AssemblyQualifiedName;
+            TypeName = type.AssemblyQualifiedName;
         }
         #endregion
 
@@ -547,23 +543,19 @@ namespace Opc.Ua
         /// </summary>
         /// <value>The name of the type.</value>
         /// <remarks>
+        /// <para>
         /// This can be any instance of the System.ServiceModel.Channels.Binding class
         /// that implements these constructors:
-        ///
+        /// </para>
+        /// <para>
         /// XxxBinding(EndpointDescription description, EndpointConfiguration configuration);
         /// XxxBinding(IList{EndpointDescription} descriptions, EndpointConfiguration configuration)
         /// XxxBinding(EndpointConfiguration configuration)
+        /// </para>
         /// </remarks>
         [DataMember(IsRequired = true, EmitDefaultValue = false, Order = 1)]
-        public string TypeName
-        {
-            get { return m_typeName; }
-            set { m_typeName = value; }
-        }
+        public string TypeName { get; set; }
 
-#endregion
-#region Private Fields
-        private string m_typeName;
         #endregion
     }
     #endregion
@@ -573,7 +565,7 @@ namespace Opc.Ua
     /// A collection of TransportConfiguration objects.
     /// </summary>
     [CollectionDataContract(Name = "ListOfTransportConfiguration", Namespace = Namespaces.OpcUaConfig, ItemName = "TransportConfiguration")]
-    public partial class TransportConfigurationCollection : List<TransportConfiguration>
+    public class TransportConfigurationCollection : List<TransportConfiguration>
     {
         /// <summary>
         /// Initializes an empty collection.
@@ -619,7 +611,7 @@ namespace Opc.Ua
         private void Initialize()
         {
             SecurityMode = MessageSecurityMode.SignAndEncrypt;
-            m_securityPolicyUri = SecurityPolicies.Basic256Sha256;
+            SecurityPolicyUri = SecurityPolicies.Basic256Sha256;
         }
 
         /// <summary>
@@ -653,15 +645,8 @@ namespace Opc.Ua
         /// </summary>
         /// <value>The security policy URI.</value>
         [DataMember(IsRequired = false, Order = 2)]
-        public string SecurityPolicyUri
-        {
-            get { return m_securityPolicyUri; }
-            set { m_securityPolicyUri = value; }
-        }
+        public string SecurityPolicyUri { get; set; }
 
-#endregion
-#region Private Members
-        private string m_securityPolicyUri;
         #endregion
     }
     #endregion
@@ -671,7 +656,7 @@ namespace Opc.Ua
     /// A collection of ServerSecurityPolicy objects.
     /// </summary>
     [CollectionDataContract(Name = "ListOfServerSecurityPolicy", Namespace = Namespaces.OpcUaConfig, ItemName = "ServerSecurityPolicy")]
-    public partial class ServerSecurityPolicyCollection : List<ServerSecurityPolicy>
+    public class ServerSecurityPolicyCollection : List<ServerSecurityPolicy>
     {
         /// <summary>
         /// Initializes an empty collection.
@@ -1085,7 +1070,6 @@ namespace Opc.Ua
             set { m_suppressNonceValidationErrors = value; }
         }
 
-
         #endregion
 
         #region Non-Persistent Properties
@@ -1151,8 +1135,8 @@ namespace Opc.Ua
         public SamplingRateGroup(int start, int increment, int count)
         {
             Start = start;
-            m_increment = increment;
-            m_count = count;
+            Increment = increment;
+            Count = count;
         }
 
         /// <summary>
@@ -1161,8 +1145,8 @@ namespace Opc.Ua
         private void Initialize()
         {
             Start = 1000;
-            m_increment = 0;
-            m_count = 0;
+            Increment = 0;
+            Count = 0;
         }
 
         /// <summary>
@@ -1189,11 +1173,7 @@ namespace Opc.Ua
         /// An increment of 0 means the group only contains one sampling rate equal to the start.
         /// </remarks>
         [DataMember(IsRequired = false, Order = 2)]
-        public double Increment
-        {
-            get { return m_increment; }
-            set { m_increment = value; }
-        }
+        public double Increment { get; set; }
 
         /// <summary>
         /// The number of sampling rates in the group.
@@ -1203,16 +1183,8 @@ namespace Opc.Ua
         /// A count of 0 means there is no limit.
         /// </remarks>
         [DataMember(IsRequired = false, Order = 3)]
-        public int Count
-        {
-            get { return m_count; }
-            set { m_count = value; }
-        }
+        public int Count { get; set; }
 
-#endregion
-#region Private Members
-        private double m_increment;
-        private int m_count;
         #endregion
     }
     #endregion
@@ -1222,7 +1194,7 @@ namespace Opc.Ua
     /// A collection of SamplingRateGroup objects.
     /// </summary>
     [CollectionDataContract(Name = "ListOfSamplingRateGroup", Namespace = Namespaces.OpcUaConfig, ItemName = "SamplingRateGroup")]
-    public partial class SamplingRateGroupCollection : List<SamplingRateGroup>
+    public class SamplingRateGroupCollection : List<SamplingRateGroup>
     {
         /// <summary>
         /// Initializes an empty collection.
@@ -2460,7 +2432,7 @@ namespace Opc.Ua
         /// Initializes the object during deserialization.
         /// </summary>
         [OnDeserializing]
-        private void Initialize(StreamingContext context) => ReverseConnectClientConfiguration.Initialize();
+        private static void Initialize(StreamingContext context) => ReverseConnectClientConfiguration.Initialize();
 
         /// <summary>
         /// Sets private members to default values.
@@ -2513,7 +2485,7 @@ namespace Opc.Ua
         /// Initializes the object during deserialization.
         /// </summary>
         [OnDeserializing]
-        private void Initialize(StreamingContext context) => ReverseConnectClientEndpoint.Initialize();
+        private static void Initialize(StreamingContext context) => ReverseConnectClientEndpoint.Initialize();
 
         /// <summary>
         /// Sets private members to default values.
@@ -2586,7 +2558,7 @@ namespace Opc.Ua
         private void Initialize()
         {
             m_serverNames = new LocalizedTextCollection();
-            m_serverRegistrations = new ServerRegistrationCollection();
+            ServerRegistrations = new ServerRegistrationCollection();
         }
 
         /// <summary>
@@ -2628,16 +2600,11 @@ namespace Opc.Ua
         /// </summary>
         /// <value>The server registrations.</value>
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 4)]
-        public ServerRegistrationCollection ServerRegistrations
-        {
-            get { return m_serverRegistrations; }
-            set { m_serverRegistrations = value; }
-        }
+        public ServerRegistrationCollection ServerRegistrations { get; set; }
         #endregion
 
         #region Private Members
         private LocalizedTextCollection m_serverNames;
-        private ServerRegistrationCollection m_serverRegistrations;
         #endregion
     }
     #endregion
@@ -2688,14 +2655,17 @@ namespace Opc.Ua
         /// </summary>
         /// <value>The alternate discovery urls.</value>
         /// <remarks>
+        /// <para>
         /// These addresses are used to specify alternate paths to ther via firewalls, proxies
         /// or similar network infrastructure. If these paths are specified in the configuration
         /// file then the server will use the domain of the URL used by the client to determine
         /// which, if any, or the alternate addresses to use instead of the primary addresses.
-        ///
+        /// </para>
+        /// <para>
         /// In the ideal world the server would provide these URLs during registration but this
         /// table allows the administrator to provide the information to the discovery server
         /// directly without requiring a patch to the server.
+        /// </para>
         /// </remarks>
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 2)]
         public StringCollection AlternateDiscoveryUrls
@@ -2723,7 +2693,7 @@ namespace Opc.Ua
     /// A collection of AdditionalServerRegistrationInfo objects.
     /// </summary>
     [CollectionDataContract(Name = "ListOfServerRegistration", Namespace = Namespaces.OpcUaConfig, ItemName = "ServerRegistration")]
-    public partial class ServerRegistrationCollection : List<ServerRegistration>
+    public class ServerRegistrationCollection : List<ServerRegistration>
     {
         /// <summary>
         /// Initializes an empty collection.
@@ -2795,12 +2765,9 @@ namespace Opc.Ua
             {
                 m_storePath = value;
 
-                if (!string.IsNullOrEmpty(m_storePath))
+                if (!string.IsNullOrEmpty(m_storePath) && string.IsNullOrEmpty(m_storeType))
                 {
-                    if (string.IsNullOrEmpty(m_storeType))
-                    {
-                        m_storeType = CertificateStoreIdentifier.DetermineStoreType(m_storePath);
-                    }
+                    m_storeType = CertificateStoreIdentifier.DetermineStoreType(m_storePath);
                 }
             }
         }
@@ -2936,7 +2903,6 @@ namespace Opc.Ua
             m_validationOptions = validationOptions;
         }
 
-
         /// <summary>
         /// Initializes the identifier with the raw data from a certificate.
         /// </summary>
@@ -2995,12 +2961,9 @@ namespace Opc.Ua
             {
                 m_storePath = value;
 
-                if (!string.IsNullOrEmpty(m_storePath))
+                if (!string.IsNullOrEmpty(m_storePath) && string.IsNullOrEmpty(m_storeType))
                 {
-                    if (string.IsNullOrEmpty(m_storeType))
-                    {
-                        m_storeType = CertificateStoreIdentifier.DetermineStoreType(m_storePath);
-                    }
+                    m_storeType = CertificateStoreIdentifier.DetermineStoreType(m_storePath);
                 }
             }
         }
@@ -3042,13 +3005,16 @@ namespace Opc.Ua
         /// <item>DC domainComponent</item>
         /// <item>UID userid</item>
         /// </list>
+        /// <para>
         /// This notation is designed to be convenient for common forms of name. This section gives a few
         /// examples of distinguished names written using this notation. First is a name containing three relative
         /// distinguished names (RDNs):
-        /// <code>CN=Steve Kille,O=Isode Limited,C=GB</code>
-        ///
+        /// <c>CN=Steve Kille,O=Isode Limited,C=GB</c>
+        /// </para>
+        /// <para>
         /// RFC 3280 Internet X.509 Public Key Infrastructure, April 2002
         /// RFC 2253 LADPv3 Distinguished Names, December 1997
+        /// </para>
         /// </remarks>
         /// <seealso cref="System.Security.Cryptography.X509Certificates.X500DistinguishedName"/>
         /// <seealso cref="System.Security.Cryptography.AsnEncodedData"/>
@@ -3067,12 +3033,9 @@ namespace Opc.Ua
 
             set
             {
-                if (m_certificate != null && !string.IsNullOrEmpty(value))
+                if (m_certificate != null && !string.IsNullOrEmpty(value) && m_certificate.Subject != value)
                 {
-                    if (m_certificate.Subject != value)
-                    {
-                        throw new ArgumentException("SubjectName does not match the SubjectName of the current certificate.");
-                    }
+                    throw new ArgumentException("SubjectName does not match the SubjectName of the current certificate.");
                 }
 
                 m_subjectName = value;
@@ -3099,12 +3062,9 @@ namespace Opc.Ua
 
             set
             {
-                if (m_certificate != null)
+                if (m_certificate != null && !string.IsNullOrEmpty(value) && m_certificate.Thumbprint != value)
                 {
-                    if (!string.IsNullOrEmpty(value) && m_certificate.Thumbprint != value)
-                    {
-                        throw new ArgumentException("Thumbprint does not match the thumbprint of the current certificate.");
-                    }
+                    throw new ArgumentException("Thumbprint does not match the thumbprint of the current certificate.");
                 }
 
                 m_thumbprint = value;
@@ -3237,14 +3197,7 @@ namespace Opc.Ua
 
             set
             {
-                if (value == null)
-                {
-                    m_knownHosts = new StringCollection();
-                }
-                else
-                {
-                    m_knownHosts = value;
-                }
+                m_knownHosts = value ?? new StringCollection();
             }
         }
 
@@ -3261,14 +3214,7 @@ namespace Opc.Ua
 
             private set
             {
-                if (value == null)
-                {
-                    m_endpoints = new List<ConfiguredEndpoint>();
-                }
-                else
-                {
-                    m_endpoints = value;
-                }
+                m_endpoints = value ?? new List<ConfiguredEndpoint>();
 
                 foreach (ConfiguredEndpoint endpoint in m_endpoints)
                 {
@@ -3360,14 +3306,7 @@ namespace Opc.Ua
 
             private set
             {
-                if (value == null)
-                {
-                    m_description = new EndpointDescription();
-                }
-                else
-                {
-                    m_description = value;
-                }
+                m_description = value ?? new EndpointDescription();
             }
         }
 
@@ -3508,7 +3447,7 @@ namespace Opc.Ua
     /// Stores the reverse connect information for an endpoint.
     /// </summary>
     [DataContract(Namespace = Namespaces.OpcUaConfig)]
-    public partial class ReverseConnectEndpoint
+    public class ReverseConnectEndpoint
     {
         #region Constructors
         /// <summary>
@@ -3531,8 +3470,8 @@ namespace Opc.Ua
         private void Initialize()
         {
             Enabled = false;
-            m_serverUri = null;
-            m_thumbprint = null;
+            ServerUri = null;
+            Thumbprint = null;
         }
         #endregion
 
@@ -3547,27 +3486,15 @@ namespace Opc.Ua
         /// The server Uri of the endpoint.
         /// </summary>
         [DataMember(Name = "ServerUri", Order = 2, IsRequired = false)]
-        public string ServerUri
-        {
-            get { return m_serverUri; }
-            set { m_serverUri = value; }
-        }
+        public string ServerUri { get; set; }
 
         /// <summary>
         /// The thumbprint of the certificate which contains
         /// the server Uri.
         /// </summary>
         [DataMember(Name = "Thumbprint", Order = 3, IsRequired = false)]
-        public string Thumbprint
-        {
-            get { return m_thumbprint; }
-            set { m_thumbprint = value; }
-        }
+        public string Thumbprint { get; set; }
 
-#endregion
-#region Private Fields
-        private string m_serverUri;
-        private string m_thumbprint;
         #endregion
     }
     #endregion

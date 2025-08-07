@@ -125,8 +125,6 @@ namespace Opc.Ua
 
                         indexes[jj] = 0;
                     }
-
-
                 }
                 return array;
             }
@@ -150,7 +148,6 @@ namespace Opc.Ua
             {
                 return true;
             }
-
 
             if (obj is Matrix matrix)
             {
@@ -269,8 +266,6 @@ namespace Opc.Ua
         }
 
 #endregion
-#region Private Fields
-        #endregion
 
         #region Validation Methods
         /// <summary>
@@ -391,7 +386,7 @@ namespace Opc.Ua
                         if (!valid)
                         {
                             return (valid, 0);
-                        };
+                        }
                     }
                     checked
                     {
@@ -418,4 +413,3 @@ namespace Opc.Ua
         #endregion
     }
 }
-

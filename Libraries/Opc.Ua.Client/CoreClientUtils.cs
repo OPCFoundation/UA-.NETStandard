@@ -246,12 +246,9 @@ namespace Opc.Ua.Client
                             }
                         }
                     }
-                    else
+                    else if (endpoint.SecurityMode != MessageSecurityMode.None)
                     {
-                        if (endpoint.SecurityMode != MessageSecurityMode.None)
-                        {
-                            continue;
-                        }
+                        continue;
                     }
 
                     // pick the first available endpoint by default.
@@ -259,7 +256,6 @@ namespace Opc.Ua.Client
                     {
                         selectedEndpoint = endpoint;
                     }
-
 
                     //Select endpoint if it has a higher calculated security level, than the previously selected one
                     if (SecuredApplication.CalculateSecurityLevel(endpoint.SecurityMode, endpoint.SecurityPolicyUri)
@@ -286,12 +282,9 @@ namespace Opc.Ua.Client
         public static Uri GetDiscoveryUrl(string discoveryUrl)
         {
             // needs to add the '/discovery' back onto non-UA TCP URLs.
-            if (Utils.IsUriHttpRelatedScheme(discoveryUrl))
+            if (Utils.IsUriHttpRelatedScheme(discoveryUrl) && !discoveryUrl.EndsWith(ConfiguredEndpoint.DiscoverySuffix, StringComparison.OrdinalIgnoreCase))
             {
-                if (!discoveryUrl.EndsWith(ConfiguredEndpoint.DiscoverySuffix, StringComparison.OrdinalIgnoreCase))
-                {
-                    discoveryUrl += ConfiguredEndpoint.DiscoverySuffix;
-                }
+                discoveryUrl += ConfiguredEndpoint.DiscoverySuffix;
             }
 
             // parse the selected URL.

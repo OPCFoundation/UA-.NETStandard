@@ -184,17 +184,16 @@ namespace Opc.Ua
         {
             if (IsEnabled())
             {
-                EventName = EventName ?? string.Empty;
-                FormattedMessage = FormattedMessage ?? string.Empty;
+                EventName ??= string.Empty;
+                FormattedMessage ??= string.Empty;
                 WriteEvent(id, eventId, EventName, FormattedMessage);
             }
         }
 
-
         [NonEvent]
         private LogLevel GetDefaultLevel()
         {
-            EventKeywords allMessageKeywords = Keywords.FormattedMessage;
+            const EventKeywords allMessageKeywords = Keywords.FormattedMessage;
 
             if (IsEnabled(EventLevel.Verbose, allMessageKeywords))
             {

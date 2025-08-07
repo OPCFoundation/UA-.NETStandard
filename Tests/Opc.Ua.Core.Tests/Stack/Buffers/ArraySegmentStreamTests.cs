@@ -36,7 +36,6 @@ using Opc.Ua.Bindings;
 
 namespace Opc.Ua.Buffers.Tests
 {
-
     /// <summary>
     /// Tests for <see cref="ArrayPoolBufferWriter{T}"/> where T is <see cref="byte"/>.
     /// </summary>
@@ -148,7 +147,6 @@ namespace Opc.Ua.Buffers.Tests
             var bufferManager = new BufferManager(nameof(ArraySegmentStreamWhenConstructedWithDefaultOptionsShouldNotThrow), defaultBufferSize);
             using (var writer = new ArraySegmentStream(bufferManager))
             {
-
                 // Act
                 for (int i = 0; i <= byte.MaxValue; i++)
                 {

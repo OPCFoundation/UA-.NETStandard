@@ -35,7 +35,7 @@ namespace Opc.Ua
     /// <br/></para>
     /// </remarks>
     [DataContract(Namespace = Namespaces.OpcUaXsd)]
-    public partial struct Variant : ICloneable, IFormattable, IEquatable<Variant>
+    public struct Variant : ICloneable, IFormattable, IEquatable<Variant>
     {
         #region Constructors
         /// <summary>
@@ -774,7 +774,7 @@ namespace Opc.Ua
         /// The value stored within the Variant object.
         /// </remarks>
         [DataMember(Name = "Value", Order = 1)]
-        private XmlElement XmlEncodedValue
+        internal XmlElement XmlEncodedValue
         {
             get
             {
@@ -878,7 +878,7 @@ namespace Opc.Ua
         /// <summary>
         /// Append a ByteString as a hex string.
         /// </summary>
-        private void AppendByteString(StringBuilder buffer, byte[] bytes, IFormatProvider formatProvider)
+        private static void AppendByteString(StringBuilder buffer, byte[] bytes, IFormatProvider formatProvider)
         {
             if (bytes != null)
             {
@@ -909,7 +909,7 @@ namespace Opc.Ua
             if (m_typeInfo.BuiltInType == BuiltInType.ByteString && m_typeInfo.ValueRank < 0)
             {
                 byte[] bytes = (byte[])value;
-                AppendByteString(buffer, bytes, formatProvider);
+                Variant.AppendByteString(buffer, bytes, formatProvider);
                 return;
             }
 
@@ -932,14 +932,14 @@ namespace Opc.Ua
                     if (array.Length > 0)
                     {
                         byte[] bytes = (byte[])array.GetValue(0);
-                        AppendByteString(buffer, bytes, formatProvider);
+                        Variant.AppendByteString(buffer, bytes, formatProvider);
                     }
 
                     for (int ii = 1; ii < array.Length; ii++)
                     {
                         buffer.Append('|');
                         byte[] bytes = (byte[])array.GetValue(ii);
-                        AppendByteString(buffer, bytes, formatProvider);
+                        Variant.AppendByteString(buffer, bytes, formatProvider);
                     }
                 }
                 else
@@ -1551,14 +1551,7 @@ namespace Opc.Ua
         /// </summary>
         public bool Equals(Variant other)
         {
-            Variant? variant = other;
-
-            if (variant != null)
-            {
-                return Utils.IsEqual(m_value, variant.Value.m_value);
-            }
-
-            return false;
+            return Utils.IsEqual(m_value, other.m_value);
         }
         #endregion
 
@@ -2301,7 +2294,6 @@ namespace Opc.Ua
             {
                 // handle special types that can be converted to something the variant supports.
                 case BuiltInType.Null:
-                {
                     // check for enumerated value.
                     if (value.GetType().GetTypeInfo().IsEnum)
                     {
@@ -2321,11 +2313,9 @@ namespace Opc.Ua
                     throw new ServiceResultException(
                         StatusCodes.BadNotSupported,
                         Utils.Format("The type '{0}' cannot be stored in a Variant object.", value.GetType().FullName));
-                }
 
                 // convert Guids to Uuids.
                 case BuiltInType.Guid:
-                {
                     var guid = value as Guid?;
 
                     if (guid != null)
@@ -2336,11 +2326,9 @@ namespace Opc.Ua
 
                     m_value = value;
                     return;
-                }
 
                 // convert encodeables to extension objects.
                 case BuiltInType.ExtensionObject:
-                {
                     if (value is IEncodeable encodeable)
                     {
                         m_value = new ExtensionObject(encodeable);
@@ -2349,22 +2337,17 @@ namespace Opc.Ua
 
                     m_value = value;
                     return;
-                }
 
                 // convert encodeables to extension objects.
                 case BuiltInType.Variant:
-                {
                     m_value = ((Variant)value).Value;
                     m_typeInfo = TypeInfo.Construct(m_value);
                     return;
-                }
 
                 // just save the value.
                 default:
-                {
                     m_value = value;
                     return;
-                }
             }
         }
 
@@ -2402,7 +2385,6 @@ namespace Opc.Ua
 
                 // convert Guids to Uuids.
                 case BuiltInType.Guid:
-                {
                     if (array is Guid[] guids)
                     {
                         Set(guids);
@@ -2411,7 +2393,6 @@ namespace Opc.Ua
 
                     m_value = array;
                     return;
-                }
 
                 // convert encodeables to extension objects.
                 case BuiltInType.ExtensionObject:
@@ -2455,10 +2436,8 @@ namespace Opc.Ua
 
                 // just save the value.
                 default:
-                {
                     m_value = array;
                     return;
-                }
             }
         }
 
@@ -2473,13 +2452,10 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < value.Count; ii++)
             {
-                if (typeInfo.BuiltInType == BuiltInType.ExtensionObject)
+                if (typeInfo.BuiltInType == BuiltInType.ExtensionObject && value[ii] is IEncodeable encodeable)
                 {
-                    if (value[ii] is IEncodeable encodeable)
-                    {
-                        array.SetValue(new ExtensionObject(encodeable), ii);
-                        continue;
-                    }
+                    array.SetValue(new ExtensionObject(encodeable), ii);
+                    continue;
                 }
 
                 array.SetValue(value[ii], ii);
@@ -2564,7 +2540,7 @@ namespace Opc.Ua
     /// A collection of Variant objects.
     /// </summary>
     [CollectionDataContract(Name = "ListOfVariant", Namespace = Namespaces.OpcUaXsd, ItemName = "Variant")]
-    public partial class VariantCollection : List<Variant>, ICloneable
+    public class VariantCollection : List<Variant>, ICloneable
     {
         /// <summary>
         /// Initializes an empty collection.

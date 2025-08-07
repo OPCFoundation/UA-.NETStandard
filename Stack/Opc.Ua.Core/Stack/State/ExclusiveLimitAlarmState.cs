@@ -70,34 +70,24 @@ namespace Opc.Ua
             switch (limit)
             {
                 case LimitAlarmStates.HighHigh:
-                {
                     this.LimitState.SetState(context, Objects.ExclusiveLimitStateMachineType_HighHigh);
                     break;
-                }
 
                 case LimitAlarmStates.High:
-                {
                     this.LimitState.SetState(context, Objects.ExclusiveLimitStateMachineType_High);
                     break;
-                }
 
                 case LimitAlarmStates.Low:
-                {
                     this.LimitState.SetState(context, Objects.ExclusiveLimitStateMachineType_Low);
                     break;
-                }
 
                 case LimitAlarmStates.LowLow:
-                {
                     this.LimitState.SetState(context, Objects.ExclusiveLimitStateMachineType_LowLow);
                     break;
-                }
 
                 default:
-                {
                     this.LimitState.SetState(context, 0);
                     break;
-                }
             }
 
             SetActiveEffectiveSubState(context, this.LimitState.CurrentState.Value, DateTime.UtcNow);

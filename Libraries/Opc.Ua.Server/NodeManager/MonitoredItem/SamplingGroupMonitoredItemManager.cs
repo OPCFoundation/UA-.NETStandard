@@ -43,7 +43,6 @@ namespace Opc.Ua.Server
             IServerInternal server,
             ApplicationConfiguration configuration)
         {
-
             m_samplingGroupManager = new SamplingGroupManager(
                 server,
                 nodeManager,
@@ -52,13 +51,13 @@ namespace Opc.Ua.Server
                 configuration.ServerConfiguration.AvailableSamplingRates);
 
             m_nodeManager = nodeManager;
-            m_monitoredNodes = new NodeIdDictionary<MonitoredNode2>();
-            m_monitoredItems = new ConcurrentDictionary<uint, IMonitoredItem>();
+            MonitoredNodes = new NodeIdDictionary<MonitoredNode2>();
+            MonitoredItems = new ConcurrentDictionary<uint, IMonitoredItem>();
         }
         /// <inheritdoc/>
-        public NodeIdDictionary<MonitoredNode2> MonitoredNodes => m_monitoredNodes;
+        public NodeIdDictionary<MonitoredNode2> MonitoredNodes { get; }
         /// <inheritdoc/>
-        public ConcurrentDictionary<uint, IMonitoredItem> MonitoredItems => m_monitoredItems;
+        public ConcurrentDictionary<uint, IMonitoredItem> MonitoredItems { get; }
 
         /// <inheritdoc/>
         public IMonitoredItem CreateMonitoredItem(
@@ -99,7 +98,7 @@ namespace Opc.Ua.Server
                 createDurable);
 
             // save the monitored item.
-            m_monitoredItems.AddOrUpdate(monitoredItemId, monitoredItem, (key, oldValue) => monitoredItem);
+            MonitoredItems.AddOrUpdate(monitoredItemId, monitoredItem, (key, oldValue) => monitoredItem);
 
             return monitoredItem;
         }
@@ -134,7 +133,7 @@ namespace Opc.Ua.Server
             // validate monitored item.
             IMonitoredItem existingMonitoredItem = null;
 
-            if (!m_monitoredItems.TryGetValue(monitoredItem.Id, out existingMonitoredItem))
+            if (!MonitoredItems.TryGetValue(monitoredItem.Id, out existingMonitoredItem))
             {
                 return StatusCodes.BadMonitoredItemIdInvalid;
             }
@@ -148,7 +147,7 @@ namespace Opc.Ua.Server
             m_samplingGroupManager.StopMonitoring((MonitoredItem)monitoredItem);
 
             // remove association with the group.
-            m_monitoredItems.TryRemove(monitoredItem.Id, out _);
+            MonitoredItems.TryRemove(monitoredItem.Id, out _);
 
             // delete successful.
             return StatusCodes.Good;
@@ -167,7 +166,7 @@ namespace Opc.Ua.Server
             // validate monitored item.
             IMonitoredItem existingMonitoredItem = null;
 
-            if (!m_monitoredItems.TryGetValue(monitoredItem.Id, out existingMonitoredItem))
+            if (!MonitoredItems.TryGetValue(monitoredItem.Id, out existingMonitoredItem))
             {
                 return StatusCodes.BadMonitoredItemIdInvalid;
             }
@@ -192,7 +191,7 @@ namespace Opc.Ua.Server
             var datachangeItem = monitoredItem as MonitoredItem;
             IMonitoredItem existingMonitoredItem;
 
-            if (!m_monitoredItems.TryGetValue(monitoredItem.Id, out existingMonitoredItem))
+            if (!MonitoredItems.TryGetValue(monitoredItem.Id, out existingMonitoredItem))
             {
                 return (StatusCodes.BadMonitoredItemIdInvalid, null);
             }
@@ -251,7 +250,7 @@ namespace Opc.Ua.Server
                 );
 
             // save monitored item.
-            m_monitoredItems.TryAdd(monitoredItem.Id, monitoredItem);
+            MonitoredItems.TryAdd(monitoredItem.Id, monitoredItem);
 
             return true;
         }
@@ -264,18 +263,18 @@ namespace Opc.Ua.Server
             if (unsubscribe)
             {
                 // check for existing monitored node.
-                if (!m_monitoredNodes.TryGetValue(source.NodeId, out monitoredNode))
+                if (!MonitoredNodes.TryGetValue(source.NodeId, out monitoredNode))
                 {
                     return (null, StatusCodes.BadNodeIdUnknown);
                 }
 
                 monitoredNode.Remove(monitoredItem);
-                m_monitoredItems.TryRemove(monitoredItem.Id, out _);
+                MonitoredItems.TryRemove(monitoredItem.Id, out _);
 
                 // check if node is no longer being monitored.
                 if (!monitoredNode.HasMonitoredItems)
                 {
-                    m_monitoredNodes.Remove(source.NodeId);
+                    MonitoredNodes.Remove(source.NodeId);
                 }
 
                 return (monitoredNode, ServiceResult.Good);
@@ -291,9 +290,9 @@ namespace Opc.Ua.Server
             }
 
             // check for existing monitored node.
-            if (!m_monitoredNodes.TryGetValue(source.NodeId, out monitoredNode))
+            if (!MonitoredNodes.TryGetValue(source.NodeId, out monitoredNode))
             {
-                m_monitoredNodes[source.NodeId] = monitoredNode = new MonitoredNode2(m_nodeManager, source);
+                MonitoredNodes[source.NodeId] = monitoredNode = new MonitoredNode2(m_nodeManager, source);
             }
 
             if (monitoredNode.EventMonitoredItems != null)
@@ -306,15 +305,12 @@ namespace Opc.Ua.Server
             // this links the node to specified monitored item and ensures all events
             // reported by the node are added to the monitored item's queue.
             monitoredNode.Add(monitoredItem);
-            m_monitoredItems.TryAdd(monitoredItem.Id, monitoredItem);
+            MonitoredItems.TryAdd(monitoredItem.Id, monitoredItem);
 
             return (monitoredNode, ServiceResult.Good);
         }
 
         private readonly CustomNodeManager2 m_nodeManager;
-        private readonly NodeIdDictionary<MonitoredNode2> m_monitoredNodes;
-        private readonly ConcurrentDictionary<uint, IMonitoredItem> m_monitoredItems;
         private readonly SamplingGroupManager m_samplingGroupManager;
     }
-
 }

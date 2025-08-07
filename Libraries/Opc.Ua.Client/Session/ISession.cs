@@ -936,7 +936,6 @@ namespace Opc.Ua.Client
 
         #region ManagedBrowse methods
 
-
         /// <summary>
         /// Execute browse and, if necessary, browse next in one service call.
         /// Takes care of BadNoContinuationPoint and BadInvalidContinuationPoint status codes.
@@ -976,10 +975,8 @@ namespace Opc.Ua.Client
                 CancellationToken ct = default
             );
 
-
 #endif
         #endregion ManagedBrowse methods
-
 
         #region Call Methods
         /// <summary>
@@ -1063,7 +1060,5 @@ namespace Opc.Ua.Client
         /// (if set to a value different from 0)
         /// </summary>
         Balanced
-
-
     }
 }

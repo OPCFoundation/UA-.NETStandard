@@ -47,7 +47,7 @@ namespace Opc.Ua.Client
 
         private void Initialize()
         {
-            m_id = 0;
+            Id = 0;
             m_nodeId = null;
             m_attributeId = Attributes.Value;
             m_indexRange = null;
@@ -66,12 +66,12 @@ namespace Opc.Ua.Client
         /// <summary>
         /// The identifier assigned by the server.
         /// </summary>
-        public uint Id { get => m_id; set => m_id = value; }
+        public uint Id { get; set; }
 
         /// <summary>
         /// Whether the item has been created on the server.
         /// </summary>
-        public bool Created => m_id != 0;
+        public bool Created => Id != 0;
 
         /// <summary>
         /// Any error condition associated with the monitored item.
@@ -191,7 +191,7 @@ namespace Opc.Ua.Client
 
             if (ServiceResult.IsGood(error))
             {
-                m_id = result.MonitoredItemId;
+                Id = result.MonitoredItemId;
                 m_samplingInterval = result.RevisedSamplingInterval;
                 m_queueSize = result.RevisedQueueSize;
 
@@ -279,7 +279,7 @@ namespace Opc.Ua.Client
         /// </summary>
         internal void SetDeleteResult(ServiceResult error)
         {
-            m_id = 0;
+            Id = 0;
             m_error = error;
         }
 
@@ -290,10 +290,9 @@ namespace Opc.Ua.Client
         {
             m_error = error;
         }
-        #endregion
 
-        #region Private Fields
-        private uint m_id;
+#endregion
+#region Private Fields
         private ServiceResult m_error;
         private NodeId m_nodeId;
         private uint m_attributeId;

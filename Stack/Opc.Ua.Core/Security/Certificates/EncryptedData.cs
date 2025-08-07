@@ -31,15 +31,8 @@ namespace Opc.Ua
         /// <summary>
         /// The encrypted data.
         /// </summary>
-        public byte[] Data
-        {
-            get { return m_data; }
-            set { m_data = value; }
-        }
+        public byte[] Data { get; set; }
 
-#endregion
-#region Private Members
-        private byte[] m_data;
         #endregion
     }
 }

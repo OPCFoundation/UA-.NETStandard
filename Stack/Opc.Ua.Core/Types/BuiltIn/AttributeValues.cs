@@ -153,34 +153,26 @@ namespace Opc.Ua
             switch (expectedValueRank)
             {
                 case ValueRanks.Any:
-                {
                     return true;
-                }
 
                 case ValueRanks.OneOrMoreDimensions:
-                {
                     if (actualValueRank < 0)
                     {
                         return false;
                     }
 
                     break;
-                }
 
                 case ValueRanks.ScalarOrOneDimension:
-                {
                     if (actualValueRank is not ValueRanks.Scalar and not ValueRanks.OneDimension)
                     {
                         return false;
                     }
 
                     break;
-                }
 
                 default:
-                {
                     return false;
-                }
             }
 
             return true;
@@ -204,21 +196,15 @@ namespace Opc.Ua
             }
 
             // check if one dimension required.
-            if (valueRank is ValueRanks.OneDimension or ValueRanks.ScalarOrOneDimension)
+            if (valueRank is ValueRanks.OneDimension or ValueRanks.ScalarOrOneDimension && actualArrayDimensions.Count != 1)
             {
-                if (actualArrayDimensions.Count != 1)
-                {
-                    return false;
-                }
+                return false;
             }
 
             // check number of dimensions.
-            if (valueRank != ValueRanks.OneOrMoreDimensions)
+            if (valueRank != ValueRanks.OneOrMoreDimensions && actualArrayDimensions.Count != valueRank)
             {
-                if (actualArrayDimensions.Count != valueRank)
-                {
-                    return false;
-                }
+                return false;
             }
 
             // nothing more to do if expected dimensions omitted.
@@ -265,5 +251,4 @@ namespace Opc.Ua
         /// </summary>
         public const double Continuous = 0;
     }
-
 }//namespace

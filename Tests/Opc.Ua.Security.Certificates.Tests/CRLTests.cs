@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-
 using System;
 using System.Globalization;
 using System.Runtime.InteropServices;
@@ -96,7 +95,6 @@ namespace Opc.Ua.Security.Certificates.Tests
                 .SetCAConstraint()
                 .SetECCurve(curve.Value)
                 .CreateForECDsa();
-               
             }
             // RSA Certificate
             else
@@ -131,7 +129,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             var x509Crl = new X509CRL(crlAsset.Crl);
             Assert.NotNull(x509Crl);
             TestContext.Out.WriteLine($"CRLAsset:   {x509Crl.Issuer}");
-            string crlInfo = WriteCRL(x509Crl);
+            string crlInfo = CRLTests.WriteCRL(x509Crl);
             TestContext.Out.WriteLine(crlInfo);
         }
 
@@ -148,12 +146,12 @@ namespace Opc.Ua.Security.Certificates.Tests
             byte[] serial = new byte[] { 4, 5, 6, 7 };
             var revokedarray = new RevokedCertificate(serial);
             crlBuilder.RevokedCertificates.Add(revokedarray);
-            string serstring = "45678910";
+            const string serstring = "45678910";
             var revokedstring = new RevokedCertificate(serstring);
             crlBuilder.RevokedCertificates.Add(revokedstring);
             crlBuilder.CrlExtensions.Add(X509Extensions.BuildCRLNumber(123));
             byte[] crlEncoded = crlBuilder.Encode();
-            ValidateCRL(serial, serstring, hash, crlBuilder, crlEncoded);
+            CRLTests.ValidateCRL(serial, serstring, hash, crlBuilder, crlEncoded);
         }
 
         /// <summary>
@@ -167,7 +165,7 @@ namespace Opc.Ua.Security.Certificates.Tests
                 .SetNextUpdate(DateTime.UtcNow.Date.AddDays(30));
 
             byte[] serial = new byte[] { 4, 5, 6, 7 };
-            string serstring = "123456789101";
+            const string serstring = "123456789101";
             if (!empty)
             {
                 // little endian byte array as serial number?
@@ -182,13 +180,12 @@ namespace Opc.Ua.Security.Certificates.Tests
             if (!noExtensions)
             {
                 crlBuilder.CrlExtensions.Add(X509Extensions.BuildCRLNumber(1111));
-                crlBuilder.CrlExtensions.Add(X509Extensions.BuildAuthorityKeyIdentifier(m_issuerCert));
+                crlBuilder.CrlExtensions.Add(m_issuerCert.BuildAuthorityKeyIdentifier());
             }
             IX509CRL i509Crl;
 #if ECC_SUPPORT
             if (X509PfxUtils.IsECDsaSignature(m_issuerCert))
             {
-
                 i509Crl = crlBuilder.CreateForECDsa(m_issuerCert);
             }
             else
@@ -245,12 +242,12 @@ namespace Opc.Ua.Security.Certificates.Tests
             var revokedarray = new RevokedCertificate(serial);
             crlBuilder.RevokedCertificates.Add(revokedarray);
 
-            string serstring = "709876543210";
+            const string serstring = "709876543210";
             var revokedstring = new RevokedCertificate(serstring);
             crlBuilder.RevokedCertificates.Add(revokedstring);
 
             crlBuilder.CrlExtensions.Add(X509Extensions.BuildCRLNumber(1111));
-            crlBuilder.CrlExtensions.Add(X509Extensions.BuildAuthorityKeyIdentifier(m_issuerCert));
+            crlBuilder.CrlExtensions.Add(m_issuerCert.BuildAuthorityKeyIdentifier());
 
             IX509CRL ix509Crl;
 #if ECC_SUPPORT
@@ -306,7 +303,7 @@ namespace Opc.Ua.Security.Certificates.Tests
                 RevocationDate = baseYear.AddDays(1)
             };
             crlBuilder.RevokedCertificates.Add(revokedarray);
-            string serstring = "45678910";
+            const string serstring = "45678910";
             var revokedstring = new RevokedCertificate(serstring) {
                 RevocationDate = baseYear.AddDays(1)
             };
@@ -314,7 +311,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             crlBuilder.CrlExtensions.Add(X509Extensions.BuildCRLNumber(123));
             byte[] crlEncoded = crlBuilder.Encode();
             Assert.NotNull(crlEncoded);
-            ValidateCRL(serial, serstring, hash, crlBuilder, crlEncoded);
+            CRLTests.ValidateCRL(serial, serstring, hash, crlBuilder, crlEncoded);
 
             // Generate a CRL with dates up-to 2050
             baseYear = new DateTime(2020, 1, 1, 0, 0, 0, DateTimeKind.Utc);
@@ -330,12 +327,12 @@ namespace Opc.Ua.Security.Certificates.Tests
             crlBuilder.CrlExtensions.Add(X509Extensions.BuildCRLNumber(123));
             crlEncoded = crlBuilder.Encode();
             Assert.NotNull(crlEncoded);
-            ValidateCRL(serial, serstring, hash, crlBuilder, crlEncoded);
+            CRLTests.ValidateCRL(serial, serstring, hash, crlBuilder, crlEncoded);
         }
 #endregion
 
         #region Private Methods
-        private string WriteCRL(X509CRL x509Crl)
+        private static string WriteCRL(X509CRL x509Crl)
         {
             var stringBuilder = new StringBuilder();
             stringBuilder.Append("Issuer:     ").AppendLine(x509Crl.Issuer);
@@ -359,7 +356,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             return stringBuilder.ToString();
         }
 
-        private void ValidateCRL(
+        private static void ValidateCRL(
             byte[] serial,
             string serstring,
             HashAlgorithmName hash,
@@ -388,5 +385,4 @@ namespace Opc.Ua.Security.Certificates.Tests
         private readonly NodeId m_certificateType;
         #endregion
     }
-
 }

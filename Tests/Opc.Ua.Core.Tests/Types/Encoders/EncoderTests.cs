@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2018 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -27,7 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#if ECC_SUPPORT && !NETFRAMEWORK
+#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
 #define SPAN_SUPPORT
 #endif
 
@@ -39,7 +39,6 @@ using System.Xml;
 using Newtonsoft.Json;
 using NUnit.Framework;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
-
 
 namespace Opc.Ua.Core.Tests.Types.Encoders
 {
@@ -79,6 +78,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         #region DataPointSources
         [DatapointSource]
         public int[] ArrayLength = new int[] { 1, 5, 100 };
+        private static readonly int[] value = new int[] {1, 2, 3, 4, 5 };
         #endregion
 
         #region Test Methods
@@ -205,7 +205,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         }
 
         /// <summary>
-        /// Verify encode and decode of an array of a 
+        /// Verify encode and decode of an array of a
         /// random builtin type as Variant in a DataValue.
         /// </summary>
         [Theory]
@@ -335,7 +335,6 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             PrettifyAndValidateJson(json);
         }
 
-
         /// <summary>
         /// Validate integrity of non reversible Json encoding
         /// of a builtin type array as Variant in a DataValue.
@@ -383,7 +382,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             var variant = new VariantCollection {
                 new Variant(4L),
                 new Variant("test"),
-                new Variant(new int[] {1, 2, 3, 4, 5 }),
+                new Variant(value),
                 new Variant(new long[] {1, 2, 3, 4, 5 }),
                 new Variant(new string[] {"1", "2", "3", "4", "5" }),
                 //TODO: works as expected, but the expected need to be tweaked for the Int32 result
@@ -393,7 +392,6 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             EncodeDecodeDataValue(encoderType, jsonEncodingType, BuiltInType.Variant, MemoryStreamType.ArraySegmentStream, variant);
         }
 
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2265:Do not compare Span<T> to 'null' or 'default'", Justification = "Null compare works with ReadOnlySpan<byte>")]
         private string WriteByteStringData(IEncoder encoder)
         {
             encoder.WriteByteString("ByteString1", new byte[] { 0, 1, 2, 3, 4, 5 }, 1, 3);
@@ -406,17 +404,17 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             var nullspan = new ReadOnlySpan<byte>(null);
             encoder.WriteByteString("ByteString5", nullspan);
             Assert.IsTrue(nullspan.IsEmpty);
-            Assert.IsTrue(nullspan == null);
+            Assert.IsTrue(nullspan == ReadOnlySpan<byte>.Empty);
 
             ReadOnlySpan<byte> defaultspan = default;
             encoder.WriteByteString("ByteString6", defaultspan);
             Assert.IsTrue(defaultspan.IsEmpty);
-            Assert.IsTrue(defaultspan == null);
+            Assert.IsTrue(defaultspan == ReadOnlySpan<byte>.Empty);
 
             ReadOnlySpan<byte> emptyspan = Array.Empty<byte>();
             encoder.WriteByteString("ByteString7", emptyspan);
             Assert.IsTrue(emptyspan.IsEmpty);
-            Assert.IsTrue(emptyspan != null);
+            Assert.IsTrue(emptyspan != ReadOnlySpan<byte>.Empty);
 #endif
             return encoder.CloseAndReturnText();
         }
@@ -492,7 +490,6 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 using (IEncoder encoder = new JsonEncoder(new ServiceMessageContext(), true, false, stream, true))
                 {
                     text = WriteByteStringData(encoder);
-
                 }
 
                 stream.Position = 0;
@@ -823,7 +820,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             EncodingType encoderType = encoderTypeGroup.EncoderType;
             JsonEncodingType jsonEncodingType = encoderTypeGroup.JsonEncodingType;
             Assume.That(builtInType != BuiltInType.Null);
-            int matrixDimension = 5;
+            const int matrixDimension = 5;
             int[] dimensions = new int[matrixDimension];
             SetMatrixDimensions(dimensions);
             int elements = ElementsFromDimension(dimensions);
@@ -877,7 +874,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             using (IDecoder decoder = CreateDecoder(encoderType, Context, decoderStream, typeof(DataValue)))
             {
                 // check such matrix cannot be initialized when decoding from Json format
-                // the exception is thrown while trying to construct the Matrix 
+                // the exception is thrown while trying to construct the Matrix
                 ServiceResultException sre = Assert.Throws<ServiceResultException>(
                     () => {
                         decoder.ReadDataValue("DataValue");
@@ -933,15 +930,12 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                     switch (encoderType)
                     {
                         case EncodingType.Json:
-                        {
                             // check such matrix cannot be initialized when encoded into Json format
-                            // the exception is thrown while trying to WriteStructureMatrix into the arrray 
+                            // the exception is thrown while trying to WriteStructureMatrix into the arrray
                             NUnit.Framework.Assert.Throws<ServiceResultException>(() => {
-                                    encoder.WriteArray(builtInType.ToString(), matrix, matrix.TypeInfo.ValueRank, builtInType);
-                                });
+                                encoder.WriteArray(builtInType.ToString(), matrix, matrix.TypeInfo.ValueRank, builtInType);
+                            });
                             return;
-
-                        }
                     }
                     encoder.WriteArray(builtInType.ToString(), matrix, matrix.TypeInfo.ValueRank, builtInType);
                 }
@@ -976,7 +970,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void EnsureNodeIdNullIsNotModified()
         {
-            string text1 = "[{\"Body\":{\"KeyValuePair\":{\"@xmlns\":\"http://opcfoundation.org/UA/2008/02/Types.xsd\"," +
+            const string text1 = "[{\"Body\":{\"KeyValuePair\":{\"@xmlns\":\"http://opcfoundation.org/UA/2008/02/Types.xsd\"," +
                 "\"Key\":{\"Name\":\"o\",\"NamespaceIndex\":\"0\"},\"Value\":{\"Value\":" +
                 "{\"ListOfExtensionObject\":{\"ExtensionObject\":[" +
                 "{\"Body\":{\"KeyValuePair\":{\"Key\":{\"Name\":\"stringProp\",\"NamespaceIndex\":\"0\"},\"Value\":{\"Value\":" +

@@ -157,7 +157,6 @@ namespace Opc.Ua
         {
             base.Export(context, node);
 
-
             if (node is ObjectNode objectNode)
             {
                 objectNode.EventNotifier = this.EventNotifier;
@@ -266,7 +265,6 @@ namespace Opc.Ua
             switch (attributeId)
             {
                 case Attributes.EventNotifier:
-                {
                     byte eventNotifier = m_eventNotifier;
 
                     NodeAttributeEventHandler<byte> readEventNotifier = OnReadEventNotifier;
@@ -282,7 +280,6 @@ namespace Opc.Ua
                     }
 
                     return result;
-                }
             }
 
             return base.ReadNonValueAttribute(context, attributeId, ref value);
@@ -303,7 +300,6 @@ namespace Opc.Ua
             switch (attributeId)
             {
                 case Attributes.EventNotifier:
-                {
                     byte? eventNotifierRef = value as byte?;
 
                     if (eventNotifierRef == null)
@@ -331,7 +327,6 @@ namespace Opc.Ua
                     }
 
                     return result;
-                }
             }
 
             return base.WriteNonValueAttribute(context, attributeId, value);

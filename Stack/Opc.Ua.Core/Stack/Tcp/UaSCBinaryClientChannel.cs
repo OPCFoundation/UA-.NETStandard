@@ -29,7 +29,7 @@ namespace Opc.Ua.Bindings
     {
         #region Constructors
         /// <summary>
-        /// Creates a channel for for a client.
+        /// Creates a channel for a client.
         /// </summary>
         public UaSCUaBinaryClientChannel(
             string contextId,
@@ -513,7 +513,6 @@ namespace Opc.Ua.Bindings
                 decoder.Close();
             }
 
-
             // ready to open the channel.
             State = TcpChannelState.Opening;
 
@@ -751,12 +750,9 @@ namespace Opc.Ua.Bindings
         {
             lock (DataLock)
             {
-                if (state is WriteOperation operation)
+                if (state is WriteOperation operation && ServiceResult.IsBad(result))
                 {
-                    if (ServiceResult.IsBad(result))
-                    {
-                        operation.Fault(new ServiceResult(StatusCodes.BadSecurityChecksFailed, result));
-                    }
+                    operation.Fault(new ServiceResult(StatusCodes.BadSecurityChecksFailed, result));
                 }
             }
 
@@ -824,15 +820,11 @@ namespace Opc.Ua.Bindings
                 {
                     case StatusCodes.BadRequestInterrupted:
                     case StatusCodes.BadSecureChannelClosed:
-                    {
                         break;
-                    }
 
                     default:
-                    {
                         Utils.LogWarning("ChannelId {0}: Could not gracefully close the channel. Reason={1}", ChannelId, error);
                         break;
-                    }
                 }
             }
         }
@@ -1353,7 +1345,6 @@ namespace Opc.Ua.Bindings
             public IServiceRequest Request;
         }
 
-
         /// <summary>
         /// Called when the connect operation completes.
         /// </summary>
@@ -1473,7 +1464,6 @@ namespace Opc.Ua.Bindings
             // handle the fatal error.
             ForceReconnect(error);
             return false;
-
         }
 
         /// <summary>

@@ -126,7 +126,7 @@ namespace Opc.Ua.Bindings
                     }
                 }
                 // return buffer
-                return new ArraySegment<byte>(encryptedBuffer, 0, dataToEncrypt.Count / inputBlockSize * outputBlockSize + headerToCopy.Count);
+                return new ArraySegment<byte>(encryptedBuffer, 0, (dataToEncrypt.Count / inputBlockSize * outputBlockSize) + headerToCopy.Count);
             }
         }
 
@@ -177,7 +177,7 @@ namespace Opc.Ua.Bindings
                 }
 
                 // return buffers.
-                return new ArraySegment<byte>(decryptedBuffer, 0, dataToDecrypt.Count / inputBlockSize * outputBlockSize + headerToCopy.Count);
+                return new ArraySegment<byte>(decryptedBuffer, 0, (dataToDecrypt.Count / inputBlockSize * outputBlockSize) + headerToCopy.Count);
             }
         }
     }

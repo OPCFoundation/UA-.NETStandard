@@ -70,14 +70,14 @@ namespace Opc.Ua.Client.Tests
         public ReferenceDescriptionCollection ReferenceDescriptions { get; set; }
         public ISession Session { get; protected set; }
         public OperationLimits OperationLimits { get; private set; }
-        public string UriScheme { get; private set; }
+        public string UriScheme { get; }
         public string PkiRoot { get; set; }
         public Uri ServerUrl { get; private set; }
         public int ServerFixturePort { get; set; }
         public ExpandedNodeId[] TestSetStatic { get; private set; }
         public ExpandedNodeId[] TestSetSimulation { get; private set; }
-        public ExpandedNodeId[] TestSetDataSimulation { get; private set; }
-        public ExpandedNodeId[] TestSetHistory { get; private set; }
+        public ExpandedNodeId[] TestSetDataSimulation { get; }
+        public ExpandedNodeId[] TestSetHistory { get; }
         public ClientTestFramework(string uriScheme = Utils.UriSchemeOpcTcp)
         {
             UriScheme = uriScheme;
@@ -131,8 +131,8 @@ namespace Opc.Ua.Client.Tests
                     TestContext.Out.WriteLine("Using the external Server Url {0}", customUrl);
 
                     // load custom test sets
-                    TestSetStatic = ReadCustomTestSet("TestSetStatic");
-                    TestSetSimulation = ReadCustomTestSet("TestSetSimulation");
+                    TestSetStatic = ClientTestFramework.ReadCustomTestSet("TestSetStatic");
+                    TestSetSimulation = ClientTestFramework.ReadCustomTestSet("TestSetSimulation");
                 }
                 else
                 {
@@ -163,11 +163,10 @@ namespace Opc.Ua.Client.Tests
                 if (UriScheme.StartsWith(Utils.UriSchemeHttp, StringComparison.Ordinal) ||
                     Utils.IsUriHttpsScheme(UriScheme))
                 {
-                    url = url + ConfiguredEndpoint.DiscoverySuffix;
+                    url += ConfiguredEndpoint.DiscoverySuffix;
                 }
 
                 ServerUrl = new Uri(url);
-                
             }
 
             if (SingleSession)
@@ -424,7 +423,7 @@ namespace Opc.Ua.Client.Tests
         #region Public Methods
         public void GetOperationLimits()
         {
-            var operationLimits = new OperationLimits() {
+            OperationLimits = new OperationLimits() {
                 MaxNodesPerRead = GetOperationLimitValue(VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerRead),
                 MaxNodesPerHistoryReadData = GetOperationLimitValue(VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerHistoryReadData),
                 MaxNodesPerHistoryReadEvents = GetOperationLimitValue(VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerHistoryReadEvents),
@@ -438,7 +437,6 @@ namespace Opc.Ua.Client.Tests
                 MaxNodesPerTranslateBrowsePathsToNodeIds = GetOperationLimitValue(VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerTranslateBrowsePathsToNodeIds),
                 MaxNodesPerMethodCall = GetOperationLimitValue(VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerMethodCall)
             };
-            OperationLimits = operationLimits;
         }
 
         public uint GetOperationLimitValue(NodeId nodeId)
@@ -474,7 +472,7 @@ namespace Opc.Ua.Client.Tests
         #endregion
 
         #region Private Methods
-        private ExpandedNodeId[] ReadCustomTestSet(string param)
+        private static ExpandedNodeId[] ReadCustomTestSet(string param)
         {
             // load custom test sets
             string testSetParameter = TestContext.Parameters[param];

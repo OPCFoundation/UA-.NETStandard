@@ -18,7 +18,5 @@ namespace Opc.Ua.Schema.Xml
     /// </summary>
     ///<exclude/>
     [System.Runtime.CompilerServices.CompilerGeneratedAttribute()]
-    public class NamespaceDoc
-    {
-    }
+    public class NamespaceDoc;
 }

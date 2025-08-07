@@ -10,7 +10,6 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
-
 using System;
 using System.Text;
 using System.Security.Cryptography;
@@ -39,7 +38,6 @@ namespace Opc.Ua
     {
         #region Public constants
 
-
         /// <summary>
         /// The name of the NIST P-256 curve.
         /// </summary>
@@ -61,15 +59,12 @@ namespace Opc.Ua
 
         #region Private constants
 
-
         private const string NistP256KeyParameters = "06-08-2A-86-48-CE-3D-03-01-07";
         private const string NistP384KeyParameters = "06-05-2B-81-04-00-22";
         private const string BrainpoolP256r1KeyParameters = "06-09-2B-24-03-03-02-08-01-01-07";
         private const string BrainpoolP384r1KeyParameters = "06-09-2B-24-03-03-02-08-01-01-0B";
 
         #endregion
-
-
 
         /// <summary>
         /// Returns true if the certificate is an ECC certificate.
@@ -88,9 +83,7 @@ namespace Opc.Ua
                     case SecurityPolicies.ECC_brainpoolP384r1:
                     case SecurityPolicies.ECC_curve25519:
                     case SecurityPolicies.ECC_curve448:
-                    {
                         return true;
-                    }
                 }
             }
 
@@ -111,8 +104,7 @@ namespace Opc.Ua
             }
 
             PublicKey encodedPublicKey = certificate.PublicKey;
-            string keyParameters = BitConverter.ToString(encodedPublicKey.EncodedParameters.RawData);
-            switch (keyParameters)
+            switch (BitConverter.ToString(encodedPublicKey.EncodedParameters.RawData))
             {
                 // nistP256
                 case NistP256KeyParameters: return ObjectTypeIds.EccNistP256ApplicationCertificateType;
@@ -176,38 +168,25 @@ namespace Opc.Ua
         {
             if (X509Utils.IsECDsaSignature(certificate))
             {
-                string signatureQualifier = "ECDsa";
+                const string signatureQualifier = "ECDsa";
                 PublicKey encodedPublicKey = certificate.PublicKey;
-                string keyParameters = BitConverter.ToString(encodedPublicKey.EncodedParameters.RawData);
 
                 // New values can be determined by running the dotted-decimal OID value
                 // through BitConverter.ToString(CryptoConfig.EncodeOID(dottedDecimal));
 
-                switch (keyParameters)
+                switch (BitConverter.ToString(encodedPublicKey.EncodedParameters.RawData))
                 {
                     case NistP256KeyParameters:
-                    {
-                        signatureQualifier = NistP256;
-                        break;
-                    }
+                        return NistP256;
 
                     case NistP384KeyParameters:
-                    {
-                        signatureQualifier = NistP384;
-                        break;
-                    }
+                        return NistP384;
 
                     case BrainpoolP256r1KeyParameters:
-                    {
-                        signatureQualifier = BrainpoolP256r1;
-                        break;
-                    }
+                        return BrainpoolP256r1;
 
                     case BrainpoolP384r1KeyParameters:
-                    {
-                        signatureQualifier = BrainpoolP384r1;
-                        break;
-                    }
+                        return BrainpoolP384r1;
                 }
                 return signatureQualifier;
             }
@@ -293,37 +272,27 @@ namespace Opc.Ua
             switch (keyParameters)
             {
                 case NistP256KeyParameters:
-                {
                     ecParameters.Curve = ECCurve.NamedCurves.nistP256;
                     securityPolicyUris = new string[] { SecurityPolicies.ECC_nistP256 };
                     break;
-                }
 
                 case NistP384KeyParameters:
-                {
                     ecParameters.Curve = ECCurve.NamedCurves.nistP384;
                     securityPolicyUris = new string[] { SecurityPolicies.ECC_nistP384, SecurityPolicies.ECC_nistP256 };
                     break;
-                }
 
                 case BrainpoolP256r1KeyParameters:
-                {
                     ecParameters.Curve = ECCurve.NamedCurves.brainpoolP256r1;
                     securityPolicyUris = new string[] { SecurityPolicies.ECC_brainpoolP256r1 };
                     break;
-                }
 
                 case BrainpoolP384r1KeyParameters:
-                {
                     ecParameters.Curve = ECCurve.NamedCurves.brainpoolP384r1;
                     securityPolicyUris = new string[] { SecurityPolicies.ECC_brainpoolP384r1, SecurityPolicies.ECC_brainpoolP256r1 };
                     break;
-                }
 
                 default:
-                {
                     throw new NotImplementedException(keyParameters);
-                }
             }
 
             return ECDsa.Create(ecParameters);
@@ -365,23 +334,17 @@ namespace Opc.Ua
             {
                 case SecurityPolicies.ECC_nistP256:
                 case SecurityPolicies.ECC_brainpoolP256r1:
-                {
                     return HashAlgorithmName.SHA256;
-                }
 
                 case SecurityPolicies.ECC_nistP384:
                 case SecurityPolicies.ECC_brainpoolP384r1:
-                {
                     return HashAlgorithmName.SHA384;
-                }
 
                 case SecurityPolicies.None:
                 case SecurityPolicies.ECC_curve25519:
                 case SecurityPolicies.ECC_curve448:
                 default:
-                {
                     return HashAlgorithmName.SHA256;
-                }
             }
         }
 
@@ -765,7 +728,6 @@ namespace Opc.Ua
         }
 #endif
 
-
         /// <summary>
         /// Decrypts the specified data using the provided encrypting key and initialization vector (IV).
         /// </summary>
@@ -839,9 +801,7 @@ namespace Opc.Ua
             return new ArraySegment<byte>(dataToDecrypt, offset, count - paddingSize);
         }
 
-
         private static readonly byte[] s_Label = Encoding.UTF8.GetBytes("opcua-secret");
-
 
         /// <summary>
         /// Creates the encrypting key and initialization vector (IV) for Elliptic Curve Cryptography (ECC) encryption or decryption.
@@ -868,27 +828,21 @@ namespace Opc.Ua
             {
                 case SecurityPolicies.ECC_nistP256:
                 case SecurityPolicies.ECC_brainpoolP256r1:
-                {
                     encryptingKeySize = 16;
                     break;
-                }
 
                 case SecurityPolicies.ECC_nistP384:
                 case SecurityPolicies.ECC_brainpoolP384r1:
-                {
                     encryptingKeySize = 32;
                     algorithmName = HashAlgorithmName.SHA384;
                     break;
-                }
 
                 case SecurityPolicies.ECC_curve25519:
                 case SecurityPolicies.ECC_curve448:
-                {
                     encryptingKeySize = 32;
                     blockSize = 12;
                     algorithmName = HashAlgorithmName.SHA256;
                     break;
-                }
             }
 
             encryptingKey = new byte[encryptingKeySize];
@@ -1017,10 +971,8 @@ namespace Opc.Ua
             {
                 case SecurityPolicies.ECC_nistP384:
                 case SecurityPolicies.ECC_brainpoolP384r1:
-                {
                     signatureAlgorithm = HashAlgorithmName.SHA384;
                     break;
-                }
             }
 
             var dataToSign = new ArraySegment<byte>(message, 0, message.Length - signatureLength);
@@ -1074,10 +1026,8 @@ namespace Opc.Ua
                 {
                     case SecurityPolicies.ECC_nistP384:
                     case SecurityPolicies.ECC_brainpoolP384r1:
-                    {
                         signatureAlgorithm = HashAlgorithmName.SHA384;
                         break;
-                    }
                 }
 
                 // extract the send certificate and any chain.
@@ -1402,23 +1352,19 @@ namespace Opc.Ua
             {
                 case SecurityPolicies.ECC_nistP256:
                 case SecurityPolicies.ECC_brainpoolP256r1:
-                {
                     return HashAlgorithmName.SHA256;
-                }
+
 
                 case SecurityPolicies.ECC_nistP384:
                 case SecurityPolicies.ECC_brainpoolP384r1:
-                {
                     return HashAlgorithmName.SHA384;
-                }
+
 
                 case SecurityPolicies.None:
                 case SecurityPolicies.ECC_curve25519:
                 case SecurityPolicies.ECC_curve448:
                 default:
-                {
                     return HashAlgorithmName.SHA256;
-                }
             }
         }
 

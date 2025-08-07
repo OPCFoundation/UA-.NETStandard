@@ -161,12 +161,9 @@ namespace Opc.Ua
                     return false;
                 }
             }
-            else
+            else if (BrowseDirection == BrowseDirection.Inverse)
             {
-                if (BrowseDirection == BrowseDirection.Inverse)
-                {
-                    return false;
-                }
+                return false;
             }
 
             // check for no filter or exact match.
@@ -176,12 +173,9 @@ namespace Opc.Ua
             }
 
             // check subtypes if possible.
-            if (IncludeSubtypes && SystemContext != null)
+            if (IncludeSubtypes && SystemContext != null && SystemContext.TypeTable.IsTypeOf(referenceType, ReferenceType))
             {
-                if (SystemContext.TypeTable.IsTypeOf(referenceType, ReferenceType))
-                {
-                    return true;
-                }
+                return true;
             }
 
             return false;
@@ -209,12 +203,9 @@ namespace Opc.Ua
             lock (DataLock)
             {
                 // do not return add target unless the browse name matches.
-                if (!QualifiedName.IsNull(BrowseName))
+                if (!QualifiedName.IsNull(BrowseName) && target.BrowseName != BrowseName)
                 {
-                    if (target.BrowseName != BrowseName)
-                    {
-                        return;
-                    }
+                    return;
                 }
 
                 m_references.Add(new NodeStateReference(referenceTypeId, isInverse, target));
@@ -296,8 +287,8 @@ namespace Opc.Ua
         public NodeStateReference(NodeId referenceTypeId, bool isInverse, NodeState target)
         {
             ReferenceTypeId = referenceTypeId;
-            m_isInverse = isInverse;
-            m_targetId = target.NodeId;
+            IsInverse = isInverse;
+            TargetId = target.NodeId;
             Target = target;
         }
 
@@ -307,8 +298,8 @@ namespace Opc.Ua
         public NodeStateReference(NodeId referenceTypeId, bool isInverse, ExpandedNodeId targetId)
         {
             ReferenceTypeId = referenceTypeId;
-            m_isInverse = isInverse;
-            m_targetId = targetId;
+            IsInverse = isInverse;
+            TargetId = targetId;
             Target = null;
         }
         #endregion
@@ -325,21 +316,11 @@ namespace Opc.Ua
         public NodeId ReferenceTypeId { get; }
 
         /// <inheritdoc/>
-        public bool IsInverse
-        {
-            get { return m_isInverse; }
-        }
+        public bool IsInverse { get; }
 
         /// <inheritdoc/>
-        public ExpandedNodeId TargetId
-        {
-            get { return m_targetId; }
-        }
+        public ExpandedNodeId TargetId { get; }
 
-#endregion
-#region Private Fields
-        private readonly bool m_isInverse;
-        private readonly ExpandedNodeId m_targetId;
         #endregion
     }
     #endregion

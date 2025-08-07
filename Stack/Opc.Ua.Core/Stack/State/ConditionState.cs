@@ -211,14 +211,8 @@ namespace Opc.Ua
         /// <returns></returns>
         public Dictionary<string, ConditionState> GetBranches()
         {
-            if (m_branches == null)
-            {
-                m_branches = new Dictionary<string, ConditionState>();
-            }
-
-            return m_branches;
+            return m_branches ??= new Dictionary<string, ConditionState>();
         }
-
 
         /// <summary>
         /// Finds an event, whether it is the original event, or a branch
@@ -227,18 +221,14 @@ namespace Opc.Ua
         /// <returns>ConditionState branch if it exists</returns>
         public virtual ConditionState GetEventByEventId(byte[] eventId)
         {
-            ConditionState alarm = null;
-
             if (this.EventId.Value.SequenceEqual(eventId))
             {
-                alarm = this;
+                return this;
             }
             else
             {
-                alarm = GetBranch(eventId);
+                return GetBranch(eventId);
             }
-
-            return alarm;
         }
 
         /// <summary>
@@ -301,7 +291,6 @@ namespace Opc.Ua
             Dictionary<string, ConditionState> branches = GetBranches();
             branches.Clear();
         }
-
 
         /// <summary>
         /// Updates the value of Retain based off all effective alarm properties
@@ -373,7 +362,6 @@ namespace Opc.Ua
 
             return areEventsMonitored;
         }
-
 
         #endregion
 
@@ -784,8 +772,8 @@ namespace Opc.Ua
         /// <summary>
         /// Branches
         /// </summary>
-        protected Dictionary<string, ConditionState> m_branches = null;
-        private PropertyState<bool> m_supportsFilteredRetain = null;
+        protected Dictionary<string, ConditionState> m_branches;
+        private PropertyState<bool> m_supportsFilteredRetain;
 
         #endregion
     }

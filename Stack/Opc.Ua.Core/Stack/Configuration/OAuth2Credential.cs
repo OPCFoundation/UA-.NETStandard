@@ -21,9 +21,7 @@ namespace Opc.Ua
     }
 
     [CollectionDataContract(Name = "ListOfOAuth2ServerSettings", Namespace = Namespaces.OpcUaConfig, ItemName = "OAuth2ServerSettings")]
-    public partial class OAuth2ServerSettingsCollection : List<OAuth2ServerSettings>
-    {
-    }
+    public class OAuth2ServerSettingsCollection : List<OAuth2ServerSettings>;
 
     [DataContract(Namespace = Namespaces.OpcUaConfig)]
     public class OAuth2Credential
@@ -41,7 +39,7 @@ namespace Opc.Ua
         /// Initializes the object during deserialization.
         /// </summary>
         [OnDeserializing()]
-        private void Initialize(StreamingContext context)
+        private static void Initialize(StreamingContext context)
         {
             OAuth2Credential.Initialize();
         }
@@ -84,7 +82,7 @@ namespace Opc.Ua
     }
 
     [CollectionDataContract(Name = "ListOfOAuth2Credential", Namespace = Namespaces.OpcUaConfig, ItemName = "OAuth2Credential")]
-    public partial class OAuth2CredentialCollection : List<OAuth2Credential>
+    public class OAuth2CredentialCollection : List<OAuth2Credential>
     {
         public static OAuth2CredentialCollection Load(ApplicationConfiguration configuration)
         {
@@ -138,7 +136,7 @@ namespace Opc.Ua
 
                             if (uri == serverApplicationUri)
                             {
-                                var credential = new OAuth2Credential() {
+                                return new OAuth2Credential() {
                                     AuthorityUrl = ii.AuthorityUrl,
                                     GrantType = ii.GrantType,
                                     ClientId = ii.ClientId,
@@ -148,8 +146,6 @@ namespace Opc.Ua
                                     AuthorizationEndpoint = ii.AuthorizationEndpoint,
                                     SelectedServer = jj
                                 };
-
-                                return credential;
                             }
                         }
                     }
@@ -181,14 +177,14 @@ namespace Opc.Ua
                     // in a real system explicit host names would be used so this would have no effect.
                     string uri = ii.AuthorityUrl.Replace("localhost", System.Net.Dns.GetHostName().ToLowerInvariant(), StringComparison.Ordinal);
 
-                    if (!uri.EndsWith("/", StringComparison.Ordinal))
+                    if (!uri.EndsWith('/'))
                     {
                         uri += "/";
                     }
 
                     if (string.Equals(uri, authorityUrl, StringComparison.OrdinalIgnoreCase))
                     {
-                        var credential = new OAuth2Credential() {
+                        return new OAuth2Credential() {
                             AuthorityUrl = authorityUrl,
                             GrantType = ii.GrantType,
                             ClientId = ii.ClientId,
@@ -197,8 +193,6 @@ namespace Opc.Ua
                             TokenEndpoint = ii.TokenEndpoint,
                             AuthorizationEndpoint = ii.AuthorizationEndpoint
                         };
-
-                        return credential;
                     }
                 }
             }

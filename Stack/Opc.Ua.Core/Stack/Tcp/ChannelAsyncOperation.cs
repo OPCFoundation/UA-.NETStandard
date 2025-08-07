@@ -431,9 +431,7 @@ namespace Opc.Ua.Bindings
             {
                 if (doNotBlock)
                 {
-                    Task.Run(() => {
-                        callback(this);
-                    });
+                    Task.Run(() => callback(this));
                 }
                 else
                 {

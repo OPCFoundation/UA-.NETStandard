@@ -78,7 +78,5 @@ namespace Opc.Ua
         public SignedSoftwareCertificateCollection SoftwareCertificates { get; }
 
 #endregion
-#region Private Members
-        #endregion
     }
 }

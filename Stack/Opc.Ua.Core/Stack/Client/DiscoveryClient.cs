@@ -277,7 +277,7 @@ namespace Opc.Ua
                         discoveryEndPoint.Server.DiscoveryUrls != null)
                     {
                         discoveryEndPoint.Server.DiscoveryUrls.Clear();
-                        discoveryEndPoint.Server.DiscoveryUrls.Add(this.Endpoint.EndpointUrl.ToString());
+                        discoveryEndPoint.Server.DiscoveryUrls.Add(this.Endpoint.EndpointUrl);
                     }
                 }
             }
@@ -315,14 +315,12 @@ namespace Opc.Ua
             endpoint.Server.ApplicationUri = endpoint.EndpointUrl;
             endpoint.Server.ApplicationType = ApplicationType.DiscoveryServer;
 
-            ITransportChannel channel = CreateUaBinaryChannel(
+            return CreateUaBinaryChannel(
                 null,
                 endpoint,
                 endpointConfiguration,
                 clientCertificate,
                 messageContext);
-
-            return channel;
         }
 
         /// <summary>
@@ -344,7 +342,7 @@ namespace Opc.Ua
             endpoint.Server.ApplicationUri = endpoint.EndpointUrl;
             endpoint.Server.ApplicationType = ApplicationType.DiscoveryServer;
 
-            ITransportChannel channel = CreateUaBinaryChannel(
+            return CreateUaBinaryChannel(
                 configuration,
                 connection,
                 endpoint,
@@ -352,8 +350,6 @@ namespace Opc.Ua
                 clientCertificate,
                 null,
                 messageContext);
-
-            return channel;
         }
 
         /// <summary>
@@ -375,15 +371,13 @@ namespace Opc.Ua
             endpoint.Server.ApplicationUri = endpoint.EndpointUrl;
             endpoint.Server.ApplicationType = ApplicationType.DiscoveryServer;
 
-            ITransportChannel channel = CreateUaBinaryChannel(
+            return CreateUaBinaryChannel(
                 configuration,
                 endpoint,
                 endpointConfiguration,
                 clientCertificate,
                 null,
                 messageContext);
-
-            return channel;
         }
 
         #endregion

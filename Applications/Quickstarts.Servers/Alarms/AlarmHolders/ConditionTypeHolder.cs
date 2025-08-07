@@ -37,7 +37,6 @@ namespace Alarms
 {
     public class ConditionTypeHolder : BaseEventTypeHolder
     {
-
         protected ConditionTypeHolder(
             AlarmNodeManager alarmNodeManager,
             FolderState parent,
@@ -91,12 +90,9 @@ namespace Alarms
             alarm.ConditionSubClassName = null;
         }
 
-
         public BaseEventState FindBranch()
         {
-            BaseEventState state = null;
-
-            return state;
+            return null;
         }
 
         protected override void CreateBranch()
@@ -119,7 +115,7 @@ namespace Alarms
 
                     string postEventId = Utils.ToHexString(branch.EventId.Value);
 
-                    Log("CreateBranch", " Branch " + branchId.ToString() +
+                    Log("CreateBranch", " Branch " + branchId +
                         " EventId " + postEventId + " created, Message " + alarm.Message.Value.Text);
 
                     m_alarmController.SetBranchCount(alarm.GetBranchCount());
@@ -142,7 +138,7 @@ namespace Alarms
                 alarm.SetSeverity(SystemContext, (EventSeverity)newSeverity);
                 if (message.Length == 0)
                 {
-                    message = "Alarm Event Value = " + m_trigger.Value.ToString();
+                    message = "Alarm Event Value = " + m_trigger.Value;
                 }
 
                 alarm.Message.Value = new LocalizedText("en", message);
@@ -207,18 +203,14 @@ namespace Alarms
                     severity = AlarmDefines.HIGH_SEVERITY;
                 }
             }
-            else
+            else if (level <= AlarmDefines.BOOL_LOW_ALARM)
             {
-                if (level <= AlarmDefines.BOOL_LOW_ALARM)
-                {
-                    severity = AlarmDefines.LOW_SEVERITY;
-                }
-                // Level is High
-                else if (level >= AlarmDefines.BOOL_HIGH_ALARM)
-                {
-                    severity = AlarmDefines.HIGH_SEVERITY;
-                }
-
+                severity = AlarmDefines.LOW_SEVERITY;
+            }
+            // Level is High
+            else if (level >= AlarmDefines.BOOL_HIGH_ALARM)
+            {
+                severity = AlarmDefines.HIGH_SEVERITY;
             }
 
             return severity;
@@ -271,8 +263,6 @@ namespace Alarms
             return (ConditionState)alarm;
         }
 
-
-
         protected bool IsEvent(string caller, byte[] eventId)
         {
             bool isEvent = IsEvent(eventId);
@@ -290,7 +280,6 @@ namespace Alarms
             return " Requested Event " + Utils.ToHexString(eventId);
         }
 
-
         #endregion
 
         #region Method Handlers 
@@ -306,21 +295,18 @@ namespace Alarms
             if (enabling != alarm.EnabledState.Id.Value)
             {
                 alarm.SetEnableState(SystemContext, enabling);
-                alarm.Message.Value = enabling ? "Enabling" : "Disabling" + " alarm " + MapName;
+                alarm.Message.Value = enabling ? "Enabling" : "Disabling alarm " + MapName;
 
                 // if disabled, it will not fire
                 ReportEvent();
             }
+            else if (enabling)
+            {
+                status = StatusCodes.BadConditionAlreadyEnabled;
+            }
             else
             {
-                if (enabling)
-                {
-                    status = StatusCodes.BadConditionAlreadyEnabled;
-                }
-                else
-                {
-                    status = StatusCodes.BadConditionAlreadyDisabled;
-                }
+                status = StatusCodes.BadConditionAlreadyDisabled;
             }
 
             return status;
@@ -360,8 +346,8 @@ namespace Alarms
             {
                 canSetComment = true;
 
-                bool emptyComment = comment.Text == null || comment.Text.Length == 0;
-                bool emptyLocale = comment.Locale == null || comment.Locale.Length == 0;
+                bool emptyComment = string.IsNullOrEmpty(comment.Text);
+                bool emptyLocale = string.IsNullOrEmpty(comment.Locale);
 
                 if (emptyComment && emptyLocale)
                 {
@@ -379,7 +365,4 @@ namespace Alarms
 
         #endregion
     }
-
-
-
 }

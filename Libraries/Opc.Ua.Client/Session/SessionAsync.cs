@@ -183,7 +183,7 @@ namespace Opc.Ua.Client
                         m_endpoint.EndpointUrl.ToString(),
                         sessionName,
                         clientNonce,
-                        clientCertificateChainData != null ? clientCertificateChainData : clientCertificateData,
+                        clientCertificateChainData ?? clientCertificateData,
                         sessionTimeout,
                         (uint)MessageContext.MaxMessageSize,
                         ct).ConfigureAwait(false);
@@ -227,7 +227,7 @@ namespace Opc.Ua.Client
                 ProcessResponseAdditionalHeader(response.ResponseHeader, serverCertificate);
 
                 // create the client signature.
-                byte[] dataToSign = Utils.Append(serverCertificate != null ? serverCertificate.RawData : null, serverNonce);
+                byte[] dataToSign = Utils.Append(serverCertificate?.RawData, serverNonce);
                 SignatureData clientSignature = SecurityPolicies.Sign(m_instanceCertificate, securityPolicyUri, dataToSign);
 
                 // select the security policy for the user token.
@@ -699,16 +699,10 @@ namespace Opc.Ua.Client
                     PropertyInfo property = typeof(OperationLimits).GetProperty(operationLimitsProperties[ii]);
                     uint value = (uint)property.GetValue(configOperationLimits);
                     if (values[ii] != null &&
-                        ServiceResult.IsNotBad(errors[ii]))
+                        ServiceResult.IsNotBad(errors[ii]) && values[ii].Value is uint serverValue && serverValue > 0 &&
+                           (value == 0 || serverValue < value))
                     {
-                        if (values[ii].Value is uint serverValue)
-                        {
-                            if (serverValue > 0 &&
-                               (value == 0 || serverValue < value))
-                            {
-                                value = serverValue;
-                            }
-                        }
+                        value = serverValue;
                     }
                     property.SetValue(operationLimits, value);
                 }
@@ -943,7 +937,6 @@ namespace Opc.Ua.Client
             return values[0];
         }
 
-
         /// <inheritdoc/>
         public async Task<(DataValueCollection, IList<ServiceResult>)> ReadValuesAsync(
             IList<NodeId> nodeIds,
@@ -1089,7 +1082,6 @@ namespace Opc.Ua.Client
             uint nodeClassMask,
             CancellationToken ct = default)
         {
-
             var browseDescriptions = new BrowseDescriptionCollection();
             foreach (NodeId nodeToBrowse in nodesToBrowse)
             {
@@ -1327,7 +1319,7 @@ namespace Opc.Ua.Client
                     nodesToBrowseForPass = nodesToBrowseForNextPass;
                     nodesToBrowseForNextPass = new List<NodeId>();
 
-                    string aggregatedErrorMessage = "ManagedBrowse: in pass {0}, {1} {2} occured with a status code {3}.";
+                    const string aggregatedErrorMessage = "ManagedBrowse: in pass {0}, {1} {2} occured with a status code {3}.";
 
                     if (badCPInvalidErrorsPerPass > 0)
                     {
@@ -1350,7 +1342,6 @@ namespace Opc.Ua.Client
                     }
 
                     passCount++;
-
                 } while (nodesToBrowseForPass.Count > 0);
             }
             catch (Exception ex)
@@ -1424,7 +1415,7 @@ namespace Opc.Ua.Client
             foreach (ServiceResult error in errors)
             {
                 previousErrors.Add(new ReferenceWrapper<ServiceResult> { reference = error });
-                errorAnchors.Add(previousErrors.Last());
+                errorAnchors.Add(previousErrors[^1]);
             }
 
             var nextContinuationPoints = new ByteStringCollection();
@@ -1433,14 +1424,11 @@ namespace Opc.Ua.Client
 
             for (int ii = 0; ii < nodeIds.Count; ii++)
             {
-                if (continuationPoints[ii] != null)
+                if (continuationPoints[ii] != null && !StatusCode.IsBad(previousErrors[ii].reference.StatusCode))
                 {
-                    if (!StatusCode.IsBad(previousErrors[ii].reference.StatusCode))
-                    {
-                        nextContinuationPoints.Add(continuationPoints[ii]);
-                        nextResults.Add(previousResults[ii]);
-                        nextErrors.Add(previousErrors[ii]);
-                    }
+                    nextContinuationPoints.Add(continuationPoints[ii]);
+                    nextResults.Add(previousResults[ii]);
+                    nextErrors.Add(previousErrors[ii]);
                 }
             }
             while (nextContinuationPoints.Count > 0)
@@ -1477,17 +1465,13 @@ namespace Opc.Ua.Client
 
                 for (int ii = 0; ii < revisedContinuationPoints.Count; ii++)
                 {
-                    if (revisedContinuationPoints[ii] != null)
+                    if (revisedContinuationPoints[ii] != null && !StatusCode.IsBad(browseNextErrors[ii].StatusCode))
                     {
-                        if (!StatusCode.IsBad(browseNextErrors[ii].StatusCode))
-                        {
-                            nextContinuationPoints.Add(revisedContinuationPoints[ii]);
-                            nextResults.Add(previousResults[ii]);
-                            nextErrors.Add(previousErrors[ii]);
-                        }
+                        nextContinuationPoints.Add(revisedContinuationPoints[ii]);
+                        nextResults.Add(previousResults[ii]);
+                        nextErrors.Add(previousErrors[ii]);
                     }
                 }
-
             }
             var finalErrors = new List<ServiceResult>(errorAnchors.Count);
             foreach (ReferenceWrapper<ServiceResult> errorReference in errorAnchors)
@@ -1771,18 +1755,15 @@ namespace Opc.Ua.Client
             bool connected = Connected;
 
             // halt all background threads.
-            if (connected)
+            if (connected && m_SessionClosing != null)
             {
-                if (m_SessionClosing != null)
+                try
                 {
-                    try
-                    {
-                        m_SessionClosing(this, null);
-                    }
-                    catch (Exception e)
-                    {
-                        Utils.LogError(e, "Session: Unexpected error raising SessionClosing event.");
-                    }
+                    m_SessionClosing(this, null);
+                }
+                catch (Exception e)
+                {
+                    Utils.LogError(e, "Session: Unexpected error raising SessionClosing event.");
                 }
             }
 

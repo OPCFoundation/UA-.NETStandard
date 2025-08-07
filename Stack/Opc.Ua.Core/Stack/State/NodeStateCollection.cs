@@ -13,6 +13,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using System.Runtime.Serialization;
 using System.Xml;
@@ -67,7 +68,7 @@ namespace Opc.Ua
 
             var nodeSet = new NodeSet();
 
-            foreach (ILocalNode node in nodeTable)
+            foreach (ILocalNode node in nodeTable.OfType<ILocalNode>())
             {
                 nodeSet.Add(node, nodeTable.NamespaceUris, nodeTable.ServerUris);
             }
@@ -343,63 +344,61 @@ namespace Opc.Ua
             messageContext.Factory = context.EncodeableFactory;
 
             using (var reader = XmlReader.Create(istrm, Utils.DefaultXmlReaderSettings()))
+            using (var decoder = new XmlDecoder(null, reader, messageContext))
             {
-                using (var decoder = new XmlDecoder(null, reader, messageContext))
+                var namespaceUris = new NamespaceTable();
+
+                if (!decoder.LoadStringTable("NamespaceUris", "NamespaceUri", namespaceUris))
                 {
-                    var namespaceUris = new NamespaceTable();
-
-                    if (!decoder.LoadStringTable("NamespaceUris", "NamespaceUri", namespaceUris))
-                    {
-                        namespaceUris = null;
-                    }
-
-                    // update namespace table.
-                    if (updateTables)
-                    {
-                        if (namespaceUris != null && context.NamespaceUris != null)
-                        {
-                            for (int ii = 0; ii < namespaceUris.Count; ii++)
-                            {
-                                context.NamespaceUris.GetIndexOrAppend(namespaceUris.GetString((uint)ii));
-                            }
-                        }
-                    }
-
-                    var serverUris = new StringTable();
-
-                    if (!decoder.LoadStringTable("ServerUris", "ServerUri", context.ServerUris))
-                    {
-                        serverUris = null;
-                    }
-
-                    // update server table.
-                    if (updateTables)
-                    {
-                        if (serverUris != null && context.ServerUris != null)
-                        {
-                            for (int ii = 0; ii < serverUris.Count; ii++)
-                            {
-                                context.ServerUris.GetIndexOrAppend(serverUris.GetString((uint)ii));
-                            }
-                        }
-                    }
-
-                    // set mapping.
-                    decoder.SetMappingTables(namespaceUris, serverUris);
-
-                    decoder.PushNamespace(Namespaces.OpcUaXsd);
-
-                    var state = NodeState.LoadNode(context, decoder);
-
-                    while (state != null)
-                    {
-                        this.Add(state);
-
-                        state = NodeState.LoadNode(context, decoder);
-                    }
-
-                    decoder.Close();
+                    namespaceUris = null;
                 }
+
+                // update namespace table.
+                if (updateTables)
+                {
+                    if (namespaceUris != null && context.NamespaceUris != null)
+                    {
+                        for (int ii = 0; ii < namespaceUris.Count; ii++)
+                        {
+                            context.NamespaceUris.GetIndexOrAppend(namespaceUris.GetString((uint)ii));
+                        }
+                    }
+                }
+
+                var serverUris = new StringTable();
+
+                if (!decoder.LoadStringTable("ServerUris", "ServerUri", context.ServerUris))
+                {
+                    serverUris = null;
+                }
+
+                // update server table.
+                if (updateTables)
+                {
+                    if (serverUris != null && context.ServerUris != null)
+                    {
+                        for (int ii = 0; ii < serverUris.Count; ii++)
+                        {
+                            context.ServerUris.GetIndexOrAppend(serverUris.GetString((uint)ii));
+                        }
+                    }
+                }
+
+                // set mapping.
+                decoder.SetMappingTables(namespaceUris, serverUris);
+
+                decoder.PushNamespace(Namespaces.OpcUaXsd);
+
+                var state = NodeState.LoadNode(context, decoder);
+
+                while (state != null)
+                {
+                    this.Add(state);
+
+                    state = NodeState.LoadNode(context, decoder);
+                }
+
+                decoder.Close();
             }
         }
 
@@ -511,7 +510,6 @@ namespace Opc.Ua
             switch (nodeClass)
             {
                 case NodeClass.Variable:
-                {
                     if (context.TypeTable != null && context.TypeTable.IsTypeOf(referenceTypeId, ReferenceTypeIds.HasProperty))
                     {
                         child = new PropertyState(parent);
@@ -520,55 +518,38 @@ namespace Opc.Ua
 
                     child = new BaseDataVariableState(parent);
                     break;
-                }
 
                 case NodeClass.Object:
-                {
                     child = new BaseObjectState(parent);
                     break;
-                }
 
                 case NodeClass.Method:
-                {
                     child = new MethodState(parent);
                     break;
-                }
 
                 case NodeClass.ReferenceType:
-                {
                     child = new ReferenceTypeState();
                     break;
-                }
 
                 case NodeClass.ObjectType:
-                {
                     child = new BaseObjectTypeState();
                     break;
-                }
 
                 case NodeClass.VariableType:
-                {
                     child = new BaseDataVariableTypeState();
                     break;
-                }
 
                 case NodeClass.DataType:
-                {
                     child = new DataTypeState();
                     break;
-                }
 
                 case NodeClass.View:
-                {
                     child = new ViewState();
                     break;
-                }
 
                 default:
-                {
                     child = null;
                     break;
-                }
             }
 
             return child;

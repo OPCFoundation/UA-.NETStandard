@@ -52,7 +52,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Restore a DataChangeMonitoredItemQueue from storage
         /// </summary>
-        /// <param name="monitoredItemId">Id of the MonitoredItem owning the the queue</param>
+        /// <param name="monitoredItemId">Id of the MonitoredItem owning the queue</param>
         /// <returns>the queue</returns>
         IDataChangeMonitoredItemQueue RestoreDataChangeMonitoredItemQueue(uint monitoredItemId);
 
@@ -94,5 +94,5 @@ namespace Opc.Ua.Server
         /// The restored subscriptions
         /// </summary>
         public IEnumerable<IStoredSubscription> Subscriptions { get; set; }
-    };
+    }
 }

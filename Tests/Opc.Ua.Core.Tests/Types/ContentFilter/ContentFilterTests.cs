@@ -34,7 +34,6 @@ using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Core.Tests.Types.ContentFilter
 {
-
     public class TestFilterTarget : IFilterTarget
     {
         public object GetAttributeValue(FilterContext context, NodeId typeDefinitionId, IList<QualifiedName> relativePath, uint attributeId, Ua.NumericRange indexRange)
@@ -215,7 +214,6 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
                 loperand2.Value = new Variant(operandFirst2);
             }
 
-
             var filterElement = new ContentFilterElement {
                 FilterOperator = filterOp
             };
@@ -247,7 +245,6 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
             {
                 loperand2.Value = new Variant(operandFirst2);
             }
-
 
             var filterElement1 = new ContentFilterElement {
                 FilterOperator = filterOp1

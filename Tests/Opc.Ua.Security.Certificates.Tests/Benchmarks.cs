@@ -49,6 +49,7 @@ namespace Opc.Ua.Security.Certificates.Tests
         byte[] m_signature;
         RSA m_rsaPrivateKey;
         RSA m_rsaPublicKey;
+        private static readonly string[] domainNames = new string[] { "mypc", "mypc.opcfoundation.org", "192.168.1.100" };
 
         /// <summary>
         /// Setup variables for running benchmarks.
@@ -63,7 +64,7 @@ namespace Opc.Ua.Security.Certificates.Tests
                 .SetNotBefore(DateTime.Today.AddDays(-1))
                 .AddExtension(
                     new X509SubjectAltNameExtension("urn:opcfoundation.org:mypc",
-                    new string[] { "mypc", "mypc.opcfoundation.org", "192.168.1.100" }))
+                    domainNames))
                 .CreateForRSA();
 
             CrlBuilder crlBuilder = CrlBuilder.Create(m_issuerCert.SubjectName, HashAlgorithmName.SHA256)
@@ -72,7 +73,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             var revokedarray = new RevokedCertificate(m_certificate.SerialNumber);
             crlBuilder.RevokedCertificates.Add(revokedarray);
             crlBuilder.CrlExtensions.Add(X509Extensions.BuildCRLNumber(1));
-            crlBuilder.CrlExtensions.Add(X509Extensions.BuildAuthorityKeyIdentifier(m_issuerCert));
+            crlBuilder.CrlExtensions.Add(m_issuerCert.BuildAuthorityKeyIdentifier());
             m_issuerCrl = crlBuilder.CreateForRSA(m_issuerCert);
             m_x509Crl = new X509CRL(m_issuerCrl.RawData);
 
@@ -81,7 +82,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             m_rsaPublicKey = m_certificate.GetRSAPublicKey();
 
             // blob size for RSA padding OaepSHA256
-            int blobSize = m_rsaPublicKey.KeySize / 8 - 66;
+            int blobSize = (m_rsaPublicKey.KeySize / 8) - 66;
             m_randomByteArray = new byte[blobSize];
             random.NextBytes(m_randomByteArray);
 
@@ -100,7 +101,6 @@ namespace Opc.Ua.Security.Certificates.Tests
             m_rsaPrivateKey?.Dispose();
             m_rsaPublicKey?.Dispose();
         }
-
 
         /// <summary>
         /// Create a certificate and dispose.
@@ -216,7 +216,7 @@ namespace Opc.Ua.Security.Certificates.Tests
                 .SetNextUpdate(DateTime.UtcNow.Date.AddDays(30));
             crlBuilder.RevokedCertificates.Add(revokedarray);
             crlBuilder.CrlExtensions.Add(X509Extensions.BuildCRLNumber(1));
-            crlBuilder.CrlExtensions.Add(X509Extensions.BuildAuthorityKeyIdentifier(m_issuerCert));
+            crlBuilder.CrlExtensions.Add(m_issuerCert.BuildAuthorityKeyIdentifier());
             _ = crlBuilder.CreateForRSA(m_issuerCert);
         }
 
@@ -244,7 +244,7 @@ namespace Opc.Ua.Security.Certificates.Tests
         [Benchmark]
         public void FindExtension()
         {
-            _ = X509Extensions.FindExtension<X509BasicConstraintsExtension>(m_certificate.Extensions);
+            _ = m_certificate.Extensions.FindExtension<X509BasicConstraintsExtension>();
         }
 
         /// <summary>

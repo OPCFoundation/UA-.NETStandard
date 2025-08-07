@@ -45,7 +45,7 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
         /// <summary>
         /// Build the Subject Alternate Name.
         /// </summary>
-        public static X509Extension BuildSubjectAltNameExtension(IList<string> uris, IList<string> domainNames, IList<string> ipAddresses)
+        public static X509Extension BuildSubjectAltNameExtension(this IList<string> uris, IList<string> domainNames, IList<string> ipAddresses)
         {
             // subject alternate name
             var generalNames = new List<GeneralName>();
@@ -62,7 +62,7 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
         /// <summary>
         /// helper to build alternate name domains list for certs.
         /// </summary>
-        public static List<GeneralName> CreateSubjectAlternateNameDomains(IList<string> domainNames)
+        public static List<GeneralName> CreateSubjectAlternateNameDomains(this IList<string> domainNames)
         {
             // subject alternate name
             var generalNames = new List<GeneralName>();

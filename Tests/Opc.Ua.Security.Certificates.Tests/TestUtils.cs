@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -96,7 +95,7 @@ namespace Opc.Ua.Tests
 
         public static void ValidateSelSignedBasicConstraints(X509Certificate2 certificate)
         {
-            X509BasicConstraintsExtension basicConstraintsExtension = X509Extensions.FindExtension<X509BasicConstraintsExtension>(certificate.Extensions);
+            X509BasicConstraintsExtension basicConstraintsExtension = certificate.Extensions.FindExtension<X509BasicConstraintsExtension>();
             Assert.NotNull(basicConstraintsExtension);
             Assert.False(basicConstraintsExtension.CertificateAuthority);
             Assert.True(basicConstraintsExtension.Critical);

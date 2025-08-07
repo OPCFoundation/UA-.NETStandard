@@ -57,15 +57,12 @@ namespace Opc.Ua
             }
 
             // deadband percentage must be less than 100.
-            if ((int)DeadbandType == (int)Opc.Ua.DeadbandType.Percent)
+            if ((int)DeadbandType == (int)Opc.Ua.DeadbandType.Percent && DeadbandValue > 100)
             {
-                if (DeadbandValue > 100)
-                {
-                    return ServiceResult.Create(
-                        StatusCodes.BadDeadbandFilterInvalid,
-                        "Percentage deadband value '{0}' cannot be greater than 100.",
-                        DeadbandValue);
-                }
+                return ServiceResult.Create(
+                    StatusCodes.BadDeadbandFilterInvalid,
+                    "Percentage deadband value '{0}' cannot be greater than 100.",
+                    DeadbandValue);
             }
 
             // passed initial validation.
@@ -226,30 +223,14 @@ namespace Opc.Ua
             {
                 get
                 {
-                    if (m_selectClauseResults == null)
-                    {
-                        m_selectClauseResults = new List<ServiceResult>();
-                    }
-
-                    return m_selectClauseResults;
+                    return m_selectClauseResults ??= new List<ServiceResult>();
                 }
             }
 
             /// <summary>
             /// The results for the where clause.
             /// </summary>
-            public Opc.Ua.ContentFilter.Result WhereClauseResult
-            {
-                get
-                {
-                    return m_whereClauseResults;
-                }
-
-                internal set
-                {
-                    m_whereClauseResults = value;
-                }
-            }
+            public Opc.Ua.ContentFilter.Result WhereClauseResult { get; internal set; }
 
             /// <summary>
             /// Converts the object to an EventFilterResult.
@@ -275,9 +256,9 @@ namespace Opc.Ua
                     }
                 }
 
-                if (m_whereClauseResults != null)
+                if (WhereClauseResult != null)
                 {
-                    result.WhereClauseResult = m_whereClauseResults.ToContextFilterResult(diagnosticsMasks, stringTable);
+                    result.WhereClauseResult = WhereClauseResult.ToContextFilterResult(diagnosticsMasks, stringTable);
                 }
 
                 return result;
@@ -286,7 +267,6 @@ namespace Opc.Ua
 #endregion
 #region Private Fields
             private List<ServiceResult> m_selectClauseResults;
-            private ContentFilter.Result m_whereClauseResults;
             #endregion
         }
 

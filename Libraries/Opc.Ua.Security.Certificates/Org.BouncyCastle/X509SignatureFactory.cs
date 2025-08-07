@@ -97,7 +97,7 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
             private readonly HashAlgorithmName _hashAlgorithm;
 
             /// <summary>
-            /// Ctor for the stream calculator. 
+            /// Ctor for the stream calculator.
             /// </summary>
             /// <param name="generator">The X509SignatureGenerator to sign the digest.</param>
             /// <param name="hashAlgorithm">The hash algorithm to use for the signature.</param>

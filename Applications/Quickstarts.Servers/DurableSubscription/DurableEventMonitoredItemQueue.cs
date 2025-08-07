@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -54,7 +53,7 @@ namespace Quickstarts.Servers
         {
             IsDurable = createDurable;
             m_batchPersistor = batchPersistor;
-            m_monitoredItemId = monitoredItemId;
+            MonitoredItemId = monitoredItemId;
             QueueSize = 0;
             m_itemsInQueue = 0;
             m_enqueueBatch = new EventBatch(new List<EventFieldList>(), kBatchSize, monitoredItemId);
@@ -72,7 +71,7 @@ namespace Quickstarts.Servers
             m_dequeueBatch = queue.DequeueBatch;
             QueueSize = queue.QueueSize;
             m_itemsInQueue = 0;
-            m_monitoredItemId = queue.MonitoredItemId;
+            MonitoredItemId = queue.MonitoredItemId;
             m_batchPersistor = batchPersistor;
         }
 
@@ -81,7 +80,7 @@ namespace Quickstarts.Servers
         public bool IsDurable { get; }
 
         /// <inheritdoc/>
-        public uint MonitoredItemId => m_monitoredItemId;
+        public uint MonitoredItemId { get; }
 
         /// <inheritdoc/>
         public uint QueueSize { get; protected set; }
@@ -108,7 +107,7 @@ namespace Quickstarts.Servers
                     }
                 }
 
-                value = m_dequeueBatch.Events.First();
+                value = m_dequeueBatch.Events[0];
                 m_dequeueBatch.Events.RemoveAt(0);
                 m_itemsInQueue--;
                 HandleDequeBatching();
@@ -116,7 +115,6 @@ namespace Quickstarts.Servers
             }
             return false;
         }
-
 
         /// <inheritdoc/>
         public void Enqueue(EventFieldList value)
@@ -148,15 +146,15 @@ namespace Quickstarts.Servers
                 // Special case: if the enqueue and dequeue batch are the same only one batch exists, so no storing is needed
                 if (m_dequeueBatch == m_enqueueBatch)
                 {
-                    m_dequeueBatch = new EventBatch(m_enqueueBatch.Events, kBatchSize, m_monitoredItemId);
-                    m_enqueueBatch = new EventBatch(new List<EventFieldList>(), kBatchSize, m_monitoredItemId);
+                    m_dequeueBatch = new EventBatch(m_enqueueBatch.Events, kBatchSize, MonitoredItemId);
+                    m_enqueueBatch = new EventBatch(new List<EventFieldList>(), kBatchSize, MonitoredItemId);
                 }
                 // persist the batch
                 else
                 {
-                    Opc.Ua.Utils.LogDebug("Storing batch for monitored item {0}", m_monitoredItemId);
+                    Opc.Ua.Utils.LogDebug("Storing batch for monitored item {0}", MonitoredItemId);
 
-                    var batchToStore = new EventBatch(m_enqueueBatch.Events, kBatchSize, m_monitoredItemId);
+                    var batchToStore = new EventBatch(m_enqueueBatch.Events, kBatchSize, MonitoredItemId);
                     m_eventBatches.Add(batchToStore);
                     //only persist second batch in list, as the first could be needed, for duplicate event check
                     if (m_eventBatches.Count > 1)
@@ -164,10 +162,9 @@ namespace Quickstarts.Servers
                         m_batchPersistor.RequestBatchPersist(m_eventBatches[m_eventBatches.Count - 2]);
                     }
 
-                    m_enqueueBatch = new EventBatch(new List<EventFieldList>(), kBatchSize, m_monitoredItemId);
+                    m_enqueueBatch = new EventBatch(new List<EventFieldList>(), kBatchSize, MonitoredItemId);
                 }
             }
-
         }
         /// <summary>
         /// Restores batches if needed
@@ -177,7 +174,7 @@ namespace Quickstarts.Servers
             // request a restore if the dequeue batch is half empty
             if (m_dequeueBatch.Events.Count <= kBatchSize / 2 && m_eventBatches.Count > 0)
             {
-                m_batchPersistor.RequestBatchRestore(m_eventBatches.First());
+                m_batchPersistor.RequestBatchRestore(m_eventBatches[0]);
             }
 
             // if the dequeue batch is empty and there are stored batches, set the dequeue batch to the first stored batch
@@ -185,13 +182,13 @@ namespace Quickstarts.Servers
             {
                 if (m_eventBatches.Count > 0 && m_dequeueBatch != m_enqueueBatch)
                 {
-                    m_dequeueBatch = m_eventBatches.First();
+                    m_dequeueBatch = m_eventBatches[0];
                     m_eventBatches.RemoveAt(0);
 
                     // Request a restore for the next batch if there is one
                     if (m_eventBatches.Count > 0)
                     {
-                        m_batchPersistor.RequestBatchRestore(m_eventBatches.First());
+                        m_batchPersistor.RequestBatchRestore(m_eventBatches[0]);
                     }
                 }
                 else
@@ -221,12 +218,9 @@ namespace Quickstarts.Servers
                 else if (i >= m_enqueueBatch.Events.Count && m_eventBatches.Count > 0)
                 {
                     int indexInStoredBatch = i - m_enqueueBatch.Events.Count;
-                    if (indexInStoredBatch < m_eventBatches.Last().Events.Count && m_eventBatches.Last().Events[indexInStoredBatch] is EventFieldList storedEvent)
+                    if (indexInStoredBatch < m_eventBatches[^1].Events.Count && m_eventBatches[^1].Events[indexInStoredBatch] is EventFieldList storedEvent && ReferenceEquals(instance, storedEvent.Handle))
                     {
-                        if (ReferenceEquals(instance, storedEvent.Handle))
-                        {
-                            return true;
-                        }
+                        return true;
                     }
                 }
             }
@@ -259,7 +253,7 @@ namespace Quickstarts.Servers
                     // Remove from stored batches if needed
                     while (itemsToRemove > 0 && m_eventBatches.Count > 0)
                     {
-                        EventBatch batch = m_eventBatches.First();
+                        EventBatch batch = m_eventBatches[0];
                         m_batchPersistor.RestoreSynchronously(batch);
                         int batchCount = batch.Events.Count;
 
@@ -289,7 +283,6 @@ namespace Quickstarts.Servers
                 }
                 else
                 {
-
                     // Remove from input batch
                     while (itemsToRemove > 0 && m_enqueueBatch.Events.Count > 0)
                     {
@@ -302,7 +295,7 @@ namespace Quickstarts.Servers
                     // Remove from stored batches if needed
                     while (itemsToRemove > 0 && m_eventBatches.Count > 0)
                     {
-                        EventBatch batch = m_eventBatches.Last();
+                        EventBatch batch = m_eventBatches[^1];
                         m_batchPersistor.RestoreSynchronously(batch);
                         int batchCount = batch.Events.Count;
 
@@ -338,7 +331,6 @@ namespace Quickstarts.Servers
         /// <returns></returns>
         public StorableEventQueue ToStorableQueue()
         {
-
             return new StorableEventQueue {
                 IsDurable = IsDurable,
                 MonitoredItemId = MonitoredItemId,
@@ -363,7 +355,7 @@ namespace Quickstarts.Servers
         {
             if (disposing)
             {
-                Disposed?.Invoke(this, new EventArgs());
+                Disposed?.Invoke(this, EventArgs.Empty);
             }
         }
         #endregion
@@ -375,7 +367,6 @@ namespace Quickstarts.Servers
         private EventBatch m_enqueueBatch;
         private readonly List<EventBatch> m_eventBatches = new List<EventBatch>();
         private EventBatch m_dequeueBatch;
-        private readonly uint m_monitoredItemId;
         private int m_itemsInQueue;
         private readonly IBatchPersistor m_batchPersistor;
         #endregion

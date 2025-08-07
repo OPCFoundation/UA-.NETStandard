@@ -34,7 +34,7 @@ using System.Text;
 namespace Opc.Ua.Server
 {
     /// <summary>
-    /// Calculates the value of an aggregate. 
+    /// Calculates the value of an aggregate.
     /// </summary>
     public class StartEndAggregateCalculator : AggregateCalculator
     {
@@ -55,7 +55,7 @@ namespace Opc.Ua.Server
             double processingInterval,
             bool stepped,
             AggregateConfiguration configuration)
-        : 
+        :
             base(aggregateId, startTime, endTime, processingInterval, stepped, configuration)
         {
             SetPartialBit = true;
@@ -75,34 +75,22 @@ namespace Opc.Ua.Server
                 switch (id.Value)
                 {
                     case Objects.AggregateFunction_Start:
-                    {
                         return ComputeStartEnd(slice, false);
-                    }
 
                     case Objects.AggregateFunction_End:
-                    {
                         return ComputeStartEnd(slice, true);
-                    }
 
                     case Objects.AggregateFunction_Delta:
-                    {
                         return ComputeDelta(slice);
-                    }
 
                     case Objects.AggregateFunction_StartBound:
-                    {
                         return ComputeStartEnd2(slice, false);
-                    }
 
                     case Objects.AggregateFunction_EndBound:
-                    {
                         return ComputeStartEnd2(slice, true);
-                    }
 
                     case Objects.AggregateFunction_DeltaBounds:
-                    {
                         return ComputeDelta2(slice);
-                    }
                 }
             }
 
@@ -188,7 +176,7 @@ namespace Opc.Ua.Server
             {
                 end = values[ii];
 
-                if (IsGood(end))    
+                if (IsGood(end))
                 {
                     try
                     {
@@ -212,7 +200,7 @@ namespace Opc.Ua.Server
             {
                 return GetNoDataValue(slice);
             }
-            
+
             var value = new DataValue();
             value.SourceTimestamp = GetTimestamp(slice);
             value.ServerTimestamp = GetTimestamp(slice);
@@ -222,9 +210,9 @@ namespace Opc.Ua.Server
             {
                 value.StatusCode = StatusCodes.UncertainDataSubNormal;
             }
-            
+
             value.StatusCode = value.StatusCode.SetAggregateBits(AggregateBits.Calculated);
-            
+
             // calculate delta.
             double delta = endValue - startValue;
 

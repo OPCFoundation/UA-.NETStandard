@@ -267,7 +267,6 @@ namespace Opc.Ua
 
             // recursively notify the parent.
             Parent?.ReportEvent(context, e);
-
         }
 
         /// <summary>
@@ -297,26 +296,17 @@ namespace Opc.Ua
                 }
 
                 // extract the NodeId for the event.
-                if (field.BrowsePath.Count == 0)
+                if (field.BrowsePath.Count == 0 && field.AttributeId == Attributes.NodeId)
                 {
-                    if (field.AttributeId == Attributes.NodeId)
-                    {
-                        this.NodeId = value as NodeId;
-                        continue;
-                    }
+                    this.NodeId = value as NodeId;
+                    continue;
                 }
 
                 // extract the type definition for the event.
-                if (field.BrowsePath.Count == 1)
+                if (field.BrowsePath.Count == 1 && field.AttributeId == Attributes.Value && field.BrowsePath[0] == BrowseNames.EventType)
                 {
-                    if (field.AttributeId == Attributes.Value)
-                    {
-                        if (field.BrowsePath[0] == BrowseNames.EventType)
-                        {
-                            m_typeDefinitionId = value as NodeId;
-                            continue;
-                        }
-                    }
+                    m_typeDefinitionId = value as NodeId;
+                    continue;
                 }
 
                 // save value for child node.
@@ -418,15 +408,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public virtual bool IsTypeOf(FilterContext context, NodeId typeDefinitionId)
         {
-            if (!NodeId.IsNull(typeDefinitionId))
-            {
-                if (!context.TypeTree.IsTypeOf(TypeDefinitionId, typeDefinitionId))
-                {
-                    return false;
-                }
-            }
-
-            return true;
+            return NodeId.IsNull(typeDefinitionId) || context.TypeTree.IsTypeOf(TypeDefinitionId, typeDefinitionId);
         }
 
         /// <inheritdoc/>
@@ -438,12 +420,9 @@ namespace Opc.Ua
             NumericRange indexRange)
         {
             // check the type definition.
-            if (!NodeId.IsNull(typeDefinitionId) && typeDefinitionId != ObjectTypes.BaseEventType)
+            if (!NodeId.IsNull(typeDefinitionId) && typeDefinitionId != ObjectTypes.BaseEventType && !context.TypeTree.IsTypeOf(TypeDefinitionId, typeDefinitionId))
             {
-                if (!context.TypeTree.IsTypeOf(TypeDefinitionId, typeDefinitionId))
-                {
-                    return null;
-                }
+                return null;
             }
 
             // read the child attribute.
@@ -685,22 +664,16 @@ namespace Opc.Ua
 
             NodeId typeDefinitionId = m_typeDefinitionId;
 
-            if (!NodeId.IsNull(typeDefinitionId) && IsObjectOrVariable)
+            if (!NodeId.IsNull(typeDefinitionId) && IsObjectOrVariable && browser.IsRequired(ReferenceTypeIds.HasTypeDefinition, false))
             {
-                if (browser.IsRequired(ReferenceTypeIds.HasTypeDefinition, false))
-                {
-                    browser.Add(ReferenceTypeIds.HasTypeDefinition, false, typeDefinitionId);
-                }
+                browser.Add(ReferenceTypeIds.HasTypeDefinition, false, typeDefinitionId);
             }
 
             NodeId modellingRuleId = m_modellingRuleId;
 
-            if (!NodeId.IsNull(modellingRuleId))
+            if (!NodeId.IsNull(modellingRuleId) && browser.IsRequired(ReferenceTypeIds.HasModellingRule, false))
             {
-                if (browser.IsRequired(ReferenceTypeIds.HasModellingRule, false))
-                {
-                    browser.Add(ReferenceTypeIds.HasModellingRule, false, modellingRuleId);
-                }
+                browser.Add(ReferenceTypeIds.HasModellingRule, false, modellingRuleId);
             }
 
             NodeState parent = Parent;
@@ -709,12 +682,9 @@ namespace Opc.Ua
             {
                 NodeId referenceTypeId = this.m_referenceTypeId;
 
-                if (!NodeId.IsNull(referenceTypeId))
+                if (!NodeId.IsNull(referenceTypeId) && browser.IsRequired(referenceTypeId, true))
                 {
-                    if (browser.IsRequired(referenceTypeId, true))
-                    {
-                        browser.Add(referenceTypeId, true, parent);
-                    }
+                    browser.Add(referenceTypeId, true, parent);
                 }
             }
         }

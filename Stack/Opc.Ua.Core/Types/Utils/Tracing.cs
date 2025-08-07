@@ -17,7 +17,7 @@ namespace Opc.Ua
     /// <summary>
     /// Used as underlying tracing object for event processing.
     /// </summary>
-    public class Tracing
+    public sealed class Tracing
     {
         #region Private Members
         private static readonly object s_syncRoot = new object();

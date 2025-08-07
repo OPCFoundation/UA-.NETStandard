@@ -349,7 +349,7 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Restart the timer. 
+        /// Restart the timer.
         /// </summary>
         private void StartTimer(bool forceRestart)
         {
@@ -391,8 +391,7 @@ namespace Opc.Ua.Server
         {
             lock (m_connectionsLock)
             {
-                IEnumerable<KeyValuePair<Uri, ReverseConnectProperty>> toRemove = m_connections.Where(r => r.Value.ConfigEntry == configEntry);
-                foreach (KeyValuePair<Uri, ReverseConnectProperty> entry in toRemove)
+                foreach (KeyValuePair<Uri, ReverseConnectProperty> entry in m_connections.Where(r => r.Value.ConfigEntry == configEntry))
                 {
                     m_connections.Remove(entry.Key);
                 }

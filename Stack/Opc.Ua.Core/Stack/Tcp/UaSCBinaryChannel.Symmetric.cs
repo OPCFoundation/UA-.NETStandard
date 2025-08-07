@@ -133,90 +133,72 @@ namespace Opc.Ua.Bindings
             switch (SecurityPolicyUri)
             {
                 case SecurityPolicies.Basic128Rsa15:
-                {
                     m_hmacHashSize = 20;
                     m_signatureKeySize = 16;
                     m_encryptionKeySize = 16;
                     m_encryptionBlockSize = 16;
                     break;
-                }
 
                 case SecurityPolicies.Basic256:
-                {
                     m_hmacHashSize = 20;
                     m_signatureKeySize = 24;
                     m_encryptionKeySize = 32;
                     m_encryptionBlockSize = 16;
                     break;
-                }
 
                 case SecurityPolicies.Basic256Sha256:
-                {
                     m_hmacHashSize = 32;
                     m_signatureKeySize = 32;
                     m_encryptionKeySize = 32;
                     m_encryptionBlockSize = 16;
                     break;
-                }
 
                 case SecurityPolicies.Aes128_Sha256_RsaOaep:
-                {
                     m_hmacHashSize = 32;
                     m_signatureKeySize = 32;
                     m_encryptionKeySize = 16;
                     m_encryptionBlockSize = 16;
                     break;
-                }
 
                 case SecurityPolicies.Aes256_Sha256_RsaPss:
-                {
                     m_hmacHashSize = 32;
                     m_signatureKeySize = 32;
                     m_encryptionKeySize = 32;
                     m_encryptionBlockSize = 16;
                     break;
-                }
 
                 case SecurityPolicies.ECC_nistP256:
                 case SecurityPolicies.ECC_brainpoolP256r1:
-                {
                     m_hmacHashSize = 32;
                     m_signatureKeySize = 32;
                     m_encryptionKeySize = 16;
                     m_encryptionBlockSize = 16;
                     break;
-                }
 
                 case SecurityPolicies.ECC_curve25519:
                 case SecurityPolicies.ECC_curve448:
-                {
                     m_authenticatedEncryption = true;
                     m_hmacHashSize = 16;
                     m_signatureKeySize = 32;
                     m_encryptionKeySize = 32;
                     m_encryptionBlockSize = 12;
                     break;
-                }
 
                 case SecurityPolicies.ECC_nistP384:
                 case SecurityPolicies.ECC_brainpoolP384r1:
-                {
                     m_hmacHashSize = 48;
                     m_signatureKeySize = 48;
                     m_encryptionKeySize = 32;
                     m_encryptionBlockSize = 16;
                     break;
-                }
 
-                default:
                 case SecurityPolicies.None:
-                {
+                default:
                     m_hmacHashSize = 0;
                     m_signatureKeySize = 0;
                     m_encryptionKeySize = 0;
                     m_encryptionBlockSize = 1;
                     break;
-                }
             }
         }
 
@@ -386,7 +368,6 @@ namespace Opc.Ua.Bindings
                 case SecurityPolicies.ECC_nistP384:
                 case SecurityPolicies.ECC_brainpoolP256r1:
                 case SecurityPolicies.ECC_brainpoolP384r1:
-                {
                     // create encryptors.
                     SymmetricAlgorithm aesCbcEncryptorProvider = Aes.Create();
                     aesCbcEncryptorProvider.Mode = CipherMode.CBC;
@@ -402,61 +383,46 @@ namespace Opc.Ua.Bindings
                     aesCbcDecryptorProvider.IV = token.ServerInitializationVector;
                     token.ServerEncryptor = aesCbcDecryptorProvider;
                     break;
-                }
 
                 case SecurityPolicies.ECC_curve25519:
                 case SecurityPolicies.ECC_curve448:
-                {
                     break;
-                }
 
-                default:
                 case SecurityPolicies.None:
-                {
+                default:
                     break;
-                }
             }
 
             switch (SecurityPolicyUri)
             {
                 case SecurityPolicies.Basic128Rsa15:
                 case SecurityPolicies.Basic256:
-                {
                     token.ServerHmac = new HMACSHA1(token.ServerSigningKey);
                     token.ClientHmac = new HMACSHA1(token.ClientSigningKey);
                     break;
-                }
 
                 case SecurityPolicies.Basic256Sha256:
                 case SecurityPolicies.Aes128_Sha256_RsaOaep:
                 case SecurityPolicies.Aes256_Sha256_RsaPss:
                 case SecurityPolicies.ECC_nistP256:
                 case SecurityPolicies.ECC_brainpoolP256r1:
-                {
                     token.ServerHmac = new HMACSHA256(token.ServerSigningKey);
                     token.ClientHmac = new HMACSHA256(token.ClientSigningKey);
                     break;
-                }
 
                 case SecurityPolicies.ECC_nistP384:
                 case SecurityPolicies.ECC_brainpoolP384r1:
-                {
                     token.ServerHmac = new HMACSHA384(token.ServerSigningKey);
                     token.ClientHmac = new HMACSHA384(token.ClientSigningKey);
                     break;
-                }
 
                 case SecurityPolicies.ECC_curve25519:
                 case SecurityPolicies.ECC_curve448:
-                {
                     break;
-                }
 
-                default:
                 case SecurityPolicies.None:
-                {
+                default:
                     break;
-                }
             }
         }
 
@@ -482,7 +448,7 @@ namespace Opc.Ua.Bindings
                 int maxCipherBlocks = maxCipherTextSize / EncryptionBlockSize;
                 int maxPlainTextSize = maxCipherBlocks * EncryptionBlockSize;
                 int maxPayloadSize = maxPlainTextSize - SymmetricSignatureSize - 1 - TcpMessageLimits.SequenceHeaderSize;
-                int headerSize = TcpMessageLimits.SymmetricHeaderSize + TcpMessageLimits.SequenceHeaderSize;
+                const int headerSize = TcpMessageLimits.SymmetricHeaderSize + TcpMessageLimits.SequenceHeaderSize;
 
                 // no padding byte.
                 if (AuthenticatedEncryption)
@@ -825,11 +791,9 @@ namespace Opc.Ua.Bindings
         {
             switch (SecurityPolicyUri)
             {
-                default:
                 case SecurityPolicies.None:
-                {
+                default:
                     return null;
-                }
 
                 case SecurityPolicies.Basic128Rsa15:
                 case SecurityPolicies.Basic256:
@@ -840,9 +804,7 @@ namespace Opc.Ua.Bindings
                 case SecurityPolicies.ECC_brainpoolP256r1:
                 case SecurityPolicies.ECC_brainpoolP384r1:
                 case SecurityPolicies.ECC_nistP256:
-                {
                     return SymmetricSign(token, dataToSign, useClientKeys);
-                }
             }
         }
 
@@ -859,9 +821,7 @@ namespace Opc.Ua.Bindings
             switch (SecurityPolicyUri)
             {
                 case SecurityPolicies.None:
-                {
                     return true;
-                }
 
                 case SecurityPolicies.Basic128Rsa15:
                 case SecurityPolicies.Basic256:
@@ -872,13 +832,10 @@ namespace Opc.Ua.Bindings
                 case SecurityPolicies.ECC_nistP384:
                 case SecurityPolicies.ECC_brainpoolP256r1:
                 case SecurityPolicies.ECC_brainpoolP384r1:
-                {
                     return SymmetricVerify(token, signature, dataToVerify, useClientKeys);
-                }
+
                 default:
-                {
                     return false;
-                }
             }
         }
 
@@ -890,9 +847,7 @@ namespace Opc.Ua.Bindings
             switch (SecurityPolicyUri)
             {
                 case SecurityPolicies.None:
-                {
                     break;
-                }
 
                 case SecurityPolicies.Basic256:
                 case SecurityPolicies.Basic256Sha256:
@@ -903,10 +858,8 @@ namespace Opc.Ua.Bindings
                 case SecurityPolicies.ECC_nistP384:
                 case SecurityPolicies.ECC_brainpoolP256r1:
                 case SecurityPolicies.ECC_brainpoolP384r1:
-                {
                     SymmetricEncrypt(token, dataToEncrypt, useClientKeys);
                     break;
-                }
 
 #if CURVE25519
                 case SecurityPolicies.ECC_curve25519:
@@ -924,9 +877,7 @@ namespace Opc.Ua.Bindings
                 }
 #endif
                 default:
-                {
                     throw new NotSupportedException(SecurityPolicyUri);
-                }
             }
         }
 
@@ -938,9 +889,7 @@ namespace Opc.Ua.Bindings
             switch (SecurityPolicyUri)
             {
                 case SecurityPolicies.None:
-                {
                     break;
-                }
 
                 case SecurityPolicies.Basic256:
                 case SecurityPolicies.Basic256Sha256:
@@ -951,10 +900,8 @@ namespace Opc.Ua.Bindings
                 case SecurityPolicies.ECC_brainpoolP384r1:
                 case SecurityPolicies.Aes128_Sha256_RsaOaep:
                 case SecurityPolicies.Aes256_Sha256_RsaPss:
-                {
                     SymmetricDecrypt(token, dataToDecrypt, useClientKeys);
                     break;
-                }
 
 #if CURVE25519
                 case SecurityPolicies.ECC_curve25519:
@@ -972,9 +919,7 @@ namespace Opc.Ua.Bindings
 #endif
 
                 default:
-                {
                     throw new NotSupportedException(SecurityPolicyUri);
-                }
             }
         }
 

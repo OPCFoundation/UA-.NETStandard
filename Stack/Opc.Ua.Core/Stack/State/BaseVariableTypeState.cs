@@ -238,7 +238,6 @@ namespace Opc.Ua
         {
             base.Export(context, node);
 
-
             if (node is VariableTypeNode variableTypeNode)
             {
                 variableTypeNode.Value = new Variant(Utils.Clone(this.Value));
@@ -439,7 +438,6 @@ namespace Opc.Ua
             switch (attributeId)
             {
                 case Attributes.DataType:
-                {
                     NodeId dataType = m_dataType;
 
                     NodeAttributeEventHandler<NodeId> onReadDataType = OnReadDataType;
@@ -455,10 +453,8 @@ namespace Opc.Ua
                     }
 
                     return result;
-                }
 
                 case Attributes.ValueRank:
-                {
                     int valueRank = m_valueRank;
 
                     NodeAttributeEventHandler<int> onReadValueRank = OnReadValueRank;
@@ -474,10 +470,8 @@ namespace Opc.Ua
                     }
 
                     return result;
-                }
 
                 case Attributes.ArrayDimensions:
-                {
                     IList<uint> arrayDimensions = m_arrayDimensions;
 
                     NodeAttributeEventHandler<IList<uint>> onReadArrayDimensions = OnReadArrayDimensions;
@@ -493,7 +487,6 @@ namespace Opc.Ua
                     }
 
                     return result;
-                }
             }
 
             return base.ReadNonValueAttribute(context, attributeId, ref value);
@@ -571,10 +564,7 @@ namespace Opc.Ua
             switch (attributeId)
             {
                 case Attributes.DataType:
-                {
-                    var dataType = value as NodeId;
-
-                    if (dataType == null)
+                    if (!(value is NodeId dataType))
                     {
                         return StatusCodes.BadTypeMismatch;
                     }
@@ -597,10 +587,8 @@ namespace Opc.Ua
                     }
 
                     return result;
-                }
 
                 case Attributes.ValueRank:
-                {
                     int? valueRankRef = value as int?;
 
                     if (valueRankRef == null)
@@ -628,10 +616,8 @@ namespace Opc.Ua
                     }
 
                     return result;
-                }
 
                 case Attributes.ArrayDimensions:
-                {
                     var arrayDimensions = value as IList<uint>;
 
                     if ((WriteMask & AttributeWriteMask.ArrayDimensions) == 0)
@@ -659,7 +645,6 @@ namespace Opc.Ua
                     }
 
                     return result;
-                }
             }
 
             return base.WriteNonValueAttribute(context, attributeId, value);

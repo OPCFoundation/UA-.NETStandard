@@ -60,7 +60,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
     [SetCulture("en-us")]
     class CertificateValidatorAlternate
     {
-        // the root and alternate root CA
+        /// <summary>
+        /// the root and alternate root CA
+        /// </summary>
         const string kCaSubject = "CN=Root";
         const string kCaAltSubject = "CN=rOOT";
 
@@ -80,7 +82,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         private X509CRL m_rootCrl;
         private TemporaryCertValidator m_validator;
         private CertificateValidator m_certValidator;
-        // A web server to host root CA and CRL
+        /// <summary>
+        /// A web server to host root CA and CRL
+        /// </summary>
         private IWebServer m_webServer = null;
         private string m_webServerUrl;
         private string m_webServerPath;
@@ -101,7 +105,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             }
 #endif
 
-            string crlName = "root.crl";
+            const string crlName = "root.crl";
             m_webServerUrl = "http://127.0.0.1:9696/";
 
             X509Extension crlExtension = X509Extensions.BuildX509CRLDistributionPoints(m_webServerUrl + crlName);

@@ -113,7 +113,7 @@ namespace Opc.Ua.Server
         /// <remarks>
         /// The externalReferences is an out parameter that allows the node manager to link to nodes
         /// in other node managers. For example, the 'Objects' node is managed by the CoreNodeManager and
-        /// should have a reference to the root folder node(s) exposed by this node manager.  
+        /// should have a reference to the root folder node(s) exposed by this node manager.
         /// </remarks>
         public override void CreateAddressSpace(IDictionary<NodeId, IList<IReference>> externalReferences)
         {
@@ -222,7 +222,6 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Called when a client sets a subscription as durable.
         /// </summary>
-
         public ServiceResult OnSetSubscriptionDurable(
             ISystemContext context,
             MethodState method,
@@ -331,12 +330,9 @@ namespace Opc.Ua.Server
         {
             var systemContext = context as ServerSystemContext;
 
-            if (m_serverLockHolder != null)
+            if (m_serverLockHolder != null && m_serverLockHolder != systemContext.SessionId)
             {
-                if (m_serverLockHolder != systemContext.SessionId)
-                {
-                    return StatusCodes.BadSessionIdInvalid;
-                }
+                return StatusCodes.BadSessionIdInvalid;
             }
 
             m_serverLockHolder = systemContext.SessionId;
@@ -355,12 +351,9 @@ namespace Opc.Ua.Server
         {
             var systemContext = context as ServerSystemContext;
 
-            if (m_serverLockHolder != null)
+            if (m_serverLockHolder != null && m_serverLockHolder != systemContext.SessionId)
             {
-                if (m_serverLockHolder != systemContext.SessionId)
-                {
-                    return StatusCodes.BadSessionIdInvalid;
-                }
+                return StatusCodes.BadSessionIdInvalid;
             }
 
             m_serverLockHolder = null;
@@ -412,8 +405,7 @@ namespace Opc.Ua.Server
                     return predefinedNode;
                 }
 
-                var passiveMethod = predefinedNode as MethodState;
-                if (passiveMethod == null)
+                if (!(predefinedNode is MethodState passiveMethod))
                 {
                     return predefinedNode;
                 }
@@ -515,12 +507,7 @@ namespace Opc.Ua.Server
             NodeId objectId,
             uint subscriptionId)
         {
-            var systemContext = context as ServerSystemContext;
-
-            if (systemContext == null)
-            {
-                systemContext = this.SystemContext;
-            }
+            var systemContext = context as ServerSystemContext ?? this.SystemContext;
 
             Server.ConditionRefresh(systemContext.OperationContext, subscriptionId);
 
@@ -537,12 +524,7 @@ namespace Opc.Ua.Server
             uint subscriptionId,
             uint monitoredItemId)
         {
-            var systemContext = context as ServerSystemContext;
-
-            if (systemContext == null)
-            {
-                systemContext = this.SystemContext;
-            }
+            var systemContext = context as ServerSystemContext ?? this.SystemContext;
 
             Server.ConditionRefresh2(systemContext.OperationContext, subscriptionId, monitoredItemId);
 
@@ -552,23 +534,21 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Returns true of the node is a diagnostics node.
         /// </summary>
-        private bool IsDiagnosticsNode(NodeState node)
+        private static bool IsDiagnosticsNode(NodeState node)
         {
             if (node == null)
             {
                 return false;
             }
 
-            if (!IsDiagnosticsStructureNode(node))
+            if (!DiagnosticsNodeManager.IsDiagnosticsStructureNode(node))
             {
-                var instance = node as BaseInstanceState;
-
-                if (instance == null)
+                if (!(node is BaseInstanceState instance))
                 {
                     return false;
                 }
 
-                return IsDiagnosticsStructureNode(instance.Parent);
+                return DiagnosticsNodeManager.IsDiagnosticsStructureNode(instance.Parent);
             }
 
             return true;
@@ -577,11 +557,9 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Returns true of the node is a diagnostics node.
         /// </summary>
-        private bool IsDiagnosticsStructureNode(NodeState node)
+        private static bool IsDiagnosticsStructureNode(NodeState node)
         {
-            var instance = node as BaseInstanceState;
-
-            if (instance == null)
+            if (!(node is BaseInstanceState instance))
             {
                 return false;
             }
@@ -604,9 +582,7 @@ namespace Opc.Ua.Server
                 case VariableTypes.SubscriptionDiagnosticsType:
                 case VariableTypes.SubscriptionDiagnosticsArrayType:
                 case VariableTypes.SamplingIntervalDiagnosticsArrayType:
-                {
                     return true;
-                }
             }
 
             return false;
@@ -1191,7 +1167,6 @@ namespace Opc.Ua.Server
             // notify any monitored items.
             m_serverDiagnostics.ChangesComplete(SystemContext);
 
-
             return true;
         }
 
@@ -1218,7 +1193,7 @@ namespace Opc.Ua.Server
 
             if ((context != null) && (sessionArray?[index] != null))
             {
-                FilterOutUnAuthorized(sessionArray, newValue.SessionId, context, index);
+                DiagnosticsNodeManager.FilterOutUnAuthorized(sessionArray, newValue.SessionId, context, index);
             }
 
             // check for changes.
@@ -1275,7 +1250,7 @@ namespace Opc.Ua.Server
 
             if ((context != null) && (sessionArray?[index] != null))
             {
-                FilterOutUnAuthorized(sessionArray, newValue.SessionId, context, index);
+                DiagnosticsNodeManager.FilterOutUnAuthorized(sessionArray, newValue.SessionId, context, index);
             }
 
             // check for changes.
@@ -1332,7 +1307,7 @@ namespace Opc.Ua.Server
 
             if ((context != null) && (subscriptionArray?[index] != null))
             {
-                FilterOutUnAuthorized(subscriptionArray, newValue.SessionId, context, index);
+                DiagnosticsNodeManager.FilterOutUnAuthorized(subscriptionArray, newValue.SessionId, context, index);
             }
 
             // check for changes.
@@ -1366,7 +1341,6 @@ namespace Opc.Ua.Server
             return true;
         }
 
-
         /// <summary>
         /// Filter out the members which correspond to users that are not allowed to see their contents
         /// Current user is allowed to read its data, together with users which have permissions
@@ -1376,10 +1350,10 @@ namespace Opc.Ua.Server
         /// <param name="sessionId"></param>
         /// <param name="context"></param>
         /// <param name="index"></param>
-        private void FilterOutUnAuthorized<T>(IList<T> list, NodeId sessionId, ISystemContext context, int index)
+        private static void FilterOutUnAuthorized<T>(IList<T> list, NodeId sessionId, ISystemContext context, int index)
         {
             if ((sessionId != context.SessionId) &&
-                    !HasApplicationSecureAdminAccess(context))
+                    !DiagnosticsNodeManager.HasApplicationSecureAdminAccess(context))
             {
                 list[index] = default;
             }
@@ -1402,12 +1376,12 @@ namespace Opc.Ua.Server
             if ((node.NodeId == VariableIds.Server_ServerDiagnostics_ServerDiagnosticsSummary) ||
                  (node.NodeId == VariableIds.Server_ServerDiagnostics_SubscriptionDiagnosticsArray))
             {
-                adminUser = HasApplicationSecureAdminAccess(context);
+                adminUser = DiagnosticsNodeManager.HasApplicationSecureAdminAccess(context);
             }
             else
             {
                 adminUser = (node.NodeId == context.SessionId) ||
-                            HasApplicationSecureAdminAccess(context);
+                            DiagnosticsNodeManager.HasApplicationSecureAdminAccess(context);
             }
 
             if (adminUser)
@@ -1429,7 +1403,6 @@ namespace Opc.Ua.Server
                                           };
 
                 value = new RolePermissionTypeCollection(rolePermissionTypes);
-
             }
             return ServiceResult.Good;
         }
@@ -1530,7 +1503,7 @@ namespace Opc.Ua.Server
         /// <param name="context"></param>
         /// <exception cref="ServiceResultException"/>
         /// <seealso cref="StatusCodes.BadUserAccessDenied"/>
-        private bool HasApplicationSecureAdminAccess(ISystemContext context)
+        private static bool HasApplicationSecureAdminAccess(ISystemContext context)
         {
             var operationContext = (context as SystemContext)?.OperationContext as OperationContext;
             if (operationContext != null)
@@ -1542,18 +1515,12 @@ namespace Opc.Ua.Server
 
                 IUserIdentity user = context.UserIdentity as RoleBasedIdentity;
 
-                if (user == null ||
-                    user.TokenType == UserTokenType.Anonymous ||
-                    !user.GrantedRoleIds.Contains(ObjectIds.WellKnownRole_SecurityAdmin))
-                {
-                    return false;
-                }
-
-                return true;
+                return user != null &&
+                    user.TokenType != UserTokenType.Anonymous &&
+user.GrantedRoleIds.Contains(ObjectIds.WellKnownRole_SecurityAdmin);
             }
             return false;
         }
-
 
         /// <summary>
         /// Reports notifications for any monitored diagnostic nodes.
@@ -1730,9 +1697,9 @@ namespace Opc.Ua.Server
             }
 
             // check if diagnostics collection needs to be turned one.
-            if (IsDiagnosticsNode(handle.Node))
+            if (DiagnosticsNodeManager.IsDiagnosticsNode(handle.Node))
             {
-                monitoredItem.AlwaysReportUpdates = IsDiagnosticsStructureNode(handle.Node);
+                monitoredItem.AlwaysReportUpdates = DiagnosticsNodeManager.IsDiagnosticsStructureNode(handle.Node);
 
                 if (monitoredItem.MonitoringMode != MonitoringMode.Disabled)
                 {
@@ -1760,22 +1727,19 @@ namespace Opc.Ua.Server
             MonitoredItem monitoredItem)
         {
             // check if diagnostics collection needs to be turned off.
-            if (IsDiagnosticsNode(handle.Node))
+            if (DiagnosticsNodeManager.IsDiagnosticsNode(handle.Node) && monitoredItem.MonitoringMode != MonitoringMode.Disabled)
             {
-                if (monitoredItem.MonitoringMode != MonitoringMode.Disabled)
+                m_diagnosticsMonitoringCount--;
+
+                if (m_diagnosticsMonitoringCount == 0 && m_diagnosticsScanTimer != null)
                 {
-                    m_diagnosticsMonitoringCount--;
+                    m_diagnosticsScanTimer.Dispose();
+                    m_diagnosticsScanTimer = null;
+                }
 
-                    if (m_diagnosticsMonitoringCount == 0 && m_diagnosticsScanTimer != null)
-                    {
-                        m_diagnosticsScanTimer.Dispose();
-                        m_diagnosticsScanTimer = null;
-                    }
-
-                    if (m_diagnosticsScanTimer != null)
-                    {
-                        DoScan(true);
-                    }
+                if (m_diagnosticsScanTimer != null)
+                {
+                    DoScan(true);
                 }
             }
 
@@ -1824,12 +1788,9 @@ namespace Opc.Ua.Server
                     m_diagnosticsScanTimer = null;
                 }
             }
-            else
+            else if (m_diagnosticsScanTimer != null)
             {
-                if (m_diagnosticsScanTimer != null)
-                {
-                    m_diagnosticsScanTimer = new Timer(DoScan, null, 1000, 1000);
-                }
+                m_diagnosticsScanTimer = new Timer(DoScan, null, 1000, 1000);
             }
         }
         #endregion
@@ -2051,18 +2012,15 @@ namespace Opc.Ua.Server
                 }
             }
 
-            if (m_sampledItems.Count == 0)
+            if (m_sampledItems.Count == 0 && m_samplingTimer != null)
             {
-                if (m_samplingTimer != null)
-                {
-                    m_samplingTimer.Dispose();
-                    m_samplingTimer = null;
-                }
+                m_samplingTimer.Dispose();
+                m_samplingTimer = null;
             }
         }
 
         /// <summary>
-        /// Polls each monitored item which requires sample. 
+        /// Polls each monitored item which requires sample.
         /// </summary>
         private void DoSample(object state)
         {
@@ -2075,9 +2033,7 @@ namespace Opc.Ua.Server
                         MonitoredItem monitoredItem = m_sampledItems[ii];
 
                         // get the handle.
-                        var handle = monitoredItem.ManagerHandle as NodeHandle;
-
-                        if (handle == null)
+                        if (!(monitoredItem.ManagerHandle is NodeHandle handle))
                         {
                             continue;
                         }

@@ -75,7 +75,6 @@ namespace Alarms
             alarm.SetLimitState(SystemContext, LimitAlarmStates.Inactive);
         }
 
-
         public override void SetValue(string message = "")
         {
             ExclusiveLimitAlarmState alarm = GetAlarm();
@@ -113,6 +112,5 @@ namespace Alarms
         {
             return (ExclusiveLimitAlarmState)m_alarm;
         }
-
     }
 }

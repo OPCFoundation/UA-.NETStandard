@@ -46,14 +46,16 @@ namespace Opc.Ua
         private ushort[] m_namespaceMappings;
         private ushort[] m_serverMappings;
         private uint m_nestingLevel;
-        // JSON encoded value of: “9999-12-31T23:59:59Z”
+        /// <summary>
+        /// JSON encoded value of: “9999-12-31T23:59:59Z”
+        /// </summary>
         private readonly DateTime m_dateTimeMaxJsonValue = new DateTime(3155378975990000000);
         private enum JTokenNullObject
         {
             Undefined = 0,
             Object = 1,
             Array = 2
-        };
+        }
         #endregion
 
         #region Constructors
@@ -196,10 +198,9 @@ namespace Opc.Ua
             }
 
             // read the message.
-            IEncodeable message = ReadEncodeable("Body", actualType, absoluteId);
 
             // return the message.
-            return message;
+            return ReadEncodeable("Body", actualType, absoluteId);
         }
 
         /// <summary>
@@ -275,7 +276,6 @@ namespace Opc.Ua
             {
                 while (m_reader.Read() && m_reader.TokenType != JsonToken.EndObject)
                 {
-                    ;
                 }
             }
 
@@ -354,12 +354,7 @@ namespace Opc.Ua
                 return true;
             }
 
-            if (!(m_stack.Peek() is Dictionary<string, object> context) || !context.TryGetValue(fieldName, out token))
-            {
-                return false;
-            }
-
-            return true;
+            return (m_stack.Peek() is Dictionary<string, object> context) && context.TryGetValue(fieldName, out token);
         }
 
         /// <summary>
@@ -456,7 +451,7 @@ namespace Opc.Ua
             {
                 return 0;
             }
-;
+
             if (value is < short.MinValue or > short.MaxValue)
             {
                 return 0;
@@ -731,7 +726,6 @@ namespace Opc.Ua
                 return null;
             }
 
-
             if (token is not string value)
             {
                 return null;
@@ -938,12 +932,9 @@ namespace Opc.Ua
                             namespaceIndex = ToNamespaceIndex(namespaceUri);
                         }
                     }
-                    else
+                    else if (index.Value is >= 0 and < ushort.MaxValue)
                     {
-                        if (index.Value is >= 0 and < ushort.MaxValue)
-                        {
-                            namespaceIndex = ToNamespaceIndex(index.Value);
-                        }
+                        namespaceIndex = ToNamespaceIndex(index.Value);
                     }
                 }
 
@@ -953,24 +944,16 @@ namespace Opc.Ua
                     {
                         case IdType.Numeric:
                         default:
-                        {
                             return new NodeId(ReadUInt32("Id"), namespaceIndex);
-                        }
 
                         case IdType.Opaque:
-                        {
                             return new NodeId(ReadByteString("Id"), namespaceIndex);
-                        }
 
                         case IdType.String:
-                        {
                             return new NodeId(ReadString("Id"), namespaceIndex);
-                        }
 
                         case IdType.Guid:
-                        {
                             return new NodeId(ReadGuid("Id"), namespaceIndex);
-                        }
                     }
                 }
                 return JsonDecoder.DefaultNodeId(idType, namespaceIndex);
@@ -999,7 +982,7 @@ namespace Opc.Ua
 
                 try
                 {
-                    nodeId = ExpandedNodeId.Parse(
+                    return ExpandedNodeId.Parse(
                         Context,
                         text,
                         new NodeIdParsingOptions() {
@@ -1007,8 +990,6 @@ namespace Opc.Ua
                             NamespaceMappings = m_namespaceMappings,
                             ServerMappings = m_serverMappings
                         });
-
-                    return nodeId;
                 }
                 catch
                 {
@@ -1046,12 +1027,9 @@ namespace Opc.Ua
                     {
                         namespaceUri = namespaceToken as string;
                     }
-                    else
+                    else if (index.Value is >= 0 and < ushort.MaxValue)
                     {
-                        if (index.Value is >= 0 and < ushort.MaxValue)
-                        {
-                            namespaceIndex = ToNamespaceIndex(index.Value);
-                        }
+                        namespaceIndex = ToNamespaceIndex(index.Value);
                     }
                 }
 
@@ -1065,12 +1043,9 @@ namespace Opc.Ua
                     {
                         serverIndex = ToServerIndex(serverUriToken as string);
                     }
-                    else
+                    else if (index.Value is >= 0 and < uint.MaxValue)
                     {
-                        if (index.Value is >= 0 and < uint.MaxValue)
-                        {
-                            serverIndex = ToServerIndex(index.Value);
-                        }
+                        serverIndex = ToServerIndex(index.Value);
                     }
                 }
 
@@ -1094,24 +1069,16 @@ namespace Opc.Ua
                     {
                         case IdType.Numeric:
                         default:
-                        {
                             return new ExpandedNodeId(ReadUInt32("Id"), namespaceIndex, namespaceUri, serverIndex);
-                        }
 
                         case IdType.Opaque:
-                        {
                             return new ExpandedNodeId(ReadByteString("Id"), namespaceIndex, namespaceUri, serverIndex);
-                        }
 
                         case IdType.String:
-                        {
                             return new ExpandedNodeId(ReadString("Id"), namespaceIndex, namespaceUri, serverIndex);
-                        }
 
                         case IdType.Guid:
-                        {
                             return new ExpandedNodeId(ReadGuid("Id"), namespaceIndex, namespaceUri, serverIndex);
-                        }
                     }
                 }
 
@@ -1239,12 +1206,9 @@ namespace Opc.Ua
                             namespaceIndex = ToNamespaceIndex(namespaceUri);
                         }
                     }
-                    else
+                    else if (index.Value is >= 0 and < ushort.MaxValue)
                     {
-                        if (index.Value is >= 0 and < ushort.MaxValue)
-                        {
-                            namespaceIndex = ToNamespaceIndex(index.Value);
-                        }
+                        namespaceIndex = ToNamespaceIndex(index.Value);
                     }
                 }
             }
@@ -1270,7 +1234,6 @@ namespace Opc.Ua
 
             string locale = null;
             string text = null;
-
 
             if (token is not Dictionary<string, object> value)
             {
@@ -1354,7 +1317,6 @@ namespace Opc.Ua
                 return Variant.Null;
             }
 
-
             if (token is not Dictionary<string, object> value)
             {
                 return Variant.Null;
@@ -1392,7 +1354,6 @@ namespace Opc.Ua
             {
                 return null;
             }
-
 
             if (token is not Dictionary<string, object> value)
             {
@@ -1718,7 +1679,6 @@ namespace Opc.Ua
             var values = new ByteCollection();
 
             List<object> token = null;
-
 
             string value = ReadString(fieldName);
             if (value != null)
@@ -2518,14 +2478,13 @@ namespace Opc.Ua
                     case BuiltInType.UInt16:
                         return ReadUInt16Array(fieldName).ToArray();
                     case BuiltInType.Enumeration:
-                    {
                         DetermineIEncodeableSystemType(ref systemType, encodeableTypeId);
                         if (systemType?.IsEnum == true)
                         {
                             return ReadEnumeratedArray(fieldName, systemType);
                         }
                         goto case BuiltInType.Int32;
-                    }
+
                     case BuiltInType.Int32:
                         return ReadInt32Array(fieldName).ToArray();
                     case BuiltInType.UInt32:
@@ -2561,19 +2520,17 @@ namespace Opc.Ua
                     case BuiltInType.DataValue:
                         return ReadDataValueArray(fieldName).ToArray();
                     case BuiltInType.Variant:
-                    {
                         if (DetermineIEncodeableSystemType(ref systemType, encodeableTypeId))
                         {
                             return ReadEncodeableArray(fieldName, systemType, encodeableTypeId);
                         }
                         return ReadVariantArray(fieldName).ToArray();
-                    }
+
                     case BuiltInType.ExtensionObject:
                         return ReadExtensionObjectArray(fieldName).ToArray();
                     case BuiltInType.DiagnosticInfo:
                         return ReadDiagnosticInfoArray(fieldName).ToArray();
                     default:
-                    {
                         if (DetermineIEncodeableSystemType(ref systemType, encodeableTypeId))
                         {
                             return ReadEncodeableArray(fieldName, systemType, encodeableTypeId);
@@ -2582,7 +2539,6 @@ namespace Opc.Ua
                         throw new ServiceResultException(
                             StatusCodes.BadDecodingError,
                             Utils.Format("Cannot decode unknown type in Array object with BuiltInType: {0}.", builtInType));
-                    }
                 }
             }
             else if (valueRank >= ValueRanks.TwoDimensions)
@@ -3064,7 +3020,6 @@ namespace Opc.Ua
                 return null;
             }
 
-
             if (token is not Dictionary<string, object> value)
             {
                 return null;
@@ -3159,31 +3114,55 @@ namespace Opc.Ua
         {
             switch (type)
             {
-                case BuiltInType.Boolean: { return new Variant(ReadBoolean(fieldName), TypeInfo.Scalars.Boolean); }
-                case BuiltInType.SByte: { return new Variant(ReadSByte(fieldName), TypeInfo.Scalars.SByte); }
-                case BuiltInType.Byte: { return new Variant(ReadByte(fieldName), TypeInfo.Scalars.Byte); }
-                case BuiltInType.Int16: { return new Variant(ReadInt16(fieldName), TypeInfo.Scalars.Int16); }
-                case BuiltInType.UInt16: { return new Variant(ReadUInt16(fieldName), TypeInfo.Scalars.UInt16); }
-                case BuiltInType.Int32: { return new Variant(ReadInt32(fieldName), TypeInfo.Scalars.Int32); }
-                case BuiltInType.UInt32: { return new Variant(ReadUInt32(fieldName), TypeInfo.Scalars.UInt32); }
-                case BuiltInType.Int64: { return new Variant(ReadInt64(fieldName), TypeInfo.Scalars.Int64); }
-                case BuiltInType.UInt64: { return new Variant(ReadUInt64(fieldName), TypeInfo.Scalars.UInt64); }
-                case BuiltInType.Float: { return new Variant(ReadFloat(fieldName), TypeInfo.Scalars.Float); }
-                case BuiltInType.Double: { return new Variant(ReadDouble(fieldName), TypeInfo.Scalars.Double); }
-                case BuiltInType.String: { return new Variant(ReadString(fieldName), TypeInfo.Scalars.String); }
-                case BuiltInType.ByteString: { return new Variant(ReadByteString(fieldName), TypeInfo.Scalars.ByteString); }
-                case BuiltInType.DateTime: { return new Variant(ReadDateTime(fieldName), TypeInfo.Scalars.DateTime); }
-                case BuiltInType.Guid: { return new Variant(ReadGuid(fieldName), TypeInfo.Scalars.Guid); }
-                case BuiltInType.NodeId: { return new Variant(ReadNodeId(fieldName), TypeInfo.Scalars.NodeId); }
-                case BuiltInType.ExpandedNodeId: { return new Variant(ReadExpandedNodeId(fieldName), TypeInfo.Scalars.ExpandedNodeId); }
-                case BuiltInType.QualifiedName: { return new Variant(ReadQualifiedName(fieldName), TypeInfo.Scalars.QualifiedName); }
-                case BuiltInType.LocalizedText: { return new Variant(ReadLocalizedText(fieldName), TypeInfo.Scalars.LocalizedText); }
-                case BuiltInType.StatusCode: { return new Variant(ReadStatusCode(fieldName), TypeInfo.Scalars.StatusCode); }
-                case BuiltInType.XmlElement: { return new Variant(ReadXmlElement(fieldName), TypeInfo.Scalars.XmlElement); }
-                case BuiltInType.ExtensionObject: { return new Variant(ReadExtensionObject(fieldName), TypeInfo.Scalars.ExtensionObject); }
-                case BuiltInType.Variant: { return new Variant(ReadVariant(fieldName), TypeInfo.Scalars.Variant); }
-                case BuiltInType.DiagnosticInfo: { return new Variant(ReadDiagnosticInfo(fieldName), TypeInfo.Scalars.DiagnosticInfo); }
-                case BuiltInType.DataValue: { return new Variant(ReadDataValue(fieldName), TypeInfo.Scalars.DataValue); }
+                case BuiltInType.Boolean: return new Variant(ReadBoolean(fieldName), TypeInfo.Scalars.Boolean);
+
+                case BuiltInType.SByte: return new Variant(ReadSByte(fieldName), TypeInfo.Scalars.SByte);
+
+                case BuiltInType.Byte: return new Variant(ReadByte(fieldName), TypeInfo.Scalars.Byte);
+
+                case BuiltInType.Int16: return new Variant(ReadInt16(fieldName), TypeInfo.Scalars.Int16);
+
+                case BuiltInType.UInt16: return new Variant(ReadUInt16(fieldName), TypeInfo.Scalars.UInt16);
+
+                case BuiltInType.Int32: return new Variant(ReadInt32(fieldName), TypeInfo.Scalars.Int32);
+
+                case BuiltInType.UInt32: return new Variant(ReadUInt32(fieldName), TypeInfo.Scalars.UInt32);
+
+                case BuiltInType.Int64: return new Variant(ReadInt64(fieldName), TypeInfo.Scalars.Int64);
+
+                case BuiltInType.UInt64: return new Variant(ReadUInt64(fieldName), TypeInfo.Scalars.UInt64);
+
+                case BuiltInType.Float: return new Variant(ReadFloat(fieldName), TypeInfo.Scalars.Float);
+
+                case BuiltInType.Double: return new Variant(ReadDouble(fieldName), TypeInfo.Scalars.Double);
+
+                case BuiltInType.String: return new Variant(ReadString(fieldName), TypeInfo.Scalars.String);
+
+                case BuiltInType.ByteString: return new Variant(ReadByteString(fieldName), TypeInfo.Scalars.ByteString);
+
+                case BuiltInType.DateTime: return new Variant(ReadDateTime(fieldName), TypeInfo.Scalars.DateTime);
+
+                case BuiltInType.Guid: return new Variant(ReadGuid(fieldName), TypeInfo.Scalars.Guid);
+
+                case BuiltInType.NodeId: return new Variant(ReadNodeId(fieldName), TypeInfo.Scalars.NodeId);
+
+                case BuiltInType.ExpandedNodeId: return new Variant(ReadExpandedNodeId(fieldName), TypeInfo.Scalars.ExpandedNodeId);
+
+                case BuiltInType.QualifiedName: return new Variant(ReadQualifiedName(fieldName), TypeInfo.Scalars.QualifiedName);
+
+                case BuiltInType.LocalizedText: return new Variant(ReadLocalizedText(fieldName), TypeInfo.Scalars.LocalizedText);
+
+                case BuiltInType.StatusCode: return new Variant(ReadStatusCode(fieldName), TypeInfo.Scalars.StatusCode);
+
+                case BuiltInType.XmlElement: return new Variant(ReadXmlElement(fieldName), TypeInfo.Scalars.XmlElement);
+
+                case BuiltInType.ExtensionObject: return new Variant(ReadExtensionObject(fieldName), TypeInfo.Scalars.ExtensionObject);
+
+                case BuiltInType.Variant: return new Variant(ReadVariant(fieldName), TypeInfo.Scalars.Variant);
+
+                case BuiltInType.DiagnosticInfo: return new Variant(ReadDiagnosticInfo(fieldName), TypeInfo.Scalars.DiagnosticInfo);
+
+                case BuiltInType.DataValue: return new Variant(ReadDataValue(fieldName), TypeInfo.Scalars.DataValue);
             }
 
             return Variant.Null;
@@ -3196,31 +3175,55 @@ namespace Opc.Ua
         {
             switch (type)
             {
-                case BuiltInType.Boolean: { return new Variant(ReadBooleanArray(fieldName), TypeInfo.Arrays.Boolean); }
-                case BuiltInType.SByte: { return new Variant(ReadSByteArray(fieldName), TypeInfo.Arrays.SByte); }
-                case BuiltInType.Byte: { return new Variant(ReadByteArray(fieldName), TypeInfo.Arrays.Byte); }
-                case BuiltInType.Int16: { return new Variant(ReadInt16Array(fieldName), TypeInfo.Arrays.Int16); }
-                case BuiltInType.UInt16: { return new Variant(ReadUInt16Array(fieldName), TypeInfo.Arrays.UInt16); }
-                case BuiltInType.Int32: { return new Variant(ReadInt32Array(fieldName), TypeInfo.Arrays.Int32); }
-                case BuiltInType.UInt32: { return new Variant(ReadUInt32Array(fieldName), TypeInfo.Arrays.UInt32); }
-                case BuiltInType.Int64: { return new Variant(ReadInt64Array(fieldName), TypeInfo.Arrays.Int64); }
-                case BuiltInType.UInt64: { return new Variant(ReadUInt64Array(fieldName), TypeInfo.Arrays.UInt64); }
-                case BuiltInType.Float: { return new Variant(ReadFloatArray(fieldName), TypeInfo.Arrays.Float); }
-                case BuiltInType.Double: { return new Variant(ReadDoubleArray(fieldName), TypeInfo.Arrays.Double); }
-                case BuiltInType.String: { return new Variant(ReadStringArray(fieldName), TypeInfo.Arrays.String); }
-                case BuiltInType.ByteString: { return new Variant(ReadByteStringArray(fieldName), TypeInfo.Arrays.ByteString); }
-                case BuiltInType.DateTime: { return new Variant(ReadDateTimeArray(fieldName), TypeInfo.Arrays.DateTime); }
-                case BuiltInType.Guid: { return new Variant(ReadGuidArray(fieldName), TypeInfo.Arrays.Guid); }
-                case BuiltInType.NodeId: { return new Variant(ReadNodeIdArray(fieldName), TypeInfo.Arrays.NodeId); }
-                case BuiltInType.ExpandedNodeId: { return new Variant(ReadExpandedNodeIdArray(fieldName), TypeInfo.Arrays.ExpandedNodeId); }
-                case BuiltInType.QualifiedName: { return new Variant(ReadQualifiedNameArray(fieldName), TypeInfo.Arrays.QualifiedName); }
-                case BuiltInType.LocalizedText: { return new Variant(ReadLocalizedTextArray(fieldName), TypeInfo.Arrays.LocalizedText); }
-                case BuiltInType.StatusCode: { return new Variant(ReadStatusCodeArray(fieldName), TypeInfo.Arrays.StatusCode); }
-                case BuiltInType.XmlElement: { return new Variant(ReadXmlElementArray(fieldName), TypeInfo.Arrays.XmlElement); }
-                case BuiltInType.ExtensionObject: { return new Variant(ReadExtensionObjectArray(fieldName), TypeInfo.Arrays.ExtensionObject); }
-                case BuiltInType.Variant: { return new Variant(ReadVariantArray(fieldName), TypeInfo.Arrays.Variant); }
-                case BuiltInType.DiagnosticInfo: { return new Variant(ReadDiagnosticInfoArray(fieldName), TypeInfo.Arrays.DiagnosticInfo); }
-                case BuiltInType.DataValue: { return new Variant(ReadDataValueArray(fieldName), TypeInfo.Arrays.DataValue); }
+                case BuiltInType.Boolean: return new Variant(ReadBooleanArray(fieldName), TypeInfo.Arrays.Boolean);
+
+                case BuiltInType.SByte: return new Variant(ReadSByteArray(fieldName), TypeInfo.Arrays.SByte);
+
+                case BuiltInType.Byte: return new Variant(ReadByteArray(fieldName), TypeInfo.Arrays.Byte);
+
+                case BuiltInType.Int16: return new Variant(ReadInt16Array(fieldName), TypeInfo.Arrays.Int16);
+
+                case BuiltInType.UInt16: return new Variant(ReadUInt16Array(fieldName), TypeInfo.Arrays.UInt16);
+
+                case BuiltInType.Int32: return new Variant(ReadInt32Array(fieldName), TypeInfo.Arrays.Int32);
+
+                case BuiltInType.UInt32: return new Variant(ReadUInt32Array(fieldName), TypeInfo.Arrays.UInt32);
+
+                case BuiltInType.Int64: return new Variant(ReadInt64Array(fieldName), TypeInfo.Arrays.Int64);
+
+                case BuiltInType.UInt64: return new Variant(ReadUInt64Array(fieldName), TypeInfo.Arrays.UInt64);
+
+                case BuiltInType.Float: return new Variant(ReadFloatArray(fieldName), TypeInfo.Arrays.Float);
+
+                case BuiltInType.Double: return new Variant(ReadDoubleArray(fieldName), TypeInfo.Arrays.Double);
+
+                case BuiltInType.String: return new Variant(ReadStringArray(fieldName), TypeInfo.Arrays.String);
+
+                case BuiltInType.ByteString: return new Variant(ReadByteStringArray(fieldName), TypeInfo.Arrays.ByteString);
+
+                case BuiltInType.DateTime: return new Variant(ReadDateTimeArray(fieldName), TypeInfo.Arrays.DateTime);
+
+                case BuiltInType.Guid: return new Variant(ReadGuidArray(fieldName), TypeInfo.Arrays.Guid);
+
+                case BuiltInType.NodeId: return new Variant(ReadNodeIdArray(fieldName), TypeInfo.Arrays.NodeId);
+
+                case BuiltInType.ExpandedNodeId: return new Variant(ReadExpandedNodeIdArray(fieldName), TypeInfo.Arrays.ExpandedNodeId);
+
+                case BuiltInType.QualifiedName: return new Variant(ReadQualifiedNameArray(fieldName), TypeInfo.Arrays.QualifiedName);
+
+                case BuiltInType.LocalizedText: return new Variant(ReadLocalizedTextArray(fieldName), TypeInfo.Arrays.LocalizedText);
+
+                case BuiltInType.StatusCode: return new Variant(ReadStatusCodeArray(fieldName), TypeInfo.Arrays.StatusCode);
+
+                case BuiltInType.XmlElement: return new Variant(ReadXmlElementArray(fieldName), TypeInfo.Arrays.XmlElement);
+
+                case BuiltInType.ExtensionObject: return new Variant(ReadExtensionObjectArray(fieldName), TypeInfo.Arrays.ExtensionObject);
+
+                case BuiltInType.Variant: return new Variant(ReadVariantArray(fieldName), TypeInfo.Arrays.Variant);
+
+                case BuiltInType.DiagnosticInfo: return new Variant(ReadDiagnosticInfoArray(fieldName), TypeInfo.Arrays.DiagnosticInfo);
+
+                case BuiltInType.DataValue: return new Variant(ReadDataValueArray(fieldName), TypeInfo.Arrays.DataValue);
             }
 
             return Variant.Null;
@@ -3242,36 +3245,27 @@ namespace Opc.Ua
                     switch (m_reader.TokenType)
                     {
                         case JsonToken.Comment:
-                        {
                             break;
-                        }
 
                         case JsonToken.Null:
-                        {
                             elements.Add(JTokenNullObject.Array);
                             break;
-                        }
+
                         case JsonToken.Date:
                         case JsonToken.Boolean:
                         case JsonToken.Integer:
                         case JsonToken.Float:
                         case JsonToken.String:
-                        {
                             elements.Add(m_reader.Value);
                             break;
-                        }
 
                         case JsonToken.StartArray:
-                        {
                             elements.Add(ReadArray());
                             break;
-                        }
 
                         case JsonToken.StartObject:
-                        {
                             elements.Add(ReadObject());
                             break;
-                        }
 
                         default:
                             break;
@@ -3311,15 +3305,11 @@ namespace Opc.Ua
                             switch (m_reader.TokenType)
                             {
                                 case JsonToken.Comment:
-                                {
                                     break;
-                                }
 
                                 case JsonToken.Null:
-                                {
                                     fields[name] = JTokenNullObject.Object;
                                     break;
-                                }
 
                                 case JsonToken.Date:
                                 case JsonToken.Bytes:
@@ -3327,22 +3317,16 @@ namespace Opc.Ua
                                 case JsonToken.Integer:
                                 case JsonToken.Float:
                                 case JsonToken.String:
-                                {
                                     fields[name] = m_reader.Value;
                                     break;
-                                }
 
                                 case JsonToken.StartArray:
-                                {
                                     fields[name] = ReadArray();
                                     break;
-                                }
 
                                 case JsonToken.StartObject:
-                                {
                                     fields[name] = ReadObject();
                                     break;
-                                }
 
                                 default:
                                     break;
@@ -3431,24 +3415,16 @@ namespace Opc.Ua
             {
                 case IdType.Numeric:
                 default:
-                {
                     return new NodeId(0U, namespaceIndex);
-                }
 
                 case IdType.Opaque:
-                {
                     return new NodeId(Array.Empty<byte>(), namespaceIndex);
-                }
 
                 case IdType.String:
-                {
                     return new NodeId("", namespaceIndex);
-                }
 
                 case IdType.Guid:
-                {
                     return new NodeId(Guid.Empty, namespaceIndex);
-                }
             }
         }
 

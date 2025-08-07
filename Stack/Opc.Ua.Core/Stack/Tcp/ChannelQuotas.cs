@@ -25,9 +25,9 @@ namespace Opc.Ua.Bindings
         {
             MessageContext = ServiceMessageContext.GlobalContext;
             MaxMessageSize = TcpMessageLimits.DefaultMaxMessageSize;
-            m_maxBufferSize = TcpMessageLimits.DefaultMaxBufferSize;
-            m_channelLifetime = TcpMessageLimits.DefaultChannelLifetime;
-            m_securityTokenLifetime = TcpMessageLimits.DefaultSecurityTokenLifeTime;
+            MaxBufferSize = TcpMessageLimits.DefaultMaxBufferSize;
+            ChannelLifetime = TcpMessageLimits.DefaultChannelLifetime;
+            SecurityTokenLifetime = TcpMessageLimits.DefaultSecurityTokenLifeTime;
         }
         #endregion
 
@@ -50,58 +50,18 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// The maximum size for the send or receive buffers.
         /// </summary>
-        public int MaxBufferSize
-        {
-            get
-            {
-                return m_maxBufferSize;
-            }
-
-            set
-            {
-                m_maxBufferSize = value;
-            }
-        }
-
-
+        public int MaxBufferSize { get; set; }
 
         /// <summary>
         /// The default lifetime for the channel in milliseconds.
         /// </summary>
-        public int ChannelLifetime
-        {
-            get
-            {
-                return m_channelLifetime;
-            }
-
-            set
-            {
-                m_channelLifetime = value;
-            }
-        }
+        public int ChannelLifetime { get; set; }
 
         /// <summary>
         /// The default lifetime for a security token in milliseconds.
         /// </summary>
-        public int SecurityTokenLifetime
-        {
-            get
-            {
-                return m_securityTokenLifetime;
-            }
+        public int SecurityTokenLifetime { get; set; }
 
-            set
-            {
-                m_securityTokenLifetime = value;
-            }
-        }
-
-#endregion
-#region Private Fields
-        private int m_maxBufferSize;
-        private int m_channelLifetime;
-        private int m_securityTokenLifetime;
         #endregion
     }
 }

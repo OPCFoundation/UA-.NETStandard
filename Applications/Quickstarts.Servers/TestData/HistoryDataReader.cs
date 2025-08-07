@@ -52,8 +52,8 @@ namespace TestData
         /// <param name="source">The source of the history data.</param>
         public HistoryDataReader(NodeId variableId, IHistoryDataSource source)
         {
-            m_id = Guid.NewGuid();
-            m_variableId = variableId;
+            Id = Guid.NewGuid();
+            VariableId = variableId;
             m_source = source;
         }
         #endregion
@@ -81,18 +81,12 @@ namespace TestData
         /// <summary>
         /// A globally unique identifier for the instance.
         /// </summary>
-        public Guid Id
-        {
-            get { return m_id; }
-        }
+        public Guid Id { get; }
 
         /// <summary>
         /// The identifier for the variable being read.
         /// </summary>
-        public NodeId VariableId
-        {
-            get { return m_variableId; }
-        }
+        public NodeId VariableId { get; }
 
         /// <summary>
         /// Starts reading raw values.
@@ -256,12 +250,9 @@ namespace TestData
             // add result.
             values.Add(value);
         }
-        #endregion
 
-        #region Private Fields
-
-        private Guid m_id;
-        private readonly NodeId m_variableId;
+#endregion
+#region Private Fields
         private readonly IHistoryDataSource m_source;
         private ReadRawModifiedDetails m_request;
         private DateTime m_startTime;

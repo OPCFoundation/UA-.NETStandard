@@ -510,12 +510,9 @@ namespace Opc.Ua
                 // lookup the supertype.
                 TypeInfo superTypeInfo = null;
 
-                if (localsuperTypeId != null)
+                if (localsuperTypeId != null && !m_nodes.TryGetValue(localsuperTypeId, out superTypeInfo))
                 {
-                    if (!m_nodes.TryGetValue(localsuperTypeId, out superTypeInfo))
-                    {
-                        throw ServiceResultException.Create(StatusCodes.BadNodeIdInvalid, "A valid supertype identifier is required.");
-                    }
+                    throw ServiceResultException.Create(StatusCodes.BadNodeIdInvalid, "A valid supertype identifier is required.");
                 }
 
                 // create the type info.
@@ -657,12 +654,9 @@ namespace Opc.Ua
                 // lookup the supertype.
                 TypeInfo superTypeInfo = null;
 
-                if (!NodeId.IsNull(superTypeId))
+                if (!NodeId.IsNull(superTypeId) && !m_nodes.TryGetValue(superTypeId, out superTypeInfo))
                 {
-                    if (!m_nodes.TryGetValue(superTypeId, out superTypeInfo))
-                    {
-                        throw ServiceResultException.Create(StatusCodes.BadNodeIdInvalid, "A valid supertype identifier is required.");
-                    }
+                    throw ServiceResultException.Create(StatusCodes.BadNodeIdInvalid, "A valid supertype identifier is required.");
                 }
 
                 // create the type info.

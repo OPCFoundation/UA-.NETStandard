@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 #if !NETSTANDARD2_1 && !NET5_0_OR_GREATER
-
 using System;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
@@ -37,6 +36,7 @@ using Opc.Ua.Security.Certificates.BouncyCastle;
 using Org.BouncyCastle.Asn1.Pkcs;
 using Org.BouncyCastle.Crypto.Parameters;
 using Org.BouncyCastle.Pkcs;
+#endif
 
 namespace Opc.Ua.Security.Certificates
 {
@@ -45,6 +45,8 @@ namespace Opc.Ua.Security.Certificates
     /// </summary>
     public static partial class PEMWriter
     {
+#if !NETSTANDARD2_1 && !NET5_0_OR_GREATER
+
         #region Public Methods
         /// <summary>
         /// Returns a byte array containing the private key in PEM format.
@@ -85,7 +87,7 @@ namespace Opc.Ua.Security.Certificates
             }
 #else
             throw new ArgumentException("ExportPrivateKeyAsPEM not supported on this platform."); // Only on NETSTANDARD2_0
-#endif            
+#endif
         }
 
         /// <summary>
@@ -131,7 +133,6 @@ namespace Opc.Ua.Security.Certificates
                         return true;
                     }
 
-
                     searchPosition = endIndex + endlabel.Length;
                 }
             }
@@ -142,6 +143,6 @@ namespace Opc.Ua.Security.Certificates
             return false;
         }
         #endregion
+#endif
     }
 }
-#endif

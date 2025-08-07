@@ -420,7 +420,6 @@ namespace Opc.Ua.Schema.Binary
     [System.Xml.Serialization.XmlTypeAttribute(Namespace = "http://opcfoundation.org/BinarySchema/")]
     public partial class TypeDescription
     {
-
         private Documentation documentationField;
 
         private string nameField;

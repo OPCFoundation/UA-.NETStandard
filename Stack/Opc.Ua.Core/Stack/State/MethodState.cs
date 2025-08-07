@@ -197,7 +197,6 @@ namespace Opc.Ua
         {
             base.Export(context, node);
 
-
             if (node is MethodNode methodNode)
             {
                 methodNode.Executable = this.Executable;
@@ -332,7 +331,6 @@ namespace Opc.Ua
             switch (attributeId)
             {
                 case Attributes.Executable:
-                {
                     bool executable = m_executable;
 
                     NodeAttributeEventHandler<bool> onReadExecutable = OnReadExecutable;
@@ -348,10 +346,8 @@ namespace Opc.Ua
                     }
 
                     return result;
-                }
 
                 case Attributes.UserExecutable:
-                {
                     bool userExecutable = m_userExecutable;
 
                     NodeAttributeEventHandler<bool> onReadUserExecutable = OnReadUserExecutable;
@@ -367,7 +363,6 @@ namespace Opc.Ua
                     }
 
                     return result;
-                }
             }
 
             return base.ReadNonValueAttribute(context, attributeId, ref value);
@@ -388,7 +383,6 @@ namespace Opc.Ua
             switch (attributeId)
             {
                 case Attributes.Executable:
-                {
                     bool? executableRef = value as bool?;
 
                     if (executableRef == null)
@@ -416,10 +410,8 @@ namespace Opc.Ua
                     }
 
                     return result;
-                }
 
                 case Attributes.UserExecutable:
-                {
                     bool? userExecutableRef = value as bool?;
 
                     if (userExecutableRef == null)
@@ -447,7 +439,6 @@ namespace Opc.Ua
                     }
 
                     return result;
-                }
             }
 
             return base.WriteNonValueAttribute(context, attributeId, value);
@@ -544,54 +535,39 @@ namespace Opc.Ua
             switch (browseName.Name)
             {
                 case BrowseNames.InputArguments:
-                {
-                    if (createOrReplace)
+                    if (createOrReplace && InputArguments == null)
                     {
-                        if (InputArguments == null)
+                        if (replacement == null)
                         {
-                            if (replacement == null)
-                            {
-                                InputArguments = new PropertyState<Argument[]>(this);
-                            }
-                            else
-                            {
-                                InputArguments = (PropertyState<Argument[]>)replacement;
-                            }
+                            InputArguments = new PropertyState<Argument[]>(this);
+                        }
+                        else
+                        {
+                            InputArguments = (PropertyState<Argument[]>)replacement;
                         }
                     }
 
                     instance = InputArguments;
                     break;
-                }
 
                 case BrowseNames.OutputArguments:
-                {
-                    if (createOrReplace)
+                    if (createOrReplace && OutputArguments == null)
                     {
-                        if (OutputArguments == null)
+                        if (replacement == null)
                         {
-                            if (replacement == null)
-                            {
-                                OutputArguments = new PropertyState<Argument[]>(this);
-                            }
-                            else
-                            {
-                                OutputArguments = (PropertyState<Argument[]>)replacement;
-                            }
+                            OutputArguments = new PropertyState<Argument[]>(this);
+                        }
+                        else
+                        {
+                            OutputArguments = (PropertyState<Argument[]>)replacement;
                         }
                     }
 
                     instance = OutputArguments;
                     break;
-                }
             }
 
-            if (instance != null)
-            {
-                return instance;
-            }
-
-            return base.FindChild(context, browseName, createOrReplace, replacement);
+            return instance ?? base.FindChild(context, browseName, createOrReplace, replacement);
         }
         #endregion
 
@@ -616,7 +592,7 @@ namespace Opc.Ua
             object executable = null;
             ReadNonValueAttribute(context, Attributes.Executable, ref executable);
 
-            if (executable is bool && (bool)executable == false)
+            if (executable is bool && !(bool)executable)
             {
                 return StatusCodes.BadNotExecutable;
             }
@@ -625,7 +601,7 @@ namespace Opc.Ua
             object userExecutable = null;
             ReadNonValueAttribute(context, Attributes.UserExecutable, ref userExecutable);
 
-            if (userExecutable is bool && (bool)userExecutable == false)
+            if (userExecutable is bool && !(bool)userExecutable)
             {
                 return StatusCodes.BadUserAccessDenied;
             }
@@ -769,7 +745,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="context">The context to use.</param>
         /// <param name="inputArgument">The input argument.</param>
-        /// <param name="index">The index in the the list of input argument.</param>
+        /// <param name="index">The index in the list of input argument.</param>
         /// <returns>Any error.</returns>
         protected ServiceResult ValidateInputArgument(
             ISystemContext context,

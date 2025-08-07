@@ -92,7 +92,6 @@ namespace Opc.Ua.Buffers.Tests
             // Arrange
             using (var writer = new ArrayPoolBufferWriter<byte>(false, defaultChunkSize, maxChunkSize))
             {
-
                 // Act
                 for (int i = 0; i <= byte.MaxValue; i++)
                 {
@@ -136,7 +135,6 @@ namespace Opc.Ua.Buffers.Tests
                         // Assert
                         Assert.That(buffer.Length, Is.EqualTo(length));
                         Assert.That(sequence.Length, Is.EqualTo(length));
-
                     }
                 }
 

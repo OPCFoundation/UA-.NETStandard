@@ -37,28 +37,15 @@ namespace Alarms
     {
         public SupportedAlarmConditionType(string name, string conditionName, NodeId nodeId)
         {
-            m_name = name;
-            m_conditionName = conditionName;
-            m_nodeId = nodeId;
+            Name = name;
+            ConditionName = conditionName;
+            Node = nodeId;
         }
 
-        public string Name
-        {
-            get { return m_name; }
-        }
+        public string Name { get; }
 
-        public string ConditionName
-        {
-            get { return m_conditionName; }
-        }
+        public string ConditionName { get; }
 
-        public NodeId Node
-        {
-            get { return m_nodeId; }
-        }
-
-        private readonly string m_name;
-        private readonly string m_conditionName;
-        private readonly NodeId m_nodeId;
+        public NodeId Node { get; }
     }
 }

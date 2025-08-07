@@ -34,7 +34,7 @@ using System.Text;
 namespace Opc.Ua.Server
 {
     /// <summary>
-    /// Calculates the value of an aggregate. 
+    /// Calculates the value of an aggregate.
     /// </summary>
     public class StatusAggregateCalculator : AggregateCalculator
     {
@@ -55,7 +55,7 @@ namespace Opc.Ua.Server
             double processingInterval,
             bool stepped,
             AggregateConfiguration configuration)
-        : 
+        :
             base(aggregateId, startTime, endTime, processingInterval, stepped, configuration)
         {
             SetPartialBit = true;
@@ -75,34 +75,22 @@ namespace Opc.Ua.Server
                 switch (id.Value)
                 {
                     case Objects.AggregateFunction_DurationGood:
-                    {
                         return ComputeDurationGoodBad(slice, false, false);
-                    }
 
                     case Objects.AggregateFunction_DurationBad:
-                    {
                         return ComputeDurationGoodBad(slice, true, false);
-                    }
 
                     case Objects.AggregateFunction_PercentGood:
-                    {
                         return ComputeDurationGoodBad(slice, false, true);
-                    }
 
                     case Objects.AggregateFunction_PercentBad:
-                    {
                         return ComputeDurationGoodBad(slice, true, true);
-                    }
 
                     case Objects.AggregateFunction_WorstQuality:
-                    {
                         return ComputeWorstQuality(slice, false);
-                    }
 
                     case Objects.AggregateFunction_WorstQuality2:
-                    {
                         return ComputeWorstQuality(slice, true);
-                    }
                 }
             }
 
@@ -142,12 +130,9 @@ namespace Opc.Ua.Server
                         duration += regions[ii].Duration;
                     }
                 }
-                else
+                else if (StatusCode.IsGood(regions[ii].StatusCode))
                 {
-                    if (StatusCode.IsGood(regions[ii].StatusCode))
-                    {
-                        duration += regions[ii].Duration;
-                    }
+                    duration += regions[ii].Duration;
                 }
             }
 
@@ -160,7 +145,7 @@ namespace Opc.Ua.Server
             var value = new DataValue();
             value.WrappedValue = new Variant(duration, TypeInfo.Scalars.Double);
             value.SourceTimestamp = GetTimestamp(slice);
-            value.ServerTimestamp = GetTimestamp(slice);            
+            value.ServerTimestamp = GetTimestamp(slice);
             value.StatusCode = value.StatusCode.SetAggregateBits(AggregateBits.Calculated);
 
             // return result.
@@ -174,7 +159,7 @@ namespace Opc.Ua.Server
         {
             // get the values in the slice.
             List<DataValue> values = null;
-            
+
             if (!includeBounds)
             {
                 values = GetValues(slice);

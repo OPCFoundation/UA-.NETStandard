@@ -13,6 +13,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using System.Text;
 using System.Xml;
@@ -82,7 +83,7 @@ namespace Opc.Ua.Schema.Xml
                 m_schema = XmlSchema.Read(xmlReader, new ValidationEventHandler(OnValidate));
 
                 Assembly assembly = typeof(XmlSchemaValidator).GetTypeInfo().Assembly;
-                foreach (XmlSchemaImport import in m_schema.Includes)
+                foreach (XmlSchemaImport import in m_schema.Includes.OfType<XmlSchemaImport>())
                 {
                     string location = null;
 
@@ -137,16 +138,13 @@ namespace Opc.Ua.Schema.Xml
                 {
                     foreach (XmlSchemaObject current in m_schema.Elements.Values)
                     {
-                        if (current is XmlSchemaElement element)
+                        if (current is XmlSchemaElement element && element.Name == typeName)
                         {
-                            if (element.Name == typeName)
-                            {
-                                var schema = new XmlSchema();
-                                schema.Items.Add(element.ElementSchemaType);
-                                schema.Items.Add(element);
-                                schema.Write(writer);
-                                break;
-                            }
+                            var schema = new XmlSchema();
+                            schema.Items.Add(element.ElementSchemaType);
+                            schema.Items.Add(element);
+                            schema.Write(writer);
+                            break;
                         }
                     }
                 }

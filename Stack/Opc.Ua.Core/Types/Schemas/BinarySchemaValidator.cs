@@ -245,12 +245,7 @@ namespace Opc.Ua.Schema.Binary
                 }
             }
 
-            if (documentation.Items != null && documentation.Items.Length > 0)
-            {
-                return false;
-            }
-
-            return true;
+            return documentation.Items == null || documentation.Items.Length == 0;
         }
 
         /// <summary>
@@ -270,13 +265,9 @@ namespace Opc.Ua.Schema.Binary
                 return true;
             }
 
-
-            if (description is OpaqueType opaqueType)
+            if (description is OpaqueType opaqueType && opaqueType.LengthInBitsSpecified)
             {
-                if (opaqueType.LengthInBitsSpecified)
-                {
-                    return true;
-                }
+                return true;
             }
 
             return false;
@@ -306,7 +297,6 @@ namespace Opc.Ua.Schema.Binary
                 }
             }
 
-
             if (description is EnumeratedType enumerated)
             {
                 if (enumerated.LengthInBitsSpecified)
@@ -314,15 +304,9 @@ namespace Opc.Ua.Schema.Binary
                     return enumerated.LengthInBits * ((int)count);
                 }
             }
-            else
+            else if (description is OpaqueType opaque && opaque.LengthInBitsSpecified)
             {
-                if (description is OpaqueType opaque)
-                {
-                    if (opaque.LengthInBitsSpecified)
-                    {
-                        return opaque.LengthInBits * ((int)count);
-                    }
-                }
+                return opaque.LengthInBits * ((int)count);
             }
 
             return -1;
@@ -416,16 +400,10 @@ namespace Opc.Ua.Schema.Binary
                 }
             }
 
-
-            if (description is EnumeratedType enumerated)
+            if (description is EnumeratedType enumerated && !enumerated.LengthInBitsSpecified)
             {
-
-                if (!enumerated.LengthInBitsSpecified)
-                {
-                    throw Exception("The enumerated type '{0}' does not have a length specified.", description.Name);
-                }
+                throw Exception("The enumerated type '{0}' does not have a length specified.", description.Name);
             }
-
 
             if (description is StructuredType structure)
             {

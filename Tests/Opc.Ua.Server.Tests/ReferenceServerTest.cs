@@ -62,7 +62,6 @@ namespace Opc.Ua.Server.Tests
         DataGenerator m_generator;
         bool m_sessionClosed;
 
-
         #region Test Setup
         /// <summary>
         /// Set up a Server fixture.
@@ -437,7 +436,6 @@ namespace Opc.Ua.Server.Tests
             }
         }
 
-
         /// <summary>
         /// Create a subscription with a monitored item.
         /// Call ResendData.
@@ -595,7 +593,7 @@ namespace Opc.Ua.Server.Tests
                 }
 
                 // Call ResendData method with invalid subscription Id
-                ResendDataCall(StatusCodes.BadSubscriptionIdInvalid, new UInt32Collection() { subscriptionIds.Last() + 20 });
+                ResendDataCall(StatusCodes.BadSubscriptionIdInvalid, new UInt32Collection() { subscriptionIds[^1] + 20 });
 
                 // Nothing to publish since previous ResendData call did not execute
                 m_requestHeader.Timestamp = DateTime.UtcNow;

@@ -93,7 +93,7 @@ namespace Opc.Ua
             // extract store location.
             string storeLocation = location[..index];
             bool found = false;
-            foreach (StoreLocation availableLocation in (StoreLocation[])Enum.GetValues(typeof(StoreLocation)))
+            foreach (StoreLocation availableLocation in new[] { StoreLocation.LocalMachine, StoreLocation.CurrentUser })
             {
                 if (availableLocation.ToString().Equals(storeLocation, StringComparison.OrdinalIgnoreCase))
                 {
@@ -231,8 +231,6 @@ namespace Opc.Ua
         /// <remarks>CRLs are only supported on Windows Platform.</remarks>
         public bool SupportsCRLs => PlatformHelper.IsWindowsWithCrlSupport();
 
-
-
         /// <inheritdoc/>
         /// <remarks>CRLs are only supported on Windows Platform.</remarks>
         public async Task<StatusCode> IsRevoked(X509Certificate2 issuer, X509Certificate2 certificate)
@@ -303,8 +301,7 @@ namespace Opc.Ua
             {
                 store.Open(OpenFlags.ReadOnly);
 
-                byte[][] rawCrls = store.EnumerateCrls();
-                foreach (byte[] rawCrl in rawCrls)
+                foreach (byte[] rawCrl in store.EnumerateCrls())
                 {
                     try
                     {
@@ -346,7 +343,7 @@ namespace Opc.Ua
                 }
 
                 if (!validateUpdateTime ||
-                    crl.ThisUpdate <= DateTime.UtcNow && (crl.NextUpdate == DateTime.MinValue || crl.NextUpdate >= DateTime.UtcNow))
+                    (crl.ThisUpdate <= DateTime.UtcNow && (crl.NextUpdate == DateTime.MinValue || crl.NextUpdate >= DateTime.UtcNow)))
                 {
                     crls.Add(crl);
                 }
@@ -369,17 +366,13 @@ namespace Opc.Ua
             }
 
             X509Certificate2 issuer = null;
-            X509Certificate2Collection certificates = null;
-            certificates = await Enumerate().ConfigureAwait(false);
+            X509Certificate2Collection certificates = await Enumerate().ConfigureAwait(false);
             foreach (X509Certificate2 certificate in certificates)
             {
-                if (X509Utils.CompareDistinguishedName(certificate.SubjectName, crl.IssuerName))
+                if (X509Utils.CompareDistinguishedName(certificate.SubjectName, crl.IssuerName) && crl.VerifySignature(certificate, false))
                 {
-                    if (crl.VerifySignature(certificate, false))
-                    {
-                        issuer = certificate;
-                        break;
-                    }
+                    issuer = certificate;
+                    break;
                 }
             }
 

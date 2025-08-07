@@ -36,7 +36,6 @@ namespace Opc.Ua
         /// </summary>
         public CertificateTypesProvider ServerCertificateTypesProvider { get; set; }
 
-
         /// <summary>
         /// Gets or Sets the certificate validator.
         /// </summary>
@@ -94,7 +93,5 @@ namespace Opc.Ua
         public bool HttpsMutualTls { get; set; }
 
 #endregion
-#region Private Fields
-        #endregion
     }
 }

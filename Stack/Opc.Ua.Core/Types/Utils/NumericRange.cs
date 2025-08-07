@@ -492,12 +492,9 @@ namespace Opc.Ua
 
             if (SubRanges.Length > typeInfo.ValueRank)
             {
-                if (typeInfo.BuiltInType is BuiltInType.ByteString or BuiltInType.String)
+                if (typeInfo.BuiltInType is BuiltInType.ByteString or BuiltInType.String && SubRanges.Length == typeInfo.ValueRank + 1)
                 {
-                    if (SubRanges.Length == typeInfo.ValueRank + 1)
-                    {
-                        finalRange = SubRanges[SubRanges.Length - 1];
-                    }
+                    finalRange = SubRanges[SubRanges.Length - 1];
                 }
 
                 if (finalRange == null)
@@ -625,7 +622,7 @@ namespace Opc.Ua
                         return StatusCodes.BadIndexRangeInvalid;
                     }
 
-                    if (this.m_begin >= dstString.Length || this.m_end > 0 && this.m_end >= dstString.Length)
+                    if (this.m_begin >= dstString.Length || (this.m_end > 0 && this.m_end >= dstString.Length))
                     {
                         return StatusCodes.BadIndexRangeNoData;
                     }
@@ -649,7 +646,7 @@ namespace Opc.Ua
                         return StatusCodes.BadIndexRangeInvalid;
                     }
 
-                    if (this.m_begin >= dstString.Length || this.m_end > 0 && this.m_end >= dstString.Length)
+                    if (this.m_begin >= dstString.Length || (this.m_end > 0 && this.m_end >= dstString.Length))
                     {
                         return StatusCodes.BadIndexRangeNoData;
                     }
@@ -716,7 +713,7 @@ namespace Opc.Ua
                     return StatusCodes.BadIndexRangeInvalid;
                 }
 
-                if (this.m_begin >= dstArray.Length || this.m_end > 0 && this.m_end >= dstArray.Length)
+                if (this.m_begin >= dstArray.Length || (this.m_end > 0 && this.m_end >= dstArray.Length))
                 {
                     return StatusCodes.BadIndexRangeNoData;
                 }
@@ -740,12 +737,9 @@ namespace Opc.Ua
 
             if (SubRanges != null && SubRanges.Length > srcTypeInfo.ValueRank)
             {
-                if (srcTypeInfo.BuiltInType is BuiltInType.ByteString or BuiltInType.String)
+                if (srcTypeInfo.BuiltInType is BuiltInType.ByteString or BuiltInType.String && SubRanges.Length == srcTypeInfo.ValueRank + 1)
                 {
-                    if (SubRanges.Length == srcTypeInfo.ValueRank + 1)
-                    {
-                        finalRange = SubRanges[SubRanges.Length - 1];
-                    }
+                    finalRange = SubRanges[SubRanges.Length - 1];
                 }
 
                 if (finalRange == null)
@@ -760,12 +754,9 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < dimensions.Length; ii++)
             {
-                if (SubRanges.Length < ii)
+                if (SubRanges.Length < ii && SubRanges[ii].Count != srcArray.GetLength(ii))
                 {
-                    if (SubRanges[ii].Count != srcArray.GetLength(ii))
-                    {
-                        return StatusCodes.BadIndexRangeInvalid;
-                    }
+                    return StatusCodes.BadIndexRangeInvalid;
                 }
 
                 dimensions[ii] = srcArray.GetLength(ii);
@@ -1094,5 +1085,4 @@ namespace Opc.Ua
         #endregion
 
     }//class
-
 }//namespace

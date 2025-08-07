@@ -28,7 +28,7 @@ namespace Opc.Ua
             Pkcs1,
             OaepSHA1,
             OaepSHA256
-        };
+        }
 
         internal static RSAEncryptionPadding GetRSAEncryptionPadding(Padding padding)
         {
@@ -63,9 +63,9 @@ namespace Opc.Ua
             {
                 switch (padding)
                 {
-                    case Padding.Pkcs1: return rsa.KeySize / 8 - 11;
-                    case Padding.OaepSHA1: return rsa.KeySize / 8 - 42;
-                    case Padding.OaepSHA256: return rsa.KeySize / 8 - 66;
+                    case Padding.Pkcs1: return (rsa.KeySize / 8) - 11;
+                    case Padding.OaepSHA1: return (rsa.KeySize / 8) - 42;
+                    case Padding.OaepSHA256: return (rsa.KeySize / 8) - 66;
                 }
             }
             return -1;
@@ -327,7 +327,7 @@ namespace Opc.Ua
             try
             {
                 var randomSource = new Opc.Ua.Test.RandomSource();
-                int blockSize = 0x10;
+                const int blockSize = 0x10;
                 byte[] testBlock = new byte[blockSize];
                 randomSource.NextBytes(testBlock, 0, blockSize);
                 byte[] signature = privateKey.SignData(testBlock, HashAlgorithmName.SHA256, RSASignaturePadding.Pss);

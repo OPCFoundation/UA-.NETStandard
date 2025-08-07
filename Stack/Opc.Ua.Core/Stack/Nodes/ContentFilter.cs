@@ -186,12 +186,9 @@ namespace Opc.Ua
             {
                 foreach (ExtensionObject extension in m_elements[ii].FilterOperands)
                 {
-                    if (extension != null)
+                    if (extension != null && extension.Body is ElementOperand operand)
                     {
-                        if (extension.Body is ElementOperand operand)
-                        {
-                            operand.Index++;
-                        }
+                        operand.Index++;
                     }
                 }
             }
@@ -258,12 +255,7 @@ namespace Opc.Ua
             {
                 get
                 {
-                    if (m_elementResults == null)
-                    {
-                        m_elementResults = new List<ElementResult>();
-                    }
-
-                    return m_elementResults;
+                    return m_elementResults ??= new List<ElementResult>();
                 }
             }
 
@@ -361,12 +353,7 @@ namespace Opc.Ua
             {
                 get
                 {
-                    if (m_operandResults == null)
-                    {
-                        m_operandResults = new List<ServiceResult>();
-                    }
-
-                    return m_operandResults;
+                    return m_operandResults ??= new List<ServiceResult>();
                 }
             }
 
@@ -404,7 +391,6 @@ namespace Opc.Ua
                     {
                         result.OperandStatusCodes.Add(operandResult.StatusCode);
                         result.OperandDiagnosticInfos.Add(new DiagnosticInfo(operandResult, diagnosticsMasks, false, stringTable));
-
                     }
                 }
 
@@ -508,10 +494,8 @@ namespace Opc.Ua
                 case FilterOperator.IsNull:
                 case FilterOperator.InView:
                 case FilterOperator.OfType:
-                {
                     operandCount = 1;
                     break;
-                }
 
                 case FilterOperator.And:
                 case FilterOperator.Or:
@@ -524,33 +508,23 @@ namespace Opc.Ua
                 case FilterOperator.Cast:
                 case FilterOperator.BitwiseAnd:
                 case FilterOperator.BitwiseOr:
-                {
                     operandCount = 2;
                     break;
-                }
 
                 case FilterOperator.Between:
-                {
                     operandCount = 3;
                     break;
-                }
 
                 case FilterOperator.RelatedTo:
-                {
                     operandCount = 6;
                     break;
-                }
 
                 case FilterOperator.InList:
-                {
                     operandCount = -1;
                     break;
-                }
 
                 default:
-                {
                     break;
-                }
             }
 
             if (operandCount != -1)
@@ -566,18 +540,15 @@ namespace Opc.Ua
                     return result;
                 }
             }
-            else
+            else if (m_filterOperands.Count < 2)
             {
-                if (m_filterOperands.Count < 2)
-                {
-                    result.Status = ServiceResult.Create(
-                        StatusCodes.BadEventFilterInvalid,
-                        "ContentFilterElement does not have the correct number of operands (Operator={0} OperandCount={1}).",
-                        m_filterOperator,
-                        m_filterOperands.Count);
+                result.Status = ServiceResult.Create(
+                    StatusCodes.BadEventFilterInvalid,
+                    "ContentFilterElement does not have the correct number of operands (Operator={0} OperandCount={1}).",
+                    m_filterOperator,
+                    m_filterOperands.Count);
 
-                    return result;
-                }
+                return result;
             }
 
             // validate the operands.
@@ -657,7 +628,6 @@ namespace Opc.Ua
                     continue;
                 }
 
-
                 if (extension.Body is not FilterOperand operand)
                 {
                     continue;
@@ -714,10 +684,8 @@ namespace Opc.Ua
                 case FilterOperator.InView:
                 case FilterOperator.IsNull:
                 case FilterOperator.Not:
-                {
                     buffer.AppendFormat(CultureInfo.InvariantCulture, "{0} '{1}'", FilterOperator, operand1);
                     break;
-                }
 
                 case FilterOperator.And:
                 case FilterOperator.Equals:
@@ -729,25 +697,18 @@ namespace Opc.Ua
                 case FilterOperator.Or:
                 case FilterOperator.BitwiseAnd:
                 case FilterOperator.BitwiseOr:
-                {
                     buffer.AppendFormat(CultureInfo.InvariantCulture, "'{1}' {0} '{2}'", FilterOperator, operand1, operand2);
                     break;
-                }
 
                 case FilterOperator.Between:
-                {
                     buffer.AppendFormat(CultureInfo.InvariantCulture, "'{1}' <= '{0}' <= '{2}'", operand1, operand2, operand3);
                     break;
-                }
 
                 case FilterOperator.Cast:
-                {
                     buffer.AppendFormat(CultureInfo.InvariantCulture, "({1}){0}", operand1, operand2);
                     break;
-                }
 
                 case FilterOperator.InList:
-                {
                     buffer.AppendFormat(CultureInfo.InvariantCulture, "'{0}' in ", operand1);
                     buffer.Append('{');
 
@@ -762,24 +723,19 @@ namespace Opc.Ua
 
                     buffer.Append('}');
                     break;
-                }
 
                 case FilterOperator.RelatedTo:
-                {
                     buffer.AppendFormat(CultureInfo.InvariantCulture, "'{0}' ", operand1);
 
                     string referenceType = operand2;
 
-                    if (operands.Count > 1)
+                    if (operands.Count > 1 && operands[1] is LiteralOperand literalOperand)
                     {
-                        if (operands[1] is LiteralOperand literalOperand)
-                        {
-                            INode node = nodeTable.Find(literalOperand.Value.Value as NodeId);
+                        INode node = nodeTable.Find(literalOperand.Value.Value as NodeId);
 
-                            if (node != null)
-                            {
-                                referenceType = Utils.Format("{0}", node);
-                            }
+                        if (node != null)
+                        {
+                            referenceType = Utils.Format("{0}", node);
                         }
                     }
 
@@ -791,7 +747,6 @@ namespace Opc.Ua
                     }
 
                     break;
-                }
             }
 
             return buffer.ToString();

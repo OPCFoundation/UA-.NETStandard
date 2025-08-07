@@ -110,8 +110,6 @@ namespace Opc.Ua.Server
             SetSamplingInterval(samplingInterval);
         }
 
-
-
         /// <summary>
         /// Sets the queue size.
         /// </summary>
@@ -230,7 +228,7 @@ namespace Opc.Ua.Server
             {
                 if (m_overflow != null && m_overflow == value)
                 {
-                    SetOverflowBit(ref value, ref error);
+                    DataChangeQueueHandler.SetOverflowBit(ref value, ref error);
                     m_overflow = null;
                 }
 
@@ -307,7 +305,7 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="value">The value to update.</param>
         /// <param name="error">The error to update.</param>
-        private void SetOverflowBit(ref DataValue value, ref ServiceResult error)
+        private static void SetOverflowBit(ref DataValue value, ref ServiceResult error)
         {
             if (value != null)
             {
@@ -322,15 +320,13 @@ namespace Opc.Ua.Server
                 status.Overflow = true;
 
                 // have to copy before updating because the ServiceResult is invariant.
-                var copy = new ServiceResult(
+                error = new ServiceResult(
                     status,
                     error.SymbolicId,
                     error.NamespaceUri,
                     error.LocalizedText,
                     error.AdditionalInfo,
                     error.InnerResult);
-
-                error = copy;
             }
         }
         /// <inheritdoc/>
@@ -359,5 +355,4 @@ namespace Opc.Ua.Server
         private readonly Action m_discardedValueHandler;
         private DataValue m_overflow;
     }
-
 }

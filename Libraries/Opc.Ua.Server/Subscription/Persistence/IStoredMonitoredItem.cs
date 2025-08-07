@@ -132,5 +132,4 @@ namespace Opc.Ua.Server
         /// </summary>
         int TypeMask { get; set; }
     }
-
 }

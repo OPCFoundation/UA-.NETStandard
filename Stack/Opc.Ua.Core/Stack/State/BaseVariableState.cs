@@ -31,7 +31,7 @@ namespace Opc.Ua
         /// Initializes the instance with its default attribute values.
         /// </summary>
         /// <param name="parent">The parent node.</param>
-        public BaseVariableState(NodeState parent) : base(NodeClass.Variable, parent)
+        protected BaseVariableState(NodeState parent) : base(NodeClass.Variable, parent)
         {
             m_value = null;
             m_statusCode = StatusCodes.BadWaitingForInitialData;
@@ -187,7 +187,6 @@ namespace Opc.Ua
                 return value;
             }
 
-
             if (value is ExtensionObject extension)
             {
                 if (typeof(T).IsInstanceOfType(extension.Body))
@@ -254,12 +253,9 @@ namespace Opc.Ua
                 if (value is IList<Variant> variants)
                 {
                     // only support conversions to object[].
-                    if (elementType != typeof(object))
+                    if (elementType != typeof(object) && throwOnError)
                     {
-                        if (throwOnError)
-                        {
-                            throw ServiceResultException.Create(StatusCodes.BadTypeMismatch, "Cannot convert {0} to {1}.", value.GetType().Name, typeof(T).Name);
-                        }
+                        throw ServiceResultException.Create(StatusCodes.BadTypeMismatch, "Cannot convert {0} to {1}.", value.GetType().Name, typeof(T).Name);
                     }
 
                     // allocate and copy.
@@ -861,7 +857,6 @@ namespace Opc.Ua
         {
             base.Export(context, node);
 
-
             if (node is VariableNode variableNode)
             {
                 try
@@ -1325,7 +1320,6 @@ namespace Opc.Ua
             switch (attributeId)
             {
                 case Attributes.DataType:
-                {
                     NodeId dataType = m_dataType;
 
                     NodeAttributeEventHandler<NodeId> onReadDataType = OnReadDataType;
@@ -1341,10 +1335,8 @@ namespace Opc.Ua
                     }
 
                     return result;
-                }
 
                 case Attributes.ValueRank:
-                {
                     int valueRank = m_valueRank;
 
                     NodeAttributeEventHandler<int> onReadValueRank = OnReadValueRank;
@@ -1360,10 +1352,8 @@ namespace Opc.Ua
                     }
 
                     return result;
-                }
 
                 case Attributes.ArrayDimensions:
-                {
                     IList<uint> arrayDimensions = m_arrayDimensions;
 
                     NodeAttributeEventHandler<IList<uint>> onReadArrayDimensions = OnReadArrayDimensions;
@@ -1379,10 +1369,8 @@ namespace Opc.Ua
                     }
 
                     return result;
-                }
 
                 case Attributes.AccessLevel:
-                {
                     byte accessLevel = AccessLevel;
 
                     NodeAttributeEventHandler<byte> onReadAccessLevel = OnReadAccessLevel;
@@ -1398,10 +1386,8 @@ namespace Opc.Ua
                     }
 
                     return result;
-                }
 
                 case Attributes.AccessLevelEx:
-                {
                     uint accessLevelEx = m_accessLevel;
 
                     NodeAttributeEventHandler<uint> onReadAccessLevelEx = OnReadAccessLevelEx;
@@ -1417,10 +1403,8 @@ namespace Opc.Ua
                     }
 
                     return result;
-                }
 
                 case Attributes.UserAccessLevel:
-                {
                     byte userAccessLevel = m_userAccessLevel;
 
                     NodeAttributeEventHandler<byte> onReadUserAccessLevel = OnReadUserAccessLevel;
@@ -1436,10 +1420,8 @@ namespace Opc.Ua
                     }
 
                     return result;
-                }
 
                 case Attributes.MinimumSamplingInterval:
-                {
                     double minimumSamplingInterval = m_minimumSamplingInterval;
 
                     NodeAttributeEventHandler<double> onReadMinimumSamplingInterval = OnReadMinimumSamplingInterval;
@@ -1455,10 +1437,8 @@ namespace Opc.Ua
                     }
 
                     return result;
-                }
 
                 case Attributes.Historizing:
-                {
                     bool historizing = m_historizing;
 
                     NodeAttributeEventHandler<bool> onReadHistorizing = OnReadHistorizing;
@@ -1474,7 +1454,6 @@ namespace Opc.Ua
                     }
 
                     return result;
-                }
             }
 
             return base.ReadNonValueAttribute(context, attributeId, ref value);
@@ -1663,10 +1642,7 @@ namespace Opc.Ua
             switch (attributeId)
             {
                 case Attributes.DataType:
-                {
-                    var dataType = value as NodeId;
-
-                    if (dataType == null)
+                    if (!(value is NodeId dataType))
                     {
                         return StatusCodes.BadTypeMismatch;
                     }
@@ -1689,10 +1665,8 @@ namespace Opc.Ua
                     }
 
                     return result;
-                }
 
                 case Attributes.ValueRank:
-                {
                     int? valueRankRef = value as int?;
 
                     if (valueRankRef == null)
@@ -1720,10 +1694,8 @@ namespace Opc.Ua
                     }
 
                     return result;
-                }
 
                 case Attributes.ArrayDimensions:
-                {
                     var arrayDimensions = value as IList<uint>;
 
                     if ((WriteMask & AttributeWriteMask.ArrayDimensions) == 0)
@@ -1751,10 +1723,8 @@ namespace Opc.Ua
                     }
 
                     return result;
-                }
 
                 case Attributes.AccessLevel:
-                {
                     byte? accessLevelRef = value as byte?;
 
                     if (accessLevelRef == null)
@@ -1782,10 +1752,8 @@ namespace Opc.Ua
                     }
 
                     return result;
-                }
 
                 case Attributes.UserAccessLevel:
-                {
                     byte? userAccessLevelRef = value as byte?;
 
                     if (userAccessLevelRef == null)
@@ -1813,10 +1781,8 @@ namespace Opc.Ua
                     }
 
                     return result;
-                }
 
                 case Attributes.MinimumSamplingInterval:
-                {
                     double? minimumSamplingIntervalRef = value as double?;
 
                     if (minimumSamplingIntervalRef == null)
@@ -1844,10 +1810,8 @@ namespace Opc.Ua
                     }
 
                     return result;
-                }
 
                 case Attributes.Historizing:
-                {
                     bool? historizingRef = value as bool?;
 
                     if (historizingRef == null)
@@ -1875,7 +1839,6 @@ namespace Opc.Ua
                     }
 
                     return result;
-                }
             }
 
             return base.WriteNonValueAttribute(context, attributeId, value);
@@ -2302,33 +2265,23 @@ namespace Opc.Ua
             switch (browseName.Name)
             {
                 case BrowseNames.EnumStrings:
-                {
-                    if (createOrReplace)
+                    if (createOrReplace && EnumStrings == null)
                     {
-                        if (EnumStrings == null)
+                        if (replacement == null)
                         {
-                            if (replacement == null)
-                            {
-                                EnumStrings = new PropertyState<LocalizedText[]>(this);
-                            }
-                            else
-                            {
-                                EnumStrings = (PropertyState<LocalizedText[]>)replacement;
-                            }
+                            EnumStrings = new PropertyState<LocalizedText[]>(this);
+                        }
+                        else
+                        {
+                            EnumStrings = (PropertyState<LocalizedText[]>)replacement;
                         }
                     }
 
                     instance = EnumStrings;
                     break;
-                }
             }
 
-            if (instance != null)
-            {
-                return instance;
-            }
-
-            return base.FindChild(context, browseName, createOrReplace, replacement);
+            return instance ?? base.FindChild(context, browseName, createOrReplace, replacement);
         }
         #endregion
 
@@ -2642,7 +2595,12 @@ namespace Opc.Ua
     public enum VariableCopyPolicy
     {
         /// <summary>
-        /// The value is copied when is is read.
+        /// The value is never copied (only useful for value types that do not contain reference types).
+        /// </summary>
+        Never = 0x0,
+
+        /// <summary>
+        /// The value is copied when is read.
         /// </summary>
         CopyOnRead = 0x1,
 
@@ -2650,11 +2608,6 @@ namespace Opc.Ua
         /// The value is copied before it is written.
         /// </summary>
         CopyOnWrite = 0x2,
-
-        /// <summary>
-        /// The value is never copied (only useful for value types that do not contain reference types).
-        /// </summary>
-        Never = 0x0,
 
         /// <summary>
         /// Data is copied when it is written and when it is read.

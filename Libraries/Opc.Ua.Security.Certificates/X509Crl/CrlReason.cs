@@ -62,6 +62,5 @@ namespace Opc.Ua.Security.Certificates
         RemoveFromCRL = 8,
         PrivilegeWithdrawn = 9,
         AACompromise = 10
-    };
-
+    }
 }

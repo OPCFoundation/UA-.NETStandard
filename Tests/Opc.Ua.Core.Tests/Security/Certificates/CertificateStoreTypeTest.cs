@@ -6,7 +6,6 @@ using NUnit.Framework;
 using Opc.Ua.Security.Certificates;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
-
 namespace Opc.Ua.Core.Tests.Security.Certificates
 {
     /// <summary>
@@ -40,7 +39,6 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 var certificateStoreIdentifier = new CertificateStoreIdentifier(TestCertStore.StoreTypePrefix + @"CurrentUser\Disallowed");
                 using (ICertificateStore store = certificateStoreIdentifier.OpenStore())
                 {
-
                     Assert.IsTrue(instancesCreatedWhileOpeningAuthRootStore < TestCertStore.InstancesCreated);
                 }
             }

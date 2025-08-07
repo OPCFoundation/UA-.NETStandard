@@ -29,7 +29,9 @@ namespace Opc.Ua
     /// </summary>
     public class DirectoryCertificateStore : ICertificateStore
     {
-        // the sub directories and extensions used in a directory store
+        /// <summary>
+        /// the sub directories and extensions used in a directory store
+        /// </summary>
         private const string kCertsPath = "certs";
         private const string kPrivateKeyPath = "private";
         private const string kCrlPath = "crl";
@@ -389,7 +391,6 @@ namespace Opc.Ua
                 {
                     await Task.Delay(kRetryDelay).ConfigureAwait(false);
                 }
-
             } while (retry > 0);
 
             return found;
@@ -516,28 +517,22 @@ namespace Opc.Ua
                                 continue;
                             }
 
-                            if (!string.IsNullOrEmpty(subjectName))
+                            if (!string.IsNullOrEmpty(subjectName) && !X509Utils.CompareDistinguishedName(subjectName, certificate.Subject))
                             {
-                                if (!X509Utils.CompareDistinguishedName(subjectName, certificate.Subject))
-                                {
-                                    if (subjectName.Contains('=', StringComparison.Ordinal))
-                                    {
-                                        continue;
-                                    }
-
-                                    if (!X509Utils.ParseDistinguishedName(certificate.Subject).Any(s => s.Equals("CN=" + subjectName, StringComparison.Ordinal)))
-                                    {
-                                        continue;
-                                    }
-                                }
-                            }
-
-                            if (!string.IsNullOrEmpty(applicationUri))
-                            {
-                                if (!string.Equals(X509Utils.GetApplicationUriFromCertificate(certificate), applicationUri, StringComparison.OrdinalIgnoreCase))
+                                if (subjectName.Contains('=', StringComparison.Ordinal))
                                 {
                                     continue;
                                 }
+
+                                if (!X509Utils.ParseDistinguishedName(certificate.Subject).Any(s => s.Equals("CN=" + subjectName, StringComparison.Ordinal)))
+                                {
+                                    continue;
+                                }
+                            }
+
+                            if (!string.IsNullOrEmpty(applicationUri) && !string.Equals(X509Utils.GetApplicationUriFromCertificate(certificate), applicationUri, StringComparison.OrdinalIgnoreCase))
+                            {
+                                continue;
                             }
 
                             if (!CertificateIdentifier.ValidateCertificateType(certificate, certificateType))
@@ -568,7 +563,7 @@ namespace Opc.Ua
 
                             var privateKeyFilePfx = new FileInfo(filePath + kPfxExtension);
                             var privateKeyFilePem = new FileInfo(filePath + kPemExtension);
-                            password = password ?? string.Empty;
+                            password ??= string.Empty;
                             if (privateKeyFilePfx.Exists)
                             {
                                 certificateFound = true;
@@ -762,7 +757,6 @@ namespace Opc.Ua
                     {
                         Utils.LogError(e, "Failed to parse CRL {0} in store {1}.", file.FullName, StorePath);
                     }
-
                 }
             }
 
@@ -791,7 +785,7 @@ namespace Opc.Ua
                 }
 
                 if (!validateUpdateTime ||
-                    crl.ThisUpdate <= DateTime.UtcNow && (crl.NextUpdate == DateTime.MinValue || crl.NextUpdate >= DateTime.UtcNow))
+                    (crl.ThisUpdate <= DateTime.UtcNow && (crl.NextUpdate == DateTime.MinValue || crl.NextUpdate >= DateTime.UtcNow)))
                 {
                     crls.Add(crl);
                 }
@@ -809,17 +803,13 @@ namespace Opc.Ua
             }
 
             X509Certificate2 issuer = null;
-            X509Certificate2Collection certificates = null;
-            certificates = await Enumerate().ConfigureAwait(false);
+            X509Certificate2Collection certificates = await Enumerate().ConfigureAwait(false);
             foreach (X509Certificate2 certificate in certificates)
             {
-                if (X509Utils.CompareDistinguishedName(certificate.SubjectName, crl.IssuerName))
+                if (X509Utils.CompareDistinguishedName(certificate.SubjectName, crl.IssuerName) && crl.VerifySignature(certificate, false))
                 {
-                    if (crl.VerifySignature(certificate, false))
-                    {
-                        issuer = certificate;
-                        break;
-                    }
+                    issuer = certificate;
+                    break;
                 }
             }
 
@@ -946,14 +936,14 @@ namespace Opc.Ua
                                     .Append(fileRoot);
 
                                 // check for PFX file.
-                                entry.PrivateKeyFile = new FileInfo(filePath.ToString() + kPfxExtension);
+                                entry.PrivateKeyFile = new FileInfo(filePath + kPfxExtension);
 
                                 // note: only obtain the filenames for delete, loading the private keys
                                 // without authorization causes false negatives (LogErrors)
                                 if (!entry.PrivateKeyFile.Exists)
                                 {
                                     // check for PEM file.
-                                    entry.PrivateKeyFile = new FileInfo(filePath.ToString() + kPemExtension);
+                                    entry.PrivateKeyFile = new FileInfo(filePath + kPemExtension);
 
                                     if (!entry.PrivateKeyFile.Exists)
                                     {
@@ -970,7 +960,6 @@ namespace Opc.Ua
                                 incompleteSearch = true;
                                 break;
                             }
-
                         }
                     }
                     catch (Exception e)
@@ -997,12 +986,9 @@ namespace Opc.Ua
 
             Entry entry = null;
 
-            if (!string.IsNullOrEmpty(thumbprint))
+            if (!string.IsNullOrEmpty(thumbprint) && !certificates.TryGetValue(thumbprint, out entry))
             {
-                if (!certificates.TryGetValue(thumbprint, out entry))
-                {
-                    return null;
-                }
+                return null;
             }
 
             return entry;
@@ -1042,7 +1028,7 @@ namespace Opc.Ua
             {
                 char ch = commonName[ii];
 
-                if ("<>:\"/\\|?*".IndexOf(ch, StringComparison.Ordinal) != -1)
+                if ("<>:\"/\\|?*".Contains(ch))
                 {
                     ch = '+';
                 }

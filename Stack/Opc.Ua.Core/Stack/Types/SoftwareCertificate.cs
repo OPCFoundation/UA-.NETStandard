@@ -20,7 +20,7 @@ namespace Opc.Ua
     /// <summary>
     /// The SoftwareCertificate class.
     /// </summary>
-    public partial class SoftwareCertificate
+    public class SoftwareCertificate
     {
         /// <summary>
         /// The SignedSoftwareCertificate that contains the SoftwareCertificate
@@ -49,7 +49,6 @@ namespace Opc.Ua
             {
                 return ServiceResult.Create(e, StatusCodes.BadDecodingError, "Could not decode software certificate body.");
             }
-
 
             // find the software certificate.
             byte[] encodedData = null;

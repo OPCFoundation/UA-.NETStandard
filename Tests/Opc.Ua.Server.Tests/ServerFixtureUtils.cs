@@ -89,13 +89,11 @@ namespace Opc.Ua.Server.Tests
                 endpoint.SecurityPolicyUri = SecurityPolicies.None;
             }
 
-            var context = new SecureChannelContext(
+            // set security context
+            SecureChannelContext.Current = new SecureChannelContext(
                 sessionName,
                 endpoint,
                 RequestEncoding.Binary);
-
-            // set security context
-            SecureChannelContext.Current = context;
             var requestHeader = new RequestHeader();
 
             // Create session

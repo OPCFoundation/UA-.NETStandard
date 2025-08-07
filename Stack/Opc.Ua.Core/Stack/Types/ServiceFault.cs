@@ -21,8 +21,6 @@ namespace Opc.Ua
     /// <summary>
     /// The ServiceFault class.
     /// </summary>
-    public partial class ServiceFault : IServiceResponse
-    {
-    }
+    public partial class ServiceFault : IServiceResponse;
     #endregion
 }

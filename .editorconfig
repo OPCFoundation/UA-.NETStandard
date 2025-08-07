@@ -25,21 +25,16 @@ max_line_length          = 120
 
 # Xml project files
 [*.{csproj,vbproj,vcxproj,vcxproj.filters,proj,projitems,shproj}]
-indent_size = 4
+indent_size = 2
 
 # Xml config files
 
 # IDE0046: Convert to conditional expression
 dotnet_diagnostic.IDE0046.severity = silent
-# IDE0065: Using directives must be placed inside a namespace declaration
-dotnet_diagnostic.IDE0065.severity = none
 
 # IDE0130: Namespace does not match folder structure
 dotnet_style_namespace_match_folder = false
 dotnet_style_operator_placement_when_wrapping = beginning_of_line
-
-# IDE0045: Convert to conditional expression
-dotnet_diagnostic.IDE0045.severity = none
 
 [*.{xml,props,targets,ruleset,config,nuspec,resx,vsixmanifest,vsct}]
 indent_size = 2
@@ -180,7 +175,7 @@ dotnet_style_prefer_is_null_check_over_reference_equality_method              = 
 dotnet_style_prefer_inferred_tuple_names                                      = true : suggestion
 dotnet_style_prefer_inferred_anonymous_type_member_names                      = true : suggestion
 dotnet_style_prefer_auto_properties                                           = true : silent
-dotnet_style_prefer_conditional_expression_over_assignment                    = true
+dotnet_style_prefer_conditional_expression_over_assignment                    = true : suggestion
 dotnet_style_prefer_conditional_expression_over_return                        = false
 
 # 'using' directive preferences
@@ -216,7 +211,7 @@ dotnet_naming_style.constants_with_k_style.required_prefix                    = 
 # Constants are PascalCase
 dotnet_naming_rule.constants_should_be_pascal_case.severity = suggestion
 dotnet_naming_rule.constants_should_be_pascal_case.symbols                    = constants
-dotnet_naming_rule.constants_should_be_pascal_case.style = non_private_static_field_style
+dotnet_naming_rule.constants_should_be_pascal_case.style                      = non_private_static_field_style
 
 dotnet_naming_symbols.constants.applicable_kinds                              = field, local
 dotnet_naming_symbols.constants.applicable_accessibilities                    = public, internal, protected_internal
@@ -227,7 +222,7 @@ dotnet_naming_style.constant_style.capitalization                             = 
 # Non-private readonly fields are PascalCase
 dotnet_naming_rule.non_private_readonly_fields_should_be_pascal_case.severity = suggestion
 dotnet_naming_rule.non_private_readonly_fields_should_be_pascal_case.symbols  = non_private_readonly_fields
-dotnet_naming_rule.non_private_readonly_fields_should_be_pascal_case.style = non_private_static_field_style
+dotnet_naming_rule.non_private_readonly_fields_should_be_pascal_case.style    = non_private_static_field_style
 
 dotnet_naming_symbols.non_private_readonly_fields.applicable_kinds            = field
 dotnet_naming_symbols.non_private_readonly_fields.applicable_accessibilities  = public, protected, internal, protected_internal, private_protected
@@ -292,7 +287,7 @@ dotnet_naming_style.camel_case_style.capitalization                           = 
 # Local functions are PascalCase
 dotnet_naming_rule.local_functions_should_be_pascal_case.severity = suggestion
 dotnet_naming_rule.local_functions_should_be_pascal_case.symbols              = local_functions
-dotnet_naming_rule.local_functions_should_be_pascal_case.style = non_private_static_field_style
+dotnet_naming_rule.local_functions_should_be_pascal_case.style                = non_private_static_field_style
 
 dotnet_naming_symbols.local_functions.applicable_kinds                        = local_function
 
@@ -301,7 +296,7 @@ dotnet_naming_style.local_function_style.capitalization                       = 
 # By default, name items with PascalCase
 dotnet_naming_rule.members_should_be_pascal_case.severity = suggestion
 dotnet_naming_rule.members_should_be_pascal_case.symbols                      = all_members
-dotnet_naming_rule.members_should_be_pascal_case.style = non_private_static_field_style
+dotnet_naming_rule.members_should_be_pascal_case.style                        = non_private_static_field_style
 
 dotnet_naming_symbols.all_members.applicable_kinds                            = *
 
@@ -357,7 +352,11 @@ dotnet_diagnostic.CA1721.severity                                             = 
 dotnet_diagnostic.CA2014.severity                                             = error
 
 # IDE0290: Use primary constructor
-csharp_style_prefer_primary_constructors                                      = false:suggestion
+csharp_style_prefer_primary_constructors                                      = false
+# IDE0045: Convert to conditional expression
+dotnet_diagnostic.IDE0045.severity                                            = none
+# IDE0065: Using directives must be placed inside a namespace declaration
+dotnet_diagnostic.IDE0065.severity                                            = none
 csharp_prefer_system_threading_lock                                           = true:suggestion
 
 # RCS1146: Use conditional access
@@ -367,6 +366,7 @@ dotnet_diagnostic.CA1510.severity                                             = 
 dotnet_diagnostic.CA1511.severity                                             = none
 dotnet_diagnostic.CA1512.severity                                             = none
 dotnet_diagnostic.CA1513.severity                                             = none
+dotnet_diagnostic.RCS0063.severity                                            = suggestion
 dotnet_diagnostic.RCS1002.severity                                            = none
 dotnet_diagnostic.RCS1004.severity                                            = none
 dotnet_diagnostic.RCS1006.severity                                            = suggestion
@@ -387,6 +387,9 @@ dotnet_diagnostic.RCS1181.severity                                            = 
 dotnet_diagnostic.RCS1091.severity                                            = suggestion
 
 # exclude generated code
+
+# RCS1261: Resource can be disposed asynchronously
+dotnet_diagnostic.RCS1261.severity = none
 
 [**/Generated/*.cs]
 generated_code = true

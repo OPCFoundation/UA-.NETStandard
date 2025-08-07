@@ -1,8 +1,8 @@
 /* ========================================================================
- * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2024 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -27,19 +27,29 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using Quickstarts.ReferenceServer;
+using System;
+using System.Linq;
 
-namespace Opc.Ua.Client.Tests
+namespace System.Collections.Generic
 {
-    public class TokenValidatorMock : ITokenValidator
+    /// <summary>
+    /// Polyfills for System.Io methods that are not available in .NET Standard 2.0 or .NET Framework.
+    /// </summary>
+    public static class Polyfills
     {
-        public IssuedIdentityToken LastIssuedToken { get; set; }
-
-        public IUserIdentity ValidateToken(IssuedIdentityToken issuedToken)
+#if NETSTANDARD2_0 || NETFRAMEWORK
+        /// <summary>
+        /// Try add value
+        /// </summary>
+        public static bool TryAdd<TKey, TValue>(this IDictionary<TKey, TValue> target, TKey key, TValue value)
         {
-            this.LastIssuedToken = issuedToken;
-
-            return new UserIdentity(issuedToken);
+            if (!target.ContainsKey(key))
+            {
+                target.Add(key, value);
+                return true;
+            }
+            return false;
         }
+#endif
     }
 }

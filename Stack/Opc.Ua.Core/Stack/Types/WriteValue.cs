@@ -94,8 +94,8 @@ namespace Opc.Ua
                     {
                         // Check for String or ByteString arrays. Those DataTypes have special handling
                         // when using sub ranges.
-                        bool isArrayWithValidDataType = value.Value.Value is Array &&
-                            value.Value.WrappedValue.TypeInfo.BuiltInType == BuiltInType.String ||
+                        bool isArrayWithValidDataType = (value.Value.Value is Array &&
+                            value.Value.WrappedValue.TypeInfo.BuiltInType == BuiltInType.String) ||
                             value.Value.WrappedValue.TypeInfo.BuiltInType == BuiltInType.ByteString;
 
                         if (!isArrayWithValidDataType)
@@ -104,46 +104,42 @@ namespace Opc.Ua
                         }
                     }
                 }
-                else
+                else if (value.Value.Value is Array array)
                 {
-                    if (value.Value.Value is Array array)
+                    NumericRange range = value.ParsedIndexRange;
+
+                    // check that the number of elements to write matches the index range.
+                    if (range.End >= 0 && (range.End - range.Begin != array.Length - 1))
                     {
-                        NumericRange range = value.ParsedIndexRange;
-
-                        // check that the number of elements to write matches the index range.
-                        if (range.End >= 0 && (range.End - range.Begin != array.Length - 1))
-                        {
-                            return StatusCodes.BadIndexRangeNoData;
-                        }
-
-                        // check for single element.
-                        if (range.End < 0 && array.Length != 1)
-                        {
-                            return StatusCodes.BadIndexRangeInvalid;
-                        }
+                        return StatusCodes.BadIndexRangeNoData;
                     }
-                    else if (value.Value.Value is string str)
-                    {
-                        NumericRange range = value.ParsedIndexRange;
 
-                        // check that the number of elements to write matches the index range.
-                        if (range.End >= 0 && (range.End - range.Begin != str.Length - 1))
-                        {
-                            return StatusCodes.BadIndexRangeNoData;
-                        }
-
-                        // check for single element.
-                        if (range.End < 0 && str.Length != 1)
-                        {
-                            return StatusCodes.BadIndexRangeInvalid;
-                        }
-                    }
-                    else
+                    // check for single element.
+                    if (range.End < 0 && array.Length != 1)
                     {
-                        return StatusCodes.BadTypeMismatch;
+                        return StatusCodes.BadIndexRangeInvalid;
                     }
                 }
+                else if (value.Value.Value is string str)
+                {
+                    NumericRange range = value.ParsedIndexRange;
 
+                    // check that the number of elements to write matches the index range.
+                    if (range.End >= 0 && (range.End - range.Begin != str.Length - 1))
+                    {
+                        return StatusCodes.BadIndexRangeNoData;
+                    }
+
+                    // check for single element.
+                    if (range.End < 0 && str.Length != 1)
+                    {
+                        return StatusCodes.BadIndexRangeInvalid;
+                    }
+                }
+                else
+                {
+                    return StatusCodes.BadTypeMismatch;
+                }
             }
             else
             {

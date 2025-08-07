@@ -328,7 +328,7 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// The life time of of the subscription in counts of
+        /// The life time of the subscription in counts of
         /// publish interval.
         /// LifetimeCount shall be at least 3*KeepAliveCount.
         /// </summary>
@@ -832,12 +832,7 @@ namespace Opc.Ua.Client
             get
             {
                 int timeSinceLastNotification = HiResClock.TickCount - m_lastNotificationTickCount;
-                if (timeSinceLastNotification > m_keepAliveInterval + kKeepAliveTimerMargin)
-                {
-                    return true;
-                }
-
-                return false;
+                return timeSinceLastNotification > m_keepAliveInterval + kKeepAliveTimerMargin;
             }
         }
         #endregion
@@ -1421,7 +1416,7 @@ namespace Opc.Ua.Client
 
             // update results.
             var errors = new List<ServiceResult>();
-            bool noErrors = UpdateMonitoringMode(
+            bool noErrors = Subscription.UpdateMonitoringMode(
                 monitoredItems, errors, results,
                 diagnosticInfos, responseHeader,
                 monitoringMode);
@@ -1950,7 +1945,6 @@ namespace Opc.Ua.Client
                 {
                     revisedLifetimeInHours = (uint)outputArguments[0];
                     return (true, revisedLifetimeInHours);
-
                 }
             }
             catch (ServiceResultException sre)
@@ -2319,12 +2313,7 @@ namespace Opc.Ua.Client
                         if (ii.Value.Message != null && !ii.Value.Processed &&
                             (!m_sequentialPublishing || ValidSequentialPublishMessage(ii.Value)))
                         {
-                            if (messagesToProcess == null)
-                            {
-                                messagesToProcess = new List<NotificationMessage>();
-                            }
-
-                            messagesToProcess.Add(ii.Value.Message);
+                            (messagesToProcess ??= new List<NotificationMessage>()).Add(ii.Value.Message);
 
                             // remove the oldest items.
                             while (m_messageCache.Count > m_maxMessageCount)
@@ -2352,11 +2341,7 @@ namespace Opc.Ua.Client
                         // process keep alive messages
                         else if (ii.Next == null && ii.Value.Message == null && !ii.Value.Processed)
                         {
-                            if (keepAliveToProcess == null)
-                            {
-                                keepAliveToProcess = new List<IncomingMessage>();
-                            }
-                            keepAliveToProcess.Add(ii.Value);
+                            (keepAliveToProcess ??= new List<IncomingMessage>()).Add(ii.Value);
                             publishStateChangedMask |= PublishStateChangedMask.KeepAlive;
                         }
 
@@ -2373,12 +2358,7 @@ namespace Opc.Ua.Client
                                 // only call republish if the sequence number is available
                                 if (m_availableSequenceNumbers?.Contains(ii.Value.SequenceNumber) == true)
                                 {
-                                    if (messagesToRepublish == null)
-                                    {
-                                        messagesToRepublish = new List<IncomingMessage>();
-                                    }
-
-                                    messagesToRepublish.Add(ii.Value);
+                                    (messagesToRepublish ??= new List<IncomingMessage>()).Add(ii.Value);
                                 }
                                 else
                                 {
@@ -2445,8 +2425,6 @@ namespace Opc.Ua.Client
 
                                     datachangeCallback?.Invoke(this, datachange, message.StringTable);
                                 }
-
-
                                 else if (notificationData.Body is EventNotificationList events)
                                 {
                                     events.PublishTime = message.PublishTime;
@@ -2462,8 +2440,6 @@ namespace Opc.Ua.Client
 
                                     eventCallback?.Invoke(this, events, message.StringTable);
                                 }
-
-
                                 else if (notificationData.Body is StatusChangeNotification statusChanged)
                                 {
                                     statusChanged.PublishTime = message.PublishTime;
@@ -2573,14 +2549,14 @@ namespace Opc.Ua.Client
                 // reconnect / transfer subscription case
                 m_resyncLastSequenceNumberProcessed ||
                 // release the first message after wrapping around.
-                message.SequenceNumber == 1 && m_lastSequenceNumberProcessed == uint.MaxValue;
+                (message.SequenceNumber == 1 && m_lastSequenceNumberProcessed == uint.MaxValue);
         }
 
         /// <summary>
         /// Update the results to monitored items
         /// after updating the monitoring mode.
         /// </summary>
-        private bool UpdateMonitoringMode(
+        private static bool UpdateMonitoringMode(
             IList<MonitoredItem> monitoredItems,
             List<ServiceResult> errors,
             StatusCodeCollection results,
@@ -2732,7 +2708,6 @@ namespace Opc.Ua.Client
                 m_monitoredItems = updatedMonitoredItems;
             }
         }
-
 
         /// <summary>
         /// Prepare the ResolveItem to NodeId service call.
@@ -3037,7 +3012,6 @@ namespace Opc.Ua.Client
         /// Subscription was transferred on the server.
         /// </summary>
         Transferred = 0x100
-
     }
     #endregion
 
@@ -3112,7 +3086,7 @@ namespace Opc.Ua.Client
         /// </summary>
         internal SubscriptionStateChangedEventArgs(SubscriptionChangeMask changeMask)
         {
-            m_changeMask = changeMask;
+            Status = changeMask;
         }
         #endregion
 
@@ -3120,11 +3094,8 @@ namespace Opc.Ua.Client
         /// <summary>
         /// The changes that have affected the subscription.
         /// </summary>
-        public SubscriptionChangeMask Status => m_changeMask;
-        #endregion
+        public SubscriptionChangeMask Status { get; }
 
-        #region Private Fields
-        private readonly SubscriptionChangeMask m_changeMask;
         #endregion
     }
 
@@ -3146,7 +3117,7 @@ namespace Opc.Ua.Client
         /// </summary>
         internal PublishStateChangedEventArgs(PublishStateChangedMask changeMask)
         {
-            m_changeMask = changeMask;
+            Status = changeMask;
         }
         #endregion
 
@@ -3154,11 +3125,8 @@ namespace Opc.Ua.Client
         /// <summary>
         /// The publish state changes.
         /// </summary>
-        public PublishStateChangedMask Status => m_changeMask;
-        #endregion
+        public PublishStateChangedMask Status { get; }
 
-        #region Private Fields
-        private readonly PublishStateChangedMask m_changeMask;
         #endregion
     }
 
@@ -3172,7 +3140,7 @@ namespace Opc.Ua.Client
     /// A collection of subscriptions.
     /// </summary>
     [CollectionDataContract(Name = "ListOfSubscription", Namespace = Namespaces.OpcUaXsd, ItemName = "Subscription")]
-    public partial class SubscriptionCollection : List<Subscription>, ICloneable
+    public class SubscriptionCollection : List<Subscription>, ICloneable
     {
         #region Constructors
         /// <summary>

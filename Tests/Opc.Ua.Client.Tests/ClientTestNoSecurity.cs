@@ -30,7 +30,6 @@
 using System.Threading.Tasks;
 using NUnit.Framework;
 
-
 namespace Opc.Ua.Client.Tests
 {
     /// <summary>
@@ -43,7 +42,7 @@ namespace Opc.Ua.Client.Tests
 
     public class ClientTestNoSecurity
     {
-        private ClientTest m_clientTest { get; set; }
+        private ClientTest m_clientTest { get; }
 
         public static readonly object[] FixtureArgs = {
             new object [] { Utils.UriSchemeOpcTcp},

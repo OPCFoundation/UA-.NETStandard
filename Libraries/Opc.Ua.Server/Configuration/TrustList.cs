@@ -151,8 +151,7 @@ namespace Opc.Ua.Server
 
                     if ((masks & TrustListMasks.TrustedCertificates) != 0)
                     {
-                        X509Certificate2Collection certificates = store.Enumerate().GetAwaiter().GetResult();
-                        foreach (X509Certificate2 certificate in certificates)
+                        foreach (X509Certificate2 certificate in store.Enumerate().GetAwaiter().GetResult())
                         {
                             trustList.TrustedCertificates.Add(certificate.RawData);
                         }
@@ -165,7 +164,6 @@ namespace Opc.Ua.Server
                             trustList.TrustedCrls.Add(crl.RawData);
                         }
                     }
-
                 }
                 finally
                 {
@@ -175,7 +173,6 @@ namespace Opc.Ua.Server
                 store = m_issuerStore.OpenStore();
                 try
                 {
-
                     if (store == null)
                     {
                         throw new ServiceResultException(StatusCodes.BadConfigurationError, "Failed to open issuer certificate store.");
@@ -183,8 +180,7 @@ namespace Opc.Ua.Server
 
                     if ((masks & TrustListMasks.IssuerCertificates) != 0)
                     {
-                        X509Certificate2Collection certificates = store.Enumerate().GetAwaiter().GetResult();
-                        foreach (X509Certificate2 certificate in certificates)
+                        foreach (X509Certificate2 certificate in store.Enumerate().GetAwaiter().GetResult())
                         {
                             trustList.IssuerCertificates.Add(certificate.RawData);
                         }
@@ -197,7 +193,6 @@ namespace Opc.Ua.Server
                             trustList.IssuerCrls.Add(crl.RawData);
                         }
                     }
-
                 }
                 finally
                 {
@@ -206,7 +201,7 @@ namespace Opc.Ua.Server
 
                 if (m_readMode)
                 {
-                    m_strm = EncodeTrustListData(context, trustList);
+                    m_strm = TrustList.EncodeTrustListData(context, trustList);
                 }
                 else
                 {
@@ -283,12 +278,10 @@ namespace Opc.Ua.Server
                 }
 
                 m_strm.Write(data, 0, data.Length);
-
             }
 
             return ServiceResult.Good;
         }
-
 
         private ServiceResult Close(
             ISystemContext context,
@@ -345,8 +338,7 @@ namespace Opc.Ua.Server
 
                 try
                 {
-
-                    TrustListDataType trustList = DecodeTrustListData(context, m_strm);
+                    TrustListDataType trustList = TrustList.DecodeTrustListData(context, m_strm);
                     var masks = (TrustListMasks)trustList.SpecifiedLists;
 
                     X509Certificate2Collection issuerCertificates = null;
@@ -391,33 +383,21 @@ namespace Opc.Ua.Server
                     // update store
                     // test integrity of all CRLs
                     TrustListMasks updateMasks = TrustListMasks.None;
-                    if ((masks & TrustListMasks.IssuerCertificates) != 0)
+                    if ((masks & TrustListMasks.IssuerCertificates) != 0 && TrustList.UpdateStoreCertificates(m_issuerStore, issuerCertificates).GetAwaiter().GetResult())
                     {
-                        if (UpdateStoreCertificates(m_issuerStore, issuerCertificates).GetAwaiter().GetResult())
-                        {
-                            updateMasks |= TrustListMasks.IssuerCertificates;
-                        }
+                        updateMasks |= TrustListMasks.IssuerCertificates;
                     }
-                    if ((masks & TrustListMasks.IssuerCrls) != 0)
+                    if ((masks & TrustListMasks.IssuerCrls) != 0 && TrustList.UpdateStoreCrls(m_issuerStore, issuerCrls).GetAwaiter().GetResult())
                     {
-                        if (UpdateStoreCrls(m_issuerStore, issuerCrls).GetAwaiter().GetResult())
-                        {
-                            updateMasks |= TrustListMasks.IssuerCrls;
-                        }
+                        updateMasks |= TrustListMasks.IssuerCrls;
                     }
-                    if ((masks & TrustListMasks.TrustedCertificates) != 0)
+                    if ((masks & TrustListMasks.TrustedCertificates) != 0 && TrustList.UpdateStoreCertificates(m_trustedStore, trustedCertificates).GetAwaiter().GetResult())
                     {
-                        if (UpdateStoreCertificates(m_trustedStore, trustedCertificates).GetAwaiter().GetResult())
-                        {
-                            updateMasks |= TrustListMasks.TrustedCertificates;
-                        }
+                        updateMasks |= TrustListMasks.TrustedCertificates;
                     }
-                    if ((masks & TrustListMasks.TrustedCrls) != 0)
+                    if ((masks & TrustListMasks.TrustedCrls) != 0 && TrustList.UpdateStoreCrls(m_trustedStore, trustedCrls).GetAwaiter().GetResult())
                     {
-                        if (UpdateStoreCrls(m_trustedStore, trustedCrls).GetAwaiter().GetResult())
-                        {
-                            updateMasks |= TrustListMasks.TrustedCrls;
-                        }
+                        updateMasks |= TrustListMasks.TrustedCrls;
                     }
 
                     if (masks != updateMasks)
@@ -460,7 +440,6 @@ namespace Opc.Ua.Server
             ServiceResult result = StatusCodes.Good;
             lock (m_lock)
             {
-
                 if (m_sessionId != null)
                 {
                     result = StatusCodes.BadInvalidState;
@@ -506,7 +485,6 @@ namespace Opc.Ua.Server
             m_node.ReportTrustListUpdatedAuditEvent(context, objectId, "Method/AddCertificate", method.NodeId, inputParameters, result.StatusCode);
 
             return result;
-
         }
 
         private ServiceResult RemoveCertificate(
@@ -523,7 +501,6 @@ namespace Opc.Ua.Server
             ServiceResult result = StatusCodes.Good;
             lock (m_lock)
             {
-
                 if (m_sessionId != null)
                 {
                     result = StatusCodes.BadInvalidState;
@@ -581,7 +558,6 @@ namespace Opc.Ua.Server
                                 }
                             }
                         }
-
                     }
 
                     m_node.LastUpdateTime.Value = DateTime.UtcNow;
@@ -594,7 +570,7 @@ namespace Opc.Ua.Server
             return result;
         }
 
-        private Stream EncodeTrustListData(
+        private static Stream EncodeTrustListData(
             ISystemContext context,
             TrustListDataType trustList
             )
@@ -613,7 +589,7 @@ namespace Opc.Ua.Server
             return strm;
         }
 
-        private TrustListDataType DecodeTrustListData(
+        private static TrustListDataType DecodeTrustListData(
             ISystemContext context,
             Stream strm)
         {
@@ -631,7 +607,7 @@ namespace Opc.Ua.Server
             return trustList;
         }
 
-        private async Task<bool> UpdateStoreCrls(
+        private static async Task<bool> UpdateStoreCrls(
             CertificateStoreIdentifier storeIdentifier,
             X509CRLCollection updatedCrls)
         {
@@ -649,16 +625,9 @@ namespace Opc.Ua.Server
                     X509CRLCollection storeCrls = await store.EnumerateCRLs().ConfigureAwait(false);
                     foreach (X509CRL crl in storeCrls)
                     {
-                        if (!updatedCrls.Contains(crl))
+                        if (!updatedCrls.Remove(crl) && !await store.DeleteCRL(crl).ConfigureAwait(false))
                         {
-                            if (!await store.DeleteCRL(crl).ConfigureAwait(false))
-                            {
-                                result = false;
-                            }
-                        }
-                        else
-                        {
-                            updatedCrls.Remove(crl);
+                            result = false;
                         }
                     }
                     foreach (X509CRL crl in updatedCrls)
@@ -678,7 +647,7 @@ namespace Opc.Ua.Server
             return result;
         }
 
-        private async Task<bool> UpdateStoreCertificates(
+        private static async Task<bool> UpdateStoreCertificates(
             CertificateStoreIdentifier storeIdentifier,
             X509Certificate2Collection updatedCerts)
         {
@@ -764,5 +733,4 @@ namespace Opc.Ua.Server
         #endregion
 
     }
-
 }

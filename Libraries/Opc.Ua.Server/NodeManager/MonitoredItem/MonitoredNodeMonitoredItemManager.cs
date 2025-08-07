@@ -46,13 +46,13 @@ namespace Opc.Ua.Server
             CustomNodeManager2 nodeManager)
         {
             m_nodeManager = nodeManager;
-            m_monitoredNodes = new NodeIdDictionary<MonitoredNode2>();
-            m_monitoredItems = new ConcurrentDictionary<uint, IMonitoredItem>();
+            MonitoredNodes = new NodeIdDictionary<MonitoredNode2>();
+            MonitoredItems = new ConcurrentDictionary<uint, IMonitoredItem>();
         }
         /// <inheritdoc/>
-        public NodeIdDictionary<MonitoredNode2> MonitoredNodes => m_monitoredNodes;
+        public NodeIdDictionary<MonitoredNode2> MonitoredNodes { get; }
         /// <inheritdoc/>
-        public ConcurrentDictionary<uint, IMonitoredItem> MonitoredItems => m_monitoredItems;
+        public ConcurrentDictionary<uint, IMonitoredItem> MonitoredItems { get; }
 
         /// <inheritdoc/>
         public IMonitoredItem CreateMonitoredItem(
@@ -76,10 +76,10 @@ namespace Opc.Ua.Server
             // check if the node is already being monitored.
             MonitoredNode2 monitoredNode = null;
 
-            if (!m_monitoredNodes.TryGetValue(handle.Node.NodeId, out monitoredNode))
+            if (!MonitoredNodes.TryGetValue(handle.Node.NodeId, out monitoredNode))
             {
                 NodeState cachedNode = AddNodeToComponentCache(context, handle, handle.Node);
-                m_monitoredNodes[handle.Node.NodeId] = monitoredNode = new MonitoredNode2(m_nodeManager, cachedNode);
+                MonitoredNodes[handle.Node.NodeId] = monitoredNode = new MonitoredNode2(m_nodeManager, cachedNode);
             }
 
             handle.Node = monitoredNode.Node;
@@ -108,8 +108,7 @@ namespace Opc.Ua.Server
 
             // save the monitored item.
             monitoredNode.Add(datachangeItem);
-            m_monitoredItems.AddOrUpdate(monitoredItemId, datachangeItem, (key, oldValue) => datachangeItem);
-
+            MonitoredItems.AddOrUpdate(monitoredItemId, datachangeItem, (key, oldValue) => datachangeItem);
 
             return datachangeItem;
         }
@@ -143,14 +142,14 @@ namespace Opc.Ua.Server
             // check if the node is already being monitored.
             MonitoredNode2 monitoredNode = null;
 
-            if (m_monitoredNodes.TryGetValue(handle.NodeId, out monitoredNode))
+            if (MonitoredNodes.TryGetValue(handle.NodeId, out monitoredNode))
             {
                 monitoredNode.Remove(datachangeItem);
 
                 // check if node is no longer being monitored.
                 if (!monitoredNode.HasMonitoredItems)
                 {
-                    m_monitoredNodes.Remove(handle.NodeId);
+                    MonitoredNodes.Remove(handle.NodeId);
                 }
             }
             else
@@ -192,10 +191,10 @@ namespace Opc.Ua.Server
             // check if the node is already being monitored.
             MonitoredNode2 monitoredNode = null;
 
-            if (!m_monitoredNodes.TryGetValue(handle.Node.NodeId, out monitoredNode))
+            if (!MonitoredNodes.TryGetValue(handle.Node.NodeId, out monitoredNode))
             {
                 NodeState cachedNode = AddNodeToComponentCache(context, handle, handle.Node);
-                m_monitoredNodes[handle.Node.NodeId] = monitoredNode = new MonitoredNode2(m_nodeManager, cachedNode);
+                MonitoredNodes[handle.Node.NodeId] = monitoredNode = new MonitoredNode2(m_nodeManager, cachedNode);
             }
 
             handle.Node = monitoredNode.Node;
@@ -247,18 +246,18 @@ namespace Opc.Ua.Server
             if (unsubscribe)
             {
                 // check for existing monitored node.
-                if (!m_monitoredNodes.TryGetValue(source.NodeId, out monitoredNode))
+                if (!MonitoredNodes.TryGetValue(source.NodeId, out monitoredNode))
                 {
                     return (null, StatusCodes.BadNodeIdUnknown);
                 }
 
                 monitoredNode.Remove(monitoredItem);
-                m_monitoredItems.TryRemove(monitoredItem.Id, out _);
+                MonitoredItems.TryRemove(monitoredItem.Id, out _);
 
                 // check if node is no longer being monitored.
                 if (!monitoredNode.HasMonitoredItems)
                 {
-                    m_monitoredNodes.Remove(source.NodeId);
+                    MonitoredNodes.Remove(source.NodeId);
                 }
 
                 return (monitoredNode, ServiceResult.Good);
@@ -274,9 +273,9 @@ namespace Opc.Ua.Server
             }
 
             // check for existing monitored node.
-            if (!m_monitoredNodes.TryGetValue(source.NodeId, out monitoredNode))
+            if (!MonitoredNodes.TryGetValue(source.NodeId, out monitoredNode))
             {
-                m_monitoredNodes[source.NodeId] = monitoredNode = new MonitoredNode2(m_nodeManager, source);
+                MonitoredNodes[source.NodeId] = monitoredNode = new MonitoredNode2(m_nodeManager, source);
             }
 
             if (monitoredNode.EventMonitoredItems != null)
@@ -289,14 +288,11 @@ namespace Opc.Ua.Server
             // this links the node to specified monitored item and ensures all events
             // reported by the node are added to the monitored item's queue.
             monitoredNode.Add(monitoredItem);
-            _ = m_monitoredItems.TryAdd(monitoredItem.Id, monitoredItem);
+            _ = MonitoredItems.TryAdd(monitoredItem.Id, monitoredItem);
 
             return (monitoredNode, ServiceResult.Good);
         }
 
         private readonly CustomNodeManager2 m_nodeManager;
-        private readonly NodeIdDictionary<MonitoredNode2> m_monitoredNodes;
-        private readonly ConcurrentDictionary<uint, IMonitoredItem> m_monitoredItems;
     }
-
 }

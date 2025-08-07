@@ -30,7 +30,6 @@
 using System;
 using System.Collections.Generic;
 
-
 namespace Opc.Ua.Server
 {
     /// <summary>
@@ -69,21 +68,18 @@ namespace Opc.Ua.Server
         public static bool EventsEnabled
         {
             get { return m_eventsEnabled; }
-            
-            set 
+
+            set
             {
-                if (m_eventsEnabled != value)
+                if (m_eventsEnabled != value && !value)
                 {
-                    if (!value)
+                    lock (m_events)
                     {
-                        lock (m_events)
-                        {
-                            m_events.Clear();
-                        }
+                        m_events.Clear();
                     }
                 }
 
-                m_eventsEnabled = value; 
+                m_eventsEnabled = value;
             }
         }
 
@@ -218,7 +214,7 @@ namespace Opc.Ua.Server
         /// Reports a new monitored item.
         /// </summary>
         public static void ReportCreateMonitoredItem(
-            NodeId nodeId, 
+            NodeId nodeId,
             uint serverHandle,
             double samplingInterval,
             uint queueSize,
@@ -289,13 +285,13 @@ namespace Opc.Ua.Server
         /// Fills in the diagnostic information after an error.
         /// </summary>
         public static uint CreateError(
-            uint                     code, 
-            OperationContext         context, 
-            DiagnosticInfoCollection diagnosticInfos, 
+            uint                     code,
+            OperationContext         context,
+            DiagnosticInfoCollection diagnosticInfos,
             int                      index)
         {
             var error = new ServiceResult(code);
-            
+
             if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
             {
                 diagnosticInfos[index] = new DiagnosticInfo(error, context.DiagnosticsMask, false, context.StringTable);
@@ -303,19 +299,19 @@ namespace Opc.Ua.Server
 
             return error.Code;
         }
-        
+
         /// <summary>
         /// Fills in the diagnostic information after an error.
         /// </summary>
         public static bool CreateError(
-            uint                      code,  
+            uint                      code,
             StatusCodeCollection      results,
-            DiagnosticInfoCollection  diagnosticInfos, 
+            DiagnosticInfoCollection  diagnosticInfos,
             OperationContext          context)
         {
             var error = new ServiceResult(code);
             results.Add(error.Code);
-            
+
             if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
             {
                 diagnosticInfos.Add(new DiagnosticInfo(error, context.DiagnosticsMask, false, context.StringTable));
@@ -324,20 +320,20 @@ namespace Opc.Ua.Server
 
             return false;
         }
-        
+
         /// <summary>
         /// Fills in the diagnostic information after an error.
         /// </summary>
         public static bool CreateError(
-            uint                     code,  
+            uint                     code,
             StatusCodeCollection     results,
-            DiagnosticInfoCollection diagnosticInfos, 
+            DiagnosticInfoCollection diagnosticInfos,
             int                      index,
             OperationContext         context)
         {
             var error = new ServiceResult(code);
             results[index] = error.Code;
-            
+
             if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
             {
                 diagnosticInfos[index] = new DiagnosticInfo(error, context.DiagnosticsMask, false, context.StringTable);
@@ -346,7 +342,7 @@ namespace Opc.Ua.Server
 
             return false;
         }
-        
+
         /// <summary>
         /// Creates a place holder in the lists for the results.
         /// </summary>
@@ -356,13 +352,13 @@ namespace Opc.Ua.Server
             OperationContext         context)
         {
             results.Add(StatusCodes.Good);
-            
+
             if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
             {
                 diagnosticInfos.Add(null);
             }
         }
-        
+
         /// <summary>
         /// Creates a collection of diagnostics from a set of errors.
         /// </summary>
@@ -375,7 +371,7 @@ namespace Opc.Ua.Server
             {
                 return null;
             }
-            
+
             // create diagnostics.
             var results = new DiagnosticInfoCollection(errors.Count);
 
@@ -393,13 +389,13 @@ namespace Opc.Ua.Server
 
             return results;
         }
-        
+
         /// <summary>
         /// Creates a collection of status codes and diagnostics from a set of errors.
         /// </summary>
         public static StatusCodeCollection CreateStatusCodeCollection(
             OperationContext             context,
-            IList<ServiceResult>         errors, 
+            IList<ServiceResult>         errors,
             out DiagnosticInfoCollection diagnosticInfos)
         {
             diagnosticInfos = null;
@@ -425,7 +421,7 @@ namespace Opc.Ua.Server
             {
                 diagnosticInfos = CreateDiagnosticInfoCollection(context, errors);
             }
-            
+
             return results;
         }
 
@@ -453,13 +449,11 @@ namespace Opc.Ua.Server
                 translatedError = server.ResourceManager.Translate(context.PreferredLocales, error);
             }
 
-            var diagnosticInfo = new DiagnosticInfo(
-                translatedError, 
-                context.DiagnosticsMask, 
-                false, 
+            return new DiagnosticInfo(
+                translatedError,
+                context.DiagnosticsMask,
+                false,
                 context.StringTable);
-
-            return diagnosticInfo;
         }
         #endregion
     }

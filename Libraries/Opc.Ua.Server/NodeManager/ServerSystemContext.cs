@@ -91,7 +91,7 @@ namespace Opc.Ua.Server
         /// <value>The operation context.</value>
         public new OperationContext OperationContext
         {
-            get { return base.OperationContext as OperationContext; } 
+            get { return base.OperationContext as OperationContext; }
             set { base.OperationContext = value; }
         }
 

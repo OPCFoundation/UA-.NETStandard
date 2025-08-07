@@ -36,7 +36,6 @@ using NUnit.Framework;
 using Opc.Ua.Server.Tests;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
-
 namespace Opc.Ua.Client.Tests
 {
     /// <summary>
@@ -129,7 +128,7 @@ namespace Opc.Ua.Client.Tests
         public void AddNodes()
         {
             var nodesToAdd = new AddNodesItemCollection();
-            var addNodesItem = new AddNodesItem() { };
+            var addNodesItem = new AddNodesItem();
             for (int ii = 0; ii < kOperationLimit * 2; ii++)
             {
                 nodesToAdd.Add(addNodesItem);
@@ -155,7 +154,7 @@ namespace Opc.Ua.Client.Tests
         public void AddNodesAsync()
         {
             var nodesToAdd = new AddNodesItemCollection();
-            var addNodesItem = new AddNodesItem() { };
+            var addNodesItem = new AddNodesItem();
             for (int ii = 0; ii < kOperationLimit * 2; ii++)
             {
                 nodesToAdd.Add(addNodesItem);
@@ -164,7 +163,7 @@ namespace Opc.Ua.Client.Tests
             var requestHeader = new RequestHeader();
             ServiceResultException sre = Assert.ThrowsAsync<ServiceResultException>(async () => {
                 AddNodesResponse response = await Session.AddNodesAsync(requestHeader,
-                    nodesToAdd, CancellationToken.None).ConfigureAwait(false); ;
+                    nodesToAdd, CancellationToken.None).ConfigureAwait(false);
 
                 Assert.NotNull(response);
                 AddNodesResultCollection results = response.Results;
@@ -182,7 +181,7 @@ namespace Opc.Ua.Client.Tests
         public void AddReferences()
         {
             var referencesToAdd = new AddReferencesItemCollection();
-            var addReferencesItem = new AddReferencesItem() { };
+            var addReferencesItem = new AddReferencesItem();
             for (int ii = 0; ii < kOperationLimit * 2; ii++)
             {
                 referencesToAdd.Add(addReferencesItem);
@@ -208,7 +207,7 @@ namespace Opc.Ua.Client.Tests
         public void AddReferencesAsync()
         {
             var referencesToAdd = new AddReferencesItemCollection();
-            var addReferencesItem = new AddReferencesItem() { };
+            var addReferencesItem = new AddReferencesItem();
             for (int ii = 0; ii < kOperationLimit * 2; ii++)
             {
                 referencesToAdd.Add(addReferencesItem);
@@ -217,7 +216,7 @@ namespace Opc.Ua.Client.Tests
             var requestHeader = new RequestHeader();
             ServiceResultException sre = Assert.ThrowsAsync<ServiceResultException>(async () => {
                 AddReferencesResponse response = await Session.AddReferencesAsync(requestHeader,
-                    referencesToAdd, CancellationToken.None).ConfigureAwait(false); ;
+                    referencesToAdd, CancellationToken.None).ConfigureAwait(false);
 
                 Assert.NotNull(response);
                 StatusCodeCollection results = response.Results;
@@ -235,7 +234,7 @@ namespace Opc.Ua.Client.Tests
         public void DeleteNodes()
         {
             var nodesTDelete = new DeleteNodesItemCollection();
-            var deleteNodesItem = new DeleteNodesItem() { };
+            var deleteNodesItem = new DeleteNodesItem();
             for (int ii = 0; ii < kOperationLimit * 2; ii++)
             {
                 nodesTDelete.Add(deleteNodesItem);
@@ -261,7 +260,7 @@ namespace Opc.Ua.Client.Tests
         public void DeleteNodesAsync()
         {
             var nodesTDelete = new DeleteNodesItemCollection();
-            var deleteNodesItem = new DeleteNodesItem() { };
+            var deleteNodesItem = new DeleteNodesItem();
             for (int ii = 0; ii < kOperationLimit * 2; ii++)
             {
                 nodesTDelete.Add(deleteNodesItem);
@@ -288,7 +287,7 @@ namespace Opc.Ua.Client.Tests
         public void DeleteReferences()
         {
             var referencesToDelete = new DeleteReferencesItemCollection();
-            var deleteReferencesItem = new DeleteReferencesItem() { };
+            var deleteReferencesItem = new DeleteReferencesItem();
             for (int ii = 0; ii < kOperationLimit * 2; ii++)
             {
                 referencesToDelete.Add(deleteReferencesItem);
@@ -314,7 +313,7 @@ namespace Opc.Ua.Client.Tests
         public void DeleteReferencesAsync()
         {
             var referencesToDelete = new DeleteReferencesItemCollection();
-            var deleteReferencesItem = new DeleteReferencesItem() { };
+            var deleteReferencesItem = new DeleteReferencesItem();
             for (int ii = 0; ii < kOperationLimit * 2; ii++)
             {
                 referencesToDelete.Add(deleteReferencesItem);
@@ -341,7 +340,7 @@ namespace Opc.Ua.Client.Tests
         public void Browse()
         {
             // Browse template
-            uint startingNode = Objects.RootFolder;
+            const uint startingNode = Objects.RootFolder;
             var browseTemplate = new BrowseDescription {
                 NodeId = startingNode,
                 BrowseDirection = BrowseDirection.Forward,
@@ -449,7 +448,7 @@ namespace Opc.Ua.Client.Tests
         public async Task BrowseAsync()
         {
             // Browse template
-            uint startingNode = Objects.RootFolder;
+            const uint startingNode = Objects.RootFolder;
             var browseTemplate = new BrowseDescription {
                 NodeId = startingNode,
                 BrowseDirection = BrowseDirection.Forward,
@@ -630,7 +629,7 @@ namespace Opc.Ua.Client.Tests
 
             ResponseHeader responseHeader = Session.HistoryRead(
                 null,
-                eventDetails ? ReadEventDetails() : ReadRawModifiedDetails(),
+                eventDetails ? SessionClientBatchTest.ReadEventDetails() : SessionClientBatchTest.ReadRawModifiedDetails(),
                 TimestampsToReturn.Source,
                 false,
                 nodesToRead,
@@ -660,7 +659,7 @@ namespace Opc.Ua.Client.Tests
 
             HistoryReadResponse response = await Session.HistoryReadAsync(
                 null,
-                eventDetails ? ReadEventDetails() : ReadRawModifiedDetails(),
+                eventDetails ? SessionClientBatchTest.ReadEventDetails() : SessionClientBatchTest.ReadRawModifiedDetails(),
                 TimestampsToReturn.Source,
                 false,
                 nodesToRead, CancellationToken.None).ConfigureAwait(false);
@@ -746,11 +745,8 @@ namespace Opc.Ua.Client.Tests
         }
         #endregion
 
-        #region Benchmarks
-        #endregion
-
         #region Private Methods
-        private ExtensionObject ReadRawModifiedDetails()
+        private static ExtensionObject ReadRawModifiedDetails()
         {
             var details = new ReadRawModifiedDetails {
                 StartTime = DateTime.MinValue,
@@ -761,18 +757,18 @@ namespace Opc.Ua.Client.Tests
             };
             return new ExtensionObject(details);
         }
-        private ExtensionObject ReadEventDetails()
+        private static ExtensionObject ReadEventDetails()
         {
             var details = new ReadEventDetails {
                 NumValuesPerNode = 10,
-                Filter = DefaultEventFilter(),
+                Filter = SessionClientBatchTest.DefaultEventFilter(),
                 StartTime = DateTime.UtcNow.AddSeconds(30),
                 EndTime = DateTime.UtcNow.AddHours(-1),
             };
             return new ExtensionObject(details);
         }
 
-        private EventFilter DefaultEventFilter()
+        private static EventFilter DefaultEventFilter()
         {
             EventFilter filter = filter = new EventFilter();
 
@@ -791,4 +787,3 @@ namespace Opc.Ua.Client.Tests
     }
     #endregion
 }
-

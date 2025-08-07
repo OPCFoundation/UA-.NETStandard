@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -44,8 +43,8 @@ namespace Quickstarts.Servers
     {
         private readonly IBatchPersistor m_batchPersistor = new BatchPersistor();
         private static readonly JsonSerializerSettings s_settings = new JsonSerializerSettings { TypeNameHandling = TypeNameHandling.All };
-        private static readonly string s_queueDirectory = "Queues";
-        private static readonly string s_base_filename = "_queue.txt";
+        private const string s_queueDirectory = "Queues";
+        private const string s_base_filename = "_queue.txt";
         private ConcurrentDictionary<uint, DurableDataChangeMonitoredItemQueue> m_dataChangeQueues = new ConcurrentDictionary<uint, DurableDataChangeMonitoredItemQueue>();
         private ConcurrentDictionary<uint, DurableEventMonitoredItemQueue> m_eventQueues = new ConcurrentDictionary<uint, DurableEventMonitoredItemQueue>();
         /// <inheritdoc/>
@@ -66,7 +65,6 @@ namespace Quickstarts.Servers
             {
                 return new DataChangeMonitoredItemQueue(createDurable, monitoredItemId);
             }
-
         }
 
         /// <inheritdoc/>

@@ -78,10 +78,7 @@ namespace Alarms
             base.Initialize(alarmTypeIdentifier, name, maxTimeShelved);
 
             alarm.SetLimitState(SystemContext, LimitAlarmStates.Inactive);
-
         }
-
-
 
         public override void SetValue(string message = "")
         {
@@ -120,6 +117,5 @@ namespace Alarms
         {
             return (NonExclusiveLimitAlarmState)m_alarm;
         }
-
     }
 }

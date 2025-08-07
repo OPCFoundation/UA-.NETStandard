@@ -33,11 +33,11 @@ using System.Diagnostics;
 using System.Xml;
 using System.Threading;
 
-namespace Opc.Ua.Server 
+namespace Opc.Ua.Server
 {
     /// <summary>
     /// Stores the state of an asynchronous publish operation.
-    /// </summary>  
+    /// </summary>
     public class AsyncPublishOperation
     {
         #region Constructors
@@ -52,10 +52,10 @@ namespace Opc.Ua.Server
              IEndpointIncomingRequest request,
              StandardServer server)
         {
-            m_context = context;
+            Context = context;
             m_request = request;
             m_server = server;
-            m_response = new PublishResponse();
+            Response = new PublishResponse();
             m_request.Calldata = this;
         }
         #endregion
@@ -65,7 +65,7 @@ namespace Opc.Ua.Server
         /// Frees any unmanaged resources.
         /// </summary>
         public void Dispose()
-        {   
+        {
             Dispose(true);
         }
 
@@ -86,10 +86,7 @@ namespace Opc.Ua.Server
         /// Gets the context.
         /// </summary>
         /// <value>The context.</value>
-        public OperationContext Context
-        {
-            get { return m_context; }
-        }
+        public OperationContext Context { get; }
 
         /// <summary>
         /// Gets the request handle.
@@ -104,10 +101,7 @@ namespace Opc.Ua.Server
         /// Gets the response.
         /// </summary>
         /// <value>The response.</value>
-        public PublishResponse Response
-        {
-            get { return m_response; }
-        }
+        public PublishResponse Response { get; }
 
         /// <summary>
         /// Gets the calldata.
@@ -132,8 +126,6 @@ namespace Opc.Ua.Server
         #region Private Fields
         private readonly IEndpointIncomingRequest m_request;
         private readonly StandardServer m_server;
-        private readonly OperationContext m_context;
-        private readonly PublishResponse m_response;
         private object m_calldata;
         #endregion
     }

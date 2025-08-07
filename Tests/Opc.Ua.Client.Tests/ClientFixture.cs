@@ -105,7 +105,7 @@ namespace Opc.Ua.Client.Tests
                 ApplicationName = clientName
             };
 
-            pkiRoot = pkiRoot ?? Path.Combine("%LocalApplicationData%", "OPC", "pki");
+            pkiRoot ??= Path.Combine("%LocalApplicationData%", "OPC", "pki");
 
             CertificateIdentifierCollection applicationCerts = ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
                 "CN=" + clientName + ", O=OPC Foundation, DC=localhost",
@@ -209,17 +209,10 @@ namespace Opc.Ua.Client.Tests
 
                     return await ConnectAsync(endpoint).ConfigureAwait(false);
                 }
-                catch (ServiceResultException e)
+                catch (ServiceResultException e) when (e.StatusCode == StatusCodes.BadServerHalted)
                 {
-                    if (e.StatusCode == StatusCodes.BadServerHalted)
-                    {
-                        serverHalted = true;
-                        await Task.Delay(1000).ConfigureAwait(false);
-                    }
-                    else
-                    {
-                        throw;
-                    }
+                    serverHalted = true;
+                    await Task.Delay(1000).ConfigureAwait(false);
                 }
             } while (serverHalted);
 

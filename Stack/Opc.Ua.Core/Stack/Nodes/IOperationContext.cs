@@ -57,7 +57,7 @@ namespace Opc.Ua
         DateTime OperationDeadline { get; }
 
         /// <summary>
-        /// The current status of the the operation (bad if the operation has been aborted).
+        /// The current status of the operation (bad if the operation has been aborted).
         /// </summary>
         /// <value>The operation status.</value>
         StatusCode OperationStatus { get; }

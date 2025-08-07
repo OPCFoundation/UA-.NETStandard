@@ -27,14 +27,12 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-
 using System;
 using System.IO;
 using System.Text;
 using NUnit.Framework;
 using Opc.Ua.Tests;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
-
 
 namespace Opc.Ua.Core.Tests.Stack.Schema
 {
@@ -65,7 +63,6 @@ namespace Opc.Ua.Core.Tests.Stack.Schema
         [SetUp]
         protected void SetUp()
         {
-
         }
 
         [TearDown]
@@ -81,8 +78,8 @@ namespace Opc.Ua.Core.Tests.Stack.Schema
         [Test]
         public void ArrayDimensionsValidationTest()
         {
-            string bufferPath = @"./ArrayDimensionsValidationTest.xml";
-            string importBuffer = @"<?xml version='1.0' encoding='utf-8'?>
+            const string bufferPath = @"./ArrayDimensionsValidationTest.xml";
+            const string importBuffer = @"<?xml version='1.0' encoding='utf-8'?>
                 <UANodeSet xmlns:xsi='http://www.w3.org/2001/XMLSchema-instance' xmlns:xsd='http://www.w3.org/2001/XMLSchema' LastModified='2021-09-16T19:10:18.097476Z' xmlns='http://opcfoundation.org/UA/2011/03/UANodeSet.xsd'>
                   <NamespaceUris>
                     <Uri>urn:foobar</Uri>

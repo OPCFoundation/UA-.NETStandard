@@ -60,8 +60,8 @@ namespace TestData
         /// </summary>
         private void Initialize()
         {
-            m_saveFilePath = null;
-            m_maxQueueSize = 100;
+            SaveFilePath = null;
+            MaxQueueSize = 100;
         }
         #endregion
 
@@ -70,37 +70,20 @@ namespace TestData
         /// The path to the file that stores state of the node manager.
         /// </summary>
         [DataMember(Order = 1)]
-        public string SaveFilePath
-        {
-            get { return m_saveFilePath; }
-            set { m_saveFilePath = value; }
-        }
+        public string SaveFilePath { get; set; }
 
         /// <summary>
         /// The maximum length for a monitored item sampling queue.
         /// </summary>
         [DataMember(Order = 2)]
-        public uint MaxQueueSize
-        {
-            get { return m_maxQueueSize; }
-            set { m_maxQueueSize = value; }
-        }
+        public uint MaxQueueSize { get; set; }
 
         /// <summary>
         /// The next unused value that can be assigned to new nodes.
         /// </summary>
         [DataMember(Order = 3)]
-        public uint NextUnusedId
-        {
-            get { return m_nextUnusedId; }
-            set { m_nextUnusedId = value; }
-        }
-        #endregion
+        public uint NextUnusedId { get; set; }
 
-        #region Private Members
-        private string m_saveFilePath;
-        private uint m_maxQueueSize;
-        private uint m_nextUnusedId;
         #endregion
     }
 }

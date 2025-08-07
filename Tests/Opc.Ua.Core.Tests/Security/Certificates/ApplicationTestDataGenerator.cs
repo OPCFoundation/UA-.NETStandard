@@ -33,7 +33,6 @@ using System.Globalization;
 using System.Text.RegularExpressions;
 using Opc.Ua.Test;
 
-
 namespace Opc.Ua.Core.Tests
 {
     public class ApplicationTestDataGenerator

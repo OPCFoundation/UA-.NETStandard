@@ -31,13 +31,11 @@ using System;
 
 using Opc.Ua;
 
-
 namespace Alarms
 {
     /// <summary>
     /// Helper class to allow for creation of various entities
     /// </summary>
-
     public static class AlarmHelpers
     {
         /// <summary>

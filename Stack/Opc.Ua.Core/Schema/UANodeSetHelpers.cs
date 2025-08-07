@@ -18,7 +18,6 @@ using System.Text;
 using System.Xml;
 using System.Xml.Serialization;
 
-
 namespace Opc.Ua.Export
 {
     /// <summary>
@@ -346,13 +345,10 @@ namespace Opc.Ua.Export
 
             while (reference != null)
             {
-                if (node.NodeClass == NodeClass.Method)
+                if (node.NodeClass == NodeClass.Method && !reference.IsInverse && reference.ReferenceTypeId == ReferenceTypeIds.HasTypeDefinition)
                 {
-                    if (!reference.IsInverse && reference.ReferenceTypeId == ReferenceTypeIds.HasTypeDefinition)
-                    {
-                        reference = browser.Next();
-                        continue;
-                    }
+                    reference = browser.Next();
+                    continue;
                 }
 
                 var exportedReference = new Reference();
@@ -725,13 +721,10 @@ namespace Opc.Ua.Export
                         }
                     }
 
-                    if (importedNode is BaseTypeState type)
+                    if (importedNode is BaseTypeState type && referenceTypeId == ReferenceTypeIds.HasSubtype && isInverse)
                     {
-                        if (referenceTypeId == ReferenceTypeIds.HasSubtype && isInverse)
-                        {
-                            type.SuperTypeId = Opc.Ua.ExpandedNodeId.ToNodeId(targetId, context.NamespaceUris);
-                            continue;
-                        }
+                        type.SuperTypeId = Opc.Ua.ExpandedNodeId.ToNodeId(targetId, context.NamespaceUris);
+                        continue;
                     }
 
                     importedNode.AddReference(referenceTypeId, isInverse, targetId);
@@ -756,16 +749,13 @@ namespace Opc.Ua.Export
         {
             string nodeId = Export(source, namespaceUris);
 
-            if (!string.IsNullOrEmpty(nodeId))
+            if (!string.IsNullOrEmpty(nodeId) && this.Aliases != null)
             {
-                if (this.Aliases != null)
+                for (int ii = 0; ii < this.Aliases.Length; ii++)
                 {
-                    for (int ii = 0; ii < this.Aliases.Length; ii++)
+                    if (this.Aliases[ii].Value == nodeId)
                     {
-                        if (this.Aliases[ii].Value == nodeId)
-                        {
-                            return this.Aliases[ii].Alias;
-                        }
+                        return this.Aliases[ii].Alias;
                     }
                 }
             }
@@ -900,13 +890,10 @@ namespace Opc.Ua.Export
                     namespaceUri = namespaceUris.GetString(namespaceIndex);
                 }
 
-                nodeId = new Opc.Ua.ExpandedNodeId(nodeId.Identifier, 0, namespaceUri, serverIndex);
-                return nodeId;
+                return new Opc.Ua.ExpandedNodeId(nodeId.Identifier, 0, namespaceUri, serverIndex);
             }
 
-
-            nodeId = new Opc.Ua.ExpandedNodeId(nodeId.Identifier, namespaceIndex, null, 0);
-            return nodeId;
+            return new Opc.Ua.ExpandedNodeId(nodeId.Identifier, namespaceIndex, null, 0);
         }
 
         /// <summary>
@@ -953,7 +940,6 @@ namespace Opc.Ua.Export
             {
                 definition.SymbolicName = dataType.SymbolicName;
             }
-
 
             if (source.Body is StructureDefinition sd)
             {
@@ -1020,7 +1006,6 @@ namespace Opc.Ua.Export
                 }
             }
 
-
             if (source.Body is EnumDefinition ed)
             {
                 definition.IsOptionSet = ed.IsOptionSet;
@@ -1073,9 +1058,7 @@ namespace Opc.Ua.Export
             if (source.Field != null)
             {
                 // check if definition is for enumeration or structure.
-                bool isEnumeration = Array.Exists<DataTypeField>(source.Field, delegate (DataTypeField fieldLookup) {
-                    return fieldLookup.Value != -1;
-                });
+                bool isEnumeration = Array.Exists<DataTypeField>(source.Field, (DataTypeField fieldLookup) => fieldLookup.Value != -1);
 
                 if (!isEnumeration)
                 {
@@ -1511,7 +1494,5 @@ namespace Opc.Ua.Export
         }
         #endregion
 
-        #region Private Fields
-        #endregion
     }
 }

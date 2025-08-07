@@ -81,9 +81,7 @@ namespace TestData
             NodeId objectId,
             uint count)
         {
-            var system = context.SystemHandle as TestDataSystem;
-
-            if (system == null)
+            if (!(context.SystemHandle is TestDataSystem system))
             {
                 return StatusCodes.BadOutOfService;
             }

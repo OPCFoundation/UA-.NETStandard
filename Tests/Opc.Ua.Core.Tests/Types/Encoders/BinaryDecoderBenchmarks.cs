@@ -234,6 +234,5 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
         private byte[] m_encodedByteArray;
         private BufferCollection m_encodedBufferList;
-
     }
 }

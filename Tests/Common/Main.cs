@@ -31,16 +31,21 @@ using System;
 using BenchmarkDotNet.Configs;
 using BenchmarkDotNet.Running;
 
-static class Program
+namespace Namespace
 {
-    // Main Method 
-    public static void Main(string[] args)
+    static class Program
     {
-        IConfig config = ManualConfig.Create(DefaultConfig.Instance)
-            // need this option because of reference to nunit.framework
-            .WithOptions(ConfigOptions.DisableOptimizationsValidator)
-            ;
-        BenchmarkSwitcher.FromAssembly(typeof(Program).Assembly).Run(args, config);
+        /// <summary>
+        /// Main Method
+        /// </summary>
+        /// <param name="args"></param>
+        public static void Main(string[] args)
+        {
+            IConfig config = ManualConfig.Create(DefaultConfig.Instance)
+                // need this option because of reference to nunit.framework
+                .WithOptions(ConfigOptions.DisableOptimizationsValidator)
+                ;
+            BenchmarkSwitcher.FromAssembly(typeof(Program).Assembly).Run(args, config);
+        }
     }
 }
-

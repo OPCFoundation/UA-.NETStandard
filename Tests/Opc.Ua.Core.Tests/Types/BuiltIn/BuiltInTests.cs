@@ -34,7 +34,6 @@ using NUnit.Framework;
 using Opc.Ua.Test;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
-
 namespace Opc.Ua.Core.Tests.Types.BuiltIn
 {
     /// <summary>
@@ -335,7 +334,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             Assert.True(nodeId2 == inodeId2);
             Assert.False(nodeId2 > inodeId2);
 
-            string text = "i=123";
+            const string text = "i=123";
             var nodeIdText = new NodeId(text);
             Assert.AreEqual(123, nodeIdText.Identifier);
             // implicit conversion;
@@ -461,7 +460,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             Assert.False(nodeId2 > inodeId2);
 
             // string
-            string text = "i=123";
+            const string text = "i=123";
             var nodeIdText = new ExpandedNodeId(text);
             Assert.AreEqual(123, nodeIdText.Identifier);
 
@@ -504,7 +503,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             Assert.AreEqual(nodeId, id);
             Assert.True(nodeId == id);
 
-            string namespaceUri = "http://opcfoundation.org/Namespace";
+            const string namespaceUri = "http://opcfoundation.org/Namespace";
 
             id = new ExpandedNodeId((uint)123, 321, namespaceUri, 2);
             Assert.AreEqual(2, id.ServerIndex);
@@ -520,7 +519,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             Assert.AreNotEqual(nodeId, nodeId2);
             Assert.AreNotEqual(nodeId.GetHashCode(), nodeId2.GetHashCode());
 
-            string teststring = "nsu=http://opcfoundation.org/Namespace;s=Test";
+            const string teststring = "nsu=http://opcfoundation.org/Namespace;s=Test";
             nodeId = teststring;
             nodeId2 = ExpandedNodeId.Parse(teststring);
             Assert.AreEqual(nodeId, nodeId2);
@@ -741,5 +740,4 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
         }
         #endregion
     }
-
 }

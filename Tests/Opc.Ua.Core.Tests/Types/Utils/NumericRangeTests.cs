@@ -33,7 +33,6 @@ using NUnit.Framework;
 using Opc.Ua.Test;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
-
 namespace Opc.Ua.Core.Tests.Types.NumericRange
 {
     /// <summary>
@@ -44,7 +43,6 @@ namespace Opc.Ua.Core.Tests.Types.NumericRange
     [Parallelizable]
     public class NumericRangeTests
     {
-
         #region Test Setup
         [OneTimeSetUp]
         protected void OneTimeSetUp()
@@ -59,7 +57,6 @@ namespace Opc.Ua.Core.Tests.Types.NumericRange
         [SetUp]
         protected void SetUp()
         {
-
         }
 
         [TearDown]
@@ -137,6 +134,8 @@ namespace Opc.Ua.Core.Tests.Types.NumericRange
             }, modifiedInt3x3Matrix);
         }
 
+        private static readonly string[] src = new string[] { "ha" };
+
         /// <summary>
         /// Test that String array object can be updated using NumericRange.UpdateRange when using sub ranges
         /// </summary>
@@ -147,7 +146,7 @@ namespace Opc.Ua.Core.Tests.Types.NumericRange
             // Update the middle element "Test2" to "That2" by modifying "es" to "ha".
             var numericRange = Opc.Ua.NumericRange.Parse("1,1:2");
             object dst = new string[] { "Test1", "Test2", "Test3" };
-            StatusCode statusCode = numericRange.UpdateRange(ref dst, new string[] { "ha" });
+            StatusCode statusCode = numericRange.UpdateRange(ref dst, src);
             Assert.AreEqual(new StatusCode(StatusCodes.Good), statusCode);
 
             string[] updatedValue = dst as string[];
@@ -181,9 +180,7 @@ namespace Opc.Ua.Core.Tests.Types.NumericRange
                 new byte[] { 0x55, 0xDD, 0xEE, 0x88 },
                 new byte[] { 0x99, 0xAA, 0xBB, 0xCC }
             }, updatedValue);
-
         }
-
     }
 
     #endregion

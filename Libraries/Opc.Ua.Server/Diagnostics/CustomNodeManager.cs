@@ -36,7 +36,6 @@ using System.Linq;
 using System.Reflection;
 using System.Threading;
 
-
 namespace Opc.Ua.Server
 {
     /// <summary>
@@ -84,24 +83,24 @@ namespace Opc.Ua.Server
             params string[] namespaceUris)
         {
             // set defaults.
-            m_maxQueueSize = 1000;
-            m_maxDurableQueueSize = 200000; //default value in deprecated Conformance Unit Subscription Durable StorageLevel High
+            MaxQueueSize = 1000;
+            MaxDurableQueueSize = 200000; //default value in deprecated Conformance Unit Subscription Durable StorageLevel High
 
             if (configuration?.ServerConfiguration != null)
             {
-                m_maxQueueSize = (uint)configuration.ServerConfiguration.MaxNotificationQueueSize;
-                m_maxDurableQueueSize = (uint)configuration.ServerConfiguration.MaxDurableNotificationQueueSize;
+                MaxQueueSize = (uint)configuration.ServerConfiguration.MaxNotificationQueueSize;
+                MaxDurableQueueSize = (uint)configuration.ServerConfiguration.MaxDurableNotificationQueueSize;
             }
 
             // save a reference to the UA server instance that owns the node manager.
-            m_server = server;
+            Server = server;
 
             // all operations require information about the system
-            m_systemContext = m_server.DefaultSystemContext.Copy();
+            SystemContext = Server.DefaultSystemContext.Copy();
 
             // the node id factory assigns new node ids to new nodes.
             // the strategy used by a NodeManager depends on what kind of information it provides.
-            m_systemContext.NodeIdFactory = this;
+            SystemContext.NodeIdFactory = this;
 
             // add the uris to the server's namespace table and cache the indexes.
             ushort[] namespaceIndexes = Array.Empty<ushort>();
@@ -111,7 +110,7 @@ namespace Opc.Ua.Server
 
                 for (int ii = 0; ii < namespaceUris.Length; ii++)
                 {
-                    namespaceIndexes[ii] = m_server.NamespaceUris.GetIndexOrAppend(namespaceUris[ii]);
+                    namespaceIndexes[ii] = Server.NamespaceUris.GetIndexOrAppend(namespaceUris[ii]);
                 }
             }
 
@@ -129,7 +128,7 @@ namespace Opc.Ua.Server
                 m_monitoredItemManager = new MonitoredNodeMonitoredItemManager(this);
             }
 
-            m_predefinedNodes = new NodeIdDictionary<NodeState>();
+            PredefinedNodes = new NodeIdDictionary<NodeState>();
         }
         #endregion
 
@@ -153,12 +152,12 @@ namespace Opc.Ua.Server
                 lock (Lock)
                 {
                     Utils.SilentDispose(m_monitoredItemManager);
-                    foreach (NodeState node in m_predefinedNodes.Values)
+                    foreach (NodeState node in PredefinedNodes.Values)
                     {
                         Utils.SilentDispose(node);
                     }
 
-                    m_predefinedNodes.Clear();
+                    PredefinedNodes.Clear();
                 }
             }
         }
@@ -181,26 +180,17 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Acquires the lock on the node manager.
         /// </summary>
-        public object Lock
-        {
-            get { return m_lock; }
-        }
+        public object Lock { get; } = new object();
 
         /// <summary>
         /// Gets the server that the node manager belongs to.
         /// </summary>
-        public IServerInternal Server
-        {
-            get { return m_server; }
-        }
+        public IServerInternal Server { get; }
 
         /// <summary>
         /// The default context to use.
         /// </summary>
-        public ServerSystemContext SystemContext
-        {
-            get { return m_systemContext; }
-        }
+        public ServerSystemContext SystemContext { get; }
 
         /// <summary>
         /// Gets the default index for the node manager's namespace.
@@ -223,37 +213,25 @@ namespace Opc.Ua.Server
         /// Gets or sets the maximum size of a monitored item queue.
         /// </summary>
         /// <value>The maximum size of a monitored item queue.</value>
-        public uint MaxQueueSize
-        {
-            get { return m_maxQueueSize; }
-            set { m_maxQueueSize = value; }
-        }
+        public uint MaxQueueSize { get; set; }
 
         /// <summary>
         /// Gets or sets the maximum size of a durable monitored item queue.
         /// </summary>
         /// <value>The maximum size of a durable monitored item queue.</value>
-        public uint MaxDurableQueueSize
-        {
-            get { return m_maxDurableQueueSize; }
-            set { m_maxDurableQueueSize = value; }
-        }
+        public uint MaxDurableQueueSize { get; set; }
 
         /// <summary>
         /// The root for the alias assigned to the node manager.
         /// </summary>
-        public string AliasRoot
-        {
-            get { return m_aliasRoot; }
-            set { m_aliasRoot = value; }
-        }
+        public string AliasRoot { get; set; }
         #endregion
 
         #region Protected Members
         /// <summary>
         /// The predefined nodes managed by the node manager.
         /// </summary>
-        protected NodeIdDictionary<NodeState> PredefinedNodes => m_predefinedNodes;
+        protected NodeIdDictionary<NodeState> PredefinedNodes { get; }
 
         /// <summary>
         /// The root notifiers for the node manager.
@@ -284,7 +262,7 @@ namespace Opc.Ua.Server
 
             for (int ii = 0; ii < namespaceUris.Length; ii++)
             {
-                namespaceIndexes[ii] = m_server.NamespaceUris.GetIndexOrAppend(namespaceUris[ii]);
+                namespaceIndexes[ii] = Server.NamespaceUris.GetIndexOrAppend(namespaceUris[ii]);
             }
 
             // create the immutable table of namespaces that are used by the NodeManager.
@@ -301,7 +279,7 @@ namespace Opc.Ua.Server
 
             for (int ii = 0; ii < namespaceIndexes.Length; ii++)
             {
-                namespaceUris[ii] = m_server.NamespaceUris.GetString(namespaceIndexes[ii]);
+                namespaceUris[ii] = Server.NamespaceUris.GetString(namespaceIndexes[ii]);
             }
 
             // create the immutable table of namespaces that are used by the NodeManager.
@@ -339,9 +317,7 @@ namespace Opc.Ua.Server
         /// <returns>Non-null if the handle belongs to the node manager.</returns>
         protected virtual NodeHandle IsHandleInNamespace(object managerHandle)
         {
-            var source = managerHandle as NodeHandle;
-
-            if (source == null)
+            if (!(managerHandle is NodeHandle source))
             {
                 return null;
             }
@@ -360,7 +336,7 @@ namespace Opc.Ua.Server
         public NodeState Find(NodeId nodeId)
         {
             NodeState node = null;
-            if (m_predefinedNodes.TryGetValue(nodeId, out node) == true)
+            if (PredefinedNodes.TryGetValue(nodeId, out node))
             {
                 return node;
             }
@@ -384,7 +360,7 @@ namespace Opc.Ua.Server
             QualifiedName browseName,
             BaseInstanceState instance)
         {
-            ServerSystemContext contextToUse = m_systemContext.Copy(context);
+            ServerSystemContext contextToUse = SystemContext.Copy(context);
 
             lock (Lock)
             {
@@ -394,7 +370,7 @@ namespace Opc.Ua.Server
 
                 if (parentId != null)
                 {
-                    if (!m_predefinedNodes.TryGetValue(parentId, out parent))
+                    if (!PredefinedNodes.TryGetValue(parentId, out parent))
                     {
                         throw ServiceResultException.Create(
                             StatusCodes.BadNodeIdUnknown,
@@ -419,12 +395,12 @@ namespace Opc.Ua.Server
             ServerSystemContext context,
             NodeId nodeId)
         {
-            ServerSystemContext contextToUse = m_systemContext.Copy(context);
+            ServerSystemContext contextToUse = SystemContext.Copy(context);
 
             var referencesToRemove = new List<LocalReference>();
 
             NodeState node = null;
-            if (m_predefinedNodes.TryGetValue(nodeId, out node) != true)
+            if (!PredefinedNodes.TryGetValue(nodeId, out node))
             {
                 return false;
             }
@@ -454,8 +430,7 @@ namespace Opc.Ua.Server
             // search node id in all node managers
             foreach (INodeManager nodeManager in Server.NodeManager.NodeManagers)
             {
-                var handle = nodeManager.GetManagerHandle(nodeId) as NodeHandle;
-                if (handle == null)
+                if (!(nodeManager.GetManagerHandle(nodeId) is NodeHandle handle))
                 {
                     continue;
                 }
@@ -502,7 +477,7 @@ namespace Opc.Ua.Server
         /// </remarks>
         public virtual void CreateAddressSpace(IDictionary<NodeId, IList<IReference>> externalReferences)
         {
-            LoadPredefinedNodes(m_systemContext, externalReferences);
+            LoadPredefinedNodes(SystemContext, externalReferences);
         }
 
         #region CreateAddressSpace Support Functions
@@ -562,9 +537,7 @@ namespace Opc.Ua.Server
         /// </summary>
         protected virtual NodeState AddBehaviourToPredefinedNode(ISystemContext context, NodeState predefinedNode)
         {
-            var passiveNode = predefinedNode as BaseObjectState;
-
-            if (passiveNode == null)
+            if (!(predefinedNode is BaseObjectState passiveNode))
             {
                 return predefinedNode;
             }
@@ -578,18 +551,15 @@ namespace Opc.Ua.Server
         protected virtual void AddPredefinedNode(ISystemContext context, NodeState node)
         {
             // assign a default value to any variable in namespace 0
-            if (node is BaseVariableState nodeStateVar)
+            if (node is BaseVariableState nodeStateVar && nodeStateVar.NodeId.NamespaceIndex == 0 && nodeStateVar.Value == null)
             {
-                if (nodeStateVar.NodeId.NamespaceIndex == 0 && nodeStateVar.Value == null)
-                {
-                    nodeStateVar.Value = TypeInfo.GetDefaultValue(nodeStateVar.DataType,
-                        nodeStateVar.ValueRank,
-                        Server.TypeTree);
-                }
+                nodeStateVar.Value = TypeInfo.GetDefaultValue(nodeStateVar.DataType,
+                    nodeStateVar.ValueRank,
+                    Server.TypeTree);
             }
 
             NodeState activeNode = AddBehaviourToPredefinedNode(context, node);
-            m_predefinedNodes.AddOrUpdate(activeNode.NodeId, activeNode, (key, _) => activeNode);
+            PredefinedNodes.AddOrUpdate(activeNode.NodeId, activeNode, (key, _) => activeNode);
 
             var type = activeNode as BaseTypeState;
 
@@ -642,7 +612,7 @@ namespace Opc.Ua.Server
             NodeState node,
             List<LocalReference> referencesToRemove)
         {
-            if (m_predefinedNodes.TryRemove(node.NodeId, out _) != true)
+            if (!PredefinedNodes.TryRemove(node.NodeId, out _))
             {
                 return;
             }
@@ -675,7 +645,7 @@ namespace Opc.Ua.Server
 
             if (type != null)
             {
-                m_server.TypeTree.Remove(type.NodeId);
+                Server.TypeTree.Remove(type.NodeId);
             }
 
             // remove inverse references.
@@ -715,7 +685,7 @@ namespace Opc.Ua.Server
         /// <param name="externalReferences">A list of references to add to external targets.</param>
         protected virtual void AddReverseReferences(IDictionary<NodeId, IList<IReference>> externalReferences)
         {
-            foreach (NodeState source in m_predefinedNodes.Values)
+            foreach (NodeState source in PredefinedNodes.Values)
             {
                 IList<IReference> references = new List<IReference>();
                 source.GetReferences(SystemContext, references);
@@ -747,7 +717,7 @@ namespace Opc.Ua.Server
                     // add inverse reference to internal targets.
                     NodeState target = null;
 
-                    if (m_predefinedNodes.TryGetValue(targetId, out target))
+                    if (PredefinedNodes.TryGetValue(targetId, out target))
                     {
                         if (!target.ReferenceExists(reference.ReferenceTypeId, !reference.IsInverse, source.NodeId))
                         {
@@ -813,12 +783,9 @@ namespace Opc.Ua.Server
         /// </summary>
         protected void AddTypesToTypeTree(BaseTypeState type)
         {
-            if (!NodeId.IsNull(type.SuperTypeId))
+            if (!NodeId.IsNull(type.SuperTypeId) && !Server.TypeTree.IsKnown(type.SuperTypeId))
             {
-                if (!Server.TypeTree.IsKnown(type.SuperTypeId))
-                {
-                    AddTypesToTypeTree(type.SuperTypeId);
-                }
+                AddTypesToTypeTree(type.SuperTypeId);
             }
 
             if (type.NodeClass != NodeClass.ReferenceType)
@@ -836,11 +803,10 @@ namespace Opc.Ua.Server
         /// </summary>
         protected void AddTypesToTypeTree(NodeId typeId)
         {
-            if (!m_predefinedNodes.TryGetValue(typeId, out NodeState node))
+            if (!PredefinedNodes.TryGetValue(typeId, out NodeState node))
             {
                 return;
             }
-
 
             if (!(node is BaseTypeState type))
             {
@@ -861,17 +827,14 @@ namespace Opc.Ua.Server
                 return null;
             }
 
-            if (!m_predefinedNodes.TryGetValue(nodeId, out NodeState node))
+            if (!PredefinedNodes.TryGetValue(nodeId, out NodeState node))
             {
                 return null;
             }
 
-            if (expectedType != null)
+            if (expectedType != null && !expectedType.IsInstanceOfType(node))
             {
-                if (!expectedType.IsInstanceOfType(node))
-                {
-                    return null;
-                }
+                return null;
             }
 
             return node;
@@ -883,8 +846,8 @@ namespace Opc.Ua.Server
         /// </summary>
         public virtual void DeleteAddressSpace()
         {
-            NodeState[] nodes = m_predefinedNodes.Values.ToArray();
-            m_predefinedNodes.Clear();
+            NodeState[] nodes = PredefinedNodes.Values.ToArray();
+            PredefinedNodes.Clear();
 
             foreach (NodeState node in nodes)
             {
@@ -902,7 +865,7 @@ namespace Opc.Ua.Server
         /// </remarks>
         public virtual object GetManagerHandle(NodeId nodeId)
         {
-            return GetManagerHandle(m_systemContext, nodeId, null);
+            return GetManagerHandle(SystemContext, nodeId, null);
         }
 
         /// <summary>
@@ -919,15 +882,13 @@ namespace Opc.Ua.Server
             }
 
             NodeState node = null;
-            if (m_predefinedNodes.TryGetValue(nodeId, out node) == true)
+            if (PredefinedNodes.TryGetValue(nodeId, out node))
             {
-                var handle = new NodeHandle {
+                return new NodeHandle {
                     NodeId = nodeId,
                     Node = node,
                     Validated = true
                 };
-
-                return handle;
             }
             return null;
         }
@@ -945,14 +906,13 @@ namespace Opc.Ua.Server
                 foreach (KeyValuePair<NodeId, IList<IReference>> current in references)
                 {
                     // get the handle.
-                    NodeHandle source = GetManagerHandle(m_systemContext, current.Key, null);
+                    NodeHandle source = GetManagerHandle(SystemContext, current.Key, null);
 
                     // only support external references to nodes that are stored in memory.
                     if (source?.Node == null || !source.Validated)
                     {
                         continue;
                     }
-
 
                     // add reference to external target.
                     foreach (IReference reference in current.Value)
@@ -1000,7 +960,7 @@ namespace Opc.Ua.Server
                     // check if the target is also managed by this node manager.
                     if (!targetId.IsAbsolute)
                     {
-                        NodeHandle target = GetManagerHandle(m_systemContext, (NodeId)targetId, null);
+                        NodeHandle target = GetManagerHandle(SystemContext, (NodeId)targetId, null);
 
                         if (target != null && target.Validated && target.Node != null)
                         {
@@ -1024,7 +984,7 @@ namespace Opc.Ua.Server
                    object targetHandle,
                    BrowseResultMask resultMask)
         {
-            ServerSystemContext systemContext = m_systemContext.Copy(context);
+            ServerSystemContext systemContext = SystemContext.Copy(context);
 
             // check for valid handle.
             NodeHandle handle = IsHandleInNamespace(targetHandle);
@@ -1174,12 +1134,10 @@ namespace Opc.Ua.Server
             // This is the list of attributes to be populated by GetNodeMetadata from CustomNodeManagers.
             // The are originating from services in the context of AccessRestrictions and RolePermission validation.
             // For such calls the other attributes are ignored since reading them might trigger unnecessary callbacks
-            List<object> values = target.ReadAttributes(systemContext,
+            return target.ReadAttributes(systemContext,
                                            Attributes.AccessRestrictions,
                                            Attributes.RolePermissions,
                                            Attributes.UserRolePermissions);
-
-            return values;
         }
 
         /// <summary>
@@ -1204,7 +1162,7 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(references));
             }
 
-            ServerSystemContext systemContext = m_systemContext.Copy(context);
+            ServerSystemContext systemContext = SystemContext.Copy(context);
 
             // check for valid view.
             ValidateViewDescription(systemContext, continuationPoint.View);
@@ -1342,12 +1300,7 @@ namespace Opc.Ua.Server
         {
             var view = (ViewState)FindPredefinedNode(viewId, typeof(ViewState));
 
-            if (view != null)
-            {
-                return true;
-            }
-
-            return false;
+            return view != null;
         }
 
         /// <summary>
@@ -1367,7 +1320,7 @@ namespace Opc.Ua.Server
             IReference reference,
             ContinuationPoint continuationPoint)
         {
-            ServerSystemContext systemContext = m_systemContext.Copy(context);
+            ServerSystemContext systemContext = SystemContext.Copy(context);
 
             // create the type definition reference.
             var description = new ReferenceDescription();
@@ -1472,7 +1425,7 @@ namespace Opc.Ua.Server
             IList<ExpandedNodeId> targetIds,
             IList<NodeId> unresolvedTargetIds)
         {
-            ServerSystemContext systemContext = m_systemContext.Copy(context);
+            ServerSystemContext systemContext = SystemContext.Copy(context);
             IDictionary<NodeId, NodeState> operationCache = new NodeIdDictionary<NodeState>();
 
             // check for valid handle.
@@ -1554,12 +1507,9 @@ namespace Opc.Ua.Server
                         }
 
                         // check browse name.
-                        if (target.BrowseName == relativePath.TargetName)
+                        if (target.BrowseName == relativePath.TargetName && !targetIds.Contains(reference.TargetId))
                         {
-                            if (!targetIds.Contains(reference.TargetId))
-                            {
-                                targetIds.Add(reference.TargetId);
-                            }
+                            targetIds.Add(reference.TargetId);
                         }
                     }
                 }
@@ -1580,7 +1530,7 @@ namespace Opc.Ua.Server
             IList<DataValue> values,
             IList<ServiceResult> errors)
         {
-            ServerSystemContext systemContext = m_systemContext.Copy(context);
+            ServerSystemContext systemContext = SystemContext.Copy(context);
             IDictionary<NodeId, NodeState> operationCache = new NodeIdDictionary<NodeState>();
             var nodesToValidate = new List<NodeHandle>();
 
@@ -1698,30 +1648,20 @@ namespace Opc.Ua.Server
                 }
 
                 // lookup root in local cache for request.
-                if (!string.IsNullOrEmpty(handle.ComponentPath))
+                if (!string.IsNullOrEmpty(handle.ComponentPath) && cache.TryGetValue(rootId, out target))
                 {
-                    if (cache.TryGetValue(rootId, out target))
-                    {
-                        target = target.FindChildBySymbolicName(context, handle.ComponentPath);
+                    target = target.FindChildBySymbolicName(context, handle.ComponentPath);
 
-                        // component exists.
-                        if (target != null)
-                        {
-                            return target;
-                        }
+                    // component exists.
+                    if (target != null)
+                    {
+                        return target;
                     }
                 }
             }
 
             // lookup component in shared cache.
-            target = LookupNodeInComponentCache(context, handle);
-
-            if (target != null)
-            {
-                return target;
-            }
-
-            return null;
+            return LookupNodeInComponentCache(context, handle);
         }
 
         /// <summary>
@@ -1820,7 +1760,7 @@ namespace Opc.Ua.Server
             IList<WriteValue> nodesToWrite,
             IList<ServiceResult> errors)
         {
-            ServerSystemContext systemContext = m_systemContext.Copy(context);
+            ServerSystemContext systemContext = SystemContext.Copy(context);
             IDictionary<NodeId, NodeState> operationCache = new NodeIdDictionary<NodeState>();
             var nodesToValidate = new List<NodeHandle>();
 
@@ -1848,13 +1788,10 @@ namespace Opc.Ua.Server
                     nodeToWrite.Processed = true;
 
                     // index range is not supported.
-                    if (nodeToWrite.AttributeId != Attributes.Value)
+                    if (nodeToWrite.AttributeId != Attributes.Value && !string.IsNullOrEmpty(nodeToWrite.IndexRange))
                     {
-                        if (!string.IsNullOrEmpty(nodeToWrite.IndexRange))
-                        {
-                            errors[ii] = StatusCodes.BadWriteNotSupported;
-                            continue;
-                        }
+                        errors[ii] = StatusCodes.BadWriteNotSupported;
+                        continue;
                     }
 
                     // check if the node is a area in memory.
@@ -1910,7 +1847,6 @@ namespace Opc.Ua.Server
                         {
                             //skip the InstrumentRange check if the transformation isn't possible.
                         }
-
                     }
 
 #if DEBUG
@@ -1980,7 +1916,6 @@ namespace Opc.Ua.Server
                         // updates to source finished - report changes to monitored items.
                         handle.Node.ClearChangeMasks(systemContext, true);
                     }
-
                 }
 
                 // check for nothing to do.
@@ -2127,7 +2062,7 @@ namespace Opc.Ua.Server
             IList<HistoryReadResult> results,
             IList<ServiceResult> errors)
         {
-            ServerSystemContext systemContext = m_systemContext.Copy(context);
+            ServerSystemContext systemContext = SystemContext.Copy(context);
             IDictionary<NodeId, NodeState> operationCache = new NodeIdDictionary<NodeState>();
             var nodesToProcess = new List<NodeHandle>();
 
@@ -2178,27 +2113,21 @@ namespace Opc.Ua.Server
                     // check for data history variable.
                     var variable = handle.Node as BaseVariableState;
 
-                    if (variable != null)
+                    if (variable != null && (variable.AccessLevel & AccessLevels.HistoryRead) != 0)
                     {
-                        if ((variable.AccessLevel & AccessLevels.HistoryRead) != 0)
-                        {
-                            handle.Index = ii;
-                            nodesToProcess.Add(handle);
-                            continue;
-                        }
+                        handle.Index = ii;
+                        nodesToProcess.Add(handle);
+                        continue;
                     }
 
                     // check for event history object.
                     var notifier = handle.Node as BaseObjectState;
 
-                    if (notifier != null)
+                    if (notifier != null && (notifier.EventNotifier & EventNotifiers.HistoryRead) != 0)
                     {
-                        if ((notifier.EventNotifier & EventNotifiers.HistoryRead) != 0)
-                        {
-                            handle.Index = ii;
-                            nodesToProcess.Add(handle);
-                            continue;
-                        }
+                        handle.Index = ii;
+                        nodesToProcess.Add(handle);
+                        continue;
                     }
                 }
 
@@ -2492,16 +2421,13 @@ namespace Opc.Ua.Server
                         throw new ServiceResultException(StatusCodes.BadInvalidTimestampArgument);
                     }
                 }
-                else
+                else if (readEventDetails.StartTime == DateTime.MinValue && readEventDetails.EndTime == DateTime.MinValue)
                 {
-                    if (readEventDetails.StartTime == DateTime.MinValue && readEventDetails.EndTime == DateTime.MinValue)
-                    {
-                        throw new ServiceResultException(StatusCodes.BadInvalidTimestampArgument);
-                    }
+                    throw new ServiceResultException(StatusCodes.BadInvalidTimestampArgument);
                 }
 
                 // validate the event filter.
-                EventFilter.Result result = readEventDetails.Filter.Validate(new FilterContext(m_server.NamespaceUris, m_server.TypeTree, context));
+                EventFilter.Result result = readEventDetails.Filter.Validate(new FilterContext(Server.NamespaceUris, Server.TypeTree, context));
 
                 if (ServiceResult.IsBad(result.Status))
                 {
@@ -2534,7 +2460,7 @@ namespace Opc.Ua.Server
             IList<HistoryUpdateResult> results,
             IList<ServiceResult> errors)
         {
-            ServerSystemContext systemContext = m_systemContext.Copy(context);
+            ServerSystemContext systemContext = SystemContext.Copy(context);
             IDictionary<NodeId, NodeState> operationCache = new NodeIdDictionary<NodeState>();
             var nodesToProcess = new List<NodeHandle>();
 
@@ -2581,27 +2507,21 @@ namespace Opc.Ua.Server
                     // check for data history variable.
                     var variable = handle.Node as BaseVariableState;
 
-                    if (variable != null)
+                    if (variable != null && (variable.AccessLevel & AccessLevels.HistoryWrite) != 0)
                     {
-                        if ((variable.AccessLevel & AccessLevels.HistoryWrite) != 0)
-                        {
-                            handle.Index = ii;
-                            nodesToProcess.Add(handle);
-                            continue;
-                        }
+                        handle.Index = ii;
+                        nodesToProcess.Add(handle);
+                        continue;
                     }
 
                     // check for event history object.
                     var notifier = handle.Node as BaseObjectState;
 
-                    if (notifier != null)
+                    if (notifier != null && (notifier.EventNotifier & EventNotifiers.HistoryWrite) != 0)
                     {
-                        if ((notifier.EventNotifier & EventNotifiers.HistoryWrite) != 0)
-                        {
-                            handle.Index = ii;
-                            nodesToProcess.Add(handle);
-                            continue;
-                        }
+                        handle.Index = ii;
+                        nodesToProcess.Add(handle);
+                        continue;
                     }
                 }
 
@@ -3060,19 +2980,16 @@ namespace Opc.Ua.Server
                 }
 
                 // only fill in diagnostic info if it is requested.
-                if (systemContext.OperationContext != null)
+                if (systemContext.OperationContext != null && (systemContext.OperationContext.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
                 {
-                    if ((systemContext.OperationContext.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
+                    if (ServiceResult.IsBad(argumentError))
                     {
-                        if (ServiceResult.IsBad(argumentError))
-                        {
-                            argumentsValid = false;
-                            result.InputArgumentDiagnosticInfos.Add(new DiagnosticInfo(argumentError, systemContext.OperationContext.DiagnosticsMask, false, systemContext.OperationContext.StringTable));
-                        }
-                        else
-                        {
-                            result.InputArgumentDiagnosticInfos.Add(null);
-                        }
+                        argumentsValid = false;
+                        result.InputArgumentDiagnosticInfos.Add(new DiagnosticInfo(argumentError, systemContext.OperationContext.DiagnosticsMask, false, systemContext.OperationContext.StringTable));
+                    }
+                    else
+                    {
+                        result.InputArgumentDiagnosticInfos.Add(null);
                     }
                 }
             }
@@ -3093,7 +3010,6 @@ namespace Opc.Ua.Server
             // return the actual result of the original call
             return callResult;
         }
-
 
         /// <summary>
         /// Subscribes or unsubscribes to events produced by the specified source.
@@ -3219,9 +3135,9 @@ namespace Opc.Ua.Server
                 }
 
                 // subscribe to existing events.
-                if (m_server.EventManager != null)
+                if (Server.EventManager != null)
                 {
-                    IList<IEventMonitoredItem> monitoredItems = m_server.EventManager.GetMonitoredItems();
+                    IList<IEventMonitoredItem> monitoredItems = Server.EventManager.GetMonitoredItems();
 
                     for (int ii = 0; ii < monitoredItems.Count; ii++)
                     {
@@ -3332,9 +3248,7 @@ namespace Opc.Ua.Server
             for (int ii = 0; ii < monitoredItems.Count; ii++)
             {
                 // the IEventMonitoredItem should always be MonitoredItems since they are created by the MasterNodeManager.
-                var monitoredItem = monitoredItems[ii] as MonitoredItem;
-
-                if (monitoredItem == null)
+                if (!(monitoredItems[ii] is MonitoredItem monitoredItem))
                 {
                     continue;
                 }
@@ -3406,12 +3320,12 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(monitoredItems));
             }
 
-            if (m_server.IsRunning)
+            if (Server.IsRunning)
             {
                 throw new InvalidOperationException("Subscription restore can only occur on startup");
             }
 
-            ServerSystemContext systemContext = m_systemContext.Copy();
+            ServerSystemContext systemContext = SystemContext.Copy();
             IDictionary<NodeId, NodeState> operationCache = new NodeIdDictionary<NodeState>();
             var nodesToValidate = new List<NodeHandle>();
 
@@ -3512,9 +3426,8 @@ namespace Opc.Ua.Server
                 return false;
             }
 
-
             // put an upper limit on queue size.
-            storedMonitoredItem.QueueSize = SubscriptionManager.CalculateRevisedQueueSize(storedMonitoredItem.IsDurable, storedMonitoredItem.QueueSize, m_maxQueueSize, m_maxDurableQueueSize);
+            storedMonitoredItem.QueueSize = SubscriptionManager.CalculateRevisedQueueSize(storedMonitoredItem.IsDurable, storedMonitoredItem.QueueSize, MaxQueueSize, MaxDurableQueueSize);
 
             bool success = m_monitoredItemManager.RestoreMonitoredItem(
                 Server,
@@ -3550,11 +3463,10 @@ namespace Opc.Ua.Server
             bool createDurable,
             ref long globalIdCounter)
         {
-            ServerSystemContext systemContext = m_systemContext.Copy(context);
+            ServerSystemContext systemContext = SystemContext.Copy(context);
             IDictionary<NodeId, NodeState> operationCache = new NodeIdDictionary<NodeState>();
             var nodesToValidate = new List<NodeHandle>();
             var createdItems = new List<IMonitoredItem>();
-
 
             for (int ii = 0; ii < itemsToCreate.Count; ii++)
             {
@@ -3718,7 +3630,7 @@ namespace Opc.Ua.Server
             }
 
             // put an upper limit on queue size.
-            uint revisedQueueSize = SubscriptionManager.CalculateRevisedQueueSize(createDurable, itemToCreate.RequestedParameters.QueueSize, m_maxQueueSize, m_maxDurableQueueSize);
+            uint revisedQueueSize = SubscriptionManager.CalculateRevisedQueueSize(createDurable, itemToCreate.RequestedParameters.QueueSize, MaxQueueSize, MaxDurableQueueSize);
 
             // validate the monitoring filter.
             Range euRange = null;
@@ -3758,7 +3670,6 @@ namespace Opc.Ua.Server
                 monitoredItemId,
                 AddNodeToComponentCache
                 );
-
 
             // report the initial value.
             error = ReadInitialValue(context, handle, (MonitoredItem)monitoredItem);
@@ -3959,9 +3870,7 @@ namespace Opc.Ua.Server
                 return StatusCodes.BadFilterNotAllowed;
             }
 
-            var variable = handle.Node as BaseVariableState;
-
-            if (variable == null)
+            if (!(handle.Node is BaseVariableState variable))
             {
                 return StatusCodes.BadFilterNotAllowed;
             }
@@ -3989,9 +3898,7 @@ namespace Opc.Ua.Server
             // need to look up the EU range if a percent filter is requested.
             if (deadbandFilter.DeadbandType == (uint)DeadbandType.Percent)
             {
-                var property = handle.Node.FindChild(context, Opc.Ua.BrowseNames.EURange) as PropertyState;
-
-                if (property == null)
+                if (!(handle.Node.FindChild(context, Opc.Ua.BrowseNames.EURange) is PropertyState property))
                 {
                     return StatusCodes.BadMonitoredItemFilterUnsupported;
                 }
@@ -4065,7 +3972,7 @@ namespace Opc.Ua.Server
             IList<ServiceResult> errors,
             IList<MonitoringFilterResult> filterErrors)
         {
-            ServerSystemContext systemContext = m_systemContext.Copy(context);
+            ServerSystemContext systemContext = SystemContext.Copy(context);
             var nodesInNamespace = new List<(int, NodeHandle)>(monitoredItems.Count);
 
             for (int ii = 0; ii < monitoredItems.Count; ii++)
@@ -4196,7 +4103,7 @@ namespace Opc.Ua.Server
             }
 
             // put an upper limit on queue size.
-            uint revisedQueueSize = SubscriptionManager.CalculateRevisedQueueSize(monitoredItem.IsDurable, itemToModify.RequestedParameters.QueueSize, m_maxQueueSize, m_maxDurableQueueSize);
+            uint revisedQueueSize = SubscriptionManager.CalculateRevisedQueueSize(monitoredItem.IsDurable, itemToModify.RequestedParameters.QueueSize, MaxQueueSize, MaxDurableQueueSize);
 
             // validate the monitoring filter.
             Range euRange = null;
@@ -4262,7 +4169,7 @@ namespace Opc.Ua.Server
             IList<bool> processedItems,
             IList<ServiceResult> errors)
         {
-            ServerSystemContext systemContext = m_systemContext.Copy(context);
+            ServerSystemContext systemContext = SystemContext.Copy(context);
             var nodesInNamespace = new List<(int, NodeHandle)>(monitoredItems.Count);
 
             for (int ii = 0; ii < monitoredItems.Count; ii++)
@@ -4383,7 +4290,7 @@ namespace Opc.Ua.Server
             IList<bool> processedItems,
             IList<ServiceResult> errors)
         {
-            ServerSystemContext systemContext = m_systemContext.Copy(context);
+            ServerSystemContext systemContext = SystemContext.Copy(context);
             IList<IMonitoredItem> transferredItems = new List<IMonitoredItem>();
             lock (Lock)
             {
@@ -4446,7 +4353,7 @@ namespace Opc.Ua.Server
             IList<bool> processedItems,
             IList<ServiceResult> errors)
         {
-            ServerSystemContext systemContext = m_systemContext.Copy(context);
+            ServerSystemContext systemContext = SystemContext.Copy(context);
             var nodesInNamespace = new List<(int, NodeHandle)>(monitoredItems.Count);
 
             for (int ii = 0; ii < monitoredItems.Count; ii++)
@@ -4580,9 +4487,7 @@ namespace Opc.Ua.Server
         /// </summary>
         public virtual bool IsNodeInView(OperationContext context, NodeId viewId, object nodeHandle)
         {
-            var handle = nodeHandle as NodeHandle;
-
-            if (handle == null)
+            if (!(nodeHandle is NodeHandle handle))
             {
                 return false;
             }
@@ -4609,7 +4514,7 @@ namespace Opc.Ua.Server
             Dictionary<NodeId, List<object>> uniqueNodesServiceAttributesCache,
             bool permissionsOnly)
         {
-            ServerSystemContext systemContext = m_systemContext.Copy(context);
+            ServerSystemContext systemContext = SystemContext.Copy(context);
 
             // check for valid handle.
             NodeHandle handle = IsHandleInNamespace(targetHandle);
@@ -4657,7 +4562,7 @@ namespace Opc.Ua.Server
 
                     SetAccessAndRolePermissions(values, metadata);
                 }// All other calls that do not use the cache
-                else if (permissionsOnly == true)
+                else if (permissionsOnly)
                 {
                     values = ReadValidationAttributes(systemContext, target);
                     SetAccessAndRolePermissions(values, metadata);
@@ -4668,7 +4573,6 @@ namespace Opc.Ua.Server
                 return metadata;
             }
         }
-
 
         /// <summary>
         /// Set the metadata default permission values for DefaultAccessRestrictions, DefaultRolePermissions and DefaultUserRolePermissions
@@ -4722,7 +4626,6 @@ namespace Opc.Ua.Server
         }
         #endregion
 
-
         #region ComponentCache Functions
         /// <summary>
         /// Stores a reference count for entries in the component cache.
@@ -4754,12 +4657,9 @@ namespace Opc.Ua.Server
                         return entry.Entry.FindChildBySymbolicName(context, handle.ComponentPath);
                     }
                 }
-                else
+                else if (m_componentCache.TryGetValue(handle.NodeId, out entry))
                 {
-                    if (m_componentCache.TryGetValue(handle.NodeId, out entry))
-                    {
-                        return entry.Entry;
-                    }
+                    return entry.Entry;
                 }
 
                 return null;
@@ -4868,20 +4768,12 @@ namespace Opc.Ua.Server
             }
         }
 
-        #endregion
-
-        #region Private Fields
-        private readonly object m_lock = new object();
-        private readonly IServerInternal m_server;
-        private readonly ServerSystemContext m_systemContext;
+#endregion
+#region Private Fields
         private IReadOnlyList<string> m_namespaceUris;
         private IReadOnlyList<ushort> m_namespaceIndexes;
         private NodeIdDictionary<CacheEntry> m_componentCache;
-        private readonly NodeIdDictionary<NodeState> m_predefinedNodes;
         private List<NodeState> m_rootNotifiers;
-        private uint m_maxQueueSize;
-        private uint m_maxDurableQueueSize;
-        private string m_aliasRoot;
         /// <summary>
         /// the monitored item manager of the NodeManager
         /// </summary>

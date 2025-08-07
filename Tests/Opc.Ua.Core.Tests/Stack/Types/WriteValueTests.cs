@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2018 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -33,7 +33,6 @@ using NUnit.Framework;
 using Opc.Ua.Test;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
-
 namespace Opc.Ua.Core.Tests.Stack.Types
 {
     /// <summary>
@@ -44,7 +43,6 @@ namespace Opc.Ua.Core.Tests.Stack.Types
     [Parallelizable]
     public class WriteValueTests
     {
-
         #region Test Setup
         [OneTimeSetUp]
         protected void OneTimeSetUp()
@@ -59,7 +57,6 @@ namespace Opc.Ua.Core.Tests.Stack.Types
         [SetUp]
         protected void SetUp()
         {
-
         }
 
         [TearDown]
@@ -111,7 +108,6 @@ namespace Opc.Ua.Core.Tests.Stack.Types
             validateResult = WriteValue.Validate(writeValue);
             Assert.True(ServiceResult.IsBad(validateResult), "WriteValue.Validate result was not Bad");
             Assert.AreEqual(new StatusCode(StatusCodes.BadTypeMismatch), validateResult.StatusCode);
-
         }
 
         /// <summary>
@@ -136,8 +132,9 @@ namespace Opc.Ua.Core.Tests.Stack.Types
             ServiceResult validateResult = WriteValue.Validate(writeValue);
             Assert.True(ServiceResult.IsBad(validateResult), "WriteValue.Validate result was not Bad");
             Assert.AreEqual(new StatusCode(StatusCodes.BadIndexRangeNoData), validateResult.StatusCode);
-
         }
+
+        private static readonly int[] intValue = new int[] { 1, 2, 3, 4, 5 };
 
         /// <summary>
         /// Test that WriteValue.Validate() accepts IndexRange for Array values
@@ -146,12 +143,11 @@ namespace Opc.Ua.Core.Tests.Stack.Types
         [Category("WriteValue")]
         public void ArrayIndexRangeValidationTest()
         {
-
             // Positive test
             var writeValue = new WriteValue() {
                 AttributeId = Attributes.Value,
                 NodeId = new NodeId(4000, 8),
-                Value = new DataValue(new Variant(new int[] { 1, 2, 3, 4, 5 })),
+                Value = new DataValue(new Variant(intValue)),
                 IndexRange = "0:4"
             };
 
@@ -162,8 +158,9 @@ namespace Opc.Ua.Core.Tests.Stack.Types
             ServiceResult validateResult = WriteValue.Validate(writeValue);
             Assert.True(ServiceResult.IsBad(validateResult), "WriteValue.Validate result was not Bad");
             Assert.AreEqual(new StatusCode(StatusCodes.BadIndexRangeNoData), validateResult.StatusCode);
-
         }
+
+        private static readonly string[] stringValue = new string[] { "ha" };
 
         /// <summary>
         /// Test that WriteValue.Validate() accepts String and ByteString array when IndexRange has sub ranges defined
@@ -176,7 +173,7 @@ namespace Opc.Ua.Core.Tests.Stack.Types
             var writeValue = new WriteValue() {
                 AttributeId = Attributes.Value,
                 NodeId = new NodeId(4000, 8),
-                Value = new DataValue(new Variant(new string[] { "ha" })),
+                Value = new DataValue(new Variant(stringValue)),
                 IndexRange = "0,1:2"
             };
 
@@ -195,7 +192,6 @@ namespace Opc.Ua.Core.Tests.Stack.Types
             Assert.True(ServiceResult.IsBad(validateResult), "WriteValue.Validate result was not Good");
             Assert.AreEqual(new StatusCode(StatusCodes.BadTypeMismatch), validateResult.StatusCode);
         }
-
     }
 
     #endregion

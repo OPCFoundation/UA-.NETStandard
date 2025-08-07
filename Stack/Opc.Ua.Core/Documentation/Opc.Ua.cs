@@ -18,7 +18,5 @@ namespace Opc.Ua
     /// </summary>
     ///<exclude/>
     [System.Runtime.CompilerServices.CompilerGeneratedAttribute()]
-    public class NamespaceDoc
-    {
-    }
+    public class NamespaceDoc;
 }

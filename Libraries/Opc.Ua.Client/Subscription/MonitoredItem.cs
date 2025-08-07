@@ -112,14 +112,14 @@ namespace Opc.Ua.Client
                     }
                 }
 
-                m_handle = template.m_handle;
-                m_displayName = Utils.Format("{0} {1}", displayName, m_clientHandle);
-                m_startNodeId = template.m_startNodeId;
+                Handle = template.Handle;
+                DisplayName = Utils.Format("{0} {1}", displayName, m_clientHandle);
+                StartNodeId = template.StartNodeId;
                 m_relativePath = template.m_relativePath;
-                m_attributeId = template.m_attributeId;
-                m_indexRange = template.m_indexRange;
-                m_encoding = template.m_encoding;
-                m_monitoringMode = template.m_monitoringMode;
+                AttributeId = template.AttributeId;
+                IndexRange = template.IndexRange;
+                Encoding = template.Encoding;
+                MonitoringMode = template.MonitoringMode;
                 m_samplingInterval = template.m_samplingInterval;
                 m_filter = (MonitoringFilter)Utils.Clone(template.m_filter);
                 m_queueSize = template.m_queueSize;
@@ -158,13 +158,13 @@ namespace Opc.Ua.Client
         /// </summary>
         private void Initialize()
         {
-            m_startNodeId = null;
+            StartNodeId = null;
             m_relativePath = null;
             m_clientHandle = 0;
-            m_attributeId = Attributes.Value;
-            m_indexRange = null;
-            m_encoding = null;
-            m_monitoringMode = MonitoringMode.Reporting;
+            AttributeId = Attributes.Value;
+            IndexRange = null;
+            Encoding = null;
+            MonitoringMode = MonitoringMode.Reporting;
             m_samplingInterval = -1;
             m_filter = null;
             m_queueSize = 0;
@@ -185,22 +185,13 @@ namespace Opc.Ua.Client
         /// A display name for the monitored item.
         /// </summary>
         [DataMember(Order = 1)]
-        public string DisplayName
-        {
-            get { return m_displayName; }
-            set { m_displayName = value; }
-        }
-
+        public string DisplayName { get; set; }
 
         /// <summary>
         /// The start node for the browse path that identifies the node to monitor.
         /// </summary>
         [DataMember(Order = 2)]
-        public NodeId StartNodeId
-        {
-            get { return m_startNodeId; }
-            set { m_startNodeId = value; }
-        }
+        public NodeId StartNodeId { get; set; }
 
         /// <summary>
         /// The relative path from the browse path to the node to monitor.
@@ -251,7 +242,7 @@ namespace Opc.Ua.Client
                             QueueSize = int.MaxValue;
                         }
 
-                        m_attributeId = Attributes.EventNotifier;
+                        AttributeId = Attributes.EventNotifier;
                     }
                     else
                     {
@@ -267,7 +258,7 @@ namespace Opc.Ua.Client
                             QueueSize = 1;
                         }
 
-                        m_attributeId = Attributes.Value;
+                        AttributeId = Attributes.Value;
                     }
 
                     m_dataCache = null;
@@ -282,41 +273,25 @@ namespace Opc.Ua.Client
         /// The attribute to monitor.
         /// </summary>
         [DataMember(Order = 5)]
-        public uint AttributeId
-        {
-            get { return m_attributeId; }
-            set { m_attributeId = value; }
-        }
+        public uint AttributeId { get; set; }
 
         /// <summary>
         /// The range of array indexes to monitor.
         /// </summary>
         [DataMember(Order = 6)]
-        public string IndexRange
-        {
-            get { return m_indexRange; }
-            set { m_indexRange = value; }
-        }
+        public string IndexRange { get; set; }
 
         /// <summary>
         /// The encoding to use when returning notifications.
         /// </summary>
         [DataMember(Order = 7)]
-        public QualifiedName Encoding
-        {
-            get { return m_encoding; }
-            set { m_encoding = value; }
-        }
+        public QualifiedName Encoding { get; set; }
 
         /// <summary>
         /// The monitoring mode.
         /// </summary>
         [DataMember(Order = 8)]
-        public MonitoringMode MonitoringMode
-        {
-            get { return m_monitoringMode; }
-            set { m_monitoringMode = value; }
-        }
+        public MonitoringMode MonitoringMode { get; set; }
 
         /// <summary>
         /// The sampling interval.
@@ -408,20 +383,12 @@ namespace Opc.Ua.Client
         /// <summary>
         /// The subscription that owns the monitored item.
         /// </summary>
-        public Subscription Subscription
-        {
-            get { return m_subscription; }
-            internal set { m_subscription = value; }
-        }
+        public Subscription Subscription { get; internal set; }
 
         /// <summary>
         /// A local handle assigned to the monitored item.
         /// </summary>
-        public object Handle
-        {
-            get { return m_handle; }
-            set { m_handle = value; }
-        }
+        public object Handle { get; set; }
 
         /// <summary>
         /// Whether the item has been created on the server.
@@ -443,7 +410,7 @@ namespace Opc.Ua.Client
                 // just return the start id if relative path is empty.
                 if (string.IsNullOrEmpty(m_relativePath))
                 {
-                    return m_startNodeId;
+                    return StartNodeId;
                 }
 
                 return m_resolvedNodeId;
@@ -624,48 +591,42 @@ namespace Opc.Ua.Client
 
                 m_lastNotification = newValue;
 
-                if (m_dataCache != null)
+                if (m_dataCache != null && newValue is MonitoredItemNotification datachange)
                 {
-                    if (newValue is MonitoredItemNotification datachange)
+                    if (datachange.Value != null)
                     {
-                        if (datachange.Value != null)
+                        if (validateTimestamp)
                         {
-                            if (validateTimestamp)
+                            DateTime now = DateTime.UtcNow.Add(s_time_epsilon);
+
+                            // validate the ServerTimestamp of the notification.
+                            if (datachange.Value.ServerTimestamp > now)
                             {
-                                DateTime now = DateTime.UtcNow.Add(s_time_epsilon);
-
-                                // validate the ServerTimestamp of the notification.
-                                if (datachange.Value.ServerTimestamp > now)
-                                {
-                                    Utils.LogWarning("Received ServerTimestamp {0} is in the future for MonitoredItemId {1}",
-                                        datachange.Value.ServerTimestamp.ToLocalTime(), ClientHandle);
-                                }
-
-                                // validate SourceTimestamp of the notification.
-                                if (datachange.Value.SourceTimestamp > now)
-                                {
-                                    Utils.LogWarning("Received SourceTimestamp {0} is in the future for MonitoredItemId {1}",
-                                        datachange.Value.SourceTimestamp.ToLocalTime(), ClientHandle);
-                                }
+                                Utils.LogWarning("Received ServerTimestamp {0} is in the future for MonitoredItemId {1}",
+                                    datachange.Value.ServerTimestamp.ToLocalTime(), ClientHandle);
                             }
 
-                            if (datachange.Value.StatusCode.Overflow)
+                            // validate SourceTimestamp of the notification.
+                            if (datachange.Value.SourceTimestamp > now)
                             {
-                                Utils.LogWarning("Overflow bit set for data change with ServerTimestamp {0} and value {1} for MonitoredItemId {2}",
-                                    datachange.Value.ServerTimestamp.ToLocalTime(), datachange.Value.Value, ClientHandle);
+                                Utils.LogWarning("Received SourceTimestamp {0} is in the future for MonitoredItemId {1}",
+                                    datachange.Value.SourceTimestamp.ToLocalTime(), ClientHandle);
                             }
                         }
 
-                        m_dataCache.OnNotification(datachange);
+                        if (datachange.Value.StatusCode.Overflow)
+                        {
+                            Utils.LogWarning("Overflow bit set for data change with ServerTimestamp {0} and value {1} for MonitoredItemId {2}",
+                                datachange.Value.ServerTimestamp.ToLocalTime(), datachange.Value.Value, ClientHandle);
+                        }
                     }
+
+                    m_dataCache.OnNotification(datachange);
                 }
 
-                if (m_eventCache != null)
+                if (m_eventCache != null && newValue is EventFieldList eventchange)
                 {
-                    if (newValue is EventFieldList eventchange)
-                    {
-                        m_eventCache?.OnNotification(eventchange);
-                    }
+                    m_eventCache?.OnNotification(eventchange);
                 }
 
                 m_Notification?.Invoke(this, new MonitoredItemNotificationEventArgs(newValue));
@@ -729,7 +690,7 @@ namespace Opc.Ua.Client
                 // update the node id.
                 if (result.Targets.Count > 0)
                 {
-                    ResolvedNodeId = ExpandedNodeId.ToNodeId(result.Targets[0].TargetId, m_subscription.Session.NamespaceUris);
+                    ResolvedNodeId = ExpandedNodeId.ToNodeId(result.Targets[0].TargetId, Subscription.Session.NamespaceUris);
                 }
             }
 
@@ -814,9 +775,7 @@ namespace Opc.Ua.Client
         /// </summary>
         public string GetFieldName(int index)
         {
-            var filter = m_filter as EventFilter;
-
-            if (filter == null)
+            if (!(m_filter is EventFilter filter))
             {
                 return null;
             }
@@ -869,9 +828,7 @@ namespace Opc.Ua.Client
                 return null;
             }
 
-            var filter = m_filter as EventFilter;
-
-            if (filter == null)
+            if (!(m_filter is EventFilter filter))
             {
                 return null;
             }
@@ -952,9 +909,9 @@ namespace Opc.Ua.Client
             // get event type.
             var eventTypeId = GetFieldValue(eventFields, ObjectTypes.BaseEventType, Opc.Ua.BrowseNames.EventType) as NodeId;
 
-            if (eventTypeId != null && m_subscription != null && m_subscription.Session != null)
+            if (eventTypeId != null && Subscription != null && Subscription.Session != null)
             {
-                return m_subscription.Session.NodeCache.Find(eventTypeId);
+                return Subscription.Session.NodeCache.Find(eventTypeId);
             }
 
             // no event type in event field list.
@@ -983,9 +940,7 @@ namespace Opc.Ua.Client
         /// </summary>
         public static ServiceResult GetServiceResult(IEncodeable notification)
         {
-            var datachange = notification as MonitoredItemNotification;
-
-            if (datachange == null)
+            if (!(notification is MonitoredItemNotification datachange))
             {
                 return null;
             }
@@ -1005,9 +960,7 @@ namespace Opc.Ua.Client
         /// </summary>
         public static ServiceResult GetServiceResult(IEncodeable notification, int index)
         {
-            var eventFields = notification as EventFieldList;
-
-            if (eventFields == null)
+            if (!(notification is EventFieldList eventFields))
             {
                 return null;
             }
@@ -1024,9 +977,7 @@ namespace Opc.Ua.Client
                 return null;
             }
 
-            var status = ExtensionObject.ToEncodeable(eventFields.EventFields[index].Value as ExtensionObject) as StatusResult;
-
-            if (status == null)
+            if (!(ExtensionObject.ToEncodeable(eventFields.EventFields[index].Value as ExtensionObject) is StatusResult status))
             {
                 return null;
             }
@@ -1039,7 +990,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// To save memory the cache is by default not initialized
         /// until <see cref="SaveValueInCache(IEncodeable)"/> is called.
-        /// 
+        ///
         /// </summary>
         private void EnsureCacheIsInitialized()
         {
@@ -1070,30 +1021,24 @@ namespace Opc.Ua.Client
             {
                 case NodeClass.Variable:
                 case NodeClass.VariableType:
-                {
                     if (!typeof(DataChangeFilter).IsInstanceOfType(filter))
                     {
                         m_nodeClass = NodeClass.Variable;
                     }
 
                     break;
-                }
 
                 case NodeClass.Object:
                 case NodeClass.View:
-                {
                     if (!typeof(EventFilter).IsInstanceOfType(filter))
                     {
                         m_nodeClass = NodeClass.Object;
                     }
 
                     break;
-                }
 
                 default:
-                {
                     throw ServiceResultException.Create(StatusCodes.BadFilterNotAllowed, "Filters may not be specified for nodes of class '{0}'.", nodeClass);
-                }
             }
         }
 
@@ -1116,20 +1061,12 @@ namespace Opc.Ua.Client
 
             m_filter = filter;
         }
-        #endregion
 
-        #region Private Fields
-        private Subscription m_subscription;
-        private object m_handle;
-        private string m_displayName;
-        private NodeId m_startNodeId;
+#endregion
+#region Private Fields
         private string m_relativePath;
         private NodeId m_resolvedNodeId;
         private NodeClass m_nodeClass;
-        private uint m_attributeId;
-        private string m_indexRange;
-        private QualifiedName m_encoding;
-        private MonitoringMode m_monitoringMode;
         private int m_samplingInterval;
         private MonitoringFilter m_filter;
         private uint m_queueSize;
@@ -1159,7 +1096,7 @@ namespace Opc.Ua.Client
         /// </summary>
         internal MonitoredItemNotificationEventArgs(IEncodeable notificationValue)
         {
-            m_notificationValue = notificationValue;
+            NotificationValue = notificationValue;
         }
         #endregion
 
@@ -1167,11 +1104,8 @@ namespace Opc.Ua.Client
         /// <summary>
         /// The new notification.
         /// </summary>
-        public IEncodeable NotificationValue => m_notificationValue;
-        #endregion
+        public IEncodeable NotificationValue { get; }
 
-        #region Private Fields
-        private readonly IEncodeable m_notificationValue;
         #endregion
     }
 

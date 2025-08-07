@@ -65,7 +65,6 @@ namespace Opc.Ua.Core.Tests.Schema
                SecuredApplication.CalculateSecurityLevel(MessageSecurityMode.Sign, SecurityPolicies.Aes128_Sha256_RsaOaep)
                <
                SecuredApplication.CalculateSecurityLevel(MessageSecurityMode.Sign, SecurityPolicies.Aes256_Sha256_RsaPss));
-
         }
     }
 }

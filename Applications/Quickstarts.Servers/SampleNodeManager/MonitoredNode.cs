@@ -47,9 +47,9 @@ namespace Opc.Ua.Sample
             INodeManager nodeManager,
             NodeState node)
         {
-            m_server = server;
-            m_nodeManager = nodeManager;
-            m_node = node;
+            Server = server;
+            NodeManager = nodeManager;
+            Node = node;
         }
         #endregion
 
@@ -57,26 +57,17 @@ namespace Opc.Ua.Sample
         /// <summary>
         /// The server that the node belongs to.
         /// </summary>
-        public IServerInternal Server
-        {
-            get { return m_server; }
-        }
+        public IServerInternal Server { get; }
 
         /// <summary>
         /// The node manager that the node belongs to.
         /// </summary>
-        public INodeManager NodeManager
-        {
-            get { return m_nodeManager; }
-        }
+        public INodeManager NodeManager { get; }
 
         /// <summary>
         /// The node being monitored.
         /// </summary>
-        public NodeState Node
-        {
-            get { return m_node; }
-        }
+        public NodeState Node { get; }
 
         /// <summary>
         /// Whether the node has any active monitored items for the specified attribute.
@@ -158,7 +149,7 @@ namespace Opc.Ua.Sample
             if (m_monitoredItems == null)
             {
                 m_monitoredItems = new List<DataChangeMonitoredItem>();
-                m_node.OnStateChanged = OnNodeChange;
+                Node.OnStateChanged = OnNodeChange;
             }
 
             m_monitoredItems.Add(monitoredItem);
@@ -228,7 +219,7 @@ namespace Opc.Ua.Sample
             if (m_monitoredItems == null)
             {
                 m_monitoredItems = new List<DataChangeMonitoredItem>();
-                m_node.OnStateChanged = OnNodeChange;
+                Node.OnStateChanged = OnNodeChange;
             }
 
             m_monitoredItems.Add(monitoredItem);
@@ -282,12 +273,9 @@ namespace Opc.Ua.Sample
                             monitoredItem.ValueChanged(context);
                         }
                     }
-                    else
+                    else if ((masks & NodeStateChangeMasks.NonValue) != 0)
                     {
-                        if ((masks & NodeStateChangeMasks.NonValue) != 0)
-                        {
-                            monitoredItem.ValueChanged(context);
-                        }
+                        monitoredItem.ValueChanged(context);
                     }
                 }
             }
@@ -305,8 +293,8 @@ namespace Opc.Ua.Sample
 
             if (m_eventSubscriptions.Count == 0)
             {
-                m_node.OnReportEvent = OnReportEvent;
-                m_node.SetAreEventsMonitored(context, true, true);
+                Node.OnReportEvent = OnReportEvent;
+                Node.SetAreEventsMonitored(context, true, true);
             }
 
             for (int ii = 0; ii < m_eventSubscriptions.Count; ii++)
@@ -335,8 +323,8 @@ namespace Opc.Ua.Sample
 
                         if (m_eventSubscriptions.Count == 0)
                         {
-                            m_node.SetAreEventsMonitored(context, false, true);
-                            m_node.OnReportEvent = null;
+                            Node.SetAreEventsMonitored(context, false, true);
+                            Node.OnReportEvent = null;
                         }
 
                         break;
@@ -383,7 +371,7 @@ namespace Opc.Ua.Sample
 
                     // get the set of condition events for the node and its children.
                     var events = new List<IFilterTarget>();
-                    m_node.ConditionRefresh(context, events, true);
+                    Node.ConditionRefresh(context, events, true);
 
                     // report the events to the monitored item.
                     for (int jj = 0; jj < events.Count; jj++)
@@ -393,12 +381,9 @@ namespace Opc.Ua.Sample
                 }
             }
         }
-        #endregion
 
-        #region Private Fields
-        private readonly IServerInternal m_server;
-        private readonly INodeManager m_nodeManager;
-        private readonly NodeState m_node;
+#endregion
+#region Private Fields
         private List<IEventMonitoredItem> m_eventSubscriptions;
         private List<DataChangeMonitoredItem> m_monitoredItems;
         #endregion

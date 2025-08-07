@@ -31,16 +31,16 @@ namespace Opc.Ua
     {
         #region Private Fields
         private const int kStreamWriterBufferSize = 1024;
-        private static readonly string s_quotationColon = "\":";
-        private static readonly char s_comma = ',';
-        private static readonly char s_quotation = '\"';
-        private static readonly char s_backslash = '\\';
-        private static readonly char s_leftCurlyBrace = '{';
-        private static readonly char s_rightCurlyBrace = '}';
-        private static readonly char s_leftSquareBracket = '[';
-        private static readonly char s_rightSquareBracket = ']';
+        private const string s_quotationColon = "\":";
+        private const char s_comma = ',';
+        private const char s_quotation = '\"';
+        private const char s_backslash = '\\';
+        private const char s_leftCurlyBrace = '{';
+        private const char s_rightCurlyBrace = '}';
+        private const char s_leftSquareBracket = '[';
+        private const char s_rightSquareBracket = ']';
         private static readonly UTF8Encoding s_utf8Encoding = new UTF8Encoding(false);
-        private static readonly string s_null = "null";
+        private const string s_null = "null";
         private Stream m_stream;
         private MemoryStream m_memoryStream;
         private StreamWriter m_writer;
@@ -59,7 +59,6 @@ namespace Opc.Ua
         private bool m_includeDefaultNumberValues;
         private bool m_includeDefaultValues;
         private bool m_encodeNodeIdAsString;
-
 
         [Flags]
         private enum EscapeOptions : int
@@ -797,12 +796,9 @@ namespace Opc.Ua
                 }
                 m_writer.Write(s_quotationColon);
             }
-            else
+            else if (m_commaRequired)
             {
-                if (m_commaRequired)
-                {
-                    m_writer.Write(s_comma);
-                }
+                m_writer.Write(s_comma);
             }
 
             if ((options & EscapeOptions.Quotes) == EscapeOptions.Quotes)
@@ -1156,15 +1152,18 @@ namespace Opc.Ua
         /// <summary>
         /// Writes a byte string to the stream.
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2265:Do not compare Span<T> to 'null' or 'default'", Justification = "Null compare works with ReadOnlySpan<byte>")]
         public void WriteByteString(string fieldName, ReadOnlySpan<byte> value)
         {
-            if (fieldName != null && !IncludeDefaultValues && value == null)
+            // == compares memory reference, comparing to empty means we compare to the default
+            // If null array is converted to span the span is default
+            var isNull = value == ReadOnlySpan<byte>.Empty;
+
+            if (fieldName != null && !IncludeDefaultValues && isNull)
             {
                 return;
             }
 
-            if (value == null)
+            if (isNull)
             {
                 WriteSimpleField(fieldName, s_null, EscapeOptions.NoValueEscape);
                 return;
@@ -1278,19 +1277,14 @@ namespace Opc.Ua
             switch (value.IdType)
             {
                 case IdType.Numeric:
-                {
                     WriteUInt32("Id", (uint)value.Identifier);
                     break;
-                }
 
                 case IdType.String:
-                {
                     WriteString("Id", (string)value.Identifier);
                     break;
-                }
 
                 case IdType.Guid:
-                {
                     if (value.Identifier is Guid guidIdentifier)
                     {
                         WriteGuid("Id", guidIdentifier);
@@ -1306,13 +1300,10 @@ namespace Opc.Ua
                             "Invalid Identifier type to encode as Guid NodeId.");
                     }
                     break;
-                }
 
                 case IdType.Opaque:
-                {
                     WriteByteString("Id", (byte[])value.Identifier);
                     break;
-                }
             }
 
             if (namespaceUri != null)
@@ -1324,7 +1315,6 @@ namespace Opc.Ua
                 WriteNamespaceIndex("Namespace", value.NamespaceIndex);
             }
         }
-
 
         /// <summary>
         /// Writes an NodeId to the stream.
@@ -1424,7 +1414,6 @@ namespace Opc.Ua
 
             PopStructure();
         }
-
 
         /// <summary>
         /// Writes an StatusCode to the stream.
@@ -1668,7 +1657,6 @@ namespace Opc.Ua
                     }
                 }
 
-
                 if (value.StatusCode != StatusCodes.Good)
                 {
                     WriteStatusCode("StatusCode", value.StatusCode, EscapeOptions.NoFieldNameEscape);
@@ -1755,39 +1743,36 @@ namespace Opc.Ua
 
                     encodeable.Encode(this);
                 }
-                else
+                else if (value.Body is JObject json)
                 {
-                    if (value.Body is JObject json)
+                    if (!SuppressArtifacts && !NodeId.IsNull(localTypeId))
                     {
-                        if (!SuppressArtifacts && !NodeId.IsNull(localTypeId))
-                        {
-                            WriteNodeId("UaTypeId", localTypeId);
-                            m_writer.Write(s_comma);
-                        }
-
-                        string text = json.ToString(Newtonsoft.Json.Formatting.None);
-                        m_writer.Write(text[1..^1]);
+                        WriteNodeId("UaTypeId", localTypeId);
+                        m_writer.Write(s_comma);
                     }
-                    else if (value.Encoding == ExtensionObjectEncoding.Binary)
+
+                    string text = json.ToString(Newtonsoft.Json.Formatting.None);
+                    m_writer.Write(text[1..^1]);
+                }
+                else if (value.Encoding == ExtensionObjectEncoding.Binary)
+                {
+                    if (!SuppressArtifacts && !NodeId.IsNull(localTypeId))
                     {
-                        if (!SuppressArtifacts && !NodeId.IsNull(localTypeId))
-                        {
-                            WriteNodeId("UaTypeId", localTypeId);
-                        }
-
-                        WriteByte("UaEncoding", (byte)ExtensionObjectEncoding.Binary);
-                        WriteByteString("UaBody", value.Body as byte[]);
+                        WriteNodeId("UaTypeId", localTypeId);
                     }
-                    else if (value.Encoding == ExtensionObjectEncoding.Xml)
+
+                    WriteByte("UaEncoding", (byte)ExtensionObjectEncoding.Binary);
+                    WriteByteString("UaBody", value.Body as byte[]);
+                }
+                else if (value.Encoding == ExtensionObjectEncoding.Xml)
+                {
+                    if (!SuppressArtifacts && !NodeId.IsNull(localTypeId))
                     {
-                        if (!SuppressArtifacts && !NodeId.IsNull(localTypeId))
-                        {
-                            WriteNodeId("UaTypeId", localTypeId);
-                        }
-
-                        WriteByte("UaEncoding", (byte)ExtensionObjectEncoding.Xml);
-                        WriteXmlElement("UaBody", value.Body as XmlElement);
+                        WriteNodeId("UaTypeId", localTypeId);
                     }
+
+                    WriteByte("UaEncoding", (byte)ExtensionObjectEncoding.Xml);
+                    WriteXmlElement("UaBody", value.Body as XmlElement);
                 }
 
                 PopStructure();
@@ -1800,9 +1785,11 @@ namespace Opc.Ua
             {
                 switch (value.Encoding)
                 {
-                    case ExtensionObjectEncoding.Binary: { typeId = encodeable.BinaryEncodingId; break; }
-                    case ExtensionObjectEncoding.Xml: { typeId = encodeable.XmlEncodingId; break; }
-                    default: { typeId = encodeable.TypeId; break; }
+                    case ExtensionObjectEncoding.Binary: typeId = encodeable.BinaryEncodingId; break;
+
+                    case ExtensionObjectEncoding.Xml: typeId = encodeable.XmlEncodingId; break;
+
+                    default: typeId = encodeable.TypeId; break;
                 }
             }
 
@@ -1810,29 +1797,26 @@ namespace Opc.Ua
             {
                 WriteEncodeable("Body", encodeable, null);
             }
+            else if (value.Body is JObject json)
+            {
+                string text = json.ToString(Newtonsoft.Json.Formatting.None);
+                m_writer.Write(text[1..^1]);
+            }
             else
             {
-                if (value.Body is JObject json)
-                {
-                    string text = json.ToString(Newtonsoft.Json.Formatting.None);
-                    m_writer.Write(text[1..^1]);
-                }
-                else
-                {
-                    WriteByte("Encoding", (byte)value.Encoding);
+                WriteByte("Encoding", (byte)value.Encoding);
 
-                    if (value.Encoding == ExtensionObjectEncoding.Binary)
-                    {
-                        WriteByteString("Body", value.Body as byte[]);
-                    }
-                    else if (value.Encoding == ExtensionObjectEncoding.Xml)
-                    {
-                        WriteXmlElement("Body", value.Body as XmlElement);
-                    }
-                    else if (value.Encoding == ExtensionObjectEncoding.Json)
-                    {
-                        WriteSimpleField("Body", value.Body as string);
-                    }
+                if (value.Encoding == ExtensionObjectEncoding.Binary)
+                {
+                    WriteByteString("Body", value.Body as byte[]);
+                }
+                else if (value.Encoding == ExtensionObjectEncoding.Xml)
+                {
+                    WriteXmlElement("Body", value.Body as XmlElement);
+                }
+                else if (value.Encoding == ExtensionObjectEncoding.Json)
+                {
+                    WriteSimpleField("Body", value.Body as string);
                 }
             }
 
@@ -1851,27 +1835,21 @@ namespace Opc.Ua
                 return;
             }
 
-            if (m_nestingLevel == 0 && (m_commaRequired || m_topLevelIsArray))
+            if (m_nestingLevel == 0 && (m_commaRequired || m_topLevelIsArray) && (string.IsNullOrWhiteSpace(fieldName) ^ m_topLevelIsArray))
             {
-                if (string.IsNullOrWhiteSpace(fieldName) ^ m_topLevelIsArray)
-                {
-                    throw ServiceResultException.Create(
-                        StatusCodes.BadEncodingError,
-                        "With Array as top level, encodeables with fieldname will create invalid json");
-                }
+                throw ServiceResultException.Create(
+                    StatusCodes.BadEncodingError,
+                    "With Array as top level, encodeables with fieldname will create invalid json");
             }
 
-            if (m_nestingLevel == 0 && !m_commaRequired)
+            if (m_nestingLevel == 0 && !m_commaRequired && string.IsNullOrWhiteSpace(fieldName) && !m_topLevelIsArray)
             {
-                if (string.IsNullOrWhiteSpace(fieldName) && !m_topLevelIsArray)
+                m_writer.Flush();
+                if (m_writer.BaseStream.Length == 1) //Opening "{"
                 {
-                    m_writer.Flush();
-                    if (m_writer.BaseStream.Length == 1) //Opening "{"
-                    {
-                        m_writer.BaseStream.Seek(0, SeekOrigin.Begin);
-                    }
-                    m_dontWriteClosing = true;
+                    m_writer.BaseStream.Seek(0, SeekOrigin.Begin);
                 }
+                m_dontWriteClosing = true;
             }
 
             CheckAndIncrementNestingLevel();
@@ -2734,32 +2712,55 @@ namespace Opc.Ua
             {
                 switch (builtInType)
                 {
-                    case BuiltInType.Boolean: { WriteBooleanArray(fieldName, (bool[])array); return; }
-                    case BuiltInType.SByte: { WriteSByteArray(fieldName, (sbyte[])array); return; }
-                    case BuiltInType.Byte: { WriteByteArray(fieldName, (byte[])array); return; }
-                    case BuiltInType.Int16: { WriteInt16Array(fieldName, (short[])array); return; }
-                    case BuiltInType.UInt16: { WriteUInt16Array(fieldName, (ushort[])array); return; }
-                    case BuiltInType.Int32: { WriteInt32Array(fieldName, (int[])array); return; }
-                    case BuiltInType.UInt32: { WriteUInt32Array(fieldName, (uint[])array); return; }
-                    case BuiltInType.Int64: { WriteInt64Array(fieldName, (long[])array); return; }
-                    case BuiltInType.UInt64: { WriteUInt64Array(fieldName, (ulong[])array); return; }
-                    case BuiltInType.Float: { WriteFloatArray(fieldName, (float[])array); return; }
-                    case BuiltInType.Double: { WriteDoubleArray(fieldName, (double[])array); return; }
-                    case BuiltInType.String: { WriteStringArray(fieldName, (string[])array); return; }
-                    case BuiltInType.DateTime: { WriteDateTimeArray(fieldName, (DateTime[])array); return; }
-                    case BuiltInType.Guid: { WriteGuidArray(fieldName, (Uuid[])array); return; }
-                    case BuiltInType.ByteString: { WriteByteStringArray(fieldName, (byte[][])array); return; }
-                    case BuiltInType.XmlElement: { WriteXmlElementArray(fieldName, (XmlElement[])array); return; }
-                    case BuiltInType.NodeId: { WriteNodeIdArray(fieldName, (NodeId[])array); return; }
-                    case BuiltInType.ExpandedNodeId: { WriteExpandedNodeIdArray(fieldName, (ExpandedNodeId[])array); return; }
-                    case BuiltInType.StatusCode: { WriteStatusCodeArray(fieldName, (StatusCode[])array); return; }
-                    case BuiltInType.QualifiedName: { WriteQualifiedNameArray(fieldName, (QualifiedName[])array); return; }
-                    case BuiltInType.LocalizedText: { WriteLocalizedTextArray(fieldName, (LocalizedText[])array); return; }
-                    case BuiltInType.ExtensionObject: { WriteExtensionObjectArray(fieldName, (ExtensionObject[])array); return; }
-                    case BuiltInType.DataValue: { WriteDataValueArray(fieldName, (DataValue[])array); return; }
-                    case BuiltInType.DiagnosticInfo: { WriteDiagnosticInfoArray(fieldName, (DiagnosticInfo[])array); return; }
+                    case BuiltInType.Boolean: WriteBooleanArray(fieldName, (bool[])array); return;
+
+                    case BuiltInType.SByte: WriteSByteArray(fieldName, (sbyte[])array); return;
+
+                    case BuiltInType.Byte: WriteByteArray(fieldName, (byte[])array); return;
+
+                    case BuiltInType.Int16: WriteInt16Array(fieldName, (short[])array); return;
+
+                    case BuiltInType.UInt16: WriteUInt16Array(fieldName, (ushort[])array); return;
+
+                    case BuiltInType.Int32: WriteInt32Array(fieldName, (int[])array); return;
+
+                    case BuiltInType.UInt32: WriteUInt32Array(fieldName, (uint[])array); return;
+
+                    case BuiltInType.Int64: WriteInt64Array(fieldName, (long[])array); return;
+
+                    case BuiltInType.UInt64: WriteUInt64Array(fieldName, (ulong[])array); return;
+
+                    case BuiltInType.Float: WriteFloatArray(fieldName, (float[])array); return;
+
+                    case BuiltInType.Double: WriteDoubleArray(fieldName, (double[])array); return;
+
+                    case BuiltInType.String: WriteStringArray(fieldName, (string[])array); return;
+
+                    case BuiltInType.DateTime: WriteDateTimeArray(fieldName, (DateTime[])array); return;
+
+                    case BuiltInType.Guid: WriteGuidArray(fieldName, (Uuid[])array); return;
+
+                    case BuiltInType.ByteString: WriteByteStringArray(fieldName, (byte[][])array); return;
+
+                    case BuiltInType.XmlElement: WriteXmlElementArray(fieldName, (XmlElement[])array); return;
+
+                    case BuiltInType.NodeId: WriteNodeIdArray(fieldName, (NodeId[])array); return;
+
+                    case BuiltInType.ExpandedNodeId: WriteExpandedNodeIdArray(fieldName, (ExpandedNodeId[])array); return;
+
+                    case BuiltInType.StatusCode: WriteStatusCodeArray(fieldName, (StatusCode[])array); return;
+
+                    case BuiltInType.QualifiedName: WriteQualifiedNameArray(fieldName, (QualifiedName[])array); return;
+
+                    case BuiltInType.LocalizedText: WriteLocalizedTextArray(fieldName, (LocalizedText[])array); return;
+
+                    case BuiltInType.ExtensionObject: WriteExtensionObjectArray(fieldName, (ExtensionObject[])array); return;
+
+                    case BuiltInType.DataValue: WriteDataValueArray(fieldName, (DataValue[])array); return;
+
+                    case BuiltInType.DiagnosticInfo: WriteDiagnosticInfoArray(fieldName, (DiagnosticInfo[])array); return;
+
                     case BuiltInType.Enumeration:
-                    {
                         if (array is not Array enumArray)
                         {
                             throw ServiceResultException.Create(
@@ -2768,7 +2769,7 @@ namespace Opc.Ua
                         }
                         WriteEnumeratedArray(fieldName, enumArray, enumArray.GetType().GetElementType());
                         return;
-                    }
+
                     case BuiltInType.Variant:
                     {
                         if (array is Variant[] variants)
@@ -2783,7 +2784,6 @@ namespace Opc.Ua
                             WriteEncodeableArray(fieldName, encodeableArray, array.GetType().GetElementType());
                             return;
                         }
-
 
                         if (array is object[] objects)
                         {
@@ -2897,34 +2897,27 @@ namespace Opc.Ua
                         WriteStatusCode(nameof(dv.StatusCode), dv.StatusCode);
                     }
 
-                    if ((mask & DataSetFieldContentMask.SourceTimestamp) != 0)
+                    if ((mask & DataSetFieldContentMask.SourceTimestamp) != 0 && dv.SourceTimestamp != DateTime.MinValue)
                     {
-                        if (dv.SourceTimestamp != DateTime.MinValue)
-                        {
-                            WriteDateTime(nameof(dv.SourceTimestamp), dv.SourceTimestamp);
+                        WriteDateTime(nameof(dv.SourceTimestamp), dv.SourceTimestamp);
 
-                            if (dv.SourcePicoseconds != 0)
-                            {
-                                WriteUInt16(nameof(dv.SourcePicoseconds), dv.SourcePicoseconds);
-                            }
+                        if (dv.SourcePicoseconds != 0)
+                        {
+                            WriteUInt16(nameof(dv.SourcePicoseconds), dv.SourcePicoseconds);
                         }
                     }
 
-                    if ((mask & DataSetFieldContentMask.ServerTimestamp) != 0)
+                    if ((mask & DataSetFieldContentMask.ServerTimestamp) != 0 && dv.ServerTimestamp != DateTime.MinValue)
                     {
-                        if (dv.ServerTimestamp != DateTime.MinValue)
-                        {
-                            WriteDateTime(nameof(dv.ServerTimestamp), dv.ServerTimestamp);
+                        WriteDateTime(nameof(dv.ServerTimestamp), dv.ServerTimestamp);
 
-                            if (dv.ServerPicoseconds != 0)
-                            {
-                                WriteUInt16(nameof(dv.ServerPicoseconds), dv.ServerPicoseconds);
-                            }
+                        if (dv.ServerPicoseconds != 0)
+                        {
+                            WriteUInt16(nameof(dv.ServerPicoseconds), dv.ServerPicoseconds);
                         }
                     }
 
                     m_writer.Write(s_rightCurlyBrace);
-
                 }
 
                 m_commaRequired = true;
@@ -3159,31 +3152,55 @@ namespace Opc.Ua
                 {
                     switch (typeInfo.BuiltInType)
                     {
-                        case BuiltInType.Boolean: { WriteBoolean(null, (bool)value); return; }
-                        case BuiltInType.SByte: { WriteSByte(null, (sbyte)value); return; }
-                        case BuiltInType.Byte: { WriteByte(null, (byte)value); return; }
-                        case BuiltInType.Int16: { WriteInt16(null, (short)value); return; }
-                        case BuiltInType.UInt16: { WriteUInt16(null, (ushort)value); return; }
-                        case BuiltInType.Int32: { WriteInt32(null, (int)value); return; }
-                        case BuiltInType.UInt32: { WriteUInt32(null, (uint)value); return; }
-                        case BuiltInType.Int64: { WriteInt64(null, (long)value); return; }
-                        case BuiltInType.UInt64: { WriteUInt64(null, (ulong)value); return; }
-                        case BuiltInType.Float: { WriteFloat(null, (float)value); return; }
-                        case BuiltInType.Double: { WriteDouble(null, (double)value); return; }
-                        case BuiltInType.String: { WriteString(null, (string)value); return; }
-                        case BuiltInType.DateTime: { WriteDateTime(null, (DateTime)value); return; }
-                        case BuiltInType.Guid: { WriteGuid(null, (Uuid)value); return; }
-                        case BuiltInType.ByteString: { WriteByteString(null, (byte[])value); return; }
-                        case BuiltInType.XmlElement: { WriteXmlElement(null, (XmlElement)value); return; }
-                        case BuiltInType.NodeId: { WriteNodeId(null, (NodeId)value); return; }
-                        case BuiltInType.ExpandedNodeId: { WriteExpandedNodeId(null, (ExpandedNodeId)value); return; }
-                        case BuiltInType.StatusCode: { WriteStatusCode(null, (StatusCode)value); return; }
-                        case BuiltInType.QualifiedName: { WriteQualifiedName(null, (QualifiedName)value); return; }
-                        case BuiltInType.LocalizedText: { WriteLocalizedText(null, (LocalizedText)value); return; }
-                        case BuiltInType.ExtensionObject: { WriteExtensionObject(null, (ExtensionObject)value); return; }
-                        case BuiltInType.DataValue: { WriteDataValue(null, (DataValue)value); return; }
-                        case BuiltInType.Enumeration: { WriteEnumerated(null, (Enum)value); return; }
-                        case BuiltInType.DiagnosticInfo: { WriteDiagnosticInfo(null, (DiagnosticInfo)value); return; }
+                        case BuiltInType.Boolean: WriteBoolean(null, (bool)value); return;
+
+                        case BuiltInType.SByte: WriteSByte(null, (sbyte)value); return;
+
+                        case BuiltInType.Byte: WriteByte(null, (byte)value); return;
+
+                        case BuiltInType.Int16: WriteInt16(null, (short)value); return;
+
+                        case BuiltInType.UInt16: WriteUInt16(null, (ushort)value); return;
+
+                        case BuiltInType.Int32: WriteInt32(null, (int)value); return;
+
+                        case BuiltInType.UInt32: WriteUInt32(null, (uint)value); return;
+
+                        case BuiltInType.Int64: WriteInt64(null, (long)value); return;
+
+                        case BuiltInType.UInt64: WriteUInt64(null, (ulong)value); return;
+
+                        case BuiltInType.Float: WriteFloat(null, (float)value); return;
+
+                        case BuiltInType.Double: WriteDouble(null, (double)value); return;
+
+                        case BuiltInType.String: WriteString(null, (string)value); return;
+
+                        case BuiltInType.DateTime: WriteDateTime(null, (DateTime)value); return;
+
+                        case BuiltInType.Guid: WriteGuid(null, (Uuid)value); return;
+
+                        case BuiltInType.ByteString: WriteByteString(null, (byte[])value); return;
+
+                        case BuiltInType.XmlElement: WriteXmlElement(null, (XmlElement)value); return;
+
+                        case BuiltInType.NodeId: WriteNodeId(null, (NodeId)value); return;
+
+                        case BuiltInType.ExpandedNodeId: WriteExpandedNodeId(null, (ExpandedNodeId)value); return;
+
+                        case BuiltInType.StatusCode: WriteStatusCode(null, (StatusCode)value); return;
+
+                        case BuiltInType.QualifiedName: WriteQualifiedName(null, (QualifiedName)value); return;
+
+                        case BuiltInType.LocalizedText: WriteLocalizedText(null, (LocalizedText)value); return;
+
+                        case BuiltInType.ExtensionObject: WriteExtensionObject(null, (ExtensionObject)value); return;
+
+                        case BuiltInType.DataValue: WriteDataValue(null, (DataValue)value); return;
+
+                        case BuiltInType.Enumeration: WriteEnumerated(null, (Enum)value); return;
+
+                        case BuiltInType.DiagnosticInfo: WriteDiagnosticInfo(null, (DiagnosticInfo)value); return;
                     }
                 }
                 // write array
@@ -3569,11 +3586,17 @@ namespace Opc.Ua
             m_nestingLevel++;
         }
 
-        // The length of the DateTime string encoded by "o"
+        /// <summary>
+        /// The length of the DateTime string encoded by "o"
+        /// </summary>
         internal const int DateTimeRoundTripKindLength = 28;
-        // the index of the last digit which can be omitted if 0
+        /// <summary>
+        /// the index of the last digit which can be omitted if 0
+        /// </summary>
         const int DateTimeRoundTripKindLastDigit = DateTimeRoundTripKindLength - 2;
-        // the index of the first digit which can be omitted (7 digits total)
+        /// <summary>
+        /// the index of the first digit which can be omitted (7 digits total)
+        /// </summary>
         const int DateTimeRoundTripKindFirstDigit = DateTimeRoundTripKindLastDigit - 7;
 
         /// <summary>

@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -93,12 +93,12 @@ namespace Opc.Ua.Server
         /// <summary>
         /// the NodeId of the role
         /// </summary>
-        public NodeId RoleId { get; private set; }
+        public NodeId RoleId { get; }
 
         /// <summary>
         /// the name of the role
         /// </summary>
-        public string Name { get; private set; }
+        public string Name { get; }
         #region value equality
         /// <inheritdoc/>
         public bool Equals(Role other)
@@ -125,7 +125,7 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public override int GetHashCode()
         {
-            return (Name, RoleId).GetHashCode();
+            return HashCode.Combine(Name, RoleId);
         }
         /// <inheritdoc/>
         public static bool operator ==(Role lhs, Role rhs)
@@ -162,7 +162,6 @@ namespace Opc.Ua.Server
     public class RoleBasedIdentity : IUserIdentity
     {
         private readonly IUserIdentity m_identity;
-        private readonly IEnumerable<Role> m_roles;
 
         /// <summary>
         /// Initialize the role based identity.
@@ -170,7 +169,7 @@ namespace Opc.Ua.Server
         public RoleBasedIdentity(IUserIdentity identity, IEnumerable<Role> roles)
         {
             m_identity = identity;
-            m_roles = roles;
+            Roles = roles;
             foreach (Role role in roles)
             {
                 if (!(role.RoleId?.IsNullNodeId ?? true))
@@ -189,10 +188,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// The role in the context of a server.
         /// </summary>
-        public IEnumerable<Role> Roles
-        {
-            get { return m_roles; }
-        }
+        public IEnumerable<Role> Roles { get; }
 
         /// <inheritdoc/>
         public string DisplayName

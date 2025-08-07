@@ -32,7 +32,6 @@ using System.Threading.Tasks;
 
 namespace Opc.Ua.Configuration
 {
-
     /// <summary>
     /// Interface to create application callbacks.
     /// </summary>
@@ -51,4 +50,3 @@ namespace Opc.Ua.Configuration
         public abstract Task<bool> ShowAsync();
     }
 }
-

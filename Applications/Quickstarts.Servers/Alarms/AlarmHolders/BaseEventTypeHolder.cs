@@ -82,7 +82,6 @@ namespace Alarms
 
         public override void SetValue(string message = "")
         {
-
         }
 
         #endregion
@@ -98,7 +97,6 @@ namespace Alarms
             return alarm;
         }
 
-
         #endregion
 
         #region Child Helpers
@@ -113,7 +111,6 @@ namespace Alarms
 
             return isEvent;
         }
-
 
         #endregion
 

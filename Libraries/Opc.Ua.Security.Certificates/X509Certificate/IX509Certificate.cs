@@ -33,7 +33,6 @@ using System.Security.Cryptography.X509Certificates;
 
 namespace Opc.Ua.Security.Certificates
 {
-
     /// <summary>
     /// Properties of a X.509v3 certificate.
     /// </summary>
@@ -82,4 +81,3 @@ namespace Opc.Ua.Security.Certificates
         X509ExtensionCollection Extensions { get; }
     }
 }
-

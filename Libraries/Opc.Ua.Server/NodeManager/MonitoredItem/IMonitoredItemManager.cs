@@ -124,5 +124,4 @@ namespace Opc.Ua.Server
             IEventMonitoredItem monitoredItem,
             bool unsubscribe);
     }
-
 }

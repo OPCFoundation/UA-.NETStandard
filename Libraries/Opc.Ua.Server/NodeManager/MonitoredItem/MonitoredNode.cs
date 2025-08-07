@@ -60,38 +60,22 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Gets or sets the NodeManager which the MonitoredNode belongs to.
         /// </summary>
-        public CustomNodeManager2 NodeManager
-        {
-            get { return m_nodeManager; }
-            set { m_nodeManager = value; }
-        }
+        public CustomNodeManager2 NodeManager { get; set; }
 
         /// <summary>
         /// Gets or sets the Node being monitored.
         /// </summary>
-        public NodeState Node
-        {
-            get { return m_node; }
-            set { m_node = value; }
-        }
+        public NodeState Node { get; set; }
 
         /// <summary>
         /// Gets the current list of data change MonitoredItems.
         /// </summary>
-        public List<MonitoredItem> DataChangeMonitoredItems
-        {
-            get { return m_dataChangeMonitoredItems; }
-            private set { m_dataChangeMonitoredItems = value; }
-        }
+        public List<MonitoredItem> DataChangeMonitoredItems { get; private set; }
 
         /// <summary>
         /// Gets the current list of event MonitoredItems.
         /// </summary>
-        public List<IEventMonitoredItem> EventMonitoredItems
-        {
-            get { return m_eventMonitoredItems; }
-            private set { m_eventMonitoredItems = value; }
-        }
+        public List<IEventMonitoredItem> EventMonitoredItems { get; private set; }
 
         /// <summary>
         /// Gets a value indicating whether this instance has monitored items.
@@ -222,7 +206,6 @@ namespace Opc.Ua.Server
 
             for (int ii = 0; ii < eventMonitoredItems.Count; ii++)
             {
-
                 IEventMonitoredItem monitoredItem = eventMonitoredItems[ii];
 
                 #region  Filter out audit events in case the Server_Auditing values is false or the channel is not encrypted
@@ -273,7 +256,6 @@ namespace Opc.Ua.Server
                     {
                         monitoredItem?.QueueEvent(e);
                     }
-
                 }
             }
         }
@@ -363,8 +345,8 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Gets or creates a cached context for the monitored item.
         /// </summary>
-        /// <param name="monitoredItem">The monitored item.</param>
         /// <param name="context">The system context.</param>
+        /// <param name="monitoredItem">The monitored item.</param>
         /// <returns>The cached or newly created context.</returns>
         private ServerSystemContext GetOrCreateContext(ServerSystemContext context, MonitoredItem monitoredItem)
         {
@@ -397,13 +379,9 @@ namespace Opc.Ua.Server
 
             return newContext;
         }
-        #endregion
 
-        #region Private Fields
-        private CustomNodeManager2 m_nodeManager;
-        private NodeState m_node;
-        private List<MonitoredItem> m_dataChangeMonitoredItems;
-        private List<IEventMonitoredItem> m_eventMonitoredItems;
+#endregion
+#region Private Fields
         private readonly ConcurrentDictionary<uint, (ServerSystemContext Context, int CreatedAtTicks)> m_contextCache = new();
         private readonly int m_cacheLifetimeTicks = (int)TimeSpan.FromMinutes(5).TotalMilliseconds;
         #endregion

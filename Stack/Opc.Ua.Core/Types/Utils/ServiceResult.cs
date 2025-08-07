@@ -633,7 +633,7 @@ namespace Opc.Ua
                     string[] trace = exception.StackTrace.Split(Environment.NewLine.ToCharArray());
                     for (int ii = 0; ii < trace.Length; ii++)
                     {
-                        if (trace[ii] != null && trace[ii].Length > 0)
+                        if (!string.IsNullOrEmpty(trace[ii]))
                         {
                             buffer.AppendLine();
                             buffer.AppendFormat(CultureInfo.InvariantCulture, "--- {0}", trace[ii]);
@@ -754,7 +754,7 @@ namespace Opc.Ua
                 buffer.Append(LocalizedText);
             }
 
-            if (AdditionalInfo != null && AdditionalInfo.Length > 0)
+            if (!string.IsNullOrEmpty(AdditionalInfo))
             {
                 buffer.AppendLine();
                 buffer.Append(AdditionalInfo);
@@ -796,7 +796,7 @@ namespace Opc.Ua
         {
             if (exception != null && exception.Message != null)
             {
-                if (exception.Message.StartsWith("[", StringComparison.Ordinal) || exception is ServiceResultException)
+                if (exception.Message.StartsWith('[') || exception is ServiceResultException)
                 {
                     return exception.Message;
                 }
@@ -808,7 +808,5 @@ namespace Opc.Ua
         }
 
 #endregion
-#region Private Fields
-        #endregion
     }
 }

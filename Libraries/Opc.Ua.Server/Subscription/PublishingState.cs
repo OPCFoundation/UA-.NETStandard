@@ -33,11 +33,11 @@ using System.Diagnostics;
 using System.Xml;
 using System.Threading;
 
-namespace Opc.Ua.Server 
+namespace Opc.Ua.Server
 {
     /// <summary>
     /// The current publishing state for a subscription.
-    /// </summary>  
+    /// </summary>
     public enum PublishingState
     {
         /// <summary>

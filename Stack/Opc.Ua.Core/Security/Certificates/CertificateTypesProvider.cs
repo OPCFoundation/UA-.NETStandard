@@ -91,8 +91,7 @@ namespace Opc.Ua.Security.Certificates
                 // return the default certificate for None
                 return m_securityConfiguration.ApplicationCertificates.FirstOrDefault().Certificate;
             }
-            IList<NodeId> certificateTypes = Opc.Ua.CertificateIdentifier.MapSecurityPolicyToCertificateTypes(securityPolicyUri);
-            foreach (NodeId certType in certificateTypes)
+            foreach (NodeId certType in Opc.Ua.CertificateIdentifier.MapSecurityPolicyToCertificateTypes(securityPolicyUri))
             {
                 Ua.CertificateIdentifier instanceCertificate = m_securityConfiguration.ApplicationCertificates.FirstOrDefault(id => id.CertificateType == certType);
                 if (instanceCertificate == null &&
@@ -165,10 +164,9 @@ namespace Opc.Ua.Security.Certificates
             }
 
             byte[] certificateChainRaw = Utils.CreateCertificateChainBlob(certificateChain);
-            var dictionaryValue = new Tuple<X509Certificate2Collection, byte[]>(certificateChain, certificateChainRaw);
 
             // update cached values
-            m_certificateChain[certificate.Thumbprint] = dictionaryValue;
+            m_certificateChain[certificate.Thumbprint] = new Tuple<X509Certificate2Collection, byte[]>(certificateChain, certificateChainRaw);
 
             return certificateChain;
         }

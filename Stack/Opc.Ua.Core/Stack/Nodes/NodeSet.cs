@@ -31,7 +31,7 @@ namespace Opc.Ua
     [KnownType(typeof(DataTypeNode))]
     [KnownType(typeof(ReferenceTypeNode))]
     [KnownType(typeof(ViewNode))]
-    public partial class NodeSet : IEnumerable<Node>
+    public class NodeSet : IEnumerable<Node>
     {
         #region Constructors
         /// <summary>
@@ -216,29 +216,21 @@ namespace Opc.Ua
             switch (typeInfo.BuiltInType)
             {
                 case BuiltInType.NodeId:
-                {
                     return Translate((NodeId)value, m_namespaceUris, namespaceUris);
-                }
 
                 case BuiltInType.ExpandedNodeId:
-                {
                     return Translate((ExpandedNodeId)value, m_namespaceUris, m_serverUris, namespaceUris, serverUris);
-                }
 
                 case BuiltInType.QualifiedName:
-                {
                     return Translate((QualifiedName)value, m_namespaceUris, namespaceUris);
-                }
 
                 case BuiltInType.ExtensionObject:
-                {
                     if (ExtensionObject.ToEncodeable((ExtensionObject)value) is Argument argument)
                     {
                         argument.DataType = Translate(argument.DataType, m_namespaceUris, namespaceUris);
                     }
 
                     return value;
-                }
             }
 
             return value;
@@ -261,7 +253,6 @@ namespace Opc.Ua
             node.NodeId = Translate(nodeToExport.NodeId, m_namespaceUris, namespaceUris);
             node.BrowseName = Translate(nodeToExport.BrowseName, m_namespaceUris, namespaceUris);
 
-
             if (nodeToExport is VariableNode variableToExport)
             {
                 var variableNode = (VariableNode)node;
@@ -271,7 +262,6 @@ namespace Opc.Ua
 
                 variableNode.DataType = Translate(variableToExport.DataType, m_namespaceUris, namespaceUris);
             }
-
 
             if (nodeToExport is VariableTypeNode variableTypeToExport)
             {
@@ -433,7 +423,6 @@ namespace Opc.Ua
             node.NodeId = Translate(nodeToImport.NodeId, namespaceUris, m_namespaceUris);
             node.BrowseName = Translate(nodeToImport.BrowseName, namespaceUris, m_namespaceUris);
 
-
             if (nodeToImport is VariableNode variableToImport)
             {
                 var variable = (VariableNode)node;
@@ -445,7 +434,6 @@ namespace Opc.Ua
                     variable.Value = new Variant(ImportValue(variableToImport.Value.Value, namespaceUris, serverUris));
                 }
             }
-
 
             if (nodeToImport is VariableTypeNode variableTypeToImport)
             {
@@ -515,13 +503,9 @@ namespace Opc.Ua
                 return Import(expandedNodeId, namespaceUris, serverUris);
             }
 
-
-            if (value is ExtensionObject extension)
+            if (value is ExtensionObject extension && ExtensionObject.ToEncodeable(extension) is Argument argument)
             {
-                if (ExtensionObject.ToEncodeable(extension) is Argument argument)
-                {
-                    argument.DataType = Import(argument.DataType, namespaceUris);
-                }
+                argument.DataType = Import(argument.DataType, namespaceUris);
             }
 
             return value;

@@ -190,14 +190,7 @@ namespace Opc.Ua.Server
                 configuration = GetDefaultConfiguration(null);
             }
 
-            IAggregateCalculator calculator = factory(aggregateId, startTime, endTime, processingInterval, stepped, configuration);
-
-            if (calculator == null)
-            {
-                return null;
-            }
-
-            return calculator;
+            return factory(aggregateId, startTime, endTime, processingInterval, stepped, configuration);
         }
 
         /// <summary>
@@ -230,9 +223,6 @@ namespace Opc.Ua.Server
                 m_factories.Remove(aggregateId);
             }
         }
-        #endregion
-
-        #region Private Methods
         #endregion
 
         #region Private Fields
