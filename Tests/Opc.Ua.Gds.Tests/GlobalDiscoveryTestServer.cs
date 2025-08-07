@@ -141,7 +141,7 @@ namespace Opc.Ua.Gds.Tests
                 usersDatabase);
             await Application.StartAsync(m_server).ConfigureAwait(false);
 
-            ServerState serverState = Server.GetStatus().State;
+            ServerState serverState = Server.CurrentState;
             if (serverState != ServerState.Running)
             {
                 throw new ServiceResultException("Server failed to start");

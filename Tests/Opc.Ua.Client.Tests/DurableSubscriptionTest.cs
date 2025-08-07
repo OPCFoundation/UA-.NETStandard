@@ -31,6 +31,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -208,7 +209,7 @@ namespace Opc.Ua.Client.Tests
             Assert.IsNotNull(maxLifetimeCountValue);
             Assert.IsNotNull(maxLifetimeCountValue.Value);
             Assert.AreEqual(expectedLifetime,
-                Convert.ToUInt32(maxLifetimeCountValue.Value));
+                Convert.ToUInt32(maxLifetimeCountValue.Value, CultureInfo.InvariantCulture));
 
             Assert.True(Session.RemoveSubscription(subscription));
         }
@@ -471,7 +472,7 @@ namespace Opc.Ua.Client.Tests
                         DateTime timestamp = pair.Value[index];
 
                         TimeSpan timeSpan = timestamp - previous;
-                        TestContext.Out.WriteLine($"Node: {pair.Key} Index: {index} Time: {DateTimeMs(timestamp)} Previous: {DateTimeMs(previous)} Timespan {timeSpan.TotalMilliseconds.ToString("000.")}");
+                        TestContext.Out.WriteLine($"Node: {pair.Key} Index: {index} Time: {DateTimeMs(timestamp)} Previous: {DateTimeMs(previous)} Timespan {timeSpan.TotalMilliseconds.ToString("000.", CultureInfo.InvariantCulture)}");
 
                         Assert.Less(Math.Abs(timeSpan.TotalMilliseconds), tolerance,
                             $"Node: {pair.Key} Index: {index} Timespan {timeSpan.TotalMilliseconds} ");
@@ -504,7 +505,7 @@ namespace Opc.Ua.Client.Tests
             DataValue dataValue = modifiedValues[desiredValue] as DataValue;
             Assert.IsNotNull(dataValue);
             Assert.IsNotNull(dataValue.Value);
-            Assert.AreEqual(expectedValue, Convert.ToUInt32(dataValue.Value));
+            Assert.AreEqual(expectedValue, Convert.ToUInt32(dataValue.Value, CultureInfo.InvariantCulture));
 
             return modifiedValues;
         }
@@ -580,7 +581,7 @@ namespace Opc.Ua.Client.Tests
             {
                 TestContext.Out.WriteLine("Initial Browse Reference {0}", reference.BrowseName.Name);
 
-                if (reference.BrowseName.Name == subscriptionId.ToString())
+                if (reference.BrowseName.Name == subscriptionId.ToString(CultureInfo.InvariantCulture))
                 {
                     ReferenceDescriptionCollection desiredReferences;
 
@@ -734,7 +735,7 @@ namespace Opc.Ua.Client.Tests
         private string DateTimeMs(DateTime dateTime)
         {
             string readable = dateTime.ToLongTimeString() + "." +
-                dateTime.Millisecond.ToString("D3");
+                dateTime.Millisecond.ToString("D3", CultureInfo.InvariantCulture);
 
             return readable;
         }

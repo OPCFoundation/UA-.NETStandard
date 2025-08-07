@@ -235,7 +235,7 @@ namespace Quickstarts.ConsoleReferenceClient
                         {
                             CertificateIdentifier userCertificateIdentifier =
                                 await FindUserCertificateIdentifierAsync(userCertificateThumbprint,
-                                    application.ApplicationConfiguration.SecurityConfiguration.TrustedUserCertificates);
+                                    application.ApplicationConfiguration.SecurityConfiguration.TrustedUserCertificates).ConfigureAwait(true);
 
                             if (userCertificateIdentifier != null)
                             {
@@ -433,12 +433,12 @@ namespace Quickstarts.ConsoleReferenceClient
                                             await uaClient.DurableSubscriptionTransfer(
                                                 serverUrl.ToString(),
                                                 useSecurity: !noSecurity,
-                                                quitCTS.Token);
+                                                quitCTS.Token).ConfigureAwait(true);
                                         }
 
                                         if ( waitCounters > closeSessionTime && waitCounters < restartSessionTime )
                                         {
-                                            Console.WriteLine("No Communication Interval " + stopCount.ToString());
+                                            Console.WriteLine("No Communication Interval " + stopCount.ToString(CultureInfo.InvariantCulture));
                                             stopCount++;
                                         }
                                     }

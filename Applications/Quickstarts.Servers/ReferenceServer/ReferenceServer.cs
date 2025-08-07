@@ -52,6 +52,19 @@ namespace Quickstarts.ReferenceServer
         #region Properties
         public ITokenValidator TokenValidator { get; set; }
 
+        /// <summary>
+        /// If true the ReferenceNodeManager is set to work with a sampling group mechanism
+        /// for managing monitored items instead of a Monitored Node mechanism
+        /// </summary>
+        public bool UseSamplingGroupsInReferenceNodeManager
+        {
+            get => m_useSamplingGroups;
+            set
+            {
+                m_useSamplingGroups = value;
+            }
+        }
+
         #endregion
 
         #region Overridden Methods
@@ -70,7 +83,7 @@ namespace Quickstarts.ReferenceServer
             IList<INodeManager> nodeManagers = new List<INodeManager>();
 
             // create the custom node manager.
-            nodeManagers.Add(new ReferenceNodeManager(server, configuration));
+            nodeManagers.Add(new ReferenceNodeManager(server, configuration, UseSamplingGroupsInReferenceNodeManager));
 
             foreach (var nodeManagerFactory in NodeManagerFactories)
             {
@@ -177,11 +190,10 @@ namespace Quickstarts.ReferenceServer
 
             try
             {
-                lock (ServerInternal.Status.Lock)
-                {
+                ServerInternal.UpdateServerStatus((status) => {
                     // allow a faster sampling interval for CurrentTime node.
-                    ServerInternal.Status.Variable.CurrentTime.MinimumSamplingInterval = 250;
-                }
+                    status.Variable.CurrentTime.MinimumSamplingInterval = 250;
+                });
             }
             catch
             { }
@@ -449,6 +461,7 @@ namespace Quickstarts.ReferenceServer
 
         #region Private Fields
         private ICertificateValidator m_userCertificateValidator;
+        private bool m_useSamplingGroups;
         #endregion
     }
 }

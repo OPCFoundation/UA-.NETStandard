@@ -34,6 +34,7 @@ using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Configuration;
+using Quickstarts.ReferenceServer;
 
 namespace Opc.Ua.Server.Tests
 {
@@ -59,6 +60,7 @@ namespace Opc.Ua.Server.Tests
         public int Port { get; private set; }
         public bool UseTracing { get; set; }
         public bool DurableSubscriptionsEnabled { get; set; } = false;
+        public bool UseSamplingGroupsInReferenceNodeManager { get; set; } = false;
         public ActivityListener ActivityListener { get; private set; }
 
         public ServerFixture(bool useTracing, bool disableActivityLogging)
@@ -248,6 +250,10 @@ namespace Opc.Ua.Server.Tests
             if (AllNodeManagers && server is StandardServer standardServer)
             {
                 Quickstarts.Servers.Utils.AddDefaultNodeManagers(standardServer);
+            }
+            if (UseSamplingGroupsInReferenceNodeManager && server is ReferenceServer referenceServer)
+            {
+                Quickstarts.Servers.Utils.UseSamplingGroupsInReferenceNodeManager(referenceServer);
             }
             await Application.StartAsync(server).ConfigureAwait(false);
             Server = server;

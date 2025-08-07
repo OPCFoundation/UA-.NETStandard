@@ -195,24 +195,6 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Creates the message context from the configuration.
-        /// </summary>
-        /// <value>A new instance of a ServiceMessageContext object.</value>
-        [Obsolete("Warning: Behavior changed return a copy instead of a reference. Should call CreateMessageContext() instead.")]
-        public IServiceMessageContext MessageContext
-        {
-            get
-            {
-                if (m_messageContext == null)
-                {
-                    m_messageContext = CreateMessageContext();
-                }
-
-                return m_messageContext;
-            }
-        }
-
-        /// <summary>
         /// Loads and validates the application configuration from a configuration section.
         /// </summary>
         /// <param name="sectionName">Name of configuration section for the current application's default configuration containing <see cref="ConfigurationLocation"/>.</param>

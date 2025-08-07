@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections;
+using System.Globalization;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -137,11 +138,11 @@ namespace Quickstarts
             bool success = false;
             SubscriptionCollection subscriptions = new SubscriptionCollection(m_session.Subscriptions);
             m_session = null;
-            if (await ConnectAsync(serverUrl, useSecurity, ct))
+            if (await ConnectAsync(serverUrl, useSecurity, ct).ConfigureAwait(false))
             {
                 if (subscriptions != null && m_session != null)
                 {
-                    m_output.WriteLine("Transferring " + subscriptions.Count.ToString() +
+                    m_output.WriteLine("Transferring " + subscriptions.Count.ToString(CultureInfo.InvariantCulture) +
                         " subscriptions from old session to new session...");
                     success = m_session.TransferSubscriptions(subscriptions, true);
                     if (success)
