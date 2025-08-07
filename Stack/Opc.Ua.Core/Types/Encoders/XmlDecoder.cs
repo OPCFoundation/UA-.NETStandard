@@ -620,7 +620,7 @@ namespace Opc.Ua
             string ns = typeName.Namespace;
             string name = typeName.Name;
 
-            int index = name.IndexOf(':');
+            int index = name.IndexOf(':', StringComparison.Ordinal);
 
             if (index != -1)
             {

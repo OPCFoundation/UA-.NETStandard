@@ -429,7 +429,7 @@ namespace Opc.Ua
 
             try
             {
-                index = textToParse.IndexOf(':');
+                index = textToParse.IndexOf(':', StringComparison.Ordinal);
 
                 if (index != -1)
                 {

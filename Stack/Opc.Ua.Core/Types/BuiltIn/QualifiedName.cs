@@ -521,7 +521,7 @@ namespace Opc.Ua
             }
             else
             {
-                int index = text.IndexOf(':');
+                int index = text.IndexOf(':', StringComparison.Ordinal);
 
                 if (index > 0)
                 {

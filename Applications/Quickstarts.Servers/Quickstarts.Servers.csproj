@@ -22,12 +22,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Remove="Properties\**" />
-    <EmbeddedResource Remove="Properties\**" />
-    <None Remove="Properties\**" />
-  </ItemGroup>
-
-  <ItemGroup>
     <Compile Remove="Alarms\Alarms.cs" />
   </ItemGroup>
 

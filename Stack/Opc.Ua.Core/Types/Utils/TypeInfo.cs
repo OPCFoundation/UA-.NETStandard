@@ -2417,7 +2417,7 @@ namespace Opc.Ua
                                 continue;
                             }
 
-                            int index = digits.IndexOf(char.ToUpper(text[ii]));
+                            int index = digits.IndexOf(char.ToUpper(text[ii]), StringComparison.Ordinal);
 
                             if (index < 0)
                             {
