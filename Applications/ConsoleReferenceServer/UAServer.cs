@@ -228,7 +228,7 @@ namespace Quickstarts
         /// <summary>
         /// Update the session status.
         /// </summary>
-        private void EventStatus(Session session, SessionEventReason reason)
+        private void EventStatus(ISession session, SessionEventReason reason)
         {
             m_lastEventTime = DateTime.UtcNow;
             PrintSessionStatus(session, reason.ToString());
@@ -237,7 +237,7 @@ namespace Quickstarts
         /// <summary>
         /// Output the status of a connected session.
         /// </summary>
-        private void PrintSessionStatus(Session session, string reason, bool lastContact = false)
+        private void PrintSessionStatus(ISession session, string reason, bool lastContact = false)
         {
             StringBuilder item = new StringBuilder();
             lock (session.DiagnosticsLock)
@@ -268,10 +268,10 @@ namespace Quickstarts
             {
                 if (DateTime.UtcNow - m_lastEventTime > TimeSpan.FromMilliseconds(10000))
                 {
-                    IList<Session> sessions = m_server.CurrentInstance.SessionManager.GetSessions();
+                    IList<ISession> sessions = m_server.CurrentInstance.SessionManager.GetSessions();
                     for (int ii = 0; ii < sessions.Count; ii++)
                     {
-                        Session session = sessions[ii];
+                        ISession session = sessions[ii];
                         PrintSessionStatus(session, "-Status-", true);
                     }
                     m_lastEventTime = DateTime.UtcNow;

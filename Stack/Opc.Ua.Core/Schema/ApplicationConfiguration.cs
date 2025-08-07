@@ -3129,11 +3129,6 @@ namespace Opc.Ua
         {
             get
             {
-                if (!string.IsNullOrEmpty(m_storeName))
-                {
-                    return CertificateStoreType.X509Store;
-                }
-
                 return m_storeType;
             }
 
@@ -3152,16 +3147,6 @@ namespace Opc.Ua
         {
             get
             {
-                if (!string.IsNullOrEmpty(m_storeName))
-                {
-                    if (string.IsNullOrEmpty(m_storeLocation))
-                    {
-                        return Utils.Format("LocalMachine\\{0}", m_storeName);
-                    }
-
-                    return Utils.Format("{0}\\{1}", m_storeLocation, m_storeName);
-                }
-
                 return m_storePath;
             }
 
@@ -3177,32 +3162,6 @@ namespace Opc.Ua
                     }
                 }
             }
-        }
-
-        /// <summary>
-        /// The name of the store that contains the certificate.
-        /// </summary>
-        /// <value>The name of the store.</value>
-        /// <seealso cref="System.Security.Cryptography.X509Certificates.StoreName"/>
-        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 20)]
-        [Obsolete("Use StoreType/StorePath instead")]
-        public string StoreName
-        {
-            get { return m_storeName; }
-            set { m_storeName = value; }
-        }
-
-        /// <summary>
-        /// The location of the store that contains the certificate.
-        /// </summary>
-        /// <value>The store location.</value>
-        /// <seealso cref="System.Security.Cryptography.X509Certificates.StoreLocation"/>
-        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 30)]
-        [Obsolete("Use StoreType/StorePath instead")]
-        public string StoreLocation
-        {
-            get { return m_storeLocation; }
-            set { m_storeLocation = value; }
         }
 
         /// <summary>
@@ -3380,8 +3339,6 @@ namespace Opc.Ua
         #region Private Fields
         private string m_storeType;
         private string m_storePath;
-        private string m_storeLocation;
-        private string m_storeName;
         private string m_subjectName;
         private string m_thumbprint;
         private X509Certificate2 m_certificate;

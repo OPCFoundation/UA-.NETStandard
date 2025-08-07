@@ -104,33 +104,6 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Creates a set of monitored items.
         /// </summary>
-        [Obsolete("Replaced by variant that includes the publishingInterval")]
-        public MonitoredItem CreateMonitoredItem(
-            OperationContext context,
-            INodeManager nodeManager,
-            object handle,
-            uint subscriptionId,
-            uint monitoredItemId,
-            TimestampsToReturn timestampsToReturn,
-            MonitoredItemCreateRequest itemToCreate,
-            EventFilter filter)
-        {
-            return CreateMonitoredItem(
-                context,
-                nodeManager,
-                handle,
-                subscriptionId,
-                monitoredItemId,
-                timestampsToReturn,
-                0,
-                itemToCreate,
-                filter,
-                false);
-        }
-
-        /// <summary>
-        /// Creates a set of monitored items.
-        /// </summary>
         public MonitoredItem CreateMonitoredItem(
             OperationContext context,
             INodeManager nodeManager,

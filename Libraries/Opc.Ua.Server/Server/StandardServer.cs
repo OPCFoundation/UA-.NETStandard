@@ -349,7 +349,7 @@ namespace Opc.Ua.Server
             maxRequestMessageSize = (uint)MessageContext.MaxMessageSize;
 
             OperationContext context = ValidateRequest(requestHeader, RequestType.CreateSession);
-            Session session = null;
+            ISession session = null;
             try
             {
                 // check the server uri.
@@ -574,7 +574,7 @@ namespace Opc.Ua.Server
         /// <param name="session">The session</param>
         /// <param name="parameters">The additional parameters for the session</param>
         /// <returns>An AdditionalParametersType object containing the processed parameters</returns>
-        protected virtual AdditionalParametersType CreateSessionProcessAdditionalParameters(Session session, AdditionalParametersType parameters)
+        protected virtual AdditionalParametersType CreateSessionProcessAdditionalParameters(ISession session, AdditionalParametersType parameters)
         {
             AdditionalParametersType response = null;
 
@@ -611,7 +611,7 @@ namespace Opc.Ua.Server
         /// <param name="session">The session</param>
         /// <param name="parameters">The additional parameters for the session</param>
         /// <returns>An AdditionalParametersType object containing the processed parameters</returns>
-        protected virtual AdditionalParametersType ActivateSessionProcessAdditionalParameters(Session session, AdditionalParametersType parameters)
+        protected virtual AdditionalParametersType ActivateSessionProcessAdditionalParameters(ISession session, AdditionalParametersType parameters)
         {
             AdditionalParametersType response = null;
 
@@ -736,7 +736,7 @@ namespace Opc.Ua.Server
                     // TBD - call Node Manager and Subscription Manager.
                 }
 
-                Session session = ServerInternal.SessionManager.GetSession(requestHeader.AuthenticationToken);
+                ISession session = ServerInternal.SessionManager.GetSession(requestHeader.AuthenticationToken);
 #if ECC_SUPPORT
                 var parameters = ExtensionObject.ToEncodeable(requestHeader.AdditionalHeader) as AdditionalParametersType;
                 parameters = ActivateSessionProcessAdditionalParameters(session, parameters);
@@ -762,7 +762,7 @@ namespace Opc.Ua.Server
                 Utils.LogInfo("Server - SESSION ACTIVATE failed. {0}", e.Message);
 
                 // report the audit event for failed session activate
-                Session session = ServerInternal.SessionManager.GetSession(requestHeader.AuthenticationToken);
+                ISession session = ServerInternal.SessionManager.GetSession(requestHeader.AuthenticationToken);
                 ServerInternal.ReportAuditActivateSessionEvent(context?.AuditEntryId, session, softwareCertificates, e);
 
                 lock (ServerInternal.DiagnosticsWriteLock)
@@ -865,7 +865,7 @@ namespace Opc.Ua.Server
 
             try
             {
-                Session session = ServerInternal.SessionManager.GetSession(requestHeader.AuthenticationToken);
+                ISession session = ServerInternal.SessionManager.GetSession(requestHeader.AuthenticationToken);
 
                 ServerInternal.CloseSession(context, context.Session.Id, deleteSubscriptions);
 
@@ -2303,9 +2303,9 @@ namespace Opc.Ua.Server
                 OnRequestComplete(context);
             }
         }
-#endregion
+        #endregion
 
-#region Public Methods used by the Host Process
+        #region Public Methods used by the Host Process
         /// <summary>
         /// The state object associated with the server.
         /// It provides the shared components for the Server.
@@ -2331,6 +2331,7 @@ namespace Opc.Ua.Server
         /// Returns the current status of the server.
         /// </summary>
         /// <returns>Returns a ServerStatusDataType object</returns>
+        [Obsolete("No longer thread safe. To read the value use CurrentState, to write use CurrentInstance.UpdateServerStatus.")]
         public ServerStatusDataType GetStatus()
         {
             lock (m_lock)
@@ -2339,10 +2340,12 @@ namespace Opc.Ua.Server
                 {
                     throw new ServiceResultException(StatusCodes.BadServerHalted);
                 }
-
                 return m_serverInternal.Status.Value;
             }
         }
+
+        /// <inheritdoc/>
+        public ServerState CurrentState => m_serverInternal.CurrentState;
 
         /// <summary>
         /// Registers the server with the discovery server.
@@ -2568,11 +2571,11 @@ namespace Opc.Ua.Server
         /// The state object associated with the server.
         /// </summary>
         /// <value>The server internal data.</value>
-        protected ServerInternalData ServerInternal
+        protected IServerInternal ServerInternal
         {
             get
             {
-                ServerInternalData serverInternal = m_serverInternal;
+                IServerInternal serverInternal = m_serverInternal;
 
                 if (serverInternal == null)
                 {
@@ -2598,7 +2601,7 @@ namespace Opc.Ua.Server
             }
 
             // check server state.
-            ServerInternalData serverInternal = m_serverInternal;
+            IServerInternal serverInternal = m_serverInternal;
 
             if (serverInternal == null || !serverInternal.IsRunning)
             {
@@ -3046,11 +3049,11 @@ namespace Opc.Ua.Server
 
                     // create the manager responsible for aggregates.
                     Utils.LogInfo(TraceMasks.StartStop, "Server - CreateAggregateManager.");
-                    m_serverInternal.AggregateManager = CreateAggregateManager(m_serverInternal, configuration);
+                    m_serverInternal.SetAggregateManager(CreateAggregateManager(m_serverInternal, configuration));
 
                     // start the session manager.
                     Utils.LogInfo(TraceMasks.StartStop, "Server - CreateSessionManager.");
-                    SessionManager sessionManager = CreateSessionManager(m_serverInternal, configuration);
+                    ISessionManager sessionManager = CreateSessionManager(m_serverInternal, configuration);
                     sessionManager.Startup();
 
                     // use event to trigger channel that should not be closed.
@@ -3070,7 +3073,7 @@ namespace Opc.Ua.Server
 
                     // start the subscription manager.
                     Utils.LogInfo(TraceMasks.StartStop, "Server - CreateSubscriptionManager.");
-                    SubscriptionManager subscriptionManager = CreateSubscriptionManager(m_serverInternal, configuration);
+                    ISubscriptionManager subscriptionManager = CreateSubscriptionManager(m_serverInternal, configuration);
                     subscriptionManager.Startup();
 
                     // add the session manager to the datastore.
@@ -3239,7 +3242,7 @@ namespace Opc.Ua.Server
         /// <returns>returns true if a channelId was found for the provided AuthenticationToken</returns>
         public override bool TryGetSecureChannelIdForAuthenticationToken(NodeId authenticationToken, out uint channelId)
         {
-            Session session = ServerInternal.SessionManager.GetSession(authenticationToken);
+            ISession session = ServerInternal.SessionManager.GetSession(authenticationToken);
 
             if (session == null)
             {
@@ -3258,18 +3261,22 @@ namespace Opc.Ua.Server
             try
             {
                 // check for connected clients.
-                IList<Session> currentessions = this.ServerInternal.SessionManager.GetSessions();
+                IList<ISession> currentessions = this.ServerInternal.SessionManager.GetSessions();
 
                 if (currentessions.Count > 0)
                 {
-                    // provide some time for the connected clients to detect the shutdown state.
-                    ServerInternal.Status.Value.ShutdownReason = new LocalizedText("en-US", "Application closed.");
-                    ServerInternal.Status.Variable.ShutdownReason.Value = new LocalizedText("en-US", "Application closed.");
-                    ServerInternal.Status.Value.State = ServerState.Shutdown;
-                    ServerInternal.Status.Variable.State.Value = ServerState.Shutdown;
-                    ServerInternal.Status.Variable.ClearChangeMasks(ServerInternal.DefaultSystemContext, true);
 
-                    foreach (Session session in currentessions)
+                    // provide some time for the connected clients to detect the shutdown state.
+                    ServerInternal.UpdateServerStatus((status) => {
+                        // set the shutdown reason and state.
+                        status.Value.ShutdownReason = new LocalizedText("en-US", "Application is shutting down.");
+                        status.Variable.ShutdownReason.Value = new LocalizedText("en-US", "Application is shutting down.");
+                        status.Value.State = ServerState.Shutdown;
+                        status.Variable.State.Value = ServerState.Shutdown;
+                        status.Variable.ClearChangeMasks(ServerInternal.DefaultSystemContext, true);
+                    });
+
+                    foreach (ISession session in currentessions)
                     {
                         // raise close session audit event
                         ServerInternal.ReportAuditCloseSessionEvent(null, session, "Session/Terminated");
@@ -3277,9 +3284,11 @@ namespace Opc.Ua.Server
 
                     for (int timeTillShutdown = Configuration.ServerConfiguration.ShutdownDelay; timeTillShutdown > 0; timeTillShutdown--)
                     {
-                        ServerInternal.Status.Value.SecondsTillShutdown = (uint)timeTillShutdown;
-                        ServerInternal.Status.Variable.SecondsTillShutdown.Value = (uint)timeTillShutdown;
-                        ServerInternal.Status.Variable.ClearChangeMasks(ServerInternal.DefaultSystemContext, true);
+                        ServerInternal.UpdateServerStatus((status) => {
+                            status.Value.SecondsTillShutdown = (uint)timeTillShutdown;
+                            status.Variable.SecondsTillShutdown.Value = (uint)timeTillShutdown;
+                            status.Variable.ClearChangeMasks(ServerInternal.DefaultSystemContext, true);
+                        });
 
                         // exit if all client connections are closed.
                         var sessions = ServerInternal.SessionManager.GetSessions().Count;
@@ -3421,8 +3430,8 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="server">The server.</param>
         /// <param name="configuration">The configuration.</param>
-        /// <returns>Returns a generic session manager object for a server, the return type is <seealso cref="SessionManager"/>.</returns>
-        protected virtual SessionManager CreateSessionManager(IServerInternal server, ApplicationConfiguration configuration)
+        /// <returns>Returns a generic session manager object for a server, the return type is <seealso cref="ISessionManager"/>.</returns>
+        protected virtual ISessionManager CreateSessionManager(IServerInternal server, ApplicationConfiguration configuration)
         {
             return new SessionManager(server, configuration);
         }
@@ -3433,7 +3442,7 @@ namespace Opc.Ua.Server
         /// <param name="server">The server.</param>
         /// <param name="configuration">The configuration.</param>
         /// <returns>Returns a generic session manager object for a server, the return type is <seealso cref="SubscriptionManager"/>.</returns>
-        protected virtual SubscriptionManager CreateSubscriptionManager(IServerInternal server, ApplicationConfiguration configuration)
+        protected virtual ISubscriptionManager CreateSubscriptionManager(IServerInternal server, ApplicationConfiguration configuration)
         {
             return new SubscriptionManager(server, configuration);
         }
@@ -3510,7 +3519,7 @@ namespace Opc.Ua.Server
         /// Reacts to a session channel keep alive event to signal
         /// a listener channel that a session is still active.
         /// </summary>
-        private void SessionChannelKeepAliveEvent(Session session, SessionEventReason reason)
+        private void SessionChannelKeepAliveEvent(ISession session, SessionEventReason reason)
         {
             Debug.Assert(reason == SessionEventReason.ChannelKeepAlive);
 
@@ -3530,7 +3539,7 @@ namespace Opc.Ua.Server
         #region Private Fields
         private readonly object m_lock = new object();
         private readonly object m_registrationLock = new object();
-        private ServerInternalData m_serverInternal;
+        private IServerInternal m_serverInternal;
         private ConfigurationWatcher m_configurationWatcher;
         private ConfiguredEndpointCollection m_registrationEndpoints;
         private RegisteredServer m_registrationInfo;

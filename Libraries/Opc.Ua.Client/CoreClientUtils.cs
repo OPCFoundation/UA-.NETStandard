@@ -111,44 +111,6 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Finds the endpoint that best matches the current settings.
         /// </summary>
-        /// <param name="discoveryUrl">The discovery URL.</param>
-        /// <param name="useSecurity">if set to <c>true</c> select an endpoint that uses security.</param>
-        /// <returns>The best available endpoint.</returns>
-        [Obsolete("Use the SelectEndpoint with ApplicationConfiguration instead to support ECC.")]
-        public static EndpointDescription SelectEndpoint(string discoveryUrl, bool useSecurity)
-        {
-            return SelectEndpoint(discoveryUrl, useSecurity, DefaultDiscoverTimeout);
-        }
-
-        /// <summary>
-        /// Finds the endpoint that best matches the current settings.
-        /// </summary>
-        /// <param name="discoveryUrl">The discovery URL.</param>
-        /// <param name="useSecurity">if set to <c>true</c> select an endpoint that uses security.</param>
-        /// <param name="discoverTimeout">Operation timeout in milliseconds.</param>
-        /// <returns>The best available endpoint.</returns>
-        [Obsolete("Use the SelectEndpoint with ApplicationConfiguration instead to support ECC.")]
-        public static EndpointDescription SelectEndpoint(
-            string discoveryUrl,
-            bool useSecurity,
-            int discoverTimeout
-            )
-        {
-            var url = GetDiscoveryUrl(discoveryUrl);
-            var endpointConfiguration = EndpointConfiguration.Create();
-            endpointConfiguration.OperationTimeout = discoverTimeout;
-
-            // Connect to the server's discovery endpoint and find the available configuration.
-            using (var client = DiscoveryClient.Create(url, endpointConfiguration))
-            {
-                var endpoints = client.GetEndpoints(null);
-                return SelectEndpoint(url, endpoints, useSecurity);
-            }
-        }
-
-        /// <summary>
-        /// Finds the endpoint that best matches the current settings.
-        /// </summary>
         public static EndpointDescription SelectEndpoint(
             ApplicationConfiguration application,
             ITransportWaitingConnection connection,
@@ -231,22 +193,6 @@ namespace Opc.Ua.Client
 
                 return selectedEndpoint;
             }
-        }
-
-        /// <summary>
-        /// Select the best supported endpoint from an
-        /// EndpointDescriptionCollection, with or without security.
-        /// </summary>
-        /// <param name="url">The discovery Url of the server.</param>
-        /// <param name="endpoints"></param>
-        /// <param name="useSecurity"></param>
-        [Obsolete("Use the SelectEndpoint with ApplicationConfiguration instead to support ECC.")]
-        public static EndpointDescription SelectEndpoint(
-            Uri url,
-            EndpointDescriptionCollection endpoints,
-            bool useSecurity)
-        {
-            return SelectEndpoint(null, url, endpoints, useSecurity);
         }
 
         /// <summary>

@@ -461,15 +461,6 @@ namespace Opc.Ua
         public bool SupportsLoadPrivateKey => true;
 
         /// <summary>
-        /// Loads the private key certificate with RSA signature from a PFX file in the certificate store.
-        /// </summary>
-        [Obsolete("Method is deprecated. Use only for RSA certificates, the replacing LoadPrivateKey with certificateType parameter should be used.")]
-        public Task<X509Certificate2> LoadPrivateKey(string thumbprint, string subjectName, string password)
-        {
-            return LoadPrivateKey(thumbprint, subjectName, null, null, password);
-        }
-
-        /// <summary>
         /// Loads the private key from a PFX file in the certificate store.
         /// </summary>
         public async Task<X509Certificate2> LoadPrivateKey(string thumbprint, string subjectName, string applicationUri, NodeId certificateType, string password)

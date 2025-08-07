@@ -253,23 +253,6 @@ namespace Opc.Ua
 
             return store;
         }
-
-        /// <summary>
-        /// Returns an object to access the store containing the certificates.
-        /// </summary>
-        /// <remarks>
-        /// Opens an instance of the store which contains public keys.
-        /// </remarks>
-        /// <param name="path">location of the store</param>
-        /// <param name="noPrivateKeys">Indicates whether NO private keys are found in the store. Default <c>true</c>.</param>
-        /// <returns>A disposable instance of the <see cref="ICertificateStore"/>.</returns>
-        [Obsolete("Use non static OpenStore method to take advantage of caching.")]
-        public static ICertificateStore OpenStore(string path, bool noPrivateKeys)
-        {
-            ICertificateStore store = CertificateStoreIdentifier.CreateStore(CertificateStoreIdentifier.DetermineStoreType(path));
-            store.Open(path, noPrivateKeys);
-            return store;
-        }
         #endregion
 
         #region Private Variables

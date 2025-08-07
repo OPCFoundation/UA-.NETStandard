@@ -71,7 +71,7 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="server">The server.</param>
         /// <param name="session">The session.</param>
-        public ServerSystemContext(IServerInternal server, Session session)
+        public ServerSystemContext(IServerInternal server, ISession session)
         {
             OperationContext = null;
             SessionId = session.Id;
@@ -130,7 +130,7 @@ namespace Opc.Ua.Server
         /// <returns>
         /// A copy of the system context that references the new session.
         /// </returns>
-        public ServerSystemContext Copy(Session session)
+        public ServerSystemContext Copy(ISession session)
         {
             ServerSystemContext copy = (ServerSystemContext)MemberwiseClone();
 

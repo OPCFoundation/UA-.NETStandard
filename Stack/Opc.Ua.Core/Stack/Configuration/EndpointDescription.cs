@@ -88,22 +88,6 @@ namespace Opc.Ua
         #endregion
 
         #region Public Methods
-        /// <summary>
-        /// Finds the user token policy with the specified id.
-        /// </summary>
-        [Obsolete]
-        public UserTokenPolicy FindUserTokenPolicy(string policyId)
-        {
-            foreach (UserTokenPolicy policy in m_userIdentityTokens)
-            {
-                if (policy.PolicyId == policyId)
-                {
-                    return policy;
-                }
-            }
-
-            return null;
-        }
 
         /// <summary>
         /// Finds the user token policy with the specified id and securtyPolicyUri
@@ -150,20 +134,6 @@ namespace Opc.Ua
         /// <summary>
         /// Finds a token policy that matches the user identity specified.
         /// </summary>
-        [Obsolete]
-        public UserTokenPolicy FindUserTokenPolicy(UserTokenType tokenType, XmlQualifiedName issuedTokenType)
-        {
-            if (issuedTokenType == null)
-            {
-                return FindUserTokenPolicy(tokenType, (string)null);
-            }
-
-            return FindUserTokenPolicy(tokenType, issuedTokenType.Namespace);
-        }
-
-        /// <summary>
-        /// Finds a token policy that matches the user identity specified.
-        /// </summary>
         public UserTokenPolicy FindUserTokenPolicy(UserTokenType tokenType,
             XmlQualifiedName issuedTokenType,
             string tokenSecurityPolicyUri)
@@ -174,37 +144,6 @@ namespace Opc.Ua
             }
 
             return FindUserTokenPolicy(tokenType, issuedTokenType.Namespace, tokenSecurityPolicyUri);
-        }
-
-        /// <summary>
-        /// Finds a token policy that matches the user identity specified.
-        /// </summary>
-        [Obsolete]
-        public UserTokenPolicy FindUserTokenPolicy(UserTokenType tokenType, string issuedTokenType)
-        {
-            // construct issuer type.
-            string issuedTokenTypeText = issuedTokenType;
-
-            // find matching policy, return most secure matching policy first.
-            foreach (UserTokenPolicy policy in m_userIdentityTokens.OrderByDescending(token => SecuredApplication.CalculateSecurityLevel(MessageSecurityMode.Sign, token.SecurityPolicyUri)))
-            {
-                // check token type.
-                if (tokenType != policy.TokenType)
-                {
-                    continue;
-                }
-
-                // check issuer token type.
-                if (issuedTokenTypeText != policy.IssuedTokenType)
-                {
-                    continue;
-                }
-
-                return policy;
-            }
-
-            // no policy found
-            return null;
         }
 
         /// <summary>

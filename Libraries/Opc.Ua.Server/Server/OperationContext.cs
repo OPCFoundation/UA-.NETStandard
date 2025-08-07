@@ -73,7 +73,7 @@ namespace Opc.Ua.Server
         /// <param name="requestHeader">The request header.</param>
         /// <param name="requestType">Type of the request.</param>
         /// <param name="session">The session.</param>
-        public OperationContext(RequestHeader requestHeader, RequestType requestType, Session session)
+        public OperationContext(RequestHeader requestHeader, RequestType requestType, ISession session)
         {
             if (requestHeader == null) throw new ArgumentNullException(nameof(requestHeader));
             if (session == null)       throw new ArgumentNullException(nameof(session));
@@ -101,7 +101,7 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="session">The session.</param>
         /// <param name="diagnosticsMasks">The diagnostics masks.</param>
-        public OperationContext(Session session, DiagnosticsMasks diagnosticsMasks)
+        public OperationContext(ISession session, DiagnosticsMasks diagnosticsMasks)
         {
             if (session == null) throw new ArgumentNullException(nameof(session));
             
@@ -160,7 +160,7 @@ namespace Opc.Ua.Server
         /// The session associated with the context.
         /// </summary>
         /// <value>The session.</value>
-        public Session Session
+        public ISession Session
         {
             get { return m_session; }
         }
@@ -306,7 +306,7 @@ namespace Opc.Ua.Server
 
         #region Private Fields
         private SecureChannelContext m_channelContext;
-        private Session m_session;
+        private ISession m_session;
         private IUserIdentity m_identity;
         private IList<string> m_preferredLocales;
         private DiagnosticsMasks m_diagnosticsMask;
