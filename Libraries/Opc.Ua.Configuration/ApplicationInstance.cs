@@ -218,7 +218,7 @@ namespace Opc.Ua.Configuration
             try
             {
                 // load the configuration file.
-                ApplicationConfiguration configuration = await ApplicationConfiguration.Load(
+                ApplicationConfiguration configuration = await ApplicationConfiguration.LoadAsync(
                     new System.IO.FileInfo(filePath),
                     applicationType,
                     configurationType,
