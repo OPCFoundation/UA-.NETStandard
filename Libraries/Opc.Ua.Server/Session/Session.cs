@@ -36,7 +36,7 @@ namespace Opc.Ua.Server
     /// <summary>
     /// A generic session manager object for a server.
     /// </summary>
-    public class Session : IDisposable
+    public class Session : ISession
     {
         #region Constructors
 
@@ -363,17 +363,6 @@ namespace Opc.Ua.Server
                 key.Signature = EccUtils.Sign(new ArraySegment<byte>(key.PublicKey), m_serverCertificate, m_eccUserTokenSecurityPolicyUri);
 
                 return key;
-            }
-        }
-
-        /// <summary>
-        /// The Server generated ephemeral key
-        /// </summary>
-        public EphemeralKeyType EphemeralKey
-        {
-            set
-            {
-                m_ephemeralKey = value;
             }
         }
 #endif
@@ -1206,11 +1195,6 @@ namespace Opc.Ua.Server
         private SessionSecurityDiagnosticsDataType m_securityDiagnostics;
         private List<ContinuationPoint> m_browseContinuationPoints;
         private List<HistoryContinuationPoint> m_historyContinuationPoints;
-
-#if ECC_SUPPORT
-        private EphemeralKeyType m_ephemeralKey;
-#endif
-
         #endregion
     }
 }

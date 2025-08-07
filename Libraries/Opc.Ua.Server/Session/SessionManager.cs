@@ -62,7 +62,7 @@ namespace Opc.Ua.Server
             m_maxBrowseContinuationPoints = configuration.ServerConfiguration.MaxBrowseContinuationPoints;
             m_maxHistoryContinuationPoints = configuration.ServerConfiguration.MaxHistoryContinuationPoints;
 
-            m_sessions = new NodeIdDictionary<Session>(m_maxSessionCount);
+            m_sessions = new NodeIdDictionary<ISession>(m_maxSessionCount);
             m_lastSessionId = BitConverter.ToInt64(Nonce.CreateRandomNonceData(sizeof(long)), 0);
 
             // create a event to signal shutdown.
@@ -139,7 +139,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Creates a new session.
         /// </summary>
-        public virtual Session CreateSession(
+        public virtual ISession CreateSession(
             OperationContext context,
             X509Certificate2 serverCertificate,
             string sessionName,
@@ -159,7 +159,7 @@ namespace Opc.Ua.Server
             serverNonce = null;
             revisedSessionTimeout = requestedSessionTimeout;
 
-            Session session = null;
+            ISession session = null;
 
             lock (m_lock)
             {
@@ -274,7 +274,7 @@ namespace Opc.Ua.Server
 
             Nonce serverNonceObject = null;
 
-            Session session = null;
+            ISession session = null;
             UserIdentityToken newIdentity = null;
             UserTokenPolicy userTokenPolicy = null;
 
@@ -405,10 +405,10 @@ namespace Opc.Ua.Server
         /// </remarks>
         public virtual void CloseSession(NodeId sessionId)
         {
-            Session session = null;
+            ISession session = null;
 
             // thread safe search for the session.
-            foreach (KeyValuePair<NodeId, Session> current in m_sessions)
+            foreach (KeyValuePair<NodeId, ISession> current in m_sessions)
             {
                 if (current.Value.Id == sessionId)
                 {
@@ -450,7 +450,7 @@ namespace Opc.Ua.Server
         {
             if (requestHeader == null) throw new ArgumentNullException(nameof(requestHeader));
 
-            Session session = null;
+            ISession session = null;
 
             try
             {
@@ -511,7 +511,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Creates a new instance of a session.
         /// </summary>
-        protected virtual Session CreateSession(
+        protected virtual ISession CreateSession(
             OperationContext context,
             IServerInternal server,
             X509Certificate2 serverCertificate,
@@ -552,7 +552,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Raises an event related to a session.
         /// </summary>
-        protected virtual void RaiseSessionEvent(Session session, SessionEventReason reason)
+        protected virtual void RaiseSessionEvent(ISession session, SessionEventReason reason)
         {
             lock (m_eventLock)
             {
@@ -598,7 +598,7 @@ namespace Opc.Ua.Server
                     // enumerator is thread safe
                     foreach (var sessionKeyValue in m_sessions)
                     {
-                        Session session = sessionKeyValue.Value;
+                        ISession session = sessionKeyValue.Value;
                         if (session.HasExpired)
                         {
                             // update diagnostics.
@@ -638,7 +638,7 @@ namespace Opc.Ua.Server
 #region Private Fields
         private readonly object m_lock = new object();
         private IServerInternal m_server;
-        private NodeIdDictionary<Session> m_sessions;
+        private NodeIdDictionary<ISession> m_sessions;
         private long m_lastSessionId;
         private ManualResetEvent m_shutdownEvent;
 
@@ -781,20 +781,20 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public IList<Session> GetSessions()
+        public IList<ISession> GetSessions()
         {
             lock (m_lock)
             {
-                return new List<Session>(m_sessions.Values);
+                return new List<ISession>(m_sessions.Values);
             }
         }
 
 
         /// <inheritdoc/>
-        public Session GetSession(NodeId authenticationToken)
+        public ISession GetSession(NodeId authenticationToken)
         {
             // find session.
-            if (m_sessions.TryGetValue(authenticationToken, out Session session))
+            if (m_sessions.TryGetValue(authenticationToken, out ISession session))
             {
                 return session;
             }

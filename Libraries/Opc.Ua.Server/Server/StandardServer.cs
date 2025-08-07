@@ -349,7 +349,7 @@ namespace Opc.Ua.Server
             maxRequestMessageSize = (uint)MessageContext.MaxMessageSize;
 
             OperationContext context = ValidateRequest(requestHeader, RequestType.CreateSession);
-            Session session = null;
+            ISession session = null;
             try
             {
                 // check the server uri.
@@ -574,7 +574,7 @@ namespace Opc.Ua.Server
         /// <param name="session">The session</param>
         /// <param name="parameters">The additional parameters for the session</param>
         /// <returns>An AdditionalParametersType object containing the processed parameters</returns>
-        protected virtual AdditionalParametersType CreateSessionProcessAdditionalParameters(Session session, AdditionalParametersType parameters)
+        protected virtual AdditionalParametersType CreateSessionProcessAdditionalParameters(ISession session, AdditionalParametersType parameters)
         {
             AdditionalParametersType response = null;
 
@@ -611,7 +611,7 @@ namespace Opc.Ua.Server
         /// <param name="session">The session</param>
         /// <param name="parameters">The additional parameters for the session</param>
         /// <returns>An AdditionalParametersType object containing the processed parameters</returns>
-        protected virtual AdditionalParametersType ActivateSessionProcessAdditionalParameters(Session session, AdditionalParametersType parameters)
+        protected virtual AdditionalParametersType ActivateSessionProcessAdditionalParameters(ISession session, AdditionalParametersType parameters)
         {
             AdditionalParametersType response = null;
 
@@ -736,7 +736,7 @@ namespace Opc.Ua.Server
                     // TBD - call Node Manager and Subscription Manager.
                 }
 
-                Session session = ServerInternal.SessionManager.GetSession(requestHeader.AuthenticationToken);
+                ISession session = ServerInternal.SessionManager.GetSession(requestHeader.AuthenticationToken);
 #if ECC_SUPPORT
                 var parameters = ExtensionObject.ToEncodeable(requestHeader.AdditionalHeader) as AdditionalParametersType;
                 parameters = ActivateSessionProcessAdditionalParameters(session, parameters);
@@ -762,7 +762,7 @@ namespace Opc.Ua.Server
                 Utils.LogInfo("Server - SESSION ACTIVATE failed. {0}", e.Message);
 
                 // report the audit event for failed session activate
-                Session session = ServerInternal.SessionManager.GetSession(requestHeader.AuthenticationToken);
+                ISession session = ServerInternal.SessionManager.GetSession(requestHeader.AuthenticationToken);
                 ServerInternal.ReportAuditActivateSessionEvent(context?.AuditEntryId, session, softwareCertificates, e);
 
                 lock (ServerInternal.DiagnosticsWriteLock)
@@ -865,7 +865,7 @@ namespace Opc.Ua.Server
 
             try
             {
-                Session session = ServerInternal.SessionManager.GetSession(requestHeader.AuthenticationToken);
+                ISession session = ServerInternal.SessionManager.GetSession(requestHeader.AuthenticationToken);
 
                 ServerInternal.CloseSession(context, context.Session.Id, deleteSubscriptions);
 
@@ -3242,7 +3242,7 @@ namespace Opc.Ua.Server
         /// <returns>returns true if a channelId was found for the provided AuthenticationToken</returns>
         public override bool TryGetSecureChannelIdForAuthenticationToken(NodeId authenticationToken, out uint channelId)
         {
-            Session session = ServerInternal.SessionManager.GetSession(authenticationToken);
+            ISession session = ServerInternal.SessionManager.GetSession(authenticationToken);
 
             if (session == null)
             {
@@ -3261,7 +3261,7 @@ namespace Opc.Ua.Server
             try
             {
                 // check for connected clients.
-                IList<Session> currentessions = this.ServerInternal.SessionManager.GetSessions();
+                IList<ISession> currentessions = this.ServerInternal.SessionManager.GetSessions();
 
                 if (currentessions.Count > 0)
                 {
@@ -3276,7 +3276,7 @@ namespace Opc.Ua.Server
                         status.Variable.ClearChangeMasks(ServerInternal.DefaultSystemContext, true);
                     });
 
-                    foreach (Session session in currentessions)
+                    foreach (ISession session in currentessions)
                     {
                         // raise close session audit event
                         ServerInternal.ReportAuditCloseSessionEvent(null, session, "Session/Terminated");
@@ -3519,7 +3519,7 @@ namespace Opc.Ua.Server
         /// Reacts to a session channel keep alive event to signal
         /// a listener channel that a session is still active.
         /// </summary>
-        private void SessionChannelKeepAliveEvent(Session session, SessionEventReason reason)
+        private void SessionChannelKeepAliveEvent(ISession session, SessionEventReason reason)
         {
             Debug.Assert(reason == SessionEventReason.ChannelKeepAlive);
 

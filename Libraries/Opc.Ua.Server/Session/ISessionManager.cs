@@ -85,18 +85,18 @@ namespace Opc.Ua.Server
         /// Returns all of the sessions known to the session manager.
         /// </summary>
         /// <returns>A list of the sessions.</returns>
-        IList<Session> GetSessions();
+        IList<ISession> GetSessions();
 
         /// <summary>
         /// Find and return a session specified by authentication token
         /// </summary>
         /// <returns>The requested session.</returns>
-        Session GetSession(NodeId authenticationToken);
+        ISession GetSession(NodeId authenticationToken);
 
         /// <summary>
         /// Creates a new session.
         /// </summary>
-        Session CreateSession(
+        ISession CreateSession(
             OperationContext context,
             X509Certificate2 serverCertificate,
             string sessionName,
@@ -178,7 +178,7 @@ namespace Opc.Ua.Server
     /// <summary>
     /// The delegate for functions used to receive session related events.
     /// </summary>
-    public delegate void SessionEventHandler(Session session, SessionEventReason reason);
+    public delegate void SessionEventHandler(ISession session, SessionEventReason reason);
 
     #region ImpersonateEventArgs Class
     /// <summary>
@@ -264,7 +264,7 @@ namespace Opc.Ua.Server
     /// <summary>
     /// The delegate for functions used to receive impersonation events.
     /// </summary>
-    public delegate void ImpersonateEventHandler(Session session, ImpersonateEventArgs args);
+    public delegate void ImpersonateEventHandler(ISession session, ImpersonateEventArgs args);
     #endregion
 
     #region ValidateSessionLessRequestEventArgs Class

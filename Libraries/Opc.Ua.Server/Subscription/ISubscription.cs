@@ -39,7 +39,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// The session that owns the monitored item.
         /// </summary>
-        Session Session { get; }
+        ISession Session { get; }
 
         /// <summary>
         /// The subscriptions owner identity.
